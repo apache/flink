@@ -197,9 +197,9 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.recentPendingCheckpoints = new ArrayDeque<Long>(NUM_GHOST_CHECKPOINT_IDS);
 		this.userClassLoader = userClassLoader;
-		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 
-		checkpointIDCounter.start();
+		// Started with the periodic scheduler
+		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 
 		this.timer = new Timer("Checkpoint Timer", true);
 
@@ -861,6 +861,14 @@ public class CheckpointCoordinator {
 
 			// make sure all prior timers are cancelled
 			stopCheckpointScheduler();
+
+			try {
+				// Multiple start calls are OK
+				checkpointIdCounter.start();
+			} catch (Exception e) {
+				String msg = "Failed to start checkpoint ID counter: " + e.getMessage();
+				throw new RuntimeException(msg, e);
+			}
 
 			periodicScheduling = true;
 			currentPeriodicTrigger = new ScheduledTrigger();
