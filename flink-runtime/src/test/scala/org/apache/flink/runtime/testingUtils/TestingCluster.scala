@@ -42,9 +42,9 @@ import scala.concurrent.{Await, Future}
  *                          otherwise false
  */
 class TestingCluster(
-                      userConfiguration: Configuration,
-                      singleActorSystem: Boolean,
-                      synchronousDispatcher: Boolean)
+    userConfiguration: Configuration,
+    singleActorSystem: Boolean,
+    synchronousDispatcher: Boolean)
   extends FlinkMiniCluster(
     userConfiguration,
     singleActorSystem) {
