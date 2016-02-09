@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -88,18 +89,18 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	}
 
 	@Override
-	public void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) throws Exception {
-		for (KafkaTopicPartitionLeader tp : partitions) {
-			long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
+	public Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions, Fetcher fetcher) throws Exception {
+		Map<KafkaTopicPartition, Long> ret = new HashMap<>(partitions.size());
+		for (KafkaTopicPartition tp : partitions) {
+			long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition());
 
 			if (offset != OFFSET_NOT_SET) {
-				LOG.info("Offset for partition {} was set to {} in ZooKeeper. Seeking fetcher to that position.",
-						tp.getTopicPartition().getPartition(), offset);
-
-				// the offset in Zookeeper was the last read offset, seek is accepting the next-to-read-offset.
-				fetcher.seek(tp.getTopicPartition(), offset + 1);
+				LOG.info("Offset for TopicPartition {}:{} was set to {} in ZooKeeper. Seeking fetcher to that position.",
+						tp.getTopic(), tp.getPartition(), offset);
+				ret.put(tp, offset);
 			}
 		}
+		return ret;
 	}
 
 	@Override

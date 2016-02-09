@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 import org.apache.kafka.common.Node;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -62,14 +62,6 @@ public class KafkaTopicPartitionLeader implements Serializable {
 		} else {
 			return new Node(leaderId, leaderHost, leaderPort);
 		}
-	}
-
-	public static Object toString(List<KafkaTopicPartitionLeader> partitions) {
-		StringBuilder sb = new StringBuilder();
-		for (KafkaTopicPartitionLeader p: partitions) {
-			sb.append(p.getTopicPartition().getTopic()).append(":").append(p.getTopicPartition().getPartition()).append(", ");
-		}
-		return sb.toString();
 	}
 
 	@Override
@@ -115,7 +107,8 @@ public class KafkaTopicPartitionLeader implements Serializable {
 	 * @return oldValue the old value (offset)
 	 */
 	public static Long replaceIgnoringLeader(KafkaTopicPartitionLeader newKey, Long newValue, Map<KafkaTopicPartitionLeader, Long> map) {
-		for(Map.Entry<KafkaTopicPartitionLeader, Long> entry: map.entrySet()) {
+		Map<KafkaTopicPartitionLeader, Long> searchMap = new HashMap<>(map); // create copy for the iterator
+		for(Map.Entry<KafkaTopicPartitionLeader, Long> entry: searchMap.entrySet()) {
 			if(entry.getKey().getTopicPartition().equals(newKey.getTopicPartition())) {
 				Long oldValue = map.remove(entry.getKey());
 				if(map.put(newKey, newValue) != null) {

@@ -203,3 +203,12 @@ stream.addSink(new FlinkKafkaProducer08[String]("localhost:9092", "my-topic", ne
 You can also define a custom Kafka producer configuration for the KafkaSink with the constructor. Please refer to
 the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for details on how to configure
 Kafka Producers.
+
+**Note**: By default, the number of retries is set to "0". This means that the producer fails immediately on errors,
+including leader changes. The value is set to "0" by default to avoid duplicate messages in the target topic.
+For most production environments with frequent broker changes, we recommend setting the number of retries to a 
+higher value.
+
+There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
+into a Kafka topic.
+
