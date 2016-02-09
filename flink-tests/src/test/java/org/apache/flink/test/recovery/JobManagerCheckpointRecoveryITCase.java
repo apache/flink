@@ -116,15 +116,15 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 	private static final int Parallelism = 8;
 
-	private static final CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
+	private static CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
 
-	private static final AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
+	private static AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
 
-	private static final CountDownLatch FinalCountLatch = new CountDownLatch(1);
+	private static CountDownLatch FinalCountLatch = new CountDownLatch(1);
 
-	private static final AtomicReference<Long> FinalCount = new AtomicReference<>();
+	private static AtomicReference<Long> FinalCount = new AtomicReference<>();
 
-	private static final long LastElement = -1;
+	private static long LastElement = -1;
 
 	/**
 	 * Simple checkpointed streaming sum.
@@ -156,7 +156,6 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(ZooKeeper
 				.getConnectString(), FileStateBackendBasePath.getAbsoluteFile().toURI().toString());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 		ActorSystem testSystem = null;
 		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
@@ -248,6 +247,13 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			}
 		}
 		catch (Throwable t) {
+			// Reset all static state for test retries
+			CompletedCheckpointsLatch = new CountDownLatch(2);
+			RecoveredStates = new AtomicLongArray(Parallelism);
+			FinalCountLatch = new CountDownLatch(1);
+			FinalCount = new AtomicReference<>();
+			LastElement = -1;
+
 			// Print early (in some situations the process logs get too big
 			// for Travis and the root problem is not shown)
 			t.printStackTrace();
@@ -303,7 +309,6 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 				fileStateBackendPath);
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
 		LeaderRetrievalService leaderRetrievalService = null;
