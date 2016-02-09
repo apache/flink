@@ -36,7 +36,7 @@ import java.util.UUID;
  */
 public class AkkaActorGateway implements ActorGateway, Serializable {
 
-	private static final long serialVersionUID = 42l;
+	private static final long serialVersionUID = 42L;
 
 	// ActorRef of the remote instance
 	private final ActorRef actor;

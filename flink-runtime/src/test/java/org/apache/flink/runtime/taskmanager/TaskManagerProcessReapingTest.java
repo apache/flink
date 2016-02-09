@@ -25,9 +25,14 @@ import akka.actor.PoisonPill;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.junit.Test;
@@ -87,11 +92,21 @@ public class TaskManagerProcessReapingTest {
 			jmActorSystem = AkkaUtils.createActorSystem(
 					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
 
-			JobManager.startJobManagerActors(
+			ActorRef jmActor = JobManager.startJobManagerActors(
 				new Configuration(),
 				jmActorSystem,
 				JobManager.class,
-				MemoryArchivist.class);
+				MemoryArchivist.class)._1;
+
+			// start a ResourceManager
+			StandaloneLeaderRetrievalService standaloneLeaderRetrievalService =
+				new StandaloneLeaderRetrievalService(AkkaUtils.getAkkaURL(jmActorSystem, jmActor));
+
+			FlinkResourceManager.startResourceManagerActors(
+				new Configuration(),
+				jmActorSystem,
+				standaloneLeaderRetrievalService,
+				StandaloneResourceManager.class);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
 
@@ -206,7 +221,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 256);
 
-				TaskManager.runTaskManager("localhost", taskManagerPort, cfg);
+				TaskManager.runTaskManager("localhost", ResourceID.generate(), taskManagerPort, cfg);
 
 				// wait forever
 				Object lock = new Object();

@@ -24,6 +24,7 @@ import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +61,7 @@ public class LeaderRetrievalUtils {
 	public static LeaderRetrievalService createLeaderRetrievalService(Configuration configuration)
 		throws Exception {
 
-		RecoveryMode recoveryMode = RecoveryMode.valueOf(
-				configuration.getString(
-						ConfigConstants.RECOVERY_MODE,
-						ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+		RecoveryMode recoveryMode = getRecoveryMode(configuration);
 
 		switch (recoveryMode) {
 			case STANDALONE:
@@ -74,6 +73,32 @@ public class LeaderRetrievalUtils {
 		}
 	}
 
+	/**
+	 * Creates a {@link LeaderRetrievalService} that either uses the distributed leader election
+	 * configured in the configuration, or, in standalone mode, the given actor reference.
+	 *
+	 * @param configuration Configuration containing the settings for the {@link LeaderRetrievalService}
+	 * @param standaloneRef Actor reference to be used in standalone mode. 
+	 *                      
+	 * @return The {@link LeaderRetrievalService} specified in the configuration object
+	 * @throws Exception
+	 */
+	public static LeaderRetrievalService createLeaderRetrievalService(
+				Configuration configuration, ActorRef standaloneRef) throws Exception {
+
+		RecoveryMode recoveryMode = getRecoveryMode(configuration);
+
+		switch (recoveryMode) {
+			case STANDALONE:
+				String akkaUrl = standaloneRef.path().toSerializationFormat();
+				return new StandaloneLeaderRetrievalService(akkaUrl);
+			case ZOOKEEPER:
+				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
+			default:
+				throw new Exception("Recovery mode " + recoveryMode + " is not supported.");
+		}
+	}
+	
 	/**
 	 * Retrieves the current leader gateway using the given {@link LeaderRetrievalService}. If the
 	 * current leader could not be retrieved after the given timeout, then a
@@ -256,6 +281,34 @@ public class LeaderRetrievalUtils {
 		}
 	}
 
+	/**
+	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#RECOVERY_MODE}
+	 * config key.
+	 * 
+	 * @param config The configuration to read the recovery mode from.
+	 * @return The recovery mode.
+	 * 
+	 * @throws IllegalConfigurationException Thrown, if the recovery mode does not correspond
+	 *                                       to a known value.
+	 */
+	public static RecoveryMode getRecoveryMode(Configuration config) {
+		String mode = config.getString(
+			ConfigConstants.RECOVERY_MODE,
+			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+		
+		switch (mode) {
+			case "STANDALONE":
+				return RecoveryMode.STANDALONE;
+			case "ZOOKEEPER":
+				return RecoveryMode.ZOOKEEPER;
+			default:
+				throw new IllegalConfigurationException(
+					"The value for '" + ConfigConstants.RECOVERY_MODE + "' is unknown: " + mode);
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Private constructor to prevent instantiation.
 	 */

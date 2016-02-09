@@ -51,7 +51,7 @@ object TestingTaskManagerMessages {
 
   case class JobManagerTerminated(jobManager: ActorRef)
 
-  case class NotifyWhenRegisteredAtJobManager(jobManager: ActorRef)
+  case class NotifyWhenRegisteredAtJobManager(resourceManager: ActorRef)
 
   /**
    * Message to give a hint to the task manager that accumulator values were updated in the task.

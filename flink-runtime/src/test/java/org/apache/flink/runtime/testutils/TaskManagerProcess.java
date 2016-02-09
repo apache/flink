@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,7 +114,10 @@ public class TaskManagerProcess extends TestJvmProcess {
 				LOG.info("Configuration: {}.", config);
 
 				// Run the TaskManager
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(config, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(
+					config,
+					ResourceID.generate(),
+					TaskManager.class);
 
 				// Run forever
 				new CountDownLatch(1).await();

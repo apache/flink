@@ -94,7 +94,7 @@ class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem)
             case e => fail(s"Received wrong exception $e.")
           }
         }
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
