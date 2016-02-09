@@ -1378,11 +1378,11 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Locally sorts the partitions of the DataSet on the an extracted key in the specified order.
-	 * DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
+	 * Locally sorts the partitions of the DataSet on the extracted key in the specified order.
+	 * The DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
 	 *
-	 * Note that any key extraction methods cannot be chained with the KeySelector. To sort the
-	 * partition by multiple values using KeySelector, the KeySelector must return a tuple
+	 * Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
+	 * the partitions by multiple values using KeySelector, the KeySelector must return a tuple
 	 * consisting of the values.
 	 *
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet

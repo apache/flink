@@ -215,8 +215,8 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 				public Long getKey(Tuple3<Integer, Long, String> value) throws Exception {
 					return value.f1;
 				}
-			}, Order.DESCENDING)
-			.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+			}, Order.ASCENDING)
+			.mapPartition(new OrderCheckMapper<>(new Tuple3AscendingChecker()))
 			.distinct().collect();
 
 		String expected = "(true)\n";
@@ -259,6 +259,14 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		@Override
 		public boolean inOrder(Tuple3<Integer, Long, String> t1, Tuple3<Integer, Long, String> t2) {
 			return t1.f1 >= t2.f1;
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static class Tuple3AscendingChecker implements OrderChecker<Tuple3<Integer, Long, String>> {
+		@Override
+		public boolean inOrder(Tuple3<Integer, Long, String> t1, Tuple3<Integer, Long, String> t2) {
+			return t1.f1 <= t2.f1;
 		}
 	}
 

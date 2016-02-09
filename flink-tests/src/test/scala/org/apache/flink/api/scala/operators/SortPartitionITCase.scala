@@ -175,8 +175,8 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
 
     val result = ds
       .map { x => x }.setParallelism(4)
-      .sortPartition(_._2, Order.DESCENDING)
-      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+      .sortPartition(_._2, Order.ASCENDING)
+      .mapPartition(new OrderCheckMapper(new Tuple3AscendingChecker))
       .distinct()
       .collect()
 
@@ -228,6 +228,12 @@ trait OrderChecker[T] extends Serializable {
 class Tuple3Checker extends OrderChecker[(Int, Long, String)] {
   def inOrder(t1: (Int, Long, String), t2: (Int, Long, String)): Boolean = {
     t1._2 >= t2._2
+  }
+}
+
+class Tuple3AscendingChecker extends OrderChecker[(Int, Long, String)] {
+  def inOrder(t1: (Int, Long, String), t2: (Int, Long, String)): Boolean = {
+    t1._2 <= t2._2
   }
 }
 

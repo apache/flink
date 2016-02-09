@@ -77,7 +77,7 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 		orders.add(sortOrder);
 	}
 
-	public SortPartitionOperator(DataSet<T> dataSet, Keys<T> sortKey, Order sortOrder, String sortLocationName) {
+	public <K> SortPartitionOperator(DataSet<T> dataSet, Keys.SelectorFunctionKeys<T, K> sortKey, Order sortOrder, String sortLocationName) {
 		this(dataSet, sortLocationName);
 		this.useKeySelector = true;
 
@@ -151,8 +151,8 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 		}
 	}
 
-	private void ensureSortableKey(Keys<T> sortKey) {
-		if (sortKey instanceof Keys.SelectorFunctionKeys && !((Keys.SelectorFunctionKeys) sortKey).getKeyType().isSortKeyType()) {
+	private <K> void ensureSortableKey(Keys.SelectorFunctionKeys<T, K> sortKey) {
+		if (!sortKey.getKeyType().isSortKeyType()) {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 	}
