@@ -240,13 +240,6 @@ under the License.
 				<version>1.7</version>
 			</dependency>
 			
-			<!-- stax is pulled in different versions by different transitive dependencies-->
-			<dependency>
-				<groupId>stax</groupId>
-				<artifactId>stax-api</artifactId>
-				<version>1.0.1</version>
-			</dependency>
-			
 			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
 				<groupId>com.esotericsoftware.kryo</groupId>
@@ -351,13 +344,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpcore</artifactId>
-				<version>4.2.5</version>
+				<version>4.4.4</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>
-				<version>4.2.6</version>
+				<version>4.5.1</version>
 			</dependency>
 
 			<dependency>
