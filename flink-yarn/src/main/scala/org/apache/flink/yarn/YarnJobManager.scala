@@ -512,14 +512,15 @@ class YarnJobManager(
     RegisterApplicationMasterResponseReflector.getContainersFromPreviousAttempts(response)
   }
 
+
   private def getContainerRequest(memoryPerTaskManager: Int): ContainerRequest = {
     // Priority for worker containers - priorities are intra-application
     val priority = Records.newRecord(classOf[Priority])
     priority.setPriority(0)
 
     val taskManagerSlots = env.get(FlinkYarnClientBase.ENV_SLOTS).toInt
-    val vcores: Int = flinkConfiguration.getInteger(ConfigConstants.YARN_VCORES,
-      Math.max(taskManagerSlots, 1))
+    val vcores: Int = flinkConfiguration
+      .getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1))
 
     // Resource requirements for worker containers
     val capability = Records.newRecord(classOf[Resource])
