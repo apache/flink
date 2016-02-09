@@ -318,6 +318,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	public void run(SourceContext<T> sourceContext) throws Exception {
 		if(consumer != null) {
 			consumerThread = new ConsumerThread<>(this, sourceContext);
+			consumerThread.setDaemon(true);
 			consumerThread.start();
 			// wait for the consumer to stop
 			while(consumerThread.isAlive()) {
