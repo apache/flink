@@ -28,7 +28,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenUtils._
-import org.apache.flink.api.table.codegen.Indenter._
+import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.OperatorCodeGen._
 import org.apache.flink.api.table.plan.TypeConverter.sqlTypeToTypeInfo
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
@@ -36,6 +36,13 @@ import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
+/**
+  * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
+  *
+  * @param config configuration that determines runtime behavior
+  * @param input1 type information about the first input of the Function
+  * @param input2 type information about the second input if the Function is binary
+  */
 class CodeGenerator(
     config: TableConfig,
     input1: TypeInformation[Any],
@@ -54,32 +61,78 @@ class CodeGenerator(
   // (inputTerm, index) -> expr
   private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
 
+  /**
+    * @return code block of statements that need to be placed in the member area of the Function
+    *         (e.g. member variables and their initialization)
+    */
   def reuseMemberCode(): String = {
     reusableMemberStatements.mkString("", "\n", "\n")
   }
 
+  /**
+    * @return code block of statements that need to be placed in the constructor of the Function
+    */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
   }
 
+  /**
+    * @return code block of statements that unbox input variables to a primitive variable
+    *         and a corresponding null flag variable
+    */
   def reuseInputUnboxingCode(): String = {
     reusableInputUnboxingExprs.values.map(_.code).mkString("", "\n", "\n")
   }
 
+  /**
+    * @return term of the (casted and possibly boxed) first input
+    */
   def input1Term = "in1"
 
+  /**
+    * @return term of the (casted and possibly boxed) second input
+    */
   def input2Term = "in2"
 
+  /**
+    * @return term of the (casted) output collector
+    */
   def collectorTerm = "c"
 
+  /**
+    * @return term of the output record (possibly defined in the member area e.g. Row, Tuple)
+    */
   def outRecordTerm = "out"
 
+  /**
+    * @return returns if null checking is enabled
+    */
   def nullCheck: Boolean = config.getNullCheck
 
+  /**
+    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
+    * added to reusable code sections internally.
+    *
+    * @param rex Calcite row expression
+    * @return instance of GeneratedExpression
+    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
     rex.accept(this)
   }
 
+  /**
+    * Generates a [[org.apache.flink.api.common.functions.Function]] that can be passed to Java
+    * compiler.
+    *
+    * @param name Class name of the Function. Must not be unique but has to be a valid Java class
+    *             identifier.
+    * @param clazz Flink Function to be generated.
+    * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
+    *                 output record can be accessed via the given term methods.
+    * @param returnType expected return type
+    * @tparam T Flink Function to be generated.
+    * @return instance of GeneratedFunction
+    */
   def generateFunction[T <: Function](
       name: String,
       clazz: Class[T],
@@ -91,15 +144,21 @@ class CodeGenerator(
     // Janino does not support generics, that's why we need
     // manual casting here
     val samHeader =
+      // FlatMapFunction
       if (clazz == classOf[FlatMapFunction[_,_]]) {
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         (s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
           s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;")
-      } else if (clazz == classOf[MapFunction[_,_]]) {
+      }
+
+      // MapFunction
+      else if (clazz == classOf[MapFunction[_,_]]) {
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         ("Object map(Object _in1)",
           s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;")
-      } else {
+      }
+
+      else {
         // TODO more functions
         throw new CodeGenException("Unsupported Function.")
       }
@@ -126,6 +185,15 @@ class CodeGenerator(
     GeneratedFunction(funcName, returnType, funcCode)
   }
 
+  /**
+    * Generates an expression that converts the first input (and second input) into the given type.
+    * If two inputs are converted, the second input is appended. If objects or variables can
+    * be reused, they will be added to reusable code sections internally. The evaluation result
+    * may be stored in the global result variable (see [[outRecordTerm]]).
+    *
+    * @param returnType conversion target type. Inputs and output must have the same arity.
+    * @return instance of GeneratedExpression
+    */
   def generateConverterResultExpression(
       returnType: TypeInformation[_ <: Any])
     : GeneratedExpression = {
@@ -141,6 +209,15 @@ class CodeGenerator(
     generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType)
   }
 
+  /**
+    * Generates an expression from a sequence of RexNode. If objects or variables can be reused,
+    * they will be added to reusable code sections internally. The evaluation result
+    * may be stored in the global result variable (see [[outRecordTerm]]).
+    *
+    * @param returnType conversion target type. Type must have the same arity than rexNodes.
+    * @param rexNodes sequence of RexNode
+    * @return instance of GeneratedExpression
+    */
   def generateResultExpression(
       returnType: TypeInformation[_ <: Any],
       rexNodes: Seq[RexNode])
@@ -149,10 +226,20 @@ class CodeGenerator(
     generateResultExpression(fieldExprs, returnType)
   }
 
+  /**
+    * Generates an expression from a sequence of other expressions. If objects or variables can
+    * be reused, they will be added to reusable code sections internally. The evaluation result
+    * may be stored in the global result variable (see [[outRecordTerm]]).
+    *
+    * @param fieldExprs
+    * @param returnType conversion target type. Type must have the same arity than fieldExprs.
+    * @return instance of GeneratedExpression
+    */
   def generateResultExpression(
       fieldExprs: Seq[GeneratedExpression],
       returnType: TypeInformation[_ <: Any])
     : GeneratedExpression = {
+    // TODO disable arity check for Rows and derive row arity from fieldExprs
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException("Arity of result type does not match number of expressions.")
@@ -301,6 +388,8 @@ class CodeGenerator(
   }
 
   // ----------------------------------------------------------------------------------------------
+  // RexVisitor methods
+  // ----------------------------------------------------------------------------------------------
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
@@ -376,7 +465,7 @@ class CodeGenerator(
           throw new CodeGenException("Decimal can not be converted to double.")
         }
       case VARCHAR | CHAR =>
-        generateNonNullLiteral(resultType, value.toString)
+        generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case NULL =>
         generateNullLiteral(resultType)
       case _ => ??? // TODO more types
@@ -514,6 +603,8 @@ class CodeGenerator(
 
   override def visitOver(over: RexOver): GeneratedExpression = ???
 
+  // ----------------------------------------------------------------------------------------------
+  // generator helping methods
   // ----------------------------------------------------------------------------------------------
 
   private def generateInputAccess(
