@@ -99,7 +99,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flin
 		# Deploy hadoop v1 to maven
 		echo "Generating poms for hadoop1"
 		./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_HADOOP1 pom.hadoop1.xml
-		mvn -B -f pom.hadoop1.xml -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		mvn -B -f pom.hadoop1.xml -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 
 		# deploy to s3
 		deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop1"
@@ -116,13 +116,13 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flin
 		# deploy hadoop v2 (yarn)
 		echo "deploy standard version (hadoop2) for scala 2.10 from flink2 directory"
 		# do the hadoop2 scala 2.10 in the background
-		(mvn -B -DskipTests -Pdocs-and-source -Drat.skip=true -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml; deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2" ) &
+		(mvn -B -DskipTests -Drat.skip=true -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml; deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2" ) &
 
 		# switch back to the regular flink directory
 		cd ../flink
 		echo "deploy hadoop2 version (standard) for scala 2.11 from flink directory"
 		./tools/change-scala-version.sh 2.11
-		mvn -B -DskipTests -Pdocs-and-source -Drat.skip=true -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml;
+		mvn -B -DskipTests -Drat.skip=true -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml;
 
 		deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop2_2.11"
 
