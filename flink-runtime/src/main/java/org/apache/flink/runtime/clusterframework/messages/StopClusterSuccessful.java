@@ -16,24 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
+package org.apache.flink.runtime.clusterframework.messages;
 
-public interface ExecutionObserver {
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
+/**
+ * Generic message to signal the cluster listener that the cluster has been shut down.
+ */
+public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.Serializable {
+
+	private static final long serialVersionUID = 42L;
+
+	private static StopClusterSuccessful INSTANCE;
 
 	/**
-	 * Called when the execution state of the associated task has changed.
-	 * 
-	 * @param newExecutionState
-	 *        the execution state the task has just switched to
-	 * @param optionalMessage
-	 *        an optional message providing further information on the state change
+	 * Private constructor. Initial singleton in get() method.
 	 */
-	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
+	private StopClusterSuccessful() {}
 
-	/**
-	 * Returns whether the task has been canceled.
-	 * 
-	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
-	 */
-	boolean isCanceled();
+	public static StopClusterSuccessful get() {
+		if (INSTANCE == null) {
+			INSTANCE = new StopClusterSuccessful();
+		}
+		return INSTANCE;
+	}
+
+	@Override
+	public String toString() {
+		return "StopClusterSuccessful{}";
+	}
 }

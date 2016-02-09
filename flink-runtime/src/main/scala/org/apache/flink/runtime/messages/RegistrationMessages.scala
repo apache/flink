@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.messages
 
+import akka.actor.ActorRef
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 /**
- * A set of messages from the between TaskManager and JobManager handle the
+ * A set of messages between TaskManager and JobManager to handle the
  * registration of the TaskManager at the JobManager.
  */
 object RegistrationMessages {
@@ -36,7 +38,7 @@ object RegistrationMessages {
   /**
    * Triggers the TaskManager to attempt a registration at the JobManager.
    *
-   * @param jobManagerURL Akka URL to the JobManager
+   * @param jobManagerURL Akka URL to the JobManager to ask for the JobManager
    * @param timeout The timeout for the message. The next retry will double this timeout.
    * @param deadline Optional deadline until when the registration must be completed.
    * @param attempt The attempt number, for logging.
@@ -57,6 +59,7 @@ object RegistrationMessages {
    * @param numberOfSlots The number of processing slots offered by the TaskManager.
    */
   case class RegisterTaskManager(
+      resourceId: ResourceID,
       connectionInfo: InstanceConnectionInfo,
       resources: HardwareDescription,
       numberOfSlots: Int)
@@ -64,10 +67,11 @@ object RegistrationMessages {
 
   /**
    * Denotes the successful registration of a task manager at the job manager. This is the
-   * response triggered by the [[RegisterTaskManager]] message.
+   * response triggered by the [[RegisterTaskManager]] message when the job manager has registered
+   * the task manager with the resource manager.
    *
    * @param instanceID The instance ID under which the TaskManager is registered at the
-   *                   JobManager.
+   *                   job manager.
    * @param blobPort The server port where the JobManager's BLOB service runs.
    */
   case class AcknowledgeRegistration(
@@ -87,7 +91,7 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Denotes the unsuccessful registration of a task manager at the job manager. This is the
+   * Denotes the unsuccessful registration of a task manager at the JobManager. This is the
    * response triggered by the [[RegisterTaskManager]] message.
    *
    * @param reason Reason why the task manager registration was refused

@@ -24,9 +24,12 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
+import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
@@ -35,7 +38,7 @@ import scala.concurrent.{Await, Future}
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
- * in the same [[ActorSystem]].
+ * in the same or separate [[ActorSystem]]s.
  *
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
@@ -60,6 +63,7 @@ class TestingCluster(
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
     cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+    cfg.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, 0)
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
     cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
@@ -136,12 +140,39 @@ class TestingCluster(
     actorSystem.actorOf(dispatcherJobManagerProps, jobManagerName)
   }
 
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = if(singleActorSystem) {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME
+    }
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val testResourceManagerProps = Props(
+      new TestingResourceManager(
+        config,
+        createLeaderRetrievalService()
+      ))
+
+    system.actorOf(testResourceManagerProps, resourceManagerName)
+  }
+
   override def startTaskManager(index: Int, system: ActorSystem) = {
 
     val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
     TaskManager.startTaskManagerComponentsAndActor(
       configuration,
+      ResourceID.generate(),
       system,
       hostname,
       Some(tmActorName),

@@ -16,10 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.scheduler;
+package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.util.AbstractID;
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-public class ResourceId extends AbstractID {
+import java.io.Serializable;
+
+/**
+ * Causes the resource manager to try and apply at the leader JobManager.
+ */
+public class TriggerRegistrationAtJobManager implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
+	
+	private final String jobManagerAddress;
+	
+	public TriggerRegistrationAtJobManager(ActorRef jobManager) {
+		this(jobManager.path().toSerializationFormat());
+	}
+
+	public TriggerRegistrationAtJobManager(String jobManagerAddress) {
+		this.jobManagerAddress = jobManagerAddress;
+	}
+
+
+	public String jobManagerAddress() {
+		return jobManagerAddress;
+	}
+
+	@Override
+	public String toString() {
+		return "TriggerRegistrationAtJobManager " + jobManagerAddress;
+	}
 }
