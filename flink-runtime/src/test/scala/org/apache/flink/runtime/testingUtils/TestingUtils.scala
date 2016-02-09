@@ -26,8 +26,11 @@ import com.google.common.util.concurrent.MoreExecutors
 
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
+import org.apache.flink.api.common.JobExecutionResult
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -168,6 +171,26 @@ object TestingUtils {
   }
 
   def createTaskManager(
+    actorSystem: ActorSystem,
+    jobManager: ActorGateway,
+    configuration: Configuration,
+    useLocalCommunication: Boolean,
+    waitForRegistration: Boolean,
+    taskManagerClass: Class[_ <: TaskManager])
+  : ActorGateway = {
+    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
+
+    createTaskManager(
+      actorSystem,
+      jobManagerURL,
+      configuration,
+      useLocalCommunication,
+      waitForRegistration,
+      taskManagerClass
+    )
+  }
+
+  def createTaskManager(
       actorSystem: ActorSystem,
       jobManager: ActorGateway,
       configuration: Configuration,
@@ -200,11 +223,30 @@ object TestingUtils {
     * @return ActorGateway of the created TaskManager
     */
   def createTaskManager(
+    actorSystem: ActorSystem,
+    jobManagerURL: String,
+    configuration: Configuration,
+    useLocalCommunication: Boolean,
+    waitForRegistration: Boolean)
+  : ActorGateway = {
+    createTaskManager(
+      actorSystem,
+      jobManagerURL,
+      configuration,
+      useLocalCommunication,
+      waitForRegistration,
+      classOf[TestingTaskManager]
+    )
+  }
+
+
+  def createTaskManager(
       actorSystem: ActorSystem,
       jobManagerURL: String,
       configuration: Configuration,
       useLocalCommunication: Boolean,
-      waitForRegistration: Boolean)
+      waitForRegistration: Boolean,
+      taskManagerClass: Class[_ <: TaskManager])
     : ActorGateway = {
 
     val resultingConfiguration = new Configuration()
@@ -222,7 +264,7 @@ object TestingUtils {
       None,
       leaderRetrievalService,
       useLocalCommunication,
-      classOf[TestingTaskManager]
+      taskManagerClass
     )
 
     if (waitForRegistration) {
@@ -264,6 +306,72 @@ object TestingUtils {
       actorSystem: ActorSystem,
       configuration: Configuration)
     : ActorGateway = {
+    createJobManager(
+      actorSystem,
+      configuration,
+      classOf[TestingJobManager]
+    )
+  }
+
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      executionContext: ExecutionContext)
+    : ActorGateway = {
+
+    val (_,
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    executionRetries,
+    delayBetweenRetries,
+    timeout,
+    archiveCount,
+    leaderElectionService,
+    submittedJobGraphs,
+    checkpointRecoveryFactory) = JobManager.createJobManagerComponents(
+      configuration,
+      None
+    )
+
+    val archiveProps = Props(classOf[TestingMemoryArchivist], archiveCount)
+
+    val archive: ActorRef = actorSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(
+      classOf[TestingJobManager],
+      configuration,
+      executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archive,
+      executionRetries,
+      delayBetweenRetries,
+      timeout,
+      leaderElectionService,
+      submittedJobGraphs,
+      checkpointRecoveryFactory)
+
+    val jobManager: ActorRef = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+
+    new AkkaActorGateway(jobManager, null)
+  }
+
+
+  /**
+    * Creates a JobManager of the given class using the default recovery mode (standalone)
+    *
+    * @param actorSystem ActorSystem to use
+    * @param configuration Configuration to use
+    * @param jobManagerClass JobManager class to instantiate
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      jobManagerClass: Class[_ <: JobManager])
+    : ActorGateway = {
 
     configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
 
@@ -272,7 +380,7 @@ object TestingUtils {
         actorSystem,
         Some(JobManager.JOB_MANAGER_NAME),
         Some(JobManager.ARCHIVE_NAME),
-        classOf[TestingJobManager],
+        jobManagerClass,
         classOf[MemoryArchivist])
 
     new AkkaActorGateway(actor, null)
@@ -310,6 +418,25 @@ object TestingUtils {
     }
 
     new AkkaActorGateway(actor, null)
+  }
+
+  def submitJobAndWait(
+      actorSystem: ActorSystem,
+      jobManager: ActorGateway,
+      jobGraph: JobGraph)
+    : JobExecutionResult = {
+
+    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
+    val leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManagerURL)
+
+    JobClient.submitJobAndWait(
+      actorSystem,
+      leaderRetrievalService,
+      jobGraph,
+      TESTING_DURATION,
+      false,
+      Thread.currentThread().getContextClassLoader
+    )
   }
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
