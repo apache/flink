@@ -29,10 +29,17 @@ import org.apache.flink.api.table._
 class TableConversions(table: Table) {
 
   /**
-   * Converts the [[Table]] to a [[DataSet]].
+   * Converts the [[Table]] to a [[DataSet]] using the default configuration.
    */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
      new ScalaBatchTranslator().translate[T](table.relNode)
+  }
+
+  /**
+   * Converts the [[Table]] to a [[DataSet]] using a custom configuration.
+   */
+  def toDataSet[T: TypeInformation](config: TableConfig): DataSet[T] = {
+     new ScalaBatchTranslator(config).translate[T](table.relNode)
   }
 
 }

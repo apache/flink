@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.test.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -34,17 +35,16 @@ import scala.NotImplementedError;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class SelectITCase extends MultipleProgramsTestBase {
+public class SelectITCase extends TableProgramsTestBase {
 
-
-	public SelectITCase(TestExecutionMode mode) {
-		super(mode);
+	public SelectITCase(TestExecutionMode mode, TableConfigMode configMode) {
+		super(mode, configMode);
 	}
 
 	@Test
 	public void testSimpleSelectAllWithAs() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
@@ -66,10 +66,10 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testSimpleSelectWithNaming() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
@@ -90,7 +90,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
@@ -105,7 +105,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithToManyFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
@@ -120,7 +120,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
@@ -135,7 +135,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testOnlyFieldRefInAs() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 

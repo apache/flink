@@ -25,7 +25,7 @@ import org.apache.calcite.tools.Programs
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
@@ -34,7 +34,7 @@ import org.apache.flink.api.table.plan.schema.DataSetTable
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator extends PlanTranslator {
+class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -68,7 +68,7 @@ class JavaBatchTranslator extends PlanTranslator {
     println("Input Plan:")
     println("-----------")
     println(RelOptUtil.toString(lPlan))
-    
+
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(lPlan)
 
@@ -96,7 +96,10 @@ class JavaBatchTranslator extends PlanTranslator {
 
     dataSetPlan match {
       case node: DataSetRel =>
-        node.translateToPlan.asInstanceOf[JavaDataSet[A]]
+        node.translateToPlan(
+          config,
+          Some(tpe.asInstanceOf[TypeInformation[Any]])
+        ).asInstanceOf[JavaDataSet[A]]
       case _ => ???
     }
 

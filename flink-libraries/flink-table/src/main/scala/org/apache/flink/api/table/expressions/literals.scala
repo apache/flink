@@ -23,8 +23,10 @@ import org.apache.flink.api.scala.table.ImplicitExpressionOperations
 
 object Literal {
   def apply(l: Any): Literal = l match {
-    case i:Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
-    case l:Long => Literal(l, BasicTypeInfo.LONG_TYPE_INFO)
+    case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
+    case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
+    case b: Byte => Literal(b, BasicTypeInfo.BYTE_TYPE_INFO)
+    case l: Long => Literal(l, BasicTypeInfo.LONG_TYPE_INFO)
     case d: Double => Literal(d, BasicTypeInfo.DOUBLE_TYPE_INFO)
     case f: Float => Literal(f, BasicTypeInfo.FLOAT_TYPE_INFO)
     case str: String => Literal(str, BasicTypeInfo.STRING_TYPE_INFO)
