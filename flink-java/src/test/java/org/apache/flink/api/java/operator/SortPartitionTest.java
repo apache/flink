@@ -235,6 +235,22 @@ public class SortPartitionTest {
 		}
 	}
 
+	@Test(expected = InvalidProgramException.class)
+	public void testSortPartitionWithKeySelector5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// must not work
+		tupleDs
+			.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, CustomType>() {
+				@Override
+				public CustomType getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return value.f2;
+				}
+			}, Order.ASCENDING)
+			.sortPartition("f1", Order.ASCENDING);
+	}
+
 	public static class CustomType implements Serializable {
 		
 		public static class Nest {

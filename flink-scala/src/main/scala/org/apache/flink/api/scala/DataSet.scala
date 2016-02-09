@@ -1511,6 +1511,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
     * Locally sorts the partitions of the DataSet on the specified field in the specified order.
     * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+    *
+    * Note that any key extraction methods cannot be chained with the KeySelector. To sort the
+    * partition by multiple values using KeySelector, the KeySelector must return a tuple
+    * consisting of the values.
     */
   def sortPartition[K: TypeInformation](fun: T => K, order: Order): DataSet[T] ={
     val keyExtractor = new KeySelector[T, K] {

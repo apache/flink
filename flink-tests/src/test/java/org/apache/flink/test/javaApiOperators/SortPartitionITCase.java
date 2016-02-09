@@ -210,10 +210,10 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		List<Tuple1<Boolean>> result = ds
 			.map(new IdMapper<Tuple3<Integer, Long, String>>()).setParallelism(4) // parallelize input
-			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Integer>() {
+			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Long>() {
 				@Override
-				public Integer getKey(Tuple3<Integer, Long, String> value) throws Exception {
-					return value.f0;
+				public Long getKey(Tuple3<Integer, Long, String> value) throws Exception {
+					return value.f1;
 				}
 			}, Order.DESCENDING)
 			.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
