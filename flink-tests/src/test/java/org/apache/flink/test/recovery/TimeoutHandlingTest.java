@@ -77,7 +77,7 @@ public class TimeoutHandlingTest extends TestLogger {
 		Configuration config = new Configuration();
 
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5000 millis");
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "10 seconds");
 
 		final ErrorReporter reporter = new ErrorReporter();
 		final ExecutionContext executionContext = ExecutionContext$.MODULE$.fromExecutor(new ForkJoinPool(), reporter);
@@ -141,7 +141,7 @@ public class TimeoutHandlingTest extends TestLogger {
 			if (counter <= 1) {
 				throw new Exception("Expected test exception");
 			} else {
-				Thread.sleep(7000);
+				Thread.sleep(12000);
 			}
 		}
 	}
