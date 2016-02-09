@@ -119,8 +119,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	
 	// ------  Configuration of the Consumer -------
 
-	/** List of partitions (including topics and leaders) to consume  */
-	private final List<KafkaTopicPartitionLeader> partitionInfos;
+	/** Initial list of topics and partitions to consume  */
+	private final List<KafkaTopicPartition> partitionInfos;
 	
 	/** The properties to parametrize the Kafka consumer and ZooKeeper client */ 
 	private final Properties props;
@@ -135,7 +135,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	private transient OffsetHandler offsetHandler;
 	
 	/** The partitions actually handled by this consumer at runtime */
-	private transient List<KafkaTopicPartitionLeader> subscribedPartitions;
+	private transient List<KafkaTopicPartition> subscribedPartitions;
 
 	/** The latest offsets that have been committed to Kafka or ZooKeeper. These are never
 	 * newer then the last offsets (Flink's internal view is fresher) */
@@ -212,7 +212,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		validateZooKeeperConfig(props);
 
 		// Connect to a broker to get the partitions for all topics
-		this.partitionInfos = getPartitionsForTopic(topics, props);
+		this.partitionInfos = KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, props));
 
 		if (partitionInfos.size() == 0) {
 			throw new RuntimeException("Unable to retrieve any partitions for the requested topics " + topics.toString() + "." +
@@ -220,7 +220,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 
 		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(KafkaTopicPartition.convertToPartitionInfo(partitionInfos));
+			logPartitionInfo(partitionInfos);
 		}
 	}
 
@@ -240,7 +240,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Kafka consumer {} will read partitions {} out of partitions {}",
-					thisConsumerIndex, KafkaTopicPartitionLeader.toString(subscribedPartitions), this.partitionInfos.size());
+					thisConsumerIndex, KafkaTopicPartition.toString(subscribedPartitions), this.partitionInfos.size());
 		}
 
 		// we leave the fetcher as null, if we have no partitions
@@ -250,14 +250,17 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			return;
 		}
 		
-		// create fetcher
-		fetcher = new LegacyFetcher(this.subscribedPartitions, props, 
-				getRuntimeContext().getTaskName(), getRuntimeContext().getUserCodeClassLoader());
 
 		// offset handling
 		offsetHandler = new ZookeeperOffsetHandler(props);
 
 		committedOffsets = new HashMap<>();
+
+		Map<KafkaTopicPartition, Long> subscribedPartitionsWithOffsets = new HashMap<>(subscribedPartitions.size());
+		// initially load the map with "offset not set"
+		for(KafkaTopicPartition ktp: subscribedPartitions) {
+			subscribedPartitionsWithOffsets.put(ktp, FlinkKafkaConsumer08.OFFSET_NOT_SET);
+		}
 
 		// seek to last known pos, from restore request
 		if (restoreToOffset != null) {
@@ -265,24 +268,26 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				LOG.info("Consumer {} is restored from previous checkpoint: {}",
 						thisConsumerIndex, KafkaTopicPartition.toString(restoreToOffset));
 			}
-			
-			for (Map.Entry<KafkaTopicPartition, Long> restorePartition: restoreToOffset.entrySet()) {
-				// seek fetcher to restore position
-				// we set the offset +1 here, because seek() is accepting the next offset to read,
-				// but the restore offset is the last read offset
-				fetcher.seek(restorePartition.getKey(), restorePartition.getValue() + 1);
-			}
 			// initialize offsets with restored state
 			this.offsetsState = restoreToOffset;
+			subscribedPartitionsWithOffsets.putAll(restoreToOffset);
 			restoreToOffset = null;
 		}
 		else {
 			// start with empty offsets
 			offsetsState = new HashMap<>();
 
-			// no restore request. Let the offset handler take care of the initial offset seeking
-			offsetHandler.seekFetcherToInitialOffsets(subscribedPartitions, fetcher);
+			// no restore request: overwrite offsets.
+			subscribedPartitionsWithOffsets.putAll(offsetHandler.getOffsets(subscribedPartitions, fetcher));
 		}
+		if(subscribedPartitionsWithOffsets.size() != subscribedPartitions.size()) {
+			throw new IllegalStateException("The subscribed partitions map has more entries than the subscribed partitions " +
+					"list: " + subscribedPartitionsWithOffsets.size() + "," + subscribedPartitions.size());
+		}
+
+		// create fetcher
+		fetcher = new LegacyFetcher(subscribedPartitionsWithOffsets, props,
+				getRuntimeContext().getTaskName(), getRuntimeContext().getUserCodeClassLoader());
 	}
 
 	@Override
@@ -391,24 +396,24 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> toCommit) throws Exception {
 		Map<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>();
-		for (KafkaTopicPartitionLeader tp : this.subscribedPartitions) {
-			Long offset = toCommit.get(tp.getTopicPartition());
+		for (KafkaTopicPartition tp : this.subscribedPartitions) {
+			Long offset = toCommit.get(tp);
 			if(offset == null) {
 				// There was no data ever consumed from this topic, that's why there is no entry
 				// for this topicPartition in the map.
 				continue;
 			}
-			Long lastCommitted = this.committedOffsets.get(tp.getTopicPartition());
+			Long lastCommitted = this.committedOffsets.get(tp);
 			if (lastCommitted == null) {
 				lastCommitted = OFFSET_NOT_SET;
 			}
 			if (offset != OFFSET_NOT_SET) {
 				if (offset > lastCommitted) {
-					offsetsToCommit.put(tp.getTopicPartition(), offset);
-					this.committedOffsets.put(tp.getTopicPartition(), offset);
-					LOG.debug("Committing offset {} for partition {}", offset, tp.getTopicPartition());
+					offsetsToCommit.put(tp, offset);
+					this.committedOffsets.put(tp, offset);
+					LOG.debug("Committing offset {} for partition {}", offset, tp);
 				} else {
-					LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, tp.getTopicPartition());
+					LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, tp);
 				}
 			}
 		}
@@ -489,6 +494,10 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
 
+		final String clientId = "flink-kafka-consumer-partition-lookup";
+		final int soTimeout = Integer.valueOf(properties.getProperty("socket.timeout.ms", "30000"));
+		final int bufferSize = Integer.valueOf(properties.getProperty("socket.receive.buffer.bytes", "65536"));
+
 		Random rnd = new Random();
 		retryLoop: for (int retry = 0; retry < numRetries; retry++) {
 			// we pick a seed broker randomly to avoid overloading the first broker with all the requests when the
@@ -504,9 +513,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				URL brokerUrl = NetUtils.getCorrectHostnamePort(seedBroker);
 				SimpleConsumer consumer = null;
 				try {
-					final String clientId = "flink-kafka-consumer-partition-lookup";
-					final int soTimeout = Integer.valueOf(properties.getProperty("socket.timeout.ms", "30000"));
-					final int bufferSize = Integer.valueOf(properties.getProperty("socket.receive.buffer.bytes", "65536"));
 					consumer = new SimpleConsumer(brokerUrl.getHost(), brokerUrl.getPort(), soTimeout, bufferSize, clientId);
 
 					TopicMetadataRequest req = new TopicMetadataRequest(topics);
@@ -540,8 +546,15 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 					}
 					break retryLoop; // leave the loop through the brokers
 				} catch (Exception e) {
-					LOG.warn("Error communicating with broker " + seedBroker + " to find partitions for " + topics.toString() + ". Message: " + e.getMessage());
+					LOG.warn("Error communicating with broker " + seedBroker + " to find partitions for " + topics.toString() + "." +
+							"" + e.getClass() + ". Message: " + e.getMessage());
 					LOG.debug("Detailed trace", e);
+					// we sleep a bit. Retrying immediately doesn't make sense in cases where Kafka is reorganizing the leader metadata
+					try {
+						Thread.sleep(500);
+					} catch (InterruptedException e1) {
+						// sleep shorter.
+					}
 				} finally {
 					if (consumer != null) {
 						consumer.close();

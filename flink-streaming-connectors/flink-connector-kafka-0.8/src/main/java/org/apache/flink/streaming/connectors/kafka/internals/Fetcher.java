@@ -61,16 +61,7 @@ public interface Fetcher {
 	 */
 	<T> void run(SourceFunction.SourceContext<T> sourceContext, KeyedDeserializationSchema<T> valueDeserializer,
 				HashMap<KafkaTopicPartition, Long> lastOffsets) throws Exception;
-	
-	/**
-	 * Set the next offset to read from for the given partition.
-	 * For example, if the partition <i>i</i> offset is set to <i>n</i>, the Fetcher's next result
-	 * will be the message with <i>offset=n</i>.
-	 * 
-	 * @param topicPartition The partition for which to seek the offset.
-	 * @param offsetToRead To offset to seek to.
-	 */
-	void seek(KafkaTopicPartition topicPartition, long offsetToRead);
+
 
 	/**
 	 * Exit run loop with given error and release all resources.
