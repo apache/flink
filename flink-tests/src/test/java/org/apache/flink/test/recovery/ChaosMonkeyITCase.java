@@ -320,6 +320,10 @@ public class ChaosMonkeyITCase extends TestLogger {
 			LOG.info("Recovery state clean");
 		}
 		catch (Throwable t) {
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			System.out.println("#################################################");
 			System.out.println(" TASK MANAGERS");
 			System.out.println("#################################################");

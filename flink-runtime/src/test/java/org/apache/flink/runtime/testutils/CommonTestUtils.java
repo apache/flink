@@ -147,6 +147,7 @@ public class CommonTestUtils {
 			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
 			writer.println("log4j.appender.console.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n");
 			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
+			writer.println("log4j.logger.org.apache.zookeeper=OFF");
 
 			writer.flush();
 			writer.close();
