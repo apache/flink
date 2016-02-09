@@ -199,7 +199,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 		Collections.sort(is, new TupleComparator<Tuple2<String, Integer>>());
 
 		List<Tuple2<String, Integer>> expected = env.getConfig().isObjectReuseEnabled() ?
-			Arrays.asList(new Tuple2<>("a", 4), new Tuple2<>("a", 4),
+			Arrays.asList(new Tuple2<>("a", 5), new Tuple2<>("a", 5),
 				new Tuple2<>("a", 5), new Tuple2<>("a", 5), new Tuple2<>("a", 5)) :
 			Arrays.asList(new Tuple2<>("a", 1), new Tuple2<>("a", 2),
 				new Tuple2<>("a", 3), new Tuple2<>("a", 4), new Tuple2<>("a", 5));
