@@ -39,6 +39,8 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's default Java installation, if found). Needs to be specified if the startup scripts fail to automatically resolve the java home directory. Can be specified to point to a specific java installation or version. If this option is not specified, the startup scripts also evaluate the `$JAVA_HOME` environment variable.
 
+- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts and Flink's YARN client. This can be used to set different garbage collectors or to include remote debuggers into the JVMs running Flink's services.
+
 - `jobmanager.rpc.address`: The IP address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost).
 
 - `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: 6123).
@@ -72,6 +74,14 @@ The default fraction for managed memory can be adjusted using the `taskmanager.m
 
 - `taskmanager.memory.preallocate`: Can be either of `true` or `false`. Specifies whether task managers should allocate all managed memory when starting up. (DEFAULT: false)
 
+### Memory and Performance Debugging
+
+These options are useful for debugging a Flink application for memory and garbage collection related isues, such as performance and out-of-memory process kills or exceptions.
+
+- `taskmanager.debug.memory.startLogThread`: Causes the TaskManagers to periodically log memory and Garbage collection statistics. The statistics include current heap-, off-heap, and other memory pool utilization, as well as the time spent on garbage collection, by heap memory pool.
+
+- `taskmanager.debug.memory.logIntervalMs`: The interval (in milliseconds) in which the TaskManagers log the memory and garbage collection statistics. Only has an effect, if `taskmanager.debug.memory.startLogThread` is set to true.
+
 ### Kerberos
 
 Flink supports Kerberos authentication of Hadoop services such as HDFS, YARN, or HBase.
@@ -97,8 +107,6 @@ If you are on YARN, then it is sufficient to authenticate the client with Kerber
 - `fs.output.always-create-directory`: File writers running with a parallelism larger than one create a directory for the output file path and put the different result files (one per parallel writer task) into that directory. If this option is set to *true*, writers with a parallelism of 1 will also create a directory and place a single result file into it. If the option is set to *false*, the writer will directly create the file directly at the output path, without creating a containing directory. (DEFAULT: false)
 
 - `taskmanager.network.numberOfBuffers`: The number of buffers available to the network stack. This number determines how many streaming data exchange channels a TaskManager can have at the same time and how well buffered the channels are. If a job is rejected or you get a warning that the system has not enough buffers available, increase this value (DEFAULT: 2048).
-
-- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts and Flink's YARN client. This can be used to set different garbage collectors or to include remote debuggers into the JVMs running Flink's services.
 
 - `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled. Supported backends:
    -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
@@ -130,6 +138,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `jobmanager.rpc.address`: The IP address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost).
 - `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: 6123).
+- `taskmanager.hostname`: The hostname of the network interface that the TaskManager binds to. By default, the TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers. This option can be used to define a hostname if that strategy fails for some reason. Because different TaskManagers need different values for this option, it usually is specified in an additional non-shared TaskManager-specific config file.
 - `taskmanager.rpc.port`: The task manager's IPC port (DEFAULT: 6122).
 - `taskmanager.data.port`: The task manager's port used for data exchange operations (DEFAULT: 6121).
 - `jobmanager.heap.mb`: JVM heap size (in megabytes) for the JobManager (DEFAULT: 256).
@@ -139,9 +148,12 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `taskmanager.network.numberOfBuffers`: The number of buffers available to the network stack. This number determines how many streaming data exchange channels a TaskManager can have at the same time and how well buffered the channels are. If a job is rejected or you get a warning that the system has not enough buffers available, increase this value (DEFAULT: 2048).
 - `taskmanager.memory.size`: The amount of memory (in megabytes) that the task manager reserves on the JVM's heap space for sorting, hash tables, and caching of intermediate results. If unspecified (-1), the memory manager will take a fixed ratio of the heap memory available to the JVM, as specified by `taskmanager.memory.fraction`. (DEFAULT: -1)
 - `taskmanager.memory.fraction`: The relative amount of memory that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of 0.8 means that TaskManagers reserve 80% of the JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space free for objects created by user-defined functions. (DEFAULT: 0.7) This parameter is only evaluated, if `taskmanager.memory.size` is not set.
-- `jobclient.polling.interval`: The interval (in seconds) in which the client polls the JobManager for the status of its job (DEFAULT: 2).
-- `taskmanager.heartbeat-interval`: The interval in which the TaskManager sends heartbeats to the JobManager.
-- `jobmanager.max-heartbeat-delay-before-failure.msecs`: The maximum time that a TaskManager hearbeat may be missing before the TaskManager is considered failed.
+- `taskmanager.debug.memory.startLogThread`: Causes the TaskManagers to periodically log memory and Garbage collection statistics. The statistics include current heap-, off-heap, and other memory pool utilization, as well as the time spent on garbage collection, by heap memory pool.
+- `taskmanager.debug.memory.logIntervalMs`: The interval (in milliseconds) in which the TaskManagers log the memory and garbage collection statistics. Only has an effect, if `taskmanager.debug.memory.startLogThread` is set to true.
+- `blob.fetch.retries`: The number of retries for the TaskManager to download BLOBs (such as JAR files) from the JobManager (DEFAULT: 50).
+- `blob.fetch.num-concurrent`: The number concurrent BLOB fetches (such as JAR file downloads) that the JobManager serves (DEFAULT: 50).
+- `blob.fetch.backlog`: The maximum number of queued BLOB fetches (such as JAR file downloads) that the JobManager allows (DEFAULT: 1000).
+
 
 ### Distributed Coordination (via Akka)
 
@@ -170,15 +182,6 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
 - `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
 
-### Webclient
-
-These parameters configure the web interface that can be used to submit jobs and review the compiler's execution plans.
-
-- `webclient.port`: The port of the webclient server (DEFAULT: 8080).
-- `webclient.tempdir`: The temp directory for the web server. Used for example for caching file fragments during file-uploads (DEFAULT: The system's temp directory).
-- `webclient.uploaddir`: The directory into which the web server will store uploaded programs (DEFAULT: ${webclient.tempdir}/webclient-jobs/).
-- `webclient.plandump`: The directory into which the web server will dump temporary JSON files describing the execution plans (DEFAULT: ${webclient.tempdir}/webclient-plans/).
-
 ### File Systems
 
 The parameters define the behavior of tasks that create result files.
@@ -194,9 +197,9 @@ The parameters define the behavior of tasks that create result files.
 
 ### Runtime Algorithms
 
+- `taskmanager.runtime.hashjoin-bloom-filters`: Flag to activate/deactivate bloomfilters in the hybrid hash join implementation. In cases where the hash join needs to spill to disk (datasets larger than the reserved fraction of memory), these bloom filters can greatly reduce the number of spilled records, at the cost some CPU cycles. (DEFAULT: false)
 - `taskmanager.runtime.max-fan`: The maximal fan-in for external merge joins and fan-out for spilling hash tables. Limits the number of file handles per operator, but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
 - `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling when this fraction of its memory budget is full (DEFAULT: 0.8).
-- `taskmanager.runtime.hashjoin-bloom-filters`: If true, the hash join uses bloom filters to pre-filter records against spilled partitions. (DEFAULT: true)
 
 ## YARN
 
