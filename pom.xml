@@ -110,7 +110,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.0.0</version>
+			<version>1.1-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
