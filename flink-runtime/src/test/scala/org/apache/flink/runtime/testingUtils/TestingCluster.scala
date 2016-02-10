@@ -63,6 +63,8 @@ class TestingCluster(
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
     cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
+    setDefaultCiConfig(cfg)
+
     cfg.addAll(userConfig)
     cfg
   }

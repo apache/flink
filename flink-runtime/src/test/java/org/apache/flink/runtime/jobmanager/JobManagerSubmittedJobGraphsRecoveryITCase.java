@@ -343,6 +343,10 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 			assertEquals(2, jobSubmitSuccessMessages);
 		}
 		catch (Throwable t) {
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();
@@ -352,7 +356,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 				jobManagerProcess[1].printProcessLog();
 			}
 
-			t.printStackTrace();
+			throw t;
 		}
 		finally {
 			if (jobManagerProcess[0] != null) {

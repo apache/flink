@@ -116,15 +116,15 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 	private static final int Parallelism = 8;
 
-	private static final CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
+	private static CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
 
-	private static final AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
+	private static AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
 
-	private static final CountDownLatch FinalCountLatch = new CountDownLatch(1);
+	private static CountDownLatch FinalCountLatch = new CountDownLatch(1);
 
-	private static final AtomicReference<Long> FinalCount = new AtomicReference<>();
+	private static AtomicReference<Long> FinalCount = new AtomicReference<>();
 
-	private static final long LastElement = -1;
+	private static long LastElement = -1;
 
 	/**
 	 * Simple checkpointed streaming sum.
@@ -182,7 +182,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
-			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
@@ -246,6 +247,17 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			}
 		}
 		catch (Throwable t) {
+			// Reset all static state for test retries
+			CompletedCheckpointsLatch = new CountDownLatch(2);
+			RecoveredStates = new AtomicLongArray(Parallelism);
+			FinalCountLatch = new CountDownLatch(1);
+			FinalCount = new AtomicReference<>();
+			LastElement = -1;
+
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();
@@ -321,7 +333,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
-			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
@@ -396,6 +409,10 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			assertTrue("Did not find expected output in logs.", success);
 		}
 		catch (Throwable t) {
+			// Print early (in some situtations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();

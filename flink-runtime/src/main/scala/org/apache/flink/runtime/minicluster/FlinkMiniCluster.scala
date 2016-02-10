@@ -42,7 +42,7 @@ import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
 import scala.concurrent.forkjoin.ForkJoinPool
 
@@ -86,7 +86,7 @@ abstract class FlinkMiniCluster(
   
   implicit val executionContext = ExecutionContext.global
 
-  implicit val timeout = AkkaUtils.getTimeout(userConfiguration)
+  implicit val timeout = AkkaUtils.getTimeout(configuration)
 
   val recoveryMode = RecoveryMode.fromConfig(configuration)
 
@@ -186,6 +186,22 @@ abstract class FlinkMiniCluster(
     val resolvedPort = if(port != 0) port + index else port
 
     AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
+  }
+
+  /**
+    * Sets CI environment (Travis) specific config defaults.
+    */
+  def setDefaultCiConfig(config: Configuration) : Unit = {
+    // https://docs.travis-ci.com/user/environment-variables#Default-Environment-Variables
+    if (sys.env.contains("CI")) {
+      // Only set if nothing specified in config
+      if (config.getString(ConfigConstants.AKKA_ASK_TIMEOUT, null) == null) {
+        val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT) * 10
+        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, s"${duration.toSeconds}s")
+
+        LOG.info(s"Akka ask timeout set to ${duration.toSeconds}s")
+      }
+    }
   }
 
   // --------------------------------------------------------------------------
