@@ -36,6 +36,7 @@ import org.junit.Test;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -385,6 +386,95 @@ public class ExecutionGraphRestartTest {
 		// No restart
 		verify(eg, never()).restart();
 		assertEquals(1, eg.getNumberOfRetriesLeft());
+	}
+
+	/**
+	 * Tests that a failing execution does not affect a restarted job. This is important if a
+	 * callback handler fails an execution after it has already reached a final state and the job
+	 * has been restarted.
+	 */
+	@Test
+	public void testFailingExecutionAfterRestart() throws Exception {
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			2);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		scheduler.newInstanceAvailable(instance);
+
+		JobVertex sender = new JobVertex("Task1");
+		sender.setInvokableClass(Tasks.NoOpInvokable.class);
+		sender.setParallelism(1);
+
+		JobVertex receiver = new JobVertex("Task2");
+		receiver.setInvokableClass(Tasks.NoOpInvokable.class);
+		receiver.setParallelism(1);
+
+		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
+
+		ExecutionGraph eg = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"test job",
+			new Configuration(),
+			AkkaUtils.getDefaultTimeout());
+		eg.setNumberOfRetriesLeft(1);
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, eg.getState());
+
+		eg.scheduleForExecution(scheduler);
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		Iterator<ExecutionVertex> executionVertices = eg.getAllExecutionVertices().iterator();
+
+		Execution finishedExecution = executionVertices.next().getCurrentExecutionAttempt();
+		Execution failedExecution = executionVertices.next().getCurrentExecutionAttempt();
+
+		finishedExecution.markFinished();
+		failedExecution.fail(new Exception("Test Exception"));
+
+		failedExecution.cancelingComplete();
+
+		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
+
+		Deadline deadline = timeout.fromNow();
+
+		while (deadline.hasTimeLeft() && eg.getState() != JobStatus.RUNNING) {
+			Thread.sleep(100);
+		}
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		// Wait for deploying after async restart
+		deadline = timeout.fromNow();
+		boolean success = false;
+
+		while (deadline.hasTimeLeft() && !success) {
+			success = true;
+
+			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+				if (vertex.getCurrentExecutionAttempt().getAssignedResource() == null) {
+					success = false;
+					Thread.sleep(100);
+					break;
+				} else {
+					vertex.getCurrentExecutionAttempt().switchToRunning();
+				}
+			}
+		}
+
+		// fail old finished execution, this should not affect the execution
+		finishedExecution.fail(new Exception("This should have no effect"));
+
+		for (ExecutionVertex vertex: eg.getAllExecutionVertices()) {
+			vertex.getCurrentExecutionAttempt().markFinished();
+		}
+
+		// the state of the finished execution should have not changed since it is terminal
+		assertEquals(ExecutionState.FINISHED, finishedExecution.getState());
+
+		assertEquals(JobStatus.FINISHED, eg.getState());
 	}
 
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {

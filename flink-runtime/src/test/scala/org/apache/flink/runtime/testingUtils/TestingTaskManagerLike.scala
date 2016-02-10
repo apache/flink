@@ -28,7 +28,7 @@ RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 AcknowledgeRegistration}
-import org.apache.flink.runtime.messages.TaskMessages.{UpdatePartitionInfo, SubmitTask, UpdateTaskExecutionState, TaskInFinalState}
+import org.apache.flink.runtime.messages.TaskMessages.{SubmitTask, UpdateTaskExecutionState, TaskInFinalState}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.{DisableDisconnect, CheckIfJobRemoved, Alive}
