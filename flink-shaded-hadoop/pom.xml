@@ -111,6 +111,7 @@ under the License.
 									<include>io.netty:netty:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
+									<include>org.mortbay.jetty:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
