@@ -18,17 +18,28 @@
 
 package org.apache.flink.runtime.io.network.netty.exception;
 
-import java.net.SocketAddress;
+import org.apache.flink.runtime.execution.CancelTaskException;
 
-public class RemoteTransportException extends TransportException {
+/**
+ * Exception thrown on remote transport failures.
+ *
+ * <p>If you get this type of exception at task manager T, it means that
+ * something went wrong at the network stack of another task manager (not T).
+ * It is not an issue at task manager T.
+ */
+public class RemoteTransportException extends CancelTaskException {
 
 	private static final long serialVersionUID = 4373615529545893089L;
 
-	public RemoteTransportException(String message, SocketAddress address) {
-		super(message, address);
+	public RemoteTransportException() {
+		super();
 	}
 
-	public RemoteTransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, address, cause);
+	public RemoteTransportException(String msg) {
+		super(msg);
+	}
+
+	public RemoteTransportException(String msg, Throwable cause) {
+		super(msg, cause);
 	}
 }
