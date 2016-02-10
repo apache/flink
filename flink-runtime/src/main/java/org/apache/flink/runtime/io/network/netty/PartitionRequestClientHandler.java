@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
-import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -133,27 +132,23 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 
-		if (cause instanceof TransportException) {
+		if (cause instanceof LocalTransportException || cause instanceof RemoteTransportException) {
 			notifyAllChannelsOfErrorAndClose(cause);
 		}
 		else {
 			final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
-			final TransportException tex;
-
 			// Improve on the connection reset by peer error message
 			if (cause instanceof IOException
 					&& cause.getMessage().equals("Connection reset by peer")) {
 
-				tex = new RemoteTransportException(
+				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Lost connection to task manager '" + remoteAddr + "'. This indicates "
-								+ "that the remote task manager was lost.", remoteAddr, cause);
+								+ "that the remote task manager was lost.", cause, remoteAddr));
 			}
 			else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				notifyAllChannelsOfErrorAndClose(new LocalTransportException(cause.getMessage(), cause));
 			}
-
-			notifyAllChannelsOfErrorAndClose(tex);
 		}
 	}
 
@@ -228,7 +223,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Fatal error at remote task manager '" + remoteAddr + "'.",
-						remoteAddr, error.cause));
+						error.cause, remoteAddr));
 			}
 			else {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
@@ -240,7 +235,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					else {
 						inputChannel.onError(new RemoteTransportException(
 								"Error at remote task manager '" + remoteAddr + "'.",
-										remoteAddr, error.cause));
+										error.cause, remoteAddr));
 					}
 				}
 			}
