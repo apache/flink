@@ -1284,11 +1284,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			throws IOException
 	{
 		// write the sequence to log for debugging purposes
-		Properties stdProps = standardCC.props().props();
-		Properties newProps = new Properties(stdProps);
+		Properties newProps = new Properties(standardProps);
 		newProps.setProperty("group.id", "topic-printer"+ UUID.randomUUID().toString());
 		newProps.setProperty("auto.offset.reset", "smallest");
-		newProps.setProperty("zookeeper.connect", standardCC.zkConnect());
+		newProps.setProperty("zookeeper.connect", standardProps.getProperty("zookeeper.connect"));
 
 		ConsumerConfig printerConfig = new ConsumerConfig(newProps);
 		printTopic(topicName, printerConfig, deserializer, elements);

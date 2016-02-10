@@ -155,6 +155,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
 			ApplicationReport app = apps.get(0);
+
 			Assert.assertEquals("MyCustomName", app.getName());
 			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
