@@ -176,6 +176,11 @@ state updates) of Flink coupled with bundled sinks:
         <td></td>
     </tr>
     <tr>
+        <td>Cassandra sink</td>
+        <td>exactly once</td>
+        <td></td>
+    </tr>
+    <tr>
         <td>File sinks</td>
         <td>at least once</td>
         <td></td>
