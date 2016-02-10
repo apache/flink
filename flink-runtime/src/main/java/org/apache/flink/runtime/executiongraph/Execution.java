@@ -52,7 +52,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
-import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -108,7 +107,7 @@ public class Execution implements Serializable {
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
 	
-	private static final Logger LOG = LoggerFactory.getLogger(Execution.class);
+	private static final Logger LOG = ExecutionGraph.LOG;
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
