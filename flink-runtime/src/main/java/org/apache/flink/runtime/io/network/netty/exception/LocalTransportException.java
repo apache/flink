@@ -18,17 +18,27 @@
 
 package org.apache.flink.runtime.io.network.netty.exception;
 
-import java.net.SocketAddress;
+import java.io.IOException;
 
-public class LocalTransportException extends TransportException {
+/**
+ * Exception thrown on local transport failures.
+ *
+ * <p>If you get this type of exception at task manager T, it means that
+ * something went wrong in the local network stack of task manager T.
+ */
+public class LocalTransportException extends IOException {
 
 	private static final long serialVersionUID = 2366708881288640674L;
 
-	public LocalTransportException(String message, SocketAddress address) {
-		super(message, address);
+	public LocalTransportException() {
+		super();
 	}
 
-	public LocalTransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, address, cause);
+	public LocalTransportException(String message) {
+		super(message);
+	}
+
+	public LocalTransportException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }
