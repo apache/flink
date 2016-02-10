@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -23,7 +24,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  * A {@link Trigger} that fires once the current system time passes the end of the window
  * to which a pane belongs.
  */
-public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
+public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private ProcessingTimeTrigger() {}

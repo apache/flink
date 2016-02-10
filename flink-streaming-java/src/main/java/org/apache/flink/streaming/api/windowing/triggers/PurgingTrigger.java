@@ -25,12 +25,12 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * <p>
  * When the nested trigger fires, this will return a {@code FIRE_AND_PURGE}
- * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerResult}
+ * {@link TriggerResult}
  *
  * @param <T> The type of elements on which this trigger can operate.
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
+public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private Trigger<T, W> nestedTrigger;

@@ -38,6 +38,8 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuffer;
@@ -248,7 +250,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				windows.put(window, context);
 			}
 			context.windowBuffer.storeElement(element);
-			Trigger.TriggerResult triggerResult = context.onElement(element);
+			TriggerResult triggerResult = context.onElement(element);
 			processTriggerResult(triggerResult, window);
 		}
 	}
@@ -264,7 +266,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		}
 	}
 
-	private void processTriggerResult(Trigger.TriggerResult triggerResult, W window) throws Exception {
+	private void processTriggerResult(TriggerResult triggerResult, W window) throws Exception {
 		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
 			// do nothing
 			return;
@@ -311,7 +313,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				// We have to check here whether the entry in the set still reflects the
 				// currently set timer in the Context.
 				if (ctx.watermarkTimer <= mark.getTimestamp()) {
-					Trigger.TriggerResult triggerResult = ctx.onEventTime(ctx.watermarkTimer);
+					TriggerResult triggerResult = ctx.onEventTime(ctx.watermarkTimer);
 					processTriggerResult(triggerResult, ctx.window);
 				}
 			}
@@ -343,7 +345,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				// performance reasons. We have to check here whether the entry in the set still
 				// reflects the currently set timer in the Context.
 				if (ctx.processingTimeTimer <= time) {
-					Trigger.TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
+					TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
 					processTriggerResult(triggerResult, ctx.window);
 				}
 			}
@@ -360,7 +362,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
 	 * have their own instance of the {@code Trigger}.
 	 */
-	protected class Context implements Trigger.TriggerContext {
+	protected class Context implements TriggerContext {
 		protected W window;
 
 		protected WindowBuffer<IN> windowBuffer;
@@ -538,41 +540,41 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		}
 
-		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
-			Trigger.TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
+		public TriggerResult onElement(StreamRecord<IN> element) throws Exception {
+			TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
 			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
 				// fire now and don't wait for the next watermark update
-				Trigger.TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
-				return Trigger.TriggerResult.merge(onElementResult, onEventTimeResult);
+				TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
+				return TriggerResult.merge(onElementResult, onEventTimeResult);
 			} else {
 				return onElementResult;
 			}
 		}
 
-		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
+		public TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
 				processingTimeTimer = -1;
 				return trigger.onProcessingTime(time, window, this);
 			} else {
-				return Trigger.TriggerResult.CONTINUE;
+				return TriggerResult.CONTINUE;
 			}
 		}
 
-		public Trigger.TriggerResult onEventTime(long time) throws Exception {
+		public TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
 				watermarkTimer = -1;
-				Trigger.TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
+				TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
 
 				if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
 					// fire now and don't wait for the next watermark update
-					Trigger.TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
-					return Trigger.TriggerResult.merge(firstTriggerResult, secondTriggerResult);
+					TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
+					return TriggerResult.merge(firstTriggerResult, secondTriggerResult);
 				} else {
 					return firstTriggerResult;
 				}
 
 			} else {
-				return Trigger.TriggerResult.CONTINUE;
+				return TriggerResult.CONTINUE;
 			}
 		}
 
