@@ -193,6 +193,21 @@ public final class Utils {
 		}
 
 		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof ChecksumHashCode) {
+				ChecksumHashCode other = (ChecksumHashCode) obj;
+				return this.count == other.count && this.checksum == other.checksum;
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			return (int) (this.count + this.hashCode());
+		}
+
+		@Override
 		public String toString() {
 			return "ChecksumHashCode " + this.checksum + ", count " + this.count;
 		}
