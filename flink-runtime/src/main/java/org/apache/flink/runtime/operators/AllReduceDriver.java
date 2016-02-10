@@ -108,25 +108,32 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
 
+		T val1;
+		if ((val1 = input.next()) == null) {
+			return;
+		}
+
 		if (objectReuseEnabled) {
-			T val1 = serializer.createInstance();
-
-			if ((val1 = input.next(val1)) == null) {
-				return;
-			}
-
+			// We only need two objects. The first reference stores results and is
+			// eventually collected. New values are read into the second.
 			T val2 = serializer.createInstance();
+
+			T value = val1;
+
 			while (running && (val2 = input.next(val2)) != null) {
-				val1 = stub.reduce(val1, val2);
+				value = stub.reduce(value, val2);
+
+				// we must never read into the object returned
+				// by the user, so swap the reuse objects,
+				if (value == val2) {
+					T tmp = val1;
+					val1 = val2;
+					val2 = tmp;
+				}
 			}
 
-			this.taskContext.getOutputCollector().collect(val1);
+			this.taskContext.getOutputCollector().collect(value);
 		} else {
-			T val1;
-			if ((val1 = input.next()) == null) {
-				return;
-			}
-
 			T val2;
 			while (running && (val2 = input.next()) != null) {
 				val1 = stub.reduce(val1, val2);
