@@ -715,7 +715,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		 * @param value The value to write.
 		 * @throws IOException
 		 */
-		public void overwriteLongAt(long pointer, long value) throws IOException {
+		public void overwritePointerAt(long pointer, long value) throws IOException {
 			setWritePosition(pointer);
 			outView.writeLong(value);
 		}
@@ -961,10 +961,10 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 						// list had only one element, so prev is in the bucketSegments
 						bucketSegments[bucketSegmentIndex].putLong(bucketOffset, pointerToAppended);
 					} else {
-						recordArea.overwriteLongAt(prevElemPtr, pointerToAppended);
+						recordArea.overwritePointerAt(prevElemPtr, pointerToAppended);
 					}
 
-					recordArea.overwriteLongAt(curElemPtr, ABANDONED_RECORD);
+					recordArea.overwritePointerAt(curElemPtr, ABANDONED_RECORD);
 
 					holes += oldRecordSize;
 				}
@@ -1004,7 +1004,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 				bucketSegments[bucketSegmentIndex].putLong(bucketOffset, pointerToAppended);
 			} else {
 				// update the pointer of the last element of the list.
-				recordArea.overwriteLongAt(prevElemPtr, pointerToAppended);
+				recordArea.overwritePointerAt(prevElemPtr, pointerToAppended);
 			}
 
 			numElements++;
