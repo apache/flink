@@ -32,7 +32,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -91,7 +91,8 @@ class YarnJobManager(
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
-    checkpointRecoveryFactory : CheckpointRecoveryFactory)
+    checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    savepointStore: SavepointStore)
   extends JobManager(
     flinkConfiguration,
     executorService,
@@ -104,7 +105,8 @@ class YarnJobManager(
     timeout,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory) {
+    checkpointRecoveryFactory,
+    savepointStore) {
 
   import context._
   import scala.collection.JavaConverters._

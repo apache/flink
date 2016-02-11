@@ -329,7 +329,8 @@ object TestingUtils {
     archiveCount,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory) = JobManager.createJobManagerComponents(
+    checkpointRecoveryFactory,
+    savepointStore) = JobManager.createJobManagerComponents(
       configuration,
       None
     )
