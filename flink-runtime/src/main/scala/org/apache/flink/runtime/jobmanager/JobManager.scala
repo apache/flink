@@ -2238,7 +2238,8 @@ object JobManager {
       timeout,
       leaderElectionService,
       submittedJobGraphs,
-      checkpointRecoveryFactory)
+      checkpointRecoveryFactory,
+      savepointStore)
 
     val jobManager: ActorRef = jobMangerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)
