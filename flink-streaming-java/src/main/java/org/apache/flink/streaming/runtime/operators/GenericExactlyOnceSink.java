@@ -47,7 +47,7 @@ import java.util.Set;
  * checkpoint is completed. Should a job fail while the data is being committed, no exactly once guarantee can be made.
  * @param <IN>
  */
-public abstract class GenericExactlyOnceSink<IN extends Tuple> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
 	private AbstractStateBackend.CheckpointStateOutputView out;
 	private TypeSerializer<IN> serializer;
 	protected TypeInformation<IN> typeInfo;

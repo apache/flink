@@ -17,8 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -29,7 +28,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
-public abstract class ExactlyOnceSinkTestBase<IN extends Tuple, S extends GenericExactlyOnceSink<IN>> {
+public abstract class ExactlyOnceSinkTestBase<IN, S extends GenericExactlyOnceSink<IN>> {
 
 	protected class OperatorExposingTask<IN> extends OneInputStreamTask<IN, IN> {
 		public OneInputStreamOperator<IN, IN> getOperator() {
@@ -43,7 +42,7 @@ public abstract class ExactlyOnceSinkTestBase<IN extends Tuple, S extends Generi
 
 	protected abstract S createSink();
 
-	protected abstract TupleTypeInfo<IN> createTypeInfo();
+	protected abstract TypeInformation<IN> createTypeInfo();
 
 	protected abstract IN generateValue(int counter, int checkpointID);
 
@@ -60,7 +59,7 @@ public abstract class ExactlyOnceSinkTestBase<IN extends Tuple, S extends Generi
 	public void testIdealCircumstances() throws Exception {
 		S sink = createSink();
 		OperatorExposingTask<IN> task = createTask();
-		TupleTypeInfo<IN> info = createTypeInfo();
+		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(sink);
@@ -109,7 +108,7 @@ public abstract class ExactlyOnceSinkTestBase<IN extends Tuple, S extends Generi
 	public void testDataPersistenceUponMissedNotify() throws Exception {
 		S sink = createSink();
 		OperatorExposingTask<IN> task = createTask();
-		TupleTypeInfo<IN> info = createTypeInfo();
+		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(sink);
@@ -157,7 +156,7 @@ public abstract class ExactlyOnceSinkTestBase<IN extends Tuple, S extends Generi
 	public void testDataDiscardingUponRestore() throws Exception {
 		S sink = createSink();
 		OperatorExposingTask<IN> task = createTask();
-		TupleTypeInfo<IN> info = createTypeInfo();
+		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(sink);
