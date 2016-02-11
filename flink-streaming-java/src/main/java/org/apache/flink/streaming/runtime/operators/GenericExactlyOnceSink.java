@@ -175,7 +175,13 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 
 		@Override
 		public long getStateSize() throws Exception {
-			return 0;
+			int stateSize = 0;
+			for (List<StateHandle<DataInputView>> handles : pendingHandles.values()) {
+				for (StateHandle<DataInputView> handle : handles) {
+					stateSize += handle.getStateSize();
+				}
+			}
+			return stateSize;
 		}
 	}
 }
