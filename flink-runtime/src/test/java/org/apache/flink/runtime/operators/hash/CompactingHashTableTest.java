@@ -40,7 +40,7 @@ import java.util.BitSet;
 import java.util.List;
 
 public class CompactingHashTableTest {
-	
+
 	private final TypeSerializer<Tuple2<Long, String>> serializer;
 	private final TypeComparator<Tuple2<Long, String>> comparator;
 	
@@ -251,5 +251,82 @@ public class CompactingHashTableTest {
 			bld.append('a');
 		}
 		return bld.toString();
+	}
+
+
+
+
+
+
+	@Test
+	public void testDifferentProbers() {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testDifferentProbers(new CompactingHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testBuildAndRetrieve(new CompactingHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testEntryIterator() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testEntryIterator(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testMultipleProbers() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testMultipleProbers(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieve(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieveMajorityUpdated(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieveMinorityUpdated() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_LISTS = 20000;
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieveMinorityUpdated(
+			new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES, NUM_LISTS);
+	}
+
+	@Test
+	public void testRepeatedBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testRepeatedBuildAndRetrieve(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testProberUpdate() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testProberUpdate(new CompactingHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthStringBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 40 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testVariableLengthStringBuildAndRetrieve(NUM_MEM_PAGES, new CompactingHashTable<>(common.serializerS, common.comparatorS, common.getMemory(NUM_MEM_PAGES)));
 	}
 }

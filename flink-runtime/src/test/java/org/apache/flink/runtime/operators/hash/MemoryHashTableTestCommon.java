@@ -52,60 +52,53 @@ import org.powermock.reflect.Whitebox;
 import static org.junit.Assert.*;
 
 
-public class MemoryHashTableTest {
+public class MemoryHashTableTestCommon {
 	
 	private static final long RANDOM_SEED = 76518743207143L;
 	
 	private static final int KEY_VALUE_DIFF = 1021;
 	
-	private static final int PAGE_SIZE = 16 * 1024;
+	public final int PAGE_SIZE = 16 * 1024;
 	
 	
 	private final Random rnd = new Random(RANDOM_SEED);
 		
-	private final TypeSerializer<IntPair> serializer = new IntPairSerializer();
+	public final TypeSerializer<IntPair> serializer = new IntPairSerializer();
 	
-	private final TypeComparator<IntPair> comparator = new IntPairComparator();
+	public final TypeComparator<IntPair> comparator = new IntPairComparator();
 	
-	private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
+	public final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
 	
 	
 	private static final int MAX_LIST_SIZE = 8;
-	
-	private final TypeSerializer<IntList> serializerV = new IntListSerializer();
-	
-	private final TypeComparator<IntList> comparatorV = new IntListComparator();
-	
-	private final TypePairComparator<IntList, IntList> pairComparatorV = new IntListPairComparator();
-	
-	private final TypePairComparator<IntPair, IntList> pairComparatorPL =new IntPairListPairComparator();
-	
-	private final int SIZE = 75;
-	
-	private final int NUM_PAIRS = 100000;
 
-	private final int NUM_LISTS = 100000;
+	public final TypeSerializer<IntList> serializerV = new IntListSerializer();
+
+	public final TypeComparator<IntList> comparatorV = new IntListComparator();
+
+	public final TypePairComparator<IntList, IntList> pairComparatorV = new IntListPairComparator();
+
+	public final TypePairComparator<IntPair, IntList> pairComparatorPL =new IntPairListPairComparator();
+	
+	public final int SIZE = 75;
+
+	public final int NUM_PAIRS = 100000;
+
+	public final int NUM_LISTS = 100000;
 	
 	private final int ADDITIONAL_MEM = 100;
 	
 	private final int NUM_REWRITES = 10;
-	
 
-	private final TypeSerializer<StringPair> serializerS = new StringPairSerializer();
+
+	public final TypeSerializer<StringPair> serializerS = new StringPairSerializer();
 	
-	private final TypeComparator<StringPair> comparatorS = new StringPairComparator();
+	public final TypeComparator<StringPair> comparatorS = new StringPairComparator();
 	
 	private final TypePairComparator<StringPair, StringPair> pairComparatorS = new StringPairPairComparator();
-	
-	
-	@Test
-	public void testDifferentProbers() {
-		final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
-		testDifferentProbersCore(new CompactingHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		testDifferentProbersCore(new ReduceHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-	}
 
-	private void testDifferentProbersCore(AbstractMutableHashTable<IntPair> table, int numMemPages) {
+
+	public void testDifferentProbers(AbstractMutableHashTable<IntPair> table, int numMemPages) {
 		AbstractHashTableProber<IntPair, IntPair> prober1 = table.getProber(comparator, pairComparator);
 		AbstractHashTableProber<IntPair, IntPair> prober2 = table.getProber(comparator, pairComparator);
 
@@ -114,20 +107,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testBuildAndRetrieve() {
-		try {
-			final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
-			testBuildAndRetrieveCore(new CompactingHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testBuildAndRetrieveCore(new ReduceHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testBuildAndRetrieveCore(AbstractMutableHashTable<IntPair> table, int numMemPages) throws Exception {
+	public void testBuildAndRetrieve(AbstractMutableHashTable<IntPair> table, int numMemPages) throws Exception {
 		final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 
 		table.open();
@@ -148,20 +129,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testEntryIterator() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testEntryIteratorCore(new CompactingHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testEntryIteratorCore(new ReduceHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testEntryIteratorCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testEntryIterator(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 
 		table.open();
@@ -183,20 +152,8 @@ public class MemoryHashTableTest {
 		assertTrue(sum == result);
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testMultipleProbers() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testMultipleProbersCore(new CompactingHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testMultipleProbersCore(new ReduceHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testMultipleProbersCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testMultipleProbers(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 		final IntPair[] pairs = getRandomizedIntPairs(NUM_LISTS, rnd);
 
@@ -218,20 +175,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testVariableLengthBuildAndRetrieve() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testVariableLengthBuildAndRetrieveCore(new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testVariableLengthBuildAndRetrieveCore(new ReduceHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testVariableLengthBuildAndRetrieveCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testVariableLengthBuildAndRetrieve(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 
 		table.open();
@@ -268,20 +213,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testVariableLengthBuildAndRetrieveMajorityUpdated() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testVariableLengthBuildAndRetrieveMajorityUpdatedCore(new CompactingHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testVariableLengthBuildAndRetrieveMajorityUpdatedCore(new ReduceHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testVariableLengthBuildAndRetrieveMajorityUpdatedCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testVariableLengthBuildAndRetrieveMajorityUpdated(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 
 		table.open();
@@ -316,23 +249,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testVariableLengthBuildAndRetrieveMinorityUpdated() {
-		try {
-			final int NUM_LISTS = 20000;
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testVariableLengthBuildAndRetrieveMinorityUpdatedCore(
-				new CompactingHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES, NUM_LISTS);
-			testVariableLengthBuildAndRetrieveMinorityUpdatedCore(
-				new ReduceHashTable<>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES, NUM_LISTS);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testVariableLengthBuildAndRetrieveMinorityUpdatedCore(AbstractMutableHashTable<IntList> table, int numMemPages, int numLists) throws Exception {
+	public void testVariableLengthBuildAndRetrieveMinorityUpdated(AbstractMutableHashTable<IntList> table, int numMemPages, int numLists) throws Exception {
 		final int STEP_SIZE = 100;
 
 		final IntList[] lists = getRandomizedIntLists(numLists, rnd);
@@ -368,20 +286,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testRepeatedBuildAndRetrieve() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testRepeatedBuildAndRetrieveCore(new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testRepeatedBuildAndRetrieveCore(new ReduceHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testRepeatedBuildAndRetrieveCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testRepeatedBuildAndRetrieve(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 
 		table.open();
@@ -421,20 +327,8 @@ public class MemoryHashTableTest {
 		table.close();
 		assertEquals("Memory lost", numMemPages, table.getFreeMemory().size());
 	}
-	
-	@Test
-	public void testProberUpdate() {
-		try {
-			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
-			testProberUpdateCore(new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-			testProberUpdateCore(new ReduceHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE)), NUM_MEM_PAGES);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
 
-	private void testProberUpdateCore(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
+	public void testProberUpdate(AbstractMutableHashTable<IntList> table, int numMemPages) throws Exception {
 		final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 
 		table.open();
@@ -470,7 +364,7 @@ public class MemoryHashTableTest {
 			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
 			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 			
-			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES);
 			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
 			table.open();
 			
@@ -487,7 +381,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 			
@@ -511,7 +405,7 @@ public class MemoryHashTableTest {
 			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
 			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 			
-			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES);
 			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
 			table.open();
 			
@@ -528,7 +422,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 			
@@ -538,7 +432,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 						
@@ -562,7 +456,7 @@ public class MemoryHashTableTest {
 			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
 			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
 			
-			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES);
 			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
 			table.open();
 			
@@ -579,7 +473,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 			
@@ -589,7 +483,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 						
@@ -599,7 +493,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(2*ADDITIONAL_MEM));
 			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 									
@@ -624,7 +518,7 @@ public class MemoryHashTableTest {
 			
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
 			
-			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES);
 			CompactingHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, memory);
 			table.open();
 			
@@ -645,7 +539,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(ADDITIONAL_MEM));
 			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());
 						
@@ -670,7 +564,7 @@ public class MemoryHashTableTest {
 			}
 			
 			// make sure there is enough memory for resize
-			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
+			memory.addAll(getMemory(2*ADDITIONAL_MEM));
 			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
 			assertTrue(b.booleanValue());									
 			
@@ -686,21 +580,8 @@ public class MemoryHashTableTest {
 			fail("Error: " + e.getMessage());
 		}
 	}
-	
-	@Test
-	public void testVariableLengthStringBuildAndRetrieve() {
-		try {
-			final int NUM_MEM_PAGES = 40 * NUM_PAIRS / PAGE_SIZE;
 
-			testVariableLengthStringBuildAndRetrieveCore(NUM_MEM_PAGES, new CompactingHashTable<>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE)));
-			testVariableLengthStringBuildAndRetrieveCore(NUM_MEM_PAGES, new ReduceHashTable<>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE)));
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Error: " + e.getMessage());
-		}
-	}
-
-	private void testVariableLengthStringBuildAndRetrieveCore(int NUM_MEM_PAGES, AbstractMutableHashTable<StringPair> table) throws IOException {
+	public void testVariableLengthStringBuildAndRetrieve(int NUM_MEM_PAGES, AbstractMutableHashTable<StringPair> table) throws IOException {
 		MutableObjectIterator<StringPair> buildInput = new UniformStringPairGenerator(NUM_PAIRS, 1, false);
 
 		MutableObjectIterator<StringPair> probeTester = new UniformStringPairGenerator(NUM_PAIRS, 1, false);
@@ -773,11 +654,11 @@ public class MemoryHashTableTest {
 		return lists;
 	}
 	
-	private static List<MemorySegment> getMemory(int numPages, int pageSize) {
+	public List<MemorySegment> getMemory(int numPages) {
 		List<MemorySegment> memory = new ArrayList<MemorySegment>();
 		
 		for (int i = 0; i < numPages; i++) {
-			memory.add(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
+			memory.add(MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE));
 		}
 		
 		return memory;

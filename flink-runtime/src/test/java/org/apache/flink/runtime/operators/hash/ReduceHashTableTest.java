@@ -498,4 +498,78 @@ public class ReduceHashTableTest {
 
 		return memory;
 	}
+
+
+
+	@Test
+	public void testDifferentProbers() {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testDifferentProbers(new ReduceHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testBuildAndRetrieve(new ReduceHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testEntryIterator() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testEntryIterator(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testMultipleProbers() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testMultipleProbers(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieve(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieveMajorityUpdated(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthBuildAndRetrieveMinorityUpdated() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_LISTS = 20000;
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testVariableLengthBuildAndRetrieveMinorityUpdated(
+			new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES, NUM_LISTS);
+	}
+
+	@Test
+	public void testRepeatedBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testRepeatedBuildAndRetrieve(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testProberUpdate() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
+		common.testProberUpdate(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+	}
+
+	@Test
+	public void testVariableLengthStringBuildAndRetrieve() throws Exception {
+		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
+		final int NUM_MEM_PAGES = 40 * common.NUM_PAIRS / common.PAGE_SIZE;
+		common.testVariableLengthStringBuildAndRetrieve(NUM_MEM_PAGES, new ReduceHashTable<>(common.serializerS, common.comparatorS, common.getMemory(NUM_MEM_PAGES)));
+	}
 }
