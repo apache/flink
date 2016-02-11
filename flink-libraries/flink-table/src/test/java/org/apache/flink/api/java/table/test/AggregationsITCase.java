@@ -62,7 +62,6 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Ignore //DataSetMap needs to be implemented
 	@Test
 	public void testAggregationTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

@@ -32,7 +32,6 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Ignore //DataSetMap needs to be implemented
   @Test
   def testAggregationTypes(): Unit = {
 
@@ -67,6 +66,20 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
     val expected = "1,1,1,1,1.5,1.5,2"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testProjection(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(
+      (1: Byte, 1: Short),
+      (2: Byte, 2: Short)).toTable
+      .select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
+
+    val expected = "1,3,2,1,3"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

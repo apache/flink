@@ -70,6 +70,10 @@ object TranslationContext {
 
   }
 
+  def getUniqueName: String = {
+    "TMP_" + nameCntr.getAndIncrement()
+  }
+
   def getRelBuilder: RelBuilder = {
     relBuilder
   }

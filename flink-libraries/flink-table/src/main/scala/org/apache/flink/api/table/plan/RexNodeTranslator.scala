@@ -35,7 +35,7 @@ object RexNodeTranslator {
 
     exp match {
       case agg: Aggregation =>
-        val name = "TMP_" + agg.hashCode().toHexString.toUpperCase
+        val name = TranslationContext.getUniqueName
         val aggCall = toAggCall(agg, name, relBuilder)
         val fieldExp = new UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
