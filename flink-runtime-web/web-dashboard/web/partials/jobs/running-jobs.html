@@ -35,7 +35,7 @@ limitations under the License.
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="job in jobs|orderBy:&quot;'start-time'&quot;" ui-sref="single-job.plan.overview({ jobid: job.jid })">
+      <tr ng-repeat="job in jobs|orderBy:&quot;'start-time'&quot;" ui-sref="single-job.plan.subtasks({ jobid: job.jid })">
         <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
         <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
         <td title="{{job.duration | humanizeDuration:false}}">{{job.duration | humanizeDuration:true}}</td>

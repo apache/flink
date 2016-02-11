@@ -57,6 +57,7 @@ import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexCheckpointsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobVertexTaskManagersHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccumulatorsHandler;
@@ -213,6 +214,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/taskmanagers", handler(new JobVertexTaskManagersHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/checkpoints", handler(new JobVertexCheckpointsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/backpressure", handler(new JobVertexBackPressureHandler(

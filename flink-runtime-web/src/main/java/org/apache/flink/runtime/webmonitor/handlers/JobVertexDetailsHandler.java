@@ -62,7 +62,7 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 			final ExecutionState status = vertex.getExecutionState();
 			
 			InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname();
+			String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
 
 			long startTime = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
 			if (startTime == 0) {

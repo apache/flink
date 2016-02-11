@@ -101,7 +101,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             th Status
 
         tbody
-          tr(ng-repeat="job in runningJobs|orderBy:\"'start-time'\"" ui-sref="single-job.plan.overview({ jobid: job.jid })")
+          tr(ng-repeat="job in runningJobs|orderBy:\"'start-time'\"" ui-sref="single-job.plan.subtasks({ jobid: job.jid })")
             td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td(title="{{job.duration | humanizeDuration:false}}") {{job.duration | humanizeDuration:true}}
@@ -129,7 +129,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
             th Status
 
         tbody
-          tr(ng-repeat="job in finishedJobs|orderBy:\"'end-time'\":true" ui-sref="single-job.plan.overview({ jobid: job.jid })")
+          tr(ng-repeat="job in finishedJobs|orderBy:\"'end-time'\":true" ui-sref="single-job.plan.subtasks({ jobid: job.jid })")
             td {{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td {{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}
             td(title="{{job.duration | humanizeDuration:false}}") {{job.duration | humanizeDuration:true}}

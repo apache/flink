@@ -61,7 +61,7 @@ public class JarRunHandler extends JarActionHandler {
 			}
 
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 			gen.writeStartObject();
 			gen.writeStringField("jobid", graph.f0.getJobID().toString());
 			gen.writeEndObject();
