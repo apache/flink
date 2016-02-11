@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -115,9 +113,6 @@ public class Task implements Runnable {
 	// ------------------------------------------------------------------------
 	//  Constant fields that are part of the initial Task construction
 	// ------------------------------------------------------------------------
-
-	/** The application that the task belongs to */
-	private final ApplicationID appId;
 
 	/** The job that the task belongs to */
 	private final JobID jobId;
@@ -239,7 +234,6 @@ public class Task implements Runnable {
 				TaskManagerRuntimeInfo taskManagerConfig)
 	{
 		this.taskInfo = checkNotNull(tdd.getTaskInfo());
-		this.appId = checkNotNull(tdd.getApplicationID());
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
@@ -499,7 +493,7 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
-			Environment env = new RuntimeEnvironment(appId, jobId, vertexId, executionId, taskInfo,
+			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId, taskInfo,
 					jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,

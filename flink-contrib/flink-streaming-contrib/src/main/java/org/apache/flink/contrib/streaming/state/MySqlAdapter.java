@@ -45,10 +45,10 @@ public class MySqlAdapter implements DbAdapter {
 	// -----------------------------------------------------------------------------
 
 	@Override
-	public void createCheckpointsTable(String appId, Connection con) throws SQLException {
+	public void createCheckpointsTable(String jobId, Connection con) throws SQLException {
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"CREATE TABLE IF NOT EXISTS checkpoints_" + appId
+					"CREATE TABLE IF NOT EXISTS checkpoints_" + jobId
 							+ " ("
 							+ "checkpointId bigint, "
 							+ "timestamp bigint, "
@@ -61,14 +61,14 @@ public class MySqlAdapter implements DbAdapter {
 	}
 
 	@Override
-	public PreparedStatement prepareCheckpointInsert(String appId, Connection con) throws SQLException {
+	public PreparedStatement prepareCheckpointInsert(String jobId, Connection con) throws SQLException {
 		return con.prepareStatement(
-				"INSERT INTO checkpoints_" + appId
+				"INSERT INTO checkpoints_" + jobId
 						+ " (checkpointId, timestamp, handleId, checkpoint) VALUES (?,?,?,?)");
 	}
 
 	@Override
-	public void setCheckpointInsertParams(String appId, PreparedStatement insertStatement, long checkpointId,
+	public void setCheckpointInsertParams(String jobId, PreparedStatement insertStatement, long checkpointId,
 										long timestamp, long handleId, byte[] checkpoint) throws SQLException {
 		insertStatement.setLong(1, checkpointId);
 		insertStatement.setLong(2, timestamp);
@@ -77,11 +77,11 @@ public class MySqlAdapter implements DbAdapter {
 	}
 
 	@Override
-	public byte[] getCheckpoint(String appId, Connection con, long checkpointId, long checkpointTs, long handleId)
+	public byte[] getCheckpoint(String jobId, Connection con, long checkpointId, long checkpointTs, long handleId)
 			throws SQLException {
 		try (Statement smt = con.createStatement()) {
 			ResultSet rs = smt.executeQuery(
-					"SELECT checkpoint FROM checkpoints_" + appId
+					"SELECT checkpoint FROM checkpoints_" + jobId
 							+ " WHERE handleId = " + handleId);
 			if (rs.next()) {
 				return rs.getBytes(1);
@@ -92,20 +92,20 @@ public class MySqlAdapter implements DbAdapter {
 	}
 
 	@Override
-	public void deleteCheckpoint(String appId, Connection con, long checkpointId, long checkpointTs, long handleId)
+	public void deleteCheckpoint(String jobId, Connection con, long checkpointId, long checkpointTs, long handleId)
 			throws SQLException {
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"DELETE FROM checkpoints_" + appId
+					"DELETE FROM checkpoints_" + jobId
 							+ " WHERE handleId = " + handleId);
 		}
 	}
 
 	@Override
-	public void disposeAllStateForJob(String appId, Connection con) throws SQLException {
+	public void disposeAllStateForJob(String jobId, Connection con) throws SQLException {
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"DROP TABLE checkpoints_" + appId);
+					"DROP TABLE checkpoints_" + jobId);
 		}
 	}
 

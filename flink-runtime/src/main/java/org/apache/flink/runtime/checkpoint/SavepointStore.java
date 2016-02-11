@@ -21,11 +21,11 @@ package org.apache.flink.runtime.checkpoint;
 /**
  * Simple wrapper around the state store for savepoints.
  */
-public class SavepointStore implements StateStore<Savepoint> {
+public class SavepointStore implements StateStore<CompletedCheckpoint> {
 
-	private final StateStore<Savepoint> stateStore;
+	private final StateStore<CompletedCheckpoint> stateStore;
 
-	public SavepointStore(StateStore<Savepoint> stateStore) {
+	public SavepointStore(StateStore<CompletedCheckpoint> stateStore) {
 		this.stateStore = stateStore;
 	}
 
@@ -34,10 +34,10 @@ public class SavepointStore implements StateStore<Savepoint> {
 
 	public void stop() {
 		if (stateStore instanceof HeapStateStore) {
-			HeapStateStore<Savepoint> heapStateStore = (HeapStateStore<Savepoint>) stateStore;
+			HeapStateStore<CompletedCheckpoint> heapStateStore = (HeapStateStore<CompletedCheckpoint>) stateStore;
 
-			for (Savepoint savepoint : heapStateStore.getAll()) {
-				savepoint.getCompletedCheckpoint().discard(ClassLoader.getSystemClassLoader());
+			for (CompletedCheckpoint savepoint : heapStateStore.getAll()) {
+				savepoint.discard(ClassLoader.getSystemClassLoader());
 			}
 
 			heapStateStore.clearAll();
@@ -45,12 +45,12 @@ public class SavepointStore implements StateStore<Savepoint> {
 	}
 
 	@Override
-	public String putState(Savepoint state) throws Exception {
+	public String putState(CompletedCheckpoint state) throws Exception {
 		return stateStore.putState(state);
 	}
 
 	@Override
-	public Savepoint getState(String path) throws Exception {
+	public CompletedCheckpoint getState(String path) throws Exception {
 		return stateStore.getState(path);
 	}
 
@@ -59,7 +59,7 @@ public class SavepointStore implements StateStore<Savepoint> {
 		stateStore.disposeState(path);
 	}
 
-	StateStore<Savepoint> getStateStore() {
+	StateStore<CompletedCheckpoint> getStateStore() {
 		return stateStore;
 	}
 }
