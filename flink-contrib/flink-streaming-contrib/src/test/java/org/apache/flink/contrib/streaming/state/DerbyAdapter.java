@@ -42,11 +42,11 @@ public class DerbyAdapter extends MySqlAdapter {
 	 * "IF NOT EXISTS" clause at table creation
 	 */
 	@Override
-	public void createCheckpointsTable(String appId, Connection con) throws SQLException {
+	public void createCheckpointsTable(String jobId, Connection con) throws SQLException {
 
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"CREATE TABLE checkpoints_" + appId
+					"CREATE TABLE checkpoints_" + jobId
 							+ " ("
 							+ "checkpointId bigint, "
 							+ "timestamp bigint, "

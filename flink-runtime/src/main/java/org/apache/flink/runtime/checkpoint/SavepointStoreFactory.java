@@ -109,11 +109,11 @@ public class SavepointStoreFactory {
 	// ------------------------------------------------------------------------
 
 	private static SavepointStore createJobManagerSavepointStore() {
-		return new SavepointStore(new HeapStateStore<Savepoint>());
+		return new SavepointStore(new HeapStateStore<CompletedCheckpoint>());
 	}
 
 	private static SavepointStore createFileSystemSavepointStore(String rootPath) throws IOException {
-		return new SavepointStore(new FileSystemStateStore<Savepoint>(rootPath, "savepoint-"));
+		return new SavepointStore(new FileSystemStateStore<CompletedCheckpoint>(rootPath, "savepoint-"));
 	}
 
 }

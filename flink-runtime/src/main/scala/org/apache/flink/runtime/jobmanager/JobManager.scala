@@ -632,7 +632,7 @@ class JobManager(
           log.debug(s"$savepoint")
 
           // Discard the associated checkpoint
-          savepoint.getCompletedCheckpoint.discard(getClass.getClassLoader)
+          savepoint.discard(getClass.getClassLoader)
 
           // Dispose the savepoint
           savepointStore.disposeState(savepointPath)

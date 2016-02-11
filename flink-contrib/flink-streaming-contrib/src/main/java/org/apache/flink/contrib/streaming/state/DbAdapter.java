@@ -34,10 +34,9 @@ public interface DbAdapter extends Serializable {
 
 	/**
 	 * Initialize tables for storing non-partitioned checkpoints for the given
-	 * application id and database connection.
-	 * 
+	 * job id and database connection.
 	 */
-	void createCheckpointsTable(String appId, Connection con) throws SQLException;
+	void createCheckpointsTable(String jobId, Connection con) throws SQLException;
 
 	/**
 	 * Checkpoints will be inserted in the database using prepared statements.
@@ -45,14 +44,14 @@ public interface DbAdapter extends Serializable {
 	 * later to insert using the given connection.
 	 * 
 	 */
-	PreparedStatement prepareCheckpointInsert(String appId, Connection con) throws SQLException;
+	PreparedStatement prepareCheckpointInsert(String jobId, Connection con) throws SQLException;
 
 	/**
 	 * Set the {@link PreparedStatement} parameters for the statement returned
 	 * by {@link #prepareCheckpointInsert(String, Connection)}.
 	 * 
-	 * @param appId
-	 *            Id of the current application.
+	 * @param jobId
+	 *            Id of the current job.
 	 * @param insertStatement
 	 *            Statement returned by
 	 *            {@link #prepareCheckpointInsert(String, Connection)}.
@@ -67,14 +66,14 @@ public interface DbAdapter extends Serializable {
 	 *            The serialized checkpoint.
 	 * @throws SQLException
 	 */
-	void setCheckpointInsertParams(String appId, PreparedStatement insertStatement, long checkpointId,
+	void setCheckpointInsertParams(String jobId, PreparedStatement insertStatement, long checkpointId,
 			long timestamp, long handleId, byte[] checkpoint) throws SQLException;
 
 	/**
 	 * Retrieve the serialized checkpoint data from the database.
 	 * 
-	 * @param appId
-	 *            Id of the current application.
+	 * @param jobId
+	 *            Id of the current job.
 	 * @param con
 	 *            Database connection
 	 * @param checkpointId
@@ -87,14 +86,14 @@ public interface DbAdapter extends Serializable {
 	 * @return The byte[] corresponding to the checkpoint or null if missing.
 	 * @throws SQLException
 	 */
-	byte[] getCheckpoint(String appId, Connection con, long checkpointId, long checkpointTs, long handleId)
+	byte[] getCheckpoint(String jobId, Connection con, long checkpointId, long checkpointTs, long handleId)
 			throws SQLException;
 
 	/**
 	 * Remove the given checkpoint from the database.
 	 * 
-	 * @param appId
-	 *            Id of the current application.
+	 * @param jobId
+	 *            Id of the current job.
 	 * @param con
 	 *            Database connection
 	 * @param checkpointId
@@ -107,16 +106,16 @@ public interface DbAdapter extends Serializable {
 	 * @return The byte[] corresponding to the checkpoint or null if missing.
 	 * @throws SQLException
 	 */
-	void deleteCheckpoint(String appId, Connection con, long checkpointId, long checkpointTs, long handleId)
+	void deleteCheckpoint(String jobId, Connection con, long checkpointId, long checkpointTs, long handleId)
 			throws SQLException;
 
 	/**
-	 * Remove all states for the given {@link org.apache.flink.api.common.ApplicationID},
+	 * Remove all states for the given {@link org.apache.flink.api.common.JobID},
 	 * by for instance dropping the entire table.
 	 * 
 	 * @throws SQLException
 	 */
-	void disposeAllStateForJob(String appId, Connection con) throws SQLException;
+	void disposeAllStateForJob(String jobId, Connection con) throws SQLException;
 
 	/**
 	 * Initialize the necessary tables for the given stateId. The state id

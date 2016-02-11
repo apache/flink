@@ -79,7 +79,7 @@ public class DbStateBackend extends AbstractStateBackend {
 
 	private transient Environment env;
 
-	private transient String appId;
+	private transient String jobId;
 
 	// ------------------------------------------------------
 
@@ -165,13 +165,13 @@ public class DbStateBackend extends AbstractStateBackend {
 					long handleId = rnd.nextLong();
 
 					byte[] serializedState = InstantiationUtil.serializeObject(state);
-					dbAdapter.setCheckpointInsertParams(appId, insertStatement,
+					dbAdapter.setCheckpointInsertParams(jobId, insertStatement,
 							checkpointID, timestamp, handleId,
 							serializedState);
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<>(appId, checkpointID, timestamp, handleId,
+					return new DbStateHandle<>(jobId, checkpointID, timestamp, handleId,
 							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -268,7 +268,7 @@ public class DbStateBackend extends AbstractStateBackend {
 
 		this.rnd = new Random();
 		this.env = env;
-		this.appId = env.getApplicationID().toString().substring(0, 16);
+		this.jobId = env.getJobID().toString().substring(0, 16);
 
 		connections = dbConfig.createShardedConnection();
 
@@ -286,8 +286,8 @@ public class DbStateBackend extends AbstractStateBackend {
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(appId, getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(appId,
+					dbAdapter.createCheckpointsTable(jobId, getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(jobId,
 							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -316,7 +316,7 @@ public class DbStateBackend extends AbstractStateBackend {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(appId, connections.getFirst());
+			dbAdapter.disposeAllStateForJob(jobId, connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}
