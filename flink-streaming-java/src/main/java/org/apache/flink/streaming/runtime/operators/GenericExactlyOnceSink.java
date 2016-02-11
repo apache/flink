@@ -111,7 +111,11 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 				}
 			}
 			for (Long toRemove : checkpointsToRemove) {
+				List<StateHandle<DataInputView>> handles = state.pendingHandles.get(toRemove);
 				state.pendingHandles.remove(toRemove);
+				for (StateHandle<DataInputView> handle : handles) {
+					handle.discardState();
+				}
 			}
 		}
 	}
@@ -161,6 +165,11 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 
 		@Override
 		public void discardState() throws Exception {
+			for (List<StateHandle<DataInputView>> handles : pendingHandles.values()) {
+				for (StateHandle<DataInputView> handle : handles) {
+					handle.discardState();
+				}
+			}
 			pendingHandles = new HashMap<>();
 		}
 
