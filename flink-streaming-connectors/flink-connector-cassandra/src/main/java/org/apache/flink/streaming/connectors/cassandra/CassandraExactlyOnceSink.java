@@ -51,6 +51,12 @@ public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOn
 	}
 
 	public CassandraExactlyOnceSink(String host, String createQuery, String insertQuery) {
+		if (host == null) {
+			throw new IllegalArgumentException("Host argument must not be null.");
+		}
+		if (insertQuery == null) {
+			throw new IllegalArgumentException("Insert query argument must not be null.");
+		}
 		this.host = host;
 		this.createQuery = createQuery;
 		this.insertQuery = insertQuery;
