@@ -169,12 +169,12 @@ public class RocksDBValueState<K, N, V>
 				TypeSerializer<K> keySerializer,
 				TypeSerializer<N> namespaceSerializer,
 				ValueStateDescriptor<V> stateDesc,
-				File dbPath,
+				File basePath,
 				String backupPath,
 				String restorePath,
 				Options options) throws Exception {
 			
-			return new RocksDBValueState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, 
+			return new RocksDBValueState<>(keySerializer, namespaceSerializer, stateDesc, basePath,
 					checkpointPath, restorePath, options);
 		}
 	}
