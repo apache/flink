@@ -26,39 +26,26 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 
 public class HadoopOutputFormatTest {
 
-	private static final String PATH = "an/ignored/file/";
-	private static final String MAPRED_OUTPUT_DIR = "mapred.output.dir";
-	private Map<String, Long> map;
+	private static final String MAPRED_OUTPUT_PATH = "an/ignored/file/";
+	private static final String MAPRED_OUTPUT_DIR_KEY = "mapred.output.dir";
 
     @Test
     public void testWriteRecord() throws Exception {
 
-		this.map = new HashMap<>();
-		String key = "Test";
-        Long value = 1L;
-        map.put(key, 0L);
-
+		RecordWriter<String, Long> recordWriter = mock(DummyRecordWriter.class);
 		HadoopOutputFormat<String, Long> hadoopOutputFormat = setupHadoopOutputFormat(new DummyOutputFormat(),
-			Job.getInstance(), new DummyRecordWriter(), null, new Configuration());
+			Job.getInstance(), recordWriter, null, new Configuration());
 
-		Tuple2<String, Long> tuple = new Tuple2<>(key, value);
-		hadoopOutputFormat.writeRecord(tuple);
+		hadoopOutputFormat.writeRecord(new Tuple2<String, Long>());
 
-		Long expected = map.get(key);
-
-		assertThat(value, is(equalTo(expected)));
+		verify(recordWriter, times(1)).write(anyString(), anyLong());
     }
 
     @Test
@@ -150,7 +137,7 @@ public class HadoopOutputFormatTest {
 		hadoopOutputFormat.recordWriter = recordWriter;
 		hadoopOutputFormat.outputCommitter = outputCommitter;
 		hadoopOutputFormat.configuration = configuration;
-		hadoopOutputFormat.configuration.set(MAPRED_OUTPUT_DIR, PATH);
+		hadoopOutputFormat.configuration.set(MAPRED_OUTPUT_DIR_KEY, MAPRED_OUTPUT_PATH);
 
 		return hadoopOutputFormat;
 	}
@@ -158,7 +145,6 @@ public class HadoopOutputFormatTest {
     class DummyRecordWriter extends RecordWriter<String, Long> {
         @Override
         public void write(String key, Long value) throws IOException, InterruptedException {
-            map.put(key, value);
         }
 
         @Override
