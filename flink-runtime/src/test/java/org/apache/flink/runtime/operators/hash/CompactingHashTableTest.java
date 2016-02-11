@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.hash;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.common.typeutils.SameTypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -217,18 +218,27 @@ public class CompactingHashTableTest {
 
 			// first, we insert some elements
 			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(new Tuple2<Long, String>(i, longString));
+				table.insertOrReplaceRecord(Tuple2.of(i, longString));
 			}
 
 			// now, we replace the same elements, causing fragmentation
 			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(new Tuple2<Long, String>(i, longString));
+				table.insertOrReplaceRecord(Tuple2.of(i, longString));
 			}
 			
 			// now we insert an additional set of elements. without compaction during this insertion,
 			// the memory will run out
 			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(new Tuple2<Long, String>(i + numElements, longString));
+				table.insertOrReplaceRecord(Tuple2.of(i + numElements, longString));
+			}
+
+			// check the results
+			CompactingHashTable<Tuple2<Long, String>>.HashTableProber<Tuple2<Long, String>> prober =
+				table.getProber(comparator, new SameTypePairComparator<>(comparator));
+			Tuple2<Long, String> reuse = new Tuple2<>();
+			for (long i = 0; i < numElements; i++) {
+				assertNotNull(prober.getMatchFor(Tuple2.of(i, longString), reuse));
+				assertNotNull(prober.getMatchFor(Tuple2.of(i + numElements, longString), reuse));
 			}
 		}
 		catch (Exception e) {
