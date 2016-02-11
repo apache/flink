@@ -45,7 +45,7 @@ import java.util.Set;
  *
  * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
  * checkpoint is completed. Should a job fail while the data is being committed, no exactly once guarantee can be made.
- * @param <IN>
+ * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
 	private AbstractStateBackend.CheckpointStateOutputView out;
