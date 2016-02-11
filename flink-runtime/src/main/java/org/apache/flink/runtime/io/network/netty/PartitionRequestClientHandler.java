@@ -117,7 +117,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 			notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 					"Connection unexpectedly closed by remote task manager '" + remoteAddr + "'. "
-							+ "This might indicate that the remote task manager was lost."));
+							+ "This might indicate that the remote task manager was lost.",
+					remoteAddr));
 		}
 
 		super.channelInactive(ctx);
@@ -143,7 +144,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Lost connection to task manager '" + remoteAddr + "'. This indicates "
-								+ "that the remote task manager was lost.", cause));
+								+ "that the remote task manager was lost.", cause, remoteAddr));
 			}
 			else {
 				notifyAllChannelsOfErrorAndClose(new LocalTransportException(cause.getMessage(), cause));
@@ -222,7 +223,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
 						"Fatal error at remote task manager '" + remoteAddr + "'.",
-						error.cause));
+						error.cause, remoteAddr));
 			}
 			else {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
@@ -234,7 +235,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					else {
 						inputChannel.onError(new RemoteTransportException(
 								"Error at remote task manager '" + remoteAddr + "'.",
-										error.cause));
+										error.cause, remoteAddr));
 					}
 				}
 			}
