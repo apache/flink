@@ -21,7 +21,7 @@ package org.apache.flink.runtime.testingUtils
 import akka.actor.ActorRef
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
@@ -48,7 +48,8 @@ class TestingJobManager(
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
-    checkpointRecoveryFactory : CheckpointRecoveryFactory)
+    checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    savepointStore : SavepointStore)
   extends JobManager(
     flinkConfiguration,
       executorService,
@@ -61,5 +62,6 @@ class TestingJobManager(
     timeout,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory)
+    checkpointRecoveryFactory,
+    savepointStore)
   with TestingJobManagerLike {}
