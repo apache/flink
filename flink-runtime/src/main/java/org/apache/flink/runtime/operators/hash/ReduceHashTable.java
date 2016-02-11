@@ -91,20 +91,15 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	/** The minimum number of memory segments ReduceHashTable needs to be supplied with in order to work. */
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 3;
 
-	/** The last link in the linked lists will have this as next pointer. */
-	private static final long END_OF_LIST = -1;
+	// Note: the following two constants can't be negative, because negative values are reserved for storing the
+	// negated size of the record, when it is abandoned (not part of any linked list).
 
-	/**
-	 * The next pointer of a link will have this value, if it is not part of the linked list.
-	 * (This can happen because the record couldn't be updated in-place due to a size change.)
-	 * Note: the record that is in the link should still be readable, in order to be possible to determine
-	 * the size of the place (see EntryIterator).
-	 * Note: the last record in the record area can't be abandoned. (EntryIterator makes use of this fact.)
-	 */
-	private static final long ABANDONED_RECORD = -2;
+	/** The last link in the linked lists will have this as next pointer. */
+	private static final long END_OF_LIST = Long.MAX_VALUE;
 
 	/** This value means that prevElemPtr is "pointing to the bucket head", and not into the record segments. */
-	private static final long INVALID_PREV_POINTER = -3;
+	private static final long INVALID_PREV_POINTER = Long.MAX_VALUE - 1;
+
 
 	private static final long RECORD_OFFSET_IN_LINK = 8;
 
@@ -451,10 +446,14 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 				// Loop until we find a non-abandoned record.
 				// Note: the last record in the record area can't be abandoned.
 				while (true) {
-					final boolean isAbandoned = recordArea.readLong() == ABANDONED_RECORD;
-					reuse = recordArea.readRecord(reuse);
+					final long pointerOrNegatedLength = recordArea.readLong();
+					final boolean isAbandoned = pointerOrNegatedLength < 0;
 					if (!isAbandoned) {
+						reuse = recordArea.readRecord(reuse);
 						return reuse;
+					} else {
+						// pointerOrNegatedLength is storing a length, because the record was abandoned.
+						recordArea.skipBytesToRead((int)-(pointerOrNegatedLength + 1));
 					}
 				}
 			} else {
@@ -801,6 +800,10 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		public T readRecord(T reuse) throws IOException {
 			return buildSideSerializer.deserialize(reuse, inView);
 		}
+
+		public void skipBytesToRead(int numBytes) throws IOException {
+			inView.skipBytesToRead(numBytes);
+		}
 	}
 
 
@@ -950,8 +953,8 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 					recordArea.overwriteRecordAt(curElemPtr + RECORD_OFFSET_IN_LINK, stagingSegmentsInView, newRecordSize);
 				} else {
 					// new record has a different size than the old one, append new at the end of the record area.
-					// Note: we have to do this, even if the new record is smaller, because otherwise we wouldn't know
-					// the size of this place during the compaction, and wouldn't know where does the next record start.
+					// Note: we have to do this, even if the new record is smaller, because otherwise EntryIterator
+					// wouldn't know the size of this place, and wouldn't know where does the next record start.
 
 					final long pointerToAppended =
 						recordArea.appendPointerAndCopyRecord(nextPtr, stagingSegmentsInView, newRecordSize);
@@ -964,7 +967,13 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 						recordArea.overwritePointerAt(prevElemPtr, pointerToAppended);
 					}
 
-					recordArea.overwritePointerAt(curElemPtr, ABANDONED_RECORD);
+					// write the negated size of the hole to the place where the next pointer was, so that EntryIterator
+					// will know the size of the place without reading the old record.
+					// The negative sign will mean that the record is abandoned, and the
+					// the -1 is for avoiding trouble in case of a record having 0 size. (though I think this should
+					// never actually happen)
+					// Note: the last record in the record area can't be abandoned. (EntryIterator makes use of this fact.)
+					recordArea.overwritePointerAt(curElemPtr, -oldRecordSize - 1);
 
 					holes += oldRecordSize;
 				}
