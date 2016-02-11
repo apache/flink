@@ -24,8 +24,36 @@ import org.rocksdb.Options;
  * A factory for {@link Options} to be passed to the {@link RocksDBStateBackend}.
  * Options have to be created lazily by this factory, because the {@code Options}
  * class is not serializable and holds pointers to native code.
+ * 
+ * <p>A typical pattern to use this OptionsFactory is as follows:
+ * 
+ * <h3>Java 8:</h3>
+ * <pre>{@code
+ * rocksDbBackend.setOptions( (currentOptions) -> currentOptions.setMaxOpenFiles(1024) );
+ * }</pre>
+ * 
+ * <h3>Java 7:</h3>
+ * <pre>{@code
+ * rocksDbBackend.setOptions(new OptionsFactory() {
+ *     
+ *     public Options setOptions(Options currentOptions) {
+ *         return currentOptions.setMaxOpenFiles(1024);
+ *     }
+ * })
+ * }</pre>
  */
 public interface OptionsFactory extends java.io.Serializable {
-	
-	Options createOptions();
+
+	/**
+	 * This method should set the additional options on top of the current options object.
+	 * The current options object may contain pre-defined options based on flags that have
+	 * been configured on the state backend.
+	 * 
+	 * <p>It is important to set the options on the current object and return the result from
+	 * the setter methods, otherwise the pre-defined options may get lost.
+	 * 
+	 * @param currentOptions The options object with the pre-defined options. 
+	 * @return The options object on which the additional options are set.
+	 */
+	Options createOptions(Options currentOptions);
 }
