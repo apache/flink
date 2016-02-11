@@ -70,7 +70,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1, ClassLoader.getSystemClassLoader()),
 					RecoveryMode.STANDALONE,
-					new HeapStateStore<Savepoint>());
+					new HeapStateStore<CompletedCheckpoint>());
 
 			CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 			SavepointCoordinator savepointCoordinator = executionGraph.getSavepointCoordinator();

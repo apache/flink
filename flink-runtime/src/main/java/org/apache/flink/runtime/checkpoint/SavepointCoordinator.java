@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -67,20 +66,13 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointCoordinator.class);
 
-	/**
-	 * The application ID of the job this coordinator belongs to. This is updated on reset to an
-	 * old savepoint.
-	 */
-	private ApplicationID appId;
-
 	/** Store for savepoints. */
-	private StateStore<Savepoint> savepointStore;
+	private StateStore<CompletedCheckpoint> savepointStore;
 
 	/** Mapping from checkpoint ID to promises for savepoints. */
 	private final Map<Long, Promise<String>> savepointPromises;
 
 	public SavepointCoordinator(
-			ApplicationID appId,
 			JobID jobId,
 			long baseInterval,
 			long checkpointTimeout,
@@ -89,7 +81,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			ClassLoader userClassLoader,
 			CheckpointIDCounter checkpointIDCounter,
-			StateStore<Savepoint> savepointStore,
+			StateStore<CompletedCheckpoint> savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
 		super(jobId,
@@ -106,7 +98,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				RecoveryMode.STANDALONE,
 				statsTracker);
 
-		this.appId = checkNotNull(appId);
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();
 	}
@@ -169,12 +160,11 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	 *
 	 * @param tasks         Tasks that will possibly be reset
 	 * @param savepointPath The path of the savepoint to rollback to
-	 * @return The application ID of the rolled back savepoint
 	 * @throws IllegalStateException If coordinator is shut down
 	 * @throws IllegalStateException If mismatch between program and savepoint state
 	 * @throws Exception             If savepoint store failure
 	 */
-	public ApplicationID restoreSavepoint(
+	public void restoreSavepoint(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			String savepointPath) throws Exception {
 
@@ -189,9 +179,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			LOG.info("Rolling back to savepoint '{}'.", savepointPath);
 
-			Savepoint savepoint = savepointStore.getState(savepointPath);
-
-			CompletedCheckpoint checkpoint = savepoint.getCompletedCheckpoint();
+			CompletedCheckpoint checkpoint = savepointStore.getState(savepointPath);
 
 			LOG.info("Savepoint: {}@{}", checkpoint.getCheckpointID(), checkpoint.getTimestamp());
 
@@ -207,7 +195,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
 							"Cannot map old state for task %s to the new program. " +
 							"This indicates that the program has been changed in a " +
-							"non-compatible way  after the savepoint.", savepoint,
+							"non-compatible way  after the savepoint.", checkpoint,
 							state.getOperatorId());
 					throw new IllegalStateException(msg);
 				}
@@ -217,7 +205,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 							"Parallelism mismatch between savepoint state and new program. " +
 							"Cannot map subtask %d of operator %s to new program with " +
 							"parallelism %d. This indicates that the program has been changed " +
-							"in a non-compatible way after the savepoint.", savepoint,
+							"in a non-compatible way after the savepoint.", checkpoint,
 							state.getSubtask(), state.getOperatorId(), vertex.getParallelism());
 					throw new IllegalStateException(msg);
 				}
@@ -233,11 +221,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			checkpointIdCounter.start();
 			checkpointIdCounter.setCount(nextCheckpointId + 1);
 			LOG.info("Reset the checkpoint ID to {}", nextCheckpointId);
-
-			this.appId = savepoint.getApplicationId();
-			LOG.info("Reset the application ID to {}", appId);
-
-			return appId;
 		}
 	}
 
@@ -276,8 +259,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 		try {
 			// Save the checkpoint
-			String savepointPath = savepointStore.putState(
-					new Savepoint(appId, checkpoint));
+			String savepointPath = savepointStore.putState(checkpoint);
 			promise.success(savepointPath);
 		}
 		catch (Exception e) {

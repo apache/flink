@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.deployment;
 
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -42,9 +41,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public final class TaskDeploymentDescriptor implements Serializable {
 
 	private static final long serialVersionUID = -3233562176034358530L;
-
-	/** The ID of the application the tasks belongs to. */
-	private final ApplicationID appId;
 
 	/** The ID of the job the tasks belongs to. */
 	private final JobID jobID;
@@ -98,7 +94,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
+			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
 			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
 			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
@@ -112,7 +108,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		checkArgument(targetSlotNumber >= 0);
 		checkArgument(attemptNumber >= 0);
 
-		this.appId = checkNotNull(appId);
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
@@ -133,7 +128,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	public TaskDeploymentDescriptor(
-			ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
+			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
 			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
 			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
@@ -141,16 +136,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
 			int targetSlotNumber) {
 
-		this(appId, jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
+		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
 				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
-	}
-
-	/**
-	 * Returns the ID of the application the tasks belongs to.
-	 */
-	public ApplicationID getApplicationID() {
-		return appId;
 	}
 
 	/**

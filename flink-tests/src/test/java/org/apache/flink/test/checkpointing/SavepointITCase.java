@@ -24,7 +24,6 @@ import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -32,7 +31,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.StateForTask;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -45,6 +43,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -54,7 +53,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseS
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -208,7 +206,7 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			Savepoint savepoint = ((ResponseSavepoint) Await.result(
+			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepoint + ".");
 
@@ -217,9 +215,6 @@ public class SavepointITCase extends TestLogger {
 			flink.shutdown();
 
 			// - Verification START -------------------------------------------
-
-			final ApplicationID expectedAppId = savepoint.getApplicationId();
-			final CompletedCheckpoint expectedCheckpoint = savepoint.getCompletedCheckpoint();
 
 			// Only one checkpoint of the savepoint should exist
 			String errMsg = "Checkpoints directory not cleaned up properly.";
@@ -310,15 +305,9 @@ public class SavepointITCase extends TestLogger {
 			errMsg = "Error during gathering of TaskDeploymentDescriptors";
 			assertNull(errMsg, error[0]);
 
-			// Verify application IDs match
-			errMsg = "Application ID mismatch after redeployment.";
-			for (TaskDeploymentDescriptor tdd : tdds.values()) {
-				assertEquals(errMsg, expectedAppId, tdd.getApplicationID());
-			}
-
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.
-			for (StateForTask stateForTask : expectedCheckpoint.getStates()) {
+			for (StateForTask stateForTask : savepoint.getStates()) {
 				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(
 						stateForTask.getOperatorId());
 
@@ -359,7 +348,7 @@ public class SavepointITCase extends TestLogger {
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
-			for (StateForTask stateForTask : expectedCheckpoint.getStates()) {
+			for (StateForTask stateForTask : savepoint.getStates()) {
 				StreamTaskStateList taskStateList = (StreamTaskStateList) stateForTask.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
@@ -501,7 +490,7 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			Savepoint savepoint = ((ResponseSavepoint) Await.result(
+			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepoint + ".");
 
@@ -637,7 +626,7 @@ public class SavepointITCase extends TestLogger {
 					new RequestSavepoint(savepointPath),
 					deadline.timeLeft());
 
-			Savepoint savepoint = ((ResponseSavepoint) Await.result(
+			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
 					savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepoint + ".");
 
@@ -654,7 +643,7 @@ public class SavepointITCase extends TestLogger {
 			assertTrue((Boolean) Await.result(removedRespFuture, deadline.timeLeft()));
 
 			// Check that all checkpoint files have been removed
-			for (StateForTask stateForTask : savepoint.getCompletedCheckpoint().getStates()) {
+			for (StateForTask stateForTask : savepoint.getStates()) {
 				StreamTaskStateList taskStateList = (StreamTaskStateList) stateForTask.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
