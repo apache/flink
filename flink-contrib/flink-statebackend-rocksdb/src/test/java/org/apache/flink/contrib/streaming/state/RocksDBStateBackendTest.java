@@ -40,7 +40,9 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		dbDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		chkDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 
-		return new RocksDBStateBackend(dbDir.getAbsolutePath(), "file://" + chkDir.getAbsolutePath(), new MemoryStateBackend());
+		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		backend.setDbStoragePath(dbDir.getAbsolutePath());
+		return backend;
 	}
 
 	@Override
