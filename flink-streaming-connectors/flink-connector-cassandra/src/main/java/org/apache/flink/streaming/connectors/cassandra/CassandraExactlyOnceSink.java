@@ -36,9 +36,9 @@ import org.apache.flink.streaming.runtime.operators.GenericExactlyOnceSink;
  * @param <IN> Type of the elements emitted by this sink
  */
 public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOnceSink<IN> {
-	private String host;
-	private String createQuery;
-	private String insertQuery;
+	private final String host;
+	private final String createQuery;
+	private final String insertQuery;
 
 	private transient Cluster cluster;
 	private transient Session session;
