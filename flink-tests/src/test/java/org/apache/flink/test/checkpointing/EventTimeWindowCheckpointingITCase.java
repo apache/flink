@@ -111,16 +111,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			case MEM:
 				this.stateBackend = new MemoryStateBackend();
 				break;
-			case FILE:
+			case FILE: {
 				String backups = tempFolder.newFolder().getAbsolutePath();
 				this.stateBackend = new FsStateBackend("file://" + backups);
 				break;
-			case ROCKSDB:
+			}
+			case ROCKSDB: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				String rocksDbBackups = tempFolder.newFolder().getAbsolutePath();
-
-				this.stateBackend = new RocksDBStateBackend(rocksDb, "file://" + rocksDbBackups, new MemoryStateBackend());
+				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
+				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
+				rdb.setDbStoragePath(rocksDb);
+				this.stateBackend = rdb;
 				break;
+			}
 		}
 	}
 

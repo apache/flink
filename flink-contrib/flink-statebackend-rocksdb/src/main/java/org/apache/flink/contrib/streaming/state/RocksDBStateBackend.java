@@ -18,7 +18,12 @@
 package org.apache.flink.contrib.streaming.state;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
@@ -28,13 +33,17 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
 
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.rocksdb.Options;
 import org.rocksdb.StringAppendOperator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,20 +63,35 @@ import static java.util.Objects.requireNonNull;
 public class RocksDBStateBackend extends AbstractStateBackend {
 	private static final long serialVersionUID = 1L;
 
-	/** Base path for RocksDB directory. */
-	private final String dbBasePath;
+	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
+	
+	
+	/** The checkpoint directory that copy the RocksDB backups to. */
+	private final Path checkpointDirectory;
 
-	/** The checkpoint directory that we snapshot RocksDB backups to. */
-	private final String checkpointDirectory;
-
+	/** The state backend that stores the non-partitioned state */
+	private final AbstractStateBackend nonPartitionedStateBackend;
+	
+	
 	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
 	private String operatorIdentifier;
 
 	/** JobID for uniquifying backup paths. */
 	private JobID jobId;
+	
 
-	private AbstractStateBackend backingStateBackend;
+	// DB storage directories
+	
+	/** Base paths for RocksDB directory, as configured. May be null. */
+	private Path[] dbBasePaths;
 
+	/** Base paths for RocksDB directory, as initialized */
+	private File[] dbStorageDirectories;
+	
+	private int nextDirectory;
+	
+	// RocksDB options
+	
 	/** The pre-configured option settings */
 	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
 	
@@ -79,31 +103,112 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	
 	// ------------------------------------------------------------------------
 
-	public RocksDBStateBackend(String dbBasePath, String checkpointDirectory, AbstractStateBackend backingStateBackend) {
-		this.dbBasePath = requireNonNull(dbBasePath);
-		this.checkpointDirectory = requireNonNull(checkpointDirectory);
-		this.backingStateBackend = requireNonNull(backingStateBackend);
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 * 
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(String checkpointDataUri) throws IOException {
+		this(new Path(checkpointDataUri).toUri());
 	}
 
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
+		// creating the FsStateBackend automatically sanity checks the URI
+		FsStateBackend fsStateBackend = new FsStateBackend(checkpointDataUri);
+		
+		this.nonPartitionedStateBackend = fsStateBackend;
+		this.checkpointDirectory = fsStateBackend.getBasePath();
+	}
+
+
+	public RocksDBStateBackend(
+			String checkpointDataUri, AbstractStateBackend nonPartitionedStateBackend) throws IOException {
+		
+		this(new Path(checkpointDataUri).toUri(), nonPartitionedStateBackend);
+	}
+	
+	public RocksDBStateBackend(
+			URI checkpointDataUri, AbstractStateBackend nonPartitionedStateBackend) throws IOException {
+
+		this.nonPartitionedStateBackend = requireNonNull(nonPartitionedStateBackend);
+		this.checkpointDirectory = FsStateBackend.validateAndNormalizeUri(checkpointDataUri);
+	}
+
+	// ------------------------------------------------------------------------
+	//  State backend methods
 	// ------------------------------------------------------------------------
 	
 	@Override
 	public void initializeForJob(
 			Environment env, 
 			String operatorIdentifier,
-			TypeSerializer<?> keySerializer) throws Exception
-	{
+			TypeSerializer<?> keySerializer) throws Exception {
+		
 		super.initializeForJob(env, operatorIdentifier, keySerializer);
+
+		this.nonPartitionedStateBackend.initializeForJob(env, operatorIdentifier, keySerializer);
+		
 		this.operatorIdentifier = operatorIdentifier.replace(" ", "");
-		backingStateBackend.initializeForJob(env, operatorIdentifier, keySerializer);
 		this.jobId = env.getJobID();
+		
+		// initialize the paths where the local RocksDB files should be stored
+		if (dbBasePaths == null) {
+			// initialize from the temp directories
+			dbStorageDirectories = env.getIOManager().getSpillingDirectories();
+		}
+		else {
+			List<File> dirs = new ArrayList<>(dbBasePaths.length);
+			String errorMessage = "";
+			
+			for (Path path : dbBasePaths) {
+				File f = new File(path.toUri().getPath());
+				if (!f.exists() && !f.mkdirs()) {
+					String msg = "Local DB files directory '" + f.getAbsolutePath()
+							+ "' does not exist and cannot be created. ";
+					LOG.error(msg);
+					errorMessage += msg;
+				}
+				dirs.add(f);
+			}
+			
+			if (dirs.isEmpty()) {
+				throw new Exception("No local storage directories available. " + errorMessage);
+			} else {
+				dbStorageDirectories = dirs.toArray(new File[dirs.size()]);
+			}
+		}
+		
+		nextDirectory = new Random().nextInt(dbStorageDirectories.length);
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {}
+	public void disposeAllStateForCurrentJob() throws Exception {
+		nonPartitionedStateBackend.disposeAllStateForCurrentJob();
+	}
 
 	@Override
 	public void close() throws Exception {
+		nonPartitionedStateBackend.close();
+		
 		Options opt = this.rocksDbOptions;
 		if (opt != null) {
 			opt.dispose();
@@ -111,12 +216,24 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 	}
 
-	private File getDbPath(String stateName) {
-		return new File(new File(new File(new File(dbBasePath), jobId.toString()), operatorIdentifier), stateName);
+	File getDbPath(String stateName) {
+		return new File(new File(new File(getNextStoragePath(), jobId.toString()), operatorIdentifier), stateName);
 	}
 
-	private String getCheckpointPath(String stateName) {
+	String getCheckpointPath(String stateName) {
 		return checkpointDirectory + "/" + jobId.toString() + "/" + operatorIdentifier + "/" + stateName;
+	}
+	
+	File[] getStoragePaths() {
+		return dbStorageDirectories;
+	}
+	
+	File getNextStoragePath() {
+		int ni = nextDirectory + 1;
+		ni = ni >= dbStorageDirectories.length ? 0 : ni;
+		nextDirectory = ni;
+		
+		return dbStorageDirectories[ni];
 	}
 
 	// ------------------------------------------------------------------------
@@ -154,20 +271,94 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID,
-		long timestamp) throws Exception {
-		return backingStateBackend.createCheckpointStateOutputStream(checkpointID, timestamp);
+	public CheckpointStateOutputStream createCheckpointStateOutputStream(
+			long checkpointID, long timestamp) throws Exception {
+		
+		return nonPartitionedStateBackend.createCheckpointStateOutputStream(checkpointID, timestamp);
 	}
 
 	@Override
-	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(S state,
-		long checkpointID,
-		long timestamp) throws Exception {
-		return backingStateBackend.checkpointStateSerializable(state, checkpointID, timestamp);
+	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
+			S state, long checkpointID, long timestamp) throws Exception {
+		
+		return nonPartitionedStateBackend.checkpointStateSerializable(state, checkpointID, timestamp);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Parameters
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Sets the path where the RocksDB local database files should be stored on the local
+	 * file system. Setting this path overrides the default behavior, where the
+	 * files are stored across the configured temp directories.
+	 * 
+	 * <p>Passing {@code null} to this function restores the default behavior, where the configured
+	 * temp directories will be used.
+	 * 
+	 * @param path The path where the local RocksDB database files are stored.
+	 */
+	public void setDbStoragePath(String path) {
+		setDbStoragePaths(path == null ? null : new String[] { path });
+	}
+
+	/**
+	 * Sets the paths across which the local RocksDB database files are distributed on the local
+	 * file system. Setting these paths overrides the default behavior, where the
+	 * files are stored across the configured temp directories.
+	 * 
+	 * <p>Each distinct state will be stored in one path, but when the state backend creates
+	 * multiple states, they will store their files on different paths.
+	 * 
+	 * <p>Passing {@code null} to this function restores the default behavior, where the configured
+	 * temp directories will be used.
+	 * 
+	 * @param paths The paths across which the local RocksDB database files will be spread. 
+	 */
+	public void setDbStoragePaths(String... paths) {
+		if (paths == null) {
+			dbBasePaths = null;
+		} 
+		else if (paths.length == 0) {
+			throw new IllegalArgumentException("empty paths");
+		}
+		else {
+			Path[] pp = new Path[paths.length];
+			
+			for (int i = 0; i < paths.length; i++) {
+				if (paths[i] == null) {
+					throw new IllegalArgumentException("null path");
+				}
+				
+				pp[i] = new Path(paths[i]);
+				String scheme = pp[i].toUri().getScheme();
+				if (scheme != null && !scheme.equalsIgnoreCase("file")) {
+					throw new IllegalArgumentException("Path " + paths[i] + " has a non local scheme");
+				}
+			}
+			
+			dbBasePaths = pp;
+		}
+	}
+
+	/**
+	 * 
+	 * @return The configured DB storage paths, or null, if none were configured. 
+	 */
+	public String[] getDbStoragePaths() {
+		if (dbBasePaths == null) {
+			return null;
+		} else {
+			String[] paths = new String[dbBasePaths.length];
+			for (int i = 0; i < paths.length; i++) {
+				paths[i] = dbBasePaths[i].toString();
+			}
+			return paths;
+		}
 	}
 	
 	// ------------------------------------------------------------------------
-	//  Parametrize with Options
+	//  Parametrize with RocksDB Options
 	// ------------------------------------------------------------------------
 
 	/**

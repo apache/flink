@@ -97,7 +97,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * classpath.
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to teh checkpoint data directory.
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(String checkpointDataUri) throws IOException {
@@ -116,7 +116,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * classpath.
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to teh checkpoint data directory.
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(Path checkpointDataUri) throws IOException {
@@ -161,21 +161,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
-		final String scheme = checkpointDataUri.getScheme();
-		final String path = checkpointDataUri.getPath();
-
-		// some validity checks
-		if (scheme == null) {
-			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
-					"Please specify the file system scheme explicitly in the URI.");
-		}
-		if (path == null) {
-			throw new IllegalArgumentException("The path to store the checkpoint data in is null. " +
-					"Please specify a directory path for the checkpoint data.");
-		}
-		if (path.length() == 0 || path.equals("/")) {
-			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
-		}
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
 		}
@@ -183,30 +168,10 @@ public class FsStateBackend extends AbstractStateBackend {
 			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
 				MAX_FILE_STATE_THRESHOLD);
 		}
-
-		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
-		// (distributed) filesystem on all hosts and includes full host/port information, even if the
-		// original URI did not include that. We count on the filesystem loading from the configuration
-		// to fill in the missing data.
-
-		// try to grab the file system for this path/URI
-		this.filesystem = FileSystem.get(checkpointDataUri);
-		if (this.filesystem == null) {
-			throw new IOException("Could not find a file system for the given scheme in the available configurations.");
-		}
-
-		URI fsURI = this.filesystem.getUri();
-		try {
-			URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
-			this.basePath = new Path(baseURI);
-		}
-		catch (URISyntaxException e) {
-			throw new IOException(
-					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
-							checkpointDataUri, fsURI), e);
-		}
-		
 		this.fileStateThreshold = fileStateSizeThreshold;
+		
+		this.basePath = validateAndNormalizeUri(checkpointDataUri);
+		this.filesystem = this.basePath.getFileSystem();
 	}
 
 	/**
@@ -371,6 +336,60 @@ public class FsStateBackend extends AbstractStateBackend {
 			"File State Backend (initialized) @ " + checkpointDirectory;
 	}
 
+	/**
+	 * Checks and normalizes the checkpoint data URI. This method first checks the validity of the
+	 * URI (scheme, path, availability of a matching file system) and then normalizes the URI
+	 * to a path.
+	 * 
+	 * <p>If the URI does not include an authority, but the file system configured for the URI has an
+	 * authority, then the normalized path will include this authority.
+	 * 
+	 * @param checkpointDataUri The URI to check and normalize.
+	 * @return A normalized URI as a Path.
+	 * 
+	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path. 
+	 * @throws IOException Thrown, if no file system can be found for the URI's scheme.
+	 */
+	public static Path validateAndNormalizeUri(URI checkpointDataUri) throws IOException {
+		final String scheme = checkpointDataUri.getScheme();
+		final String path = checkpointDataUri.getPath();
+
+		// some validity checks
+		if (scheme == null) {
+			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+					"Please specify the file system scheme explicitly in the URI.");
+		}
+		if (path == null) {
+			throw new IllegalArgumentException("The path to store the checkpoint data in is null. " +
+					"Please specify a directory path for the checkpoint data.");
+		}
+		if (path.length() == 0 || path.equals("/")) {
+			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
+		}
+
+		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
+		// (distributed) filesystem on all hosts and includes full host/port information, even if the
+		// original URI did not include that. We count on the filesystem loading from the configuration
+		// to fill in the missing data.
+
+		// try to grab the file system for this path/URI
+		FileSystem filesystem = FileSystem.get(checkpointDataUri);
+		if (filesystem == null) {
+			throw new IOException("Could not find a file system for the given scheme in the available configurations.");
+		}
+
+		URI fsURI = filesystem.getUri();
+		try {
+			URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
+			return new Path(baseURI);
+		}
+		catch (URISyntaxException e) {
+			throw new IOException(
+					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
+							checkpointDataUri, fsURI), e);
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Output stream for state checkpointing
 	// ------------------------------------------------------------------------
