@@ -42,12 +42,44 @@ import org.apache.flink.api.common.functions.FlatJoinFunction
   * @param config configuration that determines runtime behavior
   * @param input1 type information about the first input of the Function
   * @param input2 type information about the second input if the Function is binary
+  * @param inputPojoFieldMapping additional mapping information if input1 is a POJO (POJO types
+  *                              have no deterministic field order). We assume that input2 is
+  *                              converted before and thus is never a POJO.
   */
 class CodeGenerator(
-    config: TableConfig,
-    input1: TypeInformation[Any],
-    input2: Option[TypeInformation[Any]] = None)
+   config: TableConfig,
+   input1: TypeInformation[Any],
+   input2: Option[TypeInformation[Any]] = None,
+   inputPojoFieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
+
+  // check for POJO input mapping
+  input1 match {
+    case pt: PojoTypeInfo[_] =>
+      inputPojoFieldMapping.getOrElse(
+        throw new CodeGenException("No input mapping is specified for input of type POJO."))
+    case _ => // ok
+  }
+
+  // check that input2 is never a POJO
+  input2 match {
+    case pt: PojoTypeInfo[_] =>
+      throw new CodeGenException("Second input must not be a POJO type.")
+    case _ => // ok
+  }
+
+  /**
+    * A code generator for generating unary Flink
+    * [[org.apache.flink.api.common.functions.Function]]s with one input.
+    *
+    * @param config configuration that determines runtime behavior
+    * @param input type information about the input of the Function
+    * @param inputPojoFieldMapping additional mapping information necessary if input is a
+    *                              POJO (POJO types have no deterministic field order).
+    */
+  def this(config: TableConfig, input: TypeInformation[Any], inputPojoFieldMapping: Array[Int]) =
+    this(config, input, None, Some(inputPojoFieldMapping))
+
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -178,12 +210,12 @@ class CodeGenerator(
 
         ${reuseMemberCode()}
 
-        public $funcName() {
+        public $funcName() throws Exception{
           ${reuseInitCode()}
         }
 
         @Override
-        public ${samHeader._1} {
+        public ${samHeader._1} throws Exception {
           ${samHeader._2.mkString("\n")}
           ${reuseInputUnboxingCode()}
           $bodyCode
@@ -201,10 +233,12 @@ class CodeGenerator(
     * may be stored in the global result variable (see [[outRecordTerm]]).
     *
     * @param returnType conversion target type. Inputs and output must have the same arity.
+    * @param resultFieldNames result field names necessary for a mapping to POJO fields.
     * @return instance of GeneratedExpression
     */
   def generateConverterResultExpression(
-      returnType: TypeInformation[_ <: Any])
+      returnType: TypeInformation[_ <: Any],
+      resultFieldNames: Seq[String])
     : GeneratedExpression = {
     val input1AccessExprs = for (i <- 0 until input1.getArity)
       yield generateInputAccess(input1, input1Term, i)
@@ -215,7 +249,7 @@ class CodeGenerator(
       case None => Seq() // add nothing
     }
 
-    generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType)
+    generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType, resultFieldNames)
   }
 
   /**
@@ -224,15 +258,17 @@ class CodeGenerator(
     * may be stored in the global result variable (see [[outRecordTerm]]).
     *
     * @param returnType conversion target type. Type must have the same arity than rexNodes.
-    * @param rexNodes sequence of RexNode
+    * @param resultFieldNames result field names necessary for a mapping to POJO fields.
+    * @param rexNodes sequence of RexNode to be converted
     * @return instance of GeneratedExpression
     */
   def generateResultExpression(
       returnType: TypeInformation[_ <: Any],
+      resultFieldNames: Seq[String],
       rexNodes: Seq[RexNode])
     : GeneratedExpression = {
     val fieldExprs = rexNodes.map(generateExpression)
-    generateResultExpression(fieldExprs, returnType)
+    generateResultExpression(fieldExprs, returnType, resultFieldNames)
   }
 
   /**
@@ -240,29 +276,44 @@ class CodeGenerator(
     * be reused, they will be added to reusable code sections internally. The evaluation result
     * may be stored in the global result variable (see [[outRecordTerm]]).
     *
-    * @param fieldExprs
+    * @param fieldExprs field expressions to be converted
     * @param returnType conversion target type. Type must have the same arity than fieldExprs.
+    * @param resultFieldNames result field names necessary for a mapping to POJO fields.
     * @return instance of GeneratedExpression
     */
   def generateResultExpression(
       fieldExprs: Seq[GeneratedExpression],
-      returnType: TypeInformation[_ <: Any])
+      returnType: TypeInformation[_ <: Any],
+      resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    // TODO disable arity check for Rows and derive row arity from fieldExprs
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException("Arity of result type does not match number of expressions.")
     }
+    if (resultFieldNames.length != fieldExprs.length) {
+      throw new CodeGenException("Arity of result field names does not match number of " +
+        "expressions.")
+    }
     // type check
     returnType match {
+      case pt: PojoTypeInfo[_] =>
+        fieldExprs.zipWithIndex foreach {
+          case (fieldExpr, i) if fieldExpr.resultType != pt.getTypeAt(resultFieldNames(i)) =>
+            throw new CodeGenException("Incompatible types of expression and result type.")
+
+          case _ => // ok
+        }
+
       case ct: CompositeType[_] =>
         fieldExprs.zipWithIndex foreach {
           case (fieldExpr, i) if fieldExpr.resultType != ct.getTypeAt(i) =>
             throw new CodeGenException("Incompatible types of expression and result type.")
           case _ => // ok
         }
+
       case at: AtomicType[_] if at != fieldExprs.head.resultType =>
         throw new CodeGenException("Incompatible types of expression and result type.")
+
       case _ => // ok
     }
 
@@ -295,28 +346,74 @@ class CodeGenerator(
 
         GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
 
-      case pj: PojoTypeInfo[_] =>
-        addReusableOutRecord(pj)
-        val resultSetters: String = fieldExprs.zip(pj.getFieldNames) map {
-        case (fieldExpr, fieldName) =>
-          if (nullCheck) {
-            s"""
-            |${fieldExpr.code}
-            |if (${fieldExpr.nullTerm}) {
-            |  $outRecordTerm.$fieldName = null;
-            |}
-            |else {
-            |  $outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
-            |}
-            |""".stripMargin
-          }
-          else {
-            s"""
-            |${fieldExpr.code}
-            |$outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
-            |""".stripMargin
-          }
-        } mkString "\n"
+      case pt: PojoTypeInfo[_] =>
+        addReusableOutRecord(pt)
+        val resultSetters: String = fieldExprs.zip(resultFieldNames) map {
+          case (fieldExpr, fieldName) =>
+            val accessor = getFieldAccessor(pt.getTypeClass, fieldName)
+
+            accessor match {
+              // Reflective access of primitives/Objects
+              case ObjectPrivateFieldAccessor(field) =>
+                val fieldTerm = addReusablePrivateFieldAccess(pt.getTypeClass, fieldName)
+
+                val defaultIfNull = if (isFieldPrimitive(field)) {
+                  primitiveDefaultValue(fieldExpr.resultType)
+                } else {
+                  "null"
+                }
+
+                if (nullCheck) {
+                  s"""
+                    |${fieldExpr.code}
+                    |if (${fieldExpr.nullTerm}) {
+                    |  ${reflectiveFieldWriteAccess(
+                          fieldTerm,
+                          field,
+                          outRecordTerm,
+                          defaultIfNull)};
+                    |}
+                    |else {
+                    |  ${reflectiveFieldWriteAccess(
+                          fieldTerm,
+                          field,
+                          outRecordTerm,
+                          fieldExpr.resultTerm)};
+                    |}
+                    |""".stripMargin
+                }
+                else {
+                  s"""
+                    |${fieldExpr.code}
+                    |${reflectiveFieldWriteAccess(
+                          fieldTerm,
+                          field,
+                          outRecordTerm,
+                          fieldExpr.resultTerm)};
+                    |""".stripMargin
+                }
+
+              // primitive or Object field access (implicit boxing)
+              case _ =>
+                if (nullCheck) {
+                  s"""
+                    |${fieldExpr.code}
+                    |if (${fieldExpr.nullTerm}) {
+                    |  $outRecordTerm.$fieldName = null;
+                    |}
+                    |else {
+                    |  $outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
+                    |}
+                    |""".stripMargin
+                }
+                else {
+                  s"""
+                    |${fieldExpr.code}
+                    |$outRecordTerm.$fieldName = ${fieldExpr.resultTerm};
+                    |""".stripMargin
+                }
+              }
+          } mkString "\n"
 
         GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
 
@@ -628,29 +725,67 @@ class CodeGenerator(
       case Some(expr) =>
         expr
 
-      // generate input access and boxing
+      // generate input access and boxing if necessary
       case None =>
         val newExpr = inputType match {
+
           case ct: CompositeType[_] =>
-            val accessor = fieldAccessorFor(ct, index)
-            val fieldType: TypeInformation[Any] = ct.getTypeAt(index)
+            val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+              inputPojoFieldMapping.get(index)
+            }
+            else {
+              index
+            }
+            val accessor = fieldAccessorFor(ct, fieldIndex)
+            val fieldType: TypeInformation[Any] = ct.getTypeAt(fieldIndex)
             val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
 
-            val inputCode = accessor match {
-              case ObjectFieldAccessor(fieldName) =>
-                s"($fieldTypeTerm) $inputTerm.$fieldName"
+            accessor match {
+              case ObjectFieldAccessor(field) =>
+                // primitive
+                if (isFieldPrimitive(field)) {
+                  generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
+                }
+                // Object
+                else {
+                  generateNullableLiteral(
+                    fieldType,
+                    s"($fieldTypeTerm) $inputTerm.${field.getName}")
+                }
+
+              case ObjectGenericFieldAccessor(fieldName) =>
+                // Object
+                val inputCode = s"($fieldTypeTerm) $inputTerm.$fieldName"
+                generateNullableLiteral(fieldType, inputCode)
 
               case ObjectMethodAccessor(methodName) =>
-                s"($fieldTypeTerm) $inputTerm.$methodName()"
+                // Object
+                val inputCode = s"($fieldTypeTerm) $inputTerm.$methodName()"
+                generateNullableLiteral(fieldType, inputCode)
 
               case ProductAccessor(i) =>
-                s"($fieldTypeTerm) $inputTerm.productElement($i)"
+                // Object
+                val inputCode = s"($fieldTypeTerm) $inputTerm.productElement($i)"
+                generateNullableLiteral(fieldType, inputCode)
+
+              case ObjectPrivateFieldAccessor(field) =>
+                val fieldTerm = addReusablePrivateFieldAccess(ct.getTypeClass, field.getName)
+                val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
+                // primitive
+                if (isFieldPrimitive(field)) {
+                  generateNonNullLiteral(fieldType, reflectiveAccessCode)
+                }
+                // Object
+                else {
+                  generateNullableLiteral(fieldType, reflectiveAccessCode)
+                }
             }
-            generateInputUnboxing(fieldType, inputCode)
+
           case at: AtomicType[_] =>
             val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
             val inputCode = s"($fieldTypeTerm) $inputTerm"
-            generateInputUnboxing(at, inputCode)
+            generateNullableLiteral(at, inputCode)
+
           case _ =>
             throw new CodeGenException("Unsupported type for input access.")
         }
@@ -661,20 +796,20 @@ class CodeGenerator(
     GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, "", inputExpr.resultType)
   }
 
-  private def generateInputUnboxing(
-      inputType: TypeInformation[Any],
-      inputCode: String)
+  private def generateNullableLiteral(
+      literalType: TypeInformation[Any],
+      literalCode: String)
     : GeneratedExpression = {
     val tmpTerm = newName("tmp")
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
-    val tmpTypeTerm = boxedTypeTermForTypeInfo(inputType)
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(inputType)
-    val defaultValue = primitiveDefaultValue(inputType)
+    val tmpTypeTerm = boxedTypeTermForTypeInfo(literalType)
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
+    val defaultValue = primitiveDefaultValue(literalType)
 
-    val wrappedCode = if (nullCheck && !isReference(inputType)) {
+    val wrappedCode = if (nullCheck && !isReference(literalType)) {
       s"""
-        |$tmpTypeTerm $tmpTerm = $inputCode;
+        |$tmpTypeTerm $tmpTerm = $literalCode;
         |boolean $nullTerm = $tmpTerm == null;
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
@@ -686,16 +821,16 @@ class CodeGenerator(
         |""".stripMargin
     } else if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = $inputCode;
-        |boolean $nullTerm = $inputCode == null;
+        |$resultTypeTerm $resultTerm = $literalCode;
+        |boolean $nullTerm = $literalCode == null;
         |""".stripMargin
     } else {
       s"""
-        |$resultTypeTerm $resultTerm = $inputCode;
+        |$resultTypeTerm $resultTerm = $literalCode;
         |""".stripMargin
     }
 
-    GeneratedExpression(resultTerm, nullTerm, wrappedCode, inputType)
+    GeneratedExpression(resultTerm, nullTerm, wrappedCode, literalType)
   }
 
   private def generateNonNullLiteral(
@@ -741,12 +876,14 @@ class CodeGenerator(
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Reusable code snippets
+  // ----------------------------------------------------------------------------------------------
 
-  def addReusableOutRecord(ti: TypeInformation[_]) = {
+  def addReusableOutRecord(ti: TypeInformation[_]): Unit = {
     val statement = ti match {
       case rt: RowTypeInfo =>
         s"""
-          |${ti.getTypeClass.getCanonicalName} $outRecordTerm =
+          |transient ${ti.getTypeClass.getCanonicalName} $outRecordTerm =
           |    new ${ti.getTypeClass.getCanonicalName}(${rt.getArity});
           |""".stripMargin
       case _ =>
@@ -756,6 +893,25 @@ class CodeGenerator(
           |""".stripMargin
     }
     reusableMemberStatements.add(statement)
+  }
+
+  def addReusablePrivateFieldAccess(clazz: Class[_], fieldName: String): String = {
+    val fieldTerm = s"field_${clazz.getCanonicalName.replace('.', '$')}_$fieldName"
+    val fieldExtraction =
+      s"""
+        |transient java.lang.reflect.Field $fieldTerm =
+        |    org.apache.flink.api.java.typeutils.TypeExtractor.getDeclaredField(
+        |      ${clazz.getCanonicalName}.class, "$fieldName");
+        |""".stripMargin
+    reusableMemberStatements.add(fieldExtraction)
+
+    val fieldAccessibility =
+      s"""
+        |$fieldTerm.setAccessible(true);
+        |""".stripMargin
+    reusableInitStatements.add(fieldAccessibility)
+
+    fieldTerm
   }
 
 }

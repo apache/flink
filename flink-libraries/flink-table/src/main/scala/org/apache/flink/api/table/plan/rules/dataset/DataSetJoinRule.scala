@@ -93,7 +93,9 @@ class DataSetJoinRule
         returnType: TypeInformation[Any]) => {
 
       val generator = new CodeGenerator(config, leftInputType, Some(rightInputType))
-      val conversion = generator.generateConverterResultExpression(returnType)
+      val conversion = generator.generateConverterResultExpression(
+          returnType,
+          join.getRowType.getFieldNames)
       var body = ""
 
       if (joinInfo.isEqui) {
