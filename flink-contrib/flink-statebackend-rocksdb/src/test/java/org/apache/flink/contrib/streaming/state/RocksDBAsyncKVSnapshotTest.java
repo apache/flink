@@ -16,37 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks;
+package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.OneShotLatch;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskStateList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.File;
 import java.lang.reflect.Field;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for asynchronous checkpoints.
+ * Tests for asynchronous RocksDB Key/Value state checkpoints.
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(ResultPartitionWriter.class)
 @SuppressWarnings("serial")
-public class StreamTaskAsyncCheckpointTest {
+public class RocksDBAsyncKVSnapshotTest {
 
 	/**
 	 * This ensures that asynchronous state handles are actually materialized asynchonously.
@@ -54,7 +70,6 @@ public class StreamTaskAsyncCheckpointTest {
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
 	 * test will simply lock forever.
-	 * @throws Exception
 	 */
 	@Test
 	public void testAsyncCheckpoints() throws Exception {
@@ -65,8 +80,23 @@ public class StreamTaskAsyncCheckpointTest {
 		
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
+		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
+			@Override
+			public String getKey(String value) throws Exception {
+				return value;
+			}
+		}, BasicTypeInfo.STRING_TYPE_INFO);
+
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		
+
+		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
+		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
+
+		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		backend.setDbStoragePath(dbDir.getAbsolutePath());
+
+		streamConfig.setStateBackend(backend);
+
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
 
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
@@ -96,13 +126,10 @@ public class StreamTaskAsyncCheckpointTest {
 				assertTrue(state instanceof StreamTaskStateList);
 				StreamTaskStateList stateList = (StreamTaskStateList) state;
 
-				// should be only one state
+				// should be only one k/v state
 				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
-				StateHandle<?> operatorState = taskState.getOperatorState();
-				assertTrue("It must be a TestStateHandle", operatorState instanceof TestStateHandle);
-				TestStateHandle testState = (TestStateHandle) operatorState;
-				assertEquals(42, testState.checkpointId);
-				assertEquals(17, testState.timestamp);
+				assertEquals(1, taskState.getKvStates().size());
+				assertTrue(taskState.getKvStates().get("count") instanceof AbstractRocksDBState.AbstractRocksDBSnapshot);
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
@@ -122,6 +149,8 @@ public class StreamTaskAsyncCheckpointTest {
 			}
 		}
 
+		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
 		task.triggerCheckpoint(42, 17);
 
 		// now we allow the checkpoint
@@ -140,78 +169,35 @@ public class StreamTaskAsyncCheckpointTest {
 	public static class AsyncCheckpointOperator
 		extends AbstractStreamOperator<String>
 		implements OneInputStreamOperator<String, String> {
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+
+			// also get the state in open, this way we are sure that it was created before
+			// we trigger the test checkpoint
+			ValueState<String> state = getPartitionedState(null,
+					VoidSerializer.INSTANCE,
+					new ValueStateDescriptor<>("count",
+							StringSerializer.INSTANCE, "hello"));
+
+		}
+
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
 			// we also don't care
+
+			ValueState<String> state = getPartitionedState(null,
+					VoidSerializer.INSTANCE,
+					new ValueStateDescriptor<>("count",
+							StringSerializer.INSTANCE, "hello"));
+
+			state.update(element.getValue());
 		}
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
 			// not interested
-		}
-
-
-		@Override
-		public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-			StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-
-			AsynchronousStateHandle<String> asyncState =
-				new DataInputViewAsynchronousStateHandle(checkpointId, timestamp);
-
-			taskState.setOperatorState(asyncState);
-
-			return taskState;
-		}
-
-		@Override
-		public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-			super.restoreState(taskState, recoveryTimestamp);
-		}
-	}
-
-	private static class DataInputViewAsynchronousStateHandle extends AsynchronousStateHandle<String> {
-
-		private final long checkpointId;
-		private final long timestamp;
-
-		public DataInputViewAsynchronousStateHandle(long checkpointId, long timestamp) {
-			this.checkpointId = checkpointId;
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public StateHandle<String> materialize() throws Exception {
-			return new TestStateHandle(checkpointId, timestamp);
-		}
-
-		@Override
-		public long getStateSize() {
-			return 0;
-		}
-	}
-
-	private static class TestStateHandle implements StateHandle<String> {
-
-		public final long checkpointId;
-		public final long timestamp;
-
-		public TestStateHandle(long checkpointId, long timestamp) {
-			this.checkpointId = checkpointId;
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public String getState(ClassLoader userCodeClassLoader) throws Exception {
-			return null;
-		}
-
-		@Override
-		public void discardState() throws Exception {
-		}
-
-		@Override
-		public long getStateSize() {
-			return 0;
 		}
 	}
 	
