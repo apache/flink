@@ -55,13 +55,13 @@ gulp.task('set-production', function() {
 });
 
 gulp.task('fonts', function() {
- gulp.src(paths.vendor + "font-awesome/fonts/*")
+  return gulp.src(paths.vendor + "font-awesome/fonts/*")
     .pipe(plumber())
     .pipe(gulp.dest(paths.assets + 'fonts'));
 });
 
-gulp.task('assets', function() {
- gulp.src(paths.assets + "**")
+gulp.task('assets', ['fonts'], function() {
+  return gulp.src(paths.assets + "**")
     .pipe(plumber())
     .pipe(gulp.dest(paths.dest));
 });
