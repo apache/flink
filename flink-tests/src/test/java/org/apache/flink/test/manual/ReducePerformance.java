@@ -20,6 +20,7 @@ package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -34,29 +35,54 @@ public class ReducePerformance {
 	
 	public static void main(String[] args) throws Exception {
 
+		final int numElements = 40 * 1000 * 1000;
+		final int keyRange    =  4 * 1000 * 1000;
+
+		// warm up JIT
+		testReducePerformance(new TupleIntIntIterator(1000),
+			TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class),
+			CombineHint.SORT, 10000, false);
+
+		// TupleIntIntIterator
+		testReducePerformance(new TupleIntIntIterator(keyRange),
+			TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class),
+			CombineHint.SORT, numElements, true);
+
+		testReducePerformance(new TupleIntIntIterator(keyRange),
+			TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class),
+			CombineHint.HASH, numElements, true);
+
+		// TupleStringIntIterator
+		testReducePerformance(new TupleStringIntIterator(keyRange),
+			TupleTypeInfo.<Tuple2<String, Integer>>getBasicTupleTypeInfo(String.class, Integer.class),
+			CombineHint.SORT, numElements, true);
+
+		testReducePerformance(new TupleStringIntIterator(keyRange),
+			TupleTypeInfo.<Tuple2<String, Integer>>getBasicTupleTypeInfo(String.class, Integer.class),
+			CombineHint.HASH, numElements, true);
+	}
+
+	private static <T, B extends CopyableIterator<T>> void testReducePerformance
+		(B iterator, TypeInformation<T> typeInfo, CombineHint hint, int numRecords, boolean print) throws Exception {
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		//env.getConfig().enableObjectReuse();
 		//env.setParallelism(1);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple2<Integer, Integer>> output =
-			env.fromParallelCollection(new SplittableRandomIterator(40 * 1000 * 1000, new TupleIntIntIterator(4 * 1000 * 1000)),
-				TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class))
+		DataSet<T> output =
+			env.fromParallelCollection(new SplittableRandomIterator<T, B>(numRecords, iterator), typeInfo)
 				.groupBy("0")
-				.reduce(new SumReducer(), CombineHint.HASH);
-
-//		DataSet<Tuple2<Integer, Integer>> output =
-//			env.fromParallelCollection(new SplittableRandomIterator(40 * 1000 * 1000, new TupleStringIntIterator(4 * 1000 * 1000)),
-//				TupleTypeInfo.<Tuple2<String, Integer>>getBasicTupleTypeInfo(String.class, Integer.class))
-//				.groupBy("0")
-//				.reduce(new SumReducer(), CombineHint.HASH);
+				.reduce(new SumReducer(), hint);
 
 		long start = System.currentTimeMillis();
 
 		System.out.println(output.count());
 
 		long end = System.currentTimeMillis();
-		System.out.println("time: " + (end - start) + "ms");
+		if (print) {
+			System.out.println("=== Time for " + iterator.getClass().getSimpleName() + " with hint " + hint.toString() + ": " + (end - start) + "ms ===");
+		}
 	}
 
 	private static final class SplittableRandomIterator<T, B extends CopyableIterator<T>> extends SplittableIterator<T> implements Serializable {
@@ -152,7 +178,7 @@ public class ReducePerformance {
 			this.keyRange = keyRange;
 		}
 
-		private final Random rnd = new Random();
+		private final Random rnd = new Random(11);
 
 		@Override
 		public boolean hasNext() {
