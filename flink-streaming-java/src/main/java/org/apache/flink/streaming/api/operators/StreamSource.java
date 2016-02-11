@@ -31,30 +31,34 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link StreamOperator} for streaming sources.
+ *
+ * @param <OUT> Type of the output elements
+ * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction<T>> implements StreamOperator<T> {
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends AbstractUdfStreamOperator<OUT, SRC>
+	implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private transient SourceFunction.SourceContext<T> ctx;
+	private transient SourceFunction.SourceContext<OUT> ctx;
 
-	public StreamSource(SourceFunction<T> sourceFunction) {
+	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
+	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
 		final ExecutionConfig executionConfig = getExecutionConfig();
 		
 		if (userFunction instanceof EventTimeSourceFunction) {
-			ctx = new ManualWatermarkContext<T>(lockingObject, collector, getRuntimeContext().getExecutionConfig().areTimestampsEnabled());
+			ctx = new ManualWatermarkContext<OUT>(lockingObject, collector, getRuntimeContext().getExecutionConfig().areTimestampsEnabled());
 		} else if (executionConfig.getAutoWatermarkInterval() > 0) {
-			ctx = new AutomaticWatermarkContext<T>(lockingObject, collector, executionConfig);
+			ctx = new AutomaticWatermarkContext<OUT>(lockingObject, collector, executionConfig);
 		} else if (executionConfig.areTimestampsEnabled()) {
-			ctx = new NonWatermarkContext<T>(lockingObject, collector);
+			ctx = new NonWatermarkContext<OUT>(lockingObject, collector);
 		} else {
-			ctx = new NonTimestampContext<T>(lockingObject, collector);
+			ctx = new NonTimestampContext<OUT>(lockingObject, collector);
 		}
 
 		userFunction.run(ctx);

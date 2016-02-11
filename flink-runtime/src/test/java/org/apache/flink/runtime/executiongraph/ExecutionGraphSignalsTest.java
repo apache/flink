@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -121,8 +122,13 @@ public class ExecutionGraphSignalsTest {
 
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-		eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				cfg, AkkaUtils.getDefaultTimeout());
+		eg = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
+			jobId,
+			jobName,
+			cfg,
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
 		eg.attachJobGraph(ordered);
 
 		f = eg.getClass().getDeclaredField("state");

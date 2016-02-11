@@ -473,24 +473,33 @@ class JobManager(
         case Some((executionGraph, _)) =>
           try {
             if (!executionGraph.isStoppable()) {
-              sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
-                " is not stoppable."))
-            } else if(executionGraph.getState() != JobStatus.CREATED
-                && executionGraph.getState() != JobStatus.RUNNING
-                && executionGraph.getState() != JobStatus.RESTARTING) {
-              sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
-                "is not in state CREATED, RUNNING, or RESTARTING."))
+              sender ! decorateMessage(
+                StoppingFailure(
+                  jobID,
+                  new IllegalStateException(s"Job with ID $jobID is not stoppable."))
+              )
+            } else if (executionGraph.getState() != JobStatus.RUNNING) {
+              sender ! decorateMessage(
+                StoppingFailure(
+                  jobID,
+                  new IllegalStateException(s"Job with ID $jobID is in state " +
+                    executionGraph.getState().name() + " but stopping is only allowed in state " +
+                    "RUNNING."))
+              )
             } else {
               executionGraph.stop()
-              sender ! StoppingSuccess(jobID)
+              sender ! decorateMessage(StoppingSuccess(jobID))
             }
           } catch {
-            case t: Throwable =>  sender ! StoppingFailure(jobID, t)
+            case t: Throwable =>  sender ! decorateMessage(StoppingFailure(jobID, t))
           }
         case None =>
           log.info(s"No job found with ID $jobID.")
-          sender ! StoppingFailure(jobID, new IllegalArgumentException("No job found with " +
-            s"ID $jobID."))
+          sender ! decorateMessage(
+            StoppingFailure(
+              jobID,
+              new IllegalArgumentException(s"No job found with ID $jobID."))
+          )
       }
 
     case UpdateTaskExecutionState(taskExecutionState) =>

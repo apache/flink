@@ -443,7 +443,7 @@ public class Client {
 	 * 
 	 * @param jobId
 	 *            the job ID of the streaming program to stop
-	 * @throws ProgramStopException
+	 * @throws Exception
 	 *             If the job ID is invalid (ie, is unknown or refers to a batch job) or if sending the stop signal
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */

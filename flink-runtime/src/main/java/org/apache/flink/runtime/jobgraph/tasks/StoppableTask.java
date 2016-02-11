@@ -21,5 +21,5 @@ package org.apache.flink.runtime.jobgraph.tasks;
  */
 public interface StoppableTask {
 	/** Called on STOP signal. */
-	public void stop();
+	void stop();
 }

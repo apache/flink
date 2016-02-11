@@ -29,5 +29,5 @@ public interface StoppableFunction {
 	 * <p>
 	 * <strong>The call to {@code stop()} should not block and not throw any exception.</strong>
 	 */
-	public void stop();
+	void stop();
 }
