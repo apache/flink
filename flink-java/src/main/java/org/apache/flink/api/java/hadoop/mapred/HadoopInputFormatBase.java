@@ -148,7 +148,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			throws IOException {
 		org.apache.hadoop.mapred.InputSplit[] splitArray = mapredInputFormat.getSplits(jobConf, minNumSplits);
 		HadoopInputSplit[] hiSplit = new HadoopInputSplit[splitArray.length];
-		for(int i=0;i<splitArray.length;i++){
+		for (int i=0; i<splitArray.length; i++) {
 			hiSplit[i] = new HadoopInputSplit(i, splitArray[i], jobConf);
 		}
 		return hiSplit;
@@ -177,7 +177,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	
 	@Override
 	public boolean reachedEnd() throws IOException {
-		if(!fetched) {
+		if (!fetched) {
 			fetchNext();
 		}
 		return !hasNext;
