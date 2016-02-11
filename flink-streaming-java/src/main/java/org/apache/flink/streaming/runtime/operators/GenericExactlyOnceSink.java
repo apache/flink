@@ -93,7 +93,6 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		super.notifyOfCompletedCheckpoint(checkpointId);
-		saveHandleInState(checkpointId);
 
 		synchronized (state.pendingHandles) {
 			Set<Long> pastCheckpointIds = state.pendingHandles.keySet();
