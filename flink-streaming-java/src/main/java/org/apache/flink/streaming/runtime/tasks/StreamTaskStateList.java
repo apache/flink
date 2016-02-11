@@ -33,11 +33,35 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 	/** The states for all operator */
 	private final StreamTaskState[] states;
 
-	private final long stateSize;
-	
 	public StreamTaskStateList(StreamTaskState[] states) throws Exception {
 		this.states = states;
+	}
 
+	public boolean isEmpty() {
+		for (StreamTaskState state : states) {
+			if (state != null) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	@Override
+	public StreamTaskState[] getState(ClassLoader userCodeClassLoader) {
+		return states;
+	}
+
+	@Override
+	public void discardState() throws Exception {
+		for (StreamTaskState state : states) {
+			if (state != null) {
+				state.discardState();
+			}
+		}
+	}
+
+	@Override
+	public long getStateSize() throws Exception {
 		long sumStateSize = 0;
 
 		if (states != null) {
@@ -67,34 +91,6 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 		}
 
 		// State size as sum of all state sizes
-		stateSize = sumStateSize;
-	}
-
-	public boolean isEmpty() {
-		for (StreamTaskState state : states) {
-			if (state != null) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
-	@Override
-	public StreamTaskState[] getState(ClassLoader userCodeClassLoader) {
-		return states;
-	}
-
-	@Override
-	public void discardState() throws Exception {
-		for (StreamTaskState state : states) {
-			if (state != null) {
-				state.discardState();
-			}
-		}
-	}
-
-	@Override
-	public long getStateSize() throws Exception {
-		return stateSize;
+		return sumStateSize;
 	}
 }

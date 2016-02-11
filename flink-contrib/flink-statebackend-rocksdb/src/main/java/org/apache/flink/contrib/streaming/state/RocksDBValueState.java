@@ -140,7 +140,7 @@ public class RocksDBValueState<K, N, V>
 			URI backupUri,
 			long checkpointId) {
 		
-		return new Snapshot<>(dbPath, checkpointPath, backupUri, checkpointId, keySerializer, namespaceSerializer, stateDesc);
+		return new Snapshot<>(basePath, checkpointPath, backupUri, checkpointId, keySerializer, namespaceSerializer, stateDesc);
 	}
 
 	private static class Snapshot<K, N, V> 

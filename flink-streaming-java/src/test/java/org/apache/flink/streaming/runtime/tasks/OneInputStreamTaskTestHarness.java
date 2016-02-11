@@ -19,6 +19,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 
@@ -99,5 +101,10 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		streamConfig.setTypeSerializerIn1(inputSerializer);
 	}
 
+	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
+		ClosureCleaner.clean(keySelector, false);
+		streamConfig.setStatePartitioner(0, keySelector);
+		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
 }
 

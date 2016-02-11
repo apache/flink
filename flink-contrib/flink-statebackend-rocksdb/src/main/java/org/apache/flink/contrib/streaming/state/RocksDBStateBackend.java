@@ -68,19 +68,17 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 	
 	
-	/** The checkpoint directory that copy the RocksDB backups to. */
+	/** The checkpoint directory that we copy the RocksDB backups to. */
 	private final Path checkpointDirectory;
 
 	/** The state backend that stores the non-partitioned state */
 	private final AbstractStateBackend nonPartitionedStateBackend;
-	
-	
+
 	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
 	private String operatorIdentifier;
 
 	/** JobID for uniquifying backup paths. */
 	private JobID jobId;
-	
 
 	// DB storage directories
 	
