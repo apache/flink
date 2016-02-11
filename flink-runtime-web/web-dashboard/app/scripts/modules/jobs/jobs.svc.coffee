@@ -180,6 +180,20 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  @getTaskManagers = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      # vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/taskmanagers"
+      .success (data) ->
+        taskmanagers = data.taskmanagers
+
+        deferred.resolve(taskmanagers)
+
+    deferred.promise
+
   @getAccumulators = (vertexid) ->
     deferred = $q.defer()
 

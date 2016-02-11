@@ -67,7 +67,9 @@ Values in angle brackets are variables, for example `http://hostname:8081/jobs/<
   - `/jobs/<jobid>/config`
   - `/jobs/<jobid>/exceptions`
   - `/jobs/<jobid>/accumulators`
+  - `/jobs/<jobid>/vertices/<vertexid>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasktimes`
+  - `/jobs/<jobid>/vertices/<vertexid>/taskmanagers`
   - `/jobs/<jobid>/vertices/<vertexid>/accumulators`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/accumulators`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>`
@@ -359,6 +361,45 @@ Sample Result:
     "duration": 292494,
     "timestamps": {
       "CREATED": 1442421093741, "SCHEDULED": 1442421093773, "DEPLOYING": 1442421093774, "RUNNING": 1442421094013, "FINISHED": 1442421386267, "CANCELING": 0, "CANCELED": 0, "FAILED": 0
+    }
+  } ]
+}
+~~~
+
+**`/jobs/<jobid>/vertices/<vertexid>/taskmanagers`**
+
+TaskManager statistics for one specific vertex. This is an aggregation of subtask statistics returned by `/jobs/<jobid>/vertices/<vertexid>`.
+
+Sample Result:
+
+~~~
+{
+  "id": "fe20bcc29b87cdc76589ca42114c2499",
+  "name": "Reduce (SUM(1), at main(WordCount.java:72)",
+  "now": 1454348282653,
+  "taskmanagers": [ {
+    "host": "ip-10-0-43-227:35413",
+    "status": "FINISHED",
+    "start-time": 1454347870991,
+    "end-time": 1454347872111,
+    "duration": 1120,
+    "metrics": {
+      "read-bytes": 32503056, "write-bytes": 9637041, "read-records": 2906087, "write-records": 849467
+    },
+    "status-counts": {
+      "CREATED": 0, "SCHEDULED": 0, "DEPLOYING": 0, "RUNNING": 0, "FINISHED": 18, "CANCELING": 0, "CANCELED": 0, "FAILED": 0
+    }
+  },{
+    "host": "ip-10-0-43-227:41486",
+    "status": "FINISHED",
+    "start-time": 1454347871001,
+    "end-time": 1454347872395,
+    "duration": 1394,
+    "metrics": {
+      "read-bytes": 32389499, "write-bytes": 9608829, "read-records": 2895999, "write-records": 846948
+    },
+    "status-counts": {
+      "CREATED": 0, "SCHEDULED": 0, "DEPLOYING": 0, "RUNNING": 0, "FINISHED": 18, "CANCELING": 0, "CANCELED": 0, "FAILED": 0
     }
   } ]
 }
