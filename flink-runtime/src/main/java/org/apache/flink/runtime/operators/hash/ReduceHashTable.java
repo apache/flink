@@ -207,7 +207,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		recordArea = new RecordArea(segmentSize);
 
 		stagingSegments = new ArrayList<>();
-		stagingSegmentsInView = new RandomAccessInputView(stagingSegments, segmentSize);
+		stagingSegmentsInView = new RandomAccessInputView(stagingSegments, segmentSize, false);
 		stagingSegmentsOutView = new StagingOutputView(stagingSegments, segmentSize);
 
 		prober = new HashTableProber<>(buildSideComparator, new SameTypePairComparator<>(buildSideComparator));
@@ -630,7 +630,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			this.segmentSizeMask = segmentSize - 1;
 
 			outView = new OutputView(segmentSize);
-			inView = new RandomAccessInputView(segments, segmentSize);
+			inView = new RandomAccessInputView(segments, segmentSize, false);
 		}
 
 

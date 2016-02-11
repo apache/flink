@@ -46,11 +46,13 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		this(segments, segmentSize, segmentSize);
 	}
 
-	/**
-	 * Warning: setReadPosition has to be called before reading.
-	 */
+	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, boolean dummy)
+	{
+		this(segments, segmentSize, segmentSize, false);
+	}
+
 	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int limitInLastSegment) {
-		super(0);
+		super(segments.get(0), segments.size() > 1 ? segmentSize : limitInLastSegment, 0);
 		this.segments = segments;
 		this.currentSegmentIndex = 0;
 		this.segmentSize = segmentSize;
@@ -59,6 +61,19 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		this.limitInLastSegment = limitInLastSegment;
 	}
 
+	/**
+	 * This overload is for situations where segments is empty at the beginning.
+	 * Warning: setReadPosition has to be called before reading.
+	 */
+	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize, int limitInLastSegment, boolean dummy) {
+		super(0);
+		this.segments = segments;
+		this.currentSegmentIndex = 0;
+		this.segmentSize = segmentSize;
+		this.segmentSizeBits = MathUtils.log2strict(segmentSize);
+		this.segmentSizeMask = segmentSize - 1;
+		this.limitInLastSegment = limitInLastSegment;
+	}
 
 	@Override
 	public void setReadPosition(long position) {
