@@ -1227,14 +1227,30 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
-		StreamSource<OUT> sourceOperator;
+		StreamSource<OUT, ?> sourceOperator;
 		if (function instanceof StoppableFunction) {
-			sourceOperator = new StoppableStreamSource<OUT>(function);
+			sourceOperator = new StoppableStreamSource<>(cast2StoppableSourceFunction(function));
 		} else {
-			sourceOperator = new StreamSource<OUT>(function);
+			sourceOperator = new StreamSource<>(function);
 		}
 
 		return new DataStreamSource<OUT>(this, typeInfo, sourceOperator, isParallel, sourceName);
+	}
+
+	/**
+	 * Casts the source function into a SourceFunction implementing the StoppableFunction.
+	 *
+	 * This method should only be used if the source function was checked to implement the
+	 * {@link StoppableFunction} interface.
+	 *
+	 * @param sourceFunction Source function to cast
+	 * @param <OUT> Output type of source function
+	 * @param <T> Union type of SourceFunction and StoppableFunction
+	 * @return The casted source function so that it's type implements the StoppableFunction
+	 */
+	@SuppressWarnings("unchecked")
+	private <OUT, T extends SourceFunction<OUT> & StoppableFunction> T cast2StoppableSourceFunction(SourceFunction<OUT> sourceFunction) {
+		return (T) sourceFunction;
 	}
 
 	/**

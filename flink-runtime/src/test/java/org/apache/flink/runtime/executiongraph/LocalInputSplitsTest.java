@@ -270,7 +270,7 @@ public class LocalInputSplitsTest {
 				TestingUtils.defaultExecutionContext(), 
 				jobGraph.getJobID(),
 				jobGraph.getName(),  
-				jobGraph.getJobConfiguration()
+				jobGraph.getJobConfiguration(),
 				TIMEOUT,
 				new NoRestartStrategy());
 			
@@ -334,7 +334,7 @@ public class LocalInputSplitsTest {
 			TestingUtils.defaultExecutionContext(),
 			jobGraph.getJobID(),
 			jobGraph.getName(),  
-			jobGraph.getJobConfiguration()
+			jobGraph.getJobConfiguration(),
 			TIMEOUT,
 			new NoRestartStrategy());
 		

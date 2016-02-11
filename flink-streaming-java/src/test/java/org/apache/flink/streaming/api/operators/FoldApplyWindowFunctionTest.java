@@ -108,7 +108,7 @@ public class FoldApplyWindowFunctionTest {
 			}
 		};
 
-		SourceTransformation<Integer> source = new SourceTransformation<>("", new StreamSource<Integer>(sourceFunction), BasicTypeInfo.INT_TYPE_INFO, 1);
+		SourceTransformation<Integer> source = new SourceTransformation<>("", new StreamSource<>(sourceFunction), BasicTypeInfo.INT_TYPE_INFO, 1);
 
 		transformations.add(new OneInputTransformation<>(source, "test", windowOperator, BasicTypeInfo.INT_TYPE_INFO, 1));
 

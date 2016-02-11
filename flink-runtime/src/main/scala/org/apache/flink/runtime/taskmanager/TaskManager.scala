@@ -428,8 +428,12 @@ class TaskManager(
               sender ! decorateMessage(new TaskOperationResult(executionID, true))
             } catch {
               case t: Throwable =>
-                        sender ! new TaskOperationResult(executionID, false,
+                        sender ! decorateMessage(
+                          new TaskOperationResult(
+                            executionID,
+                            false,
                             t.getClass().getSimpleName() + ": " + t.getLocalizedMessage())
+                        )
             }
           } else {
             log.debug(s"Cannot find task to stop for execution ${executionID})")

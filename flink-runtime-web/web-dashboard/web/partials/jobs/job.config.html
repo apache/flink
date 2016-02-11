@@ -30,7 +30,7 @@ limitations under the License.
     </tr>
     <tr>
       <td>Max. number of execution retries</td>
-      <td>{{ job['execution-config']['max-execution-retries'] === -1 ? 'deactivated' : job['execution-config']['max-execution-retries'] }}</td>
+      <td>{{ job['execution-config']['restart-strategy'] }}</td>
     </tr>
     <tr>
       <td>Job parallelism</td>

@@ -252,7 +252,8 @@ Action "cancel" cancels a running program.
                                    configuration.
 
 
-Action "stop" stops a running program (streaming jobs only).
+Action "stop" stops a running program (streaming jobs only). There are no strong consistency
+guarantees for a stop request.
 
   Syntax: stop [OPTIONS] <Job ID>
   "stop" action options:

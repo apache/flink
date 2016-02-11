@@ -34,7 +34,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T, DataStrea
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment,
-			TypeInformation<T> outTypeInfo, StreamSource<T> operator,
+			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
 			boolean isParallel, String sourceName) {
 		super(environment, new SourceTransformation<T>(sourceName, operator, outTypeInfo, environment.getParallelism()));
 
