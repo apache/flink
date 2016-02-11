@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -160,7 +160,7 @@ public interface DbAdapter extends Serializable {
 	 * Clean up states between the checkpoint and recovery timestamp.
 	 * 
 	 */
-	void cleanupFailedCheckpoints(String stateId, Connection con, long checkpointTimestamp,
+	void cleanupFailedCheckpoints(DbBackendConfig conf, String stateId, Connection con, long checkpointTimestamp,
 			long recoveryTimestamp) throws SQLException;
 
 	/**
@@ -176,12 +176,4 @@ public interface DbAdapter extends Serializable {
 	 * most recent.
 	 */
 	void compactKvStates(String kvStateId, Connection con, long lowerTs, long upperTs) throws SQLException;
-
-	/**
-	 * Execute a simple operation to refresh the current database connection in
-	 * case no data is written for a longer time period. Usually something like
-	 * "select 1"
-	 */
-	void keepAlive(Connection con) throws SQLException;
-
 }

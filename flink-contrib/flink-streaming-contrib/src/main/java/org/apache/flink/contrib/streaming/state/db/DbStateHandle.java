@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
 
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.contrib.streaming.state.db.SQLRetrier.retry;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.Callable;
-
-import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
 /**
  * State handle implementation for storing checkpoints as byte arrays in

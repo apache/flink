@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
 
 import static org.junit.Assert.assertEquals;
 
@@ -31,33 +31,32 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.io.FileUtils;
-
 import org.apache.derby.drda.NetworkServerControl;
-
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.CompactionStrategy;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.checkpointing.PartitionedStateCheckpointingITCase.IdentityKeySelector;
 import org.apache.flink.test.checkpointing.PartitionedStateCheckpointingITCase.NonSerializableLong;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
-
 import org.junit.After;
 import org.junit.Before;
 
 @SuppressWarnings("serial")
 public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 
-	final long NUM_STRINGS = 1_000_000L;
-	final static int NUM_KEYS = 100;
+	final static int NUM_KEYS = 500;
+	final static long NUM_STRINGS = 10000 * NUM_KEYS;
 	private static NetworkServerControl server;
 	private static File tempDir;
 
@@ -88,9 +87,11 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		DbBackendConfig conf = new DbBackendConfig("flink", "flink",
 				"jdbc:derby://localhost:1526/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
 		conf.setDbAdapter(new DerbyAdapter());
-		conf.setKvStateCompactionFrequency(2);
+		conf.setCompactionStrategy(new CompactionStrategy(2, true));
+		conf.setKvCacheSize(100);
+		conf.setMaxKvCacheEvictFraction(1);
+		conf.enableBloomFilter(1000, 0.01);
 
-		// We store the non-partitioned states (source offset) in-memory
 		DbStateBackend backend = new DbStateBackend(conf, new MemoryStateBackend());
 
 		env.setStateBackend(backend);
@@ -152,7 +153,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
+		public void run(SourceFunction.SourceContext<Integer> ctx) {
 			final Object lockingObject = ctx.getCheckpointLock();
 
 			while (isRunning && index < numElements) {
@@ -162,8 +163,11 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 					ctx.collect(index % NUM_KEYS);
 				}
 
-				if (rnd.nextDouble() < 0.008) {
-					Thread.sleep(1);
+				if (rnd.nextDouble() < 0.02) {
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException e) {
+					}
 				}
 			}
 		}
@@ -182,6 +186,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		public void restoreState(Integer state) {
 			index = state;
 		}
+
 	}
 
 	private static class OnceFailingPartitionedSum extends RichMapFunction<Integer, Tuple2<Integer, Long>> {
@@ -238,7 +243,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		public void open(Configuration parameters) throws IOException {
 			aCounts = getRuntimeContext().getState(
 					new ValueStateDescriptor<>("a", NonSerializableLong.class, NonSerializableLong.of(0L)));
-			
+
 			bCounts = getRuntimeContext().getState(new ValueStateDescriptor<>("b", Long.class, 0L));
 		}
 

@@ -15,7 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
+
+import static org.apache.flink.contrib.streaming.state.db.SQLRetrier.retry;
+
+import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.concurrent.Callable;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -34,20 +44,10 @@ import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.concurrent.Callable;
-
-import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
-
 /**
- * {@link AbstractStateBackend} for storing checkpoints in JDBC supporting databases.
- * Key-Value state is stored out-of-core and is lazily fetched using the
- * {@link LazyDbValueState} implementation. A different backend can also be
+ * {@link AbstractStateBackend} for storing checkpoints in JDBC supporting
+ * databases. Key-Value state is stored out-of-core and is lazily fetched using
+ * the {@link LazyDbValueState} implementation. A different backend can also be
  * provided in the constructor to store the non-partitioned states. A common use
  * case would be to store the key-value states in the database and store larger
  * non-partitioned states on a distributed file system.
@@ -76,7 +76,7 @@ public class DbStateBackend extends AbstractStateBackend {
 
 	private transient Environment env;
 
-	private transient String appId;
+	private transient String jobIdShort;
 
 	// ------------------------------------------------------
 
@@ -162,13 +162,13 @@ public class DbStateBackend extends AbstractStateBackend {
 					long handleId = rnd.nextLong();
 
 					byte[] serializedState = InstantiationUtil.serializeObject(state);
-					dbAdapter.setCheckpointInsertParams(appId, insertStatement,
+					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
 							checkpointID, timestamp, handleId,
 							serializedState);
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<>(appId, checkpointID, timestamp, handleId,
+					return new DbStateHandle<>(jobIdShort, checkpointID, timestamp, handleId,
 							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -181,9 +181,7 @@ public class DbStateBackend extends AbstractStateBackend {
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp)
 			throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			// We don't implement this functionality for the DbStateBackend as
-			// we cannot directly write a stream to the database anyways.
-			throw new UnsupportedOperationException("Use ceckpointStateSerializable instead.");
+			return new DbStateOutputStream(this, checkpointID, timestamp);
 		} else {
 			return nonPartitionedStateBackend.createCheckpointStateOutputStream(checkpointID, timestamp);
 		}
@@ -191,66 +189,66 @@ public class DbStateBackend extends AbstractStateBackend {
 
 	@Override
 	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<T> stateDesc) throws Exception {
-		
+			ValueStateDescriptor<T> stateDesc) throws Exception {
+
 		if (!stateDesc.isSerializerInitialized()) {
 			throw new IllegalArgumentException("state descriptor serializer not initialized");
 		}
-		
-		String stateName = operatorIdentifier + "_"+ stateDesc.getName();
+
+		String stateName = operatorIdentifier + "_" + stateDesc.getName() + "_" + jobIdShort;
 
 		return new LazyDbValueState<>(
-			stateName,
-			env.getTaskInfo().getIndexOfThisSubtask() == 0,
-			getConnections(),
-			getConfiguration(),
-			keySerializer,
-			namespaceSerializer,
-			stateDesc);
+				this,
+				stateName,
+				env.getTaskInfo().getIndexOfThisSubtask() == 0,
+				getConnections(),
+				getConfiguration(),
+				keySerializer,
+				namespaceSerializer,
+				stateDesc);
 	}
 
 	@Override
 	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer,
-		ListStateDescriptor<T> stateDesc) throws Exception {
+			ListStateDescriptor<T> stateDesc) throws Exception {
 
 		if (!stateDesc.isSerializerInitialized()) {
 			throw new IllegalArgumentException("state descriptor serializer not initialized");
 		}
-		
-		ValueStateDescriptor<ArrayList<T>> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(), 
+
+		ValueStateDescriptor<ArrayList<T>> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(),
 				new ArrayListSerializer<>(stateDesc.getSerializer()), null);
-		
+
 		ValueState<ArrayList<T>> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
 		return new GenericListState<>(valueState);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer,
-		ReducingStateDescriptor<T> stateDesc) throws Exception {
+			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
 		if (!stateDesc.isSerializerInitialized()) {
 			throw new IllegalArgumentException("state descriptor serializer not initialized");
 		}
-		
+
 		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
 				stateDesc.getName(), stateDesc.getSerializer(), null);
-		
+
 		ValueState<T> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
 		return new GenericReducingState<>(valueState, stateDesc.getReduceFunction());
 	}
 
 	@Override
 	public void initializeForJob(final Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
+			String operatorIdentifier,
+			TypeSerializer<?> keySerializer) throws Exception {
 		super.initializeForJob(env, operatorIdentifier, keySerializer);
 
 		this.operatorIdentifier = operatorIdentifier;
 
 		this.rnd = new Random();
 		this.env = env;
-		this.appId = env.getApplicationID().toString().substring(0, 16);
+		this.jobIdShort = env.getJobID().toString().substring(0, 16);
 
 		connections = dbConfig.createShardedConnection();
 
@@ -268,8 +266,9 @@ public class DbStateBackend extends AbstractStateBackend {
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(appId, getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(appId,
+					dbAdapter.createCheckpointsTable(jobIdShort,
+							getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(jobIdShort,
 							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -298,7 +297,7 @@ public class DbStateBackend extends AbstractStateBackend {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(appId, connections.getFirst());
+			dbAdapter.disposeAllStateForJob(jobIdShort, connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}

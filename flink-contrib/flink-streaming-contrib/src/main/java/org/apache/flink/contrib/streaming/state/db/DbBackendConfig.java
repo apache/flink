@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
 
-import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.List;
 
-import org.apache.flink.contrib.streaming.state.ShardedConnection.Partitioner;
+import org.apache.flink.contrib.streaming.state.KvStateConfig;
+import org.apache.flink.contrib.streaming.state.db.ShardedConnection.Partitioner;
 
 import com.google.common.collect.Lists;
 
@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
  * shard and connect to the databases that will store the state checkpoints.
  *
  */
-public class DbBackendConfig implements Serializable {
+public class DbBackendConfig extends KvStateConfig<DbBackendConfig> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -47,11 +47,7 @@ public class DbBackendConfig implements Serializable {
 	private int maxNumberOfSqlRetries = 5;
 	private int sleepBetweenSqlRetries = 100;
 
-	// KvState properties
-	private int kvStateCacheSize = 10000;
-	private int maxKvInsertBatchSize = 1000;
-	private float maxKvEvictFraction = 0.1f;
-	private int kvStateCompactionFreq = -1;
+	protected int maxKvInsertBatchSize = 1000;
 
 	private Partitioner shardPartitioner;
 
@@ -182,26 +178,6 @@ public class DbBackendConfig implements Serializable {
 	}
 
 	/**
-	 * The maximum number of key-value pairs stored in one task instance's cache
-	 * before evicting to the underlying database.
-	 *
-	 */
-	public int getKvCacheSize() {
-		return kvStateCacheSize;
-	}
-
-	/**
-	 * Set the maximum number of key-value pairs stored in one task instance's
-	 * cache before evicting to the underlying database. When the cache is full
-	 * the N least recently used keys will be evicted to the database, where N =
-	 * maxKvEvictFraction*KvCacheSize.
-	 *
-	 */
-	public void setKvCacheSize(int size) {
-		kvStateCacheSize = size;
-	}
-
-	/**
 	 * The maximum number of key-value pairs inserted in the database as one
 	 * batch operation.
 	 */
@@ -215,58 +191,6 @@ public class DbBackendConfig implements Serializable {
 	 */
 	public void setMaxKvInsertBatchSize(int size) {
 		maxKvInsertBatchSize = size;
-	}
-
-	/**
-	 * Sets the maximum fraction of key-value states evicted from the cache if
-	 * the cache is full.
-	 */
-	public void setMaxKvCacheEvictFraction(float fraction) {
-		if (fraction > 1 || fraction <= 0) {
-			throw new RuntimeException("Must be a number between 0 and 1");
-		} else {
-			maxKvEvictFraction = fraction;
-		}
-	}
-
-	/**
-	 * The maximum fraction of key-value states evicted from the cache if the
-	 * cache is full.
-	 */
-	public float getMaxKvCacheEvictFraction() {
-		return maxKvEvictFraction;
-	}
-
-	/**
-	 * The number of elements that will be evicted when the cache is full.
-	 * 
-	 */
-	public int getNumElementsToEvict() {
-		return (int) Math.ceil(getKvCacheSize() * getMaxKvCacheEvictFraction());
-	}
-
-	/**
-	 * Sets how often will automatic compaction be performed on the database to
-	 * remove old overwritten state changes. The frequency is set in terms of
-	 * number of successful checkpoints between two compactions and should take
-	 * the state size and checkpoint frequency into account.
-	 * <p>
-	 * By default automatic compaction is turned off.
-	 */
-	public void setKvStateCompactionFrequency(int compactEvery) {
-		this.kvStateCompactionFreq = compactEvery;
-	}
-
-	/**
-	 * Sets how often will automatic compaction be performed on the database to
-	 * remove old overwritten state changes. The frequency is set in terms of
-	 * number of successful checkpoints between two compactions and should take
-	 * the state size and checkpoint frequency into account.
-	 * <p>
-	 * By default automatic compaction is turned off.
-	 */
-	public int getKvStateCompactionFrequency() {
-		return kvStateCompactionFreq;
 	}
 
 	/**

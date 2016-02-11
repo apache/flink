@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.db;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -102,11 +102,17 @@ public class ShardedConnection implements AutoCloseable, Serializable {
 
 		private static final long serialVersionUID = 1L;
 		private final PreparedStatement[] statements = new PreparedStatement[numShards];
+		private final String sqlString;
 
 		public ShardedStatement(final String sql) throws SQLException {
 			for (int i = 0; i < numShards; i++) {
 				statements[i] = connections[i].prepareStatement(sql);
 			}
+			sqlString = sql;
+		}
+		
+		public String getSqlString() {
+			return sqlString;
 		}
 
 		public PreparedStatement getForKey(Object key) {
