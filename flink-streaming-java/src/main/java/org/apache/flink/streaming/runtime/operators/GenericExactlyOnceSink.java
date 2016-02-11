@@ -141,7 +141,7 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		//don't do anything, since no are a sink
+		//don't do anything, since we are a sink
 	}
 
 	/**
