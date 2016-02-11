@@ -53,7 +53,7 @@ public class JarDeleteHandler implements RequestHandler {
 				success = success || f.delete();
 			}
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 			gen.writeStartObject();
 			if (!success) {
 				// this seems to always fail on Windows.

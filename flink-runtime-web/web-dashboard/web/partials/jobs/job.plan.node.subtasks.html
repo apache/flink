@@ -34,7 +34,7 @@ limitations under the License.
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="subtask in subtasks">
+    <tr ng-repeat="subtask in subtasks | orderBy:'host'">
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1" title="{{subtask.duration | humanizeDuration:false}}">{{subtask.duration | humanizeDuration:true}}</span></td>

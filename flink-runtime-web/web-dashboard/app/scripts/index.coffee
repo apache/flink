@@ -92,12 +92,19 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobs/job.plan.html"
         controller: 'JobPlanController'
 
-  .state "single-job.plan.overview",
+  .state "single-job.plan.subtasks",
     url: ""
     views:
       'node-details':
-        templateUrl: "partials/jobs/job.plan.node-list.overview.html"
-        controller: 'JobPlanOverviewController'
+        templateUrl: "partials/jobs/job.plan.node-list.subtasks.html"
+        controller: 'JobPlanSubtasksController'
+
+  .state "single-job.plan.taskmanagers",
+    url: "/taskmanagers"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.taskmanagers.html"
+        controller: 'JobPlanTaskManagersController'
 
   .state "single-job.plan.accumulators",
     url: "/accumulators"
