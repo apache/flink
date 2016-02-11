@@ -75,5 +75,15 @@ class TableEnvironment {
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
   }
 
+  /**
+   * Converts the given [[org.apache.flink.api.table.Table]] to
+   * a DataSet. The given type must have exactly the same fields as the
+   * [[org.apache.flink.api.table.Table]]. That is, the names of the
+   * fields and the types must match.
+   */
+  def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
+    new JavaBatchTranslator(config).translate[T](table.relNode)(typeInfo)
+  }
+
 }
 
