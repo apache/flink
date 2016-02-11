@@ -220,7 +220,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 		allocateBucketSegments(numBucketSegments);
 
-		stagingSegments.add(allocateSegment());
+		stagingSegments.add(forcedAllocateSegment());
 
 		reuse = buildSideSerializer.createInstance();
 	}
@@ -298,11 +298,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 		bucketSegments = new MemorySegment[numBucketSegments];
 		for(int i = 0; i < bucketSegments.length; i++) {
-			bucketSegments[i] = allocateSegment();
-			if (bucketSegments[i] == null) {
-				throw new RuntimeException("Bug in ReduceHashTable: allocateBucketSegments should be " +
-					"called in a way that there is enough free memory.");
-			}
+			bucketSegments[i] = forcedAllocateSegment();
 			// Init all pointers in all buckets to END_OF_LIST
 			for(int j = 0; j < numBucketsPerSegment; j++) {
 				bucketSegments[i].putLong(j << bucketSizeBits, END_OF_LIST);
@@ -324,6 +320,14 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		} else {
 			return null;
 		}
+	}
+
+	private MemorySegment forcedAllocateSegment() {
+		MemorySegment segment = allocateSegment();
+		if (segment == null) {
+			throw new RuntimeException("Bug in ReduceHashTable: A free segment should have been available.");
+		}
+		return segment;
 	}
 
 	/**
