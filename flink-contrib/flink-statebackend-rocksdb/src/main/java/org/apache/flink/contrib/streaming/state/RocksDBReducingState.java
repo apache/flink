@@ -181,13 +181,13 @@ public class RocksDBReducingState<K, N, V>
 				TypeSerializer<K> keySerializer,
 				TypeSerializer<N> namespaceSerializer,
 				ReducingStateDescriptor<V> stateDesc,
-				File dbPath,
+				File basePath,
 				String backupPath,
 				String restorePath,
 				Options options) throws Exception {
 			
-			return new RocksDBReducingState<>(keySerializer, namespaceSerializer, stateDesc, 
-					dbPath, checkpointPath, restorePath, options);
+			return new RocksDBReducingState<>(keySerializer, namespaceSerializer, stateDesc,
+					basePath, checkpointPath, restorePath, options);
 		}
 	}
 }

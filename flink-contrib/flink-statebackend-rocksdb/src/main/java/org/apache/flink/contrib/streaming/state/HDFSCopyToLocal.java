@@ -15,13 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.util;
+package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.util.ExternalProcessRunner;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.net.URI;
 
 /**
@@ -31,17 +34,23 @@ import java.net.URI;
  */
 public class HDFSCopyToLocal {
 	public static void main(String[] args) throws Exception {
-		String backupUri = args[0];
-		String dbPath = args[1];
+		String hadoopConfPath = args[0];
+		String backupUri = args[1];
+		String dbPath = args[2];
 
-		FileSystem fs = FileSystem.get(new URI(backupUri), new Configuration());
+		Configuration hadoopConf = new Configuration();
+		try (DataInputStream in = new DataInputStream(new FileInputStream(hadoopConfPath))) {
+			hadoopConf.readFields(in);
+		}
+
+		FileSystem fs = FileSystem.get(new URI(backupUri), hadoopConf);
 
 		fs.copyToLocalFile(new Path(backupUri), new Path(dbPath));
 	}
 
-	public static void copyToLocal(URI remotePath, File localPath) throws Exception {
+	public static void copyToLocal(File hadoopConfPath, URI remotePath, File localPath) throws Exception {
 		ExternalProcessRunner processRunner = new ExternalProcessRunner(HDFSCopyToLocal.class.getName(),
-			new String[]{remotePath.toString(), localPath.getAbsolutePath()});
+			new String[]{hadoopConfPath.getAbsolutePath(), remotePath.toString(), localPath.getAbsolutePath()});
 		if (processRunner.run() != 0) {
 			throw new  RuntimeException("Error while copying from remote FileSystem: " + processRunner.getErrorOutput());
 		}
