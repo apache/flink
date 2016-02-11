@@ -32,9 +32,9 @@ import org.apache.flink.api.table.codegen.Indenter.toISC
 import org.apache.flink.api.table.codegen.OperatorCodeGen._
 import org.apache.flink.api.table.plan.TypeConverter.sqlTypeToTypeInfo
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+import org.apache.flink.api.common.functions.FlatJoinFunction
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -148,16 +148,25 @@ class CodeGenerator(
       if (clazz == classOf[FlatMapFunction[_,_]]) {
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         (s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
-          s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;")
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
       // MapFunction
       else if (clazz == classOf[MapFunction[_,_]]) {
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         ("Object map(Object _in1)",
-          s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;")
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
+      // FlatJoinFunction
+      else if (clazz == classOf[FlatJoinFunction[_,_,_]]) {
+        val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
+        val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
+            throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
+        (s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
+          List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
+          s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+      }
       else {
         // TODO more functions
         throw new CodeGenException("Unsupported Function.")
@@ -175,7 +184,7 @@ class CodeGenerator(
 
         @Override
         public ${samHeader._1} {
-          ${samHeader._2}
+          ${samHeader._2.mkString("\n")}
           ${reuseInputUnboxingCode()}
           $bodyCode
         }

@@ -27,6 +27,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.{TableConfig, Row}
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.table.plan.TypeConverter._
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConversions._
+import org.apache.flink.api.table.plan.TypeConverter
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -42,7 +50,8 @@ class DataSetJoin(
     joinKeysRight: Array[Int],
     joinType: JoinType,
     joinHint: JoinHint,
-    func: JoinFunction[Row, Row, Row])
+    func: (TableConfig, TypeInformation[Any], TypeInformation[Any], TypeInformation[Any]) =>
+      FlatJoinFunction[Any, Any, Any])
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -71,6 +80,19 @@ class DataSetJoin(
   override def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    ???
+
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
+
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage)
+
+    val joinFun = func.apply(config, leftDataSet.getType, rightDataSet.getType, returnType)
+      leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+      .`with`(joinFun).asInstanceOf[DataSet[Any]]
   }
+
 }

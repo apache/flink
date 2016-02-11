@@ -24,6 +24,16 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetJoin}
 import org.apache.flink.api.table.plan.nodes.logical.{FlinkJoin, FlinkConvention}
+import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
+import org.apache.flink.api.table.plan.TypeConverter._
+import org.apache.flink.api.table.runtime.FlatJoinRunner
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.calcite.rel.core.JoinInfo
+import org.apache.flink.api.table.TableException
 
 class DataSetJoinRule
   extends ConverterRule(
@@ -39,18 +49,82 @@ class DataSetJoinRule
     val convLeft: RelNode = RelOptRule.convert(join.getInput(0), DataSetConvention.INSTANCE)
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
 
-    new DataSetJoin(
-      rel.getCluster,
-      traitSet,
-      convLeft,
-      convRight,
-      rel.getRowType,
-      join.toString,
-      Array[Int](),
-      Array[Int](),
-      JoinType.INNER,
-      null,
-      null)
+    // get the equality keys
+    val joinInfo = join.analyzeCondition
+    val keyPairs = joinInfo.pairs
+
+    if (keyPairs.isEmpty) { // if no equality keys => not supported
+      throw new TableException("Joins should have at least one equality condition")
+    }
+    else { // at least one equality expression => generate a join function
+      val conditionType = join.getCondition.getType
+      val func = getJoinFunction(join, joinInfo)
+      val leftKeys = ArrayBuffer.empty[Int]
+      val rightKeys = ArrayBuffer.empty[Int]
+
+      keyPairs.foreach(pair => {
+        leftKeys.add(pair.source)
+        rightKeys.add(pair.target)}
+      )
+
+      new DataSetJoin(
+        rel.getCluster,
+        traitSet,
+        convLeft,
+        convRight,
+        rel.getRowType,
+        join.toString,
+        leftKeys.toArray,
+        rightKeys.toArray,
+        JoinType.INNER,
+        null,
+        func)
+    }
+  }
+
+  def getJoinFunction(join: FlinkJoin, joinInfo: JoinInfo):
+      ((TableConfig, TypeInformation[Any], TypeInformation[Any], TypeInformation[Any]) =>
+      FlatJoinFunction[Any, Any, Any]) = {
+
+    val func = (
+        config: TableConfig,
+        leftInputType: TypeInformation[Any],
+        rightInputType: TypeInformation[Any],
+        returnType: TypeInformation[Any]) => {
+
+      val generator = new CodeGenerator(config, leftInputType, Some(rightInputType))
+      val conversion = generator.generateConverterResultExpression(returnType)
+      var body = ""
+
+      if (joinInfo.isEqui) {
+        // only equality condition
+        body = s"""
+            |${conversion.code}
+            |${generator.collectorTerm}.collect(${conversion.resultTerm});
+            |""".stripMargin
+      }
+      else {
+        val condition = generator.generateExpression(join.getCondition)
+        body = s"""
+            |${condition.code}
+            |if (${condition.resultTerm}) {
+            |  ${conversion.code}
+            |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+            |}
+            |""".stripMargin
+      }
+      val genFunction = generator.generateFunction(
+        description,
+        classOf[FlatJoinFunction[Any, Any, Any]],
+        body,
+        returnType)
+
+      new FlatJoinRunner[Any, Any, Any](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType)
+    }
+    func
   }
 }
 
