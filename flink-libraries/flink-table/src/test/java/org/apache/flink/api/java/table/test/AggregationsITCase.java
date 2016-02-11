@@ -62,7 +62,6 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Ignore //DataSetMap needs to be implemented
 	@Test
 	public void testAggregationTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -116,8 +115,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Ignore // it seems like the arithmetic expression is added to the field position
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testAggregationWithArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

@@ -67,7 +67,7 @@ class DataSetGroupReduce(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config)
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config, expectedType)
 
     // get the output types
     val fieldsNames = rowType.getFieldNames
