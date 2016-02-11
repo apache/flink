@@ -24,12 +24,11 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
-import org.apache.flink.util.HDFSCopyFromLocal;
-import org.apache.flink.util.HDFSCopyToLocal;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
@@ -73,6 +74,8 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
 	implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
 
+	private static final String HADOOP_CONF_NAME = "hadoop-conf.binary";
+
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
 	/** Serializer for the keys */
@@ -96,9 +99,14 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	/** Directory in "basePath" where the actual RocksDB data base instance stores its files */
 	protected final File rocksDbPath;
 
+	/**
+	 * File where we store a serialized Hadoop Configuration for use by the external process
+	 * HDFS copy utilities.
+	 */
+	protected File hadoopConfPath;
+
 	/** Our RocksDB instance */
 	protected final RocksDB db;
-
 
 	/**
 	 * Creates a new RocksDB backed state.
@@ -115,6 +123,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			Options options) {
 
 		rocksDbPath = new File(basePath, "db" + UUID.randomUUID().toString());
+		hadoopConfPath = new File(basePath, HADOOP_CONF_NAME);
 
 		this.keySerializer = requireNonNull(keySerializer);
 		this.namespaceSerializer = namespaceSerializer;
@@ -144,6 +153,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error while opening RocksDB instance.", e);
 		}
+
+		writeHadoopConfig(hadoopConfPath);
 	}
 
 	/**
@@ -164,6 +175,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			Options options) {
 
 		rocksDbPath = new File(basePath, "db" + UUID.randomUUID().toString());
+		hadoopConfPath = new File(basePath, HADOOP_CONF_NAME);
 
 		RocksDB.loadLibrary();
 
@@ -204,6 +216,23 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			db = RocksDB.open(options, rocksDbPath.getAbsolutePath());
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error while opening RocksDB instance.", e);
+		}
+
+		writeHadoopConfig(hadoopConfPath);
+	}
+
+	private static void writeHadoopConfig(File hadoopConfPath) {
+		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
+
+		if (hadoopConfPath.exists()) {
+			if (!hadoopConfPath.delete()) {
+				throw new RuntimeException("Error deleting existing Hadoop configuration: " + hadoopConfPath);
+			}
+		}
+		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(hadoopConfPath))) {
+			conf.write(out);
+		} catch (IOException e) {
+			LOG.error("Error writing Hadoop Configuration.", e);
 		}
 	}
 
@@ -285,7 +314,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		// ------------------------------------------------------------------------
 
 		/** Store it so that we can clean up in dispose() */
-		protected final File dbPath;
+		protected final File basePath;
 
 		/** Where we should put RocksDB backups */
 		protected final String checkpointPath;
@@ -314,7 +343,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		/**
 		 * Creates a new snapshot from the given state parameters.
 		 */
-		public AbstractRocksDBSnapshot(File dbPath,
+		public AbstractRocksDBSnapshot(File basePath,
 				String checkpointPath,
 				URI backupUri,
 				long checkpointId,
@@ -322,7 +351,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 				TypeSerializer<N> namespaceSerializer,
 				SD stateDesc) {
 			
-			this.dbPath = dbPath;
+			this.basePath = basePath;
 			this.checkpointPath = checkpointPath;
 			this.backupUri = backupUri;
 			this.checkpointId = checkpointId;
@@ -339,7 +368,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 				TypeSerializer<K> keySerializer,
 				TypeSerializer<N> namespaceSerializer,
 				SD stateDesc,
-				File dbPath,
+				File basePath,
 				String backupPath,
 				String restorePath,
 				Options options) throws Exception;
@@ -360,13 +389,13 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 						"now is (" + keySerializer + ")");
 			}
 
-			if (!dbPath.exists()) {
-				if (!dbPath.mkdirs()) {
-					throw new RuntimeException("Could not create RocksDB base path " + dbPath);
+			if (!basePath.exists()) {
+				if (!basePath.mkdirs()) {
+					throw new RuntimeException("Could not create RocksDB base path " + basePath);
 				}
 			}
 
-			final File localBackupPath = new File(dbPath, "chk-" + checkpointId);
+			final File localBackupPath = new File(basePath, "chk-" + checkpointId);
 
 			if (localBackupPath.exists()) {
 				try {
@@ -377,14 +406,16 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 				}
 			}
 
-			HDFSCopyToLocal.copyToLocal(backupUri, dbPath);
-			return createRocksDBState(keySerializer, namespaceSerializer, stateDesc, dbPath, 
+			writeHadoopConfig(new File(basePath, HADOOP_CONF_NAME));
+
+			HDFSCopyToLocal.copyToLocal(new File(basePath, HADOOP_CONF_NAME), backupUri, basePath);
+			return createRocksDBState(keySerializer, namespaceSerializer, stateDesc, basePath,
 					checkpointPath, localBackupPath.getAbsolutePath(), stateBackend.getRocksDBOptions());
 		}
 
 		@Override
 		public final void discardState() throws Exception {
-			FileSystem fs = FileSystem.get(backupUri, new Configuration());
+			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
 			fs.delete(new Path(backupUri), true);
 		}
 
@@ -419,10 +450,10 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		@Override
 		public KvStateSnapshot<K, N, S, SD, RocksDBStateBackend> materialize() throws Exception {
 			try {
-				HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
+				HDFSCopyFromLocal.copyFromLocal(state.hadoopConfPath, localBackupPath, backupUri);
 				return state.createRocksDBSnapshot(backupUri, checkpointId);
 			} catch (Exception e) {
-				FileSystem fs = FileSystem.get(backupUri, new Configuration());
+				FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
 				fs.delete(new Path(backupUri), true);
 				throw e;
 			} finally {
