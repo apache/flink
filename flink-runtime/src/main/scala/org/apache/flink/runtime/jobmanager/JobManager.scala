@@ -113,7 +113,8 @@ class JobManager(
     protected val timeout: FiniteDuration,
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
-    protected val checkpointRecoveryFactory : CheckpointRecoveryFactory)
+    protected val checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    protected val savepointStore: SavepointStore)
   extends FlinkActor
   with LeaderSessionMessageFilter // mixin oder is important, we want filtering after logging
   with LogMessages // mixin order is important, we want first logging
@@ -150,9 +151,6 @@ class JobManager(
    */
   val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
-
-  protected val savepointStore : SavepointStore =
-    SavepointStoreFactory.createFromConfig(flinkConfiguration)
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -2040,7 +2038,8 @@ object JobManager {
     Int, // number of archived jobs
     LeaderElectionService,
     SubmittedJobGraphStore,
-    CheckpointRecoveryFactory) = {
+    CheckpointRecoveryFactory,
+    SavepointStore) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
@@ -2077,8 +2076,6 @@ object JobManager {
                 s"$delayString. Value must be a valid duration (such as '100 milli' or '10 s')")
           }
       }
-
-    
 
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
@@ -2140,6 +2137,8 @@ object JobManager {
             new ZooKeeperCheckpointRecoveryFactory(client, configuration))
       }
 
+    val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
+
     (executorService,
       instanceManager,
       scheduler,
@@ -2150,7 +2149,8 @@ object JobManager {
       archiveCount,
       leaderElectionService,
       submittedJobGraphs,
-      checkpointRecoveryFactory)
+      checkpointRecoveryFactory,
+      savepointStore)
   }
 
   /**
@@ -2212,7 +2212,8 @@ object JobManager {
     archiveCount,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory) = createJobManagerComponents(
+    checkpointRecoveryFactory,
+    savepointStore) = createJobManagerComponents(
       configuration,
       None)
 
@@ -2237,7 +2238,8 @@ object JobManager {
       timeout,
       leaderElectionService,
       submittedJobGraphs,
-      checkpointRecoveryFactory)
+      checkpointRecoveryFactory,
+      savepointStore)
 
     val jobManager: ActorRef = jobMangerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)

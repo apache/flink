@@ -22,7 +22,7 @@ import java.util.concurrent.ExecutorService
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
@@ -62,7 +62,8 @@ class TestingYarnJobManager(
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
-    checkpointRecoveryFactory : CheckpointRecoveryFactory)
+    checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    savepointStore: SavepointStore)
   extends YarnJobManager(
     flinkConfiguration,
     executorService,
@@ -75,7 +76,8 @@ class TestingYarnJobManager(
     timeout,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory)
+    checkpointRecoveryFactory,
+    savepointStore)
   with TestingJobManagerLike {
 
   override val taskManagerRunnerClass = classOf[TestingYarnTaskManagerRunner]

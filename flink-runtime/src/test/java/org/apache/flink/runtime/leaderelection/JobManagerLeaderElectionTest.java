@@ -31,6 +31,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.SavepointStore;
+import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.instance.InstanceManager;
@@ -179,6 +181,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		// We don't need recovery in this test
 		SubmittedJobGraphStore submittedJobGraphStore = new StandaloneSubmittedJobGraphStore();
 		CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
+		SavepointStore savepointStore = SavepointStoreFactory.createFromConfig(configuration);
 
 		return Props.create(
 				TestingJobManager.class,
@@ -193,7 +196,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				leaderElectionService,
 				submittedJobGraphStore,
-				checkpointRecoveryFactory
+				checkpointRecoveryFactory,
+				savepointStore
 		);
 	}
 }
