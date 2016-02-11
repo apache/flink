@@ -25,14 +25,19 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.TypeConverter.determineReturnType
 import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.MapRunner
 
+import scala.collection.JavaConversions._
+
 /**
   * Flink RelNode which matches along with DataSource.
+  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
+  * the plan translation.
   */
 class DataSetSource(
     cluster: RelOptCluster,
@@ -63,11 +68,13 @@ class DataSetSource(
     val inputDataSet: DataSet[Any] = dataSetTable.dataSet
     val inputType = inputDataSet.getType
 
-    // special case:
-    // if efficient type usage is enabled and no expected type is set
-    // we can simply forward the DataSet to the next operator
     expectedType match {
-      case None if config.getEfficientTypeUsage =>
+
+      // special case:
+      // if efficient type usage is enabled and no expected type is set
+      // we can simply forward the DataSet to the next operator.
+      // however, we cannot forward PojoTypes as their fields don't have an order
+      case None if config.getEfficientTypeUsage && !inputType.isInstanceOf[PojoTypeInfo[_]] =>
         inputDataSet
 
       case _ =>
@@ -79,8 +86,14 @@ class DataSetSource(
 
         // conversion
         if (determinedType != inputType) {
-          val generator = new CodeGenerator(config, inputDataSet.getType)
-          val conversion = generator.generateConverterResultExpression(determinedType)
+          val generator = new CodeGenerator(
+            config,
+            inputDataSet.getType,
+            dataSetTable.fieldIndexes)
+
+          val conversion = generator.generateConverterResultExpression(
+            determinedType,
+            getRowType.getFieldNames)
 
           val body =
             s"""
