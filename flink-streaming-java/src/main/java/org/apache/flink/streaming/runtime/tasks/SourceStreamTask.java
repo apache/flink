@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -34,8 +35,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * synchronized block.
  *
  * @param <OUT> Type of the output elements of this source.
+ * @param <SRC> Type of the source function for the stream source operator
+ * @param <OP> Type of the stream source operator
  */
-public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
+public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
+	extends StreamTask<OUT, OP> {
 
 	@Override
 	protected void init() {

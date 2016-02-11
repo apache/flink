@@ -17,17 +17,23 @@
  */
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 
 /**
  * Stoppable task for executing stoppable streaming sources.
+ *
+ * @param <OUT> Type of the produced elements
+ * @param <SRC> Stoppable source function
  */
-public class StoppableSourceStreamTask<OUT> extends SourceStreamTask<OUT> implements StoppableTask {
+public class StoppableSourceStreamTask<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
+	extends SourceStreamTask<OUT, SRC, StoppableStreamSource<OUT, SRC>> implements StoppableTask {
 
 	@Override
 	public void stop() {
-		((StoppableStreamSource<?>) this.headOperator).stop();
+		this.headOperator.stop();
 	}
 
 }

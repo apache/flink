@@ -22,30 +22,26 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 /**
  * {@link StoppableStreamSource} takes a {@link SourceFunction} that implements {@link StoppableFunction}.
+ *
+ * @param <OUT> Type of the output elements
+ * @param <SRC> Type of the source function which has to be stoppable
  */
-public class StoppableStreamSource<T> extends StreamSource<T> {
+public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
+	extends StreamSource<OUT, SRC> {
 
 	private static final long serialVersionUID = -4365670858793587337L;
 
 	/**
 	 * Takes a {@link SourceFunction} that implements {@link StoppableFunction}.
-	 * 
+	 *
 	 * @param sourceFunction
 	 *            A {@link SourceFunction} that implements {@link StoppableFunction}.
-	 * 
-	 * @throw IllegalArgumentException if {@code sourceFunction} does not implement {@link StoppableFunction}
 	 */
-	public StoppableStreamSource(SourceFunction<T> sourceFunction) {
+	public StoppableStreamSource(SRC sourceFunction) {
 		super(sourceFunction);
-
-		if (!(sourceFunction instanceof StoppableFunction)) {
-			throw new IllegalArgumentException(
-					"The given SourceFunction must implement StoppableFunction.");
-		}
 	}
 
 	public void stop() {
-		((StoppableFunction) userFunction).stop();
+		userFunction.stop();
 	}
-
 }
