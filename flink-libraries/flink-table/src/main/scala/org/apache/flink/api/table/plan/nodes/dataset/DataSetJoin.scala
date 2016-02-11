@@ -27,6 +27,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.{TableConfig, Row}
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.table.plan.TypeConverter._
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConversions._
+import org.apache.flink.api.table.plan.TypeConverter
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -42,7 +50,8 @@ class DataSetJoin(
     joinKeysRight: Array[Int],
     joinType: JoinType,
     joinHint: JoinHint,
-    func: JoinFunction[Row, Row, Row])
+    func: (TableConfig, TypeInformation[Any], TypeInformation[Any], TypeInformation[Any]) =>
+      FlatJoinFunction[Any, Any, Any])
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -71,6 +80,46 @@ class DataSetJoin(
   override def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    ???
+
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
+
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage)
+
+      if (func == null) {
+        // return the dataset as is
+        val toReturn = leftDataSet.join(rightDataSet)
+        .where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+        .map(new Tuple2ToRowMapper).returns(returnType)
+        .asInstanceOf[DataSet[Any]]
+        toReturn
+      }
+      else {
+        val joinFun = func.apply(config, leftDataSet.getType, rightDataSet.getType, returnType)
+        leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+        .`with`(joinFun).asInstanceOf[DataSet[Any]] 
+      }
+  }
+}
+
+class Tuple2ToRowMapper extends MapFunction[Tuple2[Any, Any], Any] {
+
+  override def map(input: Tuple2[Any, Any]): Any = {
+    val leftRow = input.f0.asInstanceOf[Row]
+    val leftLen = leftRow.productArity
+    val rightRow = input.f1.asInstanceOf[Row]
+    val rightLen = rightRow.productArity
+    val outRow = new Row(leftLen + rightLen)
+    for (i <- 0 until leftLen) {
+      outRow.setField(i, leftRow.productElement(i))
+    }
+    for (i <- 0 until rightLen) {
+      outRow.setField(i + leftLen, rightRow.productElement(i))
+    }
+    outRow
   }
 }
