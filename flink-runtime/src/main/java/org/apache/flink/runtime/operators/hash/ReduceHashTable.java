@@ -449,7 +449,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			if (endPosition != 0 && recordArea.getReadPosition() < endPosition) {
 				// Loop until we find a non-abandoned record.
 				// Note: the last record in the record area can't be abandoned.
-				while (true) {
+				while (!closed) {
 					final long pointerOrNegatedLength = recordArea.readLong();
 					final boolean isAbandoned = pointerOrNegatedLength < 0;
 					if (!isAbandoned) {
@@ -460,6 +460,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 						recordArea.skipBytesToRead((int)-(pointerOrNegatedLength + 1));
 					}
 				}
+				return null; // (we were closed)
 			} else {
 				return null;
 			}
@@ -502,7 +503,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			EntryIterator iter = getEntryIterator();
 			recordArea.resetAppendPosition();
 			recordArea.setWritePosition(0);
-			while ((record = iter.next(record)) != null) {
+			while ((record = iter.next(record)) != null && !closed) {
 				final int hashCode = MathUtils.jenkinsHash(buildSideComparator.hash(record));
 				final int bucket = hashCode & numBucketsMask;
 				final int bucketSegmentIndex = bucket >>> numBucketsPerSegmentBits; // which segment contains the bucket
@@ -540,7 +541,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	public void emit() throws IOException {
 		T record = buildSideSerializer.createInstance();
 		EntryIterator iter = getEntryIterator();
-		while ((record = iter.next(record)) != null) {
+		while ((record = iter.next(record)) != null && !closed) {
 			outputCollector.collect(record);
 			if (!objectReuseEnabled) {
 				record = buildSideSerializer.createInstance();
@@ -549,7 +550,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	}
 
 	/**
-	 * If there is wasted space due to updates records not fitting in their old places, then do a compaction.
+	 * If there is wasted space (due to updated records not fitting in their old places), then do a compaction.
 	 * Else, throw EOFException to indicate that memory ran out.
 	 * @throws IOException
 	 */
@@ -706,7 +707,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		 */
 		public void freeSegmentsAfterAppendPosition() {
 			final int appendSegmentIndex = (int)(appendPosition >>> segmentSizeBits);
-			while (segments.size() > appendSegmentIndex + 1) {
+			while (segments.size() > appendSegmentIndex + 1 && !closed) {
 				freeMemorySegments.add(segments.get(segments.size() - 1));
 				segments.remove(segments.size() - 1);
 			}
@@ -904,7 +905,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 			prevElemPtr = INVALID_PREV_POINTER;
 			try {
-				while (curElemPtr != END_OF_LIST) {
+				while (curElemPtr != END_OF_LIST && !closed) {
 					recordArea.setReadPosition(curElemPtr);
 					nextPtr = recordArea.readLong();
 
