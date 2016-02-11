@@ -123,7 +123,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the value that the {@code ValueState} can store.
 	 */
-	abstract protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception;
+	protected abstract <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception;
 
 	/**
 	 * Creates and returns a new {@link ListState}.
@@ -134,7 +134,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the values that the {@code ListState} can store.
 	 */
-	abstract protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception;
+	protected abstract <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception;
 
 	/**
 	 * Creates and returns a new {@link ReducingState}.
@@ -145,7 +145,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param <N> The type of the namespace.
 	 * @param <T> The type of the values that the {@code ListState} can store.
 	 */
-	abstract protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception;
+	protected abstract <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception;
 
 	/**
 	 * Sets the current key that is used for partitioned state.
@@ -170,7 +170,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 *
 	 * @param stateDescriptor The state identifier for the state. This contains name
 	 *                           and can create a default state value.
-	 * @param <K> The type of the key.
+
 	 * @param <N> The type of the namespace.
 	 * @param <S> The type of the state.
 	 *
@@ -179,7 +179,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public <K, N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+	public <N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		if (keySerializer == null) {
 			throw new Exception("State key serializer has not been configured in the config. " +
