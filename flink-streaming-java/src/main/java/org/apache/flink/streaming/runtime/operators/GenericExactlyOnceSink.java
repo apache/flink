@@ -107,8 +107,8 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 							IN value = serializer.deserialize(in);
 							sendValue(value);
 						}
-						checkpointsToRemove.add(pastCheckpointId);
 					}
+					checkpointsToRemove.add(pastCheckpointId);
 				}
 			}
 			for (Long toRemove : checkpointsToRemove) {
