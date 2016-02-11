@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase.ReduceHint;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
@@ -46,7 +46,7 @@ import org.apache.flink.api.java.DataSet;
 public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOperator<IN>> {
 
 	// should be null in case of an all reduce
-	private final ReduceHint hint;
+	private final CombineHint hint;
 	
 	private final ReduceFunction<IN> function;
 	
@@ -71,13 +71,13 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	}
 	
 	
-	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function, String defaultName, ReduceHint hint) {
+	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function, String defaultName, CombineHint hint) {
 		super(input.getInputDataSet(), input.getInputDataSet().getType());
 		
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
-		this.hint = hint != null ? hint : ReduceHint.OPTIMIZER_CHOOSES;
+		this.hint = hint != null ? hint : CombineHint.OPTIMIZER_CHOOSES;
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, ReduceFunction.class, defaultName, function, grouper.keys);
 	}
@@ -151,7 +151,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			
 			po.setInput(input);
 			po.setParallelism(getParallelism());
-			po.setReduceHint(hint);
+			po.setCombineHint(hint);
 			
 			return po;
 		}
@@ -169,7 +169,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		String name,
 		Operator<T> input,
 		int parallelism,
-		ReduceHint hint)
+		CombineHint hint)
 	{
 		@SuppressWarnings("unchecked")
 		final SelectorFunctionKeys<T, K> keys = (SelectorFunctionKeys<T, K>) rawKeys;
@@ -180,7 +180,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		PlanUnwrappingReduceOperator<T, K> reducer = new PlanUnwrappingReduceOperator<>(function, keys, name, inputType, typeInfoWithKey);
 		reducer.setInput(keyedInput);
 		reducer.setParallelism(parallelism);
-		reducer.setReduceHint(hint);
+		reducer.setCombineHint(hint);
 
 		return KeyFunctions.appendKeyRemover(reducer, keys);
 	}

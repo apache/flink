@@ -26,7 +26,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase.ReduceHint;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
@@ -136,7 +136,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
-		return reduce(Utils.getCallLocationName(), reducer, ReduceHint.OPTIMIZER_CHOOSES);
+		return reduce(Utils.getCallLocationName(), reducer, CombineHint.OPTIMIZER_CHOOSES);
 	}
 
 	/**
@@ -154,7 +154,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
-	public ReduceOperator<T> reduce(ReduceFunction<T> reducer, ReduceHint strategy) {
+	public ReduceOperator<T> reduce(ReduceFunction<T> reducer, CombineHint strategy) {
 		return reduce(Utils.getCallLocationName(), reducer, strategy);
 	}
 
@@ -162,7 +162,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * It couldn't be, that one of the two public overloads just simply delegates to the other,
 	 * because then the callLocationName would be wrong.
 	 */
-	private ReduceOperator<T> reduce(String callLocationName, ReduceFunction<T> reducer, ReduceHint strategy) {
+	private ReduceOperator<T> reduce(String callLocationName, ReduceFunction<T> reducer, CombineHint strategy) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
@@ -237,7 +237,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
 	public ReduceOperator<T> minBy(int... fields) {
-		return minBy(Utils.getCallLocationName(), ReduceHint.OPTIMIZER_CHOOSES, fields);
+		return minBy(Utils.getCallLocationName(), CombineHint.OPTIMIZER_CHOOSES, fields);
 	}
 
 	/**
@@ -251,12 +251,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 *                 optimizer will pick the strategy.
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
-	public ReduceOperator<T> minBy(ReduceHint strategy, int... fields) {
+	public ReduceOperator<T> minBy(CombineHint strategy, int... fields) {
 		return minBy(Utils.getCallLocationName(), strategy, fields);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private ReduceOperator<T> minBy(String callLocationName, ReduceHint strategy, int... fields)  {
+	private ReduceOperator<T> minBy(String callLocationName, CombineHint strategy, int... fields)  {
 
 		// Check for using a tuple
 		if(!this.inputDataSet.getType().isTupleType()) {
@@ -277,7 +277,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
 	public ReduceOperator<T> maxBy(int... fields)  {
-		return maxBy(Utils.getCallLocationName(), ReduceHint.OPTIMIZER_CHOOSES, fields);
+		return maxBy(Utils.getCallLocationName(), CombineHint.OPTIMIZER_CHOOSES, fields);
 	}
 
 	/**
@@ -291,12 +291,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 *                 optimizer will pick the strategy.
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
-	public ReduceOperator<T> maxBy(ReduceHint strategy, int... fields)  {
+	public ReduceOperator<T> maxBy(CombineHint strategy, int... fields)  {
 		return maxBy(Utils.getCallLocationName(), strategy, fields);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private ReduceOperator<T> maxBy(String callLocationName, ReduceHint strategy, int... fields)  {
+	private ReduceOperator<T> maxBy(String callLocationName, CombineHint strategy, int... fields)  {
 
 		// Check for using a tuple
 		if(!this.inputDataSet.getType().isTupleType()) {

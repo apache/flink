@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase.ReduceHint
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -288,20 +288,20 @@ class GroupedDataSet[T: ClassTag](
     * using an associative reduce function.
     */
   def reduce(fun: (T, T) => T): DataSet[T] = {
-    reduce(getCallLocationName(), fun, ReduceHint.OPTIMIZER_CHOOSES)
+    reduce(getCallLocationName(), fun, CombineHint.OPTIMIZER_CHOOSES)
   }
 
   /**
    * Special [[reduce]] operation for explicitly telling the system what reduce strategy to use.
    * If null is given as the reduce strategy, then the optimizer will pick the strategy.
    */
-  def reduce(fun: (T, T) => T, strategy: ReduceHint): DataSet[T] = {
+  def reduce(fun: (T, T) => T, strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), fun, strategy)
   }
 
   private def reduce(callLocationName: String,
                      fun: (T, T) => T,
-                     strategy: ReduceHint): DataSet[T] = {
+                     strategy: CombineHint): DataSet[T] = {
     require(fun != null, "Reduce function must not be null.")
     val reducer = new ReduceFunction[T] {
       val cleanFun = set.clean(fun)
@@ -317,20 +317,20 @@ class GroupedDataSet[T: ClassTag](
     * using an associative reduce function.
     */
   def reduce(reducer: ReduceFunction[T]): DataSet[T] = {
-    reduce(getCallLocationName(), reducer, ReduceHint.OPTIMIZER_CHOOSES)
+    reduce(getCallLocationName(), reducer, CombineHint.OPTIMIZER_CHOOSES)
   }
 
   /**
    * Special [[reduce]] operation for explicitly telling the system what reduce strategy to use.
    * If null is given as the reduce strategy, then the optimizer will pick the strategy.
    */
-  def reduce(reducer: ReduceFunction[T], strategy: ReduceHint): DataSet[T] = {
+  def reduce(reducer: ReduceFunction[T], strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), reducer, strategy)
   }
 
   private def reduce(callLocationName: String,
                      reducer: ReduceFunction[T],
-                     strategy: ReduceHint): DataSet[T] = {
+                     strategy: CombineHint): DataSet[T] = {
     require(reducer != null, "Reduce function must not be null.")
     wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, callLocationName, strategy))
   }

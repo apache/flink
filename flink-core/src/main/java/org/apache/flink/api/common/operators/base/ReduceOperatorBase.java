@@ -55,12 +55,12 @@ import java.util.Map;
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
 	/**
-	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the reduce.
+	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the combiner of a reduce.
 	 */
-	public enum ReduceHint {
+	public enum CombineHint {
 
 		/**
-		 * Leave the choice how to do the reduce to the optimizer. (This currently defaults to SORT.)
+		 * Leave the choice how to do the combine to the optimizer. (This currently defaults to SORT.)
 		 */
 		OPTIMIZER_CHOOSES,
 
@@ -76,7 +76,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		HASH
 	}
 
-	private ReduceHint hint;
+	private CombineHint hint;
 
 	private Partitioner<?> customPartitioner;
 	
@@ -241,14 +241,14 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		}
 	}
 
-	public void setReduceHint(ReduceHint hint) {
+	public void setCombineHint(CombineHint hint) {
 		if (hint == null) {
 			throw new IllegalArgumentException("Reduce Hint must not be null.");
 		}
 		this.hint = hint;
 	}
 
-	public ReduceHint getReduceHint() {
+	public CombineHint getCombineHint() {
 		return hint;
 	}
 }

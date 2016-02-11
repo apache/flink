@@ -19,7 +19,7 @@
 package org.apache.flink.optimizer.java;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichReduceFunction;
@@ -279,7 +279,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
 						return null;
 					}
-				}, ReduceOperatorBase.ReduceHint.HASH).name("reducer")
+				}, CombineHint.HASH).name("reducer")
 				.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 
 			Plan p = env.createProgramPlan();

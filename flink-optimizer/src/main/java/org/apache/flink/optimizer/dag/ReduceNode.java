@@ -53,7 +53,7 @@ public class ReduceNode extends SingleInputNode {
 			props = new AllReduceProperties();
 		} else {
 			DriverStrategy combinerStrategy;
-			switch(operator.getReduceHint()) {
+			switch(operator.getCombineHint()) {
 				case OPTIMIZER_CHOOSES:
 					combinerStrategy = DriverStrategy.SORTED_PARTIAL_REDUCE;
 					break;
@@ -64,7 +64,7 @@ public class ReduceNode extends SingleInputNode {
 					combinerStrategy = DriverStrategy.HASHED_PARTIAL_REDUCE;
 					break;
 				default:
-					throw new RuntimeException("Unknown ReduceHint");
+					throw new RuntimeException("Unknown CombineHint");
 			}
 			props = new ReduceProperties(this.keys, operator.getCustomPartitioner(), combinerStrategy);
 		}
