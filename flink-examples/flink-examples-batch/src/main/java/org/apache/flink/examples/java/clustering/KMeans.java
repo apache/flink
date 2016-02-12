@@ -82,13 +82,6 @@ public class KMeans {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 4) {
-			System.out.println("Executing K-Means example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>");
-		}
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -125,6 +118,7 @@ public class KMeans {
 			// since file sinks are lazy, we trigger the execution explicitly
 			env.execute("KMeans Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			clusteredPoints.print();
 		}
 	}
@@ -140,6 +134,8 @@ public class KMeans {
 				.fieldDelimiter(" ")
 				.pojoType(Centroid.class, "id", "x", "y");
 		} else {
+			System.out.println("Executing K-Means example with default centroid data set.");
+			System.out.println("Use --centroids to specify file input.");
 			centroids = KMeansData.getDefaultCentroidDataSet(env);
 		}
 		return centroids;
@@ -153,6 +149,8 @@ public class KMeans {
 				.fieldDelimiter(" ")
 				.pojoType(Point.class, "x", "y");
 		} else {
+			System.out.println("Executing K-Means example with default point data set.");
+			System.out.println("Use --points to specify file input.");
 			points = KMeansData.getDefaultPointDataSet(env);
 		}
 		return points;
