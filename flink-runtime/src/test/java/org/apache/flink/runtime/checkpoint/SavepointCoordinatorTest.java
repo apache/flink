@@ -175,6 +175,7 @@ public class SavepointCoordinatorTest {
 			}
 		}
 
+		MockCheckpointIdCounter idCounter = new MockCheckpointIdCounter();
 		StateStore<Savepoint> savepointStore = new HeapStateStore<>();
 
 		SavepointCoordinator coordinator = createSavepointCoordinator(
@@ -184,7 +185,7 @@ public class SavepointCoordinatorTest {
 				triggerVertices,
 				ackVertices,
 				new ExecutionVertex[] {},
-				new MockCheckpointIdCounter(),
+				idCounter,
 				savepointStore);
 
 		Future<String> savepointPathFuture = coordinator.triggerSavepoint(1231273123);
@@ -212,6 +213,9 @@ public class SavepointCoordinatorTest {
 
 		// Verify all promises removed
 		assertEquals(0, getSavepointPromises(coordinator).size());
+
+		// Verify checkpoint ID counter started
+		assertTrue(idCounter.isStarted());
 
 		coordinator.shutdown();
 	}
@@ -1083,15 +1087,18 @@ public class SavepointCoordinatorTest {
 
 	private static class MockCheckpointIdCounter implements CheckpointIDCounter {
 
+		private boolean started;
 		private long count;
 		private long lastReturnedCount;
 
 		@Override
 		public void start() throws Exception {
+			started = true;
 		}
 
 		@Override
 		public void stop() throws Exception {
+			started = false;
 		}
 
 		@Override
@@ -1107,6 +1114,10 @@ public class SavepointCoordinatorTest {
 
 		long getLastReturnedCount() {
 			return lastReturnedCount;
+		}
+
+		public boolean isStarted() {
+			return started;
 		}
 	}
 }
