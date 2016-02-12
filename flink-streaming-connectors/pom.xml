@@ -44,6 +44,7 @@ under the License.
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
+		<module>flink-connector-cassandra</module>
 	</modules>
 
 	<!-- See main pom.xml for explanation of profiles -->
