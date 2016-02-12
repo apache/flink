@@ -32,7 +32,7 @@ import java.util.Collections;
  */
 public class SourceTransformation<T> extends StreamTransformation<T> {
 
-	private final StreamSource<T> operator;
+	private final StreamSource<T, ?> operator;
 
 	/**
 	 * Creates a new {@code SourceTransformation} from the given operator.
@@ -44,7 +44,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	 */
 	public SourceTransformation(
 			String name,
-			StreamSource<T> operator,
+			StreamSource<T, ?> operator,
 			TypeInformation<T> outputType,
 			int parallelism) {
 		super(name, outputType, parallelism);
@@ -54,7 +54,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	/**
 	 * Returns the {@code StreamSource}, the operator of this {@code SourceTransformation}.
 	 */
-	public StreamSource<T> getOperator() {
+	public StreamSource<T, ?> getOperator() {
 		return operator;
 	}
 

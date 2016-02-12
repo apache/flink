@@ -25,6 +25,7 @@ import backtype.storm.topology.IRichSpout;
 import com.google.common.collect.Sets;
 
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
@@ -52,7 +53,7 @@ import java.util.HashMap;
  * is {@code null}, {@link SpoutWrapper} calls {@link IRichSpout#nextTuple() nextTuple()} method until
  * {@link FiniteSpout#reachedEnd()} returns true.
  */
-public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
+public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> implements StoppableFunction {
 	private static final long serialVersionUID = -218340336648247605L;
 
 	/** Number of attributes of the spouts's output tuples per stream. */
@@ -296,6 +297,16 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	 */
 	@Override
 	public void cancel() {
+		this.isRunning = false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * Sets the {@link #isRunning} flag to {@code false}.
+	 */
+	@Override
+	public void stop() {
 		this.isRunning = false;
 	}
 

@@ -59,6 +59,15 @@ object TaskMessages {
     extends TaskMessage with RequiresLeaderSessionID
 
   /**
+   * Stops the task associated with [[attemptID]]. The result is sent back to the sender as a
+   * [[TaskOperationResult]] message.
+   *
+   * @param attemptID The task's execution attempt ID.
+   */
+  case class StopTask(attemptID: ExecutionAttemptID)
+    extends TaskMessage with RequiresLeaderSessionID
+
+  /**
    * Triggers a fail of specified task from the outside (as opposed to the task throwing
    * an exception itself) with the given exception as the cause.
    *
