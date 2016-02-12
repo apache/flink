@@ -41,7 +41,7 @@ import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.UnrecoverableException;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -1030,14 +1030,14 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						boolean isRecoverable = !(failureCause instanceof UnrecoverableException);
+						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
 
-						if (isRecoverable && restartStrategy.canRestart() &&
+						if (allowRestart && restartStrategy.canRestart() &&
 								transitionState(current, JobStatus.RESTARTING)) {
 							restartStrategy.restart(this);
 							break;
 
-						} else if ((!isRecoverable || !restartStrategy.canRestart()) &&
+						} else if ((!allowRestart || !restartStrategy.canRestart()) &&
 							transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;

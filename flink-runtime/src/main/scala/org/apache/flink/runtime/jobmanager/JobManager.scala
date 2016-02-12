@@ -38,7 +38,7 @@ import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.execution.UnrecoverableException
+import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -1122,12 +1122,10 @@ class JobManager(
                   executionGraph.restoreSavepoint(savepointPath)
                 } catch {
                   case e: Exception =>
-                    throw new UnrecoverableException(e)
+                    throw new SuppressRestartsException(e)
                 }
               }
             }
-
-            submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
           }
 
           jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
