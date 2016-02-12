@@ -95,7 +95,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
 	 */
-	protected AbstractRocksDBState(TypeSerializer<K> keySerializer,
+	protected AbstractRocksDBState(
+			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			File dbPath,
 			String checkpointPath,
@@ -139,7 +140,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
 	 * @param restorePath The path to a backup directory from which to restore RocksDb database.
 	 */
-	protected AbstractRocksDBState(TypeSerializer<K> keySerializer,
+	protected AbstractRocksDBState(
+			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			File dbPath,
 			String checkpointPath,
