@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.UnrecoverableException;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -335,7 +335,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	@Test
-	public void testNoRestartOnUnrecoverableException() throws Exception {
+	public void testNoRestartOnSuppressException() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 				new SimpleActorGateway(TestingUtils.directExecutionContext()),
 				NUM_TASKS);
@@ -367,7 +367,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		// Fail with unrecoverable Exception
 		eg.getAllExecutionVertices().iterator().next().fail(
-				new UnrecoverableException(new Exception("Test Exception")));
+				new SuppressRestartsException(new Exception("Test Exception")));
 
 		assertEquals(JobStatus.FAILING, eg.getState());
 

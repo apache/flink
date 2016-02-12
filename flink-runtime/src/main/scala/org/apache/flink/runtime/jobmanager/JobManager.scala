@@ -37,7 +37,7 @@ import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.execution.UnrecoverableException
+import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -1132,8 +1132,8 @@ class JobManager(
               jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(t)))
 
               try {
-                // Wrap in UnrecoverableException to suppress restarts
-                executionGraph.fail(new UnrecoverableException(t))
+                // Wrap to suppress restarts
+                executionGraph.fail(new SuppressRestartsException(t))
               } catch {
                 case tt: Throwable =>
                   log.error("Error while marking ExecutionGraph as failed.", tt)

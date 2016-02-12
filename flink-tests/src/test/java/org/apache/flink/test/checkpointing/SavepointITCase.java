@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.StateForTask;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -53,7 +55,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseS
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -713,7 +714,9 @@ public class SavepointITCase extends TestLogger {
 
 			// Retrieve the job manager
 			LOG.info("Retrieving JobManager.");
-			ActorGateway jobManager = flink.getLeaderGateway(deadline.timeLeft());
+			ActorGateway jobManager = Await.result(
+					flink.leaderGateway().future(),
+					deadline.timeLeft());
 			LOG.info("JobManager: " + jobManager + ".");
 
 			// High value to ensure timeouts if restarted.
@@ -727,29 +730,14 @@ public class SavepointITCase extends TestLogger {
 			jobGraph.setSavepointPath("unknown path");
 			assertEquals("unknown path", jobGraph.getSnapshotSettings().getSavepointPath());
 
-			LOG.info("Submitting job " + jobGraph.getJobID() + " (blocking)");
+			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 
 			try {
 				flink.submitJobAndWait(jobGraph, false);
-				fail("Did not throw expected Exception.");
-			} catch (Exception e) {
-				assertEquals(IllegalArgumentException.class, e.getCause().getClass());
 			}
-
-			// Wait for first submission to be removed
-			Future<?> removedFuture = jobManager.ask(
-					new NotifyWhenJobRemoved(jobGraph.getJobID()),
-					deadline.timeLeft());
-
-			Await.result(removedFuture, deadline.timeLeft());
-
-			LOG.info("Submitting job " + jobGraph.getJobID() + " (detached)");
-
-			try {
-				flink.submitJobDetached(jobGraph);
-				fail("Did not throw expected Exception.");
-			} catch (Exception e) {
-				assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+			catch (Exception e) {
+				assertEquals(SuppressRestartsException.class, e.getCause().getClass());
+				assertEquals(IllegalArgumentException.class, e.getCause().getCause().getClass());
 			}
 		}
 		finally {
