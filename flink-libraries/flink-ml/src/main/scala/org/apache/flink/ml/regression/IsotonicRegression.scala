@@ -121,11 +121,21 @@ object IsotonicRegression {
         val poolSubArray = input.slice(start, end + 1)
 
         val weightedSum = poolSubArray.map(lp => lp._1 * lp._3).sum
-        val weight = poolSubArray.map(_._3).sum
+        val sumOfWeights = poolSubArray.map(_._3).sum
+        var weightedAverage = weightedSum / sumOfWeights
+
+        // Dividing by the sum of weights to get the weighted average didn't work if
+        // the sum of weights is 0. But in this case, we know that every data point in
+        // the pool sub array has a weight of 0 and thus they all have the same weight.
+        // This means that we can simply pool the data points as if they all had a
+        // weight of 1.
+        if (sumOfWeights == 0.0) {
+          weightedAverage = poolSubArray.map(lp => lp._1).sum / poolSubArray.length
+        }
 
         var i = start
         while (i <= end) {
-          input(i) = (weightedSum / weight, input(i)._2, input(i)._3)
+          input(i) = (weightedAverage, input(i)._2, input(i)._3)
           i = i + 1
         }
       }

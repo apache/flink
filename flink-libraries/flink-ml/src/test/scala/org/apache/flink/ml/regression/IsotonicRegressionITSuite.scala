@@ -138,6 +138,13 @@ class IsotonicRegressionITSuite extends FlatSpec with Matchers with FlinkTestBas
     model.predictions should be(Seq(1, 2, 2))
   }
 
+  it should "work properly in the worst case scenario (with zero weigths)" in {
+    val ir = runIsotonicRegression(Seq(5, 1, 2, 3, 4), Seq(1, 0, 0, 0, 0), isotonic = true)
+    val model = ir.model.get.collect().head
+    model.boundaries should be(Seq(0, 4))
+    model.predictions should be(Seq(5, 5))
+  }
+
   it should "predict labels correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ir = runIsotonicRegression(Seq(1, 2, 7, 1, 2), isotonic = true)
