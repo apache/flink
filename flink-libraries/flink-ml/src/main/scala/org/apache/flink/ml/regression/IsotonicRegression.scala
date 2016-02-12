@@ -210,7 +210,6 @@ object IsotonicRegression {
           Seq(buffer.sortBy(x => (x._2, x._1)).toArray)
         })
         .map(new AdjacentPoolViolatersMapper)
-        .setParallelism(1)
         .mapPartition(partitions => {
           val buffer = new ArrayBuffer[(Double, Double, Double)]
           for (partition <- partitions) {
@@ -218,6 +217,7 @@ object IsotonicRegression {
           }
           Seq(buffer.sortBy(x => (x._2, x._1)).toArray)
         })
+        .setParallelism(1)
         .map(new AdjacentPoolViolatersMapper)
         .map(arr => {
           val boundaries = new ArrayBuffer[Double]
