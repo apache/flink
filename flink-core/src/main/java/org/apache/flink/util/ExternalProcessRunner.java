@@ -41,6 +41,8 @@ public class ExternalProcessRunner {
 
 	private final Process process;
 
+	private final Thread pipeForwarder;
+
 	final StringWriter errorOutput = new StringWriter();
 
 	/**
@@ -63,7 +65,7 @@ public class ExternalProcessRunner {
 
 		process = new ProcessBuilder(commandList).start();
 
-		new PipeForwarder(process.getErrorStream(), errorOutput);
+		pipeForwarder = new PipeForwarder(process.getErrorStream(), errorOutput);
 	}
 
 	/**
@@ -82,6 +84,9 @@ public class ExternalProcessRunner {
 	public int run() throws Exception {
 		try {
 			int returnCode = process.waitFor();
+
+			// wait to finish copying standard error stream
+			pipeForwarder.join();
 
 			if (returnCode != 0) {
 				// determine whether we failed because of a ClassNotFoundException and forward that
