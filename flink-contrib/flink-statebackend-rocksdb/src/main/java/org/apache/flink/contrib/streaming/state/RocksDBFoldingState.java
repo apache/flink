@@ -21,13 +21,12 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
+
+import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
 
 import java.io.ByteArrayInputStream;
@@ -39,16 +38,15 @@ import java.net.URI;
 import static java.util.Objects.requireNonNull;
 
 /**
- * {@link ReducingState} implementation that stores state in RocksDB.
+ * {@link FoldingState} implementation that stores state in RocksDB.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
- * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public class RocksDBFoldingState<K, N, T, ACC, Backend extends AbstractStateBackend>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend>
+public class RocksDBFoldingState<K, N, T, ACC>
+	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 	implements FoldingState<T, ACC> {
 
 	/** Serializer for the values */
@@ -70,12 +68,16 @@ public class RocksDBFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
 	 * @param backupPath The path where to store backups.
 	 */
-	protected RocksDBFoldingState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc,
-		File dbPath,
-		String backupPath) {
-		super(keySerializer, namespaceSerializer, dbPath, backupPath);
+	protected RocksDBFoldingState(
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc,
+			File dbPath,
+			String backupPath,
+			Options options) {
+		
+		super(keySerializer, namespaceSerializer, dbPath, backupPath, options);
+		
 		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
@@ -92,13 +94,17 @@ public class RocksDBFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	 * @param backupPath The path where to store backups.
 	 * @param restorePath The path on the local file system that we are restoring from.
 	 */
-	protected RocksDBFoldingState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc,
-		File dbPath,
-		String backupPath,
-		String restorePath) {
-		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath);
+	protected RocksDBFoldingState(
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc,
+			File dbPath,
+			String backupPath,
+			String restorePath,
+			Options options) {
+		
+		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath, options);
+		
 		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
@@ -147,22 +153,24 @@ public class RocksDBFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	}
 
 	@Override
-	protected KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> createRocksDBSnapshot(
-		URI backupUri,
-		long checkpointId) {
+	protected AbstractRocksDBSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> createRocksDBSnapshot(
+			URI backupUri, long checkpointId) {
+		
 		return new Snapshot<>(dbPath, checkpointPath, backupUri, checkpointId, keySerializer, namespaceSerializer, stateDesc);
 	}
 
-	private static class Snapshot<K, N, T, ACC, Backend extends AbstractStateBackend> extends AbstractRocksDBSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
+	private static class Snapshot<K, N, T, ACC> extends AbstractRocksDBSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {
 		private static final long serialVersionUID = 1L;
 
-		public Snapshot(File dbPath,
-			String checkpointPath,
-			URI backupUri,
-			long checkpointId,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc) {
+		public Snapshot(
+				File dbPath,
+				String checkpointPath,
+				URI backupUri,
+				long checkpointId,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer,
+				FoldingStateDescriptor<T, ACC> stateDesc) {
+			
 			super(dbPath,
 				checkpointPath,
 				backupUri,
@@ -173,14 +181,17 @@ public class RocksDBFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		}
 
 		@Override
-		protected KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> createRocksDBState(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc,
-			File dbPath,
-			String backupPath,
-			String restorePath) throws Exception {
-			return new RocksDBFoldingState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath, restorePath);
+		protected KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, RocksDBStateBackend> 
+			createRocksDBState(
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer,
+				FoldingStateDescriptor<T, ACC> stateDesc,
+				File dbPath,
+				String backupPath,
+				String restorePath,
+				Options options) throws Exception {
+			
+			return new RocksDBFoldingState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath, restorePath, options);
 		}
 	}
 }

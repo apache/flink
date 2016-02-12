@@ -159,7 +159,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param <T> Type of the values folded into the state
 	 * @param <ACC> Type of the value in the state	 *
 	 */
-	abstract protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
+	protected abstract <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
 
 	/**
 	 * Sets the current key that is used for partitioned state.

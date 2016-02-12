@@ -281,7 +281,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		File dbPath = getDbPath(stateDesc.getName());
 		String checkpointPath = getCheckpointPath(stateDesc.getName());
-		return new RocksDBFoldingState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath);
+		return new RocksDBFoldingState<>(keySerializer, namespaceSerializer,
+				stateDesc, dbPath, checkpointPath, getRocksDBOptions());
 	}
 
 	@Override
