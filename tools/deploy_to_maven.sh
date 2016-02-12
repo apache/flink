@@ -72,7 +72,7 @@ pwd
 
 # Check if push/commit is eligible for deploying
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST ; repo slug : $TRAVIS_REPO_SLUG "
-if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flink" ]] ; then
+if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flink" ]] && [[ $TRAVIS_BRANCH == "master" ]] ; then
 
 	echo "install lifecylce mapping fake plugin"
 	git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
