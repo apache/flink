@@ -104,7 +104,12 @@ public class ClosableBlockingQueue<E> {
 	 * @return The number of elements currently in the queue.
 	 */
 	public int size() {
-		return elements.size();
+		lock.lock();
+		try {
+			return elements.size();
+		} finally {
+			lock.unlock();
+		}
 	}
 
 	/**
