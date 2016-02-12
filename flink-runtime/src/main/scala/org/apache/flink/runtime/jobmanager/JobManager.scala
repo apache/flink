@@ -1104,57 +1104,73 @@ class JobManager(
       // execute the recovery/writing the jobGraph into the SubmittedJobGraphStore asynchronously
       // because it is a blocking operation
       future {
-        try {
-          if (isRecovery) {
-            executionGraph.restoreLatestCheckpointedState()
-          }
-          else {
-            val snapshotSettings = jobGraph.getSnapshotSettings
-            if (snapshotSettings != null) {
-              val savepointPath = snapshotSettings.getSavepointPath()
+        val restoreStateSuccess =
+          try {
+            if (isRecovery) {
+              executionGraph.restoreLatestCheckpointedState()
+            } else {
+              val snapshotSettings = jobGraph.getSnapshotSettings
+              if (snapshotSettings != null) {
+                val savepointPath = snapshotSettings.getSavepointPath()
 
-              // Reset state back to savepoint
-              if (savepointPath != null) {
-                try {
+                // Reset state back to savepoint
+                if (savepointPath != null) {
                   executionGraph.restoreSavepoint(savepointPath)
-                } catch {
-                  case e: Exception =>
-                    throw new UnrecoverableException(e)
                 }
               }
+
+              submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
             }
 
-            submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
+            // All good. Submission succeeded!
+            jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
+
+            true
+          } catch {
+            case t: Throwable =>
+              // Ops, something went wrong. Fail the submission!
+              jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(t)))
+
+              try {
+                // Wrap in UnrecoverableException to suppress restarts
+                executionGraph.fail(new UnrecoverableException(t))
+              } catch {
+                case tt: Throwable =>
+                  log.error("Error while marking ExecutionGraph as failed.", tt)
+              }
+
+              false
           }
 
-          jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
+        if (restoreStateSuccess) {
+          try {
+            if (leaderElectionService.hasLeadership) {
+              // There is a small chance that multiple job managers schedule the same job after if
+              // they try to recover at the same time. This will eventually be noticed, but can not
+              // be ruled out from the beginning.
 
-          if (leaderElectionService.hasLeadership) {
-            // There is a small chance that multiple job managers schedule the same job after if
-            // they try to recover at the same time. This will eventually be noticed, but can not be
-            // ruled out from the beginning.
+              // NOTE: Scheduling the job for execution is a separate action from the job
+              // submission. The success of submitting the job must be independent from the success
+              // of scheduling the job.
+              log.info(s"Scheduling job $jobId ($jobName).")
 
-            // NOTE: Scheduling the job for execution is a separate action from the job submission.
-            // The success of submitting the job must be independent from the success of scheduling
-            // the job.
-            log.info(s"Scheduling job $jobId ($jobName).")
+              executionGraph.scheduleForExecution(scheduler)
+            } else {
+              // Remove the job graph. Otherwise it will be lingering around and possibly removed
+              // from ZooKeeper by this JM.
+              self ! decorateMessage(RemoveJob(jobId, removeJobFromStateBackend = false))
 
-            executionGraph.scheduleForExecution(scheduler)
-          } else {
-            // Remove the job graph. Otherwise it will be lingering around and possibly removed from
-            // ZooKeeper by this JM.
-            self ! decorateMessage(RemoveJob(jobId, removeJobFromStateBackend = false))
-
-            log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
-              "this. I am not scheduling the job for execution.")
-          }
-        } catch {
-          case t: Throwable => try {
-            executionGraph.fail(t)
-          }
-          catch {
-            case tt: Throwable =>
-              log.error("Error while marking ExecutionGraph as failed.", tt)
+              log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
+                "this. I am not scheduling the job for execution.")
+            }
+          } catch {
+            case t: Throwable => try {
+              executionGraph.fail(t)
+            }
+            catch {
+              case tt: Throwable =>
+                log.error("Error while marking ExecutionGraph as failed.", tt)
+            }
           }
         }
       }(context.dispatcher)
