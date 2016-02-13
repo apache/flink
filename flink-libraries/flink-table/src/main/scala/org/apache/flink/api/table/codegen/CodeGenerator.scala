@@ -50,8 +50,23 @@ class CodeGenerator(
    config: TableConfig,
    input1: TypeInformation[Any],
    input2: Option[TypeInformation[Any]] = None,
-   inputPojoFieldMapping: Array[Int] = Array())
+   inputPojoFieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
+
+  // check for POJO input mapping
+  input1 match {
+    case pt: PojoTypeInfo[_] =>
+      inputPojoFieldMapping.getOrElse(
+        throw new CodeGenException("No input mapping is specified for input of type POJO."))
+    case _ => // ok
+  }
+
+  // check that input2 is never a POJO
+  input2 match {
+    case pt: PojoTypeInfo[_] =>
+      throw new CodeGenException("Second input must not be a POJO type.")
+    case _ => // ok
+  }
 
   /**
     * A code generator for generating unary Flink
@@ -63,7 +78,7 @@ class CodeGenerator(
     *                              POJO (POJO types have no deterministic field order).
     */
   def this(config: TableConfig, input: TypeInformation[Any], inputPojoFieldMapping: Array[Int]) =
-    this(config, input, None, inputPojoFieldMapping)
+    this(config, input, None, Some(inputPojoFieldMapping))
 
 
   // set of member statements that will be added only once
@@ -265,6 +280,10 @@ class CodeGenerator(
     // initial type check
     if (returnType.getArity != fieldExprs.length) {
       throw new CodeGenException("Arity of result type does not match number of expressions.")
+    }
+    if (resultFieldNames.length != fieldExprs.length) {
+      throw new CodeGenException("Arity of result field names does not match number of " +
+        "expressions.")
     }
     // type check
     returnType match {
@@ -703,7 +722,7 @@ class CodeGenerator(
 
           case ct: CompositeType[_] =>
             val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-              inputPojoFieldMapping(index)
+              inputPojoFieldMapping.get(index)
             }
             else {
               index
@@ -855,7 +874,7 @@ class CodeGenerator(
     val statement = ti match {
       case rt: RowTypeInfo =>
         s"""
-          |${ti.getTypeClass.getCanonicalName} $outRecordTerm =
+          |transient ${ti.getTypeClass.getCanonicalName} $outRecordTerm =
           |    new ${ti.getTypeClass.getCanonicalName}(${rt.getArity});
           |""".stripMargin
       case _ =>
@@ -871,7 +890,7 @@ class CodeGenerator(
     val fieldTerm = s"field_${clazz.getCanonicalName.replace('.', '$')}_$fieldName"
     val fieldExtraction =
       s"""
-        |java.lang.reflect.Field $fieldTerm =
+        |transient java.lang.reflect.Field $fieldTerm =
         |    org.apache.flink.api.java.typeutils.TypeExtractor.getDeclaredField(
         |      ${clazz.getCanonicalName}.class, "$fieldName");
         |""".stripMargin
