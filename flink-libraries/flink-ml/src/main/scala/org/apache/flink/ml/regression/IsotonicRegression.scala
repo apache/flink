@@ -101,9 +101,6 @@ object IsotonicRegression {
 
     /**
       * Performs a pool adjacent violators algorithm (PAV).
-      * Uses approach with single processing of data where violators
-      * in previously processed data created by pooling are fixed immediately.
-      * Uses optimization of discovering monotonicity violating sequences (blocks).
       *
       * @param input Input data of tuples (label, feature, weight).
       * @return Result tuples (label, feature, weight) where labels were updated
@@ -115,75 +112,52 @@ object IsotonicRegression {
         return Array.empty
       }
 
-      // Pools sub array within given bounds assigning weighted average value to all
-      // elements.
-      def pool(input: Array[(Double, Double, Double)], start: Int, end: Int): Unit = {
-        val poolSubArray = input.slice(start, end + 1)
-
-        val weightedSum = poolSubArray.map(lp => lp._1 * lp._3).sum
-        val sumOfWeights = poolSubArray.map(_._3).sum
-        var weightedAverage = weightedSum / sumOfWeights
-
-        // Dividing by the sum of weights to get the weighted average didn't work if
-        // the sum of weights is 0. But in this case, we know that every data point in
-        // the pool sub array has a weight of 0 and thus they all have the same weight.
-        // This means that we can simply pool the data points as if they all had a
-        // weight of 1.
-        if (sumOfWeights == 0.0) {
-          weightedAverage = poolSubArray.map(lp => lp._1).sum / poolSubArray.length
-        }
-
-        var i = start
-        while (i <= end) {
-          input(i) = (weightedAverage, input(i)._2, input(i)._3)
-          i = i + 1
-        }
-      }
-
-      var i = 0
-      val len = input.length
-      while (i < len) {
-        var j = i
-
-        // Find monotonicity violating sequence, if any.
-        while (j < len - 1 && input(j)._1 > input(j + 1)._1) {
-          j = j + 1
-        }
-
-        // If monotonicity was not violated, move to next data point.
-        if (i == j) {
-          i = i + 1
-        } else {
-          // Otherwise pool the violating sequence
-          // and check if pooling caused monotonicity violation in previously processed
-          // points.
-          while (i >= 0 && input(i)._1 > input(i + 1)._1) {
-            pool(input, i, j)
-            i = i - 1
+      var pooled = true
+      while (pooled) {
+        val n = input.length - 1
+        var i = 0
+        pooled = false
+        while (i < n) {
+          var k = i
+          while (k < n && input(k)._1 >= input(k + 1)._1) {
+            k += 1
           }
-
-          i = j
+          if (input(i)._1 != input(k)._1) {
+            var numerator = 0.0
+            var denominator = 0.0
+            for (j <- i until k + 1) {
+              numerator += input(j)._1 * input(j)._3
+              denominator += input(j)._3
+            }
+            if(denominator == 0) {
+              denominator = 1
+            }
+            val ratio = numerator / denominator
+            for (j <- i until k + 1) {
+              input(j) = (ratio, input(j)._2, input(j)._3)
+            }
+            pooled = true
+          }
+          i = k + 1
         }
       }
-      // For points having the same prediction, we only keep two boundary points.
+
       val compressed = ArrayBuffer.empty[(Double, Double, Double)]
 
       var (curLabel, curFeature, curWeight) = input.head
       var rightBound = curFeature
-      def merge(): Unit = {
-        compressed += ((curLabel, curFeature, curWeight))
-        if (rightBound > curFeature) {
-          compressed += ((curLabel, rightBound, 0.0))
-        }
-      }
-      i = 1
+
+      var i = 1
       while (i < input.length) {
         val (label, feature, weight) = input(i)
         if (label == curLabel) {
           curWeight += weight
           rightBound = feature
         } else {
-          merge()
+          compressed += ((curLabel, curFeature, curWeight))
+          if (rightBound > curFeature) {
+            compressed += ((curLabel, rightBound, 0.0))
+          }
           curLabel = label
           curFeature = feature
           curWeight = weight
@@ -191,7 +165,10 @@ object IsotonicRegression {
         }
         i += 1
       }
-      merge()
+      compressed += ((curLabel, curFeature, curWeight))
+      if (rightBound > curFeature) {
+        compressed += ((curLabel, rightBound, 0.0))
+      }
 
       compressed.toArray
     }
