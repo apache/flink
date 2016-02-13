@@ -29,6 +29,8 @@ import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSet
 import org.apache.flink.api.table.plan.nodes.logical.{FlinkConvention, FlinkFilter}
 import org.apache.flink.api.table.runtime.FlatMapRunner
 
+import scala.collection.JavaConversions._
+
 class DataSetFilterRule
   extends ConverterRule(
     classOf[FlinkFilter],
@@ -52,7 +54,10 @@ class DataSetFilterRule
 
       // conversion
       val body = if (inputType != returnType) {
-        val conversion = generator.generateConverterResultExpression(returnType)
+        val conversion = generator.generateConverterResultExpression(
+          returnType,
+          filter.getRowType.getFieldNames)
+
         s"""
           |${condition.code}
           |if (${condition.resultTerm}) {

@@ -51,7 +51,10 @@ class DataSetProjectRule
       val generator = new CodeGenerator(config, inputType)
 
       // projection and implicit type conversion
-      val projection = generator.generateResultExpression(returnType, proj.getProjects)
+      val projection = generator.generateResultExpression(
+        returnType,
+        proj.getRowType.getFieldNames,
+        proj.getProjects)
 
       val body =
         s"""

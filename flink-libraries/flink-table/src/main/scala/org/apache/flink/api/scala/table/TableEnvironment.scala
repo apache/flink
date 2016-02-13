@@ -63,9 +63,10 @@ class TableEnvironment {
 
   /**
    * Converts the given [[org.apache.flink.api.table.Table]] to
-   * a DataSet. The given type must have exactly the same fields as the
-   * [[org.apache.flink.api.table.Table]]. That is, the names of the
-   * fields and the types must match.
+   * a DataSet. The given type must have exactly the same field types and field order as the
+   * [[org.apache.flink.api.table.Table]]. Row and tuple types can be mapped by position.
+   * POJO types require name equivalence to be mapped correctly as their fields do not have
+   * an order.
    */
   def toDataSet[T: TypeInformation](table: Table): DataSet[T] = {
      new ScalaBatchTranslator(config).translate[T](table.relNode)

@@ -65,14 +65,26 @@ class TableEnvironment {
 
   /**
    * Converts the given [[org.apache.flink.api.table.Table]] to
-   * a DataSet. The given type must have exactly the same fields as the
-   * [[org.apache.flink.api.table.Table]]. That is, the names of the
-   * fields and the types must match.
+   * a DataSet. The given type must have exactly the same field types and field order as the
+   * [[org.apache.flink.api.table.Table]]. Row and tuple types can be mapped by position.
+   * POJO types require name equivalence to be mapped correctly as their fields do not have
+   * an order.
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
     new JavaBatchTranslator(config).translate[T](table.relNode)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
+  }
+
+  /**
+   * Converts the given [[org.apache.flink.api.table.Table]] to
+   * a DataSet. The given type must have exactly the same field types and field order as the
+   * [[org.apache.flink.api.table.Table]]. Row and tuple types can be mapped by position.
+   * POJO types require name equivalence to be mapped correctly as their fields do not have
+   * an order.
+   */
+  def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
+    new JavaBatchTranslator(config).translate[T](table.relNode)(typeInfo)
   }
 
 }

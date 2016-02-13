@@ -19,21 +19,21 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.core.JoinRelType._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableException}
+
 import scala.collection.JavaConversions._
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.sql.`type`.SqlTypeName
 
 object TypeConverter {
 
@@ -87,6 +87,8 @@ object TypeConverter {
     val logicalFieldTypes = logicalRowType.getFieldList map { relDataType =>
       TypeConverter.sqlTypeToTypeInfo(relDataType.getType.getSqlTypeName)
     }
+    // field names
+    val logicalFieldNames = logicalRowType.getFieldNames
 
     val returnType = expectedPhysicalType match {
       // a certain physical type is expected (but not Row)
@@ -96,19 +98,39 @@ object TypeConverter {
           throw new TableException("Arity of result does not match expected type.")
         }
         typeInfo match {
+
+          // POJO type expected
+          case pt: PojoTypeInfo[_] =>
+            logicalFieldTypes.zipWithIndex foreach {
+              case (fieldTypeInfo, i) =>
+                val fieldName = logicalFieldNames(i)
+                val index = pt.getFieldIndex(fieldName)
+                if (index < 0) {
+                  throw new TableException(s"POJO does not define field name: $fieldName")
+                }
+                val expectedTypeInfo = pt.getTypeAt(i)
+                if (fieldTypeInfo != expectedTypeInfo) {
+                  throw new TableException(s"Result field does not match expected type. " +
+                    s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
+                }
+            }
+
+          // Tuple/Case class type expected
           case ct: CompositeType[_] =>
             logicalFieldTypes.zipWithIndex foreach {
               case (fieldTypeInfo, i) =>
                 val expectedTypeInfo = ct.getTypeAt(i)
                 if (fieldTypeInfo != expectedTypeInfo) {
-                  throw new TableException(s"Result field does not match expected type." +
+                  throw new TableException(s"Result field does not match expected type. " +
                     s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
                 }
             }
+
+          // Atomic type expected
           case at: AtomicType[_] =>
             val fieldTypeInfo = logicalFieldTypes.head
             if (fieldTypeInfo != at) {
-              throw new TableException(s"Result field does not match expected type." +
+              throw new TableException(s"Result field does not match expected type. " +
                 s"Expected: $at; Actual: $fieldTypeInfo")
             }
 
