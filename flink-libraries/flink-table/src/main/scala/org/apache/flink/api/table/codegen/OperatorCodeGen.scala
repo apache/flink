@@ -18,20 +18,56 @@
 package org.apache.flink.api.table.codegen
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 
 object OperatorCodeGen {
 
-   def generateArithmeticOperator(
+  def generateArithmeticOperator(
       operator: String,
       nullCheck: Boolean,
       resultType: TypeInformation[_],
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+    // String arithmetic // TODO rework
+    if (isString(left)) {
+      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
       (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+      }
+    }
+    // Numeric arithmetic
+    else if (isNumeric(left) && isNumeric(right)) {
+      val leftType = left.resultType.asInstanceOf[NumericTypeInfo[_]]
+      val rightType = right.resultType.asInstanceOf[NumericTypeInfo[_]]
+
+      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+      (leftTerm, rightTerm) =>
+        // insert auto casting for "narrowing primitive conversions"
+        if (leftType != rightType) {
+          // leftType can not be casted to rightType automatically -> narrow
+          if (!leftType.shouldAutocastTo(rightType)) {
+            val typeTerm = primitiveTypeTermForTypeInfo(rightType)
+            s"(($typeTerm) $leftTerm) $operator $rightTerm"
+          }
+          // rightType can not be casted to leftType automatically -> narrow
+          else if (!rightType.shouldAutocastTo(leftType)) {
+            val typeTerm = primitiveTypeTermForTypeInfo(leftType)
+            s"$leftTerm $operator (($typeTerm) $rightTerm)"
+          }
+          // no narrowing required, widening happens implicitly
+          else {
+            s"$leftTerm $operator $rightTerm"
+          }
+        }
+        // no casting / conversion required
+        else {
+          s"$leftTerm $operator $rightTerm"
+        }
+      }
+    }
+    else {
+      throw new CodeGenException("Unsupported arithmetic operation.")
     }
   }
 
