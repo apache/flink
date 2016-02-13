@@ -18,20 +18,52 @@
 package org.apache.flink.api.table.codegen
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 
 object OperatorCodeGen {
 
-   def generateArithmeticOperator(
+  def generateArithmeticOperator(
       operator: String,
       nullCheck: Boolean,
       resultType: TypeInformation[_],
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+    // String arithmetic // TODO rework
+    if (isString(left)) {
+      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
       (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+      }
+    }
+    // Numeric arithmetic
+    else if (isNumeric(left) && isNumeric(right)) {
+      val leftType = left.resultType.asInstanceOf[NumericTypeInfo[_]]
+      val rightType = right.resultType.asInstanceOf[NumericTypeInfo[_]]
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+
+      generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+      (leftTerm, rightTerm) =>
+        // no casting required
+        if (leftType == resultType && rightType == resultType) {
+          s"$leftTerm $operator $rightTerm"
+        }
+        // left needs casting
+        else if (leftType != resultType && rightType == resultType) {
+          s"(($resultTypeTerm) $leftTerm) $operator $rightTerm"
+        }
+        // right needs casting
+        else if (leftType == resultType && rightType != resultType) {
+          s"$leftTerm $operator (($resultTypeTerm) $rightTerm)"
+        }
+        // both sides need casting
+        else {
+          s"(($resultTypeTerm) $leftTerm) $operator (($resultTypeTerm) $rightTerm)"
+        }
+      }
+    }
+    else {
+      throw new CodeGenException("Unsupported arithmetic operation.")
     }
   }
 
