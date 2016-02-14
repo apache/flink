@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.datastream;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -182,8 +181,6 @@ public class DataStream<T> {
 	public final DataStream<T> union(DataStream<T>... streams) {
 		List<StreamTransformation<T>> unionedTransforms = new ArrayList<>();
 		unionedTransforms.add(this.transformation);
-
-		Collection<StreamTransformation<?>> thisPredecessors = this.getTransformation().getTransitivePredecessors();
 
 		for (DataStream<T> newStream : streams) {
 			if (!getType().equals(newStream.getType())) {
