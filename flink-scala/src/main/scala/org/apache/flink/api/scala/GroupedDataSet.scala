@@ -292,8 +292,9 @@ class GroupedDataSet[T: ClassTag](
   }
 
   /**
-   * Special [[reduce]] operation for explicitly telling the system what reduce strategy to use.
-   * If null is given as the reduce strategy, then the optimizer will pick the strategy.
+   * Special [[reduce]] operation for explicitly telling the system what strategy to use for the
+   * combine phase.
+   * If null is given as the strategy, then the optimizer will pick the strategy.
    */
   def reduce(fun: (T, T) => T, strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), fun, strategy)
@@ -321,9 +322,10 @@ class GroupedDataSet[T: ClassTag](
   }
 
   /**
-   * Special [[reduce]] operation for explicitly telling the system what reduce strategy to use.
-   * If null is given as the reduce strategy, then the optimizer will pick the strategy.
-   */
+    * Special [[reduce]] operation for explicitly telling the system what strategy to use for the
+    * combine phase.
+    * If null is given as the strategy, then the optimizer will pick the strategy.
+    */
   def reduce(reducer: ReduceFunction[T], strategy: CombineHint): DataSet[T] = {
     reduce(getCallLocationName(), reducer, strategy)
   }

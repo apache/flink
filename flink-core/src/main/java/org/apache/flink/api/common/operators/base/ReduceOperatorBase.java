@@ -55,7 +55,9 @@ import java.util.Map;
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
 	/**
-	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the combiner of a reduce.
+	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the combiner phase
+	 * of a reduce.
+	 * (Note: The final reduce phase (after combining) is currently always executed by a sort-based strategy.)
 	 */
 	public enum CombineHint {
 
@@ -71,7 +73,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 		/**
 		 * Use a hash-based strategy. This should be faster in most cases, especially if the number
-		 * of different keys is small, compared to the number of input elements (eg. 1/10).
+		 * of different keys is small compared to the number of input elements (eg. 1/10).
 		 */
 		HASH
 	}

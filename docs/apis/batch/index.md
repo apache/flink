@@ -237,6 +237,10 @@ data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
   }
 });
 {% endhighlight %}
+        <p>If the reduce was applied to a grouped data set, you can specify the way that the
+        runtime executes the combine phase of the reduce via supplying a CombineHint as a second
+        parameter. The hash-based strategy should be faster in most cases, especially if the
+        number of different keys is small compared to the number of input elements (eg. 1/10).</p>
       </td>
     </tr>
 
@@ -287,7 +291,7 @@ result = input1.join(input2)
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
         a list of possible hints and an example.</br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
-        pick a the best strategy according to those estimates.
+        pick the best strategy according to those estimates.
 {% highlight java %}
 // This executes a join by broadcasting the first data set
 // using a hash table for the broadcasted data
@@ -607,7 +611,7 @@ val result = input1.join(input2).where(0).equalTo(1)
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
         a list of possible hints and an example.</br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
-        pick a the best strategy according to those estimates.
+        pick the best strategy according to those estimates.
 {% highlight scala %}
 // This executes a join by broadcasting the first data set
 // using a hash table for the broadcasted data
