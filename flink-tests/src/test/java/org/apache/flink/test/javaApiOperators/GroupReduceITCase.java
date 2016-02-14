@@ -19,10 +19,7 @@
 package org.apache.flink.test.javaApiOperators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -433,6 +430,95 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	@Test
+	public void testCorrectnessOfGroupreduceWithExplicitPartitionOfReducer() throws Exception {
+		/*
+		 * check correctness of groupReduce with descending group sort
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+
+		DataSet<Tuple2<String, Integer>> counts =
+			// split up the lines in pairs (2-tuples) containing: (word,1)
+			ds.flatMap(new Tokenizer()).partitionByHash(0)
+				// group by the tuple field "0" and sum up tuple field "1"
+				.groupBy(0)
+				.sum(1);
+
+		List<Tuple2<String, Integer>> result = counts.collect();
+		String expected = "am,1\n"
+			+
+			"are,1\n" +
+			"comment,1\n" +
+			"fine,1\n" +
+			"hello,3\n" +
+			"hi,1\n"+
+			"how,1\n"+
+			"i,1\n"+
+			"lol,1\n"+
+			"luke,1\n"+
+			"random,1\n"+
+			"skywalker,1\n"+
+			"world,2\n"+
+			"you,1\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testCorrectnessOfGroupreduceWithoutExplicitPartitionOfReducer() throws Exception {
+		/*
+		 * check correctness of groupReduce with descending group sort
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+
+		DataSet<Tuple2<String, Integer>> counts =
+			// split up the lines in pairs (2-tuples) containing: (word,1)
+			ds.flatMap(new Tokenizer())
+				// group by the tuple field "0" and sum up tuple field "1"
+				.groupBy(0)
+				.sum(1);
+
+		List<Tuple2<String, Integer>> result = counts.collect();
+		String expected = "am,1\n"
+			+
+			"are,1\n" +
+			"comment,1\n" +
+			"fine,1\n" +
+			"hello,3\n" +
+			"hi,1\n"+
+			"how,1\n"+
+			"i,1\n"+
+			"lol,1\n"+
+			"luke,1\n"+
+			"random,1\n"+
+			"skywalker,1\n"+
+			"world,2\n"+
+			"you,1\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
+
+		@Override
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+			// normalize and split the line
+			String[] tokens = value.toLowerCase().split("\\W+");
+
+			// emit the pairs
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
+				}
+			}
+		}
+	}
 	@Test
 	public void testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector() throws Exception {
 		/*

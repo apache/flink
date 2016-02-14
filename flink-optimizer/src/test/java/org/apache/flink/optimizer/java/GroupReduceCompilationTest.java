@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.optimizer.dag.GroupReduceNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Collector;
@@ -297,7 +298,44 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testGroupReduceWithPartition() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(8);
+
+			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+				.name("source").setParallelism(6);
+
+			DataSet<Tuple2<String, Double>> reduced = data.partitionByHash(0)
+				.groupBy(0)
+				.sum(1);
+
+			reduced.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+			// get the original nodes
+			SourcePlanNode sourceNode = resolver.getNode("source");
+			SinkPlanNode sinkNode = resolver.getNode("sink");
+			SingleInputPlanNode reduceNode = (SingleInputPlanNode) sinkNode.getInput().getSource();
+			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			SingleInputPlanNode partitionNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+			SingleInputPlanNode combinerNode = (SingleInputPlanNode) partitionNode.getInput().getSource();
+			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combinerNode.getDriverStrategy());
+			assertEquals(sourceNode, combinerNode.getInput().getSource());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+		}
+	}
 	@Test
 	public void testGroupedReduceWithSelectorFunctionKeyCombinable() {
 		try {
