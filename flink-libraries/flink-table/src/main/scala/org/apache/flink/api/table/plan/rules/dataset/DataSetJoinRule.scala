@@ -86,30 +86,33 @@ class DataSetJoinRule
       ((TableConfig, TypeInformation[Any], TypeInformation[Any], TypeInformation[Any]) =>
       FlatJoinFunction[Any, Any, Any]) = {
 
-    if (joinInfo.isEqui) {
-      // only equality condition => no join function necessary
-      null
-    }
-    else {
-      val func = (
+    val func = (
         config: TableConfig,
         leftInputType: TypeInformation[Any],
         rightInputType: TypeInformation[Any],
         returnType: TypeInformation[Any]) => {
 
       val generator = new CodeGenerator(config, leftInputType, Some(rightInputType))
-      val condition = generator.generateExpression(join.getCondition)
-      val body = {
-        val conversion = generator.generateConverterResultExpression(returnType)
-        s"""
-          |${condition.code}
-          |if (${condition.resultTerm}) {
-          |  ${conversion.code}
-          |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-          |}
-          |""".stripMargin
-      }
+      val conversion = generator.generateConverterResultExpression(returnType)
+      var body = ""
 
+      if (joinInfo.isEqui) {
+        // only equality condition
+        body = s"""
+            |${conversion.code}
+            |${generator.collectorTerm}.collect(${conversion.resultTerm});
+            |""".stripMargin
+      }
+      else {
+        val condition = generator.generateExpression(join.getCondition)
+        body = s"""
+            |${condition.code}
+            |if (${condition.resultTerm}) {
+            |  ${conversion.code}
+            |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+            |}
+            |""".stripMargin
+      }
       val genFunction = generator.generateFunction(
         description,
         classOf[FlatJoinFunction[Any, Any, Any]],
@@ -120,9 +123,8 @@ class DataSetJoinRule
         genFunction.name,
         genFunction.code,
         genFunction.returnType)
-      }
-    func
     }
+    func
   }
 }
 

@@ -90,36 +90,9 @@ class DataSetJoin(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-      if (func == null) {
-        // return the dataset as is
-        val toReturn = leftDataSet.join(rightDataSet)
-        .where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
-        .map(new Tuple2ToRowMapper).returns(returnType)
-        .asInstanceOf[DataSet[Any]]
-        toReturn
-      }
-      else {
-        val joinFun = func.apply(config, leftDataSet.getType, rightDataSet.getType, returnType)
-        leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
-        .`with`(joinFun).asInstanceOf[DataSet[Any]] 
-      }
+    val joinFun = func.apply(config, leftDataSet.getType, rightDataSet.getType, returnType)
+      leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+      .`with`(joinFun).asInstanceOf[DataSet[Any]]
   }
-}
 
-class Tuple2ToRowMapper extends MapFunction[Tuple2[Any, Any], Any] {
-
-  override def map(input: Tuple2[Any, Any]): Any = {
-    val leftRow = input.f0.asInstanceOf[Row]
-    val leftLen = leftRow.productArity
-    val rightRow = input.f1.asInstanceOf[Row]
-    val rightLen = rightRow.productArity
-    val outRow = new Row(leftLen + rightLen)
-    for (i <- 0 until leftLen) {
-      outRow.setField(i, leftRow.productElement(i))
-    }
-    for (i <- 0 until rightLen) {
-      outRow.setField(i + leftLen, rightRow.productElement(i))
-    }
-    outRow
-  }
 }

@@ -63,7 +63,7 @@ class DataSetMap(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]])
     : DataSet[Any] = {
-    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config, expectedType)
+    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config)
     val returnType = determineReturnType(
       getRowType,
       expectedType,

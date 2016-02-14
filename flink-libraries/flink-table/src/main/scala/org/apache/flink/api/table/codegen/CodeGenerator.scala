@@ -161,7 +161,8 @@ class CodeGenerator(
       // FlatJoinFunction
       else if (clazz == classOf[FlatJoinFunction[_,_,_]]) {
         val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
-        val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.get) //TODO check this
+        val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
+            throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
         (s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
           s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
