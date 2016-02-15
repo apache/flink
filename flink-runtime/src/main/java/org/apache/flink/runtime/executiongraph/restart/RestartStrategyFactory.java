@@ -80,8 +80,15 @@ public class RestartStrategyFactory {
 				try {
 					delay = Duration.apply(delayString).toMillis();
 				} catch (NumberFormatException nfe) {
-					throw new Exception("Invalid config value for " + ConfigConstants.EXECUTION_RETRY_DELAY_KEY +
-						": " + delayString + ". Value must be a valid duration (such as 100 s or 1 min).");
+					if (delayString.equals(pauseString)) {
+						throw new Exception("Invalid config value for " +
+							ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE + ": " + pauseString +
+							". Value must be a valid duration (such as '10 s' or '1 min')");
+					} else {
+						throw new Exception("Invalid config value for " +
+							ConfigConstants.EXECUTION_RETRY_DELAY_KEY + ": " + delayString +
+							". Value must be a valid duration (such as '100 milli' or '10 s')");
+					}
 				}
 
 				if (numberExecutionRetries > 0 && delay >= 0) {

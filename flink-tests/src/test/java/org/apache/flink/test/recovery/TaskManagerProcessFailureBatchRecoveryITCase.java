@@ -66,7 +66,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));
 		env.getConfig().setExecutionMode(executionMode);
 		env.getConfig().disableSysoutLogging();
 
