@@ -727,7 +727,7 @@ class DataStream[T](stream: JavaStream[T]) {
         cleanExtractor(element)
       }
     }
-    stream.assignTimestamps(extractorFunction)
+    stream.assignTimestampsAndWatermarks(extractorFunction)
   }
 
   /**
