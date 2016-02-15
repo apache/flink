@@ -18,76 +18,75 @@
 
 package org.apache.flink.api.java.table.test;
 
+import java.util.List;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.table.Table;
-import org.apache.flink.api.table.Row;
-import org.apache.flink.api.table.codegen.CodeGenException;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
-import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.Ignore;
+import org.apache.flink.api.java.tuple.Tuple8;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.Table;
+import org.apache.flink.api.table.codegen.CodeGenException;
+import org.apache.flink.api.table.test.TableProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import scala.NotImplementedError;
-
-import java.util.List;
-
 @RunWith(Parameterized.class)
-public class CastingITCase extends MultipleProgramsTestBase {
+public class CastingITCase extends TableProgramsTestBase {
 
-	public CastingITCase(TestExecutionMode mode){
-		super(mode);
+	public CastingITCase(TestExecutionMode mode, TableConfigMode configMode){
+		super(mode, configMode);
 	}
 
-	@Ignore
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testNumericAutocastInArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
-				env.fromElements(new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
+		DataSource<Tuple8<Byte, Short, Integer, Long, Float, Double, Long, Double>> input =
+				env.fromElements(new Tuple8<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, 1L, 1001.1));
 
 		Table table =
 				tableEnv.fromDataSet(input);
 
 		Table result = table.select("f0 + 1, f1 +" +
-				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1");
+				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1, f6 + 1.0d, f7 + f0");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "2,2,2,2.0,2.0,2.0";
+		String expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1";
 		compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testNumericAutocastInComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
+		DataSource<Tuple6<Byte, Short, Integer, Long, Float, Double>> input =
 				env.fromElements(
-						new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
-						new Tuple7<>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Hello"));
+						new Tuple6<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d),
+						new Tuple6<>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d));
 
 		Table table =
-				tableEnv.fromDataSet(input, "a,b,c,d,e,f,g");
+				tableEnv.fromDataSet(input, "a,b,c,d,e,f");
 
 		Table result = table
 				.filter("a > 1 && b > 1 && c > 1L && d > 1.0f && e > 1.0d && f > 1");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "2,2,2,2,2.0,2.0,Hello";
+		String expected = "2,2,2,2,2.0,2.0";
 		compareResultAsText(results, expected);
 	}
+
+	// TODO support advanced String operations
 
 	@Test(expected = CodeGenException.class)
 	public void testCastFromString() throws Exception {
