@@ -19,21 +19,21 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.core.JoinRelType._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableException}
+
 import scala.collection.JavaConversions._
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.sql.`type`.SqlTypeName
 
 object TypeConverter {
 
@@ -55,11 +55,17 @@ object TypeConverter {
     case STRING_TYPE_INFO => VARCHAR
     case STRING_VALUE_TYPE_INFO => VARCHAR
     case DATE_TYPE_INFO => DATE
+
+    case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
+      throw new TableException("Character type is not supported.")
+
 //    case t: TupleTypeInfo[_] => ROW
 //    case c: CaseClassTypeInfo[_] => ROW
 //    case p: PojoTypeInfo[_] => STRUCTURED
 //    case g: GenericTypeInfo[_] => OTHER
-    case _ => ??? // TODO more types
+
+    case t@_ =>
+      throw new TableException(s"Type is not supported: $t")
   }
 
   def sqlTypeToTypeInfo(sqlType: SqlTypeName): TypeInformation[_] = sqlType match {
