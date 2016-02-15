@@ -29,6 +29,8 @@ import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
+import org.apache.flink.streaming.util.HDFSCopyFromLocal;
+import org.apache.flink.streaming.util.HDFSCopyToLocal;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
