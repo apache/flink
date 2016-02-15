@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.streaming.util;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Rule;
