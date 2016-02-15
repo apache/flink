@@ -34,10 +34,6 @@ public class CancelTaskException extends RuntimeException {
 		super(msg);
 	}
 
-	public CancelTaskException(String msg, Throwable cause) {
-		super(msg, cause);
-	}
-
 	public CancelTaskException() {
 		super();
 	}

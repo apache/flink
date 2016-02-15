@@ -114,7 +114,7 @@ public class PartitionRequestClient {
 					inputChannel.onError(
 							new LocalTransportException(
 									"Sending the partition request failed.",
-									future.cause()
+									future.channel().localAddress(), future.cause()
 							));
 				}
 			}
@@ -158,7 +158,7 @@ public class PartitionRequestClient {
 								if (!future.isSuccess()) {
 									inputChannel.onError(new LocalTransportException(
 											"Sending the task event failed.",
-											future.cause()
+											future.channel().localAddress(), future.cause()
 									));
 								}
 							}
@@ -185,7 +185,7 @@ public class PartitionRequestClient {
 
 	private void checkNotClosed() throws IOException {
 		if (closeReferenceCounter.isDisposed()) {
-			throw new LocalTransportException("Channel " + tcpChannel.localAddress() + "closed.");
+			throw new LocalTransportException("Channel closed.", tcpChannel.localAddress());
 		}
 	}
 }
