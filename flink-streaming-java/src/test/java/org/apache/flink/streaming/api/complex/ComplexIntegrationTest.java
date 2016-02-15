@@ -205,7 +205,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
-				.assignTimestamps(new MyTimestampExtractor())
+				.assignTimestampsAndWatermarks(new MyTimestampExtractor())
 				.keyBy(2, 2)
 				.timeWindow(Time.of(10, TimeUnit.MILLISECONDS), Time.of(4, TimeUnit.MILLISECONDS))
 				.maxBy(3)
