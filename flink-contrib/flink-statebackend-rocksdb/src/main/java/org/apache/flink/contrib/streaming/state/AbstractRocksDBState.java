@@ -421,7 +421,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		@Override
 		public final long getStateSize() throws Exception {
-			return 0;
+			FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
+			return fs.getContentSummary(new Path(backupUri)).getLength();
 		}
 	}
 
