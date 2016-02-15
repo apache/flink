@@ -59,7 +59,7 @@ DataStream<Event> input = ...
 Pattern<Event, ?> pattern = Pattern.begin("start").where(evt -> evt.getId() == 42)
     .next("middle").subtype(SubEvent.class).where(subEvt -> subEvt.getVolume() >= 10.0)
     .followedBy("end").where(evt -> evt.getName().equals("end"));
-    
+
 PatternStream<Event> patternStream = CEP.from(input, pattern);
 
 DataStream<Alert> result = patternStream.select(pattern -> {
@@ -85,7 +85,7 @@ Pattern<Event, ?> start = Pattern.<Event>begin("start");
 
 Each state must have an unique name to identify the matched events later on.
 Additionally, we can specify a filter condition for the event to be accepted as the start event via the `where` method.
-  
+
 {% highlight java %}
 start.where(new FilterFunction<Event>() {
     @Override
@@ -234,7 +234,7 @@ class MyPatternSelectFunction<IN, OUT> implements PatternSelectFunction<IN, OUT>
     public OUT select(Map<String, IN> pattern) {
         IN startEvent = pattern.get("start");
         IN endEvent = pattern.get("end");
-        
+
         return new OUT(startEvent, endEvent);
     }
 }
@@ -249,7 +249,7 @@ class MyPatternFlatSelectFunction<IN, OUT> implements PatternFlatSelectFunction<
     public void select(Map<String, IN> pattern, Collector<OUT> collector) {
         IN startEvent = pattern.get("start");
         IN endEvent = pattern.get("end");
-        
+
         for (int i = 0; i < startEvent.getValue(); i++ ) {
             collector.collect(new OUT(startEvent, endEvent));
         }
