@@ -18,17 +18,26 @@
 
 package org.apache.flink.runtime.io.network.netty.exception;
 
+import java.io.IOException;
 import java.net.SocketAddress;
 
-public class LocalTransportException extends TransportException {
+public abstract class TransportException extends IOException {
 
-	private static final long serialVersionUID = 2366708881288640674L;
+	private static final long serialVersionUID = 3637820720589866570L;
 
-	public LocalTransportException(String message, SocketAddress address) {
-		super(message, address);
+	private final SocketAddress address;
+
+	public TransportException(String message, SocketAddress address) {
+		this(message, address, null);
 	}
 
-	public LocalTransportException(String message, SocketAddress address, Throwable cause) {
-		super(message, address, cause);
+	public TransportException(String message, SocketAddress address, Throwable cause) {
+		super(message, cause);
+
+		this.address = address;
+	}
+
+	public SocketAddress getAddress() {
+		return address;
 	}
 }
