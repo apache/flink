@@ -71,7 +71,7 @@ public class TopSpeedWindowing {
 		int evictionSec = 10;
 		double triggerMeters = 50;
 		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData
-				.assignTimestamps(new CarTimestamp())
+				.assignTimestampsAndWatermarks(new CarTimestamp())
 				.keyBy(0)
 				.window(GlobalWindows.create())
 				.evictor(TimeEvictor.of(Time.of(evictionSec, TimeUnit.SECONDS)))

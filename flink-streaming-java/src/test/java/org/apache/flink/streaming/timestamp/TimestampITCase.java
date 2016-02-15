@@ -260,7 +260,7 @@ public class TimestampITCase {
 			public void cancel() {}
 		});
 
-		DataStream<Integer> extractOp = source1.assignTimestamps(
+		DataStream<Integer> extractOp = source1.assignTimestampsAndWatermarks(
 				new AscendingTimestampExtractor<Integer>() {
 					@Override
 					public long extractAscendingTimestamp(Integer element, long currentTimestamp) {

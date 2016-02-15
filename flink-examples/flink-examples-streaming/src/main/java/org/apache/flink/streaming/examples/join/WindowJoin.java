@@ -74,8 +74,8 @@ public class WindowJoin {
 		DataStream<Tuple3<Long, String, Integer>> salaries = input.f1;
 
 		// extract the timestamps
-		grades = grades.assignTimestamps(new MyTimestampExtractor());
-		salaries = salaries.assignTimestamps(new MyTimestampExtractor());
+		grades = grades.assignTimestampsAndWatermarks(new MyTimestampExtractor());
+		salaries = salaries.assignTimestampsAndWatermarks(new MyTimestampExtractor());
 
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
