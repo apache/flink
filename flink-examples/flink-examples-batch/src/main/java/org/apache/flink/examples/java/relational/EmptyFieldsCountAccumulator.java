@@ -41,7 +41,7 @@ import org.apache.flink.configuration.Configuration;
  * The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
  * and three columns. See {@link #getDataSet(ExecutionEnvironment, ParameterTool)} for configuration.
  * <p>
- * Usage: <code>FilterAndCountIncompleteLines [--input &lt;path&gt; [--output &lt;path&gt;]]</code> <br>
+ * Usage: <code>EmptyFieldsCountAccumulator --input &lt;path&gt; --output &lt;path&gt;</code> <br>
  * <p>
  * This example shows how to use:
  * <ul>
@@ -65,6 +65,7 @@ public class EmptyFieldsCountAccumulator {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		System.out.println("Usage: EmptyFieldsCountAccumulator --input <path> --output <path>");
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
@@ -83,6 +84,7 @@ public class EmptyFieldsCountAccumulator {
 			// execute program
 			result = env.execute("Accumulator example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			filteredLines.print();
 			result = env.getLastJobExecutionResult();
 		}
@@ -103,6 +105,8 @@ public class EmptyFieldsCountAccumulator {
 				.fieldDelimiter(";")
 				.pojoType(StringTriple.class);
 		} else {
+			System.out.println("Executing EmptyFieldsCountAccumulator example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			return env.fromCollection(getExampleInputTuples());
 		}
 	}

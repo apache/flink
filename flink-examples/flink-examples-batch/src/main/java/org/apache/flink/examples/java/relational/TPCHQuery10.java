@@ -102,10 +102,11 @@ public class TPCHQuery10 {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		if (!params.has("customer") && !params.has("orders") && !params.has("lineitem") && !params.has("nation")) {
-			System.err.println("This program expects data from the TPC-H benchmark as input data.");
+			System.err.println("  This program expects data from the TPC-H benchmark as input data.");
 			System.err.println("  Due to legal restrictions, we can not ship generated data.");
 			System.err.println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.");
 			System.err.println("  Usage: TPCHQuery10 --customer <path> --orders <path> --lineitem <path> --nation <path> [--output <path>]");
+			return;
 		}
 
 		// get customer data set: (custkey, name, address, nationkey, acctbal) 
@@ -178,6 +179,7 @@ public class TPCHQuery10 {
 			// execute program
 			env.execute("TPCH Query 10 Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 		

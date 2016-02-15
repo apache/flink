@@ -102,16 +102,9 @@ public class WebLogAnalysis {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		System.out.println("Usage: WebLogAnalysis --documents <path> --ranks <path> --visits <path> --output <path>");
 
 		env.getConfig().setGlobalJobParameters(params);
-
-		if (params.getNumberOfParameters() < 4) {
-			System.out.println("Executing WebLog Analysis example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: WebLogAnalysis --documents <path> --ranks <path> --visits <path> --output <path>");
-		}
 
 		// get input data
 		DataSet<Tuple2<String, String>> documents = getDocumentsDataSet(env, params);
@@ -150,6 +143,7 @@ public class WebLogAnalysis {
 			// execute program
 			env.execute("WebLogAnalysis Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 	}
@@ -275,6 +269,8 @@ public class WebLogAnalysis {
 						.fieldDelimiter("|")
 						.types(String.class, String.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default documents data set.");
+			System.out.println("Use --documents to specify file input.");
 			return WebLogData.getDocumentDataSet(env);
 		}
 	}
@@ -286,6 +282,8 @@ public class WebLogAnalysis {
 						.fieldDelimiter("|")
 						.types(Integer.class, String.class, Integer.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default ranks data set.");
+			System.out.println("Use --ranks to specify file input.");
 			return WebLogData.getRankDataSet(env);
 		}
 	}
@@ -298,6 +296,8 @@ public class WebLogAnalysis {
 						.includeFields("011000000")
 						.types(String.class, String.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default visits data set.");
+			System.out.println("Use --visits to specify file input.");
 			return WebLogData.getVisitDataSet(env);
 		}
 	}

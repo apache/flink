@@ -52,11 +52,7 @@ public class PojoExample {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing PojoExample example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: PojoExample --input <path> [--output <path>]");
-		}
+		System.out.println("Usage: PojoExample --input <path> --output <path>");
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -67,6 +63,8 @@ public class PojoExample {
 		// get input data
 		DataStream<String> text;
 		if (params.has("input")) {
+			System.out.println("Executing WordCountPojo example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			// read the text file from given input path
 			text = env.readTextFile(params.get("input"));
 		} else {
@@ -83,6 +81,7 @@ public class PojoExample {
 		if (params.has("output")) {
 			counts.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
 

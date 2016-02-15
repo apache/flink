@@ -66,14 +66,8 @@ object ConnectedComponents {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 4) {
-      println("Executing Connected Components example with default parameters and built-in " +
-        "default data.")
-      println("  Provide parameters to read input data from files.")
-      println("  See the documentation for the correct format of input files.")
-      println("  Usage: ConnectedComponents --vertices <path> --edges <path> --output <path> " +
-        "--iterations <n>")
-    }
+    println("Usage: ConnectedComponents " +
+      "--vertices <path> --edges <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -119,6 +113,7 @@ object ConnectedComponents {
       verticesWithComponents.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala Connected Components Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       verticesWithComponents.print()
     }
 
@@ -132,6 +127,8 @@ object ConnectedComponents {
         .map { x => x._1 }
     }
     else {
+      println("Executing ConnectedComponents example with default vertices data set.")
+      println("Use --vertices to specify file input.")
       env.fromCollection(ConnectedComponentsData.VERTICES)
     }
   }
@@ -146,6 +143,8 @@ object ConnectedComponents {
         .map { x => (x._1, x._2)}
     }
     else {
+      println("Executing ConnectedComponents example with default edges data set.")
+      println("Use --edges to specify file input.")
       val edgeData = ConnectedComponentsData.EDGES map {
         case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
       }

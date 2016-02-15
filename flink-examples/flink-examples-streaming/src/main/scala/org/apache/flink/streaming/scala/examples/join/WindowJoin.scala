@@ -43,11 +43,8 @@ object WindowJoin {
   def main(args: Array[String]) {
 
     val params = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 3) {
-      println("Executing WindowJoin with generated data.")
-      println("  Provide parameter to write to file.")
-      println("  Usage: WindowJoin --grades <path> --salaries <path> --output <path>")
-    }
+    println("Usage: WindowJoin --grades <path> --salaries <path> --output <path>")
+
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.getConfig.setGlobalJobParameters(params)
@@ -67,6 +64,7 @@ object WindowJoin {
     if (params.has("output")) {
       joined.writeAsText(params.get("output"))
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       joined.print()
     }
 
@@ -114,6 +112,8 @@ object WindowJoin {
     if (params.has("grades")) {
       env.readTextFile(params.get("grades")).map(parseMap _ ).map(x => Grade(x._1, x._2, x._3))
     } else {
+      println("Executing WindowJoin example with default grades data set.")
+      println("Use --grades to specify file input.")
       env.fromCollection(gradeStream).map(x => Grade(x._1, x._2, x._3))
     }
   }
@@ -123,6 +123,8 @@ object WindowJoin {
     if (params.has("salaries")) {
       env.readTextFile(params.get("salaries")).map(parseMap _).map(x => Salary(x._1, x._2, x._3))
     } else {
+      println("Executing WindowJoin example with default salaries data set.")
+      println("Use --salaries to specify file input.")
       env.fromCollection(salaryStream).map(x => Salary(x._1, x._2, x._3))
     }
   }

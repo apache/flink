@@ -62,11 +62,7 @@ public class WindowJoin {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 3) {
-			System.out.println("Executing WindowJoin with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: WindowJoin --grades <path> --salaries <path> --output <path>");
-		}
+		System.out.println("Usage: WindowJoin --grades <path> --salaries <path> --output <path>");
 
 		// obtain execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -95,6 +91,7 @@ public class WindowJoin {
 		if (params.has("output")) {
 			joinedStream.writeAsText(params.get("output"), 1);
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			joinedStream.print();
 		}
 
@@ -242,6 +239,8 @@ public class WindowJoin {
 		if (params.has("grades")) {
 			return env.readTextFile(params.get("grades")).map(new MySourceMap());
 		} else {
+			System.out.println("Executing WindowJoin example with default grades data set.");
+			System.out.println("Use --grades to specify file input.");
 			return env.addSource(new GradeSource());
 		}
 	}
@@ -250,6 +249,8 @@ public class WindowJoin {
 		if (params.has("salaries")) {
 			return env.readTextFile(params.get("salaries")).map(new MySourceMap());
 		} else {
+			System.out.println("Executing WindowJoin example with default salaries data set.");
+			System.out.println("Use --salaries to specify file input.");
 			return env.addSource(new SalarySource());
 		}
 	}

@@ -58,11 +58,7 @@ public class IterateExample {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing IterateExample with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: IterateExample --input <path> --output <path>");
-		}
+		System.out.println("  Usage: IterateExample --input <path> --output <path>");
 
 		// set up input for the stream of integer pairs
 
@@ -79,6 +75,8 @@ public class IterateExample {
 		if (params.has("input")) {
 			inputStream = env.readTextFile(params.get("input")).map(new FibonacciInputMap());
 		} else {
+			System.out.println("Executing Iterate example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			inputStream = env.addSource(new RandomFibonacciSource());
 		}
 
@@ -105,6 +103,7 @@ public class IterateExample {
 		if (params.has("output")) {
 			numbers.writeAsText(params.get("output"), 1);
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			numbers.print();
 		}
 

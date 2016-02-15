@@ -94,8 +94,8 @@ public class TPCHQuery3 {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		if (!params.has("lineitem") && !params.has("customer") && !params.has("orders")) {
-			System.err.println("This program expects data from the TPC-H benchmark as input data.");
-			System.err.println("Due to legal restrictions, we can not ship generated data.");
+			System.err.println("  This program expects data from the TPC-H benchmark as input data.");
+			System.err.println("  Due to legal restrictions, we can not ship generated data.");
 			System.out.println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.");
 			System.out.println("  Usage: TPCHQuery3 --lineitem <path> --customer <path> --orders <path> [--output <path>]");
 			return;
@@ -176,6 +176,7 @@ public class TPCHQuery3 {
 			// execute program
 			env.execute("TPCH Query 3 Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 

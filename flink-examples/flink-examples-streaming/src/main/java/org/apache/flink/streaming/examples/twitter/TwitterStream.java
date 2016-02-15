@@ -58,11 +58,7 @@ public class TwitterStream {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing TwitterStream example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  USAGE: TwitterStream [--output <path>] [--props <path>]");
-		}
+		System.out.println("Usage: TwitterStream --output <path> --props <path>");
 
 		// set up the execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -76,6 +72,8 @@ public class TwitterStream {
 			// read the text file from given input path
 			streamSource = env.addSource(new TwitterSource(params.get("props")));
 		} else {
+			System.out.println("Executing TwitterStream example with default props.");
+			System.out.println("Use --props to specify the path to the authentication info.");
 			// get default test text data
 			streamSource = env.fromElements(TwitterStreamData.TEXTS);
 		}
@@ -90,6 +88,7 @@ public class TwitterStream {
 		if (params.has("output")) {
 			tweets.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			tweets.print();
 		}
 

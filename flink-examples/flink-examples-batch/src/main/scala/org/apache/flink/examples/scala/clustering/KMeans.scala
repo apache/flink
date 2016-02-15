@@ -76,13 +76,7 @@ object KMeans {
 
     // checking input parameters
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 4) {
-      println("Executing K-Means example with default parameters and built-in default data.")
-      println("  Provide parameters to read input data from files.")
-      println("  See the documentation for the correct format of input files.")
-      println("  We provide a data generator to create synthetic input files for this program.")
-      println("  Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>")
-    }
+    println("Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
@@ -109,13 +103,14 @@ object KMeans {
       clusteredPoints.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala KMeans Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       clusteredPoints.print()
     }
 
   }
 
   // *************************************************************************
-  //     DATA SOURCE READING (POINTS AND CENTROIDS)
+  //     UTIL FUNCTIONS
   // *************************************************************************
 
   def getCentroidDataSet(params: ParameterTool, env: ExecutionEnvironment): DataSet[Centroid] = {
@@ -125,6 +120,8 @@ object KMeans {
         fieldDelimiter = " ",
         includedFields = Array(0, 1, 2))
     } else {
+      println("Executing K-Means example with default centroid data set.")
+      println("Use --centroids to specify file input.")
       env.fromCollection(KMeansData.CENTROIDS map {
         case Array(id, x, y) =>
           new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
@@ -139,6 +136,8 @@ object KMeans {
         fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
+      println("Executing K-Means example with default points data set.")
+      println("Use --points to specify file input.")
       env.fromCollection(KMeansData.POINTS map {
         case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
       })

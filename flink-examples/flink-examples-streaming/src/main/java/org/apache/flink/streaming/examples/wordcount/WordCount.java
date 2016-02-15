@@ -56,11 +56,7 @@ public class WordCount {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing WordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount --input <path> [--output <path>]");
-		}
+		System.out.println("Usage: WordCount --input <path> --output <path>");
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -74,6 +70,8 @@ public class WordCount {
 			// read the text file from given input path
 			text = env.readTextFile(params.get("input"));
 		} else {
+			System.out.println("Executing WordCount example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			// get default test text data
 			text = env.fromElements(WordCountData.WORDS);
 		}
@@ -88,6 +86,7 @@ public class WordCount {
 		if (params.has("output")) {
 			counts.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
 

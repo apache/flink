@@ -60,11 +60,7 @@ public class IncrementalLearningSkeleton {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 1) {
-			System.out.println("Executing IncrementalLearningSkeleton with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: IncrementalLearningSkeleton --output <path>");
-		}
+		System.out.println("Usage: IncrementalLearningSkeleton --output <path>");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -85,6 +81,7 @@ public class IncrementalLearningSkeleton {
 		if (params.has("output")) {
 			prediction.writeAsText(params.get("output"), 1);
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			prediction.print();
 		}
 

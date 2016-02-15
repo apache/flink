@@ -71,12 +71,7 @@ object EnumTriangles {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 2) {
-      println("Executing Enum Triangles Basic example with built-in default data.")
-      println("  Provide parameters to read input data from files.")
-      println("  See the documentation for the correct format of input files.")
-      println("  Usage: EnumTriangleBasic --edges <path> --output <path>")
-    }
+    println("Usage: EnumTriangleBasic --edges <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -92,6 +87,8 @@ object EnumTriangles {
           fieldDelimiter = " ",
           includedFields = Array(0, 1))
       } else {
+        println("Executing EnumTriangles example with default edges data set.")
+        println("Use --edges to specify file input.")
         val edges = EnumTrianglesData.EDGES.map {
           case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
         }
@@ -114,6 +111,7 @@ object EnumTriangles {
       // execute program
       env.execute("TriangleEnumeration Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       triangles.print()
     }
     

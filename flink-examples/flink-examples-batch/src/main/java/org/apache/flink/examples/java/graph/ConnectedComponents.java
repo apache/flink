@@ -84,12 +84,7 @@ public class ConnectedComponents implements ProgramDescription {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 4) {
-			System.out.println("Executing Connected Components example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: ConnectedComponents --vertices <path> --edges <path> --output <path> --iterations <n>");
-		}
+		System.out.println("Usage: ConnectedComponents --vertices <path> --edges <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -126,6 +121,7 @@ public class ConnectedComponents implements ProgramDescription {
 			// execute program
 			env.execute("Connected Components Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 	}
@@ -209,6 +205,8 @@ public class ConnectedComponents implements ProgramDescription {
 					}
 				});
 		} else {
+			System.out.println("Executing Connected Components example with default vertices data set.");
+			System.out.println("Use --vertices to specify file input.");
 			return ConnectedComponentsData.getDefaultVertexDataSet(env);
 		}
 	}
@@ -217,6 +215,8 @@ public class ConnectedComponents implements ProgramDescription {
 		if (params.has("edges")) {
 			return env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
 		} else {
+			System.out.println("Executing Connected Components example with default edges data set.");
+			System.out.println("Use --edges to specify file input.");
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 	}

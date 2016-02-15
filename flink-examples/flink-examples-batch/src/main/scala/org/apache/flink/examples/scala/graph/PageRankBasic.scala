@@ -75,14 +75,8 @@ object PageRankBasic {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 2) {
-      System.out.println("Executing PageRank Basic example with default parameters and built-in " +
-        "default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  Usage: PageRankBasic --pages <path> --links <path> --output <path> " +
-        "--numPages <n> --iterations <n>")
-    }
+    println("Usage: PageRankBasic " +
+      "--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -143,6 +137,7 @@ object PageRankBasic {
       // execute program
       env.execute("Basic PageRank Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
   }
@@ -169,6 +164,8 @@ object PageRankBasic {
         .map(x => x._1)
       (pages, params.getLong("numPages"))
     } else {
+      println("Executing PageRank example with default pages data set.")
+      println("Use --pages and --numPages to specify file input.")
       (env.generateSequence(1, 15), PageRankData.getNumberOfPages)
     }
   }
@@ -179,6 +176,8 @@ object PageRankBasic {
       env.readCsvFile[Link](params.get("links"), fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
+      println("Executing PageRank example with default links data set.")
+      println("Use --links to specify file input.")
       val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],
         v2.asInstanceOf[Long])}
       env.fromCollection(edges)

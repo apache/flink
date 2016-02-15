@@ -70,16 +70,10 @@ public class LinearRegression {
 	//     PROGRAM
 	// *************************************************************************
 
-	public static void main(String[] args) throws Exception{
+	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 3) {
-			System.out.println("Executing Linear Regression example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: LinearRegression --input <path> --output <path> --iterations <n>");
-		}
+		System.out.println("Usage: LinearRegression --input <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -98,6 +92,8 @@ public class LinearRegression {
 					.includeFields(true, true)
 					.pojoType(Data.class);
 		} else {
+			System.out.println("Executing LinearRegression example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			data = LinearRegressionData.getDefaultDataDataSet(env);
 		}
 
@@ -124,6 +120,7 @@ public class LinearRegression {
 			// execute program
 			env.execute("Linear Regression example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 	}

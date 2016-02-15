@@ -53,14 +53,12 @@ public class SocketTextStreamWordCount {
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
 		if (!params.has("hostname") || !params.has("port")) {
-			System.err.println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> " +
-					"[--output <path>]");
+			System.err.println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> [--output <path>]");
 			return;
 		}
 
 		// set up the execution environment
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
@@ -79,6 +77,7 @@ public class SocketTextStreamWordCount {
 		if (params.has("output")) {
 			counts.writeAsText(params.get("output"), 1);
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
 

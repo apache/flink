@@ -53,9 +53,8 @@ public class TopSpeedWindowing {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.err.println("Usage: TopSpeedWindowingExample --input <path> --output <path>");
-		}
+		System.err.println("Usage: TopSpeedWindowingExample --input <path> --output <path>");
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setGlobalJobParameters(params);
@@ -65,6 +64,8 @@ public class TopSpeedWindowing {
 		if (params.has("input")) {
 			carData = env.readTextFile(params.get("input")).map(new ParseCarData());
 		} else {
+			System.out.println("Executing TopSpeedWindowing example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			carData = env.addSource(CarSource.create(2));
 		}
 
@@ -91,6 +92,7 @@ public class TopSpeedWindowing {
 		if (params.has("output")) {
 			topSpeeds.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			topSpeeds.print();
 		}
 

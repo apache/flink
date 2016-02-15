@@ -48,11 +48,7 @@ object WordCount {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 2) {
-      System.out.println("Executing WordCount example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from a file.")
-      System.out.println("  Usage: WordCount --input <path> --output <path>")
-    }
+    System.out.println("Usage: WordCount --input <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -63,6 +59,8 @@ object WordCount {
       if (params.has("input")) {
         env.readTextFile(params.get("input"))
       } else {
+        println("Executing WordCount example with default input data set.")
+        println("Use --input to specify file input.")
         env.fromCollection(WordCountData.WORDS)
       }
 
@@ -75,6 +73,7 @@ object WordCount {
       counts.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala WordCount Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       counts.print()
     }
 

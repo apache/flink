@@ -93,6 +93,8 @@ public class WordCountPojo {
 			text = env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
+			System.out.println("Executing WordCount example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			text = WordCountData.getDefaultTextLineDataSet(env);
 		}
 
@@ -113,6 +115,7 @@ public class WordCountPojo {
 			// execute program
 			env.execute("WordCount-Pojo Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
 

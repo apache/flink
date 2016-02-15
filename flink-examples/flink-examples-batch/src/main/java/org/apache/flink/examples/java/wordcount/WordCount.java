@@ -62,12 +62,7 @@ public class WordCount {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing WordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount --input <path> --output <path>");
-		}
+		System.out.println("Usage: WordCount --input <path> --output <path>");
 
 		// get input data
 		DataSet<String> text;
@@ -76,6 +71,8 @@ public class WordCount {
 			text = env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
+			System.out.println("Executing WordCount example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			text = WordCountData.getDefaultTextLineDataSet(env);
 		}
 
@@ -92,9 +89,9 @@ public class WordCount {
 			// execute program
 			env.execute("WordCount Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
-		
 
 	}
 	

@@ -85,11 +85,11 @@ object TPCHQuery10 {
     val params: ParameterTool = ParameterTool.fromArgs(args)
     if (!params.has("lineitem") && !params.has("customer") &&
       !params.has("orders") && !params.has("nation")) {
-      println("This program expects data from the TPC-H benchmark as input data.")
+      println("  This program expects data from the TPC-H benchmark as input data.")
       println("  Due to legal restrictions, we can not ship generated data.")
       println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.")
-      println("  Usage: TPCHQuery10 --customer <path> --orders <path> --lineitem <path> " +
-        "--nation <path> --output <path>")
+      println("  Usage: TPCHQuery10" +
+        "--customer <path> --orders <path> --lineitem <path> --nation <path> --output <path>")
       return
     }
 
@@ -134,6 +134,7 @@ object TPCHQuery10 {
       // execute program
       env.execute("Scala TPCH Query 10 Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
 

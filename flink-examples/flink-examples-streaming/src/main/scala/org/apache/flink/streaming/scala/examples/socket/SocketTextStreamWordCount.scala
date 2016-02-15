@@ -49,7 +49,7 @@ object SocketTextStreamWordCount {
 
     val params = ParameterTool.fromArgs(args)
     if (!params.has("hostname") || !params.has("port")) {
-      println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> [--output <path>]")
+      println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> --output <path>")
       return
     }
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -65,6 +65,7 @@ object SocketTextStreamWordCount {
     if (params.has("output")) {
       counts.writeAsText(params.get("output"), 1)
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       counts.print
     }
 

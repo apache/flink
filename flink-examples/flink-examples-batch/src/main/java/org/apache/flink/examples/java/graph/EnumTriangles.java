@@ -82,12 +82,7 @@ public class EnumTriangles {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 2) {
-			System.out.println("Executing Enum Triangles Basic example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: EnumTriangleBasic --edges <path> --output <path>");
-		}
+		System.out.println("Usage: EnumTriangleBasic --edges <path> --output <path>");
 
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -104,6 +99,8 @@ public class EnumTriangles {
 					.types(Integer.class, Integer.class)
 					.map(new TupleEdgeConverter());
 		} else {
+			System.out.println("Executing EnumTriangles example with default edges data set.");
+			System.out.println("Use --edges to specify file input.");
 			edges = EnumTrianglesData.getDefaultEdgeDataSet(env);
 		}
 
@@ -123,6 +120,7 @@ public class EnumTriangles {
 			// execute program
 			env.execute("Basic Triangle Enumeration Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			triangles.print();
 		}
 	}

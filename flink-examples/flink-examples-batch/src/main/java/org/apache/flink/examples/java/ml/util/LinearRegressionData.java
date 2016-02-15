@@ -51,8 +51,7 @@ public class LinearRegressionData {
 			new Object[] { 0.28, 0.57 }, new Object[] { 1.65, 3.30 },
 			new Object[] { -0.55, -1.08 } };
 
-	public static DataSet<Params> getDefaultParamsDataSet(
-			ExecutionEnvironment env) {
+	public static DataSet<Params> getDefaultParamsDataSet(ExecutionEnvironment env) {
 		List<Params> paramsList = new LinkedList<>();
 		for (Object[] params : PARAMS) {
 			paramsList.add(new Params((Double) params[0], (Double) params[1]));
@@ -61,7 +60,6 @@ public class LinearRegressionData {
 	}
 
 	public static DataSet<Data> getDefaultDataDataSet(ExecutionEnvironment env) {
-
 		List<Data> dataList = new LinkedList<>();
 		for (Object[] data : DATA) {
 			dataList.add(new Data((Double) data[0], (Double) data[1]));

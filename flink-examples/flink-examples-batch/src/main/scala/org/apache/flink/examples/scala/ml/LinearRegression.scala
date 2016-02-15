@@ -64,14 +64,7 @@ object LinearRegression {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 3) {
-      println("Executing Linear Regression example with default parameters and built-in " +
-        "default data.")
-      println("  Provide parameters to read input data from files.")
-      println("  See the documentation for the correct format of input files.")
-      println("  We provide a data generator to create synthetic input files for this program.")
-      println("  Usage: LinearRegression --data <path> --output <path> --iterations <n>")
-    }
+    println("Usage: LinearRegression --input <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -79,8 +72,26 @@ object LinearRegression {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
 
-    val data = getDataSet(env, params)
-    val parameters = getParamsDataSet(env)
+    val parameters = env.fromCollection(LinearRegressionData.PARAMS map {
+      case Array(x, y) => Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
+    })
+
+    val data =
+      if (params.has("input")) {
+        env.readCsvFile[(Double, Double)](
+          params.get("input"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+          .map { t => new Data(t._1, t._2) }
+      } else {
+        println("Executing LinearRegression example with default input data set.")
+        println("Use --input to specify file input.")
+        val data = LinearRegressionData.DATA map {
+          case Array(x, y) => Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
+        }
+        env.fromCollection(data)
+      }
+
     val numIterations = params.getInt("iterations", 10)
 
     val result = parameters.iterate(numIterations) { currentParameters =>
@@ -98,6 +109,7 @@ object LinearRegression {
       result.writeAsText(params.get("output"))
       env.execute("Scala Linear Regression example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
   }
@@ -146,30 +158,4 @@ object LinearRegression {
     }
   }
 
-  // *************************************************************************
-  //     UTIL METHODS
-  // *************************************************************************
-
-  private def getDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[Data] = {
-    if (params.has("data")) {
-      env.readCsvFile[(Double, Double)](
-        params.get("data"),
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1))
-        .map { t => new Data(t._1, t._2) }
-    }
-    else {
-      val data = LinearRegressionData.DATA map {
-        case Array(x, y) => Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
-      }
-      env.fromCollection(data)
-    }
-  }
-
-  private def getParamsDataSet(env: ExecutionEnvironment): DataSet[Params] = {
-    val params = LinearRegressionData.PARAMS map {
-      case Array(x, y) => Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
-    }
-    env.fromCollection(params)
-  }
 }

@@ -58,9 +58,8 @@ object TopSpeedWindowing {
   def main(args: Array[String]) {
 
     val params = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 2) {
-      System.err.println("Usage: TopSpeedWindowing --input <path> --output <path>")
-    }
+    println("Usage: TopSpeedWindowing --input <path> --output <path>")
+
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.setGlobalJobParameters(params)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -72,6 +71,8 @@ object TopSpeedWindowing {
           .map(parseMap(_))
           .map(x => CarEvent(x._1, x._2, x._3, x._4))
       } else {
+        println("Executing TopSpeedWindowing example with default inputs data set.")
+        println("Use --input to specify file input.")
         env.fromCollection(genCarStream())
       }
 
@@ -91,7 +92,8 @@ object TopSpeedWindowing {
     if (params.has("output")) {
       topSeed.writeAsText(params.get("output"))
     } else {
-      topSeed.print
+      println("Printing result to stdout. Use --output to specify output path.")
+      topSeed.print()
     }
 
     env.execute("TopSpeedWindowing")

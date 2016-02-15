@@ -41,6 +41,8 @@ public class SessionWindowing {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		System.out.println("Usage: SessionWindowing --output <path>");
+
 		env.getConfig().setGlobalJobParameters(params);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
@@ -91,6 +93,7 @@ public class SessionWindowing {
 		if (fileOutput) {
 			aggregated.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			aggregated.print();
 		}
 

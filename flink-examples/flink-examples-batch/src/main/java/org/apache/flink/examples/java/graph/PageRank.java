@@ -83,12 +83,7 @@ public class PageRank {
 	public static void main(String[] args) throws Exception {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 5) {
-			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>");
-		}
+		System.out.println("Usage: PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>");
 
 		final int numPages = params.getInt("numPages");
 		final int maxIterations = params.getInt("iterations", 10);
@@ -134,6 +129,7 @@ public class PageRank {
 			// execute program
 			env.execute("Basic Page Rank Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			finalPageRanks.print();
 		}
 
@@ -190,12 +186,12 @@ public class PageRank {
 
 		@Override
 		public void flatMap(Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>> value, Collector<Tuple2<Long, Double>> out){
-			Long[] neigbors = value.f1.f1;
+			Long[] neighbors = value.f1.f1;
 			double rank = value.f0.f1;
-			double rankToDistribute = rank / ((double) neigbors.length);
+			double rankToDistribute = rank / ((double) neighbors.length);
 				
-			for (int i = 0; i < neigbors.length; i++) {
-				out.collect(new Tuple2<Long, Double>(neigbors[i], rankToDistribute));
+			for (int i = 0; i < neighbors.length; i++) {
+				out.collect(new Tuple2<Long, Double>(neighbors[i], rankToDistribute));
 			}
 		}
 	}
@@ -249,10 +245,12 @@ public class PageRank {
 					}
 				});
 		} else {
+			System.out.println("Executing PageRank example with default pages data set.");
+			System.out.println("Use --pages to specify file input.");
 			return PageRankData.getDefaultPagesDataSet(env);
 		}
 	}
-	
+
 	private static DataSet<Tuple2<Long, Long>> getLinksDataSet(ExecutionEnvironment env, ParameterTool params) {
 		if (params.has("links")) {
 			return env.readCsvFile(params.get("links"))
@@ -260,6 +258,8 @@ public class PageRank {
 				.lineDelimiter("\n")
 				.types(Long.class, Long.class);
 		} else {
+			System.out.println("Executing PageRank example with default links data set.");
+			System.out.println("Use --links to specify file input.");
 			return PageRankData.getDefaultEdgeDataSet(env);
 		}
 	}

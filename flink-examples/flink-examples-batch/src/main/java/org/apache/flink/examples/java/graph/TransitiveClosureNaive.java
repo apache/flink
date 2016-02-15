@@ -36,17 +36,11 @@ import java.util.Set;
 @SuppressWarnings("serial")
 public class TransitiveClosureNaive implements ProgramDescription {
 
-
 	public static void main (String... args) throws Exception {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		if (params.getNumberOfParameters() < 3) {
-			System.out.println("Executing TransitiveClosure example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: TransitiveClosure --edges <path> --output <path> [--iterations <n>]");
-		}
+		System.out.println("Usage: TransitiveClosure --edges <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -60,6 +54,8 @@ public class TransitiveClosureNaive implements ProgramDescription {
 		if (params.has("edges")) {
 			edges = env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
 		} else {
+			System.out.println("Executing TransitiveClosureNaive example with default edges data set.");
+			System.out.println("Use --edges to specify file input.");
 			edges = ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 
@@ -117,6 +113,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 			// execute program explicitly, because file sinks are lazy
 			env.execute("Transitive Closure Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			transitiveClosure.print();
 		}
 	}

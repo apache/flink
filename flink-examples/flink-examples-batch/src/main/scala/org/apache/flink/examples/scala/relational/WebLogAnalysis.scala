@@ -93,13 +93,7 @@ object WebLogAnalysis {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    if (params.getNumberOfParameters < 4) {
-      println("Executing WebLog Analysis example with built-in default data.")
-      println("  Provide parameters to read input data from files.")
-      println("  See the documentation for the correct format of input files.")
-      println("  We provide a data generator to create synthetic input files for this program.")
-      println("  Usage: --documents <path> --ranks <path> --visits <path> --output <path>")
-    }
+    println("Usage: --documents <path> --ranks <path> --visits <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -134,6 +128,7 @@ object WebLogAnalysis {
       result.writeAsCsv(params.get("output"), "\n", "|")
       env.execute("Scala WebLogAnalysis Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
 
@@ -147,6 +142,8 @@ object WebLogAnalysis {
         fieldDelimiter = "|",
         includedFields = Array(0, 1))
     } else {
+      println("Executing WebLogAnalysis example with default documents data set.")
+      println("Use --documents to specify file input.")
       val documents = WebLogData.DOCUMENTS map {
         case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
       }
@@ -162,6 +159,8 @@ object WebLogAnalysis {
         fieldDelimiter = "|",
         includedFields = Array(0, 1, 2))
     } else {
+      println("Executing WebLogAnalysis example with default ranks data set.")
+      println("Use --ranks to specify file input.")
       val ranks = WebLogData.RANKS map {
         case Array(x, y, z) => (x.asInstanceOf[Int], y.asInstanceOf[String], z.asInstanceOf[Int])
       }
@@ -177,6 +176,8 @@ object WebLogAnalysis {
         fieldDelimiter = "|",
         includedFields = Array(1, 2))
     } else {
+      println("Executing WebLogAnalysis example with default visits data set.")
+      println("Use --visits to specify file input.")
       val visits = WebLogData.VISITS map {
         case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
       }
