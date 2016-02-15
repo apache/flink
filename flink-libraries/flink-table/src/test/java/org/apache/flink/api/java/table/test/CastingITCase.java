@@ -89,7 +89,40 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test
+	public void testCasting() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSource<Tuple4<Integer, Double, Long, Boolean>> input =
+				env.fromElements(new Tuple4<>(1, 0.0, 1L, true));
+
+		Table table =
+				tableEnv.fromDataSet(input);
+
+		Table result = table.select(
+				// * -> String
+				"f0.cast(STRING), f1.cast(STRING), f2.cast(STRING), f3.cast(STRING)," +
+				// NUMERIC TYPE -> Boolean
+				"f0.cast(BOOL), f1.cast(BOOL), f2.cast(BOOL)," +
+				// NUMERIC TYPE -> NUMERIC TYPE
+				"f0.cast(DOUBLE), f1.cast(INT), f2.cast(SHORT)," +
+				// Boolean -> NUMERIC TYPE
+				"f3.cast(DOUBLE)," +
+				// identity casting
+				"f0.cast(INT), f1.cast(DOUBLE), f2.cast(LONG), f3.cast(BOOL)");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "1,0.0,1,true," +
+			"true,false,true," +
+			"1.0,0,1," +
+			"1.0," +
+			"1,0.0,1,true\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
 	public void testCastFromString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

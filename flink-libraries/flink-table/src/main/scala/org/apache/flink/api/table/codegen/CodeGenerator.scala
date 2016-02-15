@@ -699,8 +699,12 @@ class CodeGenerator(
 
       case NOT =>
         val operand = operands.head
-          requireBoolean(operand)
+        requireBoolean(operand)
         generateNot(nullCheck, operand)
+
+      case CAST =>
+        val operand = operands.head
+        generateCast(nullCheck, operand, resultType)
 
       case call@_ =>
         throw new CodeGenException(s"Unsupported call: $call")
