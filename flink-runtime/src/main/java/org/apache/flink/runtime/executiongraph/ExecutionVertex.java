@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -667,10 +668,11 @@ public class ExecutionVertex implements Serializable {
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
+		ExecutionConfig config = getExecutionGraph().getExecutionConfig();
 		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
 		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
 
-		return new TaskDeploymentDescriptor(getApplicationId(), getJobId(), getJobvertexId(), executionId, getTaskName(),
+		return new TaskDeploymentDescriptor(getApplicationId(), getJobId(), getJobvertexId(), executionId, config, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), attemptNumber, getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
 				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),

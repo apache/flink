@@ -112,7 +112,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 * lib/ folder of the flink distribution.
 	 */
 	protected static File flinkLibFolder;
-
+	
 	static {
 		yarnConfiguration = new YarnConfiguration();
 		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);

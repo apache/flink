@@ -21,6 +21,7 @@ package org.apache.flink.api.common;
 import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.ConfigConstants;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -57,9 +58,6 @@ import java.util.Objects;
 public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-
-	// Key for storing it in the Job Configuration
-	public static final String CONFIG_KEY = "runtime.config";
 
 	/**
 	 * The constant to use for the parallelism, if the system should use the number
@@ -98,6 +96,8 @@ public class ExecutionConfig implements Serializable {
 	private boolean timestampsEnabled = false;
 	
 	private long executionRetryDelay = -1;
+
+	private long taskCancellationIntervalMillis = ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -241,6 +241,28 @@ public class ExecutionConfig implements Serializable {
 					"Parallelism must be at least one, or -1 (use system default).");
 		}
 		this.parallelism = parallelism;
+		return this;
+	}
+
+	/**
+	 * Gets the interval (in milliseconds) between consecutive attempts to cancel a running task.
+	 */
+	public long getTaskCancellationInterval() {
+		return this.taskCancellationIntervalMillis;
+	}
+
+	/**
+	 * Sets the configuration parameter specifying the interval (in milliseconds)
+	 * between consecutive attempts to cancel a running task.
+	 * @param interval the interval (in milliseconds).
+	 */
+	public ExecutionConfig setTaskCancellationInterval(long interval) {
+		if(interval < 0) {
+			throw new IllegalArgumentException(
+				"The task cancellation interval cannot be negative."
+			);
+		}
+		this.taskCancellationIntervalMillis = interval;
 		return this;
 	}
 
@@ -627,7 +649,8 @@ public class ExecutionConfig implements Serializable {
 				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
 				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
-				registeredPojoTypes.equals(other.registeredPojoTypes);
+				registeredPojoTypes.equals(other.registeredPojoTypes) &&
+				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis;
 
 		} else {
 			return false;
@@ -653,7 +676,8 @@ public class ExecutionConfig implements Serializable {
 			registeredTypesWithKryoSerializerClasses,
 			defaultKryoSerializerClasses,
 			registeredKryoTypes,
-			registeredPojoTypes);
+			registeredPojoTypes,
+			taskCancellationIntervalMillis);
 	}
 
 	public boolean canEqual(Object obj) {

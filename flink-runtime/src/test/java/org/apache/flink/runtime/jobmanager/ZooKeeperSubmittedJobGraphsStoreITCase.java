@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -260,7 +261,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	private SubmittedJobGraph createSubmittedJobGraph(JobID jobId, long start) {
-		final JobGraph jobGraph = new JobGraph(jobId, "Test JobGraph");
+		final JobGraph jobGraph = new JobGraph(jobId, "Test JobGraph", new ExecutionConfig());
 
 		final JobVertex jobVertex = new JobVertex("Test JobVertex");
 		jobVertex.setParallelism(1);

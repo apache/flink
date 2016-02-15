@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -93,8 +94,10 @@ public class StreamMockEnvironment implements Environment {
 
 	private final int bufferSize;
 
-	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
-									MockInputSplitProvider inputSplitProvider, int bufferSize) {
+	private final ExecutionConfig executionConfig;
+
+	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
+									long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo("", 0, 1, 0);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
@@ -106,7 +109,13 @@ public class StreamMockEnvironment implements Environment {
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
 
+		this.executionConfig = executionConfig;
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
+	}
+
+	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
+								 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		this(jobConfig, taskConfig, null, memorySize, inputSplitProvider, bufferSize);
 	}
 
 	public void addInputGate(InputGate gate) {
@@ -206,6 +215,11 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return this.executionConfig;
 	}
 
 	@Override

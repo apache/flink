@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.configuration.Configuration;
@@ -45,6 +46,13 @@ import java.util.concurrent.Future;
  * memory manager, I/O manager, ...
  */
 public interface Environment {
+
+	/**
+	 * Returns the job specific {@link ExecutionConfig}.
+	 *
+	 * @return The execution configuration associated with the current job.
+	 * */
+	ExecutionConfig getExecutionConfig();
 
 	/**
 	 * Returns the ID of the application the task belongs to.

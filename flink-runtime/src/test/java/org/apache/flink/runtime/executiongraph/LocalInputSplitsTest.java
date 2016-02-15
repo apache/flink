@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -263,7 +264,7 @@ public class LocalInputSplitsTest {
 			vertex.setInvokableClass(DummyInvokable.class);
 			vertex.setInputSplitSource(new TestInputSplitSource(splits));
 			
-			JobGraph jobGraph = new JobGraph("test job", vertex);
+			JobGraph jobGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
@@ -326,7 +327,7 @@ public class LocalInputSplitsTest {
 		vertex.setInvokableClass(DummyInvokable.class);
 		vertex.setInputSplitSource(new TestInputSplitSource(splits));
 		
-		JobGraph jobGraph = new JobGraph("test job", vertex);
+		JobGraph jobGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
 		
 		ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(),

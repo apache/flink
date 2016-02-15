@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -57,7 +58,8 @@ public class RuntimeEnvironment implements Environment {
 	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
-	
+	private final ExecutionConfig executionConfig;
+
 	private final ClassLoader userCodeClassLoader;
 
 	private final MemoryManager memManager;
@@ -83,6 +85,7 @@ public class RuntimeEnvironment implements Environment {
 			JobID jobId,
 			JobVertexID jobVertexId,
 			ExecutionAttemptID executionId,
+			ExecutionConfig executionConfig,
 			TaskInfo taskInfo,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
@@ -103,6 +106,7 @@ public class RuntimeEnvironment implements Environment {
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
 		this.taskInfo = checkNotNull(taskInfo);
+		this.executionConfig = checkNotNull(executionConfig);
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -119,6 +123,11 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return this.executionConfig;
+	}
 
 	@Override
 	public ApplicationID getApplicationID() {

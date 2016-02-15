@@ -36,11 +36,9 @@ import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubExcepti
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -104,21 +102,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
 		}
 
-		ExecutionConfig executionConfig;
-		try {
-			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					getUserCodeClassLoader());
-			if (c != null) {
-				executionConfig = c;
-			} else {
-				LOG.warn("ExecutionConfig from job configuration is null. Creating empty config");
-				executionConfig = new ExecutionConfig();
-			}
-		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
-		}
+		ExecutionConfig executionConfig = getExecutionConfig();
 
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 

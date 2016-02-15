@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -73,7 +74,7 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
@@ -144,7 +145,7 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
@@ -219,7 +220,7 @@ public class VertexLocationConstraintTest {
 			jobVertex1.setSlotSharingGroup(sharingGroup);
 			jobVertex2.setSlotSharingGroup(sharingGroup);
 			
-			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex1, jobVertex2);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
@@ -285,7 +286,7 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(1);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),
@@ -349,7 +350,7 @@ public class VertexLocationConstraintTest {
 			jobVertex1.setParallelism(1);
 			jobVertex2.setParallelism(1);
 			
-			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex1, jobVertex2);
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			jobVertex1.setSlotSharingGroup(sharingGroup);
@@ -391,7 +392,7 @@ public class VertexLocationConstraintTest {
 	public void testArchivingClearsFields() {
 		try {
 			JobVertex vertex = new JobVertex("test vertex", new JobVertexID());
-			JobGraph jg = new JobGraph("test job", vertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 					TestingUtils.defaultExecutionContext(),

@@ -24,6 +24,7 @@ import akka.actor.Props;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -157,9 +158,11 @@ public class TaskManagerTest extends TestLogger {
 				final JobID jid = new JobID();
 				final JobVertexID vid = new JobVertexID();
 				final ExecutionAttemptID eid = new ExecutionAttemptID();
+				final ExecutionConfig executionConfig = new ExecutionConfig();
 
-				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(appId, jid, vid, eid, "TestTask", 2, 7, 0,
-						new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
+				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(appId, jid, vid, eid, executionConfig,
+						"TestTask", 2, 7, 0, new Configuration(), new Configuration(),
+						TestInvokableCorrect.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
@@ -258,13 +261,15 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid1, vid1, eid1, "TestTask1", 1, 5, 0,
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid1, vid1, eid1,
+						new ExecutionConfig(), "TestTask1", 1, 5, 0,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid2, vid2, eid2, "TestTask2", 2, 7, 0,
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid2, vid2, eid2,
+						new ExecutionConfig(), "TestTask2", 2, 7, 0,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
@@ -391,13 +396,15 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1, "Sender", 0, 1, 0,
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1,
+						new ExecutionConfig(), "Sender", 0, 1, 0,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2, "Receiver", 2, 7, 0,
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2,
+						new ExecutionConfig(), "Receiver", 2, 7, 0,
 						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
@@ -490,12 +497,14 @@ public class TaskManagerTest extends TestLogger {
 								}
 						);
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1, "Sender", 0, 1, 0,
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1,
+						new ExecutionConfig(), "Sender", 0, 1, 0,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(), new ArrayList<BlobKey>(),
 						Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2, "Receiver", 2, 7, 0,
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2,
+						new ExecutionConfig(), "Receiver", 2, 7, 0,
 						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
@@ -629,12 +638,14 @@ public class TaskManagerTest extends TestLogger {
 								}
 						);
 
-				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1, "Sender", 0, 1, 0,
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(appId, jid, vid1, eid1,
+						new ExecutionConfig(), "Sender", 0, 1, 0,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(),
 						new ArrayList<BlobKey>(), Collections.<URL>emptyList(), 0);
 
-				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2, "Receiver", 2, 7, 0,
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(appId, jid, vid2, eid2,
+						new ExecutionConfig(), "Receiver", 2, 7, 0,
 						new Configuration(), new Configuration(), Tasks.BlockingReceiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
@@ -772,7 +783,8 @@ public class TaskManagerTest extends TestLogger {
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-						appId, jid, vid, eid, "Receiver", 0, 1, 0,
+						appId, jid, vid, eid,
+						new ExecutionConfig(), "Receiver", 0, 1, 0,
 						new Configuration(), new Configuration(),
 						Tasks.AgnosticReceiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -865,7 +877,7 @@ public class TaskManagerTest extends TestLogger {
 						new InputGateDeploymentDescriptor(resultId, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-						appId, jid, vid, eid, "Receiver", 0, 1, 0,
+						appId, jid, vid, eid, new ExecutionConfig(), "Receiver", 0, 1, 0,
 						new Configuration(), new Configuration(),
 						Tasks.AgnosticReceiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -953,6 +965,7 @@ public class TaskManagerTest extends TestLogger {
 						new JobID(),
 						new JobVertexID(),
 						new ExecutionAttemptID(),
+						new ExecutionConfig(),
 						"Task",
 						0,
 						1,
