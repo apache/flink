@@ -18,19 +18,36 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
-
-import static org.junit.Assert.*;
-
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
+import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
+import scala.Tuple2;
+import scala.concurrent.duration.FiniteDuration;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleFailingActorGateway;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest {
 
@@ -330,5 +347,53 @@ public class ExecutionVertexDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	/**
+	 * Tests that calling {@link ExecutionVertex#resetForNewExecution()}, sets
+	 * the initial state for the new execution attempt.
+	 */
+	@Test
+	public void testResetForNewExecution() throws Exception {
+		Execution execution = mock(Execution.class);
+		when(execution.getAttemptId()).thenReturn(new ExecutionAttemptID());
+		when(execution.getState()).thenReturn(ExecutionState.FINISHED);
+
+		ExecutionGraph graph = mock(ExecutionGraph.class);
+		when(graph.getExecutionContext()).thenReturn(TestingUtils.defaultExecutionContext());
+
+		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
+		when(jobVertex.getJobVertex()).thenReturn(new JobVertex("Test Vertex"));
+		when(jobVertex.getGraph()).thenReturn(graph);
+
+		ExecutionVertex vertex = new ExecutionVertex(
+				jobVertex,
+				0,
+				new IntermediateResult[0],
+				new FiniteDuration(1, TimeUnit.SECONDS));
+
+		// The initial state
+		long initialState = 9123812736128L;
+		long recoveryTimestamp = 87123912371823L;
+
+		Execution initialExecution = vertex.getCurrentExecutionAttempt();
+
+		initialExecution.setInitialState(
+				new SerializedValue(new LocalStateHandle<>(initialState)),
+				recoveryTimestamp);
+
+		// Cancel and reset execution
+		vertex.cancel();
+		vertex.resetForNewExecution();
+
+		// Verify reset execution has initial state and recovery timestamp set
+		Execution resetExecution = vertex.getCurrentExecutionAttempt();
+		assertNotEquals(initialExecution.getAttemptId(), resetExecution.getAttemptId());
+
+		Tuple2<SerializedValue<StateHandle<?>>, Long> resetState = resetExecution.getInitialState();
+
+		ClassLoader cl = ClassLoader.getSystemClassLoader();
+		assertEquals(initialState, resetState._1().deserializeValue(cl).getState(cl));
+		assertEquals(recoveryTimestamp,  (long) resetState._2());
 	}
 }

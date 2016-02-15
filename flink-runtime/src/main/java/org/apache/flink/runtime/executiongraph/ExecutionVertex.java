@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
+import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -435,14 +436,22 @@ public class ExecutionVertex implements Serializable {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();
 
-			if (state == FINISHED || state == CANCELED || state == FAILED) {
+			if (state.isTerminal()) {
 				priorExecutions.add(execution);
+
+				Tuple2<SerializedValue<StateHandle<?>>, Long> initialState = currentExecution
+						.getInitialState();
+
 				currentExecution = new Execution(
 					getExecutionGraph().getExecutionContext(),
 					this,
 					execution.getAttemptNumber()+1,
 					System.currentTimeMillis(),
 					timeout);
+
+				// Make sure to reset the state in case of failures during
+				// initial savepoint recovery.
+				currentExecution.setInitialState(initialState._1(), initialState._2());
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
