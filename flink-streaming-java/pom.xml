@@ -108,6 +108,7 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<reuseForks>false</reuseForks>
+					<argLine>-XX:-UseSplitVerifier</argLine>
 				</configuration>
 			</plugin>
 		</plugins>

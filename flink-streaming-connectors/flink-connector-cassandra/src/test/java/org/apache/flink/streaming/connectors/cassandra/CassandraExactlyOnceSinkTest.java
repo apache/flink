@@ -24,6 +24,7 @@ import com.datastax.driver.core.Session;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.runtime.operators.ExactlyOnceSinkTestBase;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
@@ -32,6 +33,10 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -41,6 +46,9 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ResultPartitionWriter.class})
+@PowerMockIgnore("javax.management.*")
 public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3<String, Integer, Integer>, CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>>> {
 	private static File tmpDir;
 
@@ -73,7 +81,7 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	@BeforeClass
 	public static void startCassandra() throws IOException {
 		//generate temporary files
-		File tmpDir = CommonTestUtils.createTempDirectory();
+		tmpDir = CommonTestUtils.createTempDirectory();
 		ClassLoader classLoader = CassandraExactlyOnceSinkTest.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
