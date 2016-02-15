@@ -92,7 +92,7 @@ object CodeGenUtils {
     case FLOAT_TYPE_INFO => "-1.0f"
     case DOUBLE_TYPE_INFO => "-1.0d"
     case BOOLEAN_TYPE_INFO => "false"
-    case STRING_TYPE_INFO => "\"<empty>\""
+    case STRING_TYPE_INFO => "\"\""
     case CHAR_TYPE_INFO => "'\\0'"
     case _ => "null"
   }

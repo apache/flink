@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.table.codegen
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 
 object OperatorCodeGen {
@@ -318,6 +318,69 @@ object OperatorCodeGen {
     // Unknown -> Unknown
     generateUnaryOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, operand) {
       (operandTerm) => s"!($operandTerm)"
+    }
+  }
+
+  def generateCast(
+      nullCheck: Boolean,
+      operand: GeneratedExpression,
+      targetType: TypeInformation[_])
+    : GeneratedExpression = {
+    targetType match {
+      // identity casting
+      case operand.resultType =>
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"$operandTerm"
+        }
+
+      // * -> String
+      case STRING_TYPE_INFO =>
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s""" "" + $operandTerm"""
+        }
+
+      // * -> Date
+      case DATE_TYPE_INFO =>
+        throw new CodeGenException("Date type not supported yet.")
+
+      // * -> Void
+      case VOID_TYPE_INFO =>
+        throw new CodeGenException("Void type not supported.")
+
+      // * -> Character
+      case CHAR_TYPE_INFO =>
+        throw new CodeGenException("Character type not supported.")
+
+      // NUMERIC TYPE -> Boolean
+      case BOOLEAN_TYPE_INFO if isNumeric(operand) =>
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"$operandTerm != 0"
+        }
+
+      // String -> BASIC TYPE (not String, Date, Void, Character)
+      case ti: BasicTypeInfo[_] if isString(operand) =>
+        val wrapperClass = targetType.getTypeClass.getCanonicalName
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"$wrapperClass.valueOf($operandTerm)"
+        }
+
+      // NUMERIC TYPE -> NUMERIC TYPE
+      case nti: NumericTypeInfo[_] if isNumeric(operand) =>
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"($targetTypeTerm) $operandTerm"
+        }
+
+      // Boolean -> NUMERIC TYPE
+      case nti: NumericTypeInfo[_] if isBoolean(operand) =>
+        val targetTypeTerm = primitiveTypeTermForTypeInfo(nti)
+        generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+          (operandTerm) => s"($targetTypeTerm) ($operandTerm ? 1 : 0)"
+        }
+
+      case _ =>
+        throw new CodeGenException(s"Unsupported cast from '${operand.resultType}'" +
+          s"to '$targetType'.")
     }
   }
 
