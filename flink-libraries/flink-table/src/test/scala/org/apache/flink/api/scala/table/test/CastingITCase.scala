@@ -81,35 +81,84 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[CodeGenException])
-  def testCastFromString: Unit = {
+  @Test
+  def testCasting(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("1", "true", "2.0",
-        "2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
+    val t = env.fromElements((1, 0.0, 1L, true))
       .toTable
       .select(
+        // * -> String
+        '_1.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_4.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        // NUMERIC TYPE -> Boolean
+        '_1.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+        // NUMERIC TYPE -> NUMERIC TYPE
+        '_1.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.INT_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.SHORT_TYPE_INFO),
+        // Boolean -> NUMERIC TYPE
+        '_4.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
+        // identity casting
+        '_1.cast(BasicTypeInfo.INT_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.LONG_TYPE_INFO),
+        '_4.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
+
+    val expected = "1,0.0,1,true," +
+      "true,false,true," +
+      "1.0,0,1," +
+      "1.0," +
+      "1,0.0,1,true\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCastFromString(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("1", "true", "2.0"))
+      .toTable
+      .select(
+        // String -> BASIC TYPE (not String, Date, Void, Character)
         '_1.cast(BasicTypeInfo.BYTE_TYPE_INFO),
         '_1.cast(BasicTypeInfo.SHORT_TYPE_INFO),
         '_1.cast(BasicTypeInfo.INT_TYPE_INFO),
         '_1.cast(BasicTypeInfo.LONG_TYPE_INFO),
         '_3.cast(BasicTypeInfo.DOUBLE_TYPE_INFO),
         '_3.cast(BasicTypeInfo.FLOAT_TYPE_INFO),
-        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO),
-        '_4.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_5.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_6.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        '_7.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+        '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
 
-    val expected = "1,1,1,1,2.0,2.0,true," +
-      "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
+    val expected = "1,1,1,1,2.0,2.0,true\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[CodeGenException])
+  def testCastDateFromString(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
+      .toTable
+      .select(
+        '_1.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_3.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        '_4.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+
+    val expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
       "1970-01-17 17:47:53.775\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[CodeGenException])
-  def testCastDateToStringAndLong {
+  def testCastDateToStringAndLong(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))
     val t = ds.toTable
@@ -122,7 +171,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
 
     val expected = "2011-05-03 15:51:36.000,1304437896000," +
       "2011-05-03 15:51:36.000,1304437896000\n"
-    val result = t.toDataSet[Row].collect
+    val result = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 }
