@@ -52,6 +52,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
+import scala.Tuple2;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -230,6 +231,15 @@ public class Execution implements Serializable {
 
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
+	}
+
+	/**
+	 * Returns the initial state and recovery timestamp.
+	 *
+	 * @return Tuple 2 of the initial state and recovery timestamp
+	 */
+	Tuple2<SerializedValue<StateHandle<?>>, Long> getInitialState() {
+		return new Tuple2(operatorState, recoveryTimestamp);
 	}
 	
 	public void setInitialState(SerializedValue<StateHandle<?>> initialState, long recoveryTimestamp) {
