@@ -42,10 +42,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     // don't test everything, just some common cast directions
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, 1L)).toTable
-      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d)
+    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable
+      .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
 
-    val expected = "2,2,2,2.0,2.0,2.0,2.0"
+    val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

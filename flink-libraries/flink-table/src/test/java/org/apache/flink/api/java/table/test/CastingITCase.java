@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.codegen.CodeGenException;
@@ -48,18 +49,18 @@ public class CastingITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, Long>> input =
-				env.fromElements(new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, 1L));
+		DataSource<Tuple8<Byte, Short, Integer, Long, Float, Double, Long, Double>> input =
+				env.fromElements(new Tuple8<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, 1L, 1001.1));
 
 		Table table =
 				tableEnv.fromDataSet(input);
 
 		Table result = table.select("f0 + 1, f1 +" +
-				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1, f6 + 1.0d");
+				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1, f6 + 1.0d, f7 + f0");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "2,2,2,2.0,2.0,2.0,2.0";
+		String expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1";
 		compareResultAsText(results, expected);
 	}
 

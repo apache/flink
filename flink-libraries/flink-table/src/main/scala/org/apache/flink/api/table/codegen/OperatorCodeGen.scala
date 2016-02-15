@@ -40,29 +40,25 @@ object OperatorCodeGen {
     else if (isNumeric(left) && isNumeric(right)) {
       val leftType = left.resultType.asInstanceOf[NumericTypeInfo[_]]
       val rightType = right.resultType.asInstanceOf[NumericTypeInfo[_]]
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
 
       generateOperatorIfNotNull(nullCheck, resultType, left, right) {
       (leftTerm, rightTerm) =>
-        // insert auto casting for "narrowing primitive conversions"
-        if (leftType != rightType) {
-          // leftType can not be casted to rightType automatically -> narrow
-          if (!leftType.shouldAutocastTo(rightType)) {
-            val typeTerm = primitiveTypeTermForTypeInfo(rightType)
-            s"(($typeTerm) $leftTerm) $operator $rightTerm"
-          }
-          // rightType can not be casted to leftType automatically -> narrow
-          else if (!rightType.shouldAutocastTo(leftType)) {
-            val typeTerm = primitiveTypeTermForTypeInfo(leftType)
-            s"$leftTerm $operator (($typeTerm) $rightTerm)"
-          }
-          // no narrowing required, widening happens implicitly
-          else {
-            s"$leftTerm $operator $rightTerm"
-          }
-        }
-        // no casting / conversion required
-        else {
+        // no casting required
+        if (leftType == resultType && rightType == resultType) {
           s"$leftTerm $operator $rightTerm"
+        }
+        // left needs casting
+        else if (leftType != resultType && rightType == resultType) {
+          s"(($resultTypeTerm) $leftTerm) $operator $rightTerm"
+        }
+        // right needs casting
+        else if (leftType == resultType && rightType != resultType) {
+          s"$leftTerm $operator (($resultTypeTerm) $rightTerm)"
+        }
+        // both sides need casting
+        else {
+          s"(($resultTypeTerm) $leftTerm) $operator (($resultTypeTerm) $rightTerm)"
         }
       }
     }
