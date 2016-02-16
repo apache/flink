@@ -17,6 +17,9 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 
 /**
@@ -37,6 +40,7 @@ import java.io.Serializable;
  * and as such should kept as small as possible.
  */
 public abstract class CheckpointCommitter implements Serializable {
+	protected static final Logger LOG = LoggerFactory.getLogger(CheckpointCommitter.class);
 	protected String operatorId;
 	protected int subtaskId;
 

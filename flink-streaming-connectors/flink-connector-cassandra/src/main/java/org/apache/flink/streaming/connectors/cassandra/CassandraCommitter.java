@@ -50,21 +50,29 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 		session.execute("CREATE KEYSPACE IF NOT EXISTS " + keyspace + " with replication={'class':'SimpleStrategy', 'replication_factor':3};");
 		session.execute("CREATE TABLE IF NOT EXISTS " + keyspace + "." + table + " (sink_id text, sub_id int, checkpoint_id bigint, PRIMARY KEY (sink_id, sub_id));");
-		session.executeAsync("INSERT INTO " + keyspace + "." + table + " (sink_id, sub_id, checkpoint_id) values ('" + operatorId + "', " + subtaskId + ", " + -1 + ");");
+		session.execute("INSERT INTO " + keyspace + "." + table + " (sink_id, sub_id, checkpoint_id) values ('" + operatorId + "', " + subtaskId + ", " + -1 + ");");
 	}
 
 	@Override
 	public void close() throws Exception {
 		session.executeAsync("DELETE FROM " + keyspace + "." + table + " where sink_id='" + operatorId + "' and sub_id=" + subtaskId + ";");
-		session.close();
-		cluster.close();
+		try {
+			session.close();
+		} catch (Exception e) {
+			LOG.error("Error while closing session.", e);
+		}
+		try {
+			cluster.close();
+		} catch (Exception e) {
+			LOG.error("Error while closing cluster.", e);
+		}
 	}
 
 	@Override
 	public void commitCheckpoint(long checkpointID) {
 		SimpleStatement s = new SimpleStatement("UPDATE " + keyspace + "." + table + " set checkpoint_id=" + checkpointID + " where sink_id='" + operatorId + "' and sub_id=" + subtaskId + ";");
 		s.setConsistencyLevel(ConsistencyLevel.ALL);
-		session.executeAsync(s);
+		session.execute(s);
 	}
 
 	@Override

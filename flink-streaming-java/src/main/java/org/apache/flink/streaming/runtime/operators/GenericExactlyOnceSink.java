@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,6 +50,7 @@ import java.util.UUID;
  * @param <IN> Type of the elements emitted by this sink
  */
 public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(GenericExactlyOnceSink.class);
 	private transient AbstractStateBackend.CheckpointStateOutputView out;
 	private TypeSerializer<IN> serializer;
 	protected transient TypeInformation<IN> typeInfo;

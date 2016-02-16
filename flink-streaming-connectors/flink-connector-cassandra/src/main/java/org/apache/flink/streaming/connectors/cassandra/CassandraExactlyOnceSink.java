@@ -47,6 +47,7 @@ public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOn
 	private transient PreparedStatement preparedStatement;
 
 	private transient Throwable exception = null;
+	private transient final FutureCallback<ResultSet> callback;
 
 	public CassandraExactlyOnceSink(String host, String insertQuery, CheckpointCommitter committer) {
 		this(host, null, insertQuery, committer);
@@ -63,13 +64,31 @@ public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOn
 		this.host = host;
 		this.createQuery = createQuery;
 		this.insertQuery = insertQuery;
+		this.callback = new FutureCallback<ResultSet>() {
+			@Override
+			public void onSuccess(ResultSet resultSet) {
+			}
+
+			@Override
+			public void onFailure(Throwable throwable) {
+				exception = throwable;
+			}
+		};
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
-		session.close();
-		cluster.close();
+		try {
+			session.close();
+		} catch (Exception e) {
+			LOG.error("Error while closing session.", e);
+		}
+		try {
+			cluster.close();
+		} catch (Exception e) {
+			LOG.error("Error while closing cluster.", e);
+		}
 	}
 
 	@Override
@@ -98,16 +117,7 @@ public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOn
 			//insert values and send to cassandra
 			ResultSetFuture result = session.executeAsync(preparedStatement.bind(fields));
 			//add callback to detect errors
-			Futures.addCallback(result, new FutureCallback<ResultSet>() {
-				@Override
-				public void onSuccess(ResultSet resultSet) {
-				}
-
-				@Override
-				public void onFailure(Throwable throwable) {
-					exception = throwable;
-				}
-			});
+			Futures.addCallback(result, callback);
 		}
 	}
 }
