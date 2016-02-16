@@ -33,7 +33,7 @@ import java.util.List;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class})
-@PowerMockIgnore("javax.management.*")
+@PowerMockIgnore(value = {"javax.management.*", "org.apache.log4j.*"})
 public class GenericExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple1<Integer>, GenericExactlyOnceSinkTest.ListSink> {
 	@Override
 	protected ListSink createSink() {
