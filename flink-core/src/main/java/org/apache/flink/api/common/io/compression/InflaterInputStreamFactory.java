@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.io.compression;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -26,6 +28,7 @@ import java.util.zip.InflaterInputStream;
 /**
  * Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}.
  */
+@Internal
 public interface InflaterInputStreamFactory<T extends InflaterInputStream> {
 
 	/**

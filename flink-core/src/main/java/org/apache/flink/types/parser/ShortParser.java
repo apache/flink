@@ -19,11 +19,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Parses a decimal text field into a {@link Short}.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  */
+@PublicEvolving
 public class ShortParser extends FieldParser<Short> {
 
 	private static final int OVERFLOW_BOUND = 0x7fff;

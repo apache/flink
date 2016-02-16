@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.sink;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.functions.Function;
  *
  * @param <IN> Input type parameter.
  */
+@Public
 public interface SinkFunction<IN> extends Function, Serializable {
 
 	/**

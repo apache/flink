@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
+
 import java.lang.reflect.Array;
 
 /**
@@ -28,6 +30,7 @@ import java.lang.reflect.Array;
  *            of the extractor will be a String[]. If it is set to String[] the
  *            output will be String[][].
  */
+@Internal
 public class FieldsFromArray<OUT> implements Extractor<Object, OUT[]> {
 
 	/**

@@ -84,10 +84,8 @@ public class BroadcastVariableMaterialization<T, C> {
 			// sanity check
 			if (!references.add(referenceHolder)) {
 				throw new IllegalStateException(
-						String.format("The task %s (%d/%d) already holds a reference to the broadcast variable %s.",
-								referenceHolder.getEnvironment().getTaskName(),
-								referenceHolder.getEnvironment().getIndexInSubtaskGroup() + 1,
-								referenceHolder.getEnvironment().getNumberOfSubtasks(),
+						String.format("The task %s already holds a reference to the broadcast variable %s.",
+								referenceHolder.getEnvironment().getTaskInfo().getTaskNameWithSubtasks(),
 								key.toString()));
 			}
 			
@@ -177,10 +175,8 @@ public class BroadcastVariableMaterialization<T, C> {
 			if (!references.remove(referenceHolder)) {
 				if (errorIfNoReference) {
 					throw new IllegalStateException(
-							String.format("The task %s (%d/%d) did not hold a reference to the broadcast variable %s.",
-									referenceHolder.getEnvironment().getTaskName(),
-									referenceHolder.getEnvironment().getIndexInSubtaskGroup() + 1,
-									referenceHolder.getEnvironment().getNumberOfSubtasks(),
+							String.format("The task %s did not hold a reference to the broadcast variable %s.",
+									referenceHolder.getEnvironment().getTaskInfo().getTaskNameWithSubtasks(),
 									key.toString()));
 				} else {
 					return false;

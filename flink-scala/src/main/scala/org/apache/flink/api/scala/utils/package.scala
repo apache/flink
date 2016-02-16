@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
+import org.apache.flink.api.java.Utils.ChecksumHashCode
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
+import org.apache.flink.util.AbstractID
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
+
 
 package object utils {
 
@@ -33,6 +37,7 @@ package object utils {
    *
    * @param self Data Set
    */
+  @PublicEvolving
   implicit class DataSetUtils[T: TypeInformation : ClassTag](val self: DataSet[T]) {
 
     /**
@@ -102,6 +107,24 @@ package object utils {
         seed: Long = Utils.RNG.nextLong())
       : DataSet[T] = {
       wrap(jutils.sampleWithSize(self.javaSet, withReplacement, numSamples, seed))
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Checksum
+    // --------------------------------------------------------------------------------------------
+
+    /**
+      * Convenience method to get the count (number of elements) of a DataSet
+      * as well as the checksum (sum over element hashes).
+      *
+      * @return A ChecksumHashCode with the count and checksum of elements in the data set.
+      * @see [[org.apache.flink.api.java.Utils.ChecksumHashCodeHelper]]
+      */
+    def checksumHashCode(): ChecksumHashCode = {
+      val id = new AbstractID().toString
+      self.javaSet.output(new Utils.ChecksumHashCodeHelper[T](id))
+      val res = self.javaSet.getExecutionEnvironment.execute()
+      res.getAccumulatorResult[ChecksumHashCode](id)
     }
   }
 

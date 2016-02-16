@@ -203,7 +203,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			SerializedValue<StateHandle<?>> stateHandle = new SerializedValue<StateHandle<?>>(
 					new CheckpointMessagesTest.MyHandle());
 
-			taskStates.add(new StateForTask(stateHandle, jvid, i));
+			taskStates.add(new StateForTask(stateHandle, 0, jvid, i, 0));
 		}
 
 		return new TestCheckpoint(new JobID(), id, 0, taskStates);
@@ -246,7 +246,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 				long timestamp,
 				ArrayList<StateForTask> states) {
 
-			super(jobId, checkpointId, timestamp, states);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, states);
 		}
 
 		@Override

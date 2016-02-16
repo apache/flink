@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
@@ -35,6 +36,7 @@ import java.util.Iterator;
  *     <li>The key/value state of the operator, if it executes on a KeyedDataStream.</li>
  * </ul>
  */
+@Internal
 public class StreamTaskState implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -43,7 +45,7 @@ public class StreamTaskState implements Serializable {
 
 	private StateHandle<Serializable> functionState;
 
-	private HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates;
+	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates;
 
 	// ------------------------------------------------------------------------
 
@@ -63,11 +65,11 @@ public class StreamTaskState implements Serializable {
 		this.functionState = functionState;
 	}
 
-	public HashMap<String, KvStateSnapshot<?, ?, ?>> getKvStates() {
+	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> getKvStates() {
 		return kvStates;
 	}
 
-	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates) {
+	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates) {
 		this.kvStates = kvStates;
 	}
 
@@ -92,7 +94,7 @@ public class StreamTaskState implements Serializable {
 	public void discardState() throws Exception {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
-		HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates = this.kvStates;
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
 		
 		if (operatorState != null) {
 			operatorState.discardState();
@@ -103,9 +105,9 @@ public class StreamTaskState implements Serializable {
 		if (kvStates != null) {
 			while (kvStates.size() > 0) {
 				try {
-					Iterator<KvStateSnapshot<?, ?, ?>> values = kvStates.values().iterator();
+					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
 					while (values.hasNext()) {
-						KvStateSnapshot<?, ?, ?> s = values.next();
+						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
 						s.discardState();
 						values.remove();
 					}
@@ -121,4 +123,3 @@ public class StreamTaskState implements Serializable {
 		this.kvStates = null;
 	}
 }
- 

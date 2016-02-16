@@ -89,7 +89,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 	/** These strings are white-listed, overriding teh prohibited strings */
 	protected final static String[] WHITELISTED_STRINGS = {
-			"akka.remote.RemoteTransportExceptionNoStackTrace"
+			"akka.remote.RemoteTransportExceptionNoStackTrace",
+			// workaround for annoying InterruptedException logging:
+		    // https://issues.apache.org/jira/browse/YARN-1022
+			"java.lang.InterruptedException"
 	};
 
 	// Temp directory which is deleted after the unit test.

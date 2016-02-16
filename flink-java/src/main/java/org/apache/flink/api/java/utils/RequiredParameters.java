@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.utils;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedList;
@@ -27,6 +29,7 @@ import java.util.Objects;
 /**
  * Facility to manage required parameters in user defined functions.
  */
+@PublicEvolving
 public class RequiredParameters {
 
 	private static final String HELP_TEXT_PARAM_DELIMITER = "\t";

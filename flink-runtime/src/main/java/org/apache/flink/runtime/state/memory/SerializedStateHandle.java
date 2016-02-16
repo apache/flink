@@ -77,4 +77,9 @@ public class SerializedStateHandle<T extends Serializable> implements StateHandl
 	 */
 	@Override
 	public void discardState() {}
+
+	@Override
+	public long getStateSize() {
+		return serializedData.length;
+	}
 }

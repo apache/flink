@@ -43,10 +43,14 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
     span.navbar-info-button.btn.btn-default(ng-click="cancelJob($event)")
       | Cancel
 
+  .navbar-info.last.first(ng-if!="job.isStoppable && job.state=='RUNNING'")
+    span.navbar-info-button.btn.btn-default(ng-click="stopJob($event)")
+      | Stop
+
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
   ul.nav.nav-tabs
     li(ui-sref-active='active')
-      a(ui-sref=".plan.overview") Plan
+      a(ui-sref=".plan.subtasks") Plan
 
     //- li(ui-sref-active='active' ng-if="job['end-time'] > -1")
     li(ui-sref-active='active')

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 /**
  * This operator represents a Union between two inputs.
  */
+@Internal
 public class Union<T> extends DualInputOperator<T, T, T, AbstractRichFunction> {
 	
 	

@@ -20,11 +20,13 @@ package org.apache.flink.api.common.operators.util;
 
 import java.lang.annotation.Annotation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This holds a class containing user defined code.
  */
+@Internal
 public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
 	private static final long serialVersionUID = 1L;
 	

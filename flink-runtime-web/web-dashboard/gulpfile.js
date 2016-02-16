@@ -17,7 +17,7 @@
  */
 
 // ----------------------------------------------------------------------------
-//  Builde file for the web dashboard
+//  Build file for the web dashboard
 // ----------------------------------------------------------------------------
 
 var gulp = require('gulp');
@@ -55,28 +55,27 @@ gulp.task('set-production', function() {
 });
 
 gulp.task('fonts', function() {
- gulp.src(paths.vendor + "font-awesome/fonts/*")
+  return gulp.src(paths.vendor + "font-awesome/fonts/*")
     .pipe(plumber())
     .pipe(gulp.dest(paths.assets + 'fonts'));
 });
 
-gulp.task('assets', function() {
- gulp.src(paths.assets + "**")
+gulp.task('assets', ['fonts'], function() {
+  return gulp.src(paths.assets + "**")
     .pipe(plumber())
     .pipe(gulp.dest(paths.dest));
 });
 
-
-gulp.task('bootstrap', function () {
-  return gulp.src(paths.src + 'styles/bootstrap_custom.less')
+gulp.task('pre-process-vendor-styles', function () {
+  return gulp.src(mainBowerFiles('**/*.less').concat(paths.src + 'styles/bootstrap_custom.less'))
     .pipe(less({
       paths: [ path.join(__dirname, 'less', 'includes') ]
     }))
     .pipe(gulp.dest(paths.tmp + 'css/'));
 });
 
-gulp.task('vendor-styles', [ 'bootstrap' ], function() {
-  stream = gulp.src(mainBowerFiles().concat([paths.tmp + 'css/bootstrap_custom.css']).concat([paths.vendor + 'qtip2/jquery.qtip.css']))
+gulp.task('vendor-styles', [ 'pre-process-vendor-styles' ], function() {
+  stream = gulp.src(mainBowerFiles().concat([paths.tmp + 'css/*.css']).concat([paths.vendor + 'qtip2/jquery.qtip.css']))
     .pipe(filter(['*.css', '!bootstrap.css']))
     .pipe(sourcemaps.init())
     .pipe(concat("vendor.css"))
@@ -87,7 +86,7 @@ gulp.task('vendor-styles', [ 'bootstrap' ], function() {
   }
 
   stream.pipe(gulp.dest(paths.dest + 'css/'))
- });
+});
 
 gulp.task('vendor-scripts', function() {
   stream = gulp.src(mainBowerFiles({

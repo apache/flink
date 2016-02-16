@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,6 +37,7 @@ import java.io.IOException;
  *
  * @param <T> The type of value in the {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}
  */
+@Internal
 public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
 
 	private static final long serialVersionUID = 1L;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,9 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.IOException;
@@ -27,10 +31,15 @@ import java.io.IOException;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class CountTrigger<W extends Window> implements Trigger<Object, W> {
+@PublicEvolving
+public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long maxCount;
+
+	private final ValueStateDescriptor<Long> stateDesc =
+			new ValueStateDescriptor<>("count", LongSerializer.INSTANCE, 0L);
+
 
 	private CountTrigger(long maxCount) {
 		this.maxCount = maxCount;
@@ -38,7 +47,7 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws IOException {
-		OperatorState<Long> count = ctx.getKeyValueState("count", 0L);
+		ValueState<Long> count = ctx.getPartitionedState(stateDesc);
 		long currentCount = count.value() + 1;
 		count.update(currentCount);
 		if (currentCount >= maxCount) {
@@ -56,6 +65,11 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		ctx.getPartitionedState(stateDesc).clear();
 	}
 
 	@Override

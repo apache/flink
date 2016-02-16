@@ -18,16 +18,24 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +56,7 @@ import java.util.UUID;
  *
  * {@code hdfs://namenode:port/flink-checkpoints/<job-id>/chk-17/6ba7b810-9dad-11d1-80b4-00c04fd430c8 }
  */
-public class FsStateBackend extends StateBackend<FsStateBackend> {
+public class FsStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = -8191916350224044011L;
 
@@ -91,7 +99,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 * classpath.
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to teh checkpoint data directory.
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(String checkpointDataUri) throws IOException {
@@ -110,7 +118,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 * classpath.
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to teh checkpoint data directory.
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(Path checkpointDataUri) throws IOException {
@@ -155,21 +163,6 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
-		final String scheme = checkpointDataUri.getScheme();
-		final String path = checkpointDataUri.getPath();
-
-		// some validity checks
-		if (scheme == null) {
-			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
-					"Please specify the file system scheme explicitly in the URI.");
-		}
-		if (path == null) {
-			throw new IllegalArgumentException("The path to store the checkpoint data in is null. " +
-					"Please specify a directory path for the checkpoint data.");
-		}
-		if (path.length() == 0 || path.equals("/")) {
-			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
-		}
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
 		}
@@ -177,30 +170,10 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
 				MAX_FILE_STATE_THRESHOLD);
 		}
-
-		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
-		// (distributed) filesystem on all hosts and includes full host/port information, even if the
-		// original URI did not include that. We count on the filesystem loading from the configuration
-		// to fill in the missing data.
-
-		// try to grab the file system for this path/URI
-		this.filesystem = FileSystem.get(checkpointDataUri);
-		if (this.filesystem == null) {
-			throw new IOException("Could not find a file system for the given scheme in the available configurations.");
-		}
-
-		URI fsURI = this.filesystem.getUri();
-		try {
-			URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
-			this.basePath = new Path(baseURI);
-		}
-		catch (URISyntaxException e) {
-			throw new IOException(
-					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
-							checkpointDataUri, fsURI), e);
-		}
-		
 		this.fileStateThreshold = fileStateSizeThreshold;
+		
+		this.basePath = validateAndNormalizeUri(checkpointDataUri);
+		this.filesystem = this.basePath.getFileSystem();
 	}
 
 	/**
@@ -264,7 +237,11 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(Environment env) throws Exception {
+	public void initializeForJob(Environment env,
+		String operatorIdentifier,
+		TypeSerializer<?> keySerializer) throws Exception {
+		super.initializeForJob(env, operatorIdentifier, keySerializer);
+
 		Path dir = new Path(basePath, env.getJobID().toString());
 
 		LOG.info("Initializing file state backend to URI " + dir);
@@ -298,9 +275,24 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <K, V> FsHeapKvState<K, V> createKvState(String stateId, String stateName,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception {
-		return new FsHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, this);
+	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
+		return new FsValueState<>(this, keySerializer, namespaceSerializer, stateDesc);
+	}
+
+	@Override
+	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
+		return new FsListState<>(this, keySerializer, namespaceSerializer, stateDesc);
+	}
+
+	@Override
+	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
+		return new FsReducingState<>(this, keySerializer, namespaceSerializer, stateDesc);
+	}
+
+	@Override
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
+		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
 	}
 
 	@Override
@@ -351,6 +343,60 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			"File State Backend (initialized) @ " + checkpointDirectory;
 	}
 
+	/**
+	 * Checks and normalizes the checkpoint data URI. This method first checks the validity of the
+	 * URI (scheme, path, availability of a matching file system) and then normalizes the URI
+	 * to a path.
+	 * 
+	 * <p>If the URI does not include an authority, but the file system configured for the URI has an
+	 * authority, then the normalized path will include this authority.
+	 * 
+	 * @param checkpointDataUri The URI to check and normalize.
+	 * @return A normalized URI as a Path.
+	 * 
+	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path. 
+	 * @throws IOException Thrown, if no file system can be found for the URI's scheme.
+	 */
+	public static Path validateAndNormalizeUri(URI checkpointDataUri) throws IOException {
+		final String scheme = checkpointDataUri.getScheme();
+		final String path = checkpointDataUri.getPath();
+
+		// some validity checks
+		if (scheme == null) {
+			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+					"Please specify the file system scheme explicitly in the URI.");
+		}
+		if (path == null) {
+			throw new IllegalArgumentException("The path to store the checkpoint data in is null. " +
+					"Please specify a directory path for the checkpoint data.");
+		}
+		if (path.length() == 0 || path.equals("/")) {
+			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
+		}
+
+		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
+		// (distributed) filesystem on all hosts and includes full host/port information, even if the
+		// original URI did not include that. We count on the filesystem loading from the configuration
+		// to fill in the missing data.
+
+		// try to grab the file system for this path/URI
+		FileSystem filesystem = FileSystem.get(checkpointDataUri);
+		if (filesystem == null) {
+			throw new IOException("Could not find a file system for the given scheme in the available configurations.");
+		}
+
+		URI fsURI = filesystem.getUri();
+		try {
+			URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
+			return new Path(baseURI);
+		}
+		catch (URISyntaxException e) {
+			throw new IOException(
+					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
+							checkpointDataUri, fsURI), e);
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Output stream for state checkpointing
 	// ------------------------------------------------------------------------
@@ -468,22 +514,20 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		 */
 		@Override
 		public void close() {
-			synchronized (this) {
-				if (!closed) {
-					closed = true;
-					if (outStream != null) {
+			if (!closed) {
+				closed = true;
+				if (outStream != null) {
+					try {
+						outStream.close();
+						fs.delete(statePath, false);
+
+						// attempt to delete the parent (will fail and be ignored if the parent has more files)
 						try {
-							outStream.close();
-							fs.delete(statePath, false);
-	
-							// attempt to delete the parent (will fail and be ignored if the parent has more files)
-							try {
-								fs.delete(basePath, false);
-							} catch (IOException ignored) {}
-						}
-						catch (Exception e) {
-							LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
-						}
+							fs.delete(basePath, false);
+						} catch (IOException ignored) {}
+					}
+					catch (Exception e) {
+						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
 					}
 				}
 			}

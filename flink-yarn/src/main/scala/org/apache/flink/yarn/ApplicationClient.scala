@@ -21,6 +21,8 @@ package org.apache.flink.yarn
 import java.util.UUID
 
 import akka.actor._
+import akka.pattern
+import akka.util.Timeout
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
@@ -58,7 +60,6 @@ class ApplicationClient(
 
   var yarnJobManager: Option[ActorRef] = None
   var pollingTimer: Option[Cancellable] = None
-  implicit val timeout: FiniteDuration = AkkaUtils.getTimeout(flinkConfig)
   var running = false
   var messagesQueue : mutable.Queue[YarnMessage] = mutable.Queue[YarnMessage]()
   var latestClusterStatus : Option[FlinkYarnClusterStatus] = None

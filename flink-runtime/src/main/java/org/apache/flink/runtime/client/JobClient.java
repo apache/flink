@@ -213,7 +213,7 @@ public class JobClient {
 					jobGraph,
 					ListeningBehaviour.DETACHED // only receive the Acknowledge for the job submission message
 				),
-					timeout);
+				timeout);
 			
 			result = Await.result(future, timeout);
 		}

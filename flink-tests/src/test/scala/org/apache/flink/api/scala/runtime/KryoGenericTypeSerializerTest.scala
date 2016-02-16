@@ -17,17 +17,18 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import com.esotericsoftware.kryo.{Kryo, Serializer}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers
+
+import org.joda.time.LocalDate
+
 import org.junit.Test
+
 import scala.reflect._
-import org.joda.time.{DateTime, LocalDate}
-import com.esotericsoftware.kryo.Serializer
-import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.Output
-import com.esotericsoftware.kryo.io.Input
 
 class KryoGenericTypeSerializerTest {
 
@@ -84,56 +85,49 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def testThrowableSerialization: Unit = {
+  def testThrowableSerialization(): Unit = {
     val a = List(new RuntimeException("Hello"), new RuntimeException("there"))
 
     runTests(a)
   }
 
   @Test
-  def jodaSerialization: Unit = {
-    val a = List(new DateTime(1), new DateTime(2))
-
-    runTests(a)
-  }
-
-  @Test
-  def jodaSerialization1: Unit = {
+  def jodaSerialization(): Unit = {
     val a = List(new LocalDate(1), new LocalDate(2))
     
     runTests(a)
   }
 
   @Test
-  def testScalaListSerialization: Unit = {
+  def testScalaListSerialization(): Unit = {
     val a = List(42,1,49,1337)
 
     runTests(a)
   }
 
   @Test
-  def testScalaMutablelistSerialization: Unit = {
+  def testScalaMutablelistSerialization(): Unit = {
     val a = scala.collection.mutable.ListBuffer(42,1,49,1337)
 
     runTests(a)
   }
 
   @Test
-  def testScalaMapSerialization: Unit = {
+  def testScalaMapSerialization(): Unit = {
     val a = Map(("1" -> 1), ("2" -> 2), ("42" -> 42), ("1337" -> 1337))
 
     runTests(Seq(a))
   }
 
   @Test
-  def testMutableMapSerialization: Unit ={
+  def testMutableMapSerialization(): Unit ={
     val a = scala.collection.mutable.Map((1 -> "1"), (2 -> "2"), (3 -> "3"))
 
     runTests(Seq(a))
   }
 
   @Test
-  def testScalaListComplexTypeSerialization: Unit = {
+  def testScalaListComplexTypeSerialization(): Unit = {
     val a = ComplexType("1234", 42, List(1,2,3,4))
     val b = ComplexType("4321", 24, List(4,3,2,1))
     val c = ComplexType("1337", 1, List(1))
@@ -143,7 +137,7 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def testHeterogenousScalaList: Unit = {
+  def testHeterogenousScalaList(): Unit = {
     val a = new DerivedType("foo", "bar")
     val b = new BaseType("foobar")
     val c = new DerivedType2("bar", "foo")
@@ -201,7 +195,6 @@ class KryoGenericTypeSerializerTest {
     // Register the custom Kryo Serializer
     val conf = new ExecutionConfig
     conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
-    Serializers.registerJodaTime(conf)
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
     val serializer = typeInfo.createSerializer(conf)
     val typeClass = typeInfo.getTypeClass

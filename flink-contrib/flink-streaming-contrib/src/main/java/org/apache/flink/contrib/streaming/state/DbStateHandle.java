@@ -17,16 +17,16 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.InstantiationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.Callable;
 
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.InstantiationUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
 /**
  * State handle implementation for storing checkpoints as byte arrays in
@@ -38,7 +38,7 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(DbStateHandle.class);
 
-	private final String jobId;
+	private final String appId;
 	private final DbBackendConfig dbConfig;
 
 	private final long checkpointId;
@@ -46,19 +46,29 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 
 	private final long handleId;
 
-	public DbStateHandle(String jobId, long checkpointId, long checkpointTs, long handleId, DbBackendConfig dbConfig) {
+	private final long stateSize;
+
+	public DbStateHandle(
+			String appId,
+			long checkpointId,
+			long checkpointTs,
+			long handleId,
+			DbBackendConfig dbConfig,
+			long stateSize) {
+
 		this.checkpointId = checkpointId;
 		this.handleId = handleId;
-		this.jobId = jobId;
+		this.appId = appId;
 		this.dbConfig = dbConfig;
 		this.checkpointTs = checkpointTs;
+		this.stateSize = stateSize;
 	}
 
 	protected byte[] getBytes() throws IOException {
 		return retry(new Callable<byte[]>() {
 			public byte[] call() throws Exception {
 				try (ShardedConnection con = dbConfig.createShardedConnection()) {
-					return dbConfig.getDbAdapter().getCheckpoint(jobId, con.getFirst(), checkpointId, checkpointTs, handleId);
+					return dbConfig.getDbAdapter().getCheckpoint(appId, con.getFirst(), checkpointId, checkpointTs, handleId);
 				}
 			}
 		}, dbConfig.getMaxNumberOfSqlRetries(), dbConfig.getSleepBetweenSqlRetries());
@@ -70,7 +80,7 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 			retry(new Callable<Boolean>() {
 				public Boolean call() throws Exception {
 					try (ShardedConnection con = dbConfig.createShardedConnection()) {
-						dbConfig.getDbAdapter().deleteCheckpoint(jobId, con.getFirst(), checkpointId, checkpointTs, handleId);
+						dbConfig.getDbAdapter().deleteCheckpoint(appId, con.getFirst(), checkpointId, checkpointTs, handleId);
 					}
 					return true;
 				}
@@ -86,5 +96,10 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 	@Override
 	public S getState(ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 		return InstantiationUtil.deserializeObject(getBytes(), userCodeClassLoader);
+	}
+
+	@Override
+	public long getStateSize() {
+		return stateSize;
 	}
 }

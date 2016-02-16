@@ -134,13 +134,13 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 			public Long map(Integer value) throws Exception {
 				return Long.valueOf(value + 1);
 			}
-		}).keyBy(new KeySelector<Long, Long>() {
+		}).keyBy(new KeySelector<Long, Integer>() {
 
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Long getKey(Long value) throws Exception {
-				return value;
+			public Integer getKey(Long value) throws Exception {
+				return value.intValue();
 			}
 		});
 

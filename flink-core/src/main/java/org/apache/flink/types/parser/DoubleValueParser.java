@@ -19,11 +19,13 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.DoubleValue;
 
 /**
  * Parses a text field into a DoubleValue.
  */
+@PublicEvolving
 public class DoubleValueParser extends FieldParser<DoubleValue> {
 	
 	private DoubleValue result;

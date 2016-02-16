@@ -71,7 +71,7 @@ public class AccumulatorSnapshot implements Serializable {
 	 * @return the serialized map
 	 */
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> deserializeFlinkAccumulators() throws IOException, ClassNotFoundException {
-		return flinkAccumulators.deserializeValue(ClassLoader.getSystemClassLoader());
+		return flinkAccumulators.deserializeValue(getClass().getClassLoader());
 	}
 
 	/**

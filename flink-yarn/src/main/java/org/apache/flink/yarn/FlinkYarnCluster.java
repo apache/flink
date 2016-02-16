@@ -97,11 +97,11 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	/**
 	 * Create a new Flink on YARN cluster.
 	 *
-	 * @param yarnClient
+	 * @param yarnClient Client to talk to YARN
 	 * @param appId the YARN application ID
-	 * @param hadoopConfig
-	 * @param flinkConfig
-	 * @param sessionFilesDir
+	 * @param hadoopConfig Hadoop configuration
+	 * @param flinkConfig Flink configuration
+	 * @param sessionFilesDir Location of files required for YARN session
 	 * @param detached Set to true if no actor system or RPC communication with the cluster should be established
 	 * @throws IOException
 	 * @throws YarnException
@@ -149,7 +149,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		// try to find address for 2 seconds. log after 400 ms.
 		InetAddress ownHostname = ConnectionUtils.findConnectingAddress(jobManagerAddress, 2000, 400);
 		actorSystem = AkkaUtils.createActorSystem(flinkConfig,
-				new Some(new Tuple2<String, Integer>(ownHostname.getCanonicalHostName(), 0)));
+				new Some<Tuple2<String, Object>>(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
 
 		// Create the leader election service
 		flinkConfig.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerAddress.getHostName());
@@ -373,7 +373,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 
 		// get messages from ApplicationClient (locally)
 		while(true) {
-			Object result = null;
+			Object result;
 			try {
 				Future<Object> response = Patterns.ask(applicationClient,
 						YarnMessages.getLocalGetYarnMessage(), new Timeout(akkaDuration));

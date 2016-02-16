@@ -52,7 +52,11 @@ public final class ByteStreamStateHandle implements StreamStateHandle {
 	@Override
 	public void discardState() {}
 
-	
+	@Override
+	public long getStateSize() {
+		return data.length;
+	}
+
 	@Override
 	public <T extends Serializable> StateHandle<T> toSerializableHandle() {
 		return new SerializedStateHandle<T>(data);

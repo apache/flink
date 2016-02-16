@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -34,6 +35,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @param <T> The data type that the serializer serializes.
  */
+@PublicEvolving
 public abstract class TypeSerializer<T> implements Serializable {
 	
 	private static final long serialVersionUID = 1L;

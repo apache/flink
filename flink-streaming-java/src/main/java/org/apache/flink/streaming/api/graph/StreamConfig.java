@@ -20,25 +20,28 @@ package org.apache.flink.streaming.api.graph;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
+@Internal
 public class StreamConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-
+	
 	// ------------------------------------------------------------------------
 	//  Config Keys
 	// ------------------------------------------------------------------------
@@ -191,19 +194,22 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setOutputSelectorWrapper(OutputSelectorWrapper<?> outputSelectorWrapper) {
+	public void setOutputSelectors(List<OutputSelector<?>> outputSelectors) {
 		try {
-			InstantiationUtil.writeObjectToConfig(outputSelectorWrapper, this.config, OUTPUT_SELECTOR_WRAPPER);
+			InstantiationUtil.writeObjectToConfig(outputSelectors, this.config, OUTPUT_SELECTOR_WRAPPER);
 		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize OutputSelectorWrapper.", e);
+			throw new StreamTaskException("Could not serialize output selectors", e);
 		}
 	}
 	
-	public <T> OutputSelectorWrapper<T> getOutputSelectorWrapper(ClassLoader cl) {
+	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, cl);
+			List<OutputSelector<T>> selectors = 
+					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
+			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
+			
 		} catch (Exception e) {
-			throw new StreamTaskException("Cannot deserialize and instantiate OutputSelectorWrapper.", e);
+			throw new StreamTaskException("Could not read output selectors", e);
 		}
 	}
 
@@ -370,7 +376,7 @@ public class StreamConfig implements Serializable {
 	//  State backend
 	// ------------------------------------------------------------------------
 	
-	public void setStateBackend(StateBackend<?> backend) {
+	public void setStateBackend(AbstractStateBackend backend) {
 		try {
 			InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
 		} catch (Exception e) {
@@ -378,7 +384,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public StateBackend<?> getStateBackend(ClassLoader cl) {
+	public AbstractStateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {
@@ -386,17 +392,17 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public void setStatePartitioner(KeySelector<?, ?> partitioner) {
+	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
 		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
+			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
 		} catch (IOException e) {
 			throw new StreamTaskException("Could not serialize state partitioner.", e);
 		}
 	}
 	
-	public KeySelector<?, Serializable> getStatePartitioner(ClassLoader cl) {
+	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER, cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate state partitioner.", e);
 		}

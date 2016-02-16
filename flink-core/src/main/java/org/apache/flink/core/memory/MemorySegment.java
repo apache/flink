@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -90,6 +92,7 @@ import java.nio.ByteOrder;
  * or by identifying that the invocations are monomorphic (all go to the same concrete
  * method implementation). Under these conditions, the JIT can perfectly inline methods.
  */
+@Internal
 public abstract class MemorySegment {
 
 	/** The unsafe handle for transparent memory copied (heap / off-heap) */

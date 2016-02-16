@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
  * the life cycle of the functions, as well as methods to access the context in which the functions
  * are executed.
  */
+@Public
 public interface RichFunction extends Function {
 	
 	/**

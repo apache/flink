@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -29,6 +31,7 @@ import java.util.ArrayList;
  * @param <IN>
  *            Input tuple type
  */
+@PublicEvolving
 public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 	private static final long serialVersionUID = 1L;
 

@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.FirstReducer;
 
@@ -31,8 +33,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
@@ -46,6 +47,7 @@ import com.google.common.base.Preconditions;
  * 
  * @param <T> The type of the elements of the sorted and grouped DataSet.
  */
+@Public
 public class SortedGrouping<T> extends Grouping<T> {
 	
 	private int[] groupSortKeyPositions;
@@ -57,17 +59,14 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 */
 	public SortedGrouping(DataSet<T> set, Keys<T> keys, int field, Order order) {
 		super(set, keys);
-		
-		if (!dataSet.getType().isTupleType()) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
-		if (field >= dataSet.getType().getArity()) {
-			throw new IllegalArgumentException("Order key out of tuple bounds.");
-		}
-		isValidSortKeyType(field);
 
 		// use int-based expression key to properly resolve nested tuples for grouping
-		ExpressionKeys<T> ek = new ExpressionKeys<T>(new int[]{field}, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
+
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
 		Arrays.fill(this.groupSortOrders, order);
@@ -78,14 +77,14 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 */
 	public SortedGrouping(DataSet<T> set, Keys<T> keys, String field, Order order) {
 		super(set, keys);
-		
-		if (!(dataSet.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
-		isValidSortKeyType(field);
 
 		// resolve String-field to int using the expression keys
-		ExpressionKeys<T> ek = new ExpressionKeys<T>(new String[]{field}, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
+
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
 		Arrays.fill(this.groupSortOrders, order); // if field == "*"
@@ -123,6 +122,16 @@ public class SortedGrouping<T> extends Grouping<T> {
 	
 	protected Order[] getGroupSortOrders() {
 		return this.groupSortOrders;
+	}
+
+	protected Ordering getGroupOrdering() {
+
+		Ordering o = new Ordering();
+		for(int i=0; i < this.groupSortKeyPositions.length; i++) {
+			o.appendOrdering(this.groupSortKeyPositions[i], null, this.groupSortOrders[i]);
+		}
+
+		return o;
 	}
 	
 	/**
@@ -162,8 +171,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
-				this.getDataSet().getType());
-		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName() );
+				inputDataSet.getType(), Utils.getCallLocationName(), true);
+		return new GroupReduceOperator<>(this, resultType, inputDataSet.clean(reducer), Utils.getCallLocationName());
 	}
 
 	/**
@@ -182,9 +191,10 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (combiner == null) {
 			throw new NullPointerException("GroupCombine function must not be null.");
 		}
-		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, this.getDataSet().getType());
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner,
+				this.getInputDataSet().getType(), Utils.getCallLocationName(), true);
 
-		return new GroupCombineOperator<T, R>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
+		return new GroupCombineOperator<>(this, resultType, inputDataSet.clean(combiner), Utils.getCallLocationName());
 	}
 
 	
@@ -221,15 +231,12 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (groupSortSelectorFunctionKey != null) {
 			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
 		}
-		if (!dataSet.getType().isTupleType()) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
-		if (field >= dataSet.getType().getArity()) {
-			throw new IllegalArgumentException("Order key out of tuple bounds.");
-		}
-		isValidSortKeyType(field);
 
-		ExpressionKeys<T> ek = new ExpressionKeys<T>(new int[]{field}, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
+
 		addSortGroupInternal(ek, order);
 		return this;
 	}
@@ -250,12 +257,12 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (groupSortSelectorFunctionKey != null) {
 			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
 		}
-		if (! (dataSet.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
-		isValidSortKeyType(field);
 
-		ExpressionKeys<T> ek = new ExpressionKeys<T>(new String[]{field}, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
+
 		addSortGroupInternal(ek, order);
 		return this;
 	}
@@ -274,27 +281,4 @@ public class SortedGrouping<T> extends Grouping<T> {
 			this.groupSortOrders[pos] = order; // use the same order
 		}
 	}
-
-	private void isValidSortKeyType(int field) {
-		TypeInformation<?> sortKeyType = ((TupleTypeInfoBase<?>) dataSet.getType()).getTypeAt(field);
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
-	}
-
-	private void isValidSortKeyType(String field) {
-		TypeInformation<?> sortKeyType;
-
-		field = field.trim();
-		if(field.equals("*") || field.equals("_")) {
-			sortKeyType = this.getDataSet().getType();
-		} else {
-			sortKeyType = ((CompositeType<?>) this.getDataSet().getType()).getTypeAt(field);
-		}
-
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
-	}
-
 }

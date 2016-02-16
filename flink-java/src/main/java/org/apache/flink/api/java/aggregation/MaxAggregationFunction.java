@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.ResettableValue;
 
-
+@Internal
 public abstract class MaxAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
 

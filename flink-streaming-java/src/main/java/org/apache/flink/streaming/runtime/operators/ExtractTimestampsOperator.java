@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <T> The type of the input elements
  */
+@Internal
 public class ExtractTimestampsOperator<T>
 		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
 		implements OneInputStreamOperator<T, T>, Triggerable {
@@ -54,14 +56,6 @@ public class ExtractTimestampsOperator<T>
 		}
 
 		currentWatermark = Long.MIN_VALUE;
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-
-		// emit a final +Inf watermark, just like the sources
-		output.emitWatermark(new Watermark(Long.MAX_VALUE));
 	}
 
 	@Override
@@ -90,6 +84,11 @@ public class ExtractTimestampsOperator<T>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		// ignore them, since we are basically a watermark source
+		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
+		// to signal the end of input and to not block watermark progress downstream
+		if (mark.getTimestamp() == Long.MAX_VALUE && mark.getTimestamp() > currentWatermark) {
+			currentWatermark = Long.MAX_VALUE;
+			output.emitWatermark(mark);
+		}
 	}
 }

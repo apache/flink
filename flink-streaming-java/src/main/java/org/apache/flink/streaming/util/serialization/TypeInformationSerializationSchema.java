@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
+import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 
 import java.io.IOException;
@@ -29,11 +30,10 @@ import java.io.IOException;
 /**
  * A serialization and deserialization schema that uses Flink's serialization stack to
  * transform typed from and to byte arrays.
- *
- * @see TypeInformationKeyValueSerializationSchema for a serialization schema supporting Key Value pairs.
  * 
  * @param <T> The type to be serialized.
  */
+@Public
 public class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T> {
 	
 	private static final long serialVersionUID = -5359448468131559102L;
@@ -43,6 +43,9 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 
 	/** The reusable output serialization buffer */
 	private transient DataOutputSerializer dos;
+	
+	/** The reusable input deserialization buffer */
+	private transient DataInputDeserializer dis;
 
 	/** The type information, to be returned by {@link #getProducedType()}. It is
 	 * transient, because it is not serializable. Note that this means that the type information
@@ -66,8 +69,14 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 	
 	@Override
 	public T deserialize(byte[] message) {
+		if (dis != null) {
+			dis.setBuffer(message, 0, message.length);
+		} else {
+			dis = new DataInputDeserializer(message, 0, message.length);
+		}
+		
 		try {
-			return serializer.deserialize(new ByteArrayInputView(message));
+			return serializer.deserialize(dis);
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Unable to deserialize message", e);

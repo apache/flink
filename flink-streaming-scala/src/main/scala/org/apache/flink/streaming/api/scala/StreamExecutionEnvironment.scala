@@ -19,11 +19,14 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
+import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.runtime.state.AbstractStateBackend
+import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -37,6 +40,7 @@ import scala.reflect.ClassTag
 
 import _root_.scala.language.implicitConversions
 
+@Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
@@ -88,6 +92,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * avoiding serialization and de-serialization.
    *
    */
+  @PublicEvolving
   def disableOperatorChaining(): StreamExecutionEnvironment = {
     javaEnv.disableOperatorChaining()
     this
@@ -123,6 +128,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *           If true checkpointing will be enabled for iterative jobs as well.
    */
   @deprecated
+  @PublicEvolving
   def enableCheckpointing(interval : Long,
                           mode: CheckpointingMode,
                           force: Boolean) : StreamExecutionEnvironment = {
@@ -181,10 +187,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * operator states. Time interval between state checkpoints is specified in in millis.
    *
    * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * [[setNumberOfExecutionRetries(int)]] method in case of
+   * explicitly otherwise with calling the [[setRestartStrategy]] method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
+  @deprecated
+  @PublicEvolving
   def enableCheckpointing() : StreamExecutionEnvironment = {
     javaEnv.enableCheckpointing()
     this
@@ -211,7 +218,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * program can be executed highly available and strongly consistent (assuming that Flink
    * is run in high-availability mode).
    */
-  def setStateBackend(backend: StateBackend[_]): StreamExecutionEnvironment = {
+  @PublicEvolving
+  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
     javaEnv.setStateBackend(backend)
     this
   }
@@ -219,22 +227,52 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
-  def getStateBackend: StateBackend[_] = javaEnv.getStateBackend()
-  
+  @PublicEvolving
+  def getStateBackend: AbstractStateBackend = javaEnv.getStateBackend()
+
   /**
-   * Sets the number of times that failed tasks are re-executed. A value of zero
-   * effectively disables fault tolerance. A value of "-1" indicates that the system
-   * default value (as defined in the configuration) should be used.
-   */
+    * Sets the restart strategy configuration. The configuration specifies which restart strategy
+    * will be used for the execution graph in case of a restart.
+    *
+    * @param restartStrategyConfiguration Restart strategy configuration to be set
+    */
+  @PublicEvolving
+  def setRestartStrategy(restartStrategyConfiguration: RestartStrategyConfiguration): Unit = {
+    javaEnv.setRestartStrategy(restartStrategyConfiguration)
+  }
+
+  /**
+    * Returns the specified restart strategy configuration.
+    *
+    * @return The restart strategy configuration to be used
+    */
+  @PublicEvolving
+  def getRestartStrategy: RestartStrategyConfiguration = {
+    javaEnv.getRestartStrategy()
+  }
+
+  /**
+    * Sets the number of times that failed tasks are re-executed. A value of zero
+    * effectively disables fault tolerance. A value of "-1" indicates that the system
+    * default value (as defined in the configuration) should be used.
+    *
+    * @deprecated This method will be replaced by [[setRestartStrategy()]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @PublicEvolving
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
 
   /**
-   * Gets the number of times the system will try to re-execute failed tasks. A value
-   * of "-1" indicates that the system default value (as defined in the configuration)
-   * should be used.
-   */
+    * Gets the number of times the system will try to re-execute failed tasks. A value
+    * of "-1" indicates that the system default value (as defined in the configuration)
+    * should be used.
+    *
+    * @deprecated This method will be replaced by [[getRestartStrategy]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
+  @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   // --------------------------------------------------------------------------------------------
@@ -316,6 +354,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @param characteristic The time characteristic.
    */
+  @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
   }
@@ -324,9 +363,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the time characteristic/
    *
    * @see #setStreamTimeCharacteristic
-   *
    * @return The time characteristic.
    */
+  @PublicEvolving
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
   // --------------------------------------------------------------------------------------------
@@ -461,6 +500,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * character set. The maximum retry interval is specified in seconds, in case
    * of temporary service outage reconnection is initiated every second.
    */
+  @PublicEvolving
   def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
     DataStream[String] =
     javaEnv.socketTextStream(hostname, port)
@@ -471,6 +511,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * determine the type of the data produced by the input format. It will attempt to determine the
    * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
    */
+  @PublicEvolving
   def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
     javaEnv.createInput(inputFormat)
 
@@ -542,12 +583,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The StreamGraph representing the transformations
    */
+  @Internal
   def getStreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
+ *
    * @return The encased ExecutionEnvironment
    */
+  @Internal
   def getWrappedStreamExecutionEnvironment = javaEnv
 
   /**
@@ -573,6 +617,7 @@ object StreamExecutionEnvironment {
    * @param parallelism
    * The parallelism to use as the default local parallelism.
    */
+  @PublicEvolving
   def setDefaultLocalParallelism(parallelism: Int) : Unit =
     StreamExecutionEnvironment.setDefaultLocalParallelism(parallelism)
 

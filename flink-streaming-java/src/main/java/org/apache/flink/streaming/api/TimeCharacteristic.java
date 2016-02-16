@@ -18,10 +18,14 @@
 
 package org.apache.flink.streaming.api;
 
+
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * The time characteristic defines how the system determines time for time-dependent
  * order and operations that depend on time (such as time windows).
  */
+@PublicEvolving
 public enum TimeCharacteristic {
 
 	/**

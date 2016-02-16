@@ -17,11 +17,14 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
+
 import scala.language.postfixOps
 import scala.reflect.macros.Context
 
 // These are only used internally while analyzing Scala types in TypeAnalyzer and TypeInformationGen
 
+@Internal
 private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C] =>
   import c.universe._
 

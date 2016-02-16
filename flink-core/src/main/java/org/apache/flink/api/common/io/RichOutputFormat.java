@@ -18,12 +18,14 @@ c * Licensed to the Apache Software Foundation (ASF) under one
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
  * An abstract stub implementation for Rich output formats.
  * Rich formats have access to their runtime execution context via {@link #getRuntimeContext()}.
  */
+@Public
 public abstract class RichOutputFormat<IT> implements OutputFormat<IT> {
 	
 	private static final long serialVersionUID = 1L;

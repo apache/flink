@@ -23,6 +23,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.MultiShotLatch;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
@@ -46,6 +47,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -77,7 +79,6 @@ public class TimestampITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
 
 			cluster = new ForkableFlinkMiniCluster(config, false);
@@ -133,49 +134,18 @@ public class TimestampITCase {
 		source1.union(source2)
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
-				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
 
 		// verify that all the watermarks arrived at the final custom operator
 		for (int i = 0; i < PARALLELISM; i++) {
-			// There can be two cases, either we get NUM_WATERMARKS + 1 watermarks or
-			// (NUM_WATERMARKS / 2) + 1 watermarks. This depends on which source get's to run first.
-			// If source1 runs first we jump directly to +Inf and skip all the intermediate
-			// watermarks. If source2 runs first we see the intermediate watermarks from
-			// NUM_WATERMARKS/2 to +Inf.
-			if (CustomOperator.finalWatermarks[i].size() == NUM_WATERMARKS + 1) {
-				for (int j = 0; j < NUM_WATERMARKS; j++) {
-					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
-						System.err.println("All Watermarks: ");
-						for (int k = 0; k <= NUM_WATERMARKS; k++) {
-							System.err.println(CustomOperator.finalWatermarks[i].get(k));
-						}
-
-						Assert.fail("Wrong watermark.");
-					}
-				}
-				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS).equals(new Watermark(Long.MAX_VALUE))) {
-					System.err.println("All Watermarks: ");
-					for (int k = 0; k <= NUM_WATERMARKS; k++) {
-						System.err.println(CustomOperator.finalWatermarks[i].get(k));
-					}
-
-					Assert.fail("Wrong watermark.");
-				}
-			} else {
-				for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
-					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
-						System.err.println("All Watermarks: ");
-						for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
-							System.err.println(CustomOperator.finalWatermarks[i].get(k));
-						}
-
-						Assert.fail("Wrong watermark.");
-					}
-				}
-				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS / 2).equals(new Watermark(Long.MAX_VALUE))) {
+			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks in order, because
+			// after that source2 emits Long.MAX_VALUE which could match with an arbitrary
+			// mark from source 1, for example, we could see 0,1,2,4,5,7,MAX
+			for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
+				if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
 					System.err.println("All Watermarks: ");
 					for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
 						System.err.println(CustomOperator.finalWatermarks[i].get(k));
@@ -183,9 +153,14 @@ public class TimestampITCase {
 
 					Assert.fail("Wrong watermark.");
 				}
-
 			}
-
+			if (!CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size() - 1).equals(new Watermark(Long.MAX_VALUE))) {
+				System.err.println("All Watermarks: ");
+				for (int k = 0; k <= NUM_WATERMARKS; k++) {
+					System.err.println(CustomOperator.finalWatermarks[i].get(k));
+				}
+				Assert.fail("Wrong watermark.");
+			}
 		}
 	}
 
@@ -293,7 +268,7 @@ public class TimestampITCase {
 				});
 
 		extractOp
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check",
 						BasicTypeInfo.INT_TYPE_INFO,
 						new TimestampCheckingOperator());
@@ -362,7 +337,7 @@ public class TimestampITCase {
 				return Long.MIN_VALUE;
 			}
 		})
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 
@@ -429,7 +404,7 @@ public class TimestampITCase {
 				return Long.MIN_VALUE;
 			}
 		})
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 
@@ -444,6 +419,68 @@ public class TimestampITCase {
 		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
 			Assert.fail("Wrong watermark.");
 		}
+	}
+
+	/**
+	 * This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks.
+	 */
+	@Test
+	public void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
+		final int NUM_ELEMENTS = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(2);
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().enableTimestamps();
+		env.getConfig().setAutoWatermarkInterval(1);
+
+
+		DataStream<Integer> source1 = env.addSource(new EventTimeSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				int index = 0;
+				while (index < NUM_ELEMENTS) {
+					ctx.collectWithTimestamp(index, index);
+					ctx.collectWithTimestamp(index - 1, index - 1);
+					index++;
+					ctx.emitWatermark(new Watermark(index-2));
+				}
+
+				// emit the final Long.MAX_VALUE watermark, do it twice and verify that
+				// we only see one in the result
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		});
+
+		source1.assignTimestamps(new TimestampExtractor<Integer>() {
+			@Override
+			public long extractTimestamp(Integer element, long currentTimestamp) {
+				return element;
+			}
+
+			@Override
+			public long extractWatermark(Integer element, long currentTimestamp) {
+				return Long.MIN_VALUE;
+			}
+
+			@Override
+			public long getCurrentWatermark() {
+				return Long.MIN_VALUE;
+			}
+		})
+			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
+
+
+		env.execute();
+
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
 	}
 
 	/**
@@ -503,28 +540,58 @@ public class TimestampITCase {
 		env.execute();
 	}
 
+	/**
+	 * This verifies that an event time source works when setting stream time characteristic to
+	 * processing time. In this case, the watermarks should just be swallowed.
+	 */
+	@Test
+	public void testEventTimeSourceWithProcessingTime() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(2);
+		env.getConfig().disableSysoutLogging();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		env.getConfig().disableTimestamps();
+
+		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
+
+		source1
+			.map(new IdentityMap())
+			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false));
+
+		env.execute();
+
+		// verify that we don't get any watermarks, the source is used as watermark source in
+		// other tests, so it normally emits watermarks
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
+	}
+
 	@SuppressWarnings("unchecked")
 	public static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		List<Watermark> watermarks;
 		public static List<Watermark>[] finalWatermarks = new List[PARALLELISM];
-		private long oldTimestamp;
+		private final boolean timestampsEnabled;
 
-		public CustomOperator() {
+		public CustomOperator(boolean timestampsEnabled) {
 			setChainingStrategy(ChainingStrategy.ALWAYS);
+			this.timestampsEnabled = timestampsEnabled;
 		}
 
 		@Override
 		public void processElement(StreamRecord<Integer> element) throws Exception {
-			if (element.getTimestamp() != element.getValue()) {
-				Assert.fail("Timestamps are not properly handled.");
+			if (timestampsEnabled) {
+				if (element.getTimestamp() != element.getValue()) {
+					Assert.fail("Timestamps are not properly handled.");
+				}
 			}
-			oldTimestamp = element.getTimestamp();
 			output.collect(element);
 		}
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
+			for (Watermark previousMark: watermarks) {
+				assertTrue(previousMark.getTimestamp() < mark.getTimestamp());
+			}
 			watermarks.add(mark);
 			latch.trigger();
 			output.emitWatermark(mark);
@@ -533,7 +600,7 @@ public class TimestampITCase {
 		@Override
 		public void open() throws Exception {
 			super.open();
-			watermarks = new ArrayList<Watermark>();
+			watermarks = new ArrayList<>();
 		}
 
 		@Override

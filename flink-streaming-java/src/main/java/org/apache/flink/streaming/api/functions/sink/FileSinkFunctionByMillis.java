@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.OutputFormat;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.io.OutputFormat;
  * @param <IN>
  *            Input type
  */
+@PublicEvolving
 public class FileSinkFunctionByMillis<IN> extends FileSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 

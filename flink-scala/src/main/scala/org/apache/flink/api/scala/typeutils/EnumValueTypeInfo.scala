@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
@@ -26,24 +27,34 @@ import scala.collection.JavaConverters._
 /**
  * TypeInformation for [[Enumeration]] values.
  */
+@Public
 class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value])
   extends TypeInformation[E#Value] with AtomicType[E#Value] {
 
   type T = E#Value
 
+  @PublicEvolving
   override def isBasicType: Boolean = false
+  @PublicEvolving
   override def isTupleType: Boolean = false
+  @PublicEvolving
   override def isKeyType: Boolean = true
+  @PublicEvolving
   override def getTotalFields: Int = 1
+  @PublicEvolving
   override def getArity: Int = 1
+  @PublicEvolving
   override def getTypeClass = clazz
+  @PublicEvolving
   override def getGenericParameters = List.empty[TypeInformation[_]].asJava
 
 
+  @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     new EnumValueSerializer[E](enum)
   }
 
+  @PublicEvolving
   override def createComparator(ascOrder: Boolean, config: ExecutionConfig): TypeComparator[T] = {
     new EnumValueComparator[E](ascOrder)
   }

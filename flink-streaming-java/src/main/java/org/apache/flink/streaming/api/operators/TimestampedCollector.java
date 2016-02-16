@@ -15,20 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
-import org.joda.time.Instant;
 
 /**
  * Wrapper around an {@link Output} for user functions that expect a {@link Collector}.
  * Before giving the {@link TimestampedCollector} to a user function you must set
- * the {@link Instant timestamp} that should be attached to emitted elements. Most operators
- * would set the {@link Instant timestamp} of the incoming {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord} here.
+ * the timestamp that should be attached to emitted elements. Most operators
+ * would set the timestamp of the incoming
+ * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord} here.
  *
  * @param <T> The type of the elments that can be emitted.
  */
+@Internal
 public class TimestampedCollector<T> implements Collector<T> {
 	
 	private final Output<StreamRecord<T>> output;
@@ -52,8 +55,9 @@ public class TimestampedCollector<T> implements Collector<T> {
 	}
 
 	/**
-	 * Sets the {@link Instant timestamp} that is attached to elements that get emitted using
-	 * {@link #collect}
+	 * Sets the timestamp (long milliseconds) that is attached to elements that get emitted using
+	 * {@link #collect(Object)}
+	 * 
 	 * @param timestamp The timestamp in milliseconds
 	 */
 	public void setTimestamp(long timestamp) {

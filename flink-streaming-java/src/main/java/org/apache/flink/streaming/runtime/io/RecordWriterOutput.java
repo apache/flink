@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -35,6 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
  */
+@Internal
 public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	private StreamRecordWriter<SerializationDelegate<StreamElement>> recordWriter;

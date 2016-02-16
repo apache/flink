@@ -18,12 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -39,10 +33,20 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.derby.drda.NetworkServerControl;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.execution.Environment;
@@ -57,6 +61,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Optional;
+
+import static org.junit.Assert.*;
 
 public class DbStateBackendTest {
 
@@ -129,15 +135,16 @@ public class DbStateBackendTest {
 		assertFalse(backend.isInitialized());
 
 		Environment env = new DummyEnvironment("test", 1, 0);
-		backend.initializeForJob(env);
+		backend.initializeForJob(env, "dummy-setup-ser", StringSerializer.INSTANCE);
+		String appId = env.getApplicationID().toString().substring(0, 16);
 
 		assertNotNull(backend.getConnections());
 		assertTrue(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		backend.disposeAllStateForCurrentJob();
 		assertFalse(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + appId));
 		backend.close();
 
 		assertTrue(backend.getConnections().getFirst().isClosed());
@@ -147,8 +154,9 @@ public class DbStateBackendTest {
 	public void testSerializableState() throws Exception {
 		Environment env = new DummyEnvironment("test", 1, 0);
 		DbStateBackend backend = new DbStateBackend(conf);
+		String appId = env.getApplicationID().toString().substring(0, 16);
 
-		backend.initializeForJob(env);
+		backend.initializeForJob(env, "dummy-ser-state", StringSerializer.INSTANCE);
 
 		String state1 = "dummy state";
 		String state2 = "row row row your boat";
@@ -167,12 +175,12 @@ public class DbStateBackendTest {
 		assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 		handle2.discardState();
 
-		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 		handle3.discardState();
 
-		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		backend.close();
 
@@ -191,15 +199,19 @@ public class DbStateBackendTest {
 
 			Environment env = new DummyEnvironment("test", 2, 0);
 
-			backend.initializeForJob(env);
+			backend.initializeForJob(env, "dummy_test_kv", IntSerializer.INSTANCE);
 
-			LazyDbKvState<Integer, String> kv = backend.createKvState("state1_1", "state1", IntSerializer.INSTANCE,
-					StringSerializer.INSTANCE, null);
+			ValueState<String> state = backend.createValueState(IntSerializer.INSTANCE,
+				new ValueStateDescriptor<>("state1", StringSerializer.INSTANCE, null));
 
-			String tableName = "state1_1_" + env.getJobID().toShortString();
+			LazyDbValueState<Integer, Integer, String> kv = (LazyDbValueState<Integer, Integer, String>) state;
+
+			String tableName = "dummy_test_kv_state1";
 			assertTrue(isTableCreated(backend.getConnections().getFirst(), tableName));
 
 			assertEquals(0, kv.size());
+
+			kv.setCurrentNamespace(1);
 
 			// some modifications to the state
 			kv.setCurrentKey(1);
@@ -225,7 +237,7 @@ public class DbStateBackendTest {
 			kv.update("u3");
 
 			// draw another snapshot
-			KvStateSnapshot<Integer, String, DbStateBackend> snapshot2 = kv.snapshot(682375462379L,
+			KvStateSnapshot<Integer, Integer, ValueState<String>, ValueStateDescriptor<String>, DbStateBackend> snapshot2 = kv.snapshot(682375462379L,
 					200);
 
 			// validate the original state
@@ -238,20 +250,194 @@ public class DbStateBackendTest {
 			assertEquals("u3", kv.value());
 
 			// restore the first snapshot and validate it
-			KvState<Integer, String, DbStateBackend> restored2 = snapshot2.restoreState(backend, IntSerializer.INSTANCE,
-					StringSerializer.INSTANCE, null, getClass().getClassLoader(), 6823754623710L);
+			KvState<Integer, Integer, ValueState<String>, ValueStateDescriptor<String>, DbStateBackend> restored2 = snapshot2.restoreState(
+				backend,
+				IntSerializer.INSTANCE,
+				getClass().getClassLoader(),
+				6823754623710L);
 
-			assertEquals(0, restored2.size());
+			restored2.setCurrentNamespace(1);
+
+			@SuppressWarnings("unchecked")
+			ValueState<String> restoredState2 = (ValueState<String>) restored2;
+
 			restored2.setCurrentKey(1);
-			assertEquals("u1", restored2.value());
+			assertEquals("u1", restoredState2.value());
 			restored2.setCurrentKey(2);
-			assertEquals("u2", restored2.value());
+			assertEquals("u2", restoredState2.value());
 			restored2.setCurrentKey(3);
-			assertEquals("u3", restored2.value());
+			assertEquals("u3", restoredState2.value());
 
 			backend.close();
 		} finally {
 			deleteDirectorySilently(tempDir);
+		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked,rawtypes")
+	public void testListState() {
+		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+		try {
+			FsStateBackend fileBackend = new FsStateBackend(localFileUri(tempDir));
+
+			DbStateBackend backend = new DbStateBackend(conf, fileBackend);
+
+			Environment env = new DummyEnvironment("test", 2, 0);
+
+			backend.initializeForJob(env, "dummy_test_kv_list", IntSerializer.INSTANCE);
+
+			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", StringSerializer.INSTANCE);
+			ListState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+			@SuppressWarnings("unchecked")
+			KvState<Integer, Void, ListState<String>, ListStateDescriptor<String>, DbStateBackend> kv =
+				(KvState<Integer, Void, ListState<String>, ListStateDescriptor<String>, DbStateBackend>) state;
+
+			Joiner joiner = Joiner.on(",");
+			// some modifications to the state
+			kv.setCurrentKey(1);
+			assertEquals("", joiner.join(state.get()));
+			state.add("1");
+			kv.setCurrentKey(2);
+			assertEquals("", joiner.join(state.get()));
+			state.add("2");
+			kv.setCurrentKey(1);
+			assertEquals("1", joiner.join(state.get()));
+
+			// draw a snapshot
+			KvStateSnapshot<Integer, Void, ListState<String>, ListStateDescriptor<String>, DbStateBackend> snapshot1 =
+				kv.snapshot(682375462378L, 2);
+
+			// make some more modifications
+			kv.setCurrentKey(1);
+			state.add("u1");
+			kv.setCurrentKey(2);
+			state.add("u2");
+			kv.setCurrentKey(3);
+			state.add("u3");
+
+			// draw another snapshot
+			KvStateSnapshot<Integer, Void, ListState<String>, ListStateDescriptor<String>, DbStateBackend> snapshot2 =
+				kv.snapshot(682375462379L, 4);
+
+			// validate the original state
+			kv.setCurrentKey(1);
+			assertEquals("1,u1", joiner.join(state.get()));
+			kv.setCurrentKey(2);
+			assertEquals("2,u2", joiner.join(state.get()));
+			kv.setCurrentKey(3);
+			assertEquals("u3", joiner.join(state.get()));
+
+			kv.dispose();
+
+			// restore the second snapshot and validate it
+			KvState<Integer, Void, ListState<String>, ListStateDescriptor<String>, DbStateBackend> restored2 = snapshot2.restoreState(
+				backend,
+				IntSerializer.INSTANCE,
+				this.getClass().getClassLoader(), 20);
+
+			@SuppressWarnings("unchecked")
+			ListState<String> restored2State = (ListState<String>) restored2;
+
+			restored2.setCurrentKey(1);
+			assertEquals("1,u1", joiner.join(restored2State.get()));
+			restored2.setCurrentKey(2);
+			assertEquals("2,u2", joiner.join(restored2State.get()));
+			restored2.setCurrentKey(3);
+			assertEquals("u3", joiner.join(restored2State.get()));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked,rawtypes")
+	public void testReducingState() {
+		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+		try {
+			FsStateBackend fileBackend = new FsStateBackend(localFileUri(tempDir));
+
+			DbStateBackend backend = new DbStateBackend(conf, fileBackend);
+
+			Environment env = new DummyEnvironment("test", 2, 0);
+
+			backend.initializeForJob(env, "dummy_test_kv_reduce", IntSerializer.INSTANCE);
+
+			ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id",
+				new ReduceFunction<String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public String reduce(String value1, String value2) throws Exception {
+						return value1 + "," + value2;
+					}
+				},
+				StringSerializer.INSTANCE);
+			ReducingState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+			@SuppressWarnings("unchecked")
+			KvState<Integer, Void, ReducingState<String>, ReducingStateDescriptor<String>, DbStateBackend> kv =
+				(KvState<Integer, Void, ReducingState<String>, ReducingStateDescriptor<String>, DbStateBackend>) state;
+
+			Joiner joiner = Joiner.on(",");
+			// some modifications to the state
+			kv.setCurrentKey(1);
+			assertEquals(null, state.get());
+			state.add("1");
+			kv.setCurrentKey(2);
+			assertEquals(null, state.get());
+			state.add("2");
+			kv.setCurrentKey(1);
+			assertEquals("1", state.get());
+
+			// draw a snapshot
+			KvStateSnapshot<Integer, Void, ReducingState<String>, ReducingStateDescriptor<String>, DbStateBackend> snapshot1 =
+				kv.snapshot(682375462378L, 2);
+
+			// make some more modifications
+			kv.setCurrentKey(1);
+			state.add("u1");
+			kv.setCurrentKey(2);
+			state.add("u2");
+			kv.setCurrentKey(3);
+			state.add("u3");
+
+			// draw another snapshot
+			KvStateSnapshot<Integer, Void, ReducingState<String>, ReducingStateDescriptor<String>, DbStateBackend> snapshot2 =
+				kv.snapshot(682375462379L, 4);
+
+			// validate the original state
+			kv.setCurrentKey(1);
+			assertEquals("1,u1", state.get());
+			kv.setCurrentKey(2);
+			assertEquals("2,u2", state.get());
+			kv.setCurrentKey(3);
+			assertEquals("u3", state.get());
+
+			kv.dispose();
+
+			// restore the second snapshot and validate it
+			KvState<Integer, Void, ReducingState<String>, ReducingStateDescriptor<String>, DbStateBackend> restored2 = snapshot2.restoreState(
+				backend,
+				IntSerializer.INSTANCE,
+				this.getClass().getClassLoader(), 20);
+
+			@SuppressWarnings("unchecked")
+			ReducingState<String> restored2State = (ReducingState<String>) restored2;
+
+			restored2.setCurrentKey(1);
+			assertEquals("1,u1", restored2State.get());
+			restored2.setCurrentKey(2);
+			assertEquals("2,u2", restored2State.get());
+			restored2.setCurrentKey(3);
+			assertEquals("u3", restored2State.get());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -266,13 +452,22 @@ public class DbStateBackendTest {
 		DbStateBackend backend2 = new DbStateBackend(conf);
 		DbStateBackend backend3 = new DbStateBackend(conf);
 
-		backend1.initializeForJob(new DummyEnvironment("test", 3, 0));
-		backend2.initializeForJob(new DummyEnvironment("test", 3, 1));
-		backend3.initializeForJob(new DummyEnvironment("test", 3, 2));
+		backend1.initializeForJob(new DummyEnvironment("test", 3, 0), "dummy_1", StringSerializer.INSTANCE);
+		backend2.initializeForJob(new DummyEnvironment("test", 3, 1), "dummy_2", StringSerializer.INSTANCE);
+		backend3.initializeForJob(new DummyEnvironment("test", 3, 2), "dummy_3", StringSerializer.INSTANCE);
 
-		LazyDbKvState<?, ?> s1 = backend1.createKvState("a_1", "a", null, null, null);
-		LazyDbKvState<?, ?> s2 = backend2.createKvState("a_1", "a", null, null, null);
-		LazyDbKvState<?, ?> s3 = backend3.createKvState("a_1", "a", null, null, null);
+		ValueState<String> s1State = backend1.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a1", StringSerializer.INSTANCE, null));
+		
+		ValueState<String> s2State = backend2.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a2", StringSerializer.INSTANCE, null));
+		
+		ValueState<String> s3State = backend3.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a3", StringSerializer.INSTANCE, null));
+
+		LazyDbValueState<?, ?, ?> s1 = (LazyDbValueState<?, ?, ?>) s1State;
+		LazyDbValueState<?, ?, ?> s2 = (LazyDbValueState<?, ?, ?>) s2State;
+		LazyDbValueState<?, ?, ?> s3 = (LazyDbValueState<?, ?, ?>) s3State;
 
 		assertTrue(s1.isCompactor());
 		assertFalse(s2.isCompactor());
@@ -324,22 +519,26 @@ public class DbStateBackendTest {
 
 		Environment env = new DummyEnvironment("test", 2, 0);
 
-		String tableName = "state1_1_" + env.getJobID().toShortString();
+		String tableName = "dummy_test_caching_state1";
 		assertFalse(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
 		assertFalse(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
 
-		backend.initializeForJob(env);
+		backend.initializeForJob(env, "dummy_test_caching", IntSerializer.INSTANCE);
 
-		LazyDbKvState<Integer, String> kv = backend.createKvState("state1_1", "state1", IntSerializer.INSTANCE,
-				StringSerializer.INSTANCE, "a");
+		ValueState<String> state = backend.createValueState(IntSerializer.INSTANCE,
+			new ValueStateDescriptor<>("state1", StringSerializer.INSTANCE, "a"));
+
+		LazyDbValueState<Integer, Integer, String> kv = (LazyDbValueState<Integer, Integer, String>) state;
 
 		assertTrue(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
 		assertTrue(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
 
-		Map<Integer, Optional<String>> cache = kv.getStateCache();
-		Map<Integer, Optional<String>> modified = kv.getModified();
+		Map<Tuple2<Integer, Integer>, Optional<String>> cache = kv.getStateCache();
+		Map<Tuple2<Integer, Integer>, Optional<String>> modified = kv.getModified();
 
 		assertEquals(0, kv.size());
+
+		kv.setCurrentNamespace(1);
 
 		// some modifications to the state
 		kv.setCurrentKey(1);
@@ -360,24 +559,24 @@ public class DbStateBackendTest {
 		kv.update("3");
 		assertEquals("3", kv.value());
 
-		assertTrue(modified.containsKey(1));
-		assertTrue(modified.containsKey(2));
-		assertTrue(modified.containsKey(3));
+		assertTrue(modified.containsKey(Tuple2.of(1, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(2, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(3, 1)));
 
 		// 1,2 should be evicted as the cache filled
 		kv.setCurrentKey(4);
 		kv.update("4");
 		assertEquals("4", kv.value());
 
-		assertFalse(modified.containsKey(1));
-		assertFalse(modified.containsKey(2));
-		assertTrue(modified.containsKey(3));
-		assertTrue(modified.containsKey(4));
+		assertFalse(modified.containsKey(Tuple2.of(1, 1)));
+		assertFalse(modified.containsKey(Tuple2.of(2, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(3, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(4, 1)));
 
-		assertEquals(Optional.of("3"), cache.get(3));
-		assertEquals(Optional.of("4"), cache.get(4));
-		assertFalse(cache.containsKey(1));
-		assertFalse(cache.containsKey(2));
+		assertEquals(Optional.of("3"), cache.get(Tuple2.of(3, 1)));
+		assertEquals(Optional.of("4"), cache.get(Tuple2.of(4, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(1, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(2, 1)));
 
 		// draw a snapshot
 		kv.snapshot(682375462378L, 100);
@@ -390,19 +589,19 @@ public class DbStateBackendTest {
 		kv.update(null);
 		assertEquals("a", kv.value());
 
-		assertTrue(modified.containsKey(2));
+		assertTrue(modified.containsKey(Tuple2.of(2, 1)));
 		assertEquals(1, modified.size());
 
-		assertEquals(Optional.of("3"), cache.get(3));
-		assertEquals(Optional.of("4"), cache.get(4));
-		assertEquals(Optional.absent(), cache.get(2));
-		assertFalse(cache.containsKey(1));
+		assertEquals(Optional.of("3"), cache.get(Tuple2.of(3, 1)));
+		assertEquals(Optional.of("4"), cache.get(Tuple2.of(4, 1)));
+		assertEquals(Optional.absent(), cache.get(Tuple2.of(2, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(1, 1)));
 
-		assertTrue(modified.containsKey(2));
-		assertFalse(modified.containsKey(3));
-		assertFalse(modified.containsKey(4));
-		assertTrue(cache.containsKey(3));
-		assertTrue(cache.containsKey(4));
+		assertTrue(modified.containsKey(Tuple2.of(2, 1)));
+		assertFalse(modified.containsKey(Tuple2.of(3, 1)));
+		assertFalse(modified.containsKey(Tuple2.of(4, 1)));
+		assertTrue(cache.containsKey(Tuple2.of(3, 1)));
+		assertTrue(cache.containsKey(Tuple2.of(4, 1)));
 
 		// clear cache from initial keys
 
@@ -413,14 +612,14 @@ public class DbStateBackendTest {
 		kv.setCurrentKey(7);
 		kv.value();
 
-		assertFalse(modified.containsKey(5));
-		assertTrue(modified.containsKey(6));
-		assertTrue(modified.containsKey(7));
+		assertFalse(modified.containsKey(Tuple2.of(5, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(6, 1)));
+		assertTrue(modified.containsKey(Tuple2.of(7, 1)));
 
-		assertFalse(cache.containsKey(1));
-		assertFalse(cache.containsKey(2));
-		assertFalse(cache.containsKey(3));
-		assertFalse(cache.containsKey(4));
+		assertFalse(cache.containsKey(Tuple2.of(1, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(2, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(3, 1)));
+		assertFalse(cache.containsKey(Tuple2.of(4, 1)));
 
 		kv.setCurrentKey(2);
 		assertEquals("a", kv.value());
@@ -428,7 +627,8 @@ public class DbStateBackendTest {
 		long checkpointTs = System.currentTimeMillis();
 
 		// Draw a snapshot that we will restore later
-		KvStateSnapshot<Integer, String, DbStateBackend> snapshot1 = kv.snapshot(682375462379L, checkpointTs);
+		KvStateSnapshot<Integer, Integer, ValueState<String>, ValueStateDescriptor<String>, DbStateBackend> snapshot1 = kv.snapshot(682375462379L, checkpointTs);
+
 		assertTrue(modified.isEmpty());
 
 		// Do some updates then draw another snapshot (imitate a partial
@@ -448,17 +648,35 @@ public class DbStateBackendTest {
 
 		// restore the second snapshot and validate it (we set a new default
 		// value here to make sure that the default wasn't written)
-		KvState<Integer, String, DbStateBackend> restored = snapshot1.restoreState(backend, IntSerializer.INSTANCE,
-				StringSerializer.INSTANCE, "b", getClass().getClassLoader(), 6823754623711L);
+		KvState<Integer, Integer, ValueState<String>, ValueStateDescriptor<String>, DbStateBackend> restored = snapshot1.restoreState(
+			backend,
+			IntSerializer.INSTANCE,
+			getClass().getClassLoader(),
+			6823754623711L);
+
+		LazyDbValueState<Integer, Integer, String> lazyRestored = (LazyDbValueState<Integer, Integer, String>) restored;
+
+		cache = lazyRestored.getStateCache();
+		modified = lazyRestored.getModified();
+
+		restored.setCurrentNamespace(1);
+
+		@SuppressWarnings("unchecked")
+		ValueState<String> restoredState = (ValueState<String>) restored;
 
 		restored.setCurrentKey(1);
-		assertEquals("b", restored.value());
+
+		assertEquals("a", restoredState.value());
+		// make sure that we got the default and not some value from the db
+		assertEquals(cache.get(Tuple2.of(1, 1)), Optional.<String>absent());
 		restored.setCurrentKey(2);
-		assertEquals("b", restored.value());
+		assertEquals("a", restoredState.value());
+		// make sure that we got the default and not some value from the db
+		assertEquals(cache.get(Tuple2.of(2, 1)), Optional.<String>absent());
 		restored.setCurrentKey(3);
-		assertEquals("3", restored.value());
+		assertEquals("3", restoredState.value());
 		restored.setCurrentKey(4);
-		assertEquals("4", restored.value());
+		assertEquals("4", restoredState.value());
 
 		backend.close();
 	}

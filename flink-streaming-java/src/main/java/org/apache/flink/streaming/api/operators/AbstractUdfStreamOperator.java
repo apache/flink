@@ -20,16 +20,17 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
@@ -46,6 +47,7 @@ import static java.util.Objects.requireNonNull;
  * @param <F>
  *            The type of the user function
  */
+@PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -98,6 +100,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 
 	@Override
 	public void dispose() {
+		super.dispose();
 		if (!functionsClosed) {
 			functionsClosed = true;
 			try {
@@ -131,7 +134,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 			
 			if (udfState != null) {
 				try {
-					StateBackend<?> stateBackend = getStateBackend();
+					AbstractStateBackend stateBackend = getStateBackend();
 					StateHandle<Serializable> handle = 
 							stateBackend.checkpointStateSerializable(udfState, checkpointId, timestamp);
 					state.setFunctionState(handle);
@@ -172,8 +175,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		super.notifyOfCompletedCheckpoint(checkpointId);
 
-		if (userFunction instanceof CheckpointNotifier) {
-			((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
+		if (userFunction instanceof CheckpointListener) {
+			((CheckpointListener) userFunction).notifyCheckpointComplete(checkpointId);
 		}
 	}
 

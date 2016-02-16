@@ -16,41 +16,35 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import org.junit.Assert;
-
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.StringValue;
-import org.junit.Before;
-import org.junit.Test;
-
 public class PrimitiveDataTypeTest {
 
-	private DataOutputStream mOut;
+	private PipedInputStream in;
+	private PipedOutputStream out;
 
-	private DataInputStream mIn;
+	private DataInputView mIn;
+	private DataOutputView mOut;
 
 	@Before
-	public void setup() {
-		try {
-			PipedInputStream input = new PipedInputStream(1000);
-			mIn = new DataInputStream(input);
-			mOut = new DataOutputStream(new PipedOutputStream(input));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	public void setup() throws Exception {
+		in = new PipedInputStream(1000);
+		out = new PipedOutputStream(in);
+		mIn = new DataInputViewStreamWrapper(in);
+		mOut = new DataOutputViewStreamWrapper(out);
 	}
 
 	@Test
@@ -68,15 +62,15 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(int0.compareTo(int3), -1);
 		// test stream output and retrieval
 		try {
-			int0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			int2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			int3.write(new OutputViewDataOutputStreamWrapper(mOut));
+			int0.write(mOut);
+			int2.write(mOut);
+			int3.write(mOut);
 			IntValue int1n = new IntValue();
 			IntValue int2n = new IntValue();
 			IntValue int3n = new IntValue();
-			int1n.read(new InputViewDataInputStreamWrapper(mIn));
-			int2n.read(new InputViewDataInputStreamWrapper(mIn));
-			int3n.read(new InputViewDataInputStreamWrapper(mIn));
+			int1n.read(mIn);
+			int2n.read(mIn);
+			int3n.read(mIn);
 			Assert.assertEquals(int0.compareTo(int1n), 0);
 			Assert.assertEquals(int0.getValue(), int1n.getValue());
 			Assert.assertEquals(int2.compareTo(int2n), 0);
@@ -104,15 +98,15 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(double0.compareTo(double3), -1);
 		// test stream output and retrieval
 		try {
-			double0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			double2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			double3.write(new OutputViewDataOutputStreamWrapper(mOut));
+			double0.write(mOut);
+			double2.write(mOut);
+			double3.write(mOut);
 			DoubleValue double1n = new DoubleValue();
 			DoubleValue double2n = new DoubleValue();
 			DoubleValue double3n = new DoubleValue();
-			double1n.read(new InputViewDataInputStreamWrapper(mIn));
-			double2n.read(new InputViewDataInputStreamWrapper(mIn));
-			double3n.read(new InputViewDataInputStreamWrapper(mIn));
+			double1n.read(mIn);
+			double2n.read(mIn);
+			double3n.read(mIn);
 			Assert.assertEquals(double0.compareTo(double1n), 0);
 			Assert.assertEquals(double0.getValue(), double1n.getValue(), 0.0001);
 			Assert.assertEquals(double2.compareTo(double2n), 0);
@@ -164,25 +158,27 @@ public class PrimitiveDataTypeTest {
 		try {
 			string7.charAt(5);
 			Assert.fail("Exception should have been thrown when accessing characters out of bounds.");
-		} catch (IndexOutOfBoundsException iOOBE) {}
+		} catch (IndexOutOfBoundsException iOOBE) {
+			// expected
+		}
 		
 		// test stream out/input
 		try {
-			string0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string4.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string3.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string7.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string0.write(mOut);
+			string4.write(mOut);
+			string2.write(mOut);
+			string3.write(mOut);
+			string7.write(mOut);
 			StringValue string1n = new StringValue();
 			StringValue string2n = new StringValue();
 			StringValue string3n = new StringValue();
 			StringValue string4n = new StringValue();
 			StringValue string7n = new StringValue();
-			string1n.read(new InputViewDataInputStreamWrapper(mIn));
-			string4n.read(new InputViewDataInputStreamWrapper(mIn));
-			string2n.read(new InputViewDataInputStreamWrapper(mIn));
-			string3n.read(new InputViewDataInputStreamWrapper(mIn));
-			string7n.read(new InputViewDataInputStreamWrapper(mIn));
+			string1n.read(mIn);
+			string4n.read(mIn);
+			string2n.read(mIn);
+			string3n.read(mIn);
+			string7n.read(mIn);
 			Assert.assertEquals(string0.compareTo(string1n), 0);
 			Assert.assertEquals(string0.toString(), string1n.toString());
 			Assert.assertEquals(string4.compareTo(string4n), 0);
@@ -196,7 +192,10 @@ public class PrimitiveDataTypeTest {
 			try {
 				string7n.charAt(5);
 				Assert.fail("Exception should have been thrown when accessing characters out of bounds.");
-			} catch (IndexOutOfBoundsException iOOBE) {}
+			}
+			catch (IndexOutOfBoundsException iOOBE) {
+				// expected
+			}
 			
 		} catch (Exception e) {
 			Assert.assertTrue(false);
@@ -221,19 +220,19 @@ public class PrimitiveDataTypeTest {
 		try {
 			// write it multiple times
 			for (int i = 0; i < numWrites; i++) {
-				pn.write(new OutputViewDataOutputStreamWrapper(mOut));
+				pn.write(mOut);
 			}
 			
 			// read it multiple times
 			for (int i = 0; i < numWrites; i++) {
-				pn.read(new InputViewDataInputStreamWrapper(mIn));
+				pn.read(mIn);
 			}
 			
-			Assert.assertEquals("Reading PactNull does not consume the same data as was written.", mIn.available(), 0);
+			
+			Assert.assertEquals("Reading PactNull does not consume the same data as was written.", 0, in.available());
 		}
 		catch (IOException ioex) {
 			Assert.fail("An exception occurred in the testcase: " + ioex.getMessage());
 		}
 	}
-
 }

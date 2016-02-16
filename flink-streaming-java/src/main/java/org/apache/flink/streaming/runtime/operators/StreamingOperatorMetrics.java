@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.annotation.Internal;
+
+@Internal
 public class StreamingOperatorMetrics {
 	
 	

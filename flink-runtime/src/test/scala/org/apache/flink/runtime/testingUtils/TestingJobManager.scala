@@ -19,58 +19,50 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+import java.util.concurrent.ExecutorService
+
 /** JobManager implementation extended by testing messages
   *
-  * @param flinkConfiguration
-  * @param executionContext
-  * @param instanceManager
-  * @param scheduler
-  * @param libraryCacheManager
-  * @param archive
-  * @param defaultExecutionRetries
-  * @param delayBetweenRetries
-  * @param timeout
-  * @param mode
   */
 class TestingJobManager(
     flinkConfiguration: Configuration,
-    executionContext: ExecutionContext,
+    executorService: ExecutorService,
     instanceManager: InstanceManager,
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
-    defaultExecutionRetries: Int,
-    delayBetweenRetries: Long,
+    restartStrategy: RestartStrategy,
     timeout: FiniteDuration,
-    mode: StreamingMode,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
-    checkpointRecoveryFactory : CheckpointRecoveryFactory)
+    checkpointRecoveryFactory : CheckpointRecoveryFactory,
+    savepointStore : SavepointStore,
+    jobRecoveryTimeout: FiniteDuration)
   extends JobManager(
     flinkConfiguration,
-    executionContext,
+      executorService,
     instanceManager,
     scheduler,
     libraryCacheManager,
     archive,
-    defaultExecutionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
-    mode,
     leaderElectionService,
     submittedJobGraphs,
-    checkpointRecoveryFactory)
+    checkpointRecoveryFactory,
+    savepointStore,
+    jobRecoveryTimeout)
   with TestingJobManagerLike {}

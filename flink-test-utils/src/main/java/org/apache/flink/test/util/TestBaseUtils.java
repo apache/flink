@@ -32,7 +32,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -104,7 +103,6 @@ public class TestBaseUtils extends TestLogger {
 	public static ForkableFlinkMiniCluster startCluster(
 		int numTaskManagers,
 		int taskManagerNumSlots,
-		StreamingMode mode,
 		boolean startWebserver,
 		boolean startZooKeeper,
 		boolean singleActorSystem) throws Exception {
@@ -121,12 +119,11 @@ public class TestBaseUtils extends TestLogger {
 			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		}
 
-		return startCluster(config, mode, singleActorSystem);
+		return startCluster(config, singleActorSystem);
 	}
 
 	public static ForkableFlinkMiniCluster startCluster(
 		Configuration config,
-		StreamingMode mode,
 		boolean singleActorSystem) throws Exception {
 
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
@@ -144,7 +141,7 @@ public class TestBaseUtils extends TestLogger {
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
-		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem);
 
 		cluster.start();
 

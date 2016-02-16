@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -30,6 +31,7 @@ import java.util.ArrayDeque;
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
  */
+@Internal
 public class HeapWindowBuffer<T> implements EvictingWindowBuffer<T> {
 	private static final long serialVersionUID = 1L;
 

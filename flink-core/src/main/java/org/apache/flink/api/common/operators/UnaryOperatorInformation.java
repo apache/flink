@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * @param <IN> Output type of the input operator
  * @param <OUT> Output type of the records output by the operator described by this information
  */
+@Internal
 public class UnaryOperatorInformation<IN, OUT> extends OperatorInformation<OUT> {
 
 	/**

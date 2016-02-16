@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * This interface has to be implemented by all data types that act as key. Keys are used to establish
@@ -31,7 +32,12 @@ package org.apache.flink.types;
  * @see org.apache.flink.types.Value
  * @see org.apache.flink.core.io.IOReadableWritable
  * @see java.lang.Comparable
+ * 
+ * @deprecated The Key type is a relict of a deprecated and removed API and will be removed
+ *             in future versions as well.
  */
+@Deprecated
+@PublicEvolving
 public interface Key<T> extends Value, Comparable<T> {
 	
 	/**

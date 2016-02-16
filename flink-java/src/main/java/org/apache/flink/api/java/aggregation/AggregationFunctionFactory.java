@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.annotation.Internal;
 
+@Internal
 public interface AggregationFunctionFactory extends java.io.Serializable {
 
 	<T> AggregationFunction<T> createAggregationFunction(Class<T> type);

@@ -75,17 +75,17 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
+			<artifactId>flink-scala_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala</artifactId>
+			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 	</dependencies>
@@ -115,18 +115,20 @@ under the License.
 									<!-- This list contains all dependencies of flink-dist
 									Everything else will be packaged into the fat-jar
 									-->
-									<exclude>org.apache.flink:flink-shaded-*</exclude>
+									<exclude>org.apache.flink:flink-annotations</exclude>
+									<exclude>org.apache.flink:flink-shaded-hadoop1</exclude>
+									<exclude>org.apache.flink:flink-shaded-hadoop2</exclude>
+									<exclude>org.apache.flink:flink-shaded-curator-recipes</exclude>
 									<exclude>org.apache.flink:flink-core</exclude>
 									<exclude>org.apache.flink:flink-java</exclude>
-									<exclude>org.apache.flink:flink-scala</exclude>
-									<exclude>org.apache.flink:flink-runtime</exclude>
-									<exclude>org.apache.flink:flink-optimizer</exclude>
-									<exclude>org.apache.flink:flink-clients</exclude>
-									<exclude>org.apache.flink:flink-avro</exclude>
-									<exclude>org.apache.flink:flink-java-examples</exclude>
-									<exclude>org.apache.flink:flink-scala-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-java</exclude>
+									<exclude>org.apache.flink:flink-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-runtime_2.10</exclude>
+									<exclude>org.apache.flink:flink-optimizer_2.10</exclude>
+									<exclude>org.apache.flink:flink-clients_2.10</exclude>
+									<exclude>org.apache.flink:flink-avro_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-batch_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming_2.10</exclude>
+									<exclude>org.apache.flink:flink-streaming-java_2.10</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -144,18 +146,9 @@ under the License.
 									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
 									<exclude>io.netty:netty-all</exclude>
 									<exclude>io.netty:netty</exclude>
-									<exclude>org.eclipse.jetty:jetty-server</exclude>
-									<exclude>org.eclipse.jetty:jetty-continuation</exclude>
-									<exclude>org.eclipse.jetty:jetty-http</exclude>
-									<exclude>org.eclipse.jetty:jetty-io</exclude>
-									<exclude>org.eclipse.jetty:jetty-util</exclude>
-									<exclude>org.eclipse.jetty:jetty-security</exclude>
-									<exclude>org.eclipse.jetty:jetty-servlet</exclude>
 									<exclude>commons-fileupload:commons-fileupload</exclude>
 									<exclude>org.apache.avro:avro</exclude>
 									<exclude>commons-collections:commons-collections</exclude>
-									<exclude>org.codehaus.jackson:jackson-core-asl</exclude>
-									<exclude>org.codehaus.jackson:jackson-mapper-asl</exclude>
 									<exclude>com.thoughtworks.paranamer:paranamer</exclude>
 									<exclude>org.xerial.snappy:snappy-java</exclude>
 									<exclude>org.apache.commons:commons-compress</exclude>
@@ -180,18 +173,14 @@ under the License.
 									<exclude>org.apache.commons:commons-math</exclude>
 									<exclude>org.apache.sling:org.apache.sling.commons.json</exclude>
 									<exclude>commons-logging:commons-logging</exclude>
-									<exclude>org.apache.httpcomponents:httpclient</exclude>
-									<exclude>org.apache.httpcomponents:httpcore</exclude>
 									<exclude>commons-codec:commons-codec</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
-									<exclude>org.codehaus.jettison:jettison</exclude>
 									<exclude>stax:stax-api</exclude>
 									<exclude>com.typesafe:config</exclude>
 									<exclude>org.uncommons.maths:uncommons-maths</exclude>
 									<exclude>com.github.scopt:scopt_*</exclude>
-									<exclude>org.mortbay.jetty:servlet-api</exclude>
 									<exclude>commons-io:commons-io</exclude>
 									<exclude>commons-cli:commons-cli</exclude>
 								</excludes>
@@ -200,7 +189,8 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<excludes>
-										<exclude>org/apache/flink/shaded/**</exclude>
+										<!-- exclude shaded google but include shaded curator -->
+										<exclude>org/apache/flink/shaded/com/**</exclude>
 										<exclude>web-docs/**</exclude>
 									</excludes>
 								</filter>
@@ -328,19 +318,19 @@ under the License.
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-scala</artifactId>
+					<artifactId>flink-scala_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-java</artifactId>
+					<artifactId>flink-streaming-java_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-clients</artifactId>
+					<artifactId>flink-clients_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>

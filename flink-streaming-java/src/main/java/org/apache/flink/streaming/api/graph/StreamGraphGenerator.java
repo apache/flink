@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -71,6 +72,7 @@ import java.util.Map;
  * We add the edge {@code 4 -> 3}. The {@code StreamGraph} resolved the actual node with ID 1 and
  * creates and edge {@code 1 -> 3} with the property HashPartition.
  */
+@Internal
 public class StreamGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphGenerator.class);
@@ -181,6 +183,9 @@ public class StreamGraphGenerator {
 		}
 		if (transform.getResourceStrategy() != StreamGraph.ResourceStrategy.DEFAULT) {
 			streamGraph.setResourceStrategy(transform.getId(), transform.getResourceStrategy());
+		}
+		if (transform.getUid() != null) {
+			streamGraph.setTransformationId(transform.getId(), transform.getUid());
 		}
 
 		return transformedIds;
@@ -436,7 +441,7 @@ public class StreamGraphGenerator {
 
 		if (sink.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
+			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
 		}
 
 		return Collections.emptyList();
@@ -466,10 +471,7 @@ public class StreamGraphGenerator {
 
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
-			streamGraph.setKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
-		}
-		if (transform.getStateKeyType() != null) {
-			
+			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
 		}
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
@@ -505,6 +507,12 @@ public class StreamGraphGenerator {
 				transform.getInputType2(),
 				transform.getOutputType(),
 				transform.getName());
+
+		if (transform.getStateKeySelector1() != null) {
+			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
+			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
+		}
+
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 

@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.common.io.compression;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -26,6 +28,7 @@ import java.util.zip.GZIPInputStream;
 /**
  * Factory for input streams that decompress the GZIP compression format.
  */
+@Internal
 public class GzipInflaterInputStreamFactory implements InflaterInputStreamFactory<GZIPInputStream> {
 
 	private static GzipInflaterInputStreamFactory INSTANCE = null;

@@ -23,6 +23,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility class to work with Apache Hadoop MapRed classes.
  */
+@Internal
 public final class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
@@ -47,7 +49,9 @@ public final class HadoopUtils {
 	public static void mergeHadoopConf(JobConf jobConf) {
 		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
-			jobConf.set(e.getKey(), e.getValue());
+			if (jobConf.get(e.getKey()) == null) {
+				jobConf.set(e.getKey(), e.getValue());
+			}
 		}
 	}
 	

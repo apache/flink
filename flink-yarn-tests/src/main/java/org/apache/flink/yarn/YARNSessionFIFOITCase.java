@@ -15,10 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Joiner;
+
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -29,6 +35,7 @@ import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
@@ -43,14 +50,15 @@ import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+
 import org.apache.log4j.Level;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONObject;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,6 +155,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 			Assert.assertEquals(1, apps.size()); // Only one running
 			ApplicationReport app = apps.get(0);
+
 			Assert.assertEquals("MyCustomName", app.getName());
 			ApplicationId id = app.getApplicationId();
 			yc.killApplication(id);
@@ -199,16 +208,17 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.info("Got application URL from YARN {}", url);
 
 			String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-			JSONObject parsedTMs = new JSONObject(response);
-			JSONArray taskManagers = parsedTMs.getJSONArray("taskmanagers");
+			
+			
+			JsonNode parsedTMs = new ObjectMapper().readTree(response);
+			ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
 			Assert.assertNotNull(taskManagers);
-			Assert.assertEquals(1, taskManagers.length());
-			Assert.assertEquals(1, taskManagers.getJSONObject(0).getInt("slotsNumber"));
+			Assert.assertEquals(1, taskManagers.size());
+			Assert.assertEquals(1, taskManagers.get(0).get("slotsNumber").asInt());
 
 			// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
 			String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-			JSONArray parsed = new JSONArray(jsonConfig);
-			Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(parsed);
+			Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
 
 			Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
 			Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
@@ -226,9 +236,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 			LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-			Assert.assertEquals("unable to find hostname in " + parsed, hostname,
+			Assert.assertEquals("unable to find hostname in " + jsonConfig, hostname,
 					parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
-			Assert.assertEquals("unable to find port in " + parsed, port,
+			Assert.assertEquals("unable to find port in " + jsonConfig, port,
 					parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
 			// test logfile access
@@ -284,14 +294,14 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		// stateful termination check:
-		// wait until we saw a container being killed and AFTERWARDS a new one launced
+		// wait until we saw a container being killed and AFTERWARDS a new one launched
 		boolean ok = false;
 		do {
 			LOG.debug("Waiting for correct order of events. Output: {}", errContent.toString());
 
 			String o = errContent.toString();
 			int killedOff = o.indexOf("Container killed by the ApplicationMaster");
-			if(killedOff != -1) {
+			if (killedOff != -1) {
 				o = o.substring(killedOff);
 				ok = o.indexOf("Launching container") > 0;
 			}
@@ -479,7 +489,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		// get temporary file for reading input data for wordcount example
-		File tmpInFile = null;
+		File tmpInFile;
 		try{
 			tmpInFile = tmp.newFile();
 			FileUtils.writeStringToFile(tmpInFile,WordCountData.TEXT);
@@ -602,8 +612,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDetachedPerJobYarnCluster() {
 		LOG.info("Starting testDetachedPerJobYarnCluster()");
 
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+		File exampleJarLocation = YarnTestBase.findFile(
+			".." + File.separator + "flink-examples" + File.separator + "flink-examples-batch",
+			new ContainsName(new String[] {"-WordCount.jar"}));
+		
+		Assert.assertNotNull("Could not find batch wordcount jar", exampleJarLocation);
 
 		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
@@ -617,8 +630,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDetachedPerJobYarnClusterWithStreamingJob() {
 		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"flink-streaming-examples", "-WordCount.jar"}));
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+		File exampleJarLocation = YarnTestBase.findFile(
+			".." + File.separator + "flink-examples" + File.separator + "flink-examples-streaming",
+			new ContainsName(new String[] {"-WordCount.jar"}));
+		Assert.assertNotNull("Could not find streaming wordcount jar", exampleJarLocation);
 
 		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 

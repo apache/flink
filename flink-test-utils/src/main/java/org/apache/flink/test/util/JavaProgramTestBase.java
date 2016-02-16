@@ -22,7 +22,6 @@ import java.util.Comparator;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -51,7 +50,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	}
 	
 	public JavaProgramTestBase(Configuration config) {
-		super(config, StreamingMode.BATCH_ONLY);
+		super(config);
 		setTaskManagerNumSlots(parallelism);
 	}
 	

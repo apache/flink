@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.sampling.DistributedRandomSampler;
@@ -35,6 +36,7 @@ import java.util.Iterator;
  *
  * @param <T> the data type wrapped in ElementWithRandom as input.
  */
+@Internal
 public class SampleInCoordinator<T> implements GroupReduceFunction<IntermediateSampleData<T>, T> {
 
 	private boolean withReplacement;

@@ -19,9 +19,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A visitor encapsulates functionality that is applied to each node in the process of a traversal of a tree or DAD. 
  */
+@Internal
 public interface Visitor<T extends Visitable<T>> {
 	
 	/**

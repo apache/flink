@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -32,7 +34,7 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -45,7 +47,6 @@ import org.junit.After;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.mockito.stubbing.OngoingStubbing;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +67,7 @@ import static org.junit.Assert.*;
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
-	private final WindowFunction<String, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
+	private final WindowFunction<Iterable<String>, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
 
 	@SuppressWarnings("unchecked")
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
@@ -78,8 +79,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 	};
 	
-	private final WindowFunction<Integer, Integer, Integer, TimeWindow> validatingIdentityFunction =
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>()
+	private final WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> validatingIdentityFunction =
+			new WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow>()
 	{
 		@Override
 		public void apply(Integer key,
@@ -250,12 +251,14 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
+			// get and verify the result
+			out.waitForNElements(numElements, 60_000);
+
 			synchronized (lock) {
 				op.close();
 			}
 			op.dispose();
 
-			// get and verify the result
 			List<Integer> result = out.getElements();
 			assertEquals(numElements, result.size());
 
@@ -440,102 +443,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			timerService.shutdown();
 		}
 	}
-	
-	@Test
-	public void testEmitTrailingDataOnClose() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-			
-			// the operator has a window time that is so long that it will not fire in this test
-			final long oneYear = 365L * 24 * 60 * 60 * 1000;
-			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
-					new AccumulatingProcessingTimeWindowOperator<>(
-							validatingIdentityFunction, identitySelector,
-							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
-							oneYear, oneYear);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
-			
-			List<Integer> data = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-			for (Integer i : data) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-			}
-
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
-			
-			// get and verify the result
-			List<Integer> result = out.getElements();
-			Collections.sort(result);
-			assertEquals(data, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
-		}
-	}
-
-	@Test
-	public void testPropagateExceptionsFromClose() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-
-			WindowFunction<Integer, Integer, Integer, TimeWindow> failingFunction = new FailingFunction(100);
-
-			// the operator has a window time that is so long that it will not fire in this test
-			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
-			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
-					new AccumulatingProcessingTimeWindowOperator<>(
-							failingFunction, identitySelector,
-							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
-							hundredYears, hundredYears);
-
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
-
-			for (int i = 0; i < 150; i++) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-			}
-			
-			try {
-				synchronized (lock) {
-					op.close();
-				}
-				fail("This should fail with an exception");
-			}
-			catch (Exception e) {
-				assertTrue(
-						e.getMessage().contains("Artificial Test Exception") ||
-						(e.getCause() != null && e.getCause().getMessage().contains("Artificial Test Exception")));
-			}
-
-			op.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
-		}
-	}
-	
 	@Test
 	public void checkpointRestoreWithPendingWindowTumbling() {
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
@@ -606,10 +514,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+
+			out2.waitForNElements(numElements - resultAtSnapshot.size(), 60_000);
 
 			// get and verify the result
 			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
@@ -817,7 +723,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 	
-	private static class FailingFunction implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class FailingFunction implements WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
 
 		private final int failAfterElements;
 		
@@ -845,18 +751,19 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class StatefulFunction extends RichWindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class StatefulFunction extends RichWindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
 		
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries
 		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 		
-		private OperatorState<Integer> state;
+		private ValueState<Integer> state;
 
 		@Override
 		public void open(Configuration parameters) {
 			assertNotNull(getRuntimeContext());
-			state = getRuntimeContext().getKeyValueState("totalCount", Integer.class, 0);
+			state = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("totalCount", Integer.class, 0));
 		}
 
 		@Override
@@ -884,19 +791,27 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		when(task.getName()).thenReturn("Test task name");
 		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
-		Environment env = mock(Environment.class);
-		when(env.getIndexInSubtaskGroup()).thenReturn(0);
-		when(env.getNumberOfSubtasks()).thenReturn(1);
+		final Environment env = mock(Environment.class);
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
 
 		when(task.getEnvironment()).thenReturn(env);
 
-		// ugly java generic hacks to get the state backend into the mock
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing =
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(task.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
-		
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(env, operatorIdentifier, keySerializer);
+					return backend;
+				}
+			}).when(task).createStateBackend(any(String.class), any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return task;
 	}
 
@@ -931,7 +846,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	
 	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStatePartitioner(partitioner);
+		cfg.setStatePartitioner(0, partitioner);
 		cfg.setStateKeySerializer(keySerializer);
 		return cfg;
 	}

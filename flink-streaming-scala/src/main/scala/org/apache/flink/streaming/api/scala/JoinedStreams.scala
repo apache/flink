@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -54,6 +55,7 @@ import scala.reflect.ClassTag
  *     .apply(new MyJoinFunction())
  * } }}}
  */
+@Public
 object JoinedStreams {
 
   /**
@@ -95,7 +97,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -146,6 +148,7 @@ object JoinedStreams {
     /**
      * Specifies the window on which the join operation works.
      */
+    @PublicEvolving
     def window[W <: Window](
         assigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W])
         : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
@@ -168,7 +171,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -194,6 +197,7 @@ object JoinedStreams {
     /**
      * Sets the [[Trigger]] that should be used to trigger window emission.
      */
+    @PublicEvolving
     def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -212,6 +216,7 @@ object JoinedStreams {
      * Note: When using an evictor window performance will degrade significantly, since
      * pre-aggregation of window results cannot be used.
      */
+    @PublicEvolving
     def evictor(newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -244,7 +249,6 @@ object JoinedStreams {
      * Completes the join operation with the user function that is executed
      * for windowed groups.
      */
-
     def apply[O: TypeInformation: ClassTag](fun: (T1, T2, Collector[O]) => Unit): DataStream[O] = {
       require(fun != null, "Join function must not be null.")
 
@@ -263,7 +267,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: JoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       join
         .where(keySelector1)
@@ -280,7 +284,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: FlatJoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       join
         .where(keySelector1)
@@ -296,7 +300,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 

@@ -134,6 +134,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public PlanNode getSource() {
 		return this.source;
 	}
+
+	public void setSource(PlanNode source) {
+		this.source = source;
+	}
 	
 	/**
 	 * Sets the target of this Channel.

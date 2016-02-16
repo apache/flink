@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -65,6 +67,8 @@ import static org.mockito.Mockito.when;
 
 public class StreamMockEnvironment implements Environment {
 
+	private final TaskInfo taskInfo;
+
 	private final MemoryManager memManager;
 
 	private final IOManager ioManager;
@@ -79,6 +83,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private final List<ResultPartitionWriter> outputs;
 
+	private final ApplicationID appId = new ApplicationID();
+
 	private final JobID jobID = new JobID();
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
@@ -89,6 +95,7 @@ public class StreamMockEnvironment implements Environment {
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
 									MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		this.taskInfo = new TaskInfo("", 0, 1, 0);
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
@@ -202,6 +209,11 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public ApplicationID getApplicationID() {
+		return this.appId;
+	}
+
+	@Override
 	public JobID getJobID() {
 		return this.jobID;
 	}
@@ -212,28 +224,13 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public int getNumberOfSubtasks() {
-		return 1;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return 0;
-	}
-
-	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
 
 	@Override
-	public String getTaskName() {
-		return "";
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return "";
+	public TaskInfo getTaskInfo() {
+		return this.taskInfo;
 	}
 
 	@Override

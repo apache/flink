@@ -56,7 +56,7 @@ public class TestLogger {
 			log.error("\n--------------------------------------------------------------------------------"
 					 + "\nTest {} failed with:\n{}"
 					 + "\n================================================================================"
-					, description, StringUtils.stringifyException(e));
+					, description, ExceptionUtils.stringifyException(e));
 		}
 	};
 }

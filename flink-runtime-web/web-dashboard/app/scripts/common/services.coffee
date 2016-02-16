@@ -22,7 +22,7 @@ angular.module('flinkApp')
   @loadConfig = ->
     deferred = $q.defer()
 
-    $http.get "config"
+    $http.get flinkConfig.jobServer + "config"
     .success (data, status, headers, config) ->
       deferred.resolve(data)
 

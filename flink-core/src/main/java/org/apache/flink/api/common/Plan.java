@@ -34,9 +34,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
@@ -48,6 +50,7 @@ import org.apache.flink.util.Visitor;
  * <p>The dataflow is referenced by the data sinks, from which all connected
  * operators of the data flow can be reached via backwards traversal</p>.
  */
+@Internal
 public class Plan implements Visitable<Operator<?>> {
 
 	/** The default parallelism indicates to use the cluster's default */
@@ -57,7 +60,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<GenericDataSinkBase<?>>(4);
+	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<>(4);
 
 	/** The name of the job. */
 	protected String jobName;
@@ -66,7 +69,7 @@ public class Plan implements Visitable<Operator<?>> {
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
 	
 	/** Hash map for files in the distributed cache: registered name to cache entry. */
-	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
+	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<>();
 	
 	/** Config object for runtime execution parameters. */
 	protected ExecutionConfig executionConfig;
@@ -290,25 +293,17 @@ public class Plan implements Visitable<Operator<?>> {
 		
 		this.defaultParallelism = defaultParallelism;
 	}
-	
+
 	/**
-	 * Gets the number of times the system will try to re-execute failed tasks. A value
-	 * of {@code -1} indicates that the system default value (as defined in the configuration)
-	 * should be used.
-	 * 
-	 * @return The number of times the system will try to re-execute failed tasks.
+	 * Returns the specified restart strategy configuration. This configuration defines the used
+	 * restart strategy to be used at runtime.
+	 *
+	 * @return The specified restart strategy configuration
 	 */
-	public int getNumberOfExecutionRetries() {
-		return getExecutionConfig().getNumberOfExecutionRetries();
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategyConfiguration() {
+		return getExecutionConfig().getRestartStrategy();
 	}
-	
-	/**
-	 * Gets the delay between retry failed task.
-	 * @return The delay the system will wait to retry.
-	 */
-	public long getExecutionRetryDelay() {
-		return getExecutionConfig().getExecutionRetryDelay();
-	}
+
 	/**
 	 * Gets the optimizer post-pass class for this job. The post-pass typically creates utility classes
 	 * for data types and is specific to a particular data model (record, tuple, Scala, ...)
@@ -316,7 +311,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The name of the class implementing the optimizer post-pass.
 	 */
 	public String getPostPassClassName() {
-		return "org.apache.flink.optimizer.postpass.RecordModelPostPass";
+		return "org.apache.flink.optimizer.postpass.JavaApiPostPass";
 	}
 
 	/**

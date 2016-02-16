@@ -52,7 +52,8 @@ public class StreamTaskAsyncCheckpointTest {
 	 * This ensures that asynchronous state handles are actually materialized asynchonously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
-	 * the parts that are not asynchronous.
+	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
+	 * test will simply lock forever.
 	 * @throws Exception
 	 */
 	@Test
@@ -182,6 +183,11 @@ public class StreamTaskAsyncCheckpointTest {
 		public StateHandle<String> materialize() throws Exception {
 			return new TestStateHandle(checkpointId, timestamp);
 		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
+		}
 	}
 
 	private static class TestStateHandle implements StateHandle<String> {
@@ -201,6 +207,11 @@ public class StreamTaskAsyncCheckpointTest {
 
 		@Override
 		public void discardState() throws Exception {
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
 		}
 	}
 	

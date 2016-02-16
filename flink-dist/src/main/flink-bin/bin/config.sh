@@ -30,7 +30,7 @@ constructFlinkClassPath() {
     echo $FLINK_CLASSPATH
 }
 
-# These are used to mangle paths that are passed to java when using 
+# These are used to mangle paths that are passed to java when using
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
 # but the windows java version expects them in Windows Format, i.e. C:\bla\blub.
 # "cygpath" can do the conversion.
@@ -61,11 +61,11 @@ readFromConfig() {
     local key=$1
     local defaultValue=$2
     local configFile=$3
-    
+
     # first extract the value with the given key (1st sed), then trim the result (2nd sed)
     # if a key exists multiple times, take the "last" one (tail)
     local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
-    
+
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
 }
 
@@ -92,6 +92,7 @@ KEY_TASKM_MEM_SIZE="taskmanager.heap.mb"
 KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
+KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_MAX="env.log.max"
@@ -130,7 +131,7 @@ FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
 
 # These need to be mangled because they are directly passed to java.
-# The above lib path is used by the shell script to retrieve jars in a 
+# The above lib path is used by the shell script to retrieve jars in a
 # directory, so it needs to be unmangled.
 FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
 if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
@@ -144,11 +145,11 @@ YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 ########################################################################################################################
 
 # read JAVA_HOME from config with no default value
-MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")  
+MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")
 # check if config specified JAVA_HOME
 if [ -z "${MY_JAVA_HOME}" ]; then
     # config did not specify JAVA_HOME. Use system JAVA_HOME
-    MY_JAVA_HOME=${JAVA_HOME} 
+    MY_JAVA_HOME=${JAVA_HOME}
 fi
 # check if we have a valid JAVA_HOME and if java is not available
 if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
@@ -199,6 +200,11 @@ fi
 # Define FLINK_TM_OFFHEAP if it is not already set
 if [ -z "${FLINK_TM_OFFHEAP}" ]; then
     FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} "false" "${YAML_CONF}")
+fi
+
+# Define FLINK_TM_MEM_PRE_ALLOCATE if it is not already set
+if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
+    FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then

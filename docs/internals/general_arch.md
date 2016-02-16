@@ -1,5 +1,9 @@
 ---
 title:  "General Architecture and Process Model"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 3
+top-nav-title: Architecture and Process Model
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -77,7 +81,6 @@ You can click on the components in the figure to learn more.
   <area shape="rect" coords="333,405,473,455" alt="Remote" href="../apis/cluster_execution.html">
   <area shape="rect" coords="478,405,638,455" alt="Embedded" href="../apis/local_execution.html">
   <area shape="rect" coords="643,405,765,455" alt="YARN" href="../setup/yarn_setup.html">
-  <area shape="rect" coords="770,405,893,455" alt="Tez" href="../setup/flink_on_tez.html">
 </map>
 
 ## Projects and Dependencies
@@ -97,13 +100,9 @@ In addition to the projects listed in the figure above, Flink currently contains
 - `flink-dist`: The *distribution* project. It defines how to assemble the compiled code, scripts, and other resources
 into the final folder structure that is ready to use.
 
-- `flink-staging`: A series of projects that are in an early version. Currently contains
-among other things projects for YARN support, JDBC data sources and sinks, hadoop compatibility,
-graph specific operators, and HBase connectors.
-
 - `flink-quickstart`: Scripts, maven archetypes, and example programs for the quickstarts and tutorials.
 
-- `flink-contrib`: Useful tools contributed by users. The code is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
+- `flink-contrib`: A series of projects that are in an early version and useful tools contributed by users. The code for the latter is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
 
 
 

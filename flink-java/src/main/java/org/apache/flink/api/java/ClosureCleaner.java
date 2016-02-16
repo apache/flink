@@ -19,6 +19,7 @@
 package org.apache.flink.api.java;
 
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 import org.objectweb.asm.ClassReader;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+@Internal
 public class ClosureCleaner {
 	private static Logger LOG = LoggerFactory.getLogger(ClosureCleaner.class);
 
@@ -105,7 +107,7 @@ class This0AccessFinder extends ClassVisitor {
 	private String this0Name;
 
 	public This0AccessFinder(String this0Name) {
-		super(Opcodes.ASM4);
+		super(Opcodes.ASM5);
 		this.this0Name = this0Name;
 	}
 
@@ -115,7 +117,7 @@ class This0AccessFinder extends ClassVisitor {
 
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
-		return new MethodVisitor(Opcodes.ASM4) {
+		return new MethodVisitor(Opcodes.ASM5) {
 
 			@Override
 			public void visitFieldInsn(int op, String owner, String name, String desc) {

@@ -98,12 +98,12 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     splittedResult
       .select("0")
       .map(_._2)
-      .getJavaStream
+      .javaStream
       .writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE)
     splittedResult
       .select("1")
       .map(_._2)
-      .getJavaStream
+      .javaStream
       .writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE)
 
     val groupedSequence = 0 until numElements groupBy( _ % numKeys)

@@ -112,7 +112,7 @@ public class TypeInformationSerializationSchemaTest {
 
 		@Override
 		public String toString() {
-			return String.format("MyPOJO " + aField + " " + aList);
+			return "MyPOJO " + aField + " " + aList;
 		}
 	}
 }

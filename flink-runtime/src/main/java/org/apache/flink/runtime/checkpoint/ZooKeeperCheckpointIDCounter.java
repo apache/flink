@@ -61,6 +61,10 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 	private final SharedCountConnectionStateListener connStateListener =
 			new SharedCountConnectionStateListener();
 
+	private final Object startStopLock = new Object();
+
+	private boolean isStarted;
+
 	/**
 	 * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
 	 *
@@ -76,17 +80,29 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 
 	@Override
 	public void start() throws Exception {
-		sharedCount.start();
-		client.getConnectionStateListenable().addListener(connStateListener);
+		synchronized (startStopLock) {
+			if (!isStarted) {
+				sharedCount.start();
+				client.getConnectionStateListenable().addListener(connStateListener);
+
+				isStarted = true;
+			}
+		}
 	}
 
 	@Override
 	public void stop() throws Exception {
-		sharedCount.close();
-		client.getConnectionStateListenable().removeListener(connStateListener);
+		synchronized (startStopLock) {
+			if (isStarted) {
+				sharedCount.close();
+				client.getConnectionStateListenable().removeListener(connStateListener);
 
-		LOG.info("Removing {} from ZooKeeper", counterPath);
-		client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+				LOG.info("Removing {} from ZooKeeper", counterPath);
+				client.delete().deletingChildrenIfNeeded().inBackground().forPath(counterPath);
+
+				isStarted = false;
+			}
+		}
 	}
 
 	@Override
@@ -106,6 +122,23 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 				return current.getValue();
 			}
 		}
+	}
+
+	@Override
+	public void setCount(long newId) throws Exception {
+		ConnectionState connState = connStateListener.getLastState();
+
+		if (connState != null) {
+			throw new IllegalStateException("Connection state: " + connState);
+		}
+
+		if (newId > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("ZooKeeper checkpoint counter only supports " +
+					"checkpoints Ids up to " + Integer.MAX_VALUE  + ", but given value is" +
+					newId);
+		}
+
+		sharedCount.setCount((int) newId);
 	}
 
 	/**

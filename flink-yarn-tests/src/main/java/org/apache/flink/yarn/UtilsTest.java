@@ -31,6 +31,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class UtilsTest {
 	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
@@ -63,7 +64,7 @@ public class UtilsTest {
 		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
 
 		// test different configuration
-		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf) );
+		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf));
 
 		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "1000");
 		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.1");
@@ -97,6 +98,28 @@ public class UtilsTest {
 		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 
+	@Test
+	public void testGetEnvironmentVariables() {
+		Configuration testConf = new Configuration();
+		testConf.setString("yarn.application-master.env.LD_LIBRARY_PATH", "/usr/lib/native");
+
+		Map<String, String> res = Utils.getEnvironmentVariables("yarn.application-master.env.", testConf);
+
+		Assert.assertEquals(1, res.size());
+		Map.Entry<String, String> entry = res.entrySet().iterator().next();
+		Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+		Assert.assertEquals("/usr/lib/native", entry.getValue());
+	}
+
+	@Test
+	public void testGetEnvironmentVariablesErroneous() {
+		Configuration testConf = new Configuration();
+		testConf.setString("yarn.application-master.env.", "/usr/lib/native");
+
+		Map<String, String> res = Utils.getEnvironmentVariables("yarn.application-master.env.", testConf);
+
+		Assert.assertEquals(0, res.size());
+	}
 
 	//
 	// --------------- Tools to test if a certain string has been logged with Log4j. -------------

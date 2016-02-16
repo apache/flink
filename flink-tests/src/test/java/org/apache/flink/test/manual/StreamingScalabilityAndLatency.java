@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -54,7 +53,7 @@ public class StreamingScalabilityAndLatency {
 			config.setInteger("taskmanager.net.server.numThreads", 1);
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 
-			cluster = new LocalFlinkMiniCluster(config, false, StreamingMode.STREAMING);
+			cluster = new LocalFlinkMiniCluster(config, false);
 			cluster.start();
 			
 			runPartitioningProgram(cluster.getLeaderRPCPort(), PARALLELISM);

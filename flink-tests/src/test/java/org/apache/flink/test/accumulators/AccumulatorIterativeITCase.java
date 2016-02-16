@@ -46,9 +46,9 @@ public class AccumulatorIterativeITCase extends JavaProgramTestBase {
 		
 		IterativeDataSet<Integer> iteration = env.fromElements(1, 2, 3).iterate(NUM_ITERATIONS);
 		
-		iteration.closeWith(iteration.reduceGroup(new SumReducer())).output(new DiscardingOutputFormat());
+		iteration.closeWith(iteration.reduceGroup(new SumReducer())).output(new DiscardingOutputFormat<Integer>());
 		
-		Assert.assertEquals(Integer.valueOf(NUM_ITERATIONS * 6), (Integer)env.execute().getAccumulatorResult(ACC_NAME));
+		Assert.assertEquals(NUM_ITERATIONS * 6, env.execute().getAccumulatorResult(ACC_NAME));
 	}
 	
 	static final class SumReducer extends RichGroupReduceFunction<Integer, Integer> {

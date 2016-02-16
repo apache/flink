@@ -24,7 +24,6 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
@@ -43,23 +42,15 @@ import scala.concurrent.{Await, Future}
  *                          otherwise false
  */
 class TestingCluster(
-                      userConfiguration: Configuration,
-                      singleActorSystem: Boolean,
-                      synchronousDispatcher: Boolean,
-                      streamingMode: StreamingMode)
+    userConfiguration: Configuration,
+    singleActorSystem: Boolean,
+    synchronousDispatcher: Boolean)
   extends FlinkMiniCluster(
     userConfiguration,
-    singleActorSystem,
-    streamingMode) {
+    singleActorSystem) {
 
-
-  def this(userConfiguration: Configuration,
-           singleActorSystem: Boolean,
-           synchronousDispatcher: Boolean)
-  = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
-
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-  = this(userConfiguration, singleActorSystem, false)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) =
+    this(userConfiguration, singleActorSystem, false)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
 
@@ -71,6 +62,8 @@ class TestingCluster(
     cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort())
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
     cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+
+    setDefaultCiConfig(cfg)
 
     cfg.addAll(userConfig)
     cfg
@@ -103,13 +96,14 @@ class TestingCluster(
     instanceManager,
     scheduler,
     libraryCacheManager,
-    executionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     archiveCount,
     leaderElectionService,
     submittedJobsGraphs,
-    checkpointRecoveryFactory) = JobManager.createJobManagerComponents(
+    checkpointRecoveryFactory,
+    savepointStore,
+    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
       config,
       createLeaderElectionService())
 
@@ -124,13 +118,13 @@ class TestingCluster(
         scheduler,
         libraryCacheManager,
         archive,
-        executionRetries,
-        delayBetweenRetries,
+        restartStrategy,
         timeout,
-        streamingMode,
         leaderElectionService,
         submittedJobsGraphs,
-        checkpointRecoveryFactory))
+        checkpointRecoveryFactory,
+        savepointStore,
+        jobRecoveryTimeout))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)
@@ -153,7 +147,6 @@ class TestingCluster(
       Some(tmActorName),
       Some(createLeaderRetrievalService),
       numTaskManagers == 1,
-      streamingMode,
       classOf[TestingTaskManager])
   }
 

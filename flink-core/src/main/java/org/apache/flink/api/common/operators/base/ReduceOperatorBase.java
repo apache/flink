@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -50,6 +51,7 @@ import java.util.Map;
  * @param <T> The type (parameters and return type) of the reduce function.
  * @param <FT> The type of the reduce function.
  */
+@Internal
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
 	private Partitioner<?> customPartitioner;

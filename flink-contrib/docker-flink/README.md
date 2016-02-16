@@ -21,7 +21,7 @@ chmod +x /usr/local/bin/docker-compose
 
 ###Build the images
 
-Images are based on Ubuntu Trusty 14.04 and run Supervor to stay alive when running containers.
+Images are based on Ubuntu Trusty 14.04 and run Supervisord to stay alive when running containers.
 
 The base image installs Oracle Java JDK 1.7 and SSH client & server. You can change the SSH password there or add your own key and adjust SSH config.
 

@@ -206,7 +206,7 @@ object AkkaUtils {
 
     val startupTimeout = configuration.getString(
       ConfigConstants.AKKA_STARTUP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val transportHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
@@ -222,11 +222,11 @@ object AkkaUtils {
 
     val watchHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-      (akkaAskTimeout/10).toString)
+      (akkaAskTimeout).toString)
 
     val watchHeartbeatPause = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val watchThreshold = configuration.getDouble(
       ConfigConstants.AKKA_WATCH_THRESHOLD,
@@ -234,7 +234,7 @@ object AkkaUtils {
 
     val akkaTCPTimeout = configuration.getString(
       ConfigConstants.AKKA_TCP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val akkaFramesize = configuration.getString(
       ConfigConstants.AKKA_FRAMESIZE,
@@ -473,6 +473,22 @@ object AkkaUtils {
 
   def getDefaultLookupTimeout: FiniteDuration = {
     val duration = Duration(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT)
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  def getClientTimeout(config: Configuration): FiniteDuration = {
+    val duration = Duration(
+      config.getString(
+        ConfigConstants.AKKA_CLIENT_TIMEOUT,
+        ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT
+      ))
+
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  def getDefaultClientTimeout: FiniteDuration = {
+    val duration = Duration(ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT)
+
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 

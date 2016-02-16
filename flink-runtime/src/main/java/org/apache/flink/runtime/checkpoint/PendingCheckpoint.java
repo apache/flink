@@ -116,7 +116,7 @@ public class PendingCheckpoint {
 			}
 			if (notYetAcknowledgedTasks.isEmpty()) {
 				CompletedCheckpoint completed =  new CompletedCheckpoint(jobId, checkpointId,
-						checkpointTimestamp, new ArrayList<StateForTask>(collectedStates));
+						checkpointTimestamp, System.currentTimeMillis(), new ArrayList<StateForTask>(collectedStates));
 				dispose(null, false);
 				
 				return completed;
@@ -127,7 +127,11 @@ public class PendingCheckpoint {
 		}
 	}
 	
-	public boolean acknowledgeTask(ExecutionAttemptID attemptID, SerializedValue<StateHandle<?>> state) {
+	public boolean acknowledgeTask(
+			ExecutionAttemptID attemptID,
+			SerializedValue<StateHandle<?>> state,
+			long stateSize) {
+
 		synchronized (lock) {
 			if (discarded) {
 				return false;
@@ -136,7 +140,12 @@ public class PendingCheckpoint {
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
 				if (state != null) {
-					collectedStates.add(new StateForTask(state, vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()));
+					collectedStates.add(new StateForTask(
+							state,
+							stateSize,
+							vertex.getJobvertexId(),
+							vertex.getParallelSubtaskIndex(),
+							System.currentTimeMillis() - checkpointTimestamp));
 				}
 				numAcknowledgedTasks++;
 				return true;

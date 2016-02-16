@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
+import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -97,23 +97,10 @@ public abstract class TaskTestBase extends TestLogger {
 		config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
 		
 		task.setEnvironment(this.mockEnv);
-
-		try {
-			task.registerInputOutput();
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
 	}
 
 	public void registerTask(AbstractInvokable task) {
 		task.setEnvironment(this.mockEnv);
-		try {
-			task.registerInputOutput();
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
 	}
 
 	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat<Record>> stubClass, String outPath) {
@@ -129,13 +116,6 @@ public abstract class TaskTestBase extends TestLogger {
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(outputFormat));
 
 		outTask.setEnvironment(this.mockEnv);
-
-		try {
-			outTask.registerInputOutput();
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
 	}
 
 	public void registerFileInputTask(AbstractInvokable inTask,
@@ -158,13 +138,6 @@ public abstract class TaskTestBase extends TestLogger {
 		this.inputSplitProvider.addInputSplits(inPath, 5);
 
 		inTask.setEnvironment(this.mockEnv);
-
-		try {
-			inTask.registerInputOutput();
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
 	}
 
 	public MemoryManager getMemoryManager() {

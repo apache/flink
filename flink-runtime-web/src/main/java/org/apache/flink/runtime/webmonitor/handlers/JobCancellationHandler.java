@@ -25,22 +25,25 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-public class JobCancellationHandler implements RequestHandler, RequestHandler.JsonResponse {
+/**
+ * Request handler for the CANCEL request.
+ */
+public class JobCancellationHandler implements RequestHandler {
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(params.get("jobid")));
+			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
 			if (jobManager != null) {
 				jobManager.tell(new JobManagerMessages.CancelJob(jobid));
-				return "";
+				return "{}";
 			}
 			else {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Failed to cancel the job with id: "  + params.get("jobid") + e.getMessage(), e);
+			throw new Exception("Failed to cancel the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
 		}
 	}
 }

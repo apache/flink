@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -30,29 +31,34 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link StreamOperator} for streaming sources.
+ *
+ * @param <OUT> Type of the output elements
+ * @param <SRC> Type of the source function of this stream source operator
  */
-public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction<T>> implements StreamOperator<T> {
+@Internal
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends AbstractUdfStreamOperator<OUT, SRC>
+	implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private transient SourceFunction.SourceContext<T> ctx;
+	private transient SourceFunction.SourceContext<OUT> ctx;
 
-	public StreamSource(SourceFunction<T> sourceFunction) {
+	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
+	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
 		final ExecutionConfig executionConfig = getExecutionConfig();
 		
 		if (userFunction instanceof EventTimeSourceFunction) {
-			ctx = new ManualWatermarkContext<T>(lockingObject, collector);
+			ctx = new ManualWatermarkContext<OUT>(lockingObject, collector, getRuntimeContext().getExecutionConfig().areTimestampsEnabled());
 		} else if (executionConfig.getAutoWatermarkInterval() > 0) {
-			ctx = new AutomaticWatermarkContext<T>(lockingObject, collector, executionConfig);
+			ctx = new AutomaticWatermarkContext<OUT>(lockingObject, collector, executionConfig);
 		} else if (executionConfig.areTimestampsEnabled()) {
-			ctx = new NonWatermarkContext<T>(lockingObject, collector);
+			ctx = new NonWatermarkContext<OUT>(lockingObject, collector);
 		} else {
-			ctx = new NonTimestampContext<T>(lockingObject, collector);
+			ctx = new NonTimestampContext<OUT>(lockingObject, collector);
 		}
 
 		userFunction.run(ctx);
@@ -60,6 +66,12 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		// This will mostly emit a final +Inf Watermark to make the Watermark logic work
 		// when some sources finish before others do
 		ctx.close();
+
+		if (executionConfig.areTimestampsEnabled()) {
+			synchronized (lockingObject) {
+				output.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+		}
 	}
 
 	public void cancel() {
@@ -145,9 +157,15 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
+			if (mark.getTimestamp() == Long.MAX_VALUE) {
+				// allow it since this is the special end-watermark that for example the Kafka
+				// source emits
+				output.emitWatermark(mark);
+			} else {
+				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
 					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
+			}
 		}
 
 		@Override
@@ -230,9 +248,15 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
+			if (mark.getTimestamp() == Long.MAX_VALUE) {
+				// allow it since this is the special end-watermark that for example the Kafka
+				// source emits
+				output.emitWatermark(mark);
+			} else {
+				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
 					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
+			}
 		}
 
 		@Override
@@ -261,11 +285,13 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		private final Object lockingObject;
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
+		private final boolean watermarkMultiplexingEnabled;
 
-		public ManualWatermarkContext(Object lockingObject, Output<StreamRecord<T>> output) {
+		public ManualWatermarkContext(Object lockingObject, Output<StreamRecord<T>> output, boolean watermarkMultiplexingEnabled) {
 			this.lockingObject = lockingObject;
 			this.output = output;
 			this.reuse = new StreamRecord<T>(null);
+			this.watermarkMultiplexingEnabled = watermarkMultiplexingEnabled;
 		}
 
 		@Override
@@ -283,7 +309,9 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			output.emitWatermark(mark);
+			if (watermarkMultiplexingEnabled) {
+				output.emitWatermark(mark);
+			}
 		}
 
 		@Override
@@ -292,12 +320,6 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {
-			// emit one last +Inf watermark to make downstream watermark processing work
-			// when some sources close early
-			synchronized (lockingObject) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
-		}
+		public void close() {}
 	}
 }

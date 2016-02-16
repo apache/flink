@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
@@ -41,6 +43,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	private static final long serialVersionUID = -3233562176034358530L;
 
+	/** The ID of the application the tasks belongs to. */
+	private final ApplicationID appId;
+
 	/** The ID of the job the tasks belongs to. */
 	private final JobID jobID;
 
@@ -58,6 +63,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The number of sub tasks. */
 	private final int numberOfSubtasks;
+
+	/** Attempt number the task */
+	private final int attemptNumber;
 
 	/** The configuration of the job the task belongs to. */
 	private final Configuration jobConfiguration;
@@ -90,24 +98,28 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
-			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
-			Configuration taskConfiguration, String invokableClassName,
+			ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
+			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
+			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState, long recoveryTimestamp) {
+			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState,
+			long recoveryTimestamp) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
 		checkArgument(targetSlotNumber >= 0);
+		checkArgument(attemptNumber >= 0);
 
+		this.appId = checkNotNull(appId);
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
 		this.taskName = checkNotNull(taskName);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 		this.numberOfSubtasks = numberOfSubtasks;
+		this.attemptNumber = attemptNumber;
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.invokableClassName = checkNotNull(invokableClassName);
@@ -121,17 +133,24 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	public TaskDeploymentDescriptor(
-			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
-			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
-			Configuration taskConfiguration, String invokableClassName,
+			ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
+			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
+			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
 			int targetSlotNumber) {
 
-		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
+		this(appId, jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
 				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
+	}
+
+	/**
+	 * Returns the ID of the application the tasks belongs to.
+	 */
+	public ApplicationID getApplicationID() {
+		return appId;
 	}
 
 	/**
@@ -173,6 +192,20 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public int getNumberOfSubtasks() {
 		return numberOfSubtasks;
+	}
+
+	/**
+	 * Returns the attempt number of the subtask
+	 */
+	public int getAttemptNumber() {
+		return attemptNumber;
+	}
+
+	/**
+	 * Returns the {@link TaskInfo} object for the subtask
+	 */
+	public TaskInfo getTaskInfo() {
+		return new TaskInfo(taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber);
 	}
 
 	/**
@@ -224,10 +257,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	@Override
 	public String toString() {
 		return String.format("TaskDeploymentDescriptor [job id: %s, job vertex id: %s, " +
-						"execution id: %s, task name: %s (%d/%d), invokable: %s, " +
+						"execution id: %s, task name: %s (%d/%d), attempt: %d, invokable: %s, " +
 						"produced partitions: %s, input gates: %s]",
 				jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
-				invokableClassName, collectionToString(producedPartitions),
+				attemptNumber, invokableClassName, collectionToString(producedPartitions),
 				collectionToString(inputGates));
 	}
 

@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.api.common.operators.Operator
-import org.apache.flink.api.common.operators.base.JoinOperatorBase
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
+import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
@@ -57,6 +57,7 @@ import scala.reflect.ClassTag
  * @tparam L Type of the left input of the join.
  * @tparam R Type of the right input of the join.
  */
+@Public
 class JoinDataSet[L, R](
     defaultJoin: EquiJoin[L, R, (L, R)],
     leftInput: DataSet[L],
@@ -207,11 +208,13 @@ class JoinDataSet[L, R](
   /**
    * Gets the custom partitioner used by this join, or null, if none is set.
    */
+  @Internal
   def getPartitioner[K]() : Partitioner[K] = {
     customPartitioner.asInstanceOf[Partitioner[K]]
   }
 }
 
+@Internal
 private[flink] abstract class UnfinishedJoinOperationBase[L, R, O <: JoinFunctionAssigner[L, R]](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
@@ -258,9 +261,11 @@ private[flink] abstract class UnfinishedJoinOperationBase[L, R, O <: JoinFunctio
  *   val right = ...
  *   val joinResult = left.join(right).where(...).equalTo(...)
  * }}}
+ *
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
+@Public
 class UnfinishedJoinOperation[L, R](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
@@ -268,6 +273,7 @@ class UnfinishedJoinOperation[L, R](
   extends UnfinishedJoinOperationBase[L, R, JoinDataSet[L, R]](
     leftSet, rightSet, joinHint, JoinType.INNER) {
 
+  @Internal
   override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]) = {
     createDefaultJoin(leftKey, rightKey)
   }
@@ -289,9 +295,11 @@ class UnfinishedJoinOperation[L, R](
  *     (first, second) => ...
  *   }
  * }}}
+ *
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
+@Public
 class UnfinishedOuterJoinOperation[L, R](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
@@ -300,6 +308,7 @@ class UnfinishedOuterJoinOperation[L, R](
   extends UnfinishedJoinOperationBase[L, R, JoinFunctionAssigner[L, R]](
     leftSet, rightSet, joinHint, joinType) {
 
+  @Internal
   override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]):
       JoinFunctionAssigner[L, R] = {
     new DefaultJoinFunctionAssigner(createDefaultJoin(leftKey, rightKey))
@@ -326,6 +335,7 @@ class UnfinishedOuterJoinOperation[L, R](
 
 }
 
+@Public
 trait JoinFunctionAssigner[L, R] {
 
   def withPartitioner[K : TypeInformation](part : Partitioner[K]) : JoinFunctionAssigner[L, R]

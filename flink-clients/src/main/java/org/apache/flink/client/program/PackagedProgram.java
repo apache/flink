@@ -86,6 +86,8 @@ public class PackagedProgram {
 	
 	private Plan plan;
 
+	private String savepointPath;
+
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * argument.
@@ -254,9 +256,15 @@ public class PackagedProgram {
 					Program.class.getName() + " interface.");
 		}
 	}
-	
-	
-	
+
+	public void setSavepointPath(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
+
+	public String getSavepointPath() {
+		return savepointPath;
+	}
+
 	public String[] getArguments() {
 		return this.args;
 	}
@@ -574,8 +582,11 @@ public class PackagedProgram {
 	}
 	
 	private static Class<?> loadMainClass(String className, ClassLoader cl) throws ProgramInvocationException {
+		ClassLoader contextCl = null;
 		try {
-			return Class.forName(className, true, cl);
+			contextCl = Thread.currentThread().getContextClassLoader();
+			Thread.currentThread().setContextClassLoader(cl);
+			return Class.forName(className, false, cl);
 		}
 		catch (ClassNotFoundException e) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
@@ -592,6 +603,10 @@ public class PackagedProgram {
 		catch (Throwable t) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' caused an exception during initialization: "+ t.getMessage(), t);
+		} finally {
+			if (contextCl != null) {
+				Thread.currentThread().setContextClassLoader(contextCl);
+			}
 		}
 	}
 	

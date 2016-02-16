@@ -19,12 +19,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.ByteValue;
 
 /**
  * Parses a decimal text field into a {@link ByteValue}.
  * Only characters '1' to '0' and '-' are allowed.
  */
+@PublicEvolving
 public class ByteValueParser extends FieldParser<ByteValue> {
 	
 	private ByteValue result;

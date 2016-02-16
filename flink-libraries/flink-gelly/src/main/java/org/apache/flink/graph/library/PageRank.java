@@ -30,7 +30,7 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
- * This is an implementation of a simple PageRank algorithm, using a vertex-centric iteration.
+ * This is an implementation of a simple PageRank algorithm, using a scatter-gather iteration.
  * The user can define the damping factor and the maximum number of iterations.
  * If the number of vertices of the input graph is known, it should be provided as a parameter
  * to speed up computation. Otherwise, the algorithm will first execute a job to count the vertices.
@@ -88,7 +88,7 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 		Graph<K, Double, Double> networkWithWeights = network
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
 
-		return networkWithWeights.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
+		return networkWithWeights.runScatterGatherIteration(new VertexRankUpdater<K>(beta, numberOfVertices),
 				new RankMessenger<K>(numberOfVertices), maxIterations)
 				.getVertices();
 	}

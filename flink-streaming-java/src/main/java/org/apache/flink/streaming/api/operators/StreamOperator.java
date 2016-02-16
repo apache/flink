@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -39,6 +40,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
  * 
  * @param <OUT> The output type of the operator
  */
+@PublicEvolving
 public interface StreamOperator<OUT> extends Serializable {
 	
 	// ------------------------------------------------------------------------
@@ -105,7 +107,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
-	 * (if it had been used and was initialized when the snapshot ocurred).
+	 * (if it had been used and was initialized when the snapshot occurred).
 	 *
 	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
 	 * and before {@link #open()}.
@@ -134,8 +136,10 @@ public interface StreamOperator<OUT> extends Serializable {
 	//  miscellaneous
 	// ------------------------------------------------------------------------
 	
-	void setKeyContextElement(StreamRecord<?> record) throws Exception;
-	
+	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
+
+	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
+
 	/**
 	 * An operator can return true here to disable copying of its input elements. This overrides
 	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}

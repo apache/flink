@@ -86,7 +86,7 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get "joboverview"
+    $http.get flinkConfig.jobServer + "joboverview"
     .success (data, status, headers, config) =>
       angular.forEach data, (list, listKey) =>
         switch listKey
@@ -110,12 +110,12 @@ angular.module('flinkApp')
     currentJob = null
     deferreds.job = $q.defer()
 
-    $http.get "jobs/" + jobid
+    $http.get flinkConfig.jobServer + "jobs/" + jobid
     .success (data, status, headers, config) =>
       @setEndTimes(data.vertices)
       @processVertices(data)
 
-      $http.get "jobs/" + jobid + "/config"
+      $http.get flinkConfig.jobServer + "jobs/" + jobid + "/config"
       .success (jobConfig) ->
         data = angular.extend(data, jobConfig)
 
@@ -157,7 +157,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
-      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
       .success (data) =>
         # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
@@ -172,11 +172,25 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid
       .success (data) ->
         subtasks = data.subtasks
 
         deferred.resolve(subtasks)
+
+    deferred.promise
+
+  @getTaskManagers = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      # vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/taskmanagers"
+      .success (data) ->
+        taskmanagers = data.taskmanagers
+
+        deferred.resolve(taskmanagers)
 
     deferred.promise
 
@@ -186,11 +200,11 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
       .success (data) ->
         accumulators = data['user-accumulators']
 
-        $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
+        $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
         .success (data) ->
           subtaskAccumulators = data.subtasks
 
@@ -198,12 +212,64 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  # Job-level checkpoint stats
+  @getJobCheckpointStats = (jobid) ->
+    deferred = $q.defer()
+
+    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/checkpoints"
+    .success (data, status, headers, config) =>
+      if (angular.equals({}, data))
+        deferred.resolve(deferred.resolve(null))
+      else
+        deferred.resolve(data)
+
+    deferred.promise
+
+  # Operator-level checkpoint stats
+  @getOperatorCheckpointStats = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/checkpoints"
+      .success (data) ->
+        # If no data available, we are done.
+        if (angular.equals({}, data))
+          deferred.resolve({ operatorStats: null, subtasksStats: null })
+        else
+          operatorStats = { id: data['id'], timestamp: data['timestamp'], duration: data['duration'], size: data['size'] }
+
+          if (angular.equals({}, data['subtasks']))
+            deferred.resolve({ operatorStats: operatorStats, subtasksStats: null })
+          else
+            subtaskStats = data['subtasks']
+            deferred.resolve({ operatorStats: operatorStats, subtasksStats: subtaskStats })
+
+    deferred.promise
+
+  # Operator-level back pressure stats
+  @getOperatorBackPressure = (vertexid) ->
+    deferred = $q.defer()
+
+    $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/backpressure"
+    .success (data) =>
+      deferred.resolve(data)
+
+    deferred.promise
+
+  @translateBackPressureLabelState = (state) ->
+    switch state.toLowerCase()
+      when 'in-progress' then 'danger'
+      when 'ok' then 'success'
+      when 'low' then 'warning'
+      when 'high' then 'danger'
+      else 'default'
+
   @loadExceptions = ->
     deferred = $q.defer()
 
     deferreds.job.promise.then (data) =>
 
-      $http.get "jobs/" + currentJob.jid + "/exceptions"
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/exceptions"
       .success (exceptions) ->
         currentJob.exceptions = exceptions
 
@@ -214,6 +280,11 @@ angular.module('flinkApp')
   @cancelJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
     # proper "DELETE jobs/<jobid>/"
-    $http.get "jobs/" + jobid + "/yarn-cancel"
+    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/yarn-cancel"
+
+  @stopJob = (jobid) ->
+    # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
+    # proper "DELETE jobs/<jobid>/"
+    $http.get "jobs/" + jobid + "/yarn-stop"
 
   @

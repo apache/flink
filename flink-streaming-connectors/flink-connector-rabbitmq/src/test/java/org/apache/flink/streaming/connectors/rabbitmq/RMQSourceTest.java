@@ -21,7 +21,6 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer;
-import junit.framework.Assert;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -141,7 +140,9 @@ public class RMQSourceTest {
 			}
 
 			// check if the messages are being acknowledged and the transaction comitted
-			source.notifyCheckpointComplete(snapshotId);
+			synchronized (DummySourceContext.lock) {
+				source.notifyCheckpointComplete(snapshotId);
+			}
 			totalNumberOfAcks += numIds;
 
 		}

@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.annotation.PublicEvolving;
 
+@PublicEvolving
 public class UnsupportedAggregationTypeException extends RuntimeException {
 
 	private static final long serialVersionUID = -1721898801986321005L;

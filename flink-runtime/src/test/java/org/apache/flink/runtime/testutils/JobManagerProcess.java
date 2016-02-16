@@ -22,7 +22,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.JobManagerMode;
@@ -190,8 +189,7 @@ public class JobManagerProcess extends TestJvmProcess {
 		private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcessEntryPoint.class);
 
 		/**
-		 * Runs the JobManager process in {@link JobManagerMode#CLUSTER} and {@link
-		 * StreamingMode#STREAMING} (can handle both batch and streaming jobs).
+		 * Runs the JobManager process in {@link JobManagerMode#CLUSTER}.
 		 *
 		 * <p><strong>Required argument</strong>: <code>port</code>. Start the process with
 		 * <code>--port PORT</code>.
@@ -210,8 +208,7 @@ public class JobManagerProcess extends TestJvmProcess {
 				LOG.info("Configuration: {}.", config);
 
 				// Run the JobManager
-				JobManager.runJobManager(config, JobManagerMode.CLUSTER, StreamingMode.STREAMING,
-						"localhost", port);
+				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", port);
 
 				// Run forever. Forever, ever? Forever, ever!
 				new CountDownLatch(1).await();

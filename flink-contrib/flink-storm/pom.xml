@@ -24,20 +24,27 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-contrib-parent</artifactId>
+		<artifactId>flink-contrib</artifactId>
 		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm</artifactId>
+	<artifactId>flink-storm_2.10</artifactId>
 	<name>flink-storm</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
+			<!-- Together with the dependency management section in flink-parent, this
+			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

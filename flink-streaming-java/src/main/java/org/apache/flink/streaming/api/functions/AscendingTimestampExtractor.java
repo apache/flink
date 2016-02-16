@@ -17,12 +17,15 @@
  */
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Interface for user functions that extract timestamps from elements. The extracting timestamps
  * must be monotonically increasing.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  */
+@PublicEvolving
 public abstract class AscendingTimestampExtractor<T> implements TimestampExtractor<T> {
 
 	long currentTimestamp = 0;

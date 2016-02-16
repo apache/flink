@@ -132,9 +132,11 @@ public abstract class CancelingTestBase extends TestLogger {
 			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.CANCELED,
 					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
 					TestingUtils.TESTING_DURATION());
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			LOG.error("Exception found in runAndCancelJob.", e);
-			Assert.fail(StringUtils.stringifyException(e));
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 
 	}

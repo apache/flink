@@ -20,12 +20,18 @@ package org.apache.flink.streaming.api.environment;
 import com.esotericsoftware.kryo.Serializer;
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -61,8 +67,9 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
@@ -92,6 +99,7 @@ import static java.util.Objects.requireNonNull;
  * @see org.apache.flink.streaming.api.environment.LocalStreamEnvironment
  * @see org.apache.flink.streaming.api.environment.RemoteStreamEnvironment
  */
+@Public
 public abstract class StreamExecutionEnvironment {
 
 	/** The default name to use for a streaming job if no other name has been specified */
@@ -124,7 +132,7 @@ public abstract class StreamExecutionEnvironment {
 	protected boolean isChainingEnabled = true;
 	
 	/** The state backend used for storing k/v state and state snapshots */
-	private StateBackend<?> defaultStateBackend;
+	private AbstractStateBackend defaultStateBackend;
 	
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -219,6 +227,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return StreamExecutionEnvironment with chaining disabled.
 	 */
+	@PublicEvolving
 	public StreamExecutionEnvironment disableOperatorChaining() {
 		this.isChainingEnabled = false;
 		return this;
@@ -229,6 +238,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return {@code true} if chaining is enabled, false otherwise.
 	 */
+	@PublicEvolving
 	public boolean isChainingEnabled() {
 		return isChainingEnabled;
 	}
@@ -314,6 +324,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
+	@PublicEvolving
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
 		checkpointCfg.setCheckpointingMode(mode);
 		checkpointCfg.setCheckpointInterval(interval);
@@ -338,6 +349,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @deprecated Use {@link #enableCheckpointing(long)} instead.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public StreamExecutionEnvironment enableCheckpointing() {
 		checkpointCfg.setCheckpointInterval(500);
 		return this;
@@ -359,6 +371,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
+	@PublicEvolving
 	public boolean isForceCheckpointing() {
 		return checkpointCfg.isForceCheckpointing();
 	}
@@ -376,7 +389,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Sets the state backend that describes how to store and checkpoint operator state. It defines in
-	 * what form the key/value state ({@link org.apache.flink.api.common.state.OperatorState}, accessible
+	 * what form the key/value state ({@link ValueState}, accessible
 	 * from operations on {@link org.apache.flink.streaming.api.datastream.KeyedStream}) is maintained
 	 * (heap, managed memory, externally), and where state snapshots/checkpoints are stored, both for
 	 * the key/value state, and for checkpointed functions (implementing the interface
@@ -396,7 +409,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @see #getStateBackend()
 	 */
-	public StreamExecutionEnvironment setStateBackend(StateBackend<?> backend) {
+	@PublicEvolving
+	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
 		this.defaultStateBackend = requireNonNull(backend);
 		return this;
 	}
@@ -405,10 +419,32 @@ public abstract class StreamExecutionEnvironment {
 	 * Returns the state backend that defines how to store and checkpoint state.
 	 * @return The state backend that defines how to store and checkpoint state.
 	 * 
-	 * @see #setStateBackend(StateBackend)
+	 * @see #setStateBackend(AbstractStateBackend)
 	 */
-	public StateBackend<?> getStateBackend() {
+	@PublicEvolving
+	public AbstractStateBackend getStateBackend() {
 		return defaultStateBackend;
+	}
+
+	/**
+	 * Sets the restart strategy configuration. The configuration specifies which restart strategy
+	 * will be used for the execution graph in case of a restart.
+	 *
+	 * @param restartStrategyConfiguration Restart strategy configuration to be set
+	 */
+	@PublicEvolving
+	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+		config.setRestartStrategy(restartStrategyConfiguration);
+	}
+
+	/**
+	 * Returns the specified restart strategy configuration.
+	 *
+	 * @return The restart strategy configuration to be used
+	 */
+	@PublicEvolving
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
+		return config.getRestartStrategy();
 	}
 
 	/**
@@ -419,7 +455,13 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param numberOfExecutionRetries
 	 * 		The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #setRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
 	}
@@ -430,7 +472,13 @@ public abstract class StreamExecutionEnvironment {
 	 * in the configuration) should be used.
 	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #getRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
 	}
@@ -442,6 +490,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param parallelism
 	 * 		The parallelism to use as the default local parallelism.
 	 */
+	@PublicEvolving
 	public static void setDefaultLocalParallelism(int parallelism) {
 		defaultLocalParallelism = parallelism;
 	}
@@ -547,6 +596,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param characteristic The time characteristic.
 	 */
+	@PublicEvolving
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = requireNonNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
@@ -565,6 +615,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return The time characteristic.
 	 */
+	@PublicEvolving
 	public TimeCharacteristic getStreamTimeCharacteristic() {
 		return timeCharacteristic;
 	}
@@ -996,6 +1047,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		a	negative value ensures retrying forever.
 	 * @return A data stream containing the strings received from the socket
 	 */
+	@PublicEvolving
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
 				"Socket Stream");
@@ -1014,6 +1066,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		A character which splits received strings into records
 	 * @return A data stream containing the strings received from the socket
 	 */
+	@PublicEvolving
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return socketTextStream(hostname, port, delimiter, 0);
 	}
@@ -1030,6 +1083,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		allocated.
 	 * @return A data stream containing the strings received from the socket
 	 */
+	@PublicEvolving
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
 		return socketTextStream(hostname, port, '\n');
 	}
@@ -1050,6 +1104,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data created by the input format
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat) {
 		return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat), "Custom File source");
 	}
@@ -1068,6 +1123,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data created by the input format
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> typeInfo) {
 		return createInput(inputFormat, typeInfo, "Custom File source");
 	}
@@ -1171,9 +1227,30 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
-		StreamSource<OUT> sourceOperator = new StreamSource<OUT>(function);
+		StreamSource<OUT, ?> sourceOperator;
+		if (function instanceof StoppableFunction) {
+			sourceOperator = new StoppableStreamSource<>(cast2StoppableSourceFunction(function));
+		} else {
+			sourceOperator = new StreamSource<>(function);
+		}
 
 		return new DataStreamSource<OUT>(this, typeInfo, sourceOperator, isParallel, sourceName);
+	}
+
+	/**
+	 * Casts the source function into a SourceFunction implementing the StoppableFunction.
+	 *
+	 * This method should only be used if the source function was checked to implement the
+	 * {@link StoppableFunction} interface.
+	 *
+	 * @param sourceFunction Source function to cast
+	 * @param <OUT> Output type of source function
+	 * @param <T> Union type of SourceFunction and StoppableFunction
+	 * @return The casted source function so that it's type implements the StoppableFunction
+	 */
+	@SuppressWarnings("unchecked")
+	private <OUT, T extends SourceFunction<OUT> & StoppableFunction> T cast2StoppableSourceFunction(SourceFunction<OUT> sourceFunction) {
+		return (T) sourceFunction;
 	}
 
 	/**
@@ -1210,6 +1287,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return The streamgraph representing the transformations
 	 */
+	@Internal
 	public StreamGraph getStreamGraph() {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
@@ -1233,6 +1311,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
 	 * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
 	 */
+	@Internal
 	public <F> F clean(F f) {
 		if (getConfig().isClosureCleanerEnabled()) {
 			ClosureCleaner.clean(f, true);
@@ -1253,6 +1332,7 @@ public abstract class StreamExecutionEnvironment {
 	 * This is not meant to be used by users. The API methods that create operators must call
 	 * this method.
 	 */
+	@Internal
 	public void addOperator(StreamTransformation<?> transformation) {
 		Preconditions.checkNotNull(transformation, "transformation must not be null.");
 		this.transformations.add(transformation);

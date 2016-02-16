@@ -19,6 +19,8 @@
 package org.apache.flink.api.java;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -46,7 +48,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
@@ -64,7 +65,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
-import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
@@ -103,6 +104,8 @@ import java.util.List;
  *
  * @param <T> The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
+
+@Public
 public abstract class DataSet<T> {
 	
 	protected final ExecutionEnvironment context;
@@ -211,7 +214,7 @@ public abstract class DataSet<T> {
 
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, getType(), callLocation, true);
-		return new MapOperator<T, R>(this, resultType, clean(mapper), callLocation);
+		return new MapOperator<>(this, resultType, clean(mapper), callLocation);
 	}
 
 
@@ -240,7 +243,7 @@ public abstract class DataSet<T> {
 		
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, getType(), callLocation, true);
-		return new MapPartitionOperator<T, R>(this, resultType, clean(mapPartition), callLocation);
+		return new MapPartitionOperator<>(this, resultType, clean(mapPartition), callLocation);
 	}
 	
 	/**
@@ -262,7 +265,7 @@ public abstract class DataSet<T> {
 
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, getType(), callLocation, true);
-		return new FlatMapOperator<T, R>(this, resultType, clean(flatMapper), callLocation);
+		return new FlatMapOperator<>(this, resultType, clean(flatMapper), callLocation);
 	}
 	
 	/**
@@ -282,7 +285,7 @@ public abstract class DataSet<T> {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}
-		return new FilterOperator<T>(this, clean(filter), Utils.getCallLocationName());
+		return new FilterOperator<>(this, clean(filter), Utils.getCallLocationName());
 	}
 
 	
@@ -307,7 +310,7 @@ public abstract class DataSet<T> {
 	 * @see ProjectOperator
 	 */
 	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
-		return new Projection<T>(this, fieldIndexes).projectTupleX();
+		return new Projection<>(this, fieldIndexes).projectTupleX();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -331,7 +334,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
-		return new AggregateOperator<T>(this, agg, field, Utils.getCallLocationName());
+		return new AggregateOperator<>(this, agg, field, Utils.getCallLocationName());
 	}
 
 	/**
@@ -387,8 +390,7 @@ public abstract class DataSet<T> {
 	public long count() throws Exception {
 		final String id = new AbstractID().toString();
 
-		flatMap(new Utils.CountHelper<T>(id)).name("count()")
-				.output(new DiscardingOutputFormat<Long>()).name("count() sink");
+		output(new Utils.CountHelper<T>(id)).name("count()");
 
 		JobExecutionResult res = getExecutionEnvironment().execute();
 		return res.<Long> getAccumulatorResult(id);
@@ -405,8 +407,7 @@ public abstract class DataSet<T> {
 		final String id = new AbstractID().toString();
 		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
 		
-		this.flatMap(new Utils.CollectHelper<T>(id, serializer)).name("collect()")
-				.output(new DiscardingOutputFormat<T>()).name("collect() sink");
+		this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
@@ -440,7 +441,7 @@ public abstract class DataSet<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, clean(reducer), Utils.getCallLocationName());
+		return new ReduceOperator<>(this, clean(reducer), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -463,7 +464,7 @@ public abstract class DataSet<T> {
 		
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType(), callLocation, true);
-		return new GroupReduceOperator<T, R>(this, resultType, clean(reducer), callLocation);
+		return new GroupReduceOperator<>(this, resultType, clean(reducer), callLocation);
 	}
 
 	/**
@@ -485,7 +486,7 @@ public abstract class DataSet<T> {
 
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, getType(), callLocation, true);
-		return new GroupCombineOperator<T, R>(this, resultType, clean(combiner), callLocation);
+		return new GroupCombineOperator<>(this, resultType, clean(combiner), callLocation);
 	}
 
 	/**
@@ -520,7 +521,7 @@ public abstract class DataSet<T> {
 			throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.");
 		}
 
-		return new ReduceOperator<T>(this, new SelectByMinFunction(
+		return new ReduceOperator<>(this, new SelectByMinFunction(
 				(TupleTypeInfo) getType(), fields), Utils.getCallLocationName());
 	}
 	
@@ -556,7 +557,7 @@ public abstract class DataSet<T> {
 			throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.");
 		}
 
-		return new ReduceOperator<T>(this, new SelectByMaxFunction(
+		return new ReduceOperator<>(this, new SelectByMaxFunction(
 				(TupleTypeInfo) getType(), fields), Utils.getCallLocationName());
 	}
 
@@ -589,7 +590,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
-		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), Utils.getCallLocationName());
+		return new DistinctOperator<>(this, new Keys.SelectorFunctionKeys<>(keyExtractor, getType(), keyType), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -604,7 +605,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(int... fields) {
-		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), true), Utils.getCallLocationName());
+		return new DistinctOperator<>(this, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -618,7 +619,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(String... fields) {
-		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
+		return new DistinctOperator<>(this, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -630,7 +631,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct() {
-		return new DistinctOperator<T>(this, null, Utils.getCallLocationName());
+		return new DistinctOperator<>(this, null, Utils.getCallLocationName());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -662,7 +663,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
-		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), getType(), keyType));
+		return new UnsortedGrouping<>(this, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), getType(), keyType));
 	}
 	
 	/**
@@ -689,7 +690,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(int... fields) {
-		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), false));
+		return new UnsortedGrouping<>(this, new Keys.ExpressionKeys<>(fields, getType()));
 	}
 
 	/**
@@ -716,7 +717,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(String... fields) {
-		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+		return new UnsortedGrouping<>(this, new Keys.ExpressionKeys<>(fields, getType()));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -739,7 +740,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSets<T, R> join(DataSet<R> other) {
-		return new JoinOperatorSets<T, R>(this, other);
+		return new JoinOperatorSets<>(this, other);
 	}
 	
 	/**
@@ -760,7 +761,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSets<T, R> join(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSets<T, R>(this, other, strategy);
+		return new JoinOperatorSets<>(this, other, strategy);
 	}
 
 	/**
@@ -781,7 +782,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSets<T, R> joinWithTiny(DataSet<R> other) {
-		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_SECOND);
+		return new JoinOperatorSets<>(this, other, JoinHint.BROADCAST_HASH_SECOND);
 	}
 	
 	/**
@@ -801,7 +802,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSets<T, R> joinWithHuge(DataSet<R> other) {
-		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_FIRST);
+		return new JoinOperatorSets<>(this, other, JoinHint.BROADCAST_HASH_FIRST);
 	}
 
 	/**
@@ -844,6 +845,7 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
 			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
@@ -894,6 +896,7 @@ public abstract class DataSet<T> {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
 			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_FIRST:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
 			default:
@@ -941,6 +944,8 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
 			default:
 			throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: "+strategy);
@@ -972,7 +977,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> CoGroupOperator.CoGroupOperatorSets<T, R> coGroup(DataSet<R> other) {
-		return new CoGroupOperator.CoGroupOperatorSets<T, R>(this, other);
+		return new CoGroupOperator.CoGroupOperatorSets<>(this, other);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1017,7 +1022,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.OPTIMIZER_CHOOSES, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<>(this, other, CrossHint.OPTIMIZER_CHOOSES, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1047,7 +1052,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.SECOND_IS_SMALL, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<>(this, other, CrossHint.SECOND_IS_SMALL, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1077,7 +1082,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.FIRST_IS_SMALL, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<>(this, other, CrossHint.FIRST_IS_SMALL, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1115,7 +1120,7 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.IterativeDataSet
 	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
-		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
+		return new IterativeDataSet<>(getExecutionEnvironment(), getType(), this, maxIterations);
 	}
 	
 	/**
@@ -1168,8 +1173,8 @@ public abstract class DataSet<T> {
 		Preconditions.checkNotNull(workset);
 		Preconditions.checkNotNull(keyPositions);
 		
-		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<T>(keyPositions, getType(), false);
-		return new DeltaIteration<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
+		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<>(keyPositions, getType());
+		return new DeltaIteration<>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1201,7 +1206,7 @@ public abstract class DataSet<T> {
 	 * @return The resulting DataSet.
 	 */
 	public UnionOperator<T> union(DataSet<T> other){
-		return new UnionOperator<T>(this, other, Utils.getCallLocationName());
+		return new UnionOperator<>(this, other, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1217,7 +1222,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(int... fields) {
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType(), false), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1229,7 +1234,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(String... fields) {
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1244,9 +1249,51 @@ public abstract class DataSet<T> {
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionByHash(KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param fields The field indexes on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(int... fields) {
+		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param fields The field expressions on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(String... fields) {
+		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet using the specified KeySelector.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param keyExtractor The KeyExtractor with which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 *
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> PartitionOperator<T> partitionByRange(KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
+	}
+
 	/**
 	 * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
@@ -1258,7 +1305,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, int field) {
-		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new int[] {field}, getType(), false), clean(partitioner), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, new Keys.ExpressionKeys<>(new int[] {field}, getType()), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1272,7 +1319,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, String field) {
-		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new String[] {field}, getType()), clean(partitioner), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, new Keys.ExpressionKeys<>(new String[] {field}, getType()), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1291,7 +1338,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
-		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), clean(partitioner), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, new Keys.SelectorFunctionKeys<>(keyExtractor, getType(), keyType), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1303,7 +1350,7 @@ public abstract class DataSet<T> {
 	 * @return The re-balanced DataSet.
 	 */
 	public PartitionOperator<T> rebalance() {
-		return new PartitionOperator<T>(this, PartitionMethod.REBALANCE, Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.REBALANCE, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1319,7 +1366,7 @@ public abstract class DataSet<T> {
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public SortPartitionOperator<T> sortPartition(int field, Order order) {
-		return new SortPartitionOperator<T>(this, field, order, Utils.getCallLocationName());
+		return new SortPartitionOperator<>(this, field, order, Utils.getCallLocationName());
 	}
 
 	/**
@@ -1331,7 +1378,25 @@ public abstract class DataSet<T> {
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public SortPartitionOperator<T> sortPartition(String field, Order order) {
-		return new SortPartitionOperator<T>(this, field, order, Utils.getCallLocationName());
+		return new SortPartitionOperator<>(this, field, order, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Locally sorts the partitions of the DataSet on the extracted key in the specified order.
+	 * The DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
+	 *
+	 * Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
+	 * the partitions by multiple values using KeySelector, the KeySelector must return a tuple
+	 * consisting of the values.
+	 *
+	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet
+	 *                     on which the DataSet is sorted.
+	 * @param order The order in which the DataSet is sorted.
+	 * @return The DataSet with sorted local partitions.
+	 */
+	public <K> SortPartitionOperator<T> sortPartition(KeySelector<T, K> keyExtractor, Order order) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new SortPartitionOperator<>(this, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), getType(), keyType), order, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1393,7 +1458,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsText(String filePath) {
 		return output(new TextOutputFormat<T>(new Path(filePath)));
 	}
-	
+
 	/**
 	 * Writes a DataSet as text file(s) to the specified location.<br>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
@@ -1406,11 +1471,11 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsText(String filePath, WriteMode writeMode) {
-		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(filePath));
+		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(filePath));
 		tof.setWriteMode(writeMode);
 		return output(tof);
 	}
-	
+
 	/**
 	 * Writes a DataSet as text file(s) to the specified location.<br>
 	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
@@ -1423,7 +1488,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
-		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath);
+		return map(new FormattingMapper<>(clean(formatter))).writeAsText(filePath);
 	}
 
 	/**
@@ -1439,9 +1504,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, TextFormatter<T> formatter) {
-		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
+		return map(new FormattingMapper<>(clean(formatter))).writeAsText(filePath, writeMode);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1459,7 +1524,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsCsv(String filePath) {
 		return writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1478,7 +1543,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsCsv(String filePath, WriteMode writeMode) {
 		return internalWriteAsCsv(new Path(filePath),CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER, writeMode);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location with the specified field and line delimiters.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1517,7 +1582,7 @@ public abstract class DataSet<T> {
 	@SuppressWarnings("unchecked")
 	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
 		Preconditions.checkArgument(getType().isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
-		CsvOutputFormat<X> of = new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter);
+		CsvOutputFormat<X> of = new CsvOutputFormat<>(filePath, rowDelimiter, fieldDelimiter);
 		if(wm != null) {
 			of.setWriteMode(wm);
 		}
@@ -1595,6 +1660,7 @@ public abstract class DataSet<T> {
 	 * @deprecated Use {@link #printOnTaskManager(String)} instead.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public DataSink<T> print(String sinkIdentifier) {
 		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
 	}
@@ -1611,6 +1677,7 @@ public abstract class DataSet<T> {
 	 *             {@link PrintingOutputFormat} instead.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public DataSink<T> printToErr(String sinkIdentifier) {
 		return output(new PrintingOutputFormat<T>(sinkIdentifier, true));
 	}
@@ -1673,7 +1740,7 @@ public abstract class DataSet<T> {
 			((InputTypeConfigurable) outputFormat).setInputType(getType(), context.getConfig() );
 		}
 		
-		DataSink<T> sink = new DataSink<T>(this, outputFormat, getType());
+		DataSink<T> sink = new DataSink<>(this, outputFormat, getType());
 		this.context.registerDataSink(sink);
 		return sink;
 	}
@@ -1687,5 +1754,6 @@ public abstract class DataSet<T> {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}
+
 
 }

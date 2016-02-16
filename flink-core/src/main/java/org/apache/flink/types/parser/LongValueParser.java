@@ -19,12 +19,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.LongValue;
 
 /**
  * Parses a decimal text field into a LongValue.
  * Only characters '1' to '0' and '-' are allowed.
  */
+@PublicEvolving
 public class LongValueParser extends FieldParser<LongValue> {
 	
 	private LongValue result;

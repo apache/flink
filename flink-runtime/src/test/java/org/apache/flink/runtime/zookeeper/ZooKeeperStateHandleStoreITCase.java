@@ -578,6 +578,11 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 			numberOfDiscardCalls++;
 		}
 
+		@Override
+		public long getStateSize() {
+			return 0;
+		}
+
 		public int getNumberOfDiscardCalls() {
 			return numberOfDiscardCalls;
 		}

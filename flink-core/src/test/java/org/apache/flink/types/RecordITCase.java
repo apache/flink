@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-import org.apache.flink.types.Value;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,20 +36,18 @@ public class RecordITCase {
 	private static final long SEED = 354144423270432543L;
 	private final Random rand = new Random(RecordITCase.SEED);
 	
-	private DataInputStream in;
-	private DataOutputStream out;
+	private DataInputView in;
+	private DataOutputView out;
 
 	@Before
-	public void setUp() throws Exception
-	{
+	public void setUp() throws Exception {
 		PipedInputStream pipedInput = new PipedInputStream(32*1024*1024);
-		this.in = new DataInputStream(pipedInput);
-		this.out = new DataOutputStream(new PipedOutputStream(pipedInput));
+		this.in = new DataInputViewStreamWrapper(pipedInput);
+		this.out = new DataOutputViewStreamWrapper(new PipedOutputStream(pipedInput));
 	}
 	
 	@Test
-	public void massiveRandomBlackBoxTests()
-	{
+	public void massiveRandomBlackBoxTests() {
 		try {
 			// random test with records with a small number of fields
 			for (int i = 0; i < 100000; i++) {

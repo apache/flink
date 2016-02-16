@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -93,6 +94,7 @@ import java.util.Collection;
  *
  * @param <T> The type of the elements that result from this {@code StreamTransformation}
  */
+@Internal
 public abstract class StreamTransformation<T> {
 
 	// This is used to assign a unique ID to every StreamTransformation
@@ -113,6 +115,14 @@ public abstract class StreamTransformation<T> {
 	protected boolean typeUsed;
 
 	private int parallelism;
+
+	/**
+	 * User-specified ID for this transformation. This is used to assign the
+	 * same operator ID across job restarts. There is also the automatically
+	 * generated {@link #id}, which is assigned from a static counter. That
+	 * field is independent from this.
+	 */
+	private String uid;
 
 	protected long bufferTimeout = -1;
 
@@ -167,6 +177,30 @@ public abstract class StreamTransformation<T> {
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Sets an ID for this {@link StreamTransformation}.
+	 *
+	 * <p>The specified ID is used to assign the same operator ID across job
+	 * submissions (for example when starting a job from a savepoint).
+	 *
+	 * <p><strong>Important</strong>: this ID needs to be unique per
+	 * transformation and job. Otherwise, job submission will fail.
+	 *
+	 * @param uid The unique user-specified ID of this transformation.
+	 */
+	public void setUid(String uid) {
+		this.uid = uid;
+	}
+
+	/**
+	 * Returns the user-specified ID of this transformation.
+	 *
+	 * @return The unique user-specified ID of this transformation.
+	 */
+	public String getUid() {
+		return uid;
 	}
 
 	/**

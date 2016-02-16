@@ -19,6 +19,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.util.InstantiationUtil
 import org.slf4j.LoggerFactory
@@ -26,10 +27,11 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
 
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.Opcodes._
+import org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
+import org.objectweb.asm.Opcodes._
 
 /* This code is originally from the Apache Spark project. */
+@Internal
 object ClosureCleaner {
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -96,7 +98,7 @@ object ClosureCleaner {
         stack = cls :: stack
       }
     }
-    return (seen - obj.getClass).toList
+    (seen - obj.getClass).toList
   }
 
   private def createNullValue(cls: Class[_]): AnyRef = {
@@ -126,18 +128,9 @@ object ClosureCleaner {
       LOG.debug("accessedFields: " + accessedFields)
     }
 
-    val inInterpreter = {
-      try {
-        val interpClass = Class.forName("spark.repl.Main")
-        interpClass.getMethod("interp").invoke(null) != null
-      } catch {
-        case _: ClassNotFoundException => true
-      }
-    }
-
     var outerPairs: List[(Class[_], AnyRef)] = (outerClasses zip outerObjects).reverse
     var outer: AnyRef = null
-    if (outerPairs.size > 0 && !isClosure(outerPairs.head._1)) {
+    if (outerPairs.nonEmpty && !isClosure(outerPairs.head._1)) {
       // The closure is ultimately nested inside a class; keep the object of that
       // class without cloning it since we don't want to clone the user's objects.
       outer = outerPairs.head._2
@@ -146,7 +139,7 @@ object ClosureCleaner {
     // Clone the closure objects themselves, nulling out any fields that are not
     // used in the closure we're working on or any of its inner closures.
     for ((cls, obj) <- outerPairs) {
-      outer = instantiateClass(cls, outer, inInterpreter)
+      outer = instantiateClass(cls, outer)
       for (fieldName <- accessedFields(cls)) {
         val field = cls.getDeclaredField(fieldName)
         field.setAccessible(true)
@@ -180,35 +173,18 @@ object ClosureCleaner {
     }
   }
 
-  private def instantiateClass(cls: Class[_], outer: AnyRef, inInterpreter: Boolean): AnyRef = {
+  private def instantiateClass(cls: Class[_], outer: AnyRef): AnyRef = {
     if (LOG.isDebugEnabled) {
       LOG.debug("Creating a " + cls + " with outer = " + outer)
     }
-    if (!inInterpreter) {
-      // This is a bona fide closure class, whose constructor has no effects
-      // other than to set its fields, so use its constructor
-      val cons = cls.getConstructors()(0)
-      val params = cons.getParameterTypes.map(createNullValue).toArray
-      if (outer != null) {
-        params(0) = outer // First param is always outer object
-      }
-      return cons.newInstance(params: _*).asInstanceOf[AnyRef]
-    } else {
-      // Use reflection to instantiate object without calling constructor
-      val rf = sun.reflect.ReflectionFactory.getReflectionFactory()
-      val parentCtor = classOf[java.lang.Object].getDeclaredConstructor()
-      val newCtor = rf.newConstructorForSerialization(cls, parentCtor)
-      val obj = newCtor.newInstance().asInstanceOf[AnyRef]
-      if (outer != null) {
-        if (LOG.isDebugEnabled) {
-          LOG.debug("3: Setting $outer on " + cls + " to " + outer)
-        }
-        val field = cls.getDeclaredField("$outer")
-        field.setAccessible(true)
-        field.set(obj, outer)
-      }
-      obj
+    // This is a bona fide closure class, whose constructor has no effects
+    // other than to set its fields, so use its constructor
+    val cons = cls.getConstructors()(0)
+    val params = cons.getParameterTypes.map(createNullValue)
+    if (outer != null) {
+      params(0) = outer // First param is always outer object
     }
+    cons.newInstance(params: _*).asInstanceOf[AnyRef]
   }
 
   /** Copy all data from an InputStream to an OutputStream */
@@ -252,12 +228,13 @@ object ClosureCleaner {
   }
 }
 
+@Internal
 private[flink]
-class ReturnStatementFinder extends ClassVisitor(ASM4) {
+class ReturnStatementFinder extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
     if (name.contains("apply")) {
-      new MethodVisitor(ASM4) {
+      new MethodVisitor(ASM5) {
         override def visitTypeInsn(op: Int, tp: String) {
           if (op == NEW && tp.contains("scala/runtime/NonLocalReturnControl")) {
             throw new InvalidProgramException("Return statements aren't allowed in Flink closures")
@@ -265,16 +242,17 @@ class ReturnStatementFinder extends ClassVisitor(ASM4) {
         }
       }
     } else {
-      new MethodVisitor(ASM4) {}
+      new MethodVisitor(ASM5) {}
     }
   }
 }
 
+@Internal
 private[flink]
-class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor(ASM4) {
+class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
-    new MethodVisitor(ASM4) {
+    new MethodVisitor(ASM5) {
       override def visitFieldInsn(op: Int, owner: String, name: String, desc: String) {
         if (op == GETFIELD) {
           for (cl <- output.keys if cl.getName == owner.replace('/', '.')) {
@@ -297,7 +275,8 @@ class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor
   }
 }
 
-private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisitor(ASM4) {
+@Internal
+private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisitor(ASM5) {
   var myName: String = null
 
   override def visit(version: Int, access: Int, name: String, sig: String,
@@ -307,11 +286,11 @@ private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisi
 
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
-    new MethodVisitor(ASM4) {
+    new MethodVisitor(ASM5) {
       override def visitMethodInsn(op: Int, owner: String, name: String,
                                    desc: String) {
         val argTypes = Type.getArgumentTypes(desc)
-        if (op == INVOKESPECIAL && name == "<init>" && argTypes.length > 0
+        if (op == INVOKESPECIAL && name == "<init>" && argTypes.nonEmpty
           && argTypes(0).toString.startsWith("L") // is it an object?
           && argTypes(0).getInternalName == myName) {
           output += Class.forName(

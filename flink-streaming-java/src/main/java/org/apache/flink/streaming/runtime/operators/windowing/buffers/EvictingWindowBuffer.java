@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A {@code WindowBuffer} that can also evict elements from the buffer. The order in which
  * the elements are added is preserved. Elements can only be evicted started from the beginning of
@@ -24,7 +26,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.buffers;
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
  */
-
+@Internal
 public interface EvictingWindowBuffer<T> extends WindowBuffer<T> {
 
 	/**

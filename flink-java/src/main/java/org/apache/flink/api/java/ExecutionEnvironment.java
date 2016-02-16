@@ -18,15 +18,14 @@
 
 package org.apache.flink.api.java;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import com.esotericsoftware.kryo.Serializer;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -36,9 +35,9 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
@@ -51,9 +50,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -65,14 +62,22 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.Visitor;
+
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.esotericsoftware.kryo.Serializer;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * The ExecutionEnvironment is the context in which a program is executed. A
@@ -92,6 +97,7 @@ import com.google.common.base.Preconditions;
  * @see LocalEnvironment
  * @see RemoteEnvironment
  */
+@Public
 public abstract class ExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses */
@@ -177,12 +183,39 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the restart strategy configuration. The configuration specifies which restart strategy
+	 * will be used for the execution graph in case of a restart.
+	 *
+	 * @param restartStrategyConfiguration Restart strategy configuration to be set
+	 */
+	@PublicEvolving
+	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+		config.setRestartStrategy(restartStrategyConfiguration);
+	}
+
+	/**
+	 * Returns the specified restart strategy configuration.
+	 *
+	 * @return The restart strategy configuration to be used
+	 */
+	@PublicEvolving
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
+		return config.getRestartStrategy();
+	}
+
+	/**
 	 * Sets the number of times that failed tasks are re-executed. A value of zero
 	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
 	 * default value (as defined in the configuration) should be used.
 	 *
 	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #setRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
 	}
@@ -193,7 +226,13 @@ public abstract class ExecutionEnvironment {
 	 * should be used.
 	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #getRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
 	}
@@ -218,6 +257,7 @@ public abstract class ExecutionEnvironment {
 	 * @return The JobID of this environment.
 	 * @see #getIdString()
 	 */
+	@PublicEvolving
 	public JobID getId() {
 		return this.jobID;
 	}
@@ -228,6 +268,7 @@ public abstract class ExecutionEnvironment {
 	 * @return The JobID as a string.
 	 * @see #getId()
 	 */
+	@PublicEvolving
 	public String getIdString() {
 		return this.jobID.toString();
 	}
@@ -238,6 +279,7 @@ public abstract class ExecutionEnvironment {
 	 *
 	 * @param timeout The timeout, in seconds.
 	 */
+	@PublicEvolving
 	public void setSessionTimeout(long timeout) {
 		throw new IllegalStateException("Support for sessions is currently disabled. " +
 				"It will be enabled in future Flink versions.");
@@ -255,6 +297,7 @@ public abstract class ExecutionEnvironment {
 	 *
 	 * @return The session timeout, in seconds.
 	 */
+	@PublicEvolving
 	public long getSessionTimeout() {
 		return sessionTimeout;
 	}
@@ -262,6 +305,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
 	 */
+	@PublicEvolving
 	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
@@ -546,6 +590,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}. The
 	 * given inputName is set on the given job.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath, JobConf job) {
 		DataSource<Tuple2<K, V>> result = createHadoopInput(mapredInputFormat, key, value, job);
 
@@ -558,6 +603,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from {@link org.apache.hadoop.mapred.SequenceFileInputFormat}
 	 * A {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
  	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> readSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
 		return readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat<K, V>(), key, value, inputPath);
 	}
@@ -566,6 +612,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath) {
 		return readHadoopFile(mapredInputFormat, key, value, inputPath, new JobConf());
 	}
@@ -573,6 +620,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.InputFormat}.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
 		HadoopInputFormat<K, V> hadoopInputFormat = new HadoopInputFormat<>(mapredInputFormat, key, value, job);
 
@@ -583,6 +631,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. The
 	 * given inputName is set on the given job.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath, Job job) throws IOException {
 		DataSource<Tuple2<K, V>> result = createHadoopInput(mapreduceInputFormat, key, value, job);
 
@@ -596,6 +645,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath) throws IOException {
 		return readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance());
 	}
@@ -603,6 +653,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.InputFormat}.
 	 */
+	@PublicEvolving
 	public <K,V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> hadoopInputFormat = new org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<>(mapreduceInputFormat, key, value, job);
 
@@ -889,7 +940,8 @@ public abstract class ExecutionEnvironment {
 	 * 
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan() {
+	@Internal
+	public Plan createProgramPlan() {
 		return createProgramPlan(null);
 	}
 	
@@ -904,7 +956,8 @@ public abstract class ExecutionEnvironment {
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName) {
+	@Internal
+	public Plan createProgramPlan(String jobName) {
 		return createProgramPlan(jobName, true);
 	}
 
@@ -919,7 +972,8 @@ public abstract class ExecutionEnvironment {
 	 * @param clearSinks Whether or not to start a new stage of execution.
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
+	@Internal
+	public Plan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -937,36 +991,29 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
-		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
+		Plan plan = translator.translateToPlan(this.sinks, jobName);
 
 		if (getParallelism() > 0) {
 			plan.setDefaultParallelism(getParallelism());
 		}
 		plan.setExecutionConfig(getConfig());
+		
 		// Check plan for GenericTypeInfo's and register the types at the serializers.
-		plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
-			@Override
-			public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-				OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-				TypeInformation<?> typeInfo = opInfo.getOutputType();
-				if(typeInfo instanceof GenericTypeInfo) {
-					GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
-					if(!config.isAutoTypeRegistrationDisabled()) {
-						Serializers.recursivelyRegisterType(genericTypeInfo.getTypeClass(), config);
-					}
+		if (!config.isAutoTypeRegistrationDisabled()) {
+			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
+				
+				private final HashSet<Class<?>> deduplicator = new HashSet<>();
+				
+				@Override
+				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
+					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
+					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, deduplicator);
+					return true;
 				}
-				if(typeInfo instanceof CompositeType) {
-					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<>();
-					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
-					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
-						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
-					}
-				}
-				return true;
-			}
-			@Override
-			public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
-		});
+				@Override
+				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
+			});
+		}
 
 		try {
 			registerCachedFilesWithPlan(plan);
@@ -1020,6 +1067,7 @@ public abstract class ExecutionEnvironment {
 	 * 
 	 * @param sink The sink to add for execution.
 	 */
+	@Internal
 	void registerDataSink(DataSink<?> sink) {
 		this.sinks.add(sink);
 	}
@@ -1056,6 +1104,7 @@ public abstract class ExecutionEnvironment {
 	 * memory. parallelism will always be 1. This is useful during implementation and for debugging.
 	 * @return A Collection Environment
 	 */
+	@PublicEvolving
 	public static CollectionEnvironment createCollectionsEnvironment(){
 		CollectionEnvironment ce = new CollectionEnvironment();
 		ce.setParallelism(1);
@@ -1201,6 +1250,7 @@ public abstract class ExecutionEnvironment {
 	 * @return True, if it is possible to explicitly instantiate a LocalEnvironment or a
 	 *         RemoteEnvironment, false otherwise.
 	 */
+	@Internal
 	public static boolean areExplicitEnvironmentsAllowed() {
 		return contextEnvironmentFactory == null;
 	}

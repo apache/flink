@@ -39,8 +39,8 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 	}
 
 	@Override
-	public final String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
-		String jidString = params.get("jobid");
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+		String jidString = pathParams.get("jobid");
 		if (jidString == null) {
 			throw new RuntimeException("JobId parameter missing");
 		}
@@ -58,7 +58,7 @@ public abstract class AbstractExecutionGraphRequestHandler implements RequestHan
 			throw new NotFoundException("Could not find job with id " + jid);
 		}
 		
-		return handleRequest(eg, params);
+		return handleRequest(eg, pathParams);
 	}
 	
 	public abstract String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception;

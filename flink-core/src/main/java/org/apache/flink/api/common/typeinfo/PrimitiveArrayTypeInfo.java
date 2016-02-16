@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -50,6 +52,7 @@ import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySeria
  *
  * @param <T> The type represented by this type information, e.g., int[], double[], long[]
  */
+@Public
 public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -92,36 +95,43 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	@PublicEvolving
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
+	@PublicEvolving
 	public int getArity() {
 		return 1;
 	}
 	
 	@Override
+	@PublicEvolving
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@Override
+	@PublicEvolving
 	public Class<T> getTypeClass() {
 		return this.arrayClass;
 	}
 
 	@Override
+	@PublicEvolving
 	public boolean isKeyType() {
 		return true;
 	}
 
 	@Override
+	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
 	}
@@ -130,6 +140,7 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	 * Gets the class that represents the component type.
 	 * @return The class of the component type.
 	 */
+	@PublicEvolving
 	public Class<?> getComponentClass() {
 		return this.arrayClass.getComponentType();
 	}
@@ -138,6 +149,7 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	 * Gets the type information of the component type.
 	 * @return The type information of the component type.
 	 */
+	@PublicEvolving
 	public TypeInformation<?> getComponentType() {
 		return BasicTypeInfo.getInfoFor(getComponentClass());
 	}
@@ -183,6 +195,7 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	 * @throws InvalidTypesException Thrown, if the given class does not represent an array.
 	 */
 	@SuppressWarnings("unchecked")
+	@PublicEvolving
 	public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type) {
 		if (!type.isArray()) {
 			throw new InvalidTypesException("The given class is no array.");
@@ -208,6 +221,7 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	}
 
 	@Override
+	@PublicEvolving
 	public PrimitiveArrayComparator<T, ?> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		try {
 			return comparatorClass.getConstructor(boolean.class).newInstance(sortOrderAscending);

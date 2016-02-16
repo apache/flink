@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
 
+@Internal
 public final class EnumComparator<T extends Enum<T>> extends BasicTypeComparator<T> {
 
 	private static final long serialVersionUID = 1L;

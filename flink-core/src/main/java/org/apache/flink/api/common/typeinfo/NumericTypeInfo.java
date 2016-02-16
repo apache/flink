@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeinfo;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,6 +29,7 @@ import java.util.Set;
 /**
  * Type information for numeric primitive types: int, long, double, byte, short, float, char.
  */
+@Public
 public abstract class NumericTypeInfo<T> extends BasicTypeInfo<T> {
 
 	private static final long serialVersionUID = -5937777910658986986L;

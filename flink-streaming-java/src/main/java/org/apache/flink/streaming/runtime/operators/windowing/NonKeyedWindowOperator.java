@@ -18,13 +18,18 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -34,6 +39,8 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuffer;
@@ -68,8 +75,9 @@ import static java.util.Objects.requireNonNull;
  * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
+@Internal
 public class NonKeyedWindowOperator<IN, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<IN, OUT, W>>
+		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<Iterable<IN>, OUT, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
@@ -145,7 +153,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	public NonKeyedWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory,
-			AllWindowFunction<IN, OUT, W> windowFunction,
+			AllWindowFunction<Iterable<IN>, OUT, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger) {
 
 		super(windowFunction);
@@ -217,14 +225,14 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	}
 
 	@Override
-	public final void close() throws Exception {
-		super.close();
-		// emit the elements that we still keep
-		for (Context window: windows.values()) {
-			emitWindow(window);
-		}
+	public final void dispose() {
+		super.dispose();
 		windows.clear();
-		windowBufferFactory.close();
+		try {
+			windowBufferFactory.close();
+		} catch (Exception e) {
+			throw new RuntimeException("Error while closing WindowBufferFactory.", e);
+		}
 	}
 
 	@Override
@@ -244,7 +252,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				windows.put(window, context);
 			}
 			context.windowBuffer.storeElement(element);
-			Trigger.TriggerResult triggerResult = context.onElement(element);
+			TriggerResult triggerResult = context.onElement(element);
 			processTriggerResult(triggerResult, window);
 		}
 	}
@@ -260,7 +268,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		}
 	}
 
-	private void processTriggerResult(Trigger.TriggerResult triggerResult, W window) throws Exception {
+	private void processTriggerResult(TriggerResult triggerResult, W window) throws Exception {
 		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
 			// do nothing
 			return;
@@ -279,6 +287,10 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		if (triggerResult.isFire()) {
 			emitWindow(context);
+		}
+
+		if (triggerResult.isPurge()) {
+			context.clear();
 		}
 	}
 
@@ -303,7 +315,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				// We have to check here whether the entry in the set still reflects the
 				// currently set timer in the Context.
 				if (ctx.watermarkTimer <= mark.getTimestamp()) {
-					Trigger.TriggerResult triggerResult = ctx.onEventTime(ctx.watermarkTimer);
+					TriggerResult triggerResult = ctx.onEventTime(ctx.watermarkTimer);
 					processTriggerResult(triggerResult, ctx.window);
 				}
 			}
@@ -335,7 +347,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				// performance reasons. We have to check here whether the entry in the set still
 				// reflects the currently set timer in the Context.
 				if (ctx.processingTimeTimer <= time) {
-					Trigger.TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
+					TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
 					processTriggerResult(triggerResult, ctx.window);
 				}
 			}
@@ -352,7 +364,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
 	 * have their own instance of the {@code Trigger}.
 	 */
-	protected class Context implements Trigger.TriggerContext {
+	protected class Context implements TriggerContext {
 		protected W window;
 
 		protected WindowBuffer<IN> windowBuffer;
@@ -397,7 +409,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			}
 		}
 
-		protected void writeToState(StateBackend.CheckpointStateOutputView out) throws IOException {
+		protected void writeToState(AbstractStateBackend.CheckpointStateOutputView out) throws IOException {
 			windowSerializer.serialize(window, out);
 			out.writeLong(watermarkTimer);
 			out.writeLong(processingTimeTimer);
@@ -413,24 +425,73 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			}
 		}
 
-		@SuppressWarnings("unchecked")
-		public <S extends Serializable> OperatorState<S> getKeyValueState(final String name, final S defaultState) {
-			return new OperatorState<S>() {
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+			Class<S> stateType,
+			S defaultState) {
+			requireNonNull(stateType, "The state type class must not be null");
+
+			TypeInformation<S> typeInfo;
+			try {
+				typeInfo = TypeExtractor.getForClass(stateType);
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Cannot analyze type '" + stateType.getName() +
+					"' from the class alone, due to generic type parameters. " +
+					"Please specify the TypeInformation directly.", e);
+			}
+
+			return getKeyValueState(name, typeInfo, defaultState);
+		}
+
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+			TypeInformation<S> stateType,
+			S defaultState) {
+
+			requireNonNull(name, "The name of the state must not be null");
+			requireNonNull(stateType, "The state type information must not be null");
+
+			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(
+					name, stateType.createSerializer(getExecutionConfig()), defaultState);
+			return getPartitionedState(stateDesc);
+		}
+
+		@Override
+		@SuppressWarnings("rawtypes, unchecked")
+		public <S extends State> S getPartitionedState(final StateDescriptor<S, ?> stateDescriptor) {
+			if (!(stateDescriptor instanceof ValueStateDescriptor)) {
+				throw new UnsupportedOperationException("NonKeyedWindowOperator Triggers only " +
+					"support ValueState.");
+			}
+			@SuppressWarnings("unchecked")
+			final ValueStateDescriptor<?> valueStateDescriptor = (ValueStateDescriptor<?>) stateDescriptor;
+			ValueState valueState = new ValueState() {
 				@Override
-				public S value() throws IOException {
-					Serializable value = state.get(name);
+				public Object value() throws IOException {
+					Object value = state.get(stateDescriptor.getName());
 					if (value == null) {
-						state.put(name, defaultState);
-						value = defaultState;
+						value = valueStateDescriptor.getDefaultValue();
+						state.put(stateDescriptor.getName(), (Serializable) value);
 					}
-					return (S) value;
+					return value;
 				}
 
 				@Override
-				public void update(S value) throws IOException {
-					state.put(name, value);
+				public void update(Object value) throws IOException {
+					if (!(value instanceof Serializable)) {
+						throw new UnsupportedOperationException(
+							"Value state of NonKeyedWindowOperator must be serializable.");
+					}
+					state.put(stateDescriptor.getName(), (Serializable) value);
+				}
+
+				@Override
+				public void clear() {
+					state.remove(stateDescriptor.getName());
 				}
 			};
+			return (S) valueState;
 		}
 
 		@Override
@@ -464,42 +525,63 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			triggers.add(this);
 		}
 
-		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
-			Trigger.TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
+		@Override
+		public void deleteProcessingTimeTimer(long time) {
+			Set<Context> triggers = processingTimeTimers.get(time);
+			if (triggers != null) {
+				triggers.remove(this);
+			}
+		}
+
+		@Override
+		public void deleteEventTimeTimer(long time) {
+			Set<Context> triggers = watermarkTimers.get(time);
+			if (triggers != null) {
+				triggers.remove(this);
+			}
+
+		}
+
+		public TriggerResult onElement(StreamRecord<IN> element) throws Exception {
+			TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
 			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
 				// fire now and don't wait for the next watermark update
-				Trigger.TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
-				return Trigger.TriggerResult.merge(onElementResult, onEventTimeResult);
+				TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
+				return TriggerResult.merge(onElementResult, onEventTimeResult);
 			} else {
 				return onElementResult;
 			}
 		}
 
-		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
+		public TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
 				processingTimeTimer = -1;
 				return trigger.onProcessingTime(time, window, this);
 			} else {
-				return Trigger.TriggerResult.CONTINUE;
+				return TriggerResult.CONTINUE;
 			}
 		}
 
-		public Trigger.TriggerResult onEventTime(long time) throws Exception {
+		public TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
 				watermarkTimer = -1;
-				Trigger.TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
+				TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
 
 				if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
 					// fire now and don't wait for the next watermark update
-					Trigger.TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
-					return Trigger.TriggerResult.merge(firstTriggerResult, secondTriggerResult);
+					TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
+					return TriggerResult.merge(firstTriggerResult, secondTriggerResult);
 				} else {
 					return firstTriggerResult;
 				}
 
 			} else {
-				return Trigger.TriggerResult.CONTINUE;
+				return TriggerResult.CONTINUE;
 			}
+		}
+
+		public void clear() throws Exception {
+			trigger.clear(window, this);
 		}
 	}
 
@@ -523,7 +605,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
 		// we write the panes with the key/value maps into the stream
-		StateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		AbstractStateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
 		int numWindows = windows.size();
 		out.writeInt(numWindows);

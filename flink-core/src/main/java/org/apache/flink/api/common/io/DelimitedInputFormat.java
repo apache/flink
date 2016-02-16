@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.flink.annotation.Public;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -41,6 +42,7 @@ import com.google.common.base.Charsets;
  * 
  * <p>The default delimiter is the newline character {@code '\n'}.</p>
  */
+@Public
 public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	
 	private static final long serialVersionUID = 1L;

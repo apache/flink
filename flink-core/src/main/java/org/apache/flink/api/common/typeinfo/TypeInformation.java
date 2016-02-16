@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -67,6 +69,7 @@ import java.util.List;
  *
  * @param <T> The type represented by this type information.
  */
+@Public
 public abstract class TypeInformation<T> implements Serializable {
 	
 	private static final long serialVersionUID = -7742311969684489493L;
@@ -78,6 +81,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if this type information describes a basic type, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isBasicType();
 	
 	/**
@@ -86,6 +90,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if this type information describes a tuple type, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isTupleType();
 	
 	/**
@@ -93,6 +98,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * 
 	 * @return Gets the number of fields in this type without nesting.
 	 */
+	@PublicEvolving
 	public abstract int getArity();
 	
 	/**
@@ -103,6 +109,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * 
 	 * @return The number of fields in this type, including its sub-fields (for composite types) 
 	 */
+	@PublicEvolving
 	public abstract int getTotalFields();
 	
 	/**
@@ -110,6 +117,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return The class of the type represented by this type information.
 	 */
+	@PublicEvolving
 	public abstract Class<T> getTypeClass();
 
 	/**
@@ -117,6 +125,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *
 	 * @return The list of generic parameters. This list can be empty.
 	 */
+	@PublicEvolving
 	public List<TypeInformation<?>> getGenericParameters() {
 		// Return an empty list as the default implementation
 		return new LinkedList<>();
@@ -128,12 +137,14 @@ public abstract class TypeInformation<T> implements Serializable {
 	 *  
 	 * @return True, if the type can be used as a key, false otherwise.
 	 */
+	@PublicEvolving
 	public abstract boolean isKeyType();
 
 	/**
 	 * Checks whether this type can be used as a key for sorting.
 	 * The order produced by sorting this type must be meaningful.
 	 */
+	@PublicEvolving
 	public boolean isSortKeyType() {
 		return isKeyType();
 	}
@@ -145,6 +156,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @param config The config used to parameterize the serializer.
 	 * @return A serializer for this type.
 	 */
+	@PublicEvolving
 	public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
 
 	@Override

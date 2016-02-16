@@ -20,10 +20,12 @@ package org.apache.flink.api.common.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+@Public
 public class BlockInfo implements IOReadableWritable {
 
 	private long recordCount;

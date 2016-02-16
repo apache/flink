@@ -18,11 +18,12 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windowing.ReduceAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceIterableAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
@@ -77,7 +78,7 @@ public class NonKeyedWindowOperatorTest {
 				SlidingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS), Time.of(WINDOW_SLIDE, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				windowBufferFactory,
-				new ReduceAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
+				new ReduceIterableAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
 				EventTimeTrigger.create());
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -140,11 +141,6 @@ public class NonKeyedWindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
 		testHarness.close();
-		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
-			Assert.assertEquals("Close was not called.", 2, closeCalled.get());
-		} else {
-			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-		}
 	}
 
 	@Test
@@ -158,7 +154,7 @@ public class NonKeyedWindowOperatorTest {
 				TumblingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				windowBufferFactory,
-				new ReduceAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
+				new ReduceIterableAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
 				EventTimeTrigger.create());
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -219,11 +215,6 @@ public class NonKeyedWindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
 		testHarness.close();
-		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
-			Assert.assertEquals("Close was not called.", 2, closeCalled.get());
-		} else {
-			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-		}
 	}
 
 	@Test
@@ -237,7 +228,7 @@ public class NonKeyedWindowOperatorTest {
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
 				windowBufferFactory,
-				new ReduceAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
+				new ReduceIterableAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
 				ContinuousEventTimeTrigger.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)));
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -298,11 +289,6 @@ public class NonKeyedWindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
 		testHarness.close();
-		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
-			Assert.assertEquals("Close was not called.", 2, closeCalled.get());
-		} else {
-			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-		}
 	}
 
 	@Test
@@ -316,7 +302,7 @@ public class NonKeyedWindowOperatorTest {
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
 				windowBufferFactory,
-				new ReduceAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
+				new ReduceIterableAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
 				PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)));
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
@@ -355,19 +341,23 @@ public class NonKeyedWindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
 		testHarness.close();
-		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
-			Assert.assertEquals("Close was not called.", 2, closeCalled.get());
-		} else {
-			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-		}
-
 	}
 
 	// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
 
-	public static class SumReducer extends RichReduceFunction<Tuple2<String, Integer>> {
+	public static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+			Tuple2<String, Integer> value2) throws Exception {
+			return new Tuple2<>(value2.f0, value1.f1 + value2.f1);
+		}
+	}
+
+	public static class RichSumReducer extends RichReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private boolean openCalled = false;
@@ -400,7 +390,7 @@ public class NonKeyedWindowOperatorTest {
 	@Parameterized.Parameters(name = "WindowBuffer = {0}")
 	@SuppressWarnings("unchecked,rawtypes")
 	public static Collection<WindowBufferFactory[]> windowBuffers(){
-		return Arrays.asList(new WindowBufferFactory[]{new PreAggregatingHeapWindowBuffer.Factory(new SumReducer())},
+		return Arrays.asList(new WindowBufferFactory[]{new PreAggregatingHeapWindowBuffer.Factory(new RichSumReducer())},
 				new WindowBufferFactory[]{new HeapWindowBuffer.Factory()}
 				);
 	}

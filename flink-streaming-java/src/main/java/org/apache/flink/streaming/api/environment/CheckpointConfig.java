@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import static java.util.Objects.requireNonNull;
@@ -25,6 +27,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Configuration that captures all checkpointing related settings.
  */
+@Public
 public class CheckpointConfig implements java.io.Serializable {
 
 	private static final long serialVersionUID = -750378776078908147L;
@@ -132,7 +135,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
-		if (checkpointInterval <= 0) {
+		if (checkpointTimeout <= 0) {
 			throw new IllegalArgumentException("Checkpoint timeout must be larger than zero");
 		}
 		this.checkpointTimeout = checkpointTimeout;
@@ -203,6 +206,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public boolean isForceCheckpointing() {
 		return forceCheckpointing;
 	}
@@ -215,6 +219,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated
+	@PublicEvolving
 	public void setForceCheckpointing(boolean forceCheckpointing) {
 		this.forceCheckpointing = forceCheckpointing;
 	}

@@ -33,6 +33,8 @@ public class NettyConfig {
 
 	// - Config keys ----------------------------------------------------------
 
+	public static final String NUM_ARENAS = "taskmanager.net.num-arenas";
+
 	public static final String NUM_THREADS_SERVER = "taskmanager.net.server.numThreads";
 
 	public static final String NUM_THREADS_CLIENT = "taskmanager.net.client.numThreads";
@@ -61,12 +63,15 @@ public class NettyConfig {
 
 	private final int memorySegmentSize;
 
+	private final int numberOfSlots;
+
 	private final Configuration config; // optional configuration
 
 	public NettyConfig(
 			InetAddress serverAddress,
 			int serverPort,
 			int memorySegmentSize,
+			int numberOfSlots,
 			Configuration config) {
 
 		this.serverAddress = checkNotNull(serverAddress);
@@ -76,6 +81,9 @@ public class NettyConfig {
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");
 		this.memorySegmentSize = memorySegmentSize;
+
+		checkArgument(numberOfSlots > 0, "Number of slots");
+		this.numberOfSlots = numberOfSlots;
 
 		this.config = checkNotNull(config);
 
@@ -92,6 +100,10 @@ public class NettyConfig {
 
 	int getMemorySegmentSize() {
 		return memorySegmentSize;
+	}
+
+	public int getNumberOfSlots() {
+		return numberOfSlots;
 	}
 
 	// ------------------------------------------------------------------------
@@ -153,14 +165,19 @@ public class NettyConfig {
 		return config.getInteger(CONNECT_BACKLOG, 0);
 	}
 
+	public int getNumberOfArenas() {
+		// default: number of slots
+		return config.getInteger(NUM_ARENAS, numberOfSlots);
+	}
+
 	public int getServerNumThreads() {
-		// default: 0 => Netty's default: 2 * #cores
-		return config.getInteger(NUM_THREADS_SERVER, 0);
+		// default: number of task slots
+		return config.getInteger(NUM_THREADS_SERVER, numberOfSlots);
 	}
 
 	public int getClientNumThreads() {
-		// default: 0 => Netty's default: 2 * #cores
-		return config.getInteger(NUM_THREADS_CLIENT, 0);
+		// default: number of task slots
+		return config.getInteger(NUM_THREADS_CLIENT, numberOfSlots);
 	}
 
 	public int getClientConnectTimeoutSeconds() {

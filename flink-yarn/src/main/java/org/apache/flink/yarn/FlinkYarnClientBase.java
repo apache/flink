@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
@@ -26,6 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,6 +50,7 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,7 +146,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
-	private boolean streamingMode;
 
 	private String customName = null;
 
@@ -359,9 +359,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 
-		List<Tuple2<String, String>> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
-		for (Tuple2<String, String> dynProperty : dynProperties) {
-			flinkConfiguration.setString(dynProperty.f0, dynProperty.f1);
+		Map<String, String> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
+		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
 		// ------------------ Check if the specified queue exists --------------
@@ -587,8 +587,11 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
+		// set user specified app master environment variables
+		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
+		// set classpath from YARN configuration
 		Utils.setupEnv(conf, appMasterEnv);
-		// set configuration values
+		// set Flink on YARN internal configuration values
 		appMasterEnv.put(FlinkYarnClient.ENV_TM_COUNT, String.valueOf(taskManagerCount));
 		appMasterEnv.put(FlinkYarnClient.ENV_TM_MEMORY, String.valueOf(taskManagerMemoryMb));
 		appMasterEnv.put(FlinkYarnClient.FLINK_JAR_PATH, remotePathJar.toString() );
@@ -598,7 +601,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(FlinkYarnClient.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(FlinkYarnClient.ENV_DETACHED, String.valueOf(detached));
-		appMasterEnv.put(FlinkYarnClient.ENV_STREAMING_MODE, String.valueOf(streamingMode));
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
@@ -771,11 +773,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
-	}
-
-	@Override
-	public void setStreamingMode(boolean streamingMode) {
-		this.streamingMode = streamingMode;
 	}
 
 	@Override

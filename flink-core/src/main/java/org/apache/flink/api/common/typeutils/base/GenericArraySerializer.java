@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @param <C> The component type
  */
+@Internal
 public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 
 	private static final long serialVersionUID = 1L;

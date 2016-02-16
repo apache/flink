@@ -1,5 +1,8 @@
 ---
 title: "Best Practices"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,9 +22,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
-
 
 This page contains a collection of best practices for Flink programmers on how to solve frequently encountered problems.
 
@@ -279,7 +279,7 @@ Apache Flink is using [slf4j](http://www.slf4j.org/) as the logging abstraction 
 
 Sfl4j is a compile-time logging interface that can use different logging implementations at runtime, such as [log4j](http://logging.apache.org/log4j/2.x/) or [Logback](http://logback.qos.ch/).
 
-Flink is depending on Log4j by default. This page describes how to use Flink with Logback.
+Flink is depending on Log4j by default. This page describes how to use Flink with Logback. Users reported that they were also able to set up centralized logging with Graylog using this tutorial.
 
 To get a logger instance in the code, use the following code:
 
@@ -342,7 +342,7 @@ Change your projects `pom.xml` file like this:
 	</dependency>
 	<dependency>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-java</artifactId>
+		<artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
 		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
@@ -357,7 +357,7 @@ Change your projects `pom.xml` file like this:
 	</dependency>
 	<dependency>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-clients</artifactId>
+		<artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
 		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
@@ -398,3 +398,6 @@ Next, you need to put the following jar files into the `lib/` folder:
  * `logback-core.jar`
  * `log4j-over-slf4j.jar`: This bridge needs to be present in the classpath for redirecting logging calls from Hadoop (which is using Log4j) to Slf4j.
 
+Note that you need to explicitly set the `lib/` directory when using a per job YARN cluster.
+
+The command to submit Flink on YARN with a custom logger is: `./bin/flink run -yt $FLINK_HOME/lib <... remaining arguments ...>`

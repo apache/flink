@@ -20,9 +20,12 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -39,6 +42,7 @@ import com.google.common.base.Preconditions;
  * @see DataSet#iterateDelta(DataSet, int, int...)
  * @see DataSet#iterateDelta(DataSet, int, int[])
  */
+@Public
 public class DeltaIteration<ST, WT> {
 	
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
@@ -200,6 +204,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The DeltaIteration itself, to allow chaining function calls.
 	 */
+	@PublicEvolving
 	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
@@ -210,6 +215,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The registry with all aggregators.
 	 */
+	@PublicEvolving
 	public AggregatorRegistry getAggregators() {
 		return this.aggregators;
 	}
@@ -244,6 +250,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @param <ST> The type of the elements in the solution set.
 	 */
+	@Public
 	public static class SolutionSetPlaceHolder<ST> extends DataSet<ST>{
 		
 		private final DeltaIteration<ST, ?> deltaIteration;
@@ -266,6 +273,7 @@ public class DeltaIteration<ST, WT> {
 	 *
 	 * @param <WT> The data type of the elements in the workset.
 	 */
+	@Public
 	public static class WorksetPlaceHolder<WT> extends DataSet<WT>{
 		private WorksetPlaceHolder(ExecutionEnvironment context, TypeInformation<WT> type) {
 			super(context, type);

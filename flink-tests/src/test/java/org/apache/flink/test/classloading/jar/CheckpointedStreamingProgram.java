@@ -19,7 +19,8 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -27,8 +28,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.lang.RuntimeException;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 /**
  * A simple streaming program, which is using the state checkpointing of Flink.
@@ -40,14 +39,6 @@ public class CheckpointedStreamingProgram {
 	private static final int CHECKPOINT_INTERVALL = 100;
 	
 	public static void main(String[] args) throws Exception {
-		ClassLoader cl = ClassLoader.getSystemClassLoader();
-		URL[] urls = ((URLClassLoader)cl).getURLs();
-
-		for(URL url: urls){
-			System.out.println(url.getFile());
-		}
-		System.out.println("CheckpointedStreamingProgram classpath: ");
-
 		final String jarFile = args[0];
 		final String host = args[1];
 		final int port = Integer.parseInt(args[2]);
@@ -55,7 +46,7 @@ public class CheckpointedStreamingProgram {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(CHECKPOINT_INTERVALL);
-		env.setNumberOfExecutionRetries(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));
 		env.disableOperatorChaining();
 		
 		DataStream<String> text = env.addSource(new SimpleStringGenerator());
@@ -93,7 +84,7 @@ public class CheckpointedStreamingProgram {
 		}
 	}
 
-	public static class StatefulMapper implements MapFunction<String, String>, Checkpointed<StatefulMapper>, CheckpointNotifier {
+	public static class StatefulMapper implements MapFunction<String, String>, Checkpointed<StatefulMapper>, CheckpointListener {
 
 		private String someState;
 		private boolean atLeastOneSnapshotComplete = false;

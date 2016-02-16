@@ -17,12 +17,12 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * and {@link StreamExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
  * default parallelism equal to the number of hardware contexts in the local machine.
  */
+@Public
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);
@@ -100,7 +101,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running job on local embedded Flink mini cluster");
 		}
 
-		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true, StreamingMode.STREAMING);
+		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true);
 		try {
 			exec.start();
 			return exec.submitJobAndWait(jobGraph, getConfig().isSysoutLoggingEnabled());

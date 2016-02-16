@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,6 +39,7 @@ import org.apache.flink.util.StringUtils;
  *
  * Tailing slashes are removed from the path.
  */
+@Public
 public class Path implements IOReadableWritable, Serializable {
 	
 	private static final long serialVersionUID = 1L;

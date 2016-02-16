@@ -18,8 +18,10 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+@Internal
 public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 
 	private static final long serialVersionUID = 8766687317209282373L;
@@ -33,7 +35,7 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 
 	@Override
 	public int hashCode() {
-		return TypeSerializerSingleton.class.hashCode();
+		return this.getClass().hashCode();
 	}
 	
 	@Override

@@ -18,6 +18,7 @@
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.tuple.Values;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -47,11 +48,10 @@ public class SpoutCollectorTest extends AbstractTest {
 			attributes.put(streamId, numberOfAttributes);
 
 			if (numberOfAttributes == -1) {
-				collector = new SpoutCollector(attributes, flinkCollector);
+				collector = new SpoutCollector(attributes, -1, flinkCollector);
 				tuple.add(new Integer(this.r.nextInt()));
-
 			} else {
-				collector = new SpoutCollector(attributes, flinkCollector);
+				collector = new SpoutCollector(attributes, -1, flinkCollector);
 				flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 
 				for (int i = 0; i < numberOfAttributes; ++i) {
@@ -75,12 +75,71 @@ public class SpoutCollectorTest extends AbstractTest {
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testSpoutStormCollectorWithTaskId() throws InstantiationException, IllegalAccessException {
+		for (int numberOfAttributes = 0; numberOfAttributes < 25; ++numberOfAttributes) {
+			final SourceContext flinkCollector = mock(SourceContext.class);
+			final int taskId = 42;
+			final String streamId = "streamId";
+
+			HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+			attributes.put(streamId, numberOfAttributes);
+
+			SpoutCollector<?> collector = new SpoutCollector(attributes, taskId, flinkCollector);
+
+			final Values tuple = new Values();
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes + 1).newInstance();
+
+			for (int i = 0; i < numberOfAttributes; ++i) {
+				tuple.add(new Integer(this.r.nextInt()));
+				flinkTuple.setField(tuple.get(i), i);
+			}
+			flinkTuple.setField(taskId, numberOfAttributes);
+
+			final List<Integer> taskIds;
+			final Object messageId = new Integer(this.r.nextInt());
+
+			taskIds = collector.emit(streamId, tuple, messageId);
+
+			Assert.assertNull(taskIds);
+
+			verify(flinkCollector).collect(flinkTuple);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testTooManyAttributes() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", 26);
+
+		new SpoutCollector<Object>(attributes, -1, mock(SourceContext.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testTooManyAttributesWithTaskId() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", 25);
+
+		new SpoutCollector<Object>(attributes, 42, mock(SourceContext.class));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(expected = UnsupportedOperationException.class)
+	public void testRawStreamWithTaskId() {
+		HashMap<String, Integer> attributes = new HashMap<String, Integer>();
+		attributes.put("", -1);
+
+		new SpoutCollector<Object>(attributes, 42, mock(SourceContext.class));
+	}
+
 	@SuppressWarnings("unchecked")
 	@Test(expected = UnsupportedOperationException.class)
 	public void testEmitDirect() {
-		new SpoutCollector<Object>(mock(HashMap.class), mock(SourceContext.class)).emitDirect(
-				0, null, null,
-				(Object) null);
+		new SpoutCollector<Object>(mock(HashMap.class), -1, mock(SourceContext.class)).emitDirect(
+				0, null, null, (Object) null);
 	}
 
 }

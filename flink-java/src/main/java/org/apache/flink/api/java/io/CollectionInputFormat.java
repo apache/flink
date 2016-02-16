@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import java.io.IOException;
@@ -27,16 +26,18 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 /**
  * An input format that returns objects from a collection.
  */
+@PublicEvolving
 public class CollectionInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;
@@ -83,7 +84,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		out.writeInt(size);
 		
 		if (size > 0) {
-			OutputViewObjectOutputStreamWrapper wrapper = new OutputViewObjectOutputStreamWrapper(out);
+			DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out);
 			for (T element : dataSet){
 				serializer.serialize(element, wrapper);
 			}
@@ -98,7 +99,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		
 		if (collectionLength > 0) {
 			try {
-				InputViewObjectInputStreamWrapper wrapper = new InputViewObjectInputStreamWrapper(in);
+				DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(in);
 				for (int i = 0; i < collectionLength; i++){
 					T element = serializer.deserialize(wrapper);
 					list.add(element);

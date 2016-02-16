@@ -17,10 +17,13 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
+
 import scala.language.implicitConversions
 
 import scala.reflect.macros.Context
 
+@Internal
 private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with TypeDescriptors[C] =>
   import c.universe._
 

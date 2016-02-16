@@ -88,13 +88,9 @@ public class Hardware {
 	 * @return the size of the physical memory in bytes or <code>-1</code> if
 	 *         the size could not be determined
 	 */
-	@SuppressWarnings("resource")
 	private static long getSizeOfPhysicalMemoryForLinux() {
-		BufferedReader lineReader = null;
-		try {
-			lineReader = new BufferedReader(new FileReader(LINUX_MEMORY_INFO_PATH));
-
-			String line = null;
+		try (BufferedReader lineReader = new BufferedReader(new FileReader(LINUX_MEMORY_INFO_PATH))) {
+			String line;
 			while ((line = lineReader.readLine()) != null) {
 				Matcher matcher = LINUX_MEMORY_REGEX.matcher(line);
 				if (matcher.matches()) {
@@ -102,7 +98,6 @@ public class Hardware {
 					return Long.parseLong(totalMemory) * 1024L; // Convert from kilobyte to byte
 				}
 			}
-			
 			// expected line did not come
 			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'). Unexpected format.");
 			return -1;
@@ -114,14 +109,6 @@ public class Hardware {
 		catch (Throwable t) {
 			LOG.error("Cannot determine the size of the physical memory for Linux host (using '/proc/meminfo'): " + t.getMessage(), t);
 			return -1;
-		}
-		finally {
-			// Make sure we always close the file handle
-			try {
-				if (lineReader != null) {
-					lineReader.close();
-				}
-			} catch (Throwable t) {}
 		}
 	}
 
@@ -160,8 +147,7 @@ public class Hardware {
 			if (bi != null) {
 				try {
 					bi.close();
-				} catch (IOException ioe) {
-				}
+				} catch (IOException ignored) {}
 			}
 		}
 		return -1;
@@ -202,8 +188,7 @@ public class Hardware {
 			if (bi != null) {
 				try {
 					bi.close();
-				} catch (IOException ioe) {
-				}
+				} catch (IOException ignored) {}
 			}
 		}
 	}
@@ -249,7 +234,7 @@ public class Hardware {
 			if (bi != null) {
 				try {
 					bi.close();
-				} catch (Throwable t) {}
+				} catch (Throwable ignored) {}
 			}
 		}
 	}

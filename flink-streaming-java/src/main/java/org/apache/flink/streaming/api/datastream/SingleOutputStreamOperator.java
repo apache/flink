@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -35,6 +37,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <T> The type of the elements in this Stream
  * @param <O> Type of the operator.
  */
+@Public
 public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<T, O>> extends DataStream<T> {
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
@@ -59,6 +62,24 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 */
 	public SingleOutputStreamOperator<T, O> name(String name){
 		transformation.setName(name);
+		return this;
+	}
+
+	/**
+	 * Sets an ID for this operator.
+	 *
+	 * <p>The specified ID is used to assign the same operator ID across job
+	 * submissions (for example when starting a job from a savepoint).
+	 *
+	 * <p><strong>Important</strong>: this ID needs to be unique per
+	 * transformation and job. Otherwise, job submission will fail.
+	 *
+	 * @param uid The unique user-specified ID of this transformation.
+	 * @return The operator with the specified ID.
+	 */
+	@PublicEvolving
+	public SingleOutputStreamOperator<T, O> uid(String uid) {
+		transformation.setUid(uid);
 		return this;
 	}
 
@@ -93,26 +114,40 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public SingleOutputStreamOperator<T, O> broadcast() {
 		return (SingleOutputStreamOperator<T, O>) super.broadcast();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> shuffle() {
 		return (SingleOutputStreamOperator<T, O>) super.shuffle();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public SingleOutputStreamOperator<T, O> forward() {
 		return (SingleOutputStreamOperator<T, O>) super.forward();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public SingleOutputStreamOperator<T, O> rebalance() {
 		return (SingleOutputStreamOperator<T, O>) super.rebalance();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
+	@PublicEvolving
+	public SingleOutputStreamOperator<T, O> rescale() {
+		return (SingleOutputStreamOperator<T, O>) super.rescale();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> global() {
 		return (SingleOutputStreamOperator<T, O>) super.global();
 	}
@@ -126,6 +161,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *            The selected {@link ChainingStrategy}
 	 * @return The operator with the modified chaining strategy
 	 */
+	@PublicEvolving
 	private SingleOutputStreamOperator<T, O> setChainingStrategy(ChainingStrategy strategy) {
 		this.transformation.setChainingStrategy(strategy);
 		return this;
@@ -140,6 +176,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with chaining disabled
 	 */
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> disableChaining() {
 		return setChainingStrategy(ChainingStrategy.NEVER);
 	}
@@ -151,6 +188,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with chaining set.
 	 */
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> startNewChain() {
 		return setChainingStrategy(ChainingStrategy.HEAD);
 	}
@@ -289,6 +327,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator as a part of a new resource group.
 	 */
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> startNewResourceGroup() {
 		transformation.setResourceStrategy(ResourceStrategy.NEWGROUP);
 		return this;
@@ -304,6 +343,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with isolated resource group.
 	 */
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> isolateResources() {
 		transformation.setResourceStrategy(ResourceStrategy.ISOLATE);
 		return this;

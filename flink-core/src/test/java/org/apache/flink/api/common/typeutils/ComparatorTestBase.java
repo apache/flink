@@ -399,6 +399,32 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 		}
 	}
 
+	// -------------------------------- Key extraction tests --------------------------------------
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testKeyExtraction() {
+		TypeComparator<T> comparator = getComparator(true);
+		T[] data = getSortedData();
+
+		for (T value : data) {
+			TypeComparator[] comparators = comparator.getFlatComparators();
+			Object[] extractedKeys = new Object[comparators.length];
+			int insertedKeys = comparator.extractKeys(value, extractedKeys, 0);
+			assertTrue(insertedKeys == comparators.length);
+
+			for (int i = 0; i < insertedKeys; i++) {
+				// check if some keys are null, although this is not supported
+				if (!supportsNullKeys()) {
+					assertNotNull(extractedKeys[i]);
+				}
+				// compare the extracted key with itself as a basic check
+				// if the extracted key corresponds to the comparator
+				assertTrue(comparators[i].compare(extractedKeys[i], extractedKeys[i]) == 0);
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	protected void deepEquals(String message, T should, T is) {
@@ -448,6 +474,10 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 		T deserialized = serializer.deserialize(serializer.createInstance(), in);
 		deepEquals("Deserialized value is wrong.", value, deserialized);
 
+	}
+
+	protected boolean supportsNullKeys() {
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -196,10 +196,95 @@
 .table.table-activable td {
   position: relative;
 }
+.table.table-no-border th {
+  border-top: none !important;
+}
+.table.table-no-border td {
+  border-top: none !important;
+}
+.table#job-submit-table {
+  table-layout: fixed;
+  white-space: nowrap;
+}
+.table#job-submit-table td.td-large {
+  width: 40%;
+}
+.table#job-submit-table td {
+  width: 15%;
+}
+.table#job-submit-table td > input {
+  height: 28px;
+  font-size: 14px;
+}
+.table#job-submit-table td > span.btn {
+  padding: 2px 4px;
+  font-size: 14px;
+}
+.table#add-file-table {
+  table-layout: fixed;
+}
+.table#add-file-table span.btn {
+  position: relative;
+  overflow: hidden;
+  padding: 2px 4px;
+  font-size: 14px;
+  -webkit-border-radius: 2px;
+  border-radius: 2px;
+  margin-top: -3px;
+}
+.table#add-file-table td#add-file-button {
+  width: 100px;
+}
+.table#add-file-table td#add-file-button input[type=file] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 100%;
+  min-height: 100%;
+  filter: alpha(opacity=0);
+  opacity: 0;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+  filter: alpha(opacity=0);
+  outline: none;
+  cursor: inherit;
+  display: block;
+}
+.table#add-file-table td#add-file-name {
+  width: 250px;
+  -o-text-overflow: ellipsis;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.table#add-file-table td#add-file-status {
+  width: 100%;
+}
+.table#add-file-table td#add-file-status span.btn-progress-bar {
+  padding: 0 !important;
+  width: 100%;
+  background-color: #f5f5f5;
+  text-align: left;
+}
+.table#add-file-table td#add-file-status span.btn-progress {
+  padding: 2px 2px;
+  font-size: 10px;
+}
+.table span.error-area {
+  color: #f00;
+}
+.table span.row-button {
+  padding: 1px 2px;
+  margin: 0;
+  border: none !important;
+}
 .table .small-label {
   text-transform: uppercase;
   font-size: 13px;
   color: #999;
+}
+span.icon-wrapper {
+  width: 1.2em;
+  display: inline-block;
 }
 .panel.panel-dashboard .huge {
   font-size: 28px;
@@ -389,6 +474,13 @@ pre.exception {
   background-color: transparent;
   padding: 0;
   margin: 0;
+}
+pre {
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
 }
 .nav-tabs.tabs-vertical {
   position: absolute;
@@ -602,4 +694,10 @@ svg.graph .node-label {
 }
 .show-pointer {
   cursor: pointer;
+}
+#fetch-plan {
+  width: 100px;
+}
+#job-submit {
+  width: 100px;
 }

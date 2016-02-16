@@ -1,5 +1,8 @@
 ---
 title:  "Type Extraction and Serialization"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

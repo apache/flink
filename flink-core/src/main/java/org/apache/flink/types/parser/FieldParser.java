@@ -22,6 +22,7 @@ package org.apache.flink.types.parser;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
@@ -40,6 +41,7 @@ import org.apache.flink.types.StringValue;
  *
  * @param <T> The type that is parsed.
  */
+@PublicEvolving
 public abstract class FieldParser<T> {
 	
 	/**

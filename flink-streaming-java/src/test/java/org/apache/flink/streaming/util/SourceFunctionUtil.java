@@ -62,7 +62,7 @@ public class SourceFunctionUtil<T> {
 			final Object lockingObject = new Object();
 			SourceFunction.SourceContext<T> ctx;
 			if (sourceFunction instanceof EventTimeSourceFunction) {
-				ctx = new StreamSource.ManualWatermarkContext<T>(lockingObject, collector);
+				ctx = new StreamSource.ManualWatermarkContext<T>(lockingObject, collector, true);
 			} else {
 				ctx = new StreamSource.NonWatermarkContext<T>(lockingObject, collector);
 			}

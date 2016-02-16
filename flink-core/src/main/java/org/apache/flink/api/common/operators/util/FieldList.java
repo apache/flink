@@ -24,10 +24,12 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 
 /**
  * Immutable ordered list of fields IDs.
  */
+@Internal
 public class FieldList extends FieldSet {
 	
 	public static final FieldList EMPTY_LIST = new FieldList();

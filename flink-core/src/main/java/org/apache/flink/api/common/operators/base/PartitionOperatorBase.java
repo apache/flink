@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -32,8 +33,9 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 /**
  * @param <IN> The input and result type.
  */
+@Internal
 public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
-	
+
 	public static enum PartitionMethod {
 		REBALANCE,
 		HASH,

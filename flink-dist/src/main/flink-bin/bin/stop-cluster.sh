@@ -22,12 +22,18 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-# Stop TaskManager instance(s)
+# Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop &"
-done
+command -v pdsh >/dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    for slave in ${SLAVES[@]}; do
+        ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop &"
+    done
+else
+    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+        "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop"
+fi
 
 # Stop JobManager instance(s)
 shopt -s nocasematch

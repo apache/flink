@@ -23,7 +23,6 @@ import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -168,7 +167,7 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 				TaskManager.startTaskManagerComponentsAndActor(
 						config, tmActorSystem[i], "localhost",
 						Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-						false, StreamingMode.STREAMING, TaskManager.class);
+						false, TaskManager.class);
 			}
 
 			// Test actor system
@@ -247,8 +246,10 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 				fail("The program encountered a " + error.getClass().getSimpleName() + " : " + error.getMessage());
 			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
+		catch (Throwable t) {
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
 
 			for (JobManagerProcess p : jmProcess) {
 				if (p != null) {
@@ -256,7 +257,7 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 				}
 			}
 
-			fail(e.getMessage());
+			throw t;
 		}
 		finally {
 			for (int i = 0; i < numberOfTaskManagers; i++) {

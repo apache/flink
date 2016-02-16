@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -30,6 +31,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public final class NullValue implements NormalizableKey<NullValue>, CopyableValue<NullValue> {
 	private static final long serialVersionUID = 1L;
 	

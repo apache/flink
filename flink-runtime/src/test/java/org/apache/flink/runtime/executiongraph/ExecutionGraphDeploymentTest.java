@@ -36,6 +36,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -79,11 +80,12 @@ public class ExecutionGraphDeploymentTest {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					"some job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
+				TestingUtils.defaultExecutionContext(), 
+				jobId, 
+				"some job", 
+				new Configuration(), 
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -281,11 +283,13 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.directExecutionContext(),
-				jobId,
-				"some job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+			TestingUtils.directExecutionContext(), 
+			jobId, 
+			"some job", 
+			new Configuration(),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
+		
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);

@@ -15,11 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import inspect
 import copy
 import types as TYPES
 
-from flink.plan.Constants import _Identifier, WriteMode, STRING
+from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
 from flink.plan.OperationInfo import OperationInfo
 from flink.functions.CoGroupFunction import CoGroupFunction
 from flink.functions.FilterFunction import FilterFunction
@@ -30,52 +29,49 @@ from flink.functions.JoinFunction import JoinFunction
 from flink.functions.MapFunction import MapFunction
 from flink.functions.MapPartitionFunction import MapPartitionFunction
 from flink.functions.ReduceFunction import ReduceFunction
-
-def deduct_output_type(dataset):
-    skip = set([_Identifier.GROUP, _Identifier.SORT, _Identifier.UNION])
-    source = set([_Identifier.SOURCE_CSV, _Identifier.SOURCE_TEXT, _Identifier.SOURCE_VALUE])
-    default = set([_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.JOINT, _Identifier.JOINH, _Identifier.JOIN])
-
-    while True:
-        dataset_type = dataset.identifier
-        if dataset_type in skip:
-            dataset = dataset.parent
-            continue
-        if dataset_type in source:
-            if dataset_type == _Identifier.SOURCE_TEXT:
-                return STRING
-            if dataset_type == _Identifier.SOURCE_VALUE:
-                return dataset.values[0]
-            if dataset_type == _Identifier.SOURCE_CSV:
-                return dataset.types
-        if dataset_type == _Identifier.PROJECTION:
-            return tuple([deduct_output_type(dataset.parent)[k] for k in dataset.keys])
-        if dataset_type in default:
-            if dataset.operator is not None: #udf-join/cross
-                return dataset.types
-            if len(dataset.projections) == 0: #defaultjoin/-cross
-                return (deduct_output_type(dataset.parent), deduct_output_type(dataset.other))
-            else: #projectjoin/-cross
-                t1 = deduct_output_type(dataset.parent)
-                t2 = deduct_output_type(dataset.other)
-                out_type = []
-                for prj in dataset.projections:
-                    if len(prj[1]) == 0: #projection on non-tuple dataset
-                        if prj[0] == "first":
-                            out_type.append(t1)
-                        else:
-                            out_type.append(t2)
-                    else: #projection on tuple dataset
-                        for key in prj[1]:
-                            if prj[0] == "first":
-                                out_type.append(t1[key])
-                            else:
-                                out_type.append(t2[key])
-                return tuple(out_type)
-        return dataset.types
+from flink.functions.KeySelectorFunction import KeySelectorFunction
 
 
-class Set(object):
+class Stringify(MapFunction):
+    def map(self, value):
+        if isinstance(value, (tuple, list)):
+            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+        else:
+            return str(value)
+
+
+class CsvStringify(MapFunction):
+    def __init__(self, f_delim):
+        super(CsvStringify, self).__init__()
+        self.delim = f_delim
+
+    def map(self, value):
+        return self.delim.join([self._map(field) for field in value])
+
+    def _map(self, value):
+        if isinstance(value, (tuple, list)):
+            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+        else:
+            return str(value)
+
+
+class DataSink(object):
+    def __init__(self, env, info):
+        self._env = env
+        self._info = info
+        info.id = env._counter
+        env._counter += 1
+
+    def name(self, name):
+        self._info.name = name
+        return self
+
+    def set_parallelism(self, parallelism):
+        self._info.parallelism.value = parallelism
+        return self
+
+
+class DataSet(object):
     def __init__(self, env, info):
         self._env = env
         self._info = info
@@ -86,12 +82,18 @@ class Set(object):
         """
         Writes a DataSet to the standard output stream (stdout).
         """
+        return self.map(Stringify())._output(to_error)
+
+    def _output(self, to_error):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_PRINT
         child.parent = self._info
         child.to_err = to_error
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
     def write_text(self, path, write_mode=WriteMode.NO_OVERWRITE):
         """
@@ -100,13 +102,19 @@ class Set(object):
         :param path: he path pointing to the location the text file is written to.
         :param write_mode: OutputFormat.WriteMode value, indicating whether files should be overwritten
         """
+        return self.map(Stringify())._write_text(path, write_mode)
+
+    def _write_text(self, path, write_mode):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_TEXT
         child.parent = self._info
         child.path = path
         child.write_mode = write_mode
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
     def write_csv(self, path, line_delimiter="\n", field_delimiter=',', write_mode=WriteMode.NO_OVERWRITE):
         """
@@ -116,17 +124,23 @@ class Set(object):
         :param path: The path pointing to the location the CSV file is written to.
         :param write_mode: OutputFormat.WriteMode value, indicating whether files should be overwritten
         """
+        return self.map(CsvStringify(field_delimiter))._write_csv(path, line_delimiter, field_delimiter, write_mode)
+
+    def _write_csv(self, path, line_delimiter, field_delimiter, write_mode):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_CSV
         child.path = path
         child.parent = self._info
         child.delimiter_field = field_delimiter
         child.delimiter_line = line_delimiter
         child.write_mode = write_mode
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
-    def reduce_group(self, operator, types, combinable=False):
+    def reduce_group(self, operator, combinable=False):
         """
         Applies a GroupReduce transformation.
 
@@ -136,7 +150,6 @@ class Set(object):
         emit any number of output elements including none.
 
         :param operator: The GroupReduceFunction that is applied on the DataSet.
-        :param types: The type of the resulting DataSet.
         :return:A GroupReduceOperator that represents the reduced DataSet.
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -147,22 +160,12 @@ class Set(object):
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.types = types
-        child.combine = combinable
-        child.combineop = operator
-        child.combineop._combine = True
+        child.operator = operator
+        child.types = _createArrayTypeInfo()
         child.name = "PythonGroupReduce"
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
-
-
-class ReduceSet(Set):
-    def __init__(self, env, info):
-        super(ReduceSet, self).__init__(env, info)
 
     def reduce(self, operator):
         """
@@ -183,19 +186,11 @@ class ReduceSet(Set):
         child.identifier = _Identifier.REDUCE
         child.parent = self._info
         child.operator = operator
-        child.combineop = operator
-        child.combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
         child.name = "PythonReduce"
-        child.types = deduct_output_type(self._info)
+        child.types = _createArrayTypeInfo()
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
-
-
-class DataSet(ReduceSet):
-    def __init__(self, env, info):
-        super(DataSet, self).__init__(env, info)
 
     def project(self, *fields):
         """
@@ -209,14 +204,7 @@ class DataSet(ReduceSet):
         :return: The projected DataSet.
 
         """
-        child = OperationInfo()
-        child_set = DataSet(self._env, child)
-        child.identifier = _Identifier.PROJECTION
-        child.parent = self._info
-        child.keys = fields
-        self._info.children.append(child)
-        self._env._sets.append(child)
-        return child_set
+        return self.map(lambda x: tuple([x[key] for key in fields]))
 
     def group_by(self, *keys):
         """
@@ -231,6 +219,9 @@ class DataSet(ReduceSet):
         :param keys: One or more field positions on which the DataSet will be grouped.
         :return:A Grouping on which a transformation needs to be applied to obtain a transformed DataSet.
         """
+        return self.map(lambda x: x)._group_by(keys)
+
+    def _group_by(self, keys):
         child = OperationInfo()
         child_chain = []
         child_set = UnsortedGrouping(self._env, child, child_chain)
@@ -259,9 +250,8 @@ class DataSet(ReduceSet):
         other_set._info.children.append(child)
         child_set = CoGroupOperatorWhere(self._env, child)
         child.identifier = _Identifier.COGROUP
-        child.parent = self._info
-        child.other = other_set._info
-        self._info.children.append(child)
+        child.parent_set = self
+        child.other_set = other_set
         return child_set
 
     def cross(self, other_set):
@@ -312,6 +302,37 @@ class DataSet(ReduceSet):
         self._env._sets.append(child)
         return child_set
 
+    def distinct(self, *fields):
+        """
+        Returns a distinct set of a tuple DataSet using field position keys.
+
+        :param fields: One or more field positions on which the distinction of the DataSet is decided.
+        :return: The distinct DataSet.
+        """
+        f = None
+        if len(fields) == 0:
+            f = lambda x: (x,)
+            fields = (0,)
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+        return self.map(lambda x: (f(x), x)).name("DistinctPreStep")._distinct(tuple([x for x in range(len(fields))]))
+
+    def _distinct(self, fields):
+        self._info.types = _createKeyValueTypeInfo(len(fields))
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.DISTINCT
+        child.parent = self._info
+        child.keys = fields
+        self._info.parallelism = child.parallelism
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
     def filter(self, operator):
         """
         Applies a Filter transformation on a DataSet.
@@ -331,14 +352,29 @@ class DataSet(ReduceSet):
         child.identifier = _Identifier.FILTER
         child.parent = self._info
         child.operator = operator
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
         child.name = "PythonFilter"
-        child.types = deduct_output_type(self._info)
+        child.types = _createArrayTypeInfo()
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
 
-    def flat_map(self, operator, types):
+    def first(self, count):
+        """
+        Returns a new set containing the first n elements in this DataSet.
+
+        :param count: The desired number of elements.
+        :return: A DataSet containing the elements.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.FIRST
+        child.parent = self._info
+        child.count = count
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def flat_map(self, operator):
         """
         Applies a FlatMap transformation on a DataSet.
 
@@ -346,7 +382,6 @@ class DataSet(ReduceSet):
         Each FlatMapFunction call can return any number of elements including none.
 
         :param operator: The FlatMapFunction that is called for each element of the DataSet.
-        :param types: The type of the resulting DataSet.
         :return:A FlatMapOperator that represents the transformed DataSe
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -358,8 +393,7 @@ class DataSet(ReduceSet):
         child.identifier = _Identifier.FLATMAP
         child.parent = self._info
         child.operator = operator
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.types = types
+        child.types = _createArrayTypeInfo()
         child.name = "PythonFlatMap"
         self._info.children.append(child)
         self._env._sets.append(child)
@@ -406,14 +440,11 @@ class DataSet(ReduceSet):
         child = OperationInfo()
         child_set = JoinOperatorWhere(self._env, child)
         child.identifier = identifier
-        child.parent = self._info
-        child.other = other_set._info
-        self._info.children.append(child)
-        other_set._info.children.append(child)
-        self._env._sets.append(child)
+        child.parent_set = self
+        child.other_set = other_set
         return child_set
 
-    def map(self, operator, types):
+    def map(self, operator):
         """
         Applies a Map transformation on a DataSet.
 
@@ -421,7 +452,6 @@ class DataSet(ReduceSet):
         Each MapFunction call returns exactly one element.
 
         :param operator: The MapFunction that is called for each element of the DataSet.
-        :param types: The type of the resulting DataSet
         :return:A MapOperator that represents the transformed DataSet
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -433,14 +463,13 @@ class DataSet(ReduceSet):
         child.identifier = _Identifier.MAP
         child.parent = self._info
         child.operator = operator
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.types = types
+        child.types = _createArrayTypeInfo()
         child.name = "PythonMap"
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
 
-    def map_partition(self, operator, types):
+    def map_partition(self, operator):
         """
         Applies a MapPartition transformation on a DataSet.
 
@@ -452,7 +481,6 @@ class DataSet(ReduceSet):
         sees is non deterministic and depends on the degree of parallelism of the operation.
 
         :param operator: The MapFunction that is called for each element of the DataSet.
-        :param types: The type of the resulting DataSet
         :return:A MapOperator that represents the transformed DataSet
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -464,9 +492,55 @@ class DataSet(ReduceSet):
         child.identifier = _Identifier.MAPPARTITION
         child.parent = self._info
         child.operator = operator
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.types = types
+        child.types = _createArrayTypeInfo()
         child.name = "PythonMapPartition"
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def partition_by_hash(self, *fields):
+        f = None
+        if len(fields) == 0:
+            f = lambda x: (x,)
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+        return self.map(lambda x: (f(x), x)).name("HashPartitionPreStep")._partition_by_hash(tuple([x for x in range(len(fields))]))
+
+    def _partition_by_hash(self, fields):
+        """
+        Hash-partitions a DataSet on the specified key fields.
+        Important:This operation shuffles the whole DataSet over the network and can take significant amount of time.
+
+        :param fields: The field indexes on which the DataSet is hash-partitioned.
+        :return: The partitioned DataSet.
+        """
+        self._info.types = _createKeyValueTypeInfo(len(fields))
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.PARTITION_HASH
+        child.parent = self._info
+        child.keys = fields
+        self._info.parallelism = child.parallelism
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def rebalance(self):
+        """
+        Enforces a re-balancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the
+        following task. This can help to improve performance in case of heavy data skew and compute intensive operations.
+        Important:This operation shuffles the whole DataSet over the network and can take significant amount of time.
+
+        :return: The re-balanced DataSet.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.REBALANCE
+        child.parent = self._info
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
@@ -490,6 +564,14 @@ class DataSet(ReduceSet):
         self._env._sets.append(child)
         return child_set
 
+    def name(self, name):
+        self._info.name = name
+        return self
+
+    def set_parallelism(self, parallelism):
+        self._info.parallelism.value = parallelism
+        return self
+
 
 class OperatorSet(DataSet):
     def __init__(self, env, info):
@@ -497,6 +579,7 @@ class OperatorSet(DataSet):
 
     def with_broadcast_set(self, name, set):
         child = OperationInfo()
+        child.identifier = _Identifier.BROADCAST
         child.parent = self._info
         child.other = set._info
         child.name = name
@@ -514,7 +597,27 @@ class Grouping(object):
         info.id = env._counter
         env._counter += 1
 
-    def reduce_group(self, operator, types, combinable=False):
+    def _finalize(self):
+        pass
+
+    def first(self, count):
+        """
+        Returns a new set containing the first n elements in this DataSet.
+
+        :param count: The desired number of elements.
+        :return: A DataSet containing the elements.
+        """
+        self._finalize()
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.FIRST
+        child.parent = self._info
+        child.count = count
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def reduce_group(self, operator, combinable=False):
         """
         Applies a GroupReduce transformation.
 
@@ -524,27 +627,22 @@ class Grouping(object):
         emit any number of output elements including none.
 
         :param operator: The GroupReduceFunction that is applied on the DataSet.
-        :param types: The type of the resulting DataSet.
         :return:A GroupReduceOperator that represents the reduced DataSet.
         """
+        self._finalize()
         if isinstance(operator, TYPES.FunctionType):
             f = operator
             operator = GroupReduceFunction()
             operator.reduce = f
-        operator._set_grouping_keys(self._child_chain[0].keys)
-        operator._set_sort_ops([(x.field, x.order) for x in self._child_chain[1:]])
         child = OperationInfo()
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.types = types
-        child.combine = combinable
-        child.combineop = operator
-        child.combineop._combine = True
+        child.operator = operator
+        child.types = _createArrayTypeInfo()
         child.name = "PythonGroupReduce"
+        child.key1 = self._child_chain[0].keys
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
 
@@ -587,30 +685,96 @@ class UnsortedGrouping(Grouping):
         :param operator:The ReduceFunction that is applied on the DataSet.
         :return:A ReduceOperator that represents the reduced DataSet.
         """
-        operator._set_grouping_keys(self._child_chain[0].keys)
-        for i in self._child_chain:
-            self._env._sets.append(i)
+        self._finalize()
+        if isinstance(operator, TYPES.FunctionType):
+            f = operator
+            operator = ReduceFunction()
+            operator.reduce = f
         child = OperationInfo()
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.REDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.combine = True
-        child.combineop = operator
-        child.combineop._combine = True
+        child.operator = operator
         child.name = "PythonReduce"
-        child.types = deduct_output_type(self._info)
+        child.types = _createArrayTypeInfo()
+        child.key1 = self._child_chain[0].keys
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
 
         return child_set
 
+    def _finalize(self):
+        grouping = self._child_chain[0]
+        keys = grouping.keys
+        f = None
+        if isinstance(keys[0], TYPES.FunctionType):
+            f = lambda x: (keys[0](x),)
+        if isinstance(keys[0], KeySelectorFunction):
+            f = lambda x: (keys[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in keys])
+
+        grouping.parent.operator.map = lambda x: (f(x), x)
+        grouping.parent.types = _createKeyValueTypeInfo(len(keys))
+        grouping.keys = tuple([i for i in range(len(grouping.keys))])
+
 
 class SortedGrouping(Grouping):
     def __init__(self, env, info, child_chain):
         super(SortedGrouping, self).__init__(env, info, child_chain)
+
+    def _finalize(self):
+        grouping = self._child_chain[0]
+        sortings = self._child_chain[1:]
+
+        #list of used index keys to prevent duplicates and determine final index
+        index_keys = set()
+
+        if not isinstance(grouping.keys[0], (TYPES.FunctionType, KeySelectorFunction)):
+            index_keys = index_keys.union(set(grouping.keys))
+
+        #list of sorts using indices
+        index_sorts = []
+        #list of sorts using functions
+        ksl_sorts = []
+        for s in sortings:
+            if not isinstance(s.field, (TYPES.FunctionType, KeySelectorFunction)):
+                index_keys.add(s.field)
+                index_sorts.append(s)
+            else:
+                ksl_sorts.append(s)
+
+        used_keys = sorted(index_keys)
+        #all data gathered
+
+        #construct list of extractor lambdas
+        lambdas = []
+        i = 0
+        for key in used_keys:
+            lambdas.append(lambda x, k=key: x[k])
+            i += 1
+        if isinstance(grouping.keys[0], (TYPES.FunctionType, KeySelectorFunction)):
+            lambdas.append(grouping.keys[0])
+        for ksl_op in ksl_sorts:
+            lambdas.append(ksl_op.field)
+
+        grouping.parent.operator.map = lambda x: (tuple([l(x) for l in lambdas]), x)
+        grouping.parent.types = _createKeyValueTypeInfo(len(lambdas))
+        #modify keys
+        ksl_offset = len(used_keys)
+        if not isinstance(grouping.keys[0], (TYPES.FunctionType, KeySelectorFunction)):
+            grouping.keys = tuple([used_keys.index(key) for key in grouping.keys])
+        else:
+            grouping.keys = (ksl_offset,)
+            ksl_offset += 1
+
+        for iop in index_sorts:
+            iop.field = used_keys.index(iop.field)
+
+        for kop in ksl_sorts:
+            kop.field = ksl_offset
+            ksl_offset += 1
 
 
 class CoGroupOperatorWhere(object):
@@ -628,6 +792,18 @@ class CoGroupOperatorWhere(object):
         :param fields: The indexes of the Tuple fields of the first co-grouped DataSets that should be used as keys.
         :return: An incomplete CoGroup transformation.
         """
+        f = None
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+
+        new_parent_set = self._info.parent_set.map(lambda x: (f(x), x))
+        new_parent_set._info.types = _createKeyValueTypeInfo(len(fields))
+        self._info.parent = new_parent_set._info
+        self._info.parent.children.append(self._info)
         self._info.key1 = fields
         return CoGroupOperatorTo(self._env, self._info)
 
@@ -647,6 +823,18 @@ class CoGroupOperatorTo(object):
         :param fields: The indexes of the Tuple fields of the second co-grouped DataSet that should be used as keys.
         :return: An incomplete CoGroup transformation.
         """
+        f = None
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+
+        new_other_set = self._info.other_set.map(lambda x: (f(x), x))
+        new_other_set._info.types = _createKeyValueTypeInfo(len(fields))
+        self._info.other = new_other_set._info
+        self._info.other.children.append(self._info)
         self._info.key2 = fields
         return CoGroupOperatorUsing(self._env, self._info)
 
@@ -656,7 +844,7 @@ class CoGroupOperatorUsing(object):
         self._env = env
         self._info = info
 
-    def using(self, operator, types):
+    def using(self, operator):
         """
         Finalizes a CoGroup transformation.
 
@@ -664,7 +852,6 @@ class CoGroupOperatorUsing(object):
         Each CoGroupFunction call returns an arbitrary number of keys.
 
         :param operator: The CoGroupFunction that is called for all groups of elements with identical keys.
-        :param types: The type of the resulting DataSet.
         :return:An CoGroupOperator that represents the co-grouped result DataSet.
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -672,11 +859,14 @@ class CoGroupOperatorUsing(object):
             operator = CoGroupFunction()
             operator.co_group = f
         new_set = OperatorSet(self._env, self._info)
+        self._info.key1 = tuple([x for x in range(len(self._info.key1))])
+        self._info.key2 = tuple([x for x in range(len(self._info.key2))])
         operator._keys1 = self._info.key1
         operator._keys2 = self._info.key2
+        self._info.parent.parallelism = self._info.parallelism
+        self._info.other.parallelism = self._info.parallelism
         self._info.operator = operator
-        self._info.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        self._info.types = types
+        self._info.types = _createArrayTypeInfo()
         self._info.name = "PythonCoGroup"
         self._env._sets.append(self._info)
         return new_set
@@ -698,7 +888,20 @@ class JoinOperatorWhere(object):
         :return:An incomplete Join transformation.
 
         """
-        self._info.key1 = fields
+        f = None
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+
+        new_parent_set = self._info.parent_set.map(lambda x: (f(x), x))
+        new_parent_set._info.types = _createKeyValueTypeInfo(len(fields))
+        self._info.parent = new_parent_set._info
+        self._info.parent.parallelism = self._info.parallelism
+        self._info.parent.children.append(self._info)
+        self._info.key1 = tuple([x for x in range(len(fields))])
         return JoinOperatorTo(self._env, self._info)
 
 
@@ -717,81 +920,117 @@ class JoinOperatorTo(object):
         :param fields:The indexes of the Tuple fields of the second join DataSet that should be used as keys.
         :return:An incomplete Join Transformation.
         """
-        self._info.key2 = fields
+        f = None
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+
+        new_other_set = self._info.other_set.map(lambda x: (f(x), x))
+        new_other_set._info.types = _createKeyValueTypeInfo(len(fields))
+        self._info.other = new_other_set._info
+        self._info.other.parallelism = self._info.parallelism
+        self._info.other.children.append(self._info)
+        self._info.key2 = tuple([x for x in range(len(fields))])
+        self._env._sets.append(self._info)
         return JoinOperator(self._env, self._info)
 
 
-class JoinOperatorProjection(DataSet):
+class Projector(DataSet):
     def __init__(self, env, info):
-        super(JoinOperatorProjection, self).__init__(env, info)
+        super(Projector, self).__init__(env, info)
 
     def project_first(self, *fields):
         """
-        Initiates a ProjectJoin transformation.
+        Initiates a Project transformation.
 
-        Projects the first join input.
-        If the first join input is a Tuple DataSet, fields can be selected by their index.
-        If the first join input is not a Tuple DataSet, no parameters should be passed.
+        Projects the first input.
+        If the first input is a Tuple DataSet, fields can be selected by their index.
+        If the first input is not a Tuple DataSet, no parameters should be passed.
 
         :param fields: The indexes of the selected fields.
-        :return: An incomplete JoinProjection.
+        :return: An incomplete Projection.
         """
-        self._info.projections.append(("first", fields))
+        for field in fields:
+            self._info.projections.append((0, field))
+        self._info.operator.map = lambda x : tuple([x[side][index] for side, index in self._info.projections])
         return self
 
     def project_second(self, *fields):
         """
-        Initiates a ProjectJoin transformation.
+        Initiates a Project transformation.
 
-        Projects the second join input.
-        If the second join input is a Tuple DataSet, fields can be selected by their index.
-        If the second join input is not a Tuple DataSet, no parameters should be passed.
+        Projects the second input.
+        If the second input is a Tuple DataSet, fields can be selected by their index.
+        If the second input is not a Tuple DataSet, no parameters should be passed.
 
         :param fields: The indexes of the selected fields.
-        :return: An incomplete JoinProjection.
+        :return: An incomplete Projection.
         """
-        self._info.projections.append(("second", fields))
+        for field in fields:
+            self._info.projections.append((1, field))
+        self._info.operator.map = lambda x : tuple([x[side][index] for side, index in self._info.projections])
         return self
 
 
-class JoinOperator(DataSet):
+class Projectable:
+    def __init__(self):
+        pass
+
+    def project_first(self, *fields):
+        """
+        Initiates a Project  transformation.
+
+        Projects the first  input.
+        If the first input is a Tuple DataSet, fields can be selected by their index.
+        If the first input is not a Tuple DataSet, no parameters should be passed.
+
+        :param fields: The indexes of the selected fields.
+        :return: An incomplete Projection.
+        """
+        return Projectable._createProjector(self._env, self._info).project_first(*fields)
+
+    def project_second(self, *fields):
+        """
+        Initiates a Project transformation.
+
+        Projects the second input.
+        If the second input is a Tuple DataSet, fields can be selected by their index.
+        If the second input is not a Tuple DataSet, no parameters should be passed.
+
+        :param fields: The indexes of the selected fields.
+        :return: An incomplete Projection.
+        """
+        return Projectable._createProjector(self._env, self._info).project_second(*fields)
+
+    @staticmethod
+    def _createProjector(env, info):
+        child = OperationInfo()
+        child_set = Projector(env, child)
+        child.identifier = _Identifier.MAP
+        child.operator = MapFunction()
+        child.parent = info
+        child.types = _createArrayTypeInfo()
+        child.name = "Projector"
+        child.parallelism = info.parallelism
+        info.children.append(child)
+        env._sets.append(child)
+        return child_set
+
+
+class JoinOperator(DataSet, Projectable):
     def __init__(self, env, info):
         super(JoinOperator, self).__init__(env, info)
 
-    def project_first(self, *fields):
-        """
-        Initiates a ProjectJoin transformation.
-
-        Projects the first join input.
-        If the first join input is a Tuple DataSet, fields can be selected by their index.
-        If the first join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete JoinProjection.
-        """
-        return JoinOperatorProjection(self._env, self._info).project_first(*fields)
-
-    def project_second(self, *fields):
-        """
-        Initiates a ProjectJoin transformation.
-
-        Projects the second join input.
-        If the second join input is a Tuple DataSet, fields can be selected by their index.
-        If the second join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete JoinProjection.
-        """
-        return JoinOperatorProjection(self._env, self._info).project_second(*fields)
-
-    def using(self, operator, types):
+    def using(self, operator):
         """
         Finalizes a Join transformation.
 
         Applies a JoinFunction to each pair of joined elements. Each JoinFunction call returns exactly one element.
 
         :param operator:The JoinFunction that is called for each pair of joined elements.
-        :param types:
         :return:An Set that represents the joined result DataSet.
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -799,84 +1038,23 @@ class JoinOperator(DataSet):
             operator = JoinFunction()
             operator.join = f
         self._info.operator = operator
-        self._info.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        self._info.types = types
+        self._info.types = _createArrayTypeInfo()
         self._info.name = "PythonJoin"
-        self._env._sets.append(self._info)
+        self._info.uses_udf = True
         return OperatorSet(self._env, self._info)
 
 
-class CrossOperatorProjection(DataSet):
-    def __init__(self, env, info):
-        super(CrossOperatorProjection, self).__init__(env, info)
-
-    def project_first(self, *fields):
-        """
-        Initiates a ProjectCross transformation.
-
-        Projects the first join input.
-        If the first join input is a Tuple DataSet, fields can be selected by their index.
-        If the first join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete CrossProjection.
-        """
-        self._info.projections.append(("first", fields))
-        return self
-
-    def project_second(self, *fields):
-        """
-        Initiates a ProjectCross transformation.
-
-        Projects the second join input.
-        If the second join input is a Tuple DataSet, fields can be selected by their index.
-        If the second join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete CrossProjection.
-        """
-        self._info.projections.append(("second", fields))
-        return self
-
-
-class CrossOperator(DataSet):
+class CrossOperator(DataSet, Projectable):
     def __init__(self, env, info):
         super(CrossOperator, self).__init__(env, info)
 
-    def project_first(self, *fields):
-        """
-        Initiates a ProjectCross transformation.
-
-        Projects the first join input.
-        If the first join input is a Tuple DataSet, fields can be selected by their index.
-        If the first join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete CrossProjection.
-        """
-        return CrossOperatorProjection(self._env, self._info).project_first(*fields)
-
-    def project_second(self, *fields):
-        """
-        Initiates a ProjectCross transformation.
-
-        Projects the second join input.
-        If the second join input is a Tuple DataSet, fields can be selected by their index.
-        If the second join input is not a Tuple DataSet, no parameters should be passed.
-
-        :param fields: The indexes of the selected fields.
-        :return: An incomplete CrossProjection.
-        """
-        return CrossOperatorProjection(self._env, self._info).project_second(*fields)
-
-    def using(self, operator, types):
+    def using(self, operator):
         """
         Finalizes a Cross transformation.
 
         Applies a CrossFunction to each pair of joined elements. Each CrossFunction call returns exactly one element.
 
         :param operator:The CrossFunction that is called for each pair of joined elements.
-        :param types: The type of the resulting DataSet.
         :return:An Set that represents the joined result DataSet.
         """
         if isinstance(operator, TYPES.FunctionType):
@@ -884,7 +1062,7 @@ class CrossOperator(DataSet):
             operator = CrossFunction()
             operator.cross = f
         self._info.operator = operator
-        self._info.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        self._info.types = types
+        self._info.types = _createArrayTypeInfo()
         self._info.name = "PythonCross"
+        self._info.uses_udf = True
         return OperatorSet(self._env, self._info)

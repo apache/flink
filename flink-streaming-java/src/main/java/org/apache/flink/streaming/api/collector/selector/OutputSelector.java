@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.collector.selector;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.api.datastream.SplitStream;
  * @param <OUT>
  *            Type parameter of the split values.
  */
+@PublicEvolving
 public interface OutputSelector<OUT> extends Serializable {
 	/**
 	 * Method for selecting output names for the emitted objects when using the

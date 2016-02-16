@@ -253,7 +253,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 					key = value.f1;
 					count++;
 				}
-				out.collect(new Tuple2(key, count));
+				out.collect(new Tuple2<>(key, count));
 			}
 		}).collect();
 
@@ -293,7 +293,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 							key = value.f1;
 							count++;
 						}
-						out.collect(new Tuple2(key, count));
+						out.collect(new Tuple2<>(key, count));
 					}
 				}).collect();
 
@@ -316,7 +316,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple1<String>> ds = CollectionDataSets.getStringDataSet(env).map(new MapFunction<String, Tuple1<String>>() {
 			@Override
 			public Tuple1<String> map(String value) throws Exception {
-				return new Tuple1<String>(value);
+				return new Tuple1<>(value);
 			}
 		});
 
@@ -361,23 +361,25 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 		@Override
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			for (Tuple3<Integer, Long, String> value : values) {
-				out.collect(new Tuple3<Integer, Long, String>(value.f0, value.f1, value.f2));
+				out.collect(new Tuple3<>(value.f0, value.f1, value.f2));
 			}
 		}
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			for (Tuple3<Integer, Long, String> value : values) {
-				out.collect(new Tuple3<Integer, Long, String>(value.f0, value.f1, value.f2));
+				out.collect(new Tuple3<>(value.f0, value.f1, value.f2));
 			}
 		}
 	}
 
 
-	public static class Tuple3toTuple3GroupReduce implements KvGroupReduce<Long, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3toTuple3GroupReduce implements KvGroupReduce<Long, Tuple3<Integer, Long, String>,
+			Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 
 		@Override
-		public void combine(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values, Collector<Tuple2<Long, Tuple3<Integer, Long, String>>> out) throws Exception {
+		public void combine(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values, Collector<Tuple2<Long,
+				Tuple3<Integer, Long, String>>> out) throws Exception {
 			int i = 0;
 			long l = 0;
 			long key = 0;
@@ -390,20 +392,23 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				l += extracted.f1;
 			}
 
-			Tuple3<Integer, Long, String> result = new Tuple3<Integer, Long, String>(i, l, "combined");
-			out.collect(new Tuple2<Long, Tuple3<Integer, Long, String>>(key, result));
+			Tuple3<Integer, Long, String> result = new Tuple3<>(i, l, "combined");
+			out.collect(new Tuple2<>(key, result));
 		}
 
 		@Override
-		public void reduce(Iterable values, Collector out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values,
+											 Collector<Tuple2<Long, Tuple3<Integer, Long, String>>> out) throws Exception {
 			combine(values, out);
 		}
 	}
 
-	public static class Tuple3toTuple2GroupReduce implements KvGroupReduce<Long, Tuple3<Integer, Long, String>, Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
+	public static class Tuple3toTuple2GroupReduce implements KvGroupReduce<Long, Tuple3<Integer, Long, String>,
+			Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
 
 		@Override
-		public void combine(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values, Collector<Tuple2<Long, Tuple2<Integer, Long>>> out) throws Exception {
+		public void combine(Iterable<Tuple2<Long, Tuple3<Integer, Long, String>>> values, Collector<Tuple2<Long,
+				Tuple2<Integer, Long>>> out) throws Exception {
 			int i = 0;
 			long l = 0;
 			long key = 0;
@@ -416,20 +421,23 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				l += extracted.f1 + extracted.f2.length();
 			}
 
-			Tuple2<Integer, Long> result = new Tuple2<Integer, Long>(i, l);
-			out.collect(new Tuple2<Long, Tuple2<Integer, Long>>(key, result));
+			Tuple2<Integer, Long> result = new Tuple2<>(i, l);
+			out.collect(new Tuple2<>(key, result));
 		}
 
 		@Override
-		public void reduce(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long, Tuple2<Integer, Long>>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long,
+				Tuple2<Integer, Long>>> out) throws Exception {
 			new Tuple2toTuple2GroupReduce().reduce(values, out);
 		}
 	}
 
-	public static class Tuple2toTuple2GroupReduce implements KvGroupReduce<Long, Tuple2<Integer, Long>, Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
+	public static class Tuple2toTuple2GroupReduce implements KvGroupReduce<Long, Tuple2<Integer, Long>,
+			Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
 
 		@Override
-		public void combine(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long, Tuple2<Integer, Long>>> out) throws Exception {
+		public void combine(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long, Tuple2<Integer,
+				Long>>> out) throws Exception {
 			int i = 0;
 			long l = 0;
 			long key = 0;
@@ -442,29 +450,33 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 				l += extracted.f1;
 			}
 
-			Tuple2<Integer, Long> result = new Tuple2<Integer, Long>(i, l);
+			Tuple2<Integer, Long> result = new Tuple2<>(i, l);
 
-			out.collect(new Tuple2<Long, Tuple2<Integer, Long>>(key, result));
+			out.collect(new Tuple2<>(key, result));
 		}
 
 		@Override
-		public void reduce(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long, Tuple2<Integer, Long>>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Tuple2<Integer, Long>>> values, Collector<Tuple2<Long,
+				Tuple2<Integer, Long>>> out) throws Exception {
 			combine(values, out);
 		}
 	}
 
-	public class Tuple3KvWrapper implements MapFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Tuple3<Integer, Long, String>>> {
+	public class Tuple3KvWrapper implements MapFunction<Tuple3<Integer, Long, String>, Tuple2<Long,
+			Tuple3<Integer, Long, String>>> {
 		@Override
 		public Tuple2<Long, Tuple3<Integer, Long, String>> map(Tuple3<Integer, Long, String> value) throws Exception {
-			return new Tuple2<Long,Tuple3<Integer, Long, String>>(value.f1, value);
+			return new Tuple2<>(value.f1, value);
 		}
 	}
 
 
-	public interface CombineAndReduceGroup <IN, INT, OUT> extends GroupCombineFunction<IN, INT>, GroupReduceFunction<INT, OUT> {
+	public interface CombineAndReduceGroup <IN, INT, OUT> extends GroupCombineFunction<IN, INT>,
+			GroupReduceFunction<INT, OUT> {
 	}
 
-	public interface KvGroupReduce<K, V, INT, OUT> extends CombineAndReduceGroup<Tuple2<K, V>, Tuple2<K, INT>, Tuple2<K, OUT>> {
+	public interface KvGroupReduce<K, V, INT, OUT> extends CombineAndReduceGroup<Tuple2<K, V>, Tuple2<K, INT>,
+			Tuple2<K, OUT>> {
 	}
 
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.aggregators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.DoubleValue;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.flink.types.DoubleValue;
  * holds the value zero. The aggregated data type is a {@link DoubleValue}.
  */
 @SuppressWarnings("serial")
+@PublicEvolving
 public class DoubleZeroConvergence implements ConvergenceCriterion<DoubleValue> {
 
 	/**

@@ -70,9 +70,9 @@ public class ZooKeeperTestUtils {
 		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeperQuorum);
 
 		int connTimeout = 5000;
-		if (System.getenv().get("CI") != null) {
+		if (System.getenv().containsKey("CI")) {
 			// The regular timeout is to aggressive for Travis and connections are often lost.
-			connTimeout = 20000;
+			connTimeout = 30000;
 		}
 
 		config.setInteger(ConfigConstants.ZOOKEEPER_CONNECTION_TIMEOUT, connTimeout);
@@ -87,7 +87,8 @@ public class ZooKeeperTestUtils {
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
 		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
-		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "10 s");
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+		config.setString(ConfigConstants.RECOVERY_JOB_DELAY, "10 s");
 
 		return config;
 	}

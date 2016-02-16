@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -31,7 +32,7 @@ import java.util.Collections;
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
  */
-
+@Internal
 public class PreAggregatingHeapWindowBuffer<T> implements WindowBuffer<T> {
 	private static final long serialVersionUID = 1L;
 

@@ -29,22 +29,22 @@ import com.typesafe.config.Config
 
 import org.apache.flink.api.common.{JobID, JobExecutionResult, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobExecutionException, JobClient}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
+import org.apache.flink.runtime.jobmanager.RecoveryMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
 StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
-import org.apache.flink.runtime.util.{LeaderRetrievalUtils, StandaloneUtils, ZooKeeperUtils}
+import org.apache.flink.runtime.util.ZooKeeperUtils
 import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
+import scala.concurrent.forkjoin.ForkJoinPool
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -55,18 +55,12 @@ import scala.concurrent._
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param useSingleActorSystem true if all actors (JobManager and TaskManager) shall be run in the
  *                             same [[ActorSystem]], otherwise false
- * @param streamingMode True, if the system should be started in streaming mode, false if
- *                      in pure batch mode.
  */
 abstract class FlinkMiniCluster(
     val userConfiguration: Configuration,
-    val useSingleActorSystem: Boolean,
-    val streamingMode: StreamingMode)
+    val useSingleActorSystem: Boolean)
   extends LeaderRetrievalListener {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-         = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
-  
   protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 
   // --------------------------------------------------------------------------
@@ -89,10 +83,10 @@ abstract class FlinkMiniCluster(
 
   /** Future lock */
   val futureLock = new Object()
-
+  
   implicit val executionContext = ExecutionContext.global
 
-  implicit val timeout = AkkaUtils.getTimeout(userConfiguration)
+  implicit val timeout = AkkaUtils.getTimeout(configuration)
 
   val recoveryMode = RecoveryMode.fromConfig(configuration)
 
@@ -194,6 +188,22 @@ abstract class FlinkMiniCluster(
     AkkaUtils.getAkkaConfig(configuration, Some((hostname, resolvedPort)))
   }
 
+  /**
+    * Sets CI environment (Travis) specific config defaults.
+    */
+  def setDefaultCiConfig(config: Configuration) : Unit = {
+    // https://docs.travis-ci.com/user/environment-variables#Default-Environment-Variables
+    if (sys.env.contains("CI")) {
+      // Only set if nothing specified in config
+      if (config.getString(ConfigConstants.AKKA_ASK_TIMEOUT, null) == null) {
+        val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT) * 10
+        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, s"${duration.toSeconds}s")
+
+        LOG.info(s"Akka ask timeout set to ${duration.toSeconds}s")
+      }
+    }
+  }
+
   // --------------------------------------------------------------------------
   //                          Start/Stop Methods
   // --------------------------------------------------------------------------
@@ -289,12 +299,16 @@ abstract class FlinkMiniCluster(
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically
       // because it is not in the same project/dependencies
-      val webServer = WebMonitorUtils.startWebRuntimeMonitor(
-        config, leaderRetrievalService, actorSystem)
+      val webServer = Option(
+        WebMonitorUtils.startWebRuntimeMonitor(
+          config,
+          leaderRetrievalService,
+          actorSystem)
+      )
 
-      webServer.start(jobManagerAkkaURL)
+      webServer.foreach(_.start(jobManagerAkkaURL))
 
-      Option(webServer)
+      webServer
     } else {
       None
     }
@@ -322,8 +336,6 @@ abstract class FlinkMiniCluster(
     val jmFutures = jobManagerActors map {
       _.map(gracefulStop(_, timeout))
     } getOrElse(Seq())
-
-    implicit val executionContext = ExecutionContext.global
 
     Await.ready(Future.sequence(jmFutures ++ tmFutures), timeout)
 

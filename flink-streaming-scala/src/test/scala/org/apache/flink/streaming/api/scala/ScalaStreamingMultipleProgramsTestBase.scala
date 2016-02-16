@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.streaming.util.TestStreamEnvironment
 import org.apache.flink.test.util.{ForkableFlinkMiniCluster, TestBaseUtils}
 import org.scalatest.BeforeAndAfterAll
@@ -37,7 +36,6 @@ trait ScalaStreamingMultipleProgramsTestBase
       TestBaseUtils.startCluster(
         1,
         parallelism,
-        StreamingMode.STREAMING,
         false,
         false,
         true

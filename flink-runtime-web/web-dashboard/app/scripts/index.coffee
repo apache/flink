@@ -29,6 +29,8 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 # --------------------------------------
 
 .value 'flinkConfig', {
+  jobServer: ''
+# jobServer: 'http://localhost:8081/'
   "refresh-interval": 10000
 }
 
@@ -90,12 +92,19 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobs/job.plan.html"
         controller: 'JobPlanController'
 
-  .state "single-job.plan.overview",
+  .state "single-job.plan.subtasks",
     url: ""
     views:
       'node-details':
-        templateUrl: "partials/jobs/job.plan.node-list.overview.html"
-        controller: 'JobPlanOverviewController'
+        templateUrl: "partials/jobs/job.plan.node-list.subtasks.html"
+        controller: 'JobPlanSubtasksController'
+
+  .state "single-job.plan.taskmanagers",
+    url: "/taskmanagers"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.taskmanagers.html"
+        controller: 'JobPlanTaskManagersController'
 
   .state "single-job.plan.accumulators",
     url: "/accumulators"
@@ -103,6 +112,20 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.accumulators.html"
         controller: 'JobPlanAccumulatorsController'
+
+  .state "single-job.plan.checkpoints",
+    url: "/checkpoints"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.checkpoints.html"
+        controller: 'JobPlanCheckpointsController'
+
+  .state "single-job.plan.backpressure",
+    url: "/backpressure"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.backpressure.html"
+        controller: 'JobPlanBackPressureController'
 
   .state "single-job.timeline",
     url: "/timeline"
@@ -183,5 +206,12 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobmanager/log.html"
         controller: 'JobManagerLogsController'
+
+  .state "submit",
+      url: "/submit"
+      views:
+        main:
+          templateUrl: "partials/submit.html"
+          controller: "JobSubmitController"
 
   $urlRouterProvider.otherwise "/overview"

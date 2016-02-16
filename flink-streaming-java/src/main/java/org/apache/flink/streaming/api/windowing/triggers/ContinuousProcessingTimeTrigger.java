@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
@@ -28,10 +33,15 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigger<Object, W> {
+@PublicEvolving
+public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long interval;
+
+	private final ValueStateDescriptor<Long> stateDesc =
+			new ValueStateDescriptor<>("fire-timestamp", LongSerializer.INSTANCE, 0L);
+
 
 	private ContinuousProcessingTimeTrigger(long interval) {
 		this.interval = interval;
@@ -41,7 +51,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		long currentTime = System.currentTimeMillis();
 
-		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		ValueState<Long> fireState = ctx.getPartitionedState(stateDesc);
 		long nextFireTimestamp = fireState.value();
 
 		if (nextFireTimestamp == 0) {
@@ -70,7 +80,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 
-		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		ValueState<Long> fireState = ctx.getPartitionedState(stateDesc);
 		long nextFireTimestamp = fireState.value();
 
 		// only fire if an element didn't already fire
@@ -82,6 +92,9 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 		}
 		return TriggerResult.CONTINUE;
 	}
+
+	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {}
 
 	@VisibleForTesting
 	public long getInterval() {
@@ -99,7 +112,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	 * @param interval The time interval at which to fire.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(AbstractTime interval) {
+	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(Time interval) {
 		return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
 	}
 }

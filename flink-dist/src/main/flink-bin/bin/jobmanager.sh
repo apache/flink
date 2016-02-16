@@ -18,13 +18,12 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh (start (local|cluster) [batch|streaming] [host] [webui-port])|stop|stop-all)"
+USAGE="Usage: jobmanager.sh (start (local|cluster) [host] [webui-port]|stop|stop-all)"
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
-STREAMINGMODE=$3
-HOST=$4 # optional when starting multiple instances
-WEBUIPORT=$5 # optinal when starting multiple instances
+HOST=$3 # optional when starting multiple instances
+WEBUIPORT=$4 # optinal when starting multiple instances
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -35,12 +34,6 @@ if [[ $STARTSTOP == "start" ]]; then
     if [ -z $EXECUTIONMODE ]; then
         echo "Missing execution mode (local|cluster) argument. $USAGE."
         exit 1
-    fi
-
-    # Use batch mode as default
-    if [ -z $STREAMINGMODE ]; then
-        echo "Missing streaming mode (batch|streaming) argument. Using 'batch'."
-        STREAMINGMODE="batch"
     fi
 
     if [[ ! ${FLINK_JM_HEAP} =~ $IS_NUMBER ]] || [[ "${FLINK_JM_HEAP}" -lt "0" ]]; then
@@ -62,7 +55,7 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 
     # Startup parameters
-    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "${EXECUTIONMODE}" "--streamingMode" "${STREAMINGMODE}")
+    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "${EXECUTIONMODE}")
     if [ ! -z $HOST ]; then
         args+=("--host")
         args+=("${HOST}")

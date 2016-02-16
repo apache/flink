@@ -19,11 +19,14 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Implementing this interface allows a Program to have a description
  * of the plan which can be shown to the user. For a more detailed description
  * of what should be included in the description see getDescription().
  */
+@PublicEvolving
 public interface ProgramDescription {
 	
 	/**

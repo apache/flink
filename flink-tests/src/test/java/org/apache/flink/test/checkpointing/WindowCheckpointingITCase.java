@@ -19,16 +19,16 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -36,10 +36,8 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -54,6 +52,7 @@ import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -83,9 +82,8 @@ public class WindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
-		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
 
-		cluster = new ForkableFlinkMiniCluster(config, false, StreamingMode.STREAMING);
+		cluster = new ForkableFlinkMiniCluster(config, false);
 		cluster.start();
 	}
 
@@ -111,7 +109,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -119,7 +117,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -169,7 +167,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -177,7 +175,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -227,7 +225,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -242,23 +240,12 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-						private boolean open = false;
-
-						@Override
-						public void open(Configuration parameters) {
-							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-							open = true;
-						}
+					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 
 						@Override
 						public Tuple2<Long, IntType> reduce(
 								Tuple2<Long, IntType> a,
 								Tuple2<Long, IntType> b) {
-
-							// validate that the function has been opened properly
-							assertTrue(open);
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
@@ -286,7 +273,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 
 			env
@@ -301,23 +288,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-						private boolean open = false;
-
-						@Override
-						public void open(Configuration parameters) {
-							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-							open = true;
-						}
-
+					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> reduce(
 								Tuple2<Long, IntType> a,
 								Tuple2<Long, IntType> b) {
-
-							// validate that the function has been opened properly
-							assertTrue(open);
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
@@ -337,7 +312,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<Integer>, CheckpointNotifier
+			implements Checkpointed<Integer>, CheckpointListener
 	{
 		private static volatile boolean failedBefore = false;
 
@@ -495,27 +470,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	public static void tryExecute(StreamExecutionEnvironment env, String jobName) throws Exception {
-		try {
-			env.execute(jobName);
-		}
-		catch (ProgramInvocationException | JobExecutionException root) {
-			Throwable cause = root.getCause();
-
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (!(cause instanceof SuccessException)) {
-				if (cause == null || depth++ == 20) {
-					root.printStackTrace();
-					fail("Test failed: " + root.getMessage());
-				}
-				else {
-					cause = cause.getCause();
-				}
-			}
-		}
-	}
-
 	public static class IntType {
 
 		public int value;
@@ -523,9 +477,5 @@ public class WindowCheckpointingITCase extends TestLogger {
 		public IntType() {}
 
 		public IntType(int value) { this.value = value; }
-	}
-
-	static final class SuccessException extends Exception {
-		private static final long serialVersionUID = -9218191172606739598L;
 	}
 }

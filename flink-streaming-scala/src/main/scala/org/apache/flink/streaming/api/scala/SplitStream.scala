@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 
 /**
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStrea
  * the appropriate method on this stream.
  *
  */
+@Public
 class SplitStream[T](javaStream: SplitJavaStream[T]) extends DataStream[T](javaStream){
 
   /**

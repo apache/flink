@@ -29,7 +29,7 @@ import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
- * A vertex-centric implementation of the Weakly Connected Components algorithm.
+ * A scatter-gather implementation of the Weakly Connected Components algorithm.
  *
  * This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
  * The vertices propagate their current component ID in iterations.
@@ -66,8 +66,8 @@ public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, D
 		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
 				.getUndirected();
 
-		// initialize vertex values and run the Vertex Centric Iteration
-		return undirectedGraph.runVertexCentricIteration(
+		// initialize vertex values and run the Scatter-Gather Iteration
+		return undirectedGraph.runScatterGatherIteration(
 				new CCUpdater<K>(), new CCMessenger<K>(), maxIterations)
 				.getVertices();
 	}

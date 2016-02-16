@@ -17,28 +17,40 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Random;
-import java.util.concurrent.Callable;
-
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.GenericFoldingState;
+import org.apache.flink.runtime.state.GenericListState;
+import org.apache.flink.runtime.state.GenericReducingState;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.concurrent.Callable;
+
 import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
 /**
- * {@link StateBackend} for storing checkpoints in JDBC supporting databases.
+ * {@link AbstractStateBackend} for storing checkpoints in JDBC supporting databases.
  * Key-Value state is stored out-of-core and is lazily fetched using the
- * {@link LazyDbKvState} implementation. A different backend can also be
+ * {@link LazyDbValueState} implementation. A different backend can also be
  * provided in the constructor to store the non-partitioned states. A common use
  * case would be to store the key-value states in the database and store larger
  * non-partitioned states on a distributed file system.
@@ -56,7 +68,7 @@ import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
  * {@link MySqlAdapter} can be supplied in the {@link DbBackendConfig}.
  *
  */
-public class DbStateBackend extends StateBackend<DbStateBackend> {
+public class DbStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(DbStateBackend.class);
@@ -66,6 +78,8 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	// ------------------------------------------------------
 
 	private transient Environment env;
+
+	private transient String appId;
 
 	// ------------------------------------------------------
 
@@ -79,10 +93,12 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 
 	private transient PreparedStatement insertStatement;
 
+	private String operatorIdentifier;
+
 	// ------------------------------------------------------
 
 	// We allow to use a different backend for storing non-partitioned states
-	private StateBackend<?> nonPartitionedStateBackend = null;
+	private AbstractStateBackend nonPartitionedStateBackend = null;
 
 	// ------------------------------------------------------
 
@@ -104,7 +120,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	 * non-partitioned state snapshots.
 	 * 
 	 */
-	public DbStateBackend(DbBackendConfig backendConfig, StateBackend<?> backend) {
+	public DbStateBackend(DbBackendConfig backendConfig, AbstractStateBackend backend) {
 		this(backendConfig);
 		this.nonPartitionedStateBackend = backend;
 	}
@@ -147,16 +163,16 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					// We create a unique long id for each handle, but we also
 					// store the checkpoint id and timestamp for bookkeeping
 					long handleId = rnd.nextLong();
-					String jobIdShort = env.getJobID().toShortString();
 
-					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
+					byte[] serializedState = InstantiationUtil.serializeObject(state);
+					dbAdapter.setCheckpointInsertParams(appId, insertStatement,
 							checkpointID, timestamp, handleId,
-							InstantiationUtil.serializeObject(state));
+							serializedState);
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<S>(jobIdShort, checkpointID, timestamp, handleId,
-							dbConfig);
+					return new DbStateHandle<>(appId, checkpointID, timestamp, handleId,
+							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
@@ -177,22 +193,82 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	}
 
 	@Override
-	public <K, V> LazyDbKvState<K, V> createKvState(String stateId, String stateName,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
-		return new LazyDbKvState<K, V>(
-				stateId + "_" + env.getJobID().toShortString(),
-				env.getIndexInSubtaskGroup() == 0,
-				getConnections(),
-				getConfiguration(),
-				keySerializer,
-				valueSerializer,
-				defaultValue);
+	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer,
+		ValueStateDescriptor<T> stateDesc) throws Exception {
+		
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
+		String stateName = operatorIdentifier + "_"+ stateDesc.getName();
+
+		return new LazyDbValueState<>(
+			stateName,
+			env.getTaskInfo().getIndexOfThisSubtask() == 0,
+			getConnections(),
+			getConfiguration(),
+			keySerializer,
+			namespaceSerializer,
+			stateDesc);
 	}
 
 	@Override
-	public void initializeForJob(final Environment env) throws Exception {
+	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer,
+		ListStateDescriptor<T> stateDesc) throws Exception {
+
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
+		ValueStateDescriptor<ArrayList<T>> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(), 
+				new ArrayListSerializer<>(stateDesc.getSerializer()), null);
+		
+		ValueState<ArrayList<T>> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
+		return new GenericListState<>(valueState);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer,
+		ReducingStateDescriptor<T> stateDesc) throws Exception {
+
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
+				stateDesc.getName(), stateDesc.getSerializer(), null);
+		
+		ValueState<T> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
+		return new GenericReducingState<>(valueState, stateDesc.getReduceFunction());
+	}
+
+	@Override
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+
+		ValueStateDescriptor<ACC> valueStateDescriptor = new ValueStateDescriptor<>(
+			stateDesc.getName(), stateDesc.getSerializer(), stateDesc.getDefaultValue());
+
+		ValueState<ACC> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
+		return new GenericFoldingState<>(valueState, stateDesc.getFoldFunction());
+	}
+
+	@Override
+	public void initializeForJob(final Environment env,
+		String operatorIdentifier,
+		TypeSerializer<?> keySerializer) throws Exception {
+		super.initializeForJob(env, operatorIdentifier, keySerializer);
+
+		this.operatorIdentifier = operatorIdentifier;
+
 		this.rnd = new Random();
 		this.env = env;
+		this.appId = env.getApplicationID().toString().substring(0, 16);
 
 		connections = dbConfig.createShardedConnection();
 
@@ -210,13 +286,13 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(env.getJobID().toShortString(), getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(env.getJobID().toShortString(),
+					dbAdapter.createCheckpointsTable(appId, getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(appId,
 							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
-			nonPartitionedStateBackend.initializeForJob(env);
+			nonPartitionedStateBackend.initializeForJob(env, operatorIdentifier, keySerializer);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -240,9 +316,10 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(env.getJobID().toShortString(), connections.getFirst());
+			dbAdapter.disposeAllStateForJob(appId, connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}
 	}
+
 }

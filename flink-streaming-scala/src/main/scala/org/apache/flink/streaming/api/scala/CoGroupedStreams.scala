@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -56,6 +57,7 @@ import scala.reflect.ClassTag
  *     .apply(new MyCoGroupFunction())
  * } }}}
  */
+@Public
 object CoGroupedStreams {
 
   /**
@@ -97,7 +99,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -148,6 +150,7 @@ object CoGroupedStreams {
     /**
      * Specifies the window on which the co-group operation works.
      */
+    @PublicEvolving
     def window[W <: Window](
         assigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W])
         : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
@@ -170,7 +173,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -183,6 +186,7 @@ object CoGroupedStreams {
    * @tparam KEY Type of the key. This must be the same for both inputs
    * @tparam W Type of { @link Window} on which the co-group operation works.
    */
+  @PublicEvolving
   class WithWindow[T1, T2, KEY, W <: Window](
       input1: DataStream[T1],
       input2: DataStream[T2],
@@ -196,6 +200,7 @@ object CoGroupedStreams {
     /**
      * Sets the [[Trigger]] that should be used to trigger window emission.
      */
+    @PublicEvolving
     def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -214,6 +219,7 @@ object CoGroupedStreams {
      * Note: When using an evictor window performance will degrade significantly, since
      * pre-aggregation of window results cannot be used.
      */
+    @PublicEvolving
     def evictor(newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -270,7 +276,7 @@ object CoGroupedStreams {
      */
     def apply[T: TypeInformation](function: CoGroupFunction[T1, T2, T]): DataStream[T] = {
 
-      val coGroup = new JavaCoGroupedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val coGroup = new JavaCoGroupedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       coGroup
         .where(keySelector1)
@@ -286,7 +292,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 

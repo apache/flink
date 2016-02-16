@@ -18,21 +18,23 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{PublicEvolving, Internal, Public}
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
-import org.apache.flink.streaming.api.windowing.time.AbstractTime
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
 
-
+@Public
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
 
   // ------------------------------------------------------------------------
@@ -42,6 +44,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Gets the type of the key by which this stream is keyed.
    */
+  @Internal
   def getKeyType = javaStream.getKeyType()
   
   // ------------------------------------------------------------------------
@@ -58,7 +61,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * @param size The size of the window.
    */
-  def timeWindow(size: AbstractTime): WindowedStream[T, K, TimeWindow] = {
+  def timeWindow(size: Time): WindowedStream[T, K, TimeWindow] = {
     val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
     window(assigner)
   }
@@ -92,7 +95,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * @param size The size of the window.
    */
-  def timeWindow(size: AbstractTime, slide: AbstractTime): WindowedStream[T, K, TimeWindow] = {
+  def timeWindow(size: Time, slide: Time): WindowedStream[T, K, TimeWindow] = {
     val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
     window(assigner)
   }
@@ -109,6 +112,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param assigner The `WindowAssigner` that assigns elements to windows.
    * @return The trigger windows data stream.
    */
+  @PublicEvolving
   def window[W <: Window](assigner: WindowAssigner[_ >: T, W]): WindowedStream[T, K, W] = {
     new WindowedStream(new WindowedJavaStream[T, K, W](javaStream, assigner))
   }
@@ -298,10 +302,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
 
     val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
 
       override def filter(in: T): Boolean = {
         applyWithState(in, cleanFun)
@@ -326,10 +331,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def map(in: T): R = {
         applyWithState(in, cleanFun)
@@ -354,10 +360,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def flatMap(in: T, out: Collector[R]): Unit = {
         applyWithState(in, cleanFun) foreach out.collect

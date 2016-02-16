@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -35,17 +36,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class ClusterOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class ClusterOverviewHandler implements RequestHandler {
+
+	private static final String version = EnvironmentInformation.getVersion();
+
+	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
 	private final FiniteDuration timeout;
 	
-
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
 			if (jobManager != null) {
@@ -53,7 +57,7 @@ public class ClusterOverviewHandler implements RequestHandler, RequestHandler.Js
 				StatusOverview overview = (StatusOverview) Await.result(future, timeout);
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());
@@ -63,6 +67,10 @@ public class ClusterOverviewHandler implements RequestHandler, RequestHandler.Js
 				gen.writeNumberField("jobs-finished", overview.getNumJobsFinished());
 				gen.writeNumberField("jobs-cancelled", overview.getNumJobsCancelled());
 				gen.writeNumberField("jobs-failed", overview.getNumJobsFailed());
+				gen.writeStringField("flink-version", version);
+				if (!commitID.equals(EnvironmentInformation.UNKNOWN)) {
+					gen.writeStringField("flink-commit", commitID);
+				}
 				gen.writeEndObject();
 
 				gen.close();

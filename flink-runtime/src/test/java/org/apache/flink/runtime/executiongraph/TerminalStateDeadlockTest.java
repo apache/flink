@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -124,9 +125,7 @@ public class TerminalStateDeadlockTest {
 			for (int i = 0; i < 20000; i++) {
 				final TestExecGraph eg = new TestExecGraph(jobId);
 				eg.attachJobGraph(vertices);
-				eg.setDelayBeforeRetrying(0);
-				eg.setNumberOfRetriesLeft(1);
-				
+
 				final Execution e1 = eg.getJobVertex(vid1).getTaskVertices()[0].getCurrentExecutionAttempt();
 				final Execution e2 = eg.getJobVertex(vid2).getTaskVertices()[0].getCurrentExecutionAttempt();
 
@@ -181,7 +180,13 @@ public class TerminalStateDeadlockTest {
 		private volatile boolean done;
 
 		TestExecGraph(JobID jobId) {
-			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
+			super(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				"test graph",
+				EMPTY_CONFIG,
+				TIMEOUT,
+				new FixedDelayRestartStrategy(1, 0));
 		}
 
 		@Override

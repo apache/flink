@@ -21,21 +21,19 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
- * Class representing the operators in the streaming programs, with all their
- * properties.
- * 
+ * Class representing the operators in the streaming programs, with all their properties.
  */
+@Internal
 public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -49,7 +47,8 @@ public class StreamNode implements Serializable {
 	private String operatorName;
 	private Integer slotSharingID;
 	private boolean isolatedSlot = false;
-	private KeySelector<?,?> statePartitioner;
+	private KeySelector<?,?> statePartitioner1;
+	private KeySelector<?,?> statePartitioner2;
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;
@@ -64,6 +63,8 @@ public class StreamNode implements Serializable {
 	private Class<? extends AbstractInvokable> jobVertexClass;
 
 	private InputFormat<?, ?> inputFormat;
+
+	private String transformationId;
 
 	public StreamNode(StreamExecutionEnvironment env, Integer id, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
@@ -165,10 +166,6 @@ public class StreamNode implements Serializable {
 		return outputSelectors;
 	}
 
-	public OutputSelectorWrapper<?> getOutputSelectorWrapper() {
-		return OutputSelectorWrapperFactory.create(getOutputSelectors());
-	}
-
 	public void addOutputSelector(OutputSelector<?> outputSelector) {
 		this.outputSelectors.add(outputSelector);
 	}
@@ -226,12 +223,20 @@ public class StreamNode implements Serializable {
 		return operatorName + "-" + id;
 	}
 
-	public KeySelector<?, ?> getStatePartitioner() {
-		return statePartitioner;
+	public KeySelector<?, ?> getStatePartitioner1() {
+		return statePartitioner1;
 	}
 
-	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
-		this.statePartitioner = statePartitioner;
+	public KeySelector<?, ?> getStatePartitioner2() {
+		return statePartitioner2;
+	}
+
+	public void setStatePartitioner1(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner1 = statePartitioner;
+	}
+
+	public void setStatePartitioner2(KeySelector<?, ?> statePartitioner) {
+		this.statePartitioner2 = statePartitioner;
 	}
 
 	public TypeSerializer<?> getStateKeySerializer() {
@@ -240,6 +245,14 @@ public class StreamNode implements Serializable {
 
 	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
 		this.stateKeySerializer = stateKeySerializer;
+	}
+
+	String getTransformationId() {
+		return transformationId;
+	}
+
+	void setTransformationId(String transformationId) {
+		this.transformationId = transformationId;
 	}
 
 	@Override

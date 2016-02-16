@@ -49,8 +49,19 @@ public class TestEnvironment extends ExecutionEnvironment {
 	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
+
 		// disabled to improve build time
 		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
+	}
+
+	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism, boolean isObjectReuseEnabled) {
+		this(executor, parallelism);
+
+		if (isObjectReuseEnabled) {
+			getConfig().enableObjectReuse();
+		} else {
+			getConfig().disableObjectReuse();
+		}
 	}
 
 	@Override
@@ -89,7 +100,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(executor, getParallelism());
+				lastEnv = new TestEnvironment(executor, getParallelism(), getConfig().isObjectReuseEnabled());
 				return lastEnv;
 			}
 		};

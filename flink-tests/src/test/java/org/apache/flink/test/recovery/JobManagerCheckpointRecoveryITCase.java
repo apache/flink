@@ -23,13 +23,14 @@ import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -39,14 +40,17 @@ import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,8 +72,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class JobManagerCheckpointRecoveryITCase extends TestLogger {
+
+	@Rule
+	public RetryRule retryRule = new RetryRule();
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
@@ -97,7 +105,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 	@Before
 	public void cleanUp() throws Exception {
-		if (FileStateBackendBasePath != null) {
+		if (FileStateBackendBasePath != null && FileStateBackendBasePath.exists()) {
 			FileUtils.cleanDirectory(FileStateBackendBasePath);
 		}
 
@@ -108,15 +116,15 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 	private static final int Parallelism = 8;
 
-	private static final CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
+	private static CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(2);
 
-	private static final AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
+	private static AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
 
-	private static final CountDownLatch FinalCountLatch = new CountDownLatch(1);
+	private static CountDownLatch FinalCountLatch = new CountDownLatch(1);
 
-	private static final AtomicReference<Long> FinalCount = new AtomicReference<>();
+	private static AtomicReference<Long> FinalCount = new AtomicReference<>();
 
-	private static final long LastElement = -1;
+	private static long LastElement = -1;
 
 	/**
 	 * Simple checkpointed streaming sum.
@@ -127,6 +135,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 	 * this test actually tests something.
 	 */
 	@Test
+	@RetryOnFailure(times=1)
 	public void testCheckpointedStreamingSumProgram() throws Exception {
 		// Config
 		final int checkpointingInterval = 200;
@@ -173,11 +182,12 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
-			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, StreamingMode.STREAMING, TaskManager.class);
+					false, TaskManager.class);
 
 			{
 				// Initial submission
@@ -237,6 +247,17 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			}
 		}
 		catch (Throwable t) {
+			// Reset all static state for test retries
+			CompletedCheckpointsLatch = new CountDownLatch(2);
+			RecoveredStates = new AtomicLongArray(Parallelism);
+			FinalCountLatch = new CountDownLatch(1);
+			FinalCount = new AtomicReference<>();
+			LastElement = -1;
+
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();
@@ -246,7 +267,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 				jobManagerProcess[1].printProcessLog();
 			}
 
-			t.printStackTrace();
+			throw t;
 		}
 		finally {
 			if (jobManagerProcess[0] != null) {
@@ -267,6 +288,161 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 			if (testSystem != null) {
 				testSystem.shutdown();
+			}
+		}
+	}
+
+	/**
+	 * Tests that the JobManager logs failures during recovery properly.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-3185">FLINK-3185</a>
+	 */
+	@Test
+	@RetryOnFailure(times=1)
+	public void testCheckpointRecoveryFailure() throws Exception {
+		final Deadline testDeadline = TestTimeOut.fromNow();
+		final String zooKeeperQuorum = ZooKeeper.getConnectString();
+		final String fileStateBackendPath = FileStateBackendBasePath.getAbsoluteFile().toString();
+
+		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+				zooKeeperQuorum,
+				fileStateBackendPath);
+
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
+
+		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
+		LeaderRetrievalService leaderRetrievalService = null;
+		ActorSystem taskManagerSystem = null;
+		ActorSystem testActorSystem = null;
+
+		try {
+			// Test actor system
+			testActorSystem = AkkaUtils.createActorSystem(new Configuration(),
+					new Some<>(new Tuple2<String, Object>("localhost", 0)));
+
+			// The job managers
+			jobManagerProcess[0] = new JobManagerProcess(0, config);
+			jobManagerProcess[1] = new JobManagerProcess(1, config);
+
+			jobManagerProcess[0].createAndStart();
+			jobManagerProcess[1].createAndStart();
+
+			// Leader listener
+			TestingListener leaderListener = new TestingListener();
+			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalService.start(leaderListener);
+
+			// The task manager
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
+			TaskManager.startTaskManagerComponentsAndActor(
+					config, taskManagerSystem, "localhost",
+					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
+					false, TaskManager.class);
+
+			// Get the leader
+			leaderListener.waitForNewLeader(testDeadline.timeLeft().toMillis());
+
+			String leaderAddress = leaderListener.getAddress();
+			UUID leaderId = leaderListener.getLeaderSessionID();
+
+			// Get the leader ref
+			ActorRef leaderRef = AkkaUtils.getActorRef(
+					leaderAddress, testActorSystem, testDeadline.timeLeft());
+			ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+
+			// Who's the boss?
+			JobManagerProcess leadingJobManagerProcess;
+			JobManagerProcess nonLeadingJobManagerProcess;
+			if (jobManagerProcess[0].getJobManagerAkkaURL().equals(leaderListener.getAddress())) {
+				leadingJobManagerProcess = jobManagerProcess[0];
+				nonLeadingJobManagerProcess = jobManagerProcess[1];
+			}
+			else {
+				leadingJobManagerProcess = jobManagerProcess[1];
+				nonLeadingJobManagerProcess = jobManagerProcess[0];
+			}
+
+			// BLocking JobGraph
+			JobVertex blockingVertex = new JobVertex("Blocking vertex");
+			blockingVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
+			JobGraph jobGraph = new JobGraph(blockingVertex);
+
+			// Submit the job in detached mode
+			leader.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
+
+			// Wait for the job to be running
+			JobManagerActorTestUtils.waitForJobStatus(
+					jobGraph.getJobID(),
+					JobStatus.RUNNING,
+					leader,
+					testDeadline.timeLeft());
+
+			// Remove all files
+			FileUtils.deleteDirectory(FileStateBackendBasePath);
+
+			// Kill the leader
+			leadingJobManagerProcess.destroy();
+
+			// Verify that the job manager logs the failed recovery. We can not
+			// do more at this point. :(
+			boolean success = false;
+
+			while (testDeadline.hasTimeLeft()) {
+				String output = nonLeadingJobManagerProcess.getProcessOutput();
+
+				if (output != null) {
+					if (output.contains("Fatal error: Failed to recover jobs") &&
+							output.contains("java.io.FileNotFoundException")) {
+
+						success = true;
+						break;
+					}
+				}
+				else {
+					log.warn("No process output available.");
+				}
+
+				Thread.sleep(500);
+			}
+
+			assertTrue("Did not find expected output in logs.", success);
+		}
+		catch (Throwable t) {
+			// Print early (in some situtations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
+			// In case of an error, print the job manager process logs.
+			if (jobManagerProcess[0] != null) {
+				jobManagerProcess[0].printProcessLog();
+			}
+
+			if (jobManagerProcess[1] != null) {
+				jobManagerProcess[1].printProcessLog();
+			}
+
+			throw t;
+		}
+		finally {
+			if (jobManagerProcess[0] != null) {
+				jobManagerProcess[0].destroy();
+			}
+
+			if (jobManagerProcess[1] != null) {
+				jobManagerProcess[1].destroy();
+			}
+
+			if (leaderRetrievalService != null) {
+				leaderRetrievalService.stop();
+			}
+
+			if (taskManagerSystem != null) {
+				taskManagerSystem.shutdown();
+			}
+
+			if (testActorSystem != null) {
+				testActorSystem.shutdown();
 			}
 		}
 	}
@@ -346,7 +522,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 	 * are exhausted.
 	 */
 	public static class CountingSink implements SinkFunction<Long>, Checkpointed<CountingSink>,
-			CheckpointNotifier {
+		CheckpointListener {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CountingSink.class);
 

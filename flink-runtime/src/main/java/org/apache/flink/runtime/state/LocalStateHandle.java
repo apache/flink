@@ -41,4 +41,9 @@ public class LocalStateHandle<T extends Serializable> implements StateHandle<T> 
 
 	@Override
 	public void discardState() {}
+
+	@Override
+	public long getStateSize() {
+		return 0;
+	}
 }

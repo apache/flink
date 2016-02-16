@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -168,11 +169,10 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	}
 
 	@Override
-	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
+	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+		return new IterativeRuntimeUdfContext(env.getTaskInfo(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -195,7 +195,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 		if (brokerKey == null) {
 			int iterationId = config.getIterationId();
 			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' +
-					getEnvironment().getIndexInSubtaskGroup();
+					getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 		}
 		return brokerKey;
 	}
@@ -212,7 +212,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 				this.driver.setup(this);
 			}
 			catch (Throwable t) {
-				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskName() +
+				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskInfo().getTaskName() +
 						"' , caused an error: " + t.getMessage(), t);
 			}
 		}
@@ -361,10 +361,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks,
-										Map<String, Accumulator<?,?>> accumulatorMap) {
-			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
+		public IterativeRuntimeUdfContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulatorMap) {
+			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
 		}
 
 		@Override

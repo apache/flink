@@ -19,3 +19,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+<meta http-equiv="refresh" content="1; url={{ site.baseurl }}/apis/batch/libs/index.html" />
+
+The *libraries guide* has been moved. Redirecting to [{{ site.baseurl }}/apis/batch/libs/index.html]({{ site.baseurl }}/apis/batch/libs/index.html) in 1 second.

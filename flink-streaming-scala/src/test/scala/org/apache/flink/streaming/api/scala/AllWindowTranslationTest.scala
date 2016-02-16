@@ -21,7 +21,8 @@ package org.apache.flink.streaming.api.scala
 
 import java.util.concurrent.TimeUnit
 
-import org.apache.flink.api.common.functions.RichReduceFunction
+import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.state.ReducingStateDescriptor
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.windowing.{WindowFunction, AllWindowFunction}
@@ -63,7 +64,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         Time.of(100, TimeUnit.MILLISECONDS)))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -75,14 +76,14 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .windowAll(SlidingTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
-      def apply(
-                    window: TimeWindow,
-                    values: java.lang.Iterable[(String, Int)],
-                    out: Collector[(String, Int)]) { }
-    })
+      .apply(new AllWindowFunction[Iterable[(String, Int)], (String, Int), TimeWindow]() {
+        def apply(
+            window: TimeWindow,
+            values: Iterable[(String, Int)],
+            out: Collector[(String, Int)]) { }
+      })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -105,7 +106,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .trigger(CountTrigger.of(100))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -121,14 +122,14 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val window2 = source
       .windowAll(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
-      .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
+      .apply(new AllWindowFunction[Iterable[(String, Int)], (String, Int), TimeWindow]() {
       def apply(
                     window: TimeWindow,
-                    values: java.lang.Iterable[(String, Int)],
+                    values: Iterable[(String, Int)],
                     out: Collector[(String, Int)]) { }
     })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -155,7 +156,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -172,14 +173,14 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .windowAll(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
       .evictor(CountEvictor.of(1000))
-      .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
+      .apply(new AllWindowFunction[Iterable[(String, Int)], (String, Int), TimeWindow]() {
       def apply(
                     window: TimeWindow,
-                    values: java.lang.Iterable[(String, Int)],
+                    values: Iterable[(String, Int)],
                     out: Collector[(String, Int)]) { }
     })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -210,21 +211,21 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
-                   values: java.lang.Iterable[(String, Int)],
+                   values: (String, Int),
                    out: Collector[(String, Int)]) { }
       })
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
 
-    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _]])
-    val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _]]
+    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
+    val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
     assertTrue(winOperator1.getTrigger.isInstanceOf[CountTrigger[_]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingTimeWindows])
     assertTrue(
-      winOperator1.getWindowBufferFactory.isInstanceOf[PreAggregatingHeapWindowBuffer.Factory[_]])
+      winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
 
     val window2 = source
@@ -235,21 +236,21 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
-                   values: java.lang.Iterable[(String, Int)],
+                   values: (String, Int),
                    out: Collector[(String, Int)]) { }
       })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
 
-    assertTrue(operator2.isInstanceOf[WindowOperator[_, _, _, _]])
-    val winOperator2 = operator2.asInstanceOf[WindowOperator[_, _, _, _]]
+    assertTrue(operator2.isInstanceOf[WindowOperator[_, _, _, _, _]])
+    val winOperator2 = operator2.asInstanceOf[WindowOperator[_, _, _, _, _]]
     assertTrue(winOperator2.getTrigger.isInstanceOf[CountTrigger[_]])
     assertTrue(winOperator2.getWindowAssigner.isInstanceOf[TumblingTimeWindows])
     assertTrue(
-      winOperator2.getWindowBufferFactory.isInstanceOf[PreAggregatingHeapWindowBuffer.Factory[_]])
+      winOperator2.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
   }
 
 }
@@ -258,7 +259,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 //  UDFs
 // ------------------------------------------------------------------------
 
-class DummyReducer extends RichReduceFunction[(String, Int)] {
+class DummyReducer extends ReduceFunction[(String, Int)] {
   def reduce(value1: (String, Int), value2: (String, Int)): (String, Int) = {
     value1
   }

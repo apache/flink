@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -37,6 +38,7 @@ import java.util.ArrayDeque;
  * 
  * <p>NOTE: This implementation strictly assumes that newer checkpoints have higher checkpoint IDs.</p>
  */
+@Internal
 public class BarrierTracker implements CheckpointBarrierHandler {
 
 	/** The tracker tracks a maximum number of checkpoints, for which some, but not all
