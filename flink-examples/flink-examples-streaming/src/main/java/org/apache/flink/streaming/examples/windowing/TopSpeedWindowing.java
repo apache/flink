@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -150,8 +150,7 @@ public class TopSpeedWindowing {
 		}
 	}
 
-	private static class ParseCarData extends
-			RichMapFunction<String, Tuple4<Integer, Integer, Double, Long>> {
+	private static class ParseCarData extends RichMapFunction<String, Tuple4<Integer, Integer, Double, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -162,24 +161,12 @@ public class TopSpeedWindowing {
 		}
 	}
 
-	private static class CarTimestamp implements TimestampExtractor<Tuple4<Integer, Integer, Double, Long>> {
+	private static class CarTimestamp extends AscendingTimestampExtractor<Tuple4<Integer, Integer, Double, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long extractTimestamp(Tuple4<Integer, Integer, Double, Long> element,
-				long currentTimestamp) {
+		public long extractAscendingTimestamp(Tuple4<Integer, Integer, Double, Long> element, long previous) {
 			return element.f3;
-		}
-
-		@Override
-		public long extractWatermark(Tuple4<Integer, Integer, Double, Long> element,
-				long currentTimestamp) {
-			return element.f3 - 1;
-		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
 		}
 	}
 
