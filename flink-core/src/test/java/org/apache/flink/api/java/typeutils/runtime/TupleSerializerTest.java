@@ -46,7 +46,7 @@ public class TupleSerializerTest {
 	public void testTuple0() {
 		Tuple0[] testTuples = new Tuple0[] { Tuple0.INSTANCE, Tuple0.INSTANCE, Tuple0.INSTANCE };
 
-		runTests(testTuples);
+		runTests(1, testTuples);
 	}
 
 	@Test
@@ -57,7 +57,7 @@ public class TupleSerializerTest {
 			new Tuple1<Integer>(Integer.MAX_VALUE), new Tuple1<Integer>(Integer.MIN_VALUE)
 		};
 		
-		runTests(testTuples);
+		runTests(4, testTuples);
 	}
 	
 	@Test
@@ -74,7 +74,7 @@ public class TupleSerializerTest {
 			new Tuple1<String>("")
 		};
 		
-		runTests(testTuples);
+		runTests(-1, testTuples);
 	}
 	
 	@Test
@@ -101,7 +101,7 @@ public class TupleSerializerTest {
 			new Tuple1<String[]>(arr2)
 		};
 		
-		runTests(testTuples);
+		runTests(-1, testTuples);
 	}
 	
 	@Test
@@ -118,7 +118,7 @@ public class TupleSerializerTest {
 				new Tuple2<String, Double>(StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble())
 			};
 		
-		runTests(testTuples);
+		runTests(-1, testTuples);
 	}
 	
 	@Test
@@ -148,7 +148,7 @@ public class TupleSerializerTest {
 			new Tuple2<String, String[]>(StringUtils.getRandomString(rnd, 30, 170), arr2)
 		};
 		
-		runTests(testTuples);
+		runTests(-1, testTuples);
 	}
 	
 
@@ -212,17 +212,16 @@ public class TupleSerializerTest {
 				new Tuple5<SimpleTypes, Book, ComplexNestedObject1, BookAuthor, ComplexNestedObject2>(g, b6, o4, ba1, co2)
 		};
 		
-		runTests(testTuples);
+		runTests(-1, testTuples);
 	}
 
-	private <T extends Tuple> void runTests(T... instances) {
+	private <T extends Tuple> void runTests(int length, T... instances) {
 		try {
 			TupleTypeInfo<T> tupleTypeInfo = (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
 			TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
 			
 			Class<T> tupleClass = tupleTypeInfo.getTypeClass();
-			
-			int length = -1;
+
 			if(tupleClass == Tuple0.class) {
 				length = 1;
 			}

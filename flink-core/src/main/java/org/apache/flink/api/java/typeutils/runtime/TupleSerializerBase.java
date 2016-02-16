@@ -38,6 +38,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final int arity;
 
+	private int length = -2;
+
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		this.tupleClass = Preconditions.checkNotNull(tupleClass);
@@ -56,7 +58,19 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@Override
 	public int getLength() {
-		return -1;
+		if (length == -2) {
+			int sum = 0;
+			for (TypeSerializer<Object> serializer : fieldSerializers) {
+				if (serializer.getLength() > 0) {
+					sum += serializer.getLength();
+				} else {
+					length = -1;
+					return length;
+				}
+			}
+			length = sum;
+		}
+		return length;
 	}
 
 	public int getArity() {
