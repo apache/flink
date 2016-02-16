@@ -43,7 +43,7 @@ under the License.
 				<configuration>
 					<reuseForks>true</reuseForks>
 					<forkCount>1</forkCount>
-					<argLine>-XX:-UseSplitVerifier</argLine>
+					<argLine>-noverify</argLine>
 				</configuration>
 			</plugin>
 		</plugins>
