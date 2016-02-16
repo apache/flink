@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>write a simple streaming program.
  * </ul>
  */
+@SuppressWarnings("serial")
 public class WindowJoin {
 
 	// *************************************************************************
@@ -211,22 +212,11 @@ public class WindowJoin {
 		}
 	}
 
-	private static class MyTimestampExtractor implements TimestampExtractor<Tuple3<Long, String, Integer>> {
-		private static final long serialVersionUID = 1L;
+	private static class MyTimestampExtractor extends AscendingTimestampExtractor<Tuple3<Long, String, Integer>> {
 
 		@Override
-		public long extractTimestamp(Tuple3<Long, String, Integer> element, long currentTimestamp) {
+		public long extractAscendingTimestamp(Tuple3<Long, String, Integer> element, long currentTimestamp) {
 			return element.f0;
-		}
-
-		@Override
-		public long extractWatermark(Tuple3<Long, String, Integer> element, long currentTimestamp) {
-			return element.f0 - 1;
-		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
 		}
 	}
 
