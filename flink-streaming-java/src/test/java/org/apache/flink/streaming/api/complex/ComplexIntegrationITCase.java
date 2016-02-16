@@ -71,7 +71,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("serial")
-public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
+public class ComplexIntegrationITCase extends StreamingMultipleProgramsTestBase {
 
 	// *************************************************************************
 	// GENERAL SETUP
