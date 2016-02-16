@@ -39,27 +39,29 @@ object StreamingTableFilter {
       return
     }
 
-    val cars = genCarStream().toTable
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    
+    val cars = env.fromCollection(genCarStream()).toTable
       .filter('carId === 0)
       .select('carId, 'speed, 'distance + 1000 as 'distance, 'time % 5 as 'time)
       .toDataStream[CarEvent]
 
     cars.print()
 
-    StreamExecutionEnvironment.getExecutionEnvironment.execute("TopSpeedWindowing")
+    env.execute("TopSpeedWindowing")
 
   }
 
-  def genCarStream(): DataStream[CarEvent] = {
+  def genCarStream(): Stream[CarEvent] = {
 
-    def nextSpeed(carEvent : CarEvent) : CarEvent =
-    {
-      val next =
-        if (Random.nextBoolean()) min(100, carEvent.speed + 5) else max(0, carEvent.speed - 5)
-      CarEvent(carEvent.carId, next, carEvent.distance + next/3.6d,System.currentTimeMillis)
+    def nextSpeed(carEvent : CarEvent) : CarEvent = {
+      val next = if (Random.nextBoolean()) min(100, carEvent.speed + 5)
+                 else max(0, carEvent.speed - 5)
+      
+      CarEvent(carEvent.carId, next, carEvent.distance + next/3.6d,System.currentTimeMillis())
     }
-    def carStream(speeds : Stream[CarEvent]) : Stream[CarEvent] =
-    {
+    
+    def carStream(speeds : Stream[CarEvent]) : Stream[CarEvent] = {
       Thread.sleep(1000)
       speeds.append(carStream(speeds.map(nextSpeed)))
     }

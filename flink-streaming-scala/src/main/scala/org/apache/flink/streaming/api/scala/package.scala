@@ -46,9 +46,6 @@ package object scala {
   implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: ConnectedJavaStreams[IN1, IN2]):
   ConnectedStreams[IN1, IN2] = new ConnectedStreams[IN1, IN2](javaStream)
 
-  implicit def seqToFlinkSource[T: ClassTag: TypeInformation](scalaSeq: Seq[T]) : DataStream[T] =
-    StreamExecutionEnvironment.getExecutionEnvironment.fromCollection(scalaSeq)
-
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],
       fields: Array[String]): Array[Int] = {
