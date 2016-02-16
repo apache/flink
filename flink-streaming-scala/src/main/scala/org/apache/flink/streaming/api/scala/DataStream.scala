@@ -49,10 +49,10 @@ class DataStream[T](stream: JavaStream[T]) {
   def javaStream: JavaStream[T] = stream
 
   /**
-    * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
- *
-    * @return associated execution environment
-    */
+   * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
+   *
+   * @return associated execution environment
+   */
   def getExecutionEnvironment: StreamExecutionEnvironment =
     new StreamExecutionEnvironment(stream.getExecutionEnvironment)
 
@@ -112,7 +112,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @return The named operator
    */
   def name(name: String) : DataStream[T] = stream match {
-    case stream : SingleOutputStreamOperator[T,_] => stream.name(name)
+    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.name(name))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -131,7 +131,7 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def uid(uid: String) : DataStream[T] = javaStream match {
-    case stream : SingleOutputStreamOperator[T,_] => stream.uid(uid)
+    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -231,7 +231,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   def union(dataStreams: DataStream[T]*): DataStream[T] =
-    stream.union(dataStreams.map(_.javaStream): _*)
+    asScalaStream(stream.union(dataStreams.map(_.javaStream): _*))
 
   /**
    * Creates a new ConnectedStreams by connecting
@@ -239,20 +239,20 @@ class DataStream[T](stream: JavaStream[T]) {
    * DataStreams connected using this operators can be used with CoFunctions.
    */
   def connect[T2](dataStream: DataStream[T2]): ConnectedStreams[T, T2] =
-    stream.connect(dataStream.javaStream)
+    asScalaStream(stream.connect(dataStream.javaStream))
 
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = stream.keyBy(fields: _*)
+  def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = asScalaStream(stream.keyBy(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def keyBy(firstField: String, otherFields: String*): KeyedStream[T, JavaTuple] =
-   stream.keyBy(firstField +: otherFields.toArray: _*)
+    asScalaStream(stream.keyBy(firstField +: otherFields.toArray: _*))
 
   /**
    * Groups the elements of a DataStream by the given K key to
@@ -267,21 +267,22 @@ class DataStream[T](stream: JavaStream[T]) {
       def getKey(in: T) = cleanFun(in)
       override def getProducedType: TypeInformation[K] = keyType
     }
-    new JavaKeyedStream(stream, keyExtractor, keyType)
+    asScalaStream(new JavaKeyedStream(stream, keyExtractor, keyType))
   }
 
   /**
    * Partitions the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def partitionByHash(fields: Int*): DataStream[T] = stream.partitionByHash(fields: _*)
+  def partitionByHash(fields: Int*): DataStream[T] = 
+    asScalaStream(stream.partitionByHash(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def partitionByHash(firstField: String, otherFields: String*): DataStream[T] =
-    stream.partitionByHash(firstField +: otherFields.toArray: _*)
+    asScalaStream(stream.partitionByHash(firstField +: otherFields.toArray: _*))
 
   /**
    * Groups the elements of a DataStream by the given K key to
@@ -294,7 +295,8 @@ class DataStream[T](stream: JavaStream[T]) {
       def getKey(in: T) = cleanFun(in)
       override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
     }
-    stream.partitionByHash(keyExtractor)
+
+    asScalaStream(stream.partitionByHash(keyExtractor))
   }
 
   /**
@@ -305,7 +307,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
-    stream.partitionCustom(partitioner, field)
+    asScalaStream(stream.partitionCustom(partitioner, field))
 
   /**
    * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
@@ -315,7 +317,8 @@ class DataStream[T](stream: JavaStream[T]) {
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
-  : DataStream[T] = stream.partitionCustom(partitioner, field)
+        : DataStream[T] =
+    asScalaStream(stream.partitionCustom(partitioner, field))
 
   /**
    * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
@@ -326,20 +329,24 @@ class DataStream[T](stream: JavaStream[T]) {
    * of fields.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
-  : DataStream[T] = {
+      : DataStream[T] = {
+    
+    val keyType = implicitly[TypeInformation[K]]
     val cleanFun = clean(fun)
+    
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
-      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
+      override def getProducedType(): TypeInformation[K] = keyType
     }
-    stream.partitionCustom(partitioner, keyExtractor)
+
+    asScalaStream(stream.partitionCustom(partitioner, keyExtractor))
   }
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are broad casted to every parallel instance of the next component.
    */
-  def broadcast: DataStream[T] = stream.broadcast()
+  def broadcast: DataStream[T] = asScalaStream(stream.broadcast())
 
   /**
    * Sets the partitioning of the DataStream so that the output values all go to
@@ -347,27 +354,27 @@ class DataStream[T](stream: JavaStream[T]) {
    * since it might cause a serious performance bottleneck in the application.
    */
   @PublicEvolving
-  def global: DataStream[T] = stream.global()
+  def global: DataStream[T] = asScalaStream(stream.global())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are shuffled to the next component.
    */
   @PublicEvolving
-  def shuffle: DataStream[T] = stream.shuffle()
+  def shuffle: DataStream[T] = asScalaStream(stream.shuffle())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are forwarded to the local subtask of the next component (whenever
    * possible).
    */
-  def forward: DataStream[T] = stream.forward()
+  def forward: DataStream[T] = asScalaStream(stream.forward())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are distributed evenly to the next component.
    */
-  def rebalance: DataStream[T] = stream.rebalance()
+  def rebalance: DataStream[T] = asScalaStream(stream.rebalance())
 
   /**
    * Sets the partitioning of the [[DataStream]] so that the output tuples
@@ -387,7 +394,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * downstream operations will have a differing number of inputs from upstream operations.
    */
   @PublicEvolving
-  def rescale: DataStream[T] = stream.rescale()
+  def rescale: DataStream[T] = asScalaStream(stream.rescale())
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
@@ -440,13 +447,16 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   @PublicEvolving
-  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedStreams[T, F] =>
-    (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
+  def iterate[R, F: TypeInformation: ClassTag](
+        stepFunction: ConnectedStreams[T, F] => (DataStream[F], DataStream[R]),
+        maxWaitTimeMillis:Long): DataStream[R] = {
+    
     val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
+    
     val connectedIterativeStream = stream.iterate(maxWaitTimeMillis).
                                    withFeedbackType(feedbackType)
 
-    val (feedback, output) = stepFunction(connectedIterativeStream)
+    val (feedback, output) = stepFunction(asScalaStream(connectedIterativeStream))
     connectedIterativeStream.closeWith(feedback.javaStream)
     output
   }
@@ -475,7 +485,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -488,7 +498,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -528,7 +538,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (filter == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
-    stream.filter(filter)
+    asScalaStream(stream.filter(filter))
   }
 
   /**
@@ -539,10 +549,10 @@ class DataStream[T](stream: JavaStream[T]) {
       throw new NullPointerException("Filter function must not be null.")
     }
     val cleanFun = clean(fun)
-    val filter = new FilterFunction[T] {
+    val filterFun = new FilterFunction[T] {
       def filter(in: T) = cleanFun(in)
     }
-    this.filter(filter)
+    filter(filterFun)
   }
 
   /**
@@ -643,7 +653,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @deprecated
   def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
-    stream.assignTimestamps(clean(extractor))
+    asScalaStream(stream.assignTimestamps(clean(extractor)))
   }
 
   /**
@@ -671,8 +681,8 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]) 
       : DataStream[T] = {
-    
-    stream.assignTimestampsAndWatermarks(assigner)
+
+    asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
   }
 
   /**
@@ -701,8 +711,8 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def assignTimestampsAndWatermarks(assigner: AssignerWithPunctuatedWatermarks[T])
       : DataStream[T] = {
-    
-    stream.assignTimestampsAndWatermarks(assigner)
+
+    asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
   }
 
   /**
@@ -726,7 +736,7 @@ class DataStream[T](stream: JavaStream[T]) {
         cleanExtractor(element)
       }
     }
-    stream.assignTimestampsAndWatermarks(extractorFunction)
+    asScalaStream(stream.assignTimestampsAndWatermarks(extractorFunction))
   }
 
   /**
@@ -735,7 +745,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
    */
-  def split(selector: OutputSelector[T]): SplitStream[T] = stream.split(selector)
+  def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the

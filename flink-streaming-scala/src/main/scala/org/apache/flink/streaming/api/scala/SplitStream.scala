@@ -34,6 +34,6 @@ class SplitStream[T](javaStream: SplitJavaStream[T]) extends DataStream[T](javaS
   /**
    *  Sets the output names for which the next operator will receive values.
    */
-  def select(outputNames: String*): DataStream[T] = javaStream.select(outputNames: _*)
-  
+  def select(outputNames: String*): DataStream[T] = 
+    asScalaStream(javaStream.select(outputNames: _*))
 }

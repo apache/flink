@@ -321,8 +321,8 @@ public class CoGroupedStreams<T1, T2> {
 	private static class UnionTypeInfo<T1, T2> extends TypeInformation<TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
-		TypeInformation<T1> oneType;
-		TypeInformation<T2> twoType;
+		private final TypeInformation<T1> oneType;
+		private final TypeInformation<T2> twoType;
 
 		public UnionTypeInfo(TypeInformation<T1> oneType,
 				TypeInformation<T2> twoType) {

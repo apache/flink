@@ -29,27 +29,40 @@ import org.apache.flink.util.Collector
 import scala.reflect.ClassTag
 
 /**
- * [[ConnectedStreams]] represents two connected streams of (possible) different data types. It
- * can be used to apply transformations such as [[CoMapFunction]] on two
- * [[DataStream]]s.
+ * [[ConnectedStreams]] represents two connected streams of (possibly) different data types.
+ * Connected streams are useful for cases where operations on one stream directly
+ * affect the operations on the other stream, usually via shared state between the streams.
+ * 
+ * An example for the use of connected streams would be to apply rules that change over time
+ * onto another stream. One of the connected streams has the rules, the other stream the
+ * elements to apply the rules to. The operation on the connected stream maintains the 
+ * current set of rules in the state. It may receive either a rule update and update the state
+ * or a data element and apply the rules in the state to the element.
+ * 
+ * The connected stream can be conceptually viewed as a union stream of an Either type, that
+ * holds either the first stream's type or the second stream's type.
  */
 @Public
 class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
+  // ------------------------------------------------------
+  //  Transformations
+  // ------------------------------------------------------
+  
   /**
-   * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
-   * the output to a common type. The transformation calls a
- *
-   * @param fun1 for each element of the first input and
-   * @param fun2 for each element of the second input. Each
-   * CoMapFunction call returns exactly one element.
-   *
-   * The CoMapFunction used to jointly transform the two input
-   * DataStreams
-   * @return The transformed { @link DataStream}
+   * Applies a CoMap transformation on the connected streams.
+   * 
+   * The transformation consists of two separate functions, where
+   * the first one is called for each element of the first connected stream,
+   * and the second one is called for each element of the second connected stream.
+   * 
+   * @param fun1 Function called per element of the first input.
+   * @param fun2 Function called per element of the second input.
+   * @return The resulting data stream.
    */
   def map[R: TypeInformation: ClassTag](fun1: IN1 => R, fun2: IN2 => R): 
-  DataStream[R] = {
+      DataStream[R] = {
+    
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -64,66 +77,72 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
-   * the output to a common type. The transformation calls a
-   * {@link CoMapFunction#map1} for each element of the first input and
-   * {@link CoMapFunction#map2} for each element of the second input. Each
-   * CoMapFunction call returns exactly one element. The user can also extend
-   * {@link RichCoMapFunction} to gain access to other features provided by
-   * the {@link RichFuntion} interface.
+   * Applies a CoMap transformation on these connected streams.
+   * 
+   * The transformation calls [[CoMapFunction#map1]] for each element
+   * in the first stream and [[CoMapFunction#map2]] for each element
+   * of the second stream.
+   * 
+   * On can pass a subclass of [[org.apache.flink.streaming.api.functions.co.RichCoMapFunction]]
+   * to gain access to the [[org.apache.flink.api.common.functions.RuntimeContext]]
+   * and to additional life cycle methods.
    *
    * @param coMapper
-   * The CoMapFunction used to jointly transform the two input
-   * DataStreams
-   * @return The transformed { @link DataStream}
+   *         The CoMapFunction used to transform the two connected streams
+   * @return
+    *        The resulting data stream
    */
-  def map[R: TypeInformation: ClassTag](coMapper: CoMapFunction[IN1, IN2, R]): 
-  DataStream[R] = {
+  def map[R: TypeInformation: ClassTag](coMapper: CoMapFunction[IN1, IN2, R]): DataStream[R] = {
     if (coMapper == null) {
       throw new NullPointerException("Map function must not be null.")
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
-   * maps the output to a common type. The transformation calls a
-   * {@link CoFlatMapFunction#flatMap1} for each element of the first input
-   * and {@link CoFlatMapFunction#flatMap2} for each element of the second
-   * input. Each CoFlatMapFunction call returns any number of elements
-   * including none. The user can also extend {@link RichFlatMapFunction} to
-   * gain access to other features provided by the {@link RichFuntion}
-   * interface.
+   * Applies a CoFlatMap transformation on these connected streams.
+   *
+   * The transformation calls [[CoFlatMapFunction#flatMap1]] for each element
+   * in the first stream and [[CoFlatMapFunction#flatMap2]] for each element
+   * of the second stream.
+   *
+   * On can pass a subclass of [[org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction]]
+   * to gain access to the [[org.apache.flink.api.common.functions.RuntimeContext]]
+   * and to additional life cycle methods.
    *
    * @param coFlatMapper
-   * The CoFlatMapFunction used to jointly transform the two input
-   * DataStreams
-   * @return The transformed { @link DataStream}
+   *         The CoFlatMapFunction used to transform the two connected streams
+   * @return
+    *        The resulting data stream.
    */
   def flatMap[R: TypeInformation: ClassTag](coFlatMapper: CoFlatMapFunction[IN1, IN2, R]): 
-  DataStream[R] = {
+          DataStream[R] = {
+    
     if (coFlatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
     
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    javaStream.flatMap(coFlatMapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(javaStream.flatMap(coFlatMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
-   * maps the output to a common type. The transformation calls a
- *
-   * @param fun1 for each element of the first input
-   * and @param fun2 for each element of the second
-   * input. Each CoFlatMapFunction call returns any number of elements
-   * including none.
-   * @return The transformed { @link DataStream}
+   * Applies a CoFlatMap transformation on the connected streams.
+   *
+   * The transformation consists of two separate functions, where
+   * the first one is called for each element of the first connected stream,
+   * and the second one is called for each element of the second connected stream.
+   *
+   * @param fun1 Function called per element of the first input.
+   * @param fun2 Function called per element of the second input.
+   * @return The resulting data stream.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun1: (IN1, Collector[R]) => Unit, 
+  def flatMap[R: TypeInformation: ClassTag](
+      fun1: (IN1, Collector[R]) => Unit, 
       fun2: (IN2, Collector[R]) => Unit): DataStream[R] = {
+    
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
@@ -137,114 +156,101 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
-   * maps the output to a common type. The transformation calls a
- *
-   * @param fun1 for each element of the first input
-   * and @param fun2 for each element of the second
-   * input. Each CoFlatMapFunction call returns any number of elements
-   * including none.
-   * @return The transformed { @link DataStream}
+   * Applies a CoFlatMap transformation on the connected streams.
+   *
+   * The transformation consists of two separate functions, where
+   * the first one is called for each element of the first connected stream,
+   * and the second one is called for each element of the second connected stream.
+   *
+   * @param fun1 Function called per element of the first input.
+   * @param fun2 Function called per element of the second input.
+   * @return The resulting data stream.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun1: IN1 => TraversableOnce[R],
+  def flatMap[R: TypeInformation: ClassTag](
+      fun1: IN1 => TraversableOnce[R],
       fun2: IN2 => TraversableOnce[R]): DataStream[R] = {
+    
     if (fun1 == null || fun2 == null) {
       throw new NullPointerException("FlatMap functions must not be null.")
     }
     val cleanFun1 = clean(fun1)
     val cleanFun2 = clean(fun2)
+    
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
       def flatMap1(value: IN1, out: Collector[R]) = { cleanFun1(value) foreach out.collect }
       def flatMap2(value: IN2, out: Collector[R]) = { cleanFun2(value) foreach out.collect }
     }
+    
     flatMap(flatMapper)
   }
 
+  // ------------------------------------------------------
+  //  grouping and partitioning
+  // ------------------------------------------------------
+  
   /**
-   * GroupBy operation for connected data stream. Groups the elements of
-   * input1 and input2 according to keyPosition1 and keyPosition2. Used for
-   * applying function on grouped data streams for example
-   * {@link ConnectedStreams#reduce}
+   * Keys the two connected streams together. After this operation, all
+   * elements with the same key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param keyPosition1
-   * The field used to compute the hashcode of the elements in the
-   * first input stream.
-   * @param keyPosition2
-   * The field used to compute the hashcode of the elements in the
-   * second input stream.
-   * @return @return The transformed { @link ConnectedStreams}
+   * @param keyPosition1 The first stream's key field
+   * @param keyPosition2 The second stream's key field
+   * @return The key-grouped connected streams
    */
   def keyBy(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
-    javaStream.keyBy(keyPosition1, keyPosition2)
+    asScalaStream(javaStream.keyBy(keyPosition1, keyPosition2))
   }
 
   /**
-   * GroupBy operation for connected data stream. Groups the elements of
-   * input1 and input2 according to keyPositions1 and keyPositions2. Used for
-   * applying function on grouped data streams for example
-   * {@link ConnectedStreams#reduce}
+   * Keys the two connected streams together. After this operation, all
+   * elements with the same key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param keyPositions1
-   * The fields used to group the first input stream.
-   * @param keyPositions2
-   * The fields used to group the second input stream.
-   * @return @return The transformed { @link ConnectedStreams}
+   * @param keyPositions1 The first stream's key fields
+   * @param keyPositions2 The second stream's key fields
+   * @return The key-grouped connected streams
    */
-  def keyBy(keyPositions1: Array[Int], keyPositions2: Array[Int]):
-  ConnectedStreams[IN1, IN2] = {
-    javaStream.keyBy(keyPositions1, keyPositions2)
+  def keyBy(keyPositions1: Array[Int], keyPositions2: Array[Int]): ConnectedStreams[IN1, IN2] = {
+    asScalaStream(javaStream.keyBy(keyPositions1, keyPositions2))
   }
 
   /**
-   * GroupBy operation for connected data stream using key expressions. Groups
-   * the elements of input1 and input2 according to field1 and field2. A field
-   * expression is either the name of a public field or a getter method with
-   * parentheses of the {@link DataStream}S underlying type. A dot can be used
-   * to drill down into objects, as in {@code "field1.getInnerField2()" }.
+   * Keys the two connected streams together. After this operation, all
+   * elements with the same key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param field1
-   * The grouping expression for the first input
-   * @param field2
-   * The grouping expression for the second input
-   * @return The grouped { @link ConnectedStreams}
+   * @param field1 The first stream's key expression
+   * @param field2 The second stream's key expression
+   * @return The key-grouped connected streams
    */
   def keyBy(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
-    javaStream.keyBy(field1, field2)
+    asScalaStream(javaStream.keyBy(field1, field2))
   }
 
   /**
-   * GroupBy operation for connected data stream using key expressions. Groups
-   * the elements of input1 and input2 according to fields1 and fields2. A
-   * field expression is either the name of a public field or a getter method
-   * with parentheses of the {@link DataStream}S underlying type. A dot can be
-   * used to drill down into objects, as in {@code "field1.getInnerField2()" }
-   * .
+   * Keys the two connected streams together. After this operation, all
+   * elements with the same key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param fields1
-   * The grouping expressions for the first input
-   * @param fields2
-   * The grouping expressions for the second input
-   * @return The grouped { @link ConnectedStreams}
+   * @param fields1 The first stream's key expressions
+   * @param fields2 The second stream's key expressions
+   * @return The key-grouped connected streams
    */
-  def keyBy(fields1: Array[String], fields2: Array[String]):
-  ConnectedStreams[IN1, IN2] = {
-    javaStream.keyBy(fields1, fields2)
+  def keyBy(fields1: Array[String], fields2: Array[String]): ConnectedStreams[IN1, IN2] = {
+    asScalaStream(javaStream.keyBy(fields1, fields2))
   }
 
   /**
-   * GroupBy operation for connected data stream. Groups the elements of
-   * input1 and input2 using fun1 and fun2. Used for applying
-   * function on grouped data streams for example
-   * {@link ConnectedStreams#reduce}
+   * Keys the two connected streams together. After this operation, all
+   * elements with the same key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param fun1
-   * The function used for grouping the first input
-   * @param fun2
-   * The function used for grouping the second input
-   * @return The grouped { @link ConnectedStreams}
+   * @param fun1 The first stream's key function
+   * @param fun2 The second stream's key function
+   * @return The key-grouped connected streams
    */
   def keyBy[K1: TypeInformation, K2: TypeInformation](fun1: IN1 => K1, fun2: IN2 => K2):
-  ConnectedStreams[IN1, IN2] = {
+      ConnectedStreams[IN1, IN2] = {
 
     val keyType1 = implicitly[TypeInformation[K1]]
     val keyType2 = implicitly[TypeInformation[K2]]
@@ -255,84 +261,74 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val keyExtractor1 = new KeySelectorWithType[IN1, K1](cleanFun1, keyType1)
     val keyExtractor2 = new KeySelectorWithType[IN2, K2](cleanFun2, keyType2)
     
-    javaStream.keyBy(keyExtractor1, keyExtractor2)
+    asScalaStream(javaStream.keyBy(keyExtractor1, keyExtractor2))
   }
 
   /**
-   * PartitionBy operation for connected data stream. Partitions the elements of
-   * input1 and input2 according to keyPosition1 and keyPosition2.
+   * Partitions the two connected streams together. After this operation, all
+   * elements with the same partition key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param keyPosition1
-   * The field used to compute the hashcode of the elements in the
-   * first input stream.
-   * @param keyPosition2
-   * The field used to compute the hashcode of the elements in the
-   * second input stream.
-   * @return The transformed { @link ConnectedStreams}
+   * @param keyPosition1 The first stream's partition key field
+   * @param keyPosition2 The second stream's partition key field
+   * @return The co-partitioned connected streams
    */
   def partitionByHash(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
-    javaStream.partitionByHash(keyPosition1, keyPosition2)
+    asScalaStream(javaStream.partitionByHash(keyPosition1, keyPosition2))
   }
 
   /**
-   * PartitionBy operation for connected data stream. Partitions the elements of
-   * input1 and input2 according to keyPositions1 and keyPositions2.
+   * Partitions the two connected streams together. After this operation, all
+   * elements with the same partition key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param keyPositions1
-   * The fields used to partition the first input stream.
-   * @param keyPositions2
-   * The fields used to partition the second input stream.
-   * @return The transformed { @link ConnectedStreams}
+   * @param keyPositions1 The first stream's partition key fields
+   * @param keyPositions2 The second stream's partition key fields
+   * @return The co-partitioned connected streams
    */
   def partitionByHash(keyPositions1: Array[Int], keyPositions2: Array[Int]):
-  ConnectedStreams[IN1, IN2] = {
-    javaStream.partitionByHash(keyPositions1, keyPositions2)
+      ConnectedStreams[IN1, IN2] = {
+    asScalaStream(javaStream.partitionByHash(keyPositions1, keyPositions2))
   }
 
   /**
-   * PartitionBy operation for connected data stream using key expressions. Partitions
-   * the elements of input1 and input2 according to field1 and field2. A field
-   * expression is either the name of a public field or a getter method with
-   * parentheses of the {@link DataStream}S underlying type. A dot can be used
-   * to drill down into objects, as in {@code "field1.getInnerField2()" }.
+   * Partitions the two connected streams together. After this operation, all
+   * elements with the same partition key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param field1
-   * The partitioning expression for the first input
-   * @param field2
-   * The partitioning expression for the second input
-   * @return The grouped { @link ConnectedStreams}
+   * @param field1 The first stream's partition key expression
+   * @param field2 The second stream's partition key expression
+   * @return The co-partitioned connected streams
    */
   def partitionByHash(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
-    javaStream.partitionByHash(field1, field2)
+    asScalaStream(javaStream.partitionByHash(field1, field2))
   }
 
   /**
-   * PartitionBy operation for connected data stream using key expressions. Partitions
-   * the elements of input1 and input2 according to fields1 and fields2.
+   * Partitions the two connected streams together. After this operation, all
+   * elements with the same partition key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param fields1
-   * The partitioning expressions for the first input
-   * @param fields2
-   * The partitioning expressions for the second input
-   * @return The partitioned { @link ConnectedStreams}
+   * @param fields1 The first stream's partition key field expressions
+   * @param fields2 The second stream's partition key field expressions
+   * @return The co-partitioned connected streams
    */
-  def partitionByHash(fields1: Array[String], fields2: Array[String]):
-  ConnectedStreams[IN1, IN2] = {
-    javaStream.partitionByHash(fields1, fields2)
+  def partitionByHash(fields1: Array[String], fields2: Array[String]): 
+      ConnectedStreams[IN1, IN2] = {
+    asScalaStream(javaStream.partitionByHash(fields1, fields2))
   }
 
   /**
-   * PartitionBy operation for connected data stream. Partitions the elements of
-   * input1 and input2 using fun1 and fun2.
+   * Partitions the two connected streams together. After this operation, all
+   * elements with the same partition key from both streams will be sent to the
+   * same parallel instance of the transformation functions.
    *
-   * @param fun1
-   * The function used for partitioning the first input
-   * @param fun2
-   * The function used for partitioning the second input
-   * @return The partitioned { @link ConnectedStreams}
+   * @param fun1 The first stream's partition key function
+   * @param fun2 The second stream's partition key function
+   * @return The co-partitioned connected streams
    */
   def partitionByHash[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
-  ConnectedStreams[IN1, IN2] = {
+      ConnectedStreams[IN1, IN2] = {
 
     val cleanFun1 = clean(fun1)
     val cleanFun2 = clean(fun2)
@@ -344,17 +340,16 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       def getKey(in: IN2) = cleanFun2(in)
     }
 
-    javaStream.partitionByHash(keyExtractor1, keyExtractor2)
+    asScalaStream(javaStream.partitionByHash(keyExtractor1, keyExtractor2))
   }
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
-   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]]
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
   }
-
 }
 
 @Internal

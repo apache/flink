@@ -278,13 +278,13 @@ object CoGroupedStreams {
 
       val coGroup = new JavaCoGroupedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-      coGroup
+      asScalaStream(coGroup
         .where(keySelector1)
         .equalTo(keySelector2)
         .window(windowAssigner)
         .trigger(trigger)
         .evictor(evictor)
-        .apply(clean(function), implicitly[TypeInformation[T]])
+        .apply(clean(function), implicitly[TypeInformation[T]]))
     }
 
     /**

@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api
 
-import _root_.scala.reflect.ClassTag
-import language.experimental.macros
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
@@ -27,25 +25,44 @@ import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedStreams => ConnectedJavaStreams }
 import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream }
+
 import language.implicitConversions
+import language.experimental.macros
 
 package object scala {
+  
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
 
-  implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
-    new DataStream[R](javaStream)
-    
-  implicit def javaToScalaGroupedStream[R, K](javaStream: KeyedJavaStream[R, K]):
-  KeyedStream[R, K] = new KeyedStream[R, K](javaStream)
+  /**
+   * Converts an [[org.apache.flink.streaming.api.datastream.DataStream]] to a
+   * [[org.apache.flink.streaming.api.scala.DataStream]].
+   */
+  private[flink] def asScalaStream[R](stream: JavaStream[R])
+                                             = new DataStream[R](stream)
 
-  implicit def javaToScalaSplitStream[R](javaStream: SplitJavaStream[R]): SplitStream[R] =
-    new SplitStream[R](javaStream)
+  /**
+   * Converts an [[org.apache.flink.streaming.api.datastream.KeyedStream]] to a
+   * [[org.apache.flink.streaming.api.scala.KeyedStream]].
+   */
+  private[flink] def asScalaStream[R, K](stream: KeyedJavaStream[R, K])
+                                             = new KeyedStream[R, K](stream)
 
-  implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: ConnectedJavaStreams[IN1, IN2]):
-  ConnectedStreams[IN1, IN2] = new ConnectedStreams[IN1, IN2](javaStream)
+  /**
+   * Converts an [[org.apache.flink.streaming.api.datastream.SplitStream]] to a
+   * [[org.apache.flink.streaming.api.scala.SplitStream]].
+   */
+  private[flink] def asScalaStream[R](stream: SplitJavaStream[R])
+                                             = new SplitStream[R](stream)
+  /**
+   * Converts an [[org.apache.flink.streaming.api.datastream.ConnectedStreams]] to a
+   * [[org.apache.flink.streaming.api.scala.ConnectedStreams]].
+   */
+  private[flink] def asScalaStream[IN1, IN2](stream: ConnectedJavaStreams[IN1, IN2])
+                                             = new ConnectedStreams[IN1, IN2](stream)
 
+  
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],
       fields: Array[String]): Array[Int] = {
