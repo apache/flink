@@ -905,7 +905,6 @@ class JobManager(
    * @param isRecovery Flag indicating whether this is a recovery or initial submission
    */
   private def submitJob(jobGraph: JobGraph, jobInfo: JobInfo, isRecovery: Boolean = false): Unit = {
-
     if (jobGraph == null) {
       jobInfo.client ! decorateMessage(JobResultFailure(
         new SerializedThrowable(
@@ -1080,8 +1079,7 @@ class JobManager(
           executionGraph.registerExecutionListener(gateway)
           executionGraph.registerJobStatusListener(gateway)
         }
-      }
-      catch {
+      } catch {
         case t: Throwable =>
           log.error(s"Failed to submit job $jobId ($jobName)", t)
 
@@ -1106,10 +1104,21 @@ class JobManager(
       // because it is a blocking operation
       future {
         try {
+          if (!isRecovery) {
+            submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
+          }
+
+          jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
+        } catch {
+          case t: Throwable =>
+            executionGraph.fail(t)
+            return
+        }
+
+        try {
           if (isRecovery) {
             executionGraph.restoreLatestCheckpointedState()
-          }
-          else {
+          } else {
             val snapshotSettings = jobGraph.getSnapshotSettings
             if (snapshotSettings != null) {
               val savepointPath = snapshotSettings.getSavepointPath()
@@ -1125,8 +1134,6 @@ class JobManager(
               }
             }
           }
-
-          jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
 
           if (leaderElectionService.hasLeadership) {
             // There is a small chance that multiple job managers schedule the same job after if
@@ -1150,8 +1157,7 @@ class JobManager(
         } catch {
           case t: Throwable => try {
             executionGraph.fail(t)
-          }
-          catch {
+          } catch {
             case tt: Throwable =>
               log.error("Error while marking ExecutionGraph as failed.", tt)
           }
