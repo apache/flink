@@ -60,6 +60,9 @@ import org.slf4j.LoggerFactory;
  *    (correlation id is not set).
  * 3) No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
  *
+ * Users may overwrite the setupConnectionFactory() method to pass their setup their own
+ * ConnectionFactory in case the constructor parameters are not sufficient.
+ *
  * @param <OUT> The type of the data read from RabbitMQ.
  */
 public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, Long>
@@ -70,6 +73,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
 
 	private final String hostName;
+	private final Integer port;
+	private final String username;
+	private final String password;
 	private final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
@@ -81,7 +87,6 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	protected transient boolean autoAck;
 
 	private transient volatile boolean running;
-
 
 	/**
 	 * Creates a new RabbitMQ source with at-least-once message processing guarantee when
@@ -95,8 +100,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *               				into Java objects.
 	 */
 	public RMQSource(String hostName, String queueName,
-					DeserializationSchema<OUT> deserializationSchema) {
-		this(hostName, queueName, false, deserializationSchema);
+				DeserializationSchema<OUT> deserializationSchema) {
+		this(hostName, null, null, null, queueName, false, deserializationSchema);
 	}
 
 	/**
@@ -104,7 +109,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
 	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
 	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
-	 * @param hostName The RabbiMQ broker's address to connect to.
+	 * @param hostName The RabbitMQ broker's address to connect to.
 	 * @param queueName The queue to receive messages from.
 	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
 	 *                          id to deduplicate messages (in case of failed acknowledgments).
@@ -113,20 +118,80 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *                              into Java objects.
 	 */
 	public RMQSource(String hostName, String queueName, boolean usesCorrelationId,
-			DeserializationSchema<OUT> deserializationSchema) {
+				DeserializationSchema<OUT> deserializationSchema) {
+		this(hostName, null, null, null, queueName, usesCorrelationId, deserializationSchema);
+	}
+
+	/**
+	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
+	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
+	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
+	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
+	 * @param hostName The RabbitMQ broker's address to connect to.
+	 * @param port The RabbitMQ broker's port.
+	 * @param queueName The queue to receive messages from.
+	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
+	 *                          id to deduplicate messages (in case of failed acknowledgments).
+	 *                          Only used when checkpointing is enabled.
+	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
+	 *                              into Java objects.
+	 */
+	public RMQSource(String hostName, Integer port,
+				String queueName, boolean usesCorrelationId,
+				DeserializationSchema<OUT> deserializationSchema) {
+		this(hostName, port, null, null, queueName, usesCorrelationId, deserializationSchema);
+	}
+
+	/**
+	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
+	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
+	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
+	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
+	 * @param hostName The RabbitMQ broker's address to connect to.
+	 * @param port The RabbitMQ broker's port.
+	 * @param queueName The queue to receive messages from.
+	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
+	 *                          id to deduplicate messages (in case of failed acknowledgments).
+	 *                          Only used when checkpointing is enabled.
+	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
+	 *                              into Java objects.
+	 */
+	public RMQSource(String hostName, Integer port, String username, String password,
+				String queueName, boolean usesCorrelationId,
+				DeserializationSchema<OUT> deserializationSchema) {
 		super(String.class);
 		this.hostName = hostName;
+		this.port = port;
+		this.username = username;
+		this.password = password;
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
 		this.schema = deserializationSchema;
 	}
 
 	/**
+	 * Initializes the connection to RMQ with a default connection factory. The user may override
+	 * this method to setup and configure their own ConnectionFactory.
+	 */
+	protected ConnectionFactory setupConnectionFactory() {
+		return new ConnectionFactory();
+	}
+
+	/**
 	 * Initializes the connection to RMQ.
 	 */
-	protected void initializeConnection() {
-		ConnectionFactory factory = new ConnectionFactory();
+	private void initializeConnection() {
+		ConnectionFactory factory = setupConnectionFactory();
 		factory.setHost(hostName);
+		if (port != null) {
+			factory.setPort(port);
+		}
+		if (username != null) {
+			factory.setUsername(username);
+		}
+		if (password != null) {
+			factory.setPassword(password);
+		}
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
