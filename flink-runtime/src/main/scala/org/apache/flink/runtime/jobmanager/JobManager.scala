@@ -905,7 +905,6 @@ class JobManager(
    * @param isRecovery Flag indicating whether this is a recovery or initial submission
    */
   private def submitJob(jobGraph: JobGraph, jobInfo: JobInfo, isRecovery: Boolean = false): Unit = {
-
     if (jobGraph == null) {
       jobInfo.client ! decorateMessage(JobResultFailure(
         new SerializedThrowable(
@@ -1082,8 +1081,7 @@ class JobManager(
           executionGraph.registerExecutionListener(gateway)
           executionGraph.registerJobStatusListener(gateway)
         }
-      }
-      catch {
+      } catch {
         case t: Throwable =>
           log.error(s"Failed to submit job $jobId ($jobName)", t)
 
@@ -1110,8 +1108,7 @@ class JobManager(
         try {
           if (isRecovery) {
             executionGraph.restoreLatestCheckpointedState()
-          }
-          else {
+          } else {
             val snapshotSettings = jobGraph.getSnapshotSettings
             if (snapshotSettings != null) {
               val savepointPath = snapshotSettings.getSavepointPath()
@@ -1125,6 +1122,15 @@ class JobManager(
                     throw new SuppressRestartsException(e)
                 }
               }
+            }
+
+            try {
+              submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
+            } catch {
+              case t: Throwable =>
+                // Don't restart the execution if this fails. Otherwise, the
+                // job graph will skip ZooKeeper in case of HA.
+                new SuppressRestartsException(t)
             }
           }
 
@@ -1152,8 +1158,7 @@ class JobManager(
         } catch {
           case t: Throwable => try {
             executionGraph.fail(t)
-          }
-          catch {
+          } catch {
             case tt: Throwable =>
               log.error("Error while marking ExecutionGraph as failed.", tt)
           }
