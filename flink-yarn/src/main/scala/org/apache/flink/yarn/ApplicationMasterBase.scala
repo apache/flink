@@ -184,6 +184,8 @@ abstract class ApplicationMasterBase {
         jobManagerPort, webServerPort, slots, taskManagerCount,
         dynamicPropertiesEncodedString)
 
+      //todo should I also set the FS default here????
+
       val hadoopConfig = new YarnConfiguration()
 
       // send "start yarn session" message to YarnJobManager.
