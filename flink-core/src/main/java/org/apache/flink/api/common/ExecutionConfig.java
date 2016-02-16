@@ -68,6 +68,8 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
 
+	private static final long DEFAULT_RESTART_DELAY = 10000L;
+
 	// --------------------------------------------------------------------------------------------
 
 	/** Defines how data exchange happens - batch or pipelined */
@@ -81,7 +83,7 @@ public class ExecutionConfig implements Serializable {
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
 	 */
 	@Deprecated
-	private int numberOfExecutionRetries = 0;
+	private int numberOfExecutionRetries = -1;
 
 	private boolean forceKryo = false;
 
@@ -106,7 +108,7 @@ public class ExecutionConfig implements Serializable {
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
 	 */
 	@Deprecated
-	private long executionRetryDelay = 0;
+	private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
 	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
 	
@@ -284,6 +286,8 @@ public class ExecutionConfig implements Serializable {
 			// support the old API calls by creating a restart strategy from them
 			if (getNumberOfExecutionRetries() > 0 && getExecutionRetryDelay() >= 0) {
 				return RestartStrategies.fixedDelayRestart(getNumberOfExecutionRetries(), getExecutionRetryDelay());
+			} else if (getNumberOfExecutionRetries() == 0) {
+				return RestartStrategies.noRestart();
 			} else {
 				return null;
 			}
@@ -342,8 +346,8 @@ public class ExecutionConfig implements Serializable {
 	}
 
 	/**
-	 * Sets the delay between executions. A value of {@code -1} indicates that the default value
-	 * should be used.
+	 * Sets the delay between executions.
+	 *
 	 * @param executionRetryDelay The number of milliseconds the system will wait to retry.
 	 *
 	 * @return The current execution configuration
@@ -354,9 +358,9 @@ public class ExecutionConfig implements Serializable {
 	 */
 	@Deprecated
 	public ExecutionConfig setExecutionRetryDelay(long executionRetryDelay) {
-		if (executionRetryDelay < -1 ) {
+		if (executionRetryDelay < 0 ) {
 			throw new IllegalArgumentException(
-				"The delay between reties must be non-negative, or -1 (use system default)");
+				"The delay between retries must be non-negative.");
 		}
 		this.executionRetryDelay = executionRetryDelay;
 		return this;
