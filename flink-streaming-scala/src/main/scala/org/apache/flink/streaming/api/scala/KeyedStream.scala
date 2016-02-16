@@ -32,8 +32,6 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.util.Collector
 
-import scala.reflect.ClassTag
-
 @Public
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
 
@@ -151,7 +149,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
+  def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
       DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -168,7 +166,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
+  def fold[R: TypeInformation](initialValue: R, fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
@@ -321,7 +319,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * Note that the user state object needs to be serializable.
    */
-  def mapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+  def mapWithState[R: TypeInformation, S: TypeInformation](
         fun: (T, Option[S]) => (R, Option[S])): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
@@ -350,7 +348,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * Note that the user state object needs to be serializable.
    */
-  def flatMapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+  def flatMapWithState[R: TypeInformation, S: TypeInformation](
         fun: (T, Option[S]) => (TraversableOnce[R], Option[S])): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Flatmap function must not be null.")

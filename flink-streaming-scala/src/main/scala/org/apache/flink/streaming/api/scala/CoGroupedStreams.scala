@@ -32,8 +32,6 @@ import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 
-import scala.reflect.ClassTag
-
 /**
  * `CoGroupedStreams` represents two [[DataStream]]s that have been co-grouped.
  * A streaming co-group operation is evaluated over elements in a window.
@@ -236,7 +234,7 @@ object CoGroupedStreams {
      * Completes the co-group operation with the user function that is executed
      * for windowed groups.
      */
-    def apply[O: TypeInformation: ClassTag](
+    def apply[O: TypeInformation](
         fun: (Iterator[T1], Iterator[T2]) => O): DataStream[O] = {
       require(fun != null, "CoGroup function must not be null.")
 
@@ -255,7 +253,7 @@ object CoGroupedStreams {
      * Completes the co-group operation with the user function that is executed
      * for windowed groups.
      */
-    def apply[O: TypeInformation: ClassTag](
+    def apply[O: TypeInformation](
         fun: (Iterator[T1], Iterator[T2], Collector[O]) => Unit): DataStream[O] = {
       require(fun != null, "CoGroup function must not be null.")
 
