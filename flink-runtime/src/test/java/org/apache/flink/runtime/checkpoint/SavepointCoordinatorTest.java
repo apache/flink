@@ -325,29 +325,6 @@ public class SavepointCoordinatorTest {
 	}
 
 	@Test
-	public void testRollbackUpdatesApplicationID() throws Exception {
-		CompletedCheckpoint savepoint = mock(CompletedCheckpoint.class);
-		when(savepoint.getStates()).thenReturn(Collections.<StateForTask>emptyList());
-		when(savepoint.getCheckpointID()).thenReturn(12312312L);
-
-		StateStore<CompletedCheckpoint> savepointStore = mock(StateStore.class);
-		when(savepointStore.getState(anyString())).thenReturn(savepoint);
-
-		SavepointCoordinator coordinator = createSavepointCoordinator(
-				new JobID(),
-				60 * 1000,
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				new ExecutionVertex[] {},
-				new MockCheckpointIdCounter(),
-				savepointStore);
-
-		coordinator.restoreSavepoint(createExecutionJobVertexMap(), "any");
-
-		coordinator.shutdown();
-	}
-
-	@Test
 	public void testRollbackSetsCheckpointID() throws Exception {
 		CompletedCheckpoint savepoint = mock(CompletedCheckpoint.class);
 		when(savepoint.getStates()).thenReturn(Collections.<StateForTask>emptyList());
