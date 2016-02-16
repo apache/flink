@@ -80,7 +80,7 @@ public class StreamingScalabilityAndLatency {
 		env
 			.addSource(new TimeStampingSource())
 			.map(new IdMapper<Tuple2<Long, Long>>())
-			.partitionByHash(0)
+			.keyBy(0)
 			.addSink(new TimestampingSink());
 		
 		env.execute("Partitioning Program");

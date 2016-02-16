@@ -270,35 +270,6 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Partitions the elements of a DataStream by the given key positions (for tuple/array types) to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash(fields: Int*): DataStream[T] = 
-    asScalaStream(stream.partitionByHash(fields: _*))
-
-  /**
-   * Groups the elements of a DataStream by the given field expressions to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash(firstField: String, otherFields: String*): DataStream[T] =
-    asScalaStream(stream.partitionByHash(firstField +: otherFields.toArray: _*))
-
-  /**
-   * Groups the elements of a DataStream by the given K key to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash[K: TypeInformation](fun: T => K): DataStream[T] = {
-
-    val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
-      def getKey(in: T) = cleanFun(in)
-      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
-    }
-
-    asScalaStream(stream.partitionByHash(keyExtractor))
-  }
-
-  /**
    * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
    * This method takes the key position to partition on, and a partitioner that accepts the key
    * type.
