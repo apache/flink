@@ -28,8 +28,6 @@ import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * Null base type for programs that implements the Key interface.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public final class NullValue implements NormalizableKey<NullValue>, CopyableValue<NullValue> {

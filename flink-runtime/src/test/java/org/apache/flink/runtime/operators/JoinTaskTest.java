@@ -34,8 +34,8 @@ import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -59,11 +59,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator1 = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Value>[])new Class<?>[]{ IntValue.class });
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator2 = new RecordComparator(
-		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Value>[])new Class<?>[]{ IntValue.class });
 	
 	private final List<Record> outList = new ArrayList<>();
 	

@@ -21,7 +21,6 @@ package org.apache.flink.optimizer.dataproperties;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Key;
 
 import java.io.IOException;
 
@@ -29,8 +28,8 @@ import java.io.IOException;
 public class MockDistribution implements DataDistribution {
 
 	@Override
-	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Key<?>[0];
+	public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+		return new Object[0];
 	}
 
 	@Override

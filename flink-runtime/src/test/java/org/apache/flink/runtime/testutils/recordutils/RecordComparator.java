@@ -25,11 +25,11 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NormalizableKey;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 
@@ -58,7 +58,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	private final int[] keyFields;
 	
 	@SuppressWarnings("rawtypes")
-	private final Key[] keyHolders, transientKeyHolders;
+	private final Value[] keyHolders, transientKeyHolders;
 	
 	private final Record temp1, temp2;
 	
@@ -78,7 +78,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 * @param keyFields The positions of the key fields.
 	 * @param keyTypes The types (classes) of the key fields.
 	 */
-	public RecordComparator(int[] keyFields, Class<? extends Key<?>>[] keyTypes) {
+	public RecordComparator(int[] keyFields, Class<? extends Value>[] keyTypes) {
 		this(keyFields, keyTypes, null);
 	}
 	
@@ -92,18 +92,18 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 *                  a value of <i>false</i> indicated descending. If the parameter is <i>null</i>, then
 	 *                  all order comparisons will assume ascending order on all fields.
 	 */
-	public RecordComparator(int[] keyFields, Class<? extends Key<?>>[] keyTypes, boolean[] sortDirection) {
+	public RecordComparator(int[] keyFields, Class<? extends Value>[] keyTypes, boolean[] sortDirection) {
 		this.keyFields = keyFields;
 		
 		// instantiate fields to extract keys into
-		this.keyHolders = new Key[keyTypes.length];
-		this.transientKeyHolders = new Key[keyTypes.length];
+		this.keyHolders = new Value[keyTypes.length];
+		this.transientKeyHolders = new Value[keyTypes.length];
 		for (int i = 0; i < keyTypes.length; i++) {
 			if (keyTypes[i] == null) {
 				throw new NullPointerException("Key type " + i + " is null.");
 			}
-			this.keyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
-			this.transientKeyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Key.class);
+			this.keyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Value.class);
+			this.transientKeyHolders[i] = InstantiationUtil.instantiate(keyTypes[i], Value.class);
 		}
 		
 		// set up auxiliary fields for normalized key support
@@ -112,7 +112,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		int nKeyLen = 0;
 		boolean inverted = false;
 		for (int i = 0; i < this.keyHolders.length; i++) {
-			Key<?> k = this.keyHolders[i];
+			Value k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
 				if (sortDirection != null) {
 					if (sortDirection[i] && inverted) {
@@ -122,7 +122,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 					}
 				}
 				nKeys++;
-				final int len = ((NormalizableKey<?>) k).getMaxNormalizedKeyLen();
+				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
 				if (len < 0) {
 					throw new RuntimeException("Data type " + k.getClass().getName() + 
 						" specifies an invalid length for the normalized key: " + len);
@@ -160,8 +160,8 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 */
 	private RecordComparator(RecordComparator toCopy) {
 		this.keyFields = toCopy.keyFields;
-		this.keyHolders = new Key[toCopy.keyHolders.length];
-		this.transientKeyHolders = new Key[toCopy.keyHolders.length];
+		this.keyHolders = new Value[toCopy.keyHolders.length];
+		this.transientKeyHolders = new Value[toCopy.keyHolders.length];
 		
 		try {
 			for (int i = 0; i < this.keyHolders.length; i++) {
@@ -218,7 +218,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	@Override
 	public boolean equalToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields.length; i++) {
-			final Key<?> k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Value k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
 			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields[i]);
 			} else if (!k.equals(this.keyHolders[i])) {
@@ -235,7 +235,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
 			@SuppressWarnings("unchecked")
-			final int comp = pra.keyHolders[i].compareTo(this.keyHolders[i]);
+			final int comp = ((Comparable)pra.keyHolders[i]).compareTo(this.keyHolders[i]);
 			if (comp != 0) {
 				return this.ascending[i] ? comp : -comp;
 			}
@@ -249,8 +249,8 @@ public final class RecordComparator extends TypeComparator<Record> {
 		int i = 0;
 		try {
 			for (; i < this.keyFields.length; i++) {
-				Key k1 = first.getField(this.keyFields[i], this.keyHolders[i]);
-				Key k2 = second.getField(this.keyFields[i], this.transientKeyHolders[i]);
+				Comparable k1 = (Comparable) first.getField(this.keyFields[i], this.keyHolders[i]);
+				Comparable k2 = (Comparable) second.getField(this.keyFields[i], this.transientKeyHolders[i]);
 				int cmp = k1.compareTo(k2);
 				if (cmp != 0) {
 					return cmp;
@@ -270,9 +270,9 @@ public final class RecordComparator extends TypeComparator<Record> {
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
 			@SuppressWarnings("rawtypes")
-			final Key k1 = this.temp1.getField(this.keyFields[i], this.keyHolders[i]);
+			final Comparable k1 = (Comparable) this.temp1.getField(this.keyFields[i], this.keyHolders[i]);
 			@SuppressWarnings("rawtypes")
-			final Key k2 = this.temp2.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Comparable k2 = (Comparable) this.temp2.getField(this.keyFields[i], this.transientKeyHolders[i]);
 			
 			if (k1 == null || k2 == null) {
 				throw new NullKeyFieldException(this.keyFields[i]);
@@ -366,17 +366,17 @@ public final class RecordComparator extends TypeComparator<Record> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public final Class<? extends Key<?>>[] getKeyTypes() {
-		final Class<? extends Key<?>>[] keyTypes = new Class[this.keyHolders.length];
+	public final Class<? extends Value>[] getKeyTypes() {
+		final Class<? extends Value>[] keyTypes = new Class[this.keyHolders.length];
 		for (int i = 0; i < keyTypes.length; i++) {
-			keyTypes[i] = (Class<? extends Key<?>>) this.keyHolders[i].getClass();
+			keyTypes[i] = (Class<? extends Value>) this.keyHolders[i].getClass();
 		}
 		return keyTypes;
 	}
 	
-	public final Key<?>[] getKeysAsCopy(Record record) {
+	public final Value[] getKeysAsCopy(Record record) {
 		try {
-			final Key<?>[] keys = new Key[this.keyFields.length];
+			final Value[] keys = new Value[this.keyFields.length];
 			for (int i = 0; i < keys.length; i++) {
 				keys[i] = this.keyHolders[i].getClass().newInstance();
 			}

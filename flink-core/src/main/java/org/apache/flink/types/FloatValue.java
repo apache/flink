@@ -28,11 +28,9 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * Boxed serializable and comparable single precision floating point type, representing the primitive
  * type {@code float}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
-public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
+public class FloatValue implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
 	private float value;

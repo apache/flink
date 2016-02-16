@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable boolean type, representing the primitive
  * type {@code boolean}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {

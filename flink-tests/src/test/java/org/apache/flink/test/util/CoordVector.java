@@ -22,14 +22,14 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Key;
+import org.apache.flink.types.Value;
 
 /**
  * Implements a feature vector as a multi-dimensional point. Coordinates of that point
  * (= the features) are stored as double values. The distance between two feature vectors is
  * the Euclidian distance between the points.
  */
-public final class CoordVector implements Key<CoordVector> {
+public final class CoordVector implements Value, Comparable<CoordVector> {
 	private static final long serialVersionUID = 1L;
 	
 	// coordinate array
