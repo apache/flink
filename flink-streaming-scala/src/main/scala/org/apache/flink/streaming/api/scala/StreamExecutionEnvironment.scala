@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
+
 import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
@@ -32,7 +33,6 @@ import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.Wa
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.types.StringValue
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
@@ -443,27 +443,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def readTextFile(filePath: String, charsetName: String): DataStream[String] =
     javaEnv.readTextFile(filePath, charsetName)
 
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The file will be read with the system's default character set.
-   */
-  def readTextFileWithValue(filePath: String): DataStream[StringValue] =
-      javaEnv.readTextFileWithValue(filePath)
-
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The boolean flag indicates whether to skip lines that cannot
-   * be read with the given character set.
-   */
-  def readTextFileWithValue(filePath: String, charsetName : String, skipInvalidLines : Boolean):
-    DataStream[StringValue] =
-    javaEnv.readTextFileWithValue(filePath, charsetName, skipInvalidLines)
 
   /**
    * Reads the given file with the given input format. The file path should be passed
@@ -473,14 +452,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     DataStream[T] =
     javaEnv.readFile(inputFormat, filePath)
 
-  /**
-   * Creates a data stream that represents the primitive type produced by reading the given file
-   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
-   * "hdfs://host:port/file/path").
-   */
-  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String,
-    delimiter: String = "\n", typeClass: Class[T]): DataStream[T] =
-    javaEnv.readFileOfPrimitives(filePath, delimiter, typeClass)
 
   /**
    * Creates a DataStream that contains the contents of file created while
