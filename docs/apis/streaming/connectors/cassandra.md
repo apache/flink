@@ -77,7 +77,7 @@ Example:
 {% highlight java %}
 stream.transform(
   "Cassandra Sink",
-  TypeExtractor.getForObject(new Tuple2<>("", 0)),
+  null,
   new CassandraExactlyOnceSink<Tuple2<String, Integer>>(
     "127.0.0.1",
     "CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
@@ -89,7 +89,7 @@ stream.transform(
 {% highlight scala %}
 stream.transform(
   "Cassandra Sink",
-  TypeExtractor.getForObject(("", 0)),
+  null,
   new CassandraExactlyOnceSink[(String, Integer)](
     "127.0.0.1",
     "CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
