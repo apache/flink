@@ -64,6 +64,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+@SuppressWarnings("serial")
 public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 	/**
@@ -225,18 +226,17 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 					}
 				}).name("testMap");
 
-		DataStreamSink<Long> connected = dataStream1.connect(dataStream2)
+		dataStream1.connect(dataStream2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
-					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void flatMap1(Long value, Collector<Long> out) throws Exception {
-					}
+					public void flatMap1(Long value, Collector<Long> out) throws Exception {}
 
 					@Override
-					public void flatMap2(Long value, Collector<Long> out) throws Exception {
-					}
+					public void flatMap2(Long value, Collector<Long> out) throws Exception {}
+					
 				}).name("testCoFlatMap")
+				
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
 				.fold(0L, new FoldFunction<Long, Long>() {
@@ -262,7 +262,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionByHash} result in
+	 * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionCustom(Partitioner, int)} result in
 	 * different and correct topologies. Does the some for the {@link ConnectedStreams}.
 	 */
 	@Test
@@ -296,10 +296,10 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isKeyed(group4));
 
 		//Testing DataStream partitioning
-		DataStream<Tuple2<Long, Long>> partition1 = src1.partitionByHash(0);
-		DataStream<Tuple2<Long, Long>> partition2 = src1.partitionByHash(1, 0);
-		DataStream<Tuple2<Long, Long>> partition3 = src1.partitionByHash("f0");
-		DataStream<Tuple2<Long, Long>> partition4 = src1.partitionByHash(new FirstSelector());
+		DataStream<Tuple2<Long, Long>> partition1 = src1.keyBy(0);
+		DataStream<Tuple2<Long, Long>> partition2 = src1.keyBy(1, 0);
+		DataStream<Tuple2<Long, Long>> partition3 = src1.keyBy("f0");
+		DataStream<Tuple2<Long, Long>> partition4 = src1.keyBy(new FirstSelector());
 
 		int pid1 = createDownStreamId(partition1);
 		int pid2 = createDownStreamId(partition2);
@@ -311,10 +311,10 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(), pid3)));
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(), pid4)));
 
-		assertFalse(isKeyed(partition1));
-		assertFalse(isKeyed(partition3));
-		assertFalse(isKeyed(partition2));
-		assertFalse(isKeyed(partition4));
+		assertTrue(isKeyed(partition1));
+		assertTrue(isKeyed(partition3));
+		assertTrue(isKeyed(partition2));
+		assertTrue(isKeyed(partition4));
 
 		// Testing DataStream custom partitioning
 		Partitioner<Long> longPartitioner = new Partitioner<Long>() {
@@ -378,19 +378,19 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isKeyed(connectedGroup5));
 
 		//Testing ConnectedStreams partitioning
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition1 = connected.partitionByHash(0, 0);
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition1 = connected.keyBy(0, 0);
 		Integer connectDownStreamId1 = createDownStreamId(connectedPartition1);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition2 = connected.partitionByHash(new int[]{0}, new int[]{0});
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition2 = connected.keyBy(new int[]{0}, new int[]{0});
 		Integer connectDownStreamId2 = createDownStreamId(connectedPartition2);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition3 = connected.partitionByHash("f0", "f0");
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition3 = connected.keyBy("f0", "f0");
 		Integer connectDownStreamId3 = createDownStreamId(connectedPartition3);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition4 = connected.partitionByHash(new String[]{"f0"}, new String[]{"f0"});
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition4 = connected.keyBy(new String[]{"f0"}, new String[]{"f0"});
 		Integer connectDownStreamId4 = createDownStreamId(connectedPartition4);
 
-		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition5 = connected.partitionByHash(new FirstSelector(), new FirstSelector());
+		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition5 = connected.keyBy(new FirstSelector(), new FirstSelector());
 		Integer connectDownStreamId5 = createDownStreamId(connectedPartition5);
 
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src1.getId(),
@@ -418,11 +418,11 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		assertTrue(isPartitioned(env.getStreamGraph().getStreamEdges(src2.getId(),
 				connectDownStreamId5)));
 
-		assertFalse(isKeyed(connectedPartition1));
-		assertFalse(isKeyed(connectedPartition2));
-		assertFalse(isKeyed(connectedPartition3));
-		assertFalse(isKeyed(connectedPartition4));
-		assertFalse(isKeyed(connectedPartition5));
+		assertTrue(isKeyed(connectedPartition1));
+		assertTrue(isKeyed(connectedPartition2));
+		assertTrue(isKeyed(connectedPartition3));
+		assertTrue(isKeyed(connectedPartition4));
+		assertTrue(isKeyed(connectedPartition5));
 	}
 
 	/**

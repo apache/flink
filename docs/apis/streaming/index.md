@@ -961,18 +961,6 @@ via the following functions.
   </thead>
   <tbody>
    <tr>
-      <td><strong>Hash partitioning</strong><br>DataStream &rarr; DataStream</td>
-      <td>
-        <p>
-            Identical to keyBy but returns a DataStream instead of a KeyedStream.
-            {% highlight java %}
-dataStream.partitionByHash("someKey");
-dataStream.partitionByHash(0);
-            {% endhighlight %}
-        </p>
-      </td>
-    </tr>
-   <tr>
       <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
       <td>
         <p>
@@ -1080,18 +1068,6 @@ dataStream.broadcast();
     </tr>
   </thead>
   <tbody>
-   <tr>
-      <td><strong>Hash partitioning</strong><br>DataStream &rarr; DataStream</td>
-      <td>
-        <p>
-            Identical to keyBy but returns a DataStream instead of a KeyedStream.
-            {% highlight scala %}
-dataStream.partitionByHash("someKey")
-dataStream.partitionByHash(0)
-            {% endhighlight %}
-        </p>
-      </td>
-    </tr>
    <tr>
       <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
       <td>

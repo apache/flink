@@ -85,7 +85,6 @@ import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -276,61 +275,6 @@ public class DataStream<T> {
 	private KeyedStream<T, Tuple> keyBy(Keys<T> keys) {
 		return new KeyedStream<>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned hashing on the given fields. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
-	 *
-	 * @param fields The tuple fields that should be used for partitioning
-	 * @return The partitioned DataStream
-	 *
-	 */
-	public DataStream<T> partitionByHash(int... fields) {
-		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return partitionByHash(KeySelectorUtil.getSelectorForArray(fields, getType()));
-		} else {
-			return partitionByHash(new Keys.ExpressionKeys<>(fields, getType()));
-		}
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned hashing on the given fields. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
-	 *
-	 * @param fields The tuple fields that should be used for partitioning
-	 * @return The partitioned DataStream
-	 *
-	 */
-	public DataStream<T> partitionByHash(String... fields) {
-		return partitionByHash(new Keys.ExpressionKeys<>(fields, getType()));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned using the given {@link KeySelector}. This setting only
-	 * effects the how the outputs will be distributed between the parallel
-	 * instances of the next processing operator.
-	 *
-	 * @param keySelector The function that extracts the key from an element in the Stream
-	 * @return The partitioned DataStream
-	 */
-	public DataStream<T> partitionByHash(KeySelector<T, ?> keySelector) {
-		return setConnectionType(new HashPartitioner<>(clean(keySelector)));
-	}
-
-	//private helper method for partitioning
-	private DataStream<T> partitionByHash(Keys<T> keys) {
-		KeySelector<T, ?> keySelector = clean(KeySelectorUtil.getSelectorForKeys(
-				keys,
-				getType(),
-				getExecutionConfig()));
-
-		return setConnectionType(new HashPartitioner<>(keySelector));
 	}
 
 	/**

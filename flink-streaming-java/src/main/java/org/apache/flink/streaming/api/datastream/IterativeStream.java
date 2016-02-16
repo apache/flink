@@ -202,21 +202,6 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 
 		@Override
 		public ConnectedStreams<I, F> keyBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
-
-		@Override
-		public ConnectedStreams<I, F> partitionByHash(int keyPosition1, int keyPosition2) {throw groupingException;}
-		
-		@Override
-		public ConnectedStreams<I, F> partitionByHash(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
-		
-		@Override
-		public ConnectedStreams<I, F> partitionByHash(String field1, String field2) {throw groupingException;}
-		
-		@Override
-		public ConnectedStreams<I, F> partitionByHash(String[] fields1, String[] fields2) {throw groupingException;}
-		
-		@Override
-		public ConnectedStreams<I, F> partitionByHash(KeySelector<I, ?> keySelector1, KeySelector<F, ?> keySelector2) {throw groupingException;}
 		
 	}
 }

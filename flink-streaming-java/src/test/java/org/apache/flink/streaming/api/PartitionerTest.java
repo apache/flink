@@ -103,7 +103,7 @@ public class PartitionerTest extends StreamingMultipleProgramsTestBase {
 
 		// partition by hash
 		src
-				.partitionByHash(0)
+				.keyBy(0)
 				.map(new SubtaskIndexAssigner())
 				.addSink(hashPartitionResultSink);
 
