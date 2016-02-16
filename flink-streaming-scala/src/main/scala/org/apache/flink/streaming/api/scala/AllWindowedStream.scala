@@ -30,8 +30,6 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
-import scala.reflect.ClassTag
-
 import scala.collection.JavaConverters._
 
 /**
@@ -136,7 +134,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
    */
-  def fold[R: TypeInformation: ClassTag](
+  def fold[R: TypeInformation](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
     
@@ -156,7 +154,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, function: (R, T) => R): DataStream[R] = {
+  def fold[R: TypeInformation](initialValue: R, function: (R, T) => R): DataStream[R] = {
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
@@ -180,7 +178,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       function: AllWindowFunction[Iterable[T], R, W]): DataStream[R] = {
     
     val cleanedFunction = clean(function)
@@ -203,7 +201,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
     
     val cleanedFunction = clean(function)
@@ -226,7 +224,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       preAggregator: ReduceFunction[T],
       function: AllWindowFunction[T, R, W]): DataStream[R] = {
 
@@ -245,7 +243,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       preAggregator: (T, T) => T,
       function: (W, T, Collector[R]) => Unit): DataStream[R] = {
     if (function == null) {
@@ -283,7 +281,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param function The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       initialValue: R,
       preAggregator: FoldFunction[T, R],
       function: AllWindowFunction[R, R, W]): DataStream[R] = {
@@ -307,7 +305,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param function The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def apply[R: TypeInformation: ClassTag](
+  def apply[R: TypeInformation](
       initialValue: R,
       preAggregator: (R, T) => R,
       function: (W, R, Collector[R]) => Unit): DataStream[R] = {

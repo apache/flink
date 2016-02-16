@@ -38,7 +38,6 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 @Public
 class DataStream[T](stream: JavaStream[T]) {
@@ -447,7 +446,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   @PublicEvolving
-  def iterate[R, F: TypeInformation: ClassTag](
+  def iterate[R, F: TypeInformation](
         stepFunction: ConnectedStreams[T, F] => (DataStream[F], DataStream[R]),
         maxWaitTimeMillis:Long): DataStream[R] = {
     
@@ -464,7 +463,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
    */
-  def map[R: TypeInformation: ClassTag](fun: T => R): DataStream[R] = {
+  def map[R: TypeInformation](fun: T => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -479,7 +478,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
    */
-  def map[R: TypeInformation: ClassTag](mapper: MapFunction[T, R]): DataStream[R] = {
+  def map[R: TypeInformation](mapper: MapFunction[T, R]): DataStream[R] = {
     if (mapper == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -492,7 +491,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](flatMapper: FlatMapFunction[T, R]): DataStream[R] = {
+  def flatMap[R: TypeInformation](flatMapper: FlatMapFunction[T, R]): DataStream[R] = {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
@@ -505,7 +504,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun: (T, Collector[R]) => Unit): DataStream[R] = {
+  def flatMap[R: TypeInformation](fun: (T, Collector[R]) => Unit): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
@@ -520,7 +519,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun: T => TraversableOnce[R]): DataStream[R] = {
+  def flatMap[R: TypeInformation](fun: T => TraversableOnce[R]): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }

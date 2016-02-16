@@ -26,8 +26,6 @@ import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStrea
 import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction}
 import org.apache.flink.util.Collector
 
-import scala.reflect.ClassTag
-
 /**
  * [[ConnectedStreams]] represents two connected streams of (possibly) different data types.
  * Connected streams are useful for cases where operations on one stream directly
@@ -60,7 +58,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param fun2 Function called per element of the second input.
    * @return The resulting data stream.
    */
-  def map[R: TypeInformation: ClassTag](fun1: IN1 => R, fun2: IN2 => R): 
+  def map[R: TypeInformation](fun1: IN1 => R, fun2: IN2 => R): 
       DataStream[R] = {
     
     if (fun1 == null || fun2 == null) {
@@ -92,7 +90,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @return
     *        The resulting data stream
    */
-  def map[R: TypeInformation: ClassTag](coMapper: CoMapFunction[IN1, IN2, R]): DataStream[R] = {
+  def map[R: TypeInformation](coMapper: CoMapFunction[IN1, IN2, R]): DataStream[R] = {
     if (coMapper == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -117,7 +115,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @return
     *        The resulting data stream.
    */
-  def flatMap[R: TypeInformation: ClassTag](coFlatMapper: CoFlatMapFunction[IN1, IN2, R]): 
+  def flatMap[R: TypeInformation](coFlatMapper: CoFlatMapFunction[IN1, IN2, R]): 
           DataStream[R] = {
     
     if (coFlatMapper == null) {
@@ -139,7 +137,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param fun2 Function called per element of the second input.
    * @return The resulting data stream.
    */
-  def flatMap[R: TypeInformation: ClassTag](
+  def flatMap[R: TypeInformation](
       fun1: (IN1, Collector[R]) => Unit, 
       fun2: (IN2, Collector[R]) => Unit): DataStream[R] = {
     
@@ -166,7 +164,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param fun2 Function called per element of the second input.
    * @return The resulting data stream.
    */
-  def flatMap[R: TypeInformation: ClassTag](
+  def flatMap[R: TypeInformation](
       fun1: IN1 => TraversableOnce[R],
       fun2: IN2 => TraversableOnce[R]): DataStream[R] = {
     
