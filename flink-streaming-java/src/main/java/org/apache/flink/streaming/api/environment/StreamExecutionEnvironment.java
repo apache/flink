@@ -36,15 +36,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.PrimitiveInputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
-import org.apache.flink.api.java.io.TextValueInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
@@ -71,7 +68,6 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
-import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.IOException;
@@ -883,57 +879,6 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream that represents the strings produced by reading the given file line wise. This method is
-	 * similar to {@link #readTextFile(String)}, but it produces a data stream with mutable {@link org.apache.flink.types.StringValue}
-	 * objects,
-	 * rather than Java Strings. StringValues can be used to tune implementations to be less object and garbage
-	 * collection heavy.
-	 * <p>
-	 * The file will be read with the system's default character set.
-	 *
-	 * @param filePath
-	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
-	 * @return A data stream that represents the data read from the given file as text lines
-	 */
-	public DataStreamSource<StringValue> readTextFileWithValue(String filePath) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
-		TypeInformation<StringValue> typeInfo = new ValueTypeInfo<StringValue>(StringValue.class);
-
-		return createInput(format, typeInfo, "Read Text File with Value " +
-				"source");
-	}
-
-	/**
-	 * Creates a data stream that represents the Strings produced by reading the given file line wise. This method is
-	 * similar to {@link #readTextFile(String, String)}, but it produces a data stream with mutable {@link org.apache.flink.types.StringValue}
-	 * objects, rather than Java Strings. StringValues can be used to tune implementations to be less object and
-	 * garbage
-	 * collection heavy.
-	 * <p>
-	 * The {@link java.nio.charset.Charset} with the given name will be used to read the files.
-	 *
-	 * @param filePath
-	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
-	 * @param charsetName
-	 * 		The name of the character set used to read the file
-	 * @param skipInvalidLines
-	 * 		A flag to indicate whether to skip lines that cannot be read with the given character set
-	 * @return A data stream that represents the data read from the given file as text lines
-	 */
-	public DataStreamSource<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean
-			skipInvalidLines) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-
-		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
-		TypeInformation<StringValue> typeInfo = new ValueTypeInfo<StringValue>(StringValue.class);
-		format.setCharsetName(charsetName);
-		format.setSkipInvalidLines(skipInvalidLines);
-		return createInput(format, typeInfo, "Read Text File with Value " +
-				"source");
-	}
-
-	/**
 	 * Reads the given file with the given imput format.
 	 *
 	 * @param filePath
@@ -957,47 +902,6 @@ public abstract class StreamExecutionEnvironment {
 					"Please specify the TypeInformation of the produced type explicitly by using the " +
 					"'createInput(InputFormat, TypeInformation)' method instead.");
 		}
-	}
-
-	/**
-	 * Creates a data stream that represents the primitive type produced by reading the given file line wise.
-	 *
-	 * @param filePath
-	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
-	 * @param typeClass
-	 * 		The primitive type class to be read
-	 * @param <OUT>
-	 * 		The type of the returned data stream
-	 * @return A data stream that represents the data read from the given file as primitive type
-	 */
-	public <OUT> DataStreamSource<OUT> readFileOfPrimitives(String filePath, Class<OUT> typeClass) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		PrimitiveInputFormat<OUT> inputFormat = new PrimitiveInputFormat<OUT>(new Path(filePath), typeClass);
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForClass(typeClass);
-
-		return createInput(inputFormat, typeInfo, "Read File of Primitives source");
-	}
-
-	/**
-	 * Creates a data stream that represents the primitive type produced by reading the given file in delimited way.
-	 *
-	 * @param filePath
-	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
-	 * @param delimiter
-	 * 		The delimiter of the given file
-	 * @param typeClass
-	 * 		The primitive type class to be read
-	 * @param <OUT>
-	 * 		The type of the returned data stream
-	 * @return A data stream that represents the data read from the given file as primitive type.
-	 */
-	public <OUT> DataStreamSource<OUT> readFileOfPrimitives(String filePath, String delimiter, Class<OUT> typeClass) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		PrimitiveInputFormat<OUT> inputFormat = new PrimitiveInputFormat<OUT>(new Path(filePath), delimiter,
-				typeClass);
-		TypeInformation<OUT> typeInfo = TypeExtractor.getForClass(typeClass);
-
-		return createInput(inputFormat, typeInfo, "Read File of Primitives source");
 	}
 
 	/**

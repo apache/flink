@@ -1686,12 +1686,7 @@ File-based:
 
 - `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
 
-- `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
-  StringValues. StringValues are mutable strings.
-
 - `readFile(path)` / Any input format - Reads files as dictated by the input format.
-
-- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`.
 
 - `readFileStream` - create a stream by appending elements when there are changes to a file
 
@@ -1738,12 +1733,7 @@ File-based:
 
 - `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
 
-- `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
-  StringValues. StringValues are mutable strings.
-
 - `readFile(path)` / Any input format - Reads files as dictated by the input format.
-
-- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`.
 
 - `readFileStream` - create a stream by appending elements when there are changes to a file
 
