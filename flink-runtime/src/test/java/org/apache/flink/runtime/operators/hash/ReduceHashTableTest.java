@@ -39,6 +39,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
 
+import java.io.EOFException;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -143,6 +144,8 @@ public class ReduceHashTableTest {
 					assertNull(proper.getMatchFor(i + numElements, reuse));
 				}
 			}
+
+			table.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -200,73 +203,13 @@ public class ReduceHashTableTest {
 				}
 			}
 
+			table.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-
-	/**
-	 * This test validates that new inserts (rather than updates) in "insertOrReplace()" properly
-	 * react to out of memory conditions.
-	 *
-	 * Btw. this also tests the situation, when records are larger than one memory segment.
-	 */
-	@Test
-	public void testInsertsWithInsertOrReplace() {
-		try {
-			final int numElements = 1000;
-
-			final String longString = getLongString(100000);
-			List<MemorySegment> memory = getMemory(7000, 32 * 1024);
-
-			// we create a hash table that thinks the records are super large. that makes it choose initially
-			// a lot of memory for the partition buffers, and start with a smaller hash table. that way
-			// we trigger a hash table growth early.
-			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<Tuple2<Long, String>>(
-				serializer, comparator, memory, null, null, false);
-			table.open();
-
-			// first, we insert some elements
-			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(Tuple2.of(i, longString));
-			}
-
-			// now, we replace the same elements, causing fragmentation
-			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(Tuple2.of(i, longString));
-			}
-
-			// now we insert an additional set of elements. without compaction during this insertion,
-			// the memory will run out
-			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(Tuple2.of(i + numElements, longString));
-			}
-
-			// check the results
-			ReduceHashTable<Tuple2<Long, String>>.HashTableProber<Tuple2<Long, String>> prober =
-				table.getProber(comparator, new SameTypePairComparator<>(comparator));
-			Tuple2<Long, String> reuse = new Tuple2<>();
-			for (long i = 0; i < numElements; i++) {
-				assertNotNull(prober.getMatchFor(Tuple2.of(i, longString), reuse));
-				assertNotNull(prober.getMatchFor(Tuple2.of(i + numElements, longString), reuse));
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	private static String getLongString(int length) {
-		StringBuilder bld = new StringBuilder(length);
-		for (int i = 0; i < length; i++) {
-			bld.append('a');
-		}
-		return bld.toString();
-	}
-
 
 	// ------------------ The following are the ReduceHashTable-specific tests ------------------
 
@@ -509,6 +452,86 @@ public class ReduceHashTableTest {
 		return memory;
 	}
 
+
+	/**
+	 * The records are larger than one segment. Additionally, there is just barely enough memory,
+	 * so lots of compactions will happen.
+	 */
+	@Test
+	public void testLargeRecordsWithManyCompactions() {
+		try {
+			final int numElements = 1000;
+
+			final String longString1 = getLongString(100000), longString2 = getLongString(110000);
+			List<MemorySegment> memory = getMemory(3800, 32 * 1024);
+
+			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<Tuple2<Long, String>>(
+				serializer, comparator, memory, null, null, false);
+			table.open();
+
+			// first, we insert some elements
+			for (long i = 0; i < numElements; i++) {
+				table.insertOrReplaceRecord(Tuple2.of(i, longString1));
+			}
+
+			// now, we replace the same elements with larger ones, causing fragmentation
+			for (long i = 0; i < numElements; i++) {
+				table.insertOrReplaceRecord(Tuple2.of(i, longString2));
+			}
+
+			// check the results
+			ReduceHashTable<Tuple2<Long, String>>.HashTableProber<Tuple2<Long, String>> prober =
+				table.getProber(comparator, new SameTypePairComparator<>(comparator));
+			Tuple2<Long, String> reuse = new Tuple2<>();
+			for (long i = 0; i < numElements; i++) {
+				assertNotNull(prober.getMatchFor(Tuple2.of(i, longString2), reuse));
+			}
+
+			table.close();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	private static String getLongString(int length) {
+		StringBuilder bld = new StringBuilder(length);
+		for (int i = 0; i < length; i++) {
+			bld.append('a');
+		}
+		return bld.toString();
+	}
+
+
+	@Test
+	public void testOutOfMemory() {
+		try {
+			List<MemorySegment> memory = getMemory(100, 1024);
+
+			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<>(
+				serializer, comparator, memory, null, null, false);
+
+			try {
+				final int numElements = 100000;
+
+				table.open();
+
+				// Insert too many elements
+				for (long i = 0; i < numElements; i++) {
+					table.insertOrReplaceRecord(Tuple2.of(i, "alma"));
+				}
+
+				fail("We should have got out of memory (EOFException)");
+			} catch (EOFException e) {
+				// OK
+				table.close();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 
 
 	@Test

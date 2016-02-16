@@ -155,7 +155,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	/** The number of elements currently held by the table. */
 	private long numElements = 0;
 
-	/** The number of bytes wasted by updates that couldn't overwrite the old record. */
+	/** The number of bytes wasted by updates that couldn't overwrite the old record due to size change. */
 	private long holes = 0;
 
 	/**
@@ -555,7 +555,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @throws IOException
 	 */
 	private void compactOrThrow() throws IOException {
-		if (holes > 0) {
+		if (holes > (double)recordArea.getTotalSize() * 0.05) {
 			rebuild();
 		} else {
 			throw new EOFException("ReduceHashTable memory ran out. " + getMemoryConsumptionString());
@@ -568,6 +568,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	private String getMemoryConsumptionString() {
 		return "ReduceHashTable memory stats:\n" +
 			"Total memory:     " + numAllMemorySegments * segmentSize + "\n" +
+			"Free memory:      " + freeMemorySegments.size() * segmentSize + "\n" +
 			"Bucket area:      " + numBuckets * 8  + "\n" +
 			"Record area:      " + recordArea.getTotalSize() + "\n" +
 			"Staging area:     " + stagingSegments.size() * segmentSize + "\n" +
