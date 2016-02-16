@@ -24,7 +24,7 @@ import org.apache.flink.api.java.table.JavaStreamingTranslator
 import org.apache.flink.api.table.Table
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
+import org.apache.flink.streaming.api.scala.{DataStream, asScalaStream}
 
 /**
  * [[PlanTranslator]] for creating [[Table]]s from Scala [[DataStream]]s and
@@ -41,7 +41,7 @@ class ScalaStreamingTranslator extends PlanTranslator {
 
   override def translate[O](op: PlanNode)(implicit tpe: TypeInformation[O]): DataStream[O] = {
     // fake it till you make it ...
-    javaToScalaStream(javaTranslator.translate(op))
+    asScalaStream(javaTranslator.translate(op))
   }
 
   override def createTable[A](

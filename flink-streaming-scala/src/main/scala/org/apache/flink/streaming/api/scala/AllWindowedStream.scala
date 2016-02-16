@@ -99,7 +99,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @return The data stream that is the result of applying the reduce function to the window.
    */
   def reduce(function: ReduceFunction[T]): DataStream[T] = {
-    javaStream.reduce(clean(function))
+    asScalaStream(javaStream.reduce(clean(function)))
   }
 
   /**
@@ -139,13 +139,13 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def fold[R: TypeInformation: ClassTag](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
+    
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
 
     val resultType : TypeInformation[R] = implicitly[TypeInformation[R]]
-
-    javaStream.fold(initialValue, function, resultType)
+    asScalaStream(javaStream.fold(initialValue, function, resultType))
   }
 
   /**
@@ -182,13 +182,14 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    */
   def apply[R: TypeInformation: ClassTag](
       function: AllWindowFunction[Iterable[T], R, W]): DataStream[R] = {
+    
     val cleanedFunction = clean(function)
     val javaFunction = new AllWindowFunction[java.lang.Iterable[T], R, W] {
       def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
         cleanedFunction(window, elements.asScala, out)
       }
     }
-    javaStream.apply(javaFunction, implicitly[TypeInformation[R]])
+    asScalaStream(javaStream.apply(javaFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -204,13 +205,14 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    */
   def apply[R: TypeInformation: ClassTag](
       function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+    
     val cleanedFunction = clean(function)
     val applyFunction = new AllWindowFunction[java.lang.Iterable[T], R, W] {
       def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
         cleanedFunction(window, elements.asScala, out)
       }
     }
-    javaStream.apply(applyFunction, implicitly[TypeInformation[R]])
+    asScalaStream(javaStream.apply(applyFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -227,7 +229,9 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def apply[R: TypeInformation: ClassTag](
       preAggregator: ReduceFunction[T],
       function: AllWindowFunction[T, R, W]): DataStream[R] = {
-    javaStream.apply(clean(preAggregator), clean(function), implicitly[TypeInformation[R]])
+
+    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.apply(clean(preAggregator), clean(function), returnType))
   }
 
   /**
@@ -262,7 +266,9 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
         cleanApply(window, input, out)
       }
     }
-    javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])
+    
+    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.apply(reducer, applyFunction, returnType))
   }
 
   /**
@@ -281,11 +287,12 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       initialValue: R,
       preAggregator: FoldFunction[T, R],
       function: AllWindowFunction[R, R, W]): DataStream[R] = {
-    javaStream.apply(
+    
+    asScalaStream(javaStream.apply(
       initialValue,
       clean(preAggregator),
       clean(function),
-      implicitly[TypeInformation[R]])
+      implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -322,7 +329,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
         cleanApply(window, input, out)
       }
     }
-    javaStream.apply(initialValue, folder, applyFunction, implicitly[TypeInformation[R]])
+    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.apply(initialValue, folder, applyFunction, returnType))
   }
 
   // ------------------------------------------------------------------------

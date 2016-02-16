@@ -128,7 +128,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       throw new NullPointerException("Reduce function must not be null.")
     }
  
-    javaStream.reduce(reducer)
+    asScalaStream(javaStream.reduce(reducer))
   }
 
   /**
@@ -141,7 +141,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     }
     val cleanFun = clean(fun)
     val reducer = new ReduceFunction[T] {
-      def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
+      def reduce(v1: T, v2: T) : T = { cleanFun(v1, v2) }
     }
     reduce(reducer)
   }
@@ -152,15 +152,15 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * aggregate is kept per key.
    */
   def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
-  DataStream[R] = {
+      DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
     
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     
-    javaStream.fold(initialValue, folder).
-      returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(javaStream.fold(initialValue, folder).
+      returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**

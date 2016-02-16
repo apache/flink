@@ -269,13 +269,13 @@ object JoinedStreams {
 
       val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-      join
+      asScalaStream(join
         .where(keySelector1)
         .equalTo(keySelector2)
         .window(windowAssigner)
         .trigger(trigger)
         .evictor(evictor)
-        .apply(clean(function), implicitly[TypeInformation[T]])
+        .apply(clean(function), implicitly[TypeInformation[T]]))
     }
 
     /**
@@ -286,13 +286,13 @@ object JoinedStreams {
 
       val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-      join
+      asScalaStream(join
         .where(keySelector1)
         .equalTo(keySelector2)
         .window(windowAssigner)
         .trigger(trigger)
         .evictor(evictor)
-        .apply(clean(function), implicitly[TypeInformation[T]])
+        .apply(clean(function), implicitly[TypeInformation[T]]))
     }
 
     /**

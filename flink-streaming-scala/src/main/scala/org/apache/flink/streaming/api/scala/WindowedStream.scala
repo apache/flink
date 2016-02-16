@@ -102,7 +102,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * @return The data stream that is the result of applying the reduce function to the window.
    */
   def reduce(function: ReduceFunction[T]): DataStream[T] = {
-    javaStream.reduce(clean(function))
+    asScalaStream(javaStream.reduce(clean(function)))
   }
 
   /**
@@ -148,7 +148,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
 
     val resultType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
-    javaStream.fold(initialValue, function, resultType)
+    asScalaStream(javaStream.fold(initialValue, function, resultType))
   }
 
   /**
@@ -185,13 +185,15 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    */
   def apply[R: TypeInformation: ClassTag](
       function: WindowFunction[Iterable[T], R, K, W]): DataStream[R] = {
+    
     val cleanFunction = clean(function)
     val javaFunction = new WindowFunction[java.lang.Iterable[T], R, K, W] {
       def apply(key: K, window: W, input: java.lang.Iterable[T], out: Collector[R]) = {
         cleanFunction.apply(key, window, input.asScala, out)
       }
     }
-    javaStream.apply(javaFunction, implicitly[TypeInformation[R]])
+
+    asScalaStream(javaStream.apply(javaFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -217,7 +219,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
         cleanedFunction(key, window, elements.asScala, out)
       }
     }
-    javaStream.apply(applyFunction, implicitly[TypeInformation[R]])
+    asScalaStream(javaStream.apply(applyFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -234,7 +236,9 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   def apply[R: TypeInformation: ClassTag](
       preAggregator: ReduceFunction[T],
       function: WindowFunction[T, R, K, W]): DataStream[R] = {
-    javaStream.apply(clean(preAggregator), clean(function), implicitly[TypeInformation[R]])
+
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.apply(clean(preAggregator), clean(function), resultType))
   }
 
   /**
@@ -251,6 +255,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   def apply[R: TypeInformation: ClassTag](
       preAggregator: (T, T) => T,
       function: (K, W, T, Collector[R]) => Unit): DataStream[R] = {
+    
     if (function == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
@@ -269,7 +274,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
         cleanApply(key, window, input, out)
       }
     }
-    javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])
+    
+    asScalaStream(javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -288,11 +294,12 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
       initialValue: R,
       foldFunction: FoldFunction[T, R],
       function: WindowFunction[R, R, K, W]): DataStream[R] = {
-    javaStream.apply(
+    
+    asScalaStream(javaStream.apply(
       initialValue,
       clean(foldFunction),
       clean(function),
-      implicitly[TypeInformation[R]])
+      implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -310,6 +317,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
       initialValue: R,
       foldFunction: (R, T) => R,
       function: (K, W, R, Collector[R]) => Unit): DataStream[R] = {
+    
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
@@ -328,9 +336,9 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
         cleanApply(key, window, input, out)
       }
     }
-    javaStream.apply(initialValue, folder, applyFunction, implicitly[TypeInformation[R]])
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    asScalaStream(javaStream.apply(initialValue, folder, applyFunction, resultType))
   }
-
 
   // ------------------------------------------------------------------------
   //  Aggregations on the keyed windows

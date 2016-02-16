@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.AbstractStateBackend
-import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -404,7 +403,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
-    javaEnv.fromCollection(scala.collection.JavaConversions.asJavaCollection(data), typeInfo)
+    val collection = scala.collection.JavaConversions.asJavaCollection(data)
+    asScalaStream(javaEnv.fromCollection(collection, typeInfo))
   }
 
   /**
@@ -415,33 +415,32 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromCollection(data.asJava, typeInfo)
+    asScalaStream(javaEnv.fromCollection(data.asJava, typeInfo))
   }
 
   /**
    * Creates a DataStream from the given [[SplittableIterator]].
    */
   def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
-  DataStream[T] = {
+      DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromParallelCollection(data, typeInfo)
+    asScalaStream(javaEnv.fromParallelCollection(data, typeInfo))
   }
 
   /**
    * Creates a DataStream that represents the Strings produced by reading the
    * given file line wise. The file will be read with the system's default
    * character set.
-   *
    */
   def readTextFile(filePath: String): DataStream[String] =
-    javaEnv.readTextFile(filePath)
+    asScalaStream(javaEnv.readTextFile(filePath))
 
   /**
    * Creates a data stream that represents the Strings produced by reading the given file
    * line wise. The character set with the given name will be used to read the files.
    */
   def readTextFile(filePath: String, charsetName: String): DataStream[String] =
-    javaEnv.readTextFile(filePath, charsetName)
+    asScalaStream(javaEnv.readTextFile(filePath, charsetName))
 
 
   /**
@@ -449,8 +448,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
    */
   def readFile[T: ClassTag : TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
-    DataStream[T] =
-    javaEnv.readFile(inputFormat, filePath)
+        DataStream[T] =
+    asScalaStream(javaEnv.readFile(inputFormat, filePath))
 
 
   /**
@@ -461,9 +460,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * every 100 milliseconds.
    *
    */
-  def readFileStream(StreamPath: String, intervalMillis: Long = 100, watchType: WatchType = 
-    WatchType.ONLY_NEW_FILES): DataStream[String] =
-    javaEnv.readFileStream(StreamPath, intervalMillis, watchType)
+  def readFileStream(StreamPath: String, intervalMillis: Long = 100, 
+                     watchType: WatchType = WatchType.ONLY_NEW_FILES): DataStream[String] =
+    asScalaStream(javaEnv.readFileStream(StreamPath, intervalMillis, watchType))
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
@@ -473,8 +472,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
-    DataStream[String] =
-    javaEnv.socketTextStream(hostname, port)
+        DataStream[String] =
+    asScalaStream(javaEnv.socketTextStream(hostname, port))
 
   /**
    * Generic method to create an input data stream with a specific input format.
@@ -484,7 +483,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
-    javaEnv.createInput(inputFormat)
+    asScalaStream(javaEnv.createInput(inputFormat))
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
@@ -497,15 +496,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
+    
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.addSource(cleanFun).returns(typeInfo)
+    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
   }
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
    * source functionality.
-   *
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
