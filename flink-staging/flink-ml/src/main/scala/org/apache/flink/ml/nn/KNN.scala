@@ -20,8 +20,8 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.DataSetUtils._
-//import org.apache.flink.api.scala.utils._
+//import org.apache.flink.api.scala.DataSetUtils._
+import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
@@ -199,7 +199,7 @@ object KNN {
             // split data into multiple blocks
             val inputSplit = FlinkMLTools.block(inputWithId, blocks, Some(partitioner))
 
-            val sizeHint = resultParameters.get(SizeHint).get
+            val sizeHint = resultParameters.get(SizeHint)
             val crossTuned = sizeHint match {
               case Some(hint) if hint == CrossHint.FIRST_IS_SMALL =>
                 trainingSet.crossWithHuge(inputSplit)
@@ -209,7 +209,6 @@ object KNN {
             }
 
             // join input and training set
-        //    val crossed = trainingSet.cross(inputSplit).mapPartition {
             val crossed = crossTuned.mapPartition {
               (iter, out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
                 for ((training, testing) <- iter) {
