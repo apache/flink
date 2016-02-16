@@ -68,7 +68,7 @@ The CassandraCommitter constructor accepts the following arguments:
 3. Table name
 
 The CassandraExactlyOnceSink is implemented as a custom operator
-instead of a sink, and as such is a bit more unwieldy than other sinks.
+instead of a sink, and as such has to be used in a transform() call.
 
 Example:
 
