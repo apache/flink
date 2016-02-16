@@ -27,15 +27,16 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
+import java.io.Serializable;
 
-public class AvroOutputFormat<E> extends FileOutputFormat<E> {
+public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private final Class<E> avroValueType;
 
-	private Schema userDefinedSchema = null;
-
+	private transient Schema userDefinedSchema = null;
+	
 	private transient DataFileWriter<E> dataFileWriter;
 
 	public AvroOutputFormat(Path filePath, Class<E> type) {
@@ -66,7 +67,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 		super.open(taskNumber, numTasks);
 
 		DatumWriter<E> datumWriter;
-		Schema schema = null;
+		Schema schema;
 		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
 			datumWriter = new SpecificDatumWriter<E>(avroValueType);
 			try {
@@ -85,6 +86,31 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 			dataFileWriter.create(schema, stream);
 		} else {
 			dataFileWriter.create(userDefinedSchema, stream);
+		}
+	}
+
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		out.defaultWriteObject();
+
+		if(userDefinedSchema != null) {
+			byte[] json = userDefinedSchema.toString().getBytes();
+			out.writeInt(json.length);
+			out.write(json);
+		} else {
+			out.writeInt(0);
+		}
+	}
+
+	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		int length = in.readInt();
+		if(length != 0) {
+			byte[] json = new byte[length];
+			in.read(json);
+
+			Schema schema = new Schema.Parser().parse(new String(json));
+			setSchema(schema);
 		}
 	}
 
