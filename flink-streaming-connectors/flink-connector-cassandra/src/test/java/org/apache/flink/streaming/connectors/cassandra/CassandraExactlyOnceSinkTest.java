@@ -46,9 +46,6 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ResultPartitionWriter.class})
-@PowerMockIgnore("javax.management.*")
 public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3<String, Integer, Integer>, CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>>> {
 	private static File tmpDir;
 

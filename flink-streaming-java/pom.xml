@@ -108,7 +108,6 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<reuseForks>false</reuseForks>
-					<argLine>-noverify</argLine>
 				</configuration>
 			</plugin>
 		</plugins>
