@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable character type, representing the primitive
  * type {@code char}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class CharValue implements NormalizableKey<CharValue>, ResettableValue<CharValue>, CopyableValue<CharValue> {

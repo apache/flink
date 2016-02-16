@@ -48,9 +48,9 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
@@ -81,7 +81,7 @@ public class HashTableITCase {
 	{
 		final int[] keyPos = new int[] {0};
 		@SuppressWarnings("unchecked")
-		final Class<? extends Key<?>>[] keyType = (Class<? extends Key<?>>[]) new Class[] { IntValue.class };
+		final Class<? extends Value>[] keyType = (Class<? extends Value>[]) new Class[] { IntValue.class };
 		
 		this.recordBuildSideAccesssor = RecordSerializer.get();
 		this.recordProbeSideAccesssor = RecordSerializer.get();

@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable integer type, representing the primitive
  * type {@code int}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntValue>, CopyableValue<IntValue> {
