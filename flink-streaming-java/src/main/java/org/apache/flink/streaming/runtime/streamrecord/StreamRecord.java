@@ -52,6 +52,9 @@ public class StreamRecord<T> extends StreamElement {
 	 * @param timestamp The timestamp in milliseconds
 	 */
 	public StreamRecord(T value, long timestamp) {
+		if (timestamp == Long.MIN_VALUE) {
+			throw new IllegalArgumentException("Long.MIN_VALUE timestamp is reserved");
+		}
 		this.value = value;
 		this.timestamp = timestamp;
 	}
@@ -95,6 +98,9 @@ public class StreamRecord<T> extends StreamElement {
 	 */
 	@SuppressWarnings("unchecked")
 	public <X> StreamRecord<X> replace(X value, long timestamp) {
+		if (timestamp == Long.MIN_VALUE) {
+			throw new IllegalArgumentException("Long.MIN_VALUE timestamp is reserved");
+		}
 		this.timestamp = timestamp;
 		this.value = (T) value;
 		return (StreamRecord<X>) this;
