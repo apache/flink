@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -25,17 +25,13 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for extracting timestamps
- * from user elements and assigning them as the internal timestamp of the {@link StreamRecord}.
+ * A stream operator that extracts timestamps from stream elements and
+ * generates periodic watermarks.
  *
  * @param <T> The type of the input elements
- * 
- * @deprecated Subsumed by {@link TimestampsAndPeriodicWatermarksOperator} and
- *             {@link TimestampsAndPunctuatedWatermarksOperator}.
  */
-@Deprecated
-public class ExtractTimestampsOperator<T>
-		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
+public class TimestampsAndPeriodicWatermarksOperator<T>
+		extends AbstractUdfStreamOperator<T, AssignerWithPeriodicWatermarks<T>>
 		implements OneInputStreamOperator<T, T>, Triggerable {
 
 	private static final long serialVersionUID = 1L;
@@ -44,51 +40,48 @@ public class ExtractTimestampsOperator<T>
 
 	private transient long currentWatermark;
 
-	public ExtractTimestampsOperator(TimestampExtractor<T> extractor) {
-		super(extractor);
+	
+	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
+		super(assigner);
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
+
+		currentWatermark = -1L;
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
+		
 		if (watermarkInterval > 0) {
 			registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		}
-
-		currentWatermark = -1L;
 	}
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
 		long newTimestamp = userFunction.extractTimestamp(element.getValue(), element.getTimestamp());
 		output.collect(element.replace(element.getValue(), newTimestamp));
-		long watermark = userFunction.extractWatermark(element.getValue(), newTimestamp);
-		if (watermark > currentWatermark) {
-			currentWatermark = watermark;
-			output.emitWatermark(new Watermark(currentWatermark));
-		}
 	}
 
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
-		registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		long newWatermark = userFunction.getCurrentWatermark();
-
 		if (newWatermark > currentWatermark) {
 			currentWatermark = newWatermark;
 			// emit watermark
 			output.emitWatermark(new Watermark(currentWatermark));
 		}
+
+		registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
 		// to signal the end of input and to not block watermark progress downstream
-		if (mark.getTimestamp() == Long.MAX_VALUE && mark.getTimestamp() > currentWatermark) {
+		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
 			currentWatermark = Long.MAX_VALUE;
 			output.emitWatermark(mark);
 		}

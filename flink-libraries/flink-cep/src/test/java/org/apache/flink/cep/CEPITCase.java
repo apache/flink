@@ -27,8 +27,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,6 +38,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.Map;
 
+@SuppressWarnings("serial")
 public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 	private String resultPath;
@@ -77,7 +79,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 5681493970790509488L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -86,7 +87,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		})
 		.followedBy("middle").subtype(SubEvent.class).where(
 				new FilterFunction<SubEvent>() {
-					private static final long serialVersionUID = 448591738315698540L;
 
 					@Override
 					public boolean filter(SubEvent value) throws Exception {
@@ -95,7 +95,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				}
 			)
 		.followedBy("end").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 6080276591060431966L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -104,7 +103,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-			private static final long serialVersionUID = 1447462674590806097L;
 
 			@Override
 			public String select(Map<String, Event> pattern) {
@@ -148,7 +146,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new Event(2, "end", 1.0),
 			new Event(42, "end", 42.0)
 		).keyBy(new KeySelector<Event, Integer>() {
-			private static final long serialVersionUID = -2112041392652797483L;
 
 			@Override
 			public Integer getKey(Event value) throws Exception {
@@ -157,7 +154,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 5681493970790509488L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -166,7 +162,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		})
 			.followedBy("middle").subtype(SubEvent.class).where(
 				new FilterFunction<SubEvent>() {
-					private static final long serialVersionUID = 448591738315698540L;
 
 					@Override
 					public boolean filter(SubEvent value) throws Exception {
@@ -175,7 +170,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				}
 			)
 			.followedBy("end").where(new FilterFunction<Event>() {
-				private static final long serialVersionUID = 6080276591060431966L;
 
 				@Override
 				public boolean filter(Event value) throws Exception {
@@ -184,7 +178,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
-			private static final long serialVersionUID = 1447462674590806097L;
 
 			@Override
 			public String select(Map<String, Event> pattern) {
@@ -218,31 +211,21 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(3, "end", 3.0), 3L),
 			Tuple2.of(new Event(4, "end", 4.0), 10L),
 			Tuple2.of(new Event(5, "middle", 5.0), 7L)
-		).assignTimestamps(new TimestampExtractor<Tuple2<Event, Long>>() {
-			private static final long serialVersionUID = 878281782188702293L;
+		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event,Long>>() {
 
-			private Long currentMaxTimestamp = Long.MIN_VALUE;
+			private long currentMaxTimestamp = -1;
 
 			@Override
-			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
-				if (currentMaxTimestamp < element.f1) {
-					currentMaxTimestamp = element.f1;
-				}
-
+			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
+				currentMaxTimestamp = Math.max(currentMaxTimestamp, element.f1);
 				return element.f1;
 			}
 
 			@Override
-			public long extractWatermark(Tuple2<Event, Long> element, long currentTimestamp) {
+			public long getCurrentWatermark() {
 				return currentMaxTimestamp - 5;
 			}
-
-			@Override
-			public long getCurrentWatermark() {
-				return Long.MIN_VALUE;
-			}
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
-			private static final long serialVersionUID = -5288731103938665328L;
 
 			@Override
 			public Event map(Tuple2<Event, Long> value) throws Exception {
@@ -251,21 +234,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 2601494641888389648L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("start");
 			}
 		}).followedBy("middle").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = -3133506934766766660L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("middle");
 			}
 		}).followedBy("end").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = -8528031731858936269L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -275,7 +255,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(
 			new PatternSelectFunction<Event, String>() {
-				private static final long serialVersionUID = 1447462674590806097L;
 
 				@Override
 				public String select(Map<String, Event> pattern) {
@@ -317,38 +296,27 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(1, "middle", 5.0), 7L),
 			Tuple2.of(new Event(3, "middle", 6.0), 9L),
 			Tuple2.of(new Event(3, "end", 7.0), 7L)
-		).assignTimestamps(new TimestampExtractor<Tuple2<Event, Long>>() {
-			private static final long serialVersionUID = 878281782188702293L;
+		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event,Long>>() {
 
-			private Long currentMaxTimestamp = Long.MIN_VALUE;
+			private long currentMaxTimestamp = -1L;
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
-				if (currentMaxTimestamp < element.f1) {
-					currentMaxTimestamp = element.f1;
-				}
-
+				currentMaxTimestamp = Math.max(element.f1, currentMaxTimestamp);
 				return element.f1;
 			}
 
 			@Override
-			public long extractWatermark(Tuple2<Event, Long> element, long currentTimestamp) {
+			public long getCurrentWatermark() {
 				return currentMaxTimestamp - 5;
 			}
-
-			@Override
-			public long getCurrentWatermark() {
-				return Long.MIN_VALUE;
-			}
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
-			private static final long serialVersionUID = -5288731103938665328L;
 
 			@Override
 			public Event map(Tuple2<Event, Long> value) throws Exception {
 				return value.f0;
 			}
 		}).keyBy(new KeySelector<Event, Integer>() {
-			private static final long serialVersionUID = -3282946957177720879L;
 
 			@Override
 			public Integer getKey(Event value) throws Exception {
@@ -357,21 +325,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		});
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 2601494641888389648L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("start");
 			}
 		}).followedBy("middle").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = -3133506934766766660L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("middle");
 			}
 		}).followedBy("end").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = -8528031731858936269L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -381,7 +346,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(
 			new PatternSelectFunction<Event, String>() {
-				private static final long serialVersionUID = 1447462674590806097L;
 
 				@Override
 				public String select(Map<String, Event> pattern) {

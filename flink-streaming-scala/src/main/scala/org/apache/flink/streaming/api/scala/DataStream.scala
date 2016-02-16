@@ -30,7 +30,7 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
@@ -629,6 +629,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def windowAll[W <: Window](assigner: WindowAssigner[_ >: T, W]): AllWindowedStream[T, W] = {
     new AllWindowedStream[T, W](new JavaAllWindowedStream[T, W](stream, assigner))
   }
+  
   /**
    * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
    * The internal timestamps are, for example, used to to event-time window operations.
@@ -640,21 +641,82 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  @PublicEvolving
+  @deprecated
   def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
     stream.assignTimestamps(clean(extractor))
   }
 
   /**
-   * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
-   * The internal timestamps are, for example, used to to event-time window operations.
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
    *
-   * If you know that the timestamps are strictly increasing you can use an
-   * [[org.apache.flink.streaming.api.functions.AscendingTimestampExtractor]]. Otherwise,
-   * you should provide a [[TimestampExtractor]] that also implements
-   * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
+   * This method creates watermarks periodically (for example every second), based
+   * on the watermarks indicated by the given watermark generator. Even when no new elements
+   * in the stream arrive, the given watermark generator will be periodically checked for
+   * new watermarks. The interval in which watermarks are generated is defined in
+   * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]].
    *
-   * @see org.apache.flink.streaming.api.watermark.Watermark
+   * Use this method for the common cases, where some characteristic over all elements
+   * should generate the watermarks, or where watermarks are simply trailing behind the
+   * wall clock time by a certain amount.
+   *
+   * For cases where watermarks should be created in an irregular fashion, for example
+   * based on certain markers that some element carry, use the
+   * [[AssignerWithPunctuatedWatermarks]].
+   *
+   * @see AssignerWithPeriodicWatermarks
+   * @see AssignerWithPunctuatedWatermarks
+   * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
+   */
+  @PublicEvolving
+  def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]) 
+      : DataStream[T] = {
+    
+    stream.assignTimestampsAndWatermarks(assigner)
+  }
+
+  /**
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
+   *
+   * This method creates watermarks based purely on stream elements. For each element
+   * that is handled via [[AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)]],
+   * the [[AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark()]] method is called,
+   * and a new watermark is emitted, if the returned watermark value is larger than the previous
+   * watermark.
+   *
+   * This method is useful when the data stream embeds watermark elements, or certain elements
+   * carry a marker that can be used to determine the current event time watermark. 
+   * This operation gives the programmer full control over the watermark generation. Users
+   * should be aware that too aggressive watermark generation (i.e., generating hundreds of
+   * watermarks every second) can cost some performance.
+   *
+   * For cases where watermarks should be created in a regular fashion, for example
+   * every x milliseconds, use the [[AssignerWithPeriodicWatermarks]].
+   *
+   * @see AssignerWithPunctuatedWatermarks
+   * @see AssignerWithPeriodicWatermarks
+   * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
+   */
+  @PublicEvolving
+  def assignTimestampsAndWatermarks(assigner: AssignerWithPunctuatedWatermarks[T])
+      : DataStream[T] = {
+    
+    stream.assignTimestampsAndWatermarks(assigner)
+  }
+
+  /**
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
+   * 
+   * This method is a shortcut for data streams where the element timestamp are known
+   * to be monotonously ascending within each parallel stream.
+   * In that case, the system can generate watermarks automatically and perfectly
+   * by tracking the ascending timestamps.
+   * 
+   * For cases where the timestamps are not monotonously increasing, use the more
+   * general methods [[assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)]]
+   * and [[assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)]].
    */
   @PublicEvolving
   def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
