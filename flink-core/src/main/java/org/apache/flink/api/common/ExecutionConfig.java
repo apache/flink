@@ -360,7 +360,7 @@ public class ExecutionConfig implements Serializable {
 	public ExecutionConfig setExecutionRetryDelay(long executionRetryDelay) {
 		if (executionRetryDelay < 0 ) {
 			throw new IllegalArgumentException(
-				"The delay between reties must be non-negative.");
+				"The delay between retries must be non-negative.");
 		}
 		this.executionRetryDelay = executionRetryDelay;
 		return this;
