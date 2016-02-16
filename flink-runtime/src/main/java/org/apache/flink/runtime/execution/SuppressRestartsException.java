@@ -19,17 +19,17 @@
 package org.apache.flink.runtime.execution;
 
 /**
- * Exception thrown on unrecoverable failures.
+ * Exception thrown in order to suppress job restarts.
  *
  * <p>This exception acts as a wrapper around the real cause and suppresses
  * job restarts. The JobManager will <strong>not</strong> restart a job, which
  * fails with this Exception.
  */
-public class UnrecoverableException extends RuntimeException {
+public class SuppressRestartsException extends RuntimeException {
 
 	private static final long serialVersionUID = 221873676920848349L;
 
-	public UnrecoverableException(Throwable cause) {
+	public SuppressRestartsException(Throwable cause) {
 		super("Unrecoverable failure. This suppresses job restarts. Please check the " +
 				"stack trace for the root cause.", cause);
 	}

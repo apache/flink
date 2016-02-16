@@ -38,7 +38,7 @@ import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.execution.UnrecoverableException
+import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -1080,6 +1080,9 @@ class JobManager(
           executionGraph.registerExecutionListener(gateway)
           executionGraph.registerJobStatusListener(gateway)
         }
+
+        // All good. Submission succeeded!
+        jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
       }
       catch {
         case t: Throwable =>
@@ -1108,8 +1111,7 @@ class JobManager(
         try {
           if (isRecovery) {
             executionGraph.restoreLatestCheckpointedState()
-          }
-          else {
+          } else {
             val snapshotSettings = jobGraph.getSnapshotSettings
             if (snapshotSettings != null) {
               val savepointPath = snapshotSettings.getSavepointPath()
@@ -1117,10 +1119,10 @@ class JobManager(
               // Reset state back to savepoint
               if (savepointPath != null) {
                 try {
-                  executionGraph.restoreSavepoint(savepointPath)
+                executionGraph.restoreSavepoint(savepointPath)
                 } catch {
-                  case e: Exception =>
-                    throw new UnrecoverableException(e)
+                  // Wrap to suppress restarts
+                  case t: Throwable => throw new SuppressRestartsException(t)
                 }
               }
             }
@@ -1128,22 +1130,20 @@ class JobManager(
             submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
           }
 
-          jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
-
           if (leaderElectionService.hasLeadership) {
             // There is a small chance that multiple job managers schedule the same job after if
-            // they try to recover at the same time. This will eventually be noticed, but can not be
-            // ruled out from the beginning.
+            // they try to recover at the same time. This will eventually be noticed, but can not
+            // be ruled out from the beginning.
 
-            // NOTE: Scheduling the job for execution is a separate action from the job submission.
-            // The success of submitting the job must be independent from the success of scheduling
-            // the job.
+            // NOTE: Scheduling the job for execution is a separate action from the job
+            // submission. The success of submitting the job must be independent from the success
+            // of scheduling the job.
             log.info(s"Scheduling job $jobId ($jobName).")
 
             executionGraph.scheduleForExecution(scheduler)
           } else {
-            // Remove the job graph. Otherwise it will be lingering around and possibly removed from
-            // ZooKeeper by this JM.
+            // Remove the job graph. Otherwise it will be lingering around and possibly removed
+            // from ZooKeeper by this JM.
             self ! decorateMessage(RemoveJob(jobId, removeJobFromStateBackend = false))
 
             log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
