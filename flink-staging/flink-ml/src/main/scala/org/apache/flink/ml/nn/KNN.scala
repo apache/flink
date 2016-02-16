@@ -224,7 +224,13 @@ object KNN {
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
-                    knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
+                    if (metric.isInstanceOf[EuclideanDistanceMetric] ||
+                      metric.isInstanceOf[SquaredEuclideanDistanceMetric]){
+                      knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
+                    } else {
+                      throw new IllegalArgumentException(s" Error: metric must be" +
+                        s" Euclidean or SquaredEuclidean!")
+                    }
                   } else {
                     knnQueryBasic(training.values, testing.values, k, metric, queue, out)
                   }
