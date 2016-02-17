@@ -50,6 +50,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -144,9 +145,8 @@ public class TimestampITCase {
 
 		// verify that all the watermarks arrived at the final custom operator
 		for (int i = 0; i < PARALLELISM; i++) {
-			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks in order, because
-			// after that source2 emits Long.MAX_VALUE which could match with an arbitrary
-			// mark from source 1, for example, we could see 0,1,2,4,5,7,MAX
+			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks because the
+			// other source stops emitting after that
 			for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
 				if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
 					System.err.println("All Watermarks: ");
@@ -157,13 +157,7 @@ public class TimestampITCase {
 					Assert.fail("Wrong watermark.");
 				}
 			}
-			if (!CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size() - 1).equals(new Watermark(Long.MAX_VALUE))) {
-				System.err.println("All Watermarks: ");
-				for (int k = 0; k <= NUM_WATERMARKS; k++) {
-					System.err.println(CustomOperator.finalWatermarks[i].get(k));
-				}
-				Assert.fail("Wrong watermark.");
-			}
+			assertFalse(CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size()-1).equals(new Watermark(Long.MAX_VALUE)));
 		}
 	}
 
@@ -286,9 +280,7 @@ public class TimestampITCase {
 				Assert.fail("Wrong watermark. Expected: " + j + " Found: " + wm + " All: " + CustomOperator.finalWatermarks[0]);
 			}
 		}
-		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
-			Assert.fail("Wrong watermark.");
-		}
+		assertFalse(CustomOperator.finalWatermarks[0].get(CustomOperator.finalWatermarks[0].size()-1).equals(new Watermark(Long.MAX_VALUE)));
 	}
 
 	/**
@@ -346,9 +338,7 @@ public class TimestampITCase {
 				Assert.fail("Wrong watermark.");
 			}
 		}
-		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
-			Assert.fail("Wrong watermark.");
-		}
+		assertFalse(CustomOperator.finalWatermarks[0].get(CustomOperator.finalWatermarks[0].size()-1).equals(new Watermark(Long.MAX_VALUE)));
 	}
 
 	/**
@@ -408,9 +398,7 @@ public class TimestampITCase {
 				Assert.fail("Wrong watermark.");
 			}
 		}
-		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
-			Assert.fail("Wrong watermark.");
-		}
+		assertFalse(CustomOperator.finalWatermarks[0].get(CustomOperator.finalWatermarks[0].size()-1).equals(new Watermark(Long.MAX_VALUE)));
 	}
 
 	/**

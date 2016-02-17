@@ -53,6 +53,9 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", 6))
         ctx.collect(("a", 7))
         ctx.collect(("a", 8))
+
+        // so that we get a high final watermark to process the previously sent elements
+        ctx.collect(("a", 20))
       }
 
       def cancel() {}
@@ -67,6 +70,9 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("c", 6))
         ctx.collect(("c", 7))
         ctx.collect(("c", 8))
+
+        // so that we get a high final watermark to process the previously sent elements
+        ctx.collect(("c", 20))
       }
 
       def cancel() {
@@ -117,6 +123,9 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", "i", 6))
         ctx.collect(("a", "j", 7))
         ctx.collect(("a", "k", 8))
+
+        // so that we get a high final watermark to process the previously sent elements
+        ctx.collect(("a", "k", 20))
       }
 
       def cancel() {}
@@ -133,6 +142,9 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
         ctx.collect(("a", "x", 6))
         ctx.collect(("a", "z", 8))
+
+        // so that we get a high final watermark to process the previously sent elements
+        ctx.collect(("a", "z", 20))
       }
 
       def cancel() {}
@@ -193,6 +205,9 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", "i", 6))
         ctx.collect(("a", "j", 7))
         ctx.collect(("a", "k", 8))
+
+        // so that we get a high final watermark to process the previously sent elements
+        ctx.collect(("a", "k", 20))
       }
 
       def cancel() {}

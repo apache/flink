@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -73,6 +72,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("a", 6));
 				ctx.collect(Tuple2.of("a", 7));
 				ctx.collect(Tuple2.of("a", 8));
+
+				// so we get a final big watermark
+				ctx.collect(Tuple2.of("a", 20));
 			}
 
 			@Override
@@ -92,6 +94,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("c", 6));
 				ctx.collect(Tuple2.of("c", 7));
 				ctx.collect(Tuple2.of("c", 8));
+
+				// so we get a final big watermark
+				ctx.collect(Tuple2.of("a", 20));
 			}
 
 			@Override
@@ -165,6 +170,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple3.of("a", "i", 6));
 				ctx.collect(Tuple3.of("a", "j", 7));
 				ctx.collect(Tuple3.of("a", "k", 8));
+
+				// so we get a final big watermark
+				ctx.collect(Tuple3.of("a", "k", 20));
 			}
 
 			@Override
@@ -184,6 +192,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 				ctx.collect(Tuple3.of("a", "x", 6));
 				ctx.collect(Tuple3.of("a", "z", 8));
+
+				// so we get a final high watermark
+				ctx.collect(Tuple3.of("a", "z", 20));
 			}
 
 			@Override
@@ -259,6 +270,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple3.of("a", "i", 6));
 				ctx.collect(Tuple3.of("a", "j", 7));
 				ctx.collect(Tuple3.of("a", "k", 8));
+
+				// so we get a final high watermark
+				ctx.collect(Tuple3.of("a", "k", 20));
 			}
 
 			@Override
@@ -328,19 +342,17 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class Tuple3TimestampExtractor implements AssignerWithPeriodicWatermarks<Tuple3<String, String, Integer>> {
+	private static class Tuple3TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple3<String, String, Integer>> {
 
-		private long currentTimestamp;
-		
 		@Override
 		public long extractTimestamp(Tuple3<String, String, Integer> element, long previousTimestamp) {
-			currentTimestamp = element.f2;
 			return element.f2;
 		}
 
 		@Override
-		public long getCurrentWatermark() {
-			return currentTimestamp - 1;
+		public long checkAndGetNextWatermark(Tuple3<String, String, Integer> lastElement,
+				long extractedTimestamp) {
+			return lastElement.f2 - 1;
 		}
 	}
 
