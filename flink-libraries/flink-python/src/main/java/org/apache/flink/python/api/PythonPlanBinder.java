@@ -440,7 +440,7 @@ public class PythonPlanBinder {
 		DataSet<?> op2 = (DataSet) sets.get(info.otherID);
 
 		op1.withBroadcastSet(op2, info.name);
-		Configuration c = (op1).getParameters();
+		Configuration c = op1.getParameters();
 
 		if (c == null) {
 			c = new Configuration();
