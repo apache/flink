@@ -19,8 +19,10 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,6 +30,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.SerializedCheckpointData;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.junit.After;
@@ -72,18 +75,18 @@ public class RMQSourceTest {
 
 	private volatile long messageId;
 
-	private boolean generateCorrelationIds = true;
+	private boolean generateCorrelationIds;
 
 	private volatile Exception exception;
 
 	@Before
 	public void beforeTest() throws Exception {
 
-		source = new RMQTestSource<>("hostDummy", "queueDummy", true, new StringDeserializationScheme());
+		source = new RMQTestSource<>("hostDummy", -1, "", "", "queueDummy", true, new StringDeserializationScheme());
 		source.open(config);
-		source.initializeConnection();
 
 		messageId = 0;
+		generateCorrelationIds = true;
 
 		sourceThread = new Thread(new Runnable() {
 			@Override
@@ -240,30 +243,30 @@ public class RMQSourceTest {
 
 	private class RMQTestSource<OUT> extends RMQSource<OUT> {
 
-		public RMQTestSource(String hostName, String queueName, boolean usesCorrelationIds,
-							 DeserializationSchema<OUT> deserializationSchema) {
-			super(hostName, queueName, usesCorrelationIds, deserializationSchema);
+		public RMQTestSource(String hostName, Integer port, String username, String password,
+				String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
+			super(hostName, port, username, password, queueName, usesCorrelationId, deserializationSchema);
 		}
 
 		@Override
-		protected void initializeConnection() {
-			connection = Mockito.mock(Connection.class);
-			channel = Mockito.mock(Channel.class);
+		public void open(Configuration config) throws Exception {
+			super.open(config);
+
 			consumer = Mockito.mock(QueueingConsumer.class);
 
 			// Mock for delivery
 			final QueueingConsumer.Delivery deliveryMock = Mockito.mock(QueueingConsumer.Delivery.class);
 			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes());
 
-			// Mock for envelope
-			Envelope envelope = Mockito.mock(Envelope.class);
-			Mockito.when(deliveryMock.getEnvelope()).thenReturn(envelope);
-
 			try {
 				Mockito.when(consumer.nextDelivery()).thenReturn(deliveryMock);
 			} catch (InterruptedException e) {
 				fail("Couldn't setup up deliveryMock");
 			}
+
+			// Mock for envelope
+			Envelope envelope = Mockito.mock(Envelope.class);
+			Mockito.when(deliveryMock.getEnvelope()).thenReturn(envelope);
 
 			Mockito.when(envelope.getDeliveryTag()).thenAnswer(new Answer<Long>() {
 				@Override
@@ -283,6 +286,24 @@ public class RMQSourceTest {
 				}
 			});
 
+		}
+
+		@Override
+		protected ConnectionFactory setupConnectionFactory() {
+			ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+			Connection connection = Mockito.mock(Connection.class);
+			try {
+				Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+				Mockito.when(connection.createChannel()).thenReturn(Mockito.mock(Channel.class));
+			} catch (IOException e) {
+				fail("Test environment couldn't be created.");
+			}
+			return connectionFactory;
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return Mockito.mock(StreamingRuntimeContext.class);
 		}
 
 		@Override
