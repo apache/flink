@@ -837,7 +837,9 @@ public class Task implements Runnable {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
-						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
+						long taskCancellationInterval = this.executionConfig.getTaskCancellationInterval();
+						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask,
+							taskCancellationInterval);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.setDaemon(true);
@@ -1081,12 +1083,15 @@ public class Task implements Runnable {
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
+		private final long taskCancellationIntervalMillis;
 
-		public TaskCanceler(Logger logger, AbstractInvokable invokable, Thread executer, String taskName) {
+		public TaskCanceler(Logger logger, AbstractInvokable invokable,
+							Thread executer, String taskName, long cancelationInterval) {
 			this.logger = logger;
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
+			this.taskCancellationIntervalMillis = cancelationInterval;
 		}
 
 		@Override
@@ -1104,7 +1109,7 @@ public class Task implements Runnable {
 				// interrupt the running thread initially
 				executer.interrupt();
 				try {
-					executer.join(30000);
+					executer.join(taskCancellationIntervalMillis);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
@@ -1127,7 +1132,7 @@ public class Task implements Runnable {
 
 					executer.interrupt();
 					try {
-						executer.join(30000);
+						executer.join(taskCancellationIntervalMillis);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this
