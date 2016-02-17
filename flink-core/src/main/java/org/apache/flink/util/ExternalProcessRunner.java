@@ -62,6 +62,11 @@ public class ExternalProcessRunner {
 		commandList.add(javaCommand);
 		commandList.add("-classpath");
 		commandList.add(getCurrentClasspath());
+		// FIXME Find a locale-agnostic way to do this
+		// Since the error checking is performed based on the output of the external process
+		// said output must not be localized for the check to be useful (see `run` method)
+		commandList.add("-Duser.country=US");
+		commandList.add("-Duser.language=en");
 		commandList.add(entryPointClassName);
 
 		Collections.addAll(commandList, parameters);
@@ -92,6 +97,9 @@ public class ExternalProcessRunner {
 			pipeForwarder.join();
 
 			if (returnCode != 0) {
+
+				// FIXME Find a locale-agnostic way to perform error checking
+				// See the `ExternalProcessRunner(String, String[])` constructor
 				// determine whether we failed because of a ClassNotFoundException and forward that
 				if (getErrorOutput().toString().contains("Error: Could not find or load main class " + entryPointClassName)) {
 					throw new ClassNotFoundException("Error: Could not find or load main class " + entryPointClassName);
