@@ -323,7 +323,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			// wait for the consumer to stop
 			while(consumerThread.isAlive()) {
 				if(consumerThreadException != null) {
-					throw new RuntimeException("ConsumerThread threw an exception", consumerThreadException);
+					throw new RuntimeException("ConsumerThread threw an exception: " + consumerThreadException.getMessage(), consumerThreadException);
 				}
 				try {
 					consumerThread.join(50);
@@ -333,7 +333,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			}
 			// check again for an exception
 			if(consumerThreadException != null) {
-				throw new RuntimeException("ConsumerThread threw an exception", consumerThreadException);
+				throw new RuntimeException("ConsumerThread threw an exception: " + consumerThreadException.getMessage(), consumerThreadException);
 			}
 		} else {
 			// this source never completes, so emit a Long.MAX_VALUE watermark

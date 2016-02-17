@@ -35,6 +35,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWra
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
+import java.util.Properties;
 import java.util.Random;
 
 @SuppressWarnings("serial")
@@ -172,9 +173,11 @@ public class DataGenerators {
 			// we manually feed data into the Kafka sink
 			FlinkKafkaProducerBase<String> producer = null;
 			try {
+				Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString());
+				producerProperties.setProperty("retries", "3");
 				producer = server.getProducer(topic,
 						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
-						FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString()), new FixedPartitioner<String>());
+						producerProperties, new FixedPartitioner<String>());
 				producer.setRuntimeContext(new MockRuntimeContext(1,0));
 				producer.open(new Configuration());
 				
