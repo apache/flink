@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
@@ -72,6 +72,9 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("a", 6));
 				ctx.collect(Tuple2.of("a", 7));
 				ctx.collect(Tuple2.of("a", 8));
+
+				// so that we get a high final watermark to process the previously sent elements
+				ctx.collect(Tuple2.of("a", 20));
 			}
 
 			@Override
@@ -135,6 +138,8 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("b", 5));
 				ctx.collect(Tuple2.of("a", 5));
 
+				// so that we get a high final watermark to process the previously sent elements
+				ctx.collect(Tuple2.of("a", 20));
 			}
 
 			@Override
@@ -172,19 +177,17 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertEquals(expectedResult, testResults);
 	}
 
-	private static class Tuple2TimestampExtractor implements AssignerWithPeriodicWatermarks<Tuple2<String, Integer>> {
+	private static class Tuple2TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
 
-		private long currentTimestamp = -1;
-		
 		@Override
 		public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
-			currentTimestamp = element.f1;
 			return element.f1;
 		}
 
 		@Override
-		public long getCurrentWatermark() {
-			return currentTimestamp - 1;
+		public long checkAndGetNextWatermark(Tuple2<String, Integer> lastElement,
+				long extractedTimestamp) {
+			return lastElement.f1 - 1;
 		}
 	}
 }

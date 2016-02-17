@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.junit.After;
@@ -210,21 +211,22 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(2, "middle", 2.0), 1L),
 			Tuple2.of(new Event(3, "end", 3.0), 3L),
 			Tuple2.of(new Event(4, "end", 4.0), 10L),
-			Tuple2.of(new Event(5, "middle", 5.0), 7L)
-		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event,Long>>() {
-
-			private long currentMaxTimestamp = -1;
+			Tuple2.of(new Event(5, "middle", 5.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(5, "middle", 5.0), 100L)
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
-				currentMaxTimestamp = Math.max(currentMaxTimestamp, element.f1);
 				return element.f1;
 			}
 
 			@Override
-			public long getCurrentWatermark() {
-				return currentMaxTimestamp - 5;
+			public long checkAndGetNextWatermark(Tuple2<Event, Long> lastElement,
+					long extractedTimestamp) {
+				return lastElement.f1 - 5;
 			}
+
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
 
 			@Override
@@ -295,21 +297,22 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(2, "end", 2.0), 8L),
 			Tuple2.of(new Event(1, "middle", 5.0), 7L),
 			Tuple2.of(new Event(3, "middle", 6.0), 9L),
-			Tuple2.of(new Event(3, "end", 7.0), 7L)
-		).assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<Event,Long>>() {
-
-			private long currentMaxTimestamp = -1L;
+			Tuple2.of(new Event(3, "end", 7.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(3, "end", 7.0), 100L)
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
-				currentMaxTimestamp = Math.max(element.f1, currentMaxTimestamp);
 				return element.f1;
 			}
 
 			@Override
-			public long getCurrentWatermark() {
-				return currentMaxTimestamp - 5;
+			public long checkAndGetNextWatermark(Tuple2<Event, Long> lastElement,
+					long extractedTimestamp) {
+				return lastElement.f1 - 5;
 			}
+
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
 
 			@Override

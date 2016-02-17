@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.scala
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks
+import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
@@ -57,6 +57,9 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", 6))
         ctx.collect(("a", 7))
         ctx.collect(("a", 8))
+
+        // so we get a big watermark to trigger processing of the previous elements
+        ctx.collect(("a", 20))
       }
 
       def cancel() {
@@ -102,6 +105,9 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", 4))
         ctx.collect(("b", 5))
         ctx.collect(("a", 5))
+
+        // so we get a big watermark to trigger processing of the previous elements
+        ctx.collect(("a", 20))
       }
 
       def cancel() {
@@ -132,7 +138,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 object WindowFoldITCase {
   private var testResults: mutable.MutableList[String] = null
 
-  private class Tuple2TimestampExtractor extends AssignerWithPeriodicWatermarks[(String, Int)] {
+  private class Tuple2TimestampExtractor extends AssignerWithPunctuatedWatermarks[(String, Int)] {
     
     private var currentTimestamp = -1L
     
@@ -141,8 +147,8 @@ object WindowFoldITCase {
       currentTimestamp
     }
 
-    override def getCurrentWatermark(): Long = {
-      currentTimestamp - 1
+    def checkAndGetNextWatermark(lastElement: (String, Int), extractedTimestamp: Long): Long = {
+      lastElement._2 - 1
     }
   }
 }

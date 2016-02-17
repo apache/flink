@@ -63,15 +63,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 
 		userFunction.run(ctx);
 
-		// This will mostly emit a final +Inf Watermark to make the Watermark logic work
-		// when some sources finish before others do
 		ctx.close();
-
-		if (executionConfig.areTimestampsEnabled()) {
-			synchronized (lockingObject) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
-		}
 	}
 
 	public void cancel() {
@@ -268,11 +260,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 		public void close() {
 			watermarkTimer.cancel(true);
 			scheduleExecutor.shutdownNow();
-			// emit one last +Inf watermark to make downstream watermark processing work
-			// when some sources close early
-			synchronized (lockingObject) {
-				output.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
 		}
 	}
 
