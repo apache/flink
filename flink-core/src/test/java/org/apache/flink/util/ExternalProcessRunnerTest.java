@@ -20,15 +20,21 @@ package org.apache.flink.util;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class ExternalProcessRunnerTest {
 
 	@Test(expected = ClassNotFoundException.class)
 	public void testClassNotFound() throws Exception {
-		ExternalProcessRunner runner = new ExternalProcessRunner("MyClassThatDoesNotExist", new String[]{});
-		runner.run();
+		final String nonExistingClassName = "MyClassThatDoesNotExist";
+		ExternalProcessRunner runner = new ExternalProcessRunner(nonExistingClassName, new String[]{});
+		try {
+			runner.run();
+		} catch (final Exception e) {
+			if (e.getMessage().contains(nonExistingClassName)) {
+				throw new ClassNotFoundException();
+			}
+		}
 	}
 
 	@Test
@@ -64,17 +70,11 @@ public class ExternalProcessRunnerTest {
 		assertEquals(runner.getErrorOutput().toString(), "Hello process hello42" + System.lineSeparator());
 	}
 
-	@Test
+	@Test(expected = RuntimeException.class)
 	public void testFailing() throws Exception {
 		final ExternalProcessRunner runner = new ExternalProcessRunner(Failing.class.getName(), new String[]{});
-
-		int result = runner.run();
-
-		assertEquals(1, result);
-		// this needs to be adapted if the test changes because it contains the line number
-		assertTrue(runner.getErrorOutput().toString().startsWith("Exception in thread \"main\""));
+		runner.run();
 	}
-
 
 	public static class InfiniteLoop {
 		public static void main(String[] args) {
