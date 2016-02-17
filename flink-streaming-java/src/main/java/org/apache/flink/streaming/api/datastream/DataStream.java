@@ -45,6 +45,7 @@ import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
@@ -62,7 +63,9 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
@@ -657,7 +660,11 @@ public class DataStream<T> {
 	 * @param size The size of the window.
 	 */
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
-		return windowAll(TumblingTimeWindows.of(size));
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return windowAll(TumblingProcessingTimeWindows.of(size));
+		} else {
+			return windowAll(TumblingTimeWindows.of(size));
+		}
 	}
 
 	/**
@@ -677,7 +684,11 @@ public class DataStream<T> {
 	 * @param size The size of the window.
 	 */
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
-		return windowAll(SlidingTimeWindows.of(size, slide));
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return windowAll(SlidingProcessingTimeWindows.of(size, slide));
+		} else {
+			return windowAll(SlidingTimeWindows.of(size, slide));
+		}
 	}
 
 	/**
