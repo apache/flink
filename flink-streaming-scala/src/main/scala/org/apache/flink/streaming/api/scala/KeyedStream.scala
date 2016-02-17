@@ -62,8 +62,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param size The size of the window.
    */
   def timeWindow(size: Time): WindowedStream[T, K, TimeWindow] = {
-    val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    window(assigner)
+    new WindowedStream(javaStream.timeWindow(size))
   }
 
   /**
@@ -96,8 +95,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param size The size of the window.
    */
   def timeWindow(size: Time, slide: Time): WindowedStream[T, K, TimeWindow] = {
-    val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    window(assigner)
+    new WindowedStream(javaStream.timeWindow(size, slide))
   }
 
   /**

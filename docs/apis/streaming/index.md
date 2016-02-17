@@ -75,7 +75,7 @@ public class WindowWordCount {
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .keyBy(0)
-                .timeWindow(Time.of(5, TimeUnit.SECONDS))
+                .timeWindow(Time.seconds(5))
                 .sum(1);
 
         dataStream.print();
@@ -99,7 +99,6 @@ public class WindowWordCount {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -113,7 +112,7 @@ object WindowWordCount {
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
       .keyBy(0)
-      .timeWindow(Time.of(5, TimeUnit.SECONDS))
+      .timeWindow(Time.seconds(5))
       .sum(1)
 
     counts.print
@@ -585,7 +584,7 @@ keyedStream.maxBy("key");
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="#windows">windows</a> for a complete description of windows.
     {% highlight java %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
@@ -599,7 +598,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
               <p><strong>WARNING:</strong> This is in many cases a <strong>non-parallel</strong> transformation. All records will be
                gathered in one task for the windowAll operator.</p>
   {% highlight java %}
-dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // Last 5 seconds of data
+dataStream.windowAll(TumblingTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
   {% endhighlight %}
           </td>
         </tr>
@@ -702,7 +701,7 @@ dataStream.union(otherStream1, otherStream2, ...);
     {% highlight java %}
 dataStream.join(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
+    .window(TumblingTimeWindows.of(Time.seconds(3)))
     .apply (new JoinFunction () {...});
     {% endhighlight %}
           </td>
@@ -714,7 +713,7 @@ dataStream.join(otherStream)
     {% highlight java %}
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
+    .window(TumblingTimeWindows.of(Time.seconds(3)))
     .apply (new CoGroupFunction () {...});
     {% endhighlight %}
           </td>
@@ -961,7 +960,7 @@ keyedStream.maxBy("key")
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="#windows">windows</a> for a description of windows.
     {% highlight scala %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))) // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
@@ -975,7 +974,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
               <p><strong>WARNING:</strong> This is in many cases a <strong>non-parallel</strong> transformation. All records will be
                gathered in one task for the windowAll operator.</p>
   {% highlight scala %}
-dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))) // Last 5 seconds of data
+dataStream.windowAll(TumblingTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
   {% endhighlight %}
           </td>
         </tr>
@@ -1051,7 +1050,7 @@ dataStream.union(otherStream1, otherStream2, ...)
     {% highlight scala %}
 dataStream.join(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
+    .window(TumblingTimeWindows.of(Time.seconds(3)))
     .apply { ... }
     {% endhighlight %}
           </td>
@@ -1063,7 +1062,7 @@ dataStream.join(otherStream)
     {% highlight scala %}
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
+    .window(TumblingTimeWindows.of(Time.seconds(3)))
     .apply {}
     {% endhighlight %}
           </td>
@@ -2010,44 +2009,25 @@ a definition of time. Flink has support for three kinds of time:
     Ingestion time is a special case of event time (and indeed, it is treated by Flink identically to
     event time).
 
-When dealing with event time, transformations need to avoid indefinite
-wait times for events to arrive. *Watermarks* provide the mechanism to control the event time-processing time skew. Watermarks
-are emitted by the sources. A watermark with a certain timestamp denotes the knowledge that no event
-with timestamp lower or equal to the timestamp of the watermark will ever arrive.
+When dealing with event time, transformations need to avoid indefinite wait times for events to
+arrive. *Watermarks* provide the mechanism to control the event time/processing time skew.
+Watermarks can be emitted by the sources. A watermark with a certain timestamp denotes the knowledge
+that no event with timestamp lower than the timestamp of the watermark will ever arrive.
 
-You can specify the semantics of time in a Flink DataStream program using `StreamExecutionEnviroment`, as
+Per default, a Flink Job is only set up for processing time semantics, so in order to write a
+program with processing time semantics nothing needs to be specified (e.g., the first [example
+](#example-program) in this guide follows processing time semantics). To perform processing-time
+windowing you would use window assigners such as `SlidingProcessingTimeWindows` and
+`TumblingProcessingTimeWindows`.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-{% endhighlight %}
-</div>
+In order to work with event time semantics, i.e. if you want to use window assigners such as
+`TumblingTimeWindows` or `SlidingTimeWindows`, you need to follow these steps:
 
-<div data-lang="scala" markdown="1">
-{% highlight java %}
-env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-{% endhighlight %}
-</div>
-</div>
+- Set `enableTimestamps()`, as well the interval for watermark emission
+(`setAutoWatermarkInterval(long milliseconds)`) in `ExecutionConfig`.
 
-The default value is `TimeCharacteristic.ProcessingTime`, so in order to write a program with processing
-time semantics nothing needs to be specified (e.g., the first [example](#example-program) in this guide follows processing
-time semantics).
-
-In order to work with event time semantics, you need to follow four steps:
-
-- Set `env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)`
-
-- Use `DataStream.assignTimestamps(...)` in order to tell Flink how timestamps relate to events (e.g., which
-    record field is the timestamp)
-
-- Set `enableTimestamps()`, as well the interval for watermark emission (`setAutoWatermarkInterval(long milliseconds)`)
-    in `ExecutionConfig`.
+- Use `DataStream.assignTimestamps(...)` in order to tell Flink how timestamps relate to events
+(e.g., which record field is the timestamp)
 
 For example, assume that we have a data stream of tuples, in which the first field is the timestamp (assigned
 by the system that generates these data streams), and we know that the lag between the current processing
@@ -2113,11 +2093,35 @@ stream.extractAscendingTimestamp(record => record._1)
 </div>
 </div>
 
-In order to write a program with ingestion time semantics, you need to
-set `env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)`. You can think of this setting as a
-shortcut for writing a `TimestampExtractor` which assignes timestamps to events at the sources
-based on the current source wall-clock time. Flink injects this timestamp extractor automatically.
+Flink also has a shortcut for working with time, the `stream time characteristic`. It can
+be specified as:
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight java %}
+env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
+env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+{% endhighlight %}
+</div>
+</div>
+
+For `EventTime`, this will enable timestamps and also set a default watermark interval.
+The `timeWindow()` and `timeWindowAll()` transformations will respect this time characteristic and
+instantiate the correct window assigner based on the time characteristic.
+
+In order to write a program with ingestion time semantics, you need to set
+`env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)`. You can think of this setting
+as a shortcut for writing a `TimestampExtractor` which assignes timestamps to events at the sources
+based on the current source wall-clock time. Flink injects this timestamp extractor automatically.
 
 ### Windows on Keyed Data Streams
 
@@ -2151,7 +2155,7 @@ to defining your own windows.
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
 	  The notion of time is specified by the selected TimeCharacteristic (see <a href="#working-with-time">time</a>).
     {% highlight java %}
-keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS));
+keyedStream.timeWindow(Time.seconds(5));
     {% endhighlight %}
           </p>
         </td>
@@ -2165,7 +2169,7 @@ keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS));
              one window (since windows overlap by at most 4 seconds)
              The notion of time is specified by the selected TimeCharacteristic (see <a href="#working-with-time">time</a>).
       {% highlight java %}
-keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS));
+keyedStream.timeWindow(Time.seconds(5), Time.seconds(1));
       {% endhighlight %}
             </p>
           </td>
@@ -2221,7 +2225,7 @@ keyedStream.countWindow(1000, 100)
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
           The notion of time is specified by the selected TimeCharacteristic (see <a href="#working-with-time">time</a>).
     {% highlight scala %}
-keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS))
+keyedStream.timeWindow(Time.seconds(5))
     {% endhighlight %}
           </p>
         </td>
@@ -2235,7 +2239,7 @@ keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS))
              one window (since windows overlap by at most 4 seconds)
              The notion of time is specified by the selected TimeCharacteristic (see <a href="#working-with-time">time</a>).
       {% highlight scala %}
-keyedStream.timeWindow(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+keyedStream.timeWindow(Time.seconds(5), Time.seconds(1))
       {% endhighlight %}
             </p>
           </td>
@@ -2283,7 +2287,7 @@ window, and every time execution is triggered, 10 elements are retained in the w
 <div data-lang="java" markdown="1">
 {% highlight java %}
 keyedStream
-    .window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+    .window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10));
 {% endhighlight %}
@@ -2292,7 +2296,7 @@ keyedStream
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 keyedStream
-    .window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+    .window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10))
 {% endhighlight %}
@@ -2339,33 +2343,58 @@ stream.window(GlobalWindows.create());
         </td>
       </tr>
       <tr>
-          <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
-          <td>
-            <p>
-              Incoming elements are assigned to a window of a certain size (1 second below) based on
-              their timestamp. Windows do not overlap, i.e., each element is assigned to exactly one window.
-	      The notion of time is picked from the specified TimeCharacteristic (see <a href="#working-with-time">time</a>).
-	      The window comes with a default trigger. For event/ingestion time, a window is triggered when a
-	      watermark with value higher than its end-value is received, whereas for processing time
-	      when the current processing time exceeds its current end value.
-            </p>
+        <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to a window of a certain size (1 second below) based on
+            their timestamp. Windows do not overlap, i.e., each element is assigned to exactly one window.
+            This assigner comes with a default trigger that fires for a window when a
+            watermark with value higher than its end-value is received.
+          </p>
       {% highlight java %}
-stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)));
+stream.window(TumblingTimeWindows.of(Time.seconds(1)));
       {% endhighlight %}
-          </td>
-        </tr>
+        </td>
+      </tr>
       <tr>
         <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
             their timestamp. Windows "slide" by the provided value (1 second in the example), and hence
-            overlap. The window comes with a default trigger. For event/ingestion time, a window is triggered when a
-	    watermark with value higher than its end-value is received, whereas for processing time
-	    when the current processing time exceeds its current end value.
+            overlap. This assigner comes with a default trigger that fires for a window when a
+	          watermark with value higher than its end-value is received.
           </p>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)));
+stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)));
+    {% endhighlight %}
+        </td>
+      </tr>
+      <tr>
+          <td><strong>Tumbling processing time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td>
+            <p>
+              Incoming elements are assigned to a window of a certain size (1 second below) based on
+              the current processing time. Windows do not overlap, i.e., each element is assigned to exactly one window.
+              This assigner comes with a default trigger that fires for a window a window when the current
+              processing time exceeds its end-value.
+            </p>
+      {% highlight java %}
+stream.window(TumblingProcessingTimeWindows.of(Time.seconds(1)));
+      {% endhighlight %}
+          </td>
+        </tr>
+      <tr>
+        <td><strong>Sliding processing time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to a window of a certain size (5 seconds below) based on
+            their timestamp. Windows "slide" by the provided value (1 second in the example), and hence
+            overlap. This assigner comes with a default trigger that fires for a window a window when the current
+            processing time exceeds its end-value.
+          </p>
+    {% highlight java %}
+stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)));
     {% endhighlight %}
         </td>
       </tr>
@@ -2399,15 +2428,13 @@ stream.window(GlobalWindows.create)
           <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>
-              Incoming elements are assigned to a window of a certain size (1 second below) based on
-              their timestamp. Windows do not overlap, i.e., each element is assigned to exactly one window.
-	      The notion of time is specified by the selected TimeCharacteristic (see <a href="#working-with-time">time</a>).
-	      The window comes with a default trigger. For event/ingestion time, a window is triggered when a
-	      watermark with value higher than its end-value is received, whereas for processing time
-	      when the current processing time exceeds its current end value.
+             Incoming elements are assigned to a window of a certain size (1 second below) based on
+            their timestamp. Windows do not overlap, i.e., each element is assigned to exactly one window.
+            This assigner comes with a default trigger that fires for a window when a
+            watermark with value higher than its end-value is received.
             </p>
       {% highlight scala %}
-stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
+stream.window(TumblingTimeWindows.of(Time.seconds(1)))
       {% endhighlight %}
           </td>
         </tr>
@@ -2417,12 +2444,40 @@ stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
             their timestamp. Windows "slide" by the provided value (1 second in the example), and hence
-            overlap. The window comes with a default trigger. For event/ingestion time, a window is triggered when a
-	    watermark with value higher than its end-value is received, whereas for processing time
-	    when the current processing time exceeds its current end value.
+            overlap. This assigner comes with a default trigger that fires for a window when a
+            watermark with value higher than its end-value is received.
           </p>
     {% highlight scala %}
-stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
+stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+    {% endhighlight %}
+        </td>
+      </tr>
+      <tr>
+          <td><strong>Tumbling processing time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td>
+            <p>
+              Incoming elements are assigned to a window of a certain size (1 second below) based on
+              the current processing time. Windows do not overlap, i.e., each element is assigned to exactly one window.
+              This assigner comes with a default trigger that fires for a window a window when the current
+              processing time exceeds its end-value.
+
+            </p>
+      {% highlight scala %}
+stream.window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
+      {% endhighlight %}
+          </td>
+        </tr>
+      <tr>
+        <td><strong>Sliding processing time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to a window of a certain size (5 seconds below) based on
+            their timestamp. Windows "slide" by the provided value (1 second in the example), and hence
+            overlap. This assigner comes with a default trigger that fires for a window a window when the current
+            processing time exceeds its end-value.
+          </p>
+    {% highlight scala %}
+stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
     {% endhighlight %}
         </td>
       </tr>
@@ -2482,7 +2537,7 @@ windowedStream.trigger(EventTimeTrigger.create());
         The elements on the triggered window are retained.
       </p>
 {% highlight java %}
-windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2495,7 +2550,7 @@ windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SE
         The elements on the triggered window are retained.
       </p>
 {% highlight java %}
-windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.seconds(5)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2588,7 +2643,7 @@ windowedStream.trigger(EventTimeTrigger.create);
         The elements on the triggered window are retained.
       </p>
 {% highlight scala %}
-windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2601,7 +2656,7 @@ windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SE
         The elements on the triggered window are retained.
       </p>
 {% highlight scala %}
-windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.seconds(5)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2672,7 +2727,7 @@ implementing the `Evictor` interface.
          until end-value are retained (the resulting window size is 1 second).
         </p>
   {% highlight java %}
-triggeredStream.evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
+triggeredStream.evictor(TimeEvictor.of(Time.seconds(1)));
   {% endhighlight %}
       </td>
     </tr>
@@ -2725,7 +2780,7 @@ triggeredStream.evictor(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
          until end-value are retained (the resulting window size is 1 second).
         </p>
   {% highlight scala %}
-triggeredStream.evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
+triggeredStream.evictor(TimeEvictor.of(Time.seconds(1)));
   {% endhighlight %}
       </td>
     </tr>
@@ -2808,12 +2863,12 @@ stream.window(GlobalWindows.create())
         <td>
 	  <strong>Tumbling event time window</strong><br>
     {% highlight java %}
-stream.timeWindow(Time.of(5, TimeUnit.SECONDS))
+stream.timeWindow(Time.seconds(5))
     {% endhighlight %}
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingTimeWindows.of((Time.of(5, TimeUnit.SECONDS)))
+stream.window(TumblingTimeWindows.of((Time.seconds(5)))
   .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -2822,12 +2877,12 @@ stream.window(TumblingTimeWindows.of((Time.of(5, TimeUnit.SECONDS)))
         <td>
 	  <strong>Sliding event time window</strong><br>
     {% highlight java %}
-stream.timeWindow(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+stream.timeWindow(Time.seconds(5), Time.seconds(1))
     {% endhighlight %}
 	</td>
         <td>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
+stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
   .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -2836,12 +2891,12 @@ stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, Tim
         <td>
 	  <strong>Tumbling processing time window</strong><br>
     {% highlight java %}
-stream.timeWindow(Time.of(5, TimeUnit.SECONDS))
+stream.timeWindow(Time.seconds(5))
     {% endhighlight %}
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingTimeWindows.of((Time.of(5, TimeUnit.SECONDS)))
+stream.window(TumblingTimeWindows.of((Time.seconds(5)))
   .trigger(ProcessingTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -2850,12 +2905,12 @@ stream.window(TumblingTimeWindows.of((Time.of(5, TimeUnit.SECONDS)))
         <td>
 	  <strong>Sliding processing time window</strong><br>
     {% highlight java %}
-stream.timeWindow(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+stream.timeWindow(Time.seconds(5), Time.seconds(1))
     {% endhighlight %}
 	</td>
         <td>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
+stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
   .trigger(ProcessingTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -2875,7 +2930,7 @@ same:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 nonKeyedStream
-    .windowAll(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+    .windowAll(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10));
 {% endhighlight %}
@@ -2884,7 +2939,7 @@ nonKeyedStream
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 nonKeyedStream
-    .windowAll(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
+    .windowAll(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10))
 {% endhighlight %}
@@ -2914,7 +2969,7 @@ Basic window definitions are also available for windows on non-keyed streams:
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
           The notion of time used is controlled by the StreamExecutionEnvironment.
     {% highlight java %}
-nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS));
+nonKeyedStream.timeWindowAll(Time.seconds(5));
     {% endhighlight %}
           </p>
         </td>
@@ -2928,7 +2983,7 @@ nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS));
              one window (since windows overlap by at least 4 seconds)
              The notion of time used is controlled by the StreamExecutionEnvironment.
       {% highlight java %}
-nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS));
+nonKeyedStream.timeWindowAll(Time.seconds(5), Time.seconds(1));
       {% endhighlight %}
             </p>
           </td>
@@ -2984,7 +3039,7 @@ nonKeyedStream.countWindowAll(1000, 100)
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
           The notion of time used is controlled by the StreamExecutionEnvironment.
     {% highlight scala %}
-nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS));
+nonKeyedStream.timeWindowAll(Time.seconds(5));
     {% endhighlight %}
           </p>
         </td>
@@ -2998,7 +3053,7 @@ nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS));
              one window (since windows overlap by at least 4 seconds)
              The notion of time used is controlled by the StreamExecutionEnvironment.
       {% highlight scala %}
-nonKeyedStream.timeWindowAll(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS));
+nonKeyedStream.timeWindowAll(Time.seconds(5), Time.seconds(1));
       {% endhighlight %}
             </p>
           </td>
