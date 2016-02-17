@@ -17,41 +17,49 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.util.ExternalProcessRunner;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.net.URI;
 
 /**
- * Utility for copying from local file system to a HDFS {@link FileSystem} in an external process.
- * This is required since {@code FileSystem.copyFromLocalFile} does not like being interrupted.
+ * Utility for copying from local file system to a HDFS {@link FileSystem}.
  */
 public class HDFSCopyFromLocal {
-	public static void main(String[] args) throws Exception {
-		String hadoopConfPath = args[0];
-		String localBackupPath = args[1];
-		String backupUri = args[2];
 
-		Configuration hadoopConf = new Configuration();
-		try (DataInputStream in = new DataInputStream(new FileInputStream(hadoopConfPath))) {
-			hadoopConf.readFields(in);
-		}
+	public static void copyFromLocal(final File localPath,
+			final URI remotePath) throws Exception {
+		// Do it in another Thread because HDFS can deadlock if being interrupted while copying
+		String threadName = "HDFS Copy from " + localPath + " to " + remotePath;
 
-		FileSystem fs = FileSystem.get(new URI(backupUri), hadoopConf);
+		final Tuple1<Exception> asyncException = Tuple1.of(null);
 
-		fs.copyFromLocalFile(new Path(localBackupPath), new Path(backupUri));
-	}
+		Thread copyThread = new Thread(threadName) {
+			@Override
+			public void run() {
+				try {
+					Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
 
-	public static void copyFromLocal(File hadoopConfPath, File localPath, URI remotePath) throws Exception {
-		ExternalProcessRunner processRunner = new ExternalProcessRunner(HDFSCopyFromLocal.class.getName(),
-			new String[]{hadoopConfPath.getAbsolutePath(), localPath.getAbsolutePath(), remotePath.toString()});
-		if (processRunner.run() != 0) {
-			throw new  RuntimeException("Error while copying to remote FileSystem: " + processRunner.getErrorOutput());
+					FileSystem fs = FileSystem.get(remotePath, hadoopConf);
+
+					fs.copyFromLocalFile(new Path(localPath.getAbsolutePath()),
+							new Path(remotePath));
+				} catch (Exception t) {
+					asyncException.f0 = t;
+				}
+			}
+		};
+
+		copyThread.setDaemon(true);
+		copyThread.start();
+		copyThread.join();
+
+		if (asyncException.f0 != null) {
+			throw asyncException.f0;
 		}
 	}
 }
