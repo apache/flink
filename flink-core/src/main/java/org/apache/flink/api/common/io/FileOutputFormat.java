@@ -305,6 +305,12 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 			this.fileCreated = false;
 			
 			try {
+				close();
+			} catch (IOException e) {
+				LOG.error("Could not properly close FileOutputFormat.", e);
+			}
+
+			try {
 				FileSystem.get(this.actualFilePath.toUri()).delete(actualFilePath, false);
 			} catch (FileNotFoundException e) {
 				// ignore, may not be visible yet or may be already removed

@@ -317,7 +317,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		}
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 
-		// assert that temp file was created
+		// assert that temp file was removed
 		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 
@@ -357,7 +357,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		}
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 
-		// assert that temp file was created
+		// assert that temp file was removed
 		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 
