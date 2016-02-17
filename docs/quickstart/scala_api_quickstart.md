@@ -90,7 +90,7 @@ also contains all dependencies that get added to the maven project.
 
 Write your application!
 
-The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occurs in all Wikipedia texts.
+The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occur in all Wikipedia texts.
 
 __Sample Input__:
 
@@ -106,7 +106,7 @@ data 1
 is 1
 ~~~
 
-The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and writes the prints the resulting words and counts to std-out.
+The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and prints the resulting words and counts to std-out.
 
 ~~~scala
 object WordCountJob {
