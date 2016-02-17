@@ -40,12 +40,6 @@ under the License.
 			<artifactId>flink-annotations</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
-		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-			<!-- managed version -->
-		</dependency>
 
 		<dependency>
 			<groupId>com.esotericsoftware.kryo</groupId>
