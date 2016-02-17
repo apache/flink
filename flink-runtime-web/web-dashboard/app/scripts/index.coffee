@@ -54,6 +54,14 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
 # --------------------------------------
 
+.run ($rootScope, $state) ->
+  $rootScope.$on '$stateChangeStart', (event, toState, toParams, fromState) ->
+    if toState.redirectTo
+      event.preventDefault()
+      $state.go toState.redirectTo, toParams
+
+# --------------------------------------
+
 .config ($stateProvider, $urlRouterProvider) ->
   $stateProvider.state "overview",
     url: "/overview"
@@ -86,7 +94,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
   .state "single-job.plan",
     url: ""
-    abstract: true
+    redirectTo: "single-job.plan.subtasks"
     views:
       details:
         templateUrl: "partials/jobs/job.plan.html"
