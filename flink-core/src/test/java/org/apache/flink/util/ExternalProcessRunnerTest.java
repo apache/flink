@@ -61,7 +61,7 @@ public class ExternalProcessRunnerTest {
 		int result = runner.run();
 
 		assertEquals(0, result);
-		assertEquals(runner.getErrorOutput().toString(), "Hello process hello42\n");
+		assertEquals(runner.getErrorOutput().toString(), "Hello process hello42" + System.lineSeparator());
 	}
 
 	@Test
