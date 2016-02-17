@@ -37,7 +37,8 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -51,6 +52,7 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -279,16 +281,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				.window(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10_000)))
 				.sum(1)
-
-//				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
-//
-//					@Override
-//					public boolean filter(Tuple2<Long, Integer> value) throws Exception {
-//						return value.f0 < 100 || value.f0 > 19900;
-//					}
-//				})
+				
 			.print();
-//				.writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}
@@ -483,7 +477,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple2<Date, HashMap<Character, Integer>>> sourceStream6 = env.fromCollection(sales);
 		sourceStream6
-				.assignTimestamps(new Timestamp6())
+				.assignTimestampsAndWatermarks(new Timestamp6())
 				.timeWindowAll(Time.of(1, TimeUnit.MILLISECONDS))
 				.reduce(new SalesReduceFunction())
 				.flatMap(new FlatMapFunction6())
@@ -558,23 +552,12 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class MyTimestampExtractor implements TimestampExtractor<Tuple5<Integer, String, Character, Double, Boolean>> {
-		private static final long serialVersionUID = 1L;
+	private static class MyTimestampExtractor extends AscendingTimestampExtractor<Tuple5<Integer, String, Character, Double, Boolean>> {
+
 
 		@Override
-		public long extractTimestamp(Tuple5<Integer, String, Character, Double, Boolean> value, long currentTimestamp) {
-			return (long) value.f0;
-		}
-
-		@Override
-		public long extractWatermark(Tuple5<Integer, String, Character, Double, Boolean> value,
-				long currentTimestamp) {
-			return (long) value.f0 - 1;
-		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
+		public long extractAscendingTimestamp(Tuple5<Integer, String, Character, Double, Boolean> element, long currentTimestamp) {
+			return (long) element.f0;
 		}
 	}
 
@@ -710,37 +693,28 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class Timestamp6 implements TimestampExtractor<Tuple2<Date, HashMap<Character, Integer>>> {
-
+	private static class Timestamp6 implements AssignerWithPunctuatedWatermarks<Tuple2<Date, HashMap<Character, Integer>>> {
+		
 		@Override
-		public long extractTimestamp(Tuple2<Date, HashMap<Character, Integer>> value,
-				long currentTimestamp) {
+		public long extractTimestamp(Tuple2<Date, HashMap<Character, Integer>> value, long previousTimestamp) {
+			
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(value.f0);
 			return 12 * (cal.get(Calendar.YEAR)) + cal.get(Calendar.MONTH);
 		}
 
 		@Override
-		public long extractWatermark(Tuple2<Date, HashMap<Character, Integer>> value,
-				long currentTimestamp) {
-			Calendar cal = Calendar.getInstance();
-			cal.setTime(value.f0);
-			return 12 * (cal.get(Calendar.YEAR)) + cal.get(Calendar.MONTH) - 1;
-		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return 0;
+		public long checkAndGetNextWatermark(Tuple2<Date, HashMap<Character, Integer>> lastElement, long extractedTimestamp) {
+			return extractedTimestamp - 1;
 		}
 	}
 
 	private static class SalesReduceFunction implements ReduceFunction<Tuple2<Date, HashMap<Character, Integer>>> {
-		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple2<Date, HashMap<Character, Integer>> reduce(Tuple2<Date, HashMap<Character, Integer>> value1,
-				Tuple2<Date,
-						HashMap<Character, Integer>> value2) throws Exception {
+				Tuple2<Date,HashMap<Character, Integer>> value2) throws Exception {
+			
 			HashMap<Character, Integer> map1 = value1.f1;
 			HashMap<Character, Integer> map2 = value2.f1;
 			for (Character key : map2.keySet()) {
@@ -755,8 +729,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class FlatMapFunction6 implements FlatMapFunction<Tuple2<Date, HashMap<Character, Integer>>, Tuple2<Integer,
-			Tuple2<Character, Integer>>> {
+	private static class FlatMapFunction6 implements FlatMapFunction<Tuple2<Date, HashMap<Character, Integer>>,
+			Tuple2<Integer, Tuple2<Character, Integer>>> {
 
 		@Override
 		public void flatMap(Tuple2<Date, HashMap<Character, Integer>> value, Collector<Tuple2<Integer,
@@ -847,7 +821,5 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		public String toString() {
 			return "(" + a + "," + b + ")";
 		}
-
 	}
-
 }

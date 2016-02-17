@@ -48,6 +48,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -76,6 +78,8 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -746,6 +750,10 @@ public class DataStream<T> {
 		return new AllWindowedStream<>(this, assigner);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Timestamps and watermarks
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
 	 * The internal timestamps are, for example, used to to event-time window operations.
@@ -756,11 +764,15 @@ public class DataStream<T> {
 	 * you should provide a {@link TimestampExtractor} that also implements
 	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
 	 *
-	 * @see org.apache.flink.streaming.api.watermark.Watermark
-	 *
 	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
+	 * 
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)}
+	 *             of {@link #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)}
+	 *             instread.
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
 	 */
-	@PublicEvolving
+	@Deprecated
 	public SingleOutputStreamOperator<T, ?> assignTimestamps(TimestampExtractor<T> extractor) {
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
@@ -771,6 +783,95 @@ public class DataStream<T> {
 				.setParallelism(inputParallelism);
 	}
 
+	/**
+	 * Assigns timestamps to the elements in the data stream and periodically creates
+	 * watermarks to signal event time progress.
+	 * 
+	 * <p>This method creates watermarks periodically (for example every second), based
+	 * on the watermarks indicated by the given watermark generator. Even when no new elements
+	 * in the stream arrive, the given watermark generator will be periodically checked for
+	 * new watermarks. The interval in which watermarks are generated is defined in
+	 * {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
+	 * 
+	 * <p>Use this method for the common cases, where some characteristic over all elements
+	 * should generate the watermarks, or where watermarks are simply trailing behind the
+	 * wall clock time by a certain amount.
+	 * 
+	 * <p>For cases where watermarks should be created in an irregular fashion, for example
+	 * based on certain markers that some element carry, use the
+	 * {@link AssignerWithPunctuatedWatermarks}.
+	 * 
+	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
+	 *                                      watermark generator.   
+	 * @return The stream after the transformation, with assigned timestamps and watermarks.
+	 * 
+	 * @see AssignerWithPeriodicWatermarks
+	 * @see AssignerWithPunctuatedWatermarks
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
+	 */
+	public SingleOutputStreamOperator<T, ?> assignTimestampsAndWatermarks(
+			AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
+		
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		final int inputParallelism = getTransformation().getParallelism();
+		final AssignerWithPeriodicWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+		
+		TimestampsAndPeriodicWatermarksOperator<T> operator = 
+				new TimestampsAndPeriodicWatermarksOperator<>(cleanedAssigner);
+		
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+				.setParallelism(inputParallelism);
+	}
+	
+	/**
+	 * Assigns timestamps to the elements in the data stream and periodically creates
+	 * watermarks to signal event time progress.
+	 *
+	 * <p>This method creates watermarks based purely on stream elements. For each element
+	 * that is handled via {@link AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)},
+	 * the {@link AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark(Object, long)} 
+	 * method is called, and a new watermark is emitted, if the returned watermark value is
+	 * non-negative and greater than the previous watermark.
+	 * 
+	 * <p>This method is useful when the data stream embeds watermark elements, or certain elements
+	 * carry a marker that can be used to determine the current event time watermark. 
+	 * This operation gives the programmer full control over the watermark generation. Users
+	 * should be aware that too aggressive watermark generation (i.e., generating hundreds of
+	 * watermarks every second) can cost some performance.
+	 *
+	 * <p>For cases where watermarks should be created in a regular fashion, for example
+	 * every x milliseconds, use the {@link AssignerWithPeriodicWatermarks}.
+	 *
+	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
+	 *                                      watermark generator.   
+	 * @return The stream after the transformation, with assigned timestamps and watermarks.
+	 *
+	 * @see AssignerWithPunctuatedWatermarks
+	 * @see AssignerWithPeriodicWatermarks
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
+	 */
+	public SingleOutputStreamOperator<T, ?> assignTimestampsAndWatermarks(
+			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
+		
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		final int inputParallelism = getTransformation().getParallelism();
+		final AssignerWithPunctuatedWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+
+		TimestampsAndPunctuatedWatermarksOperator<T> operator = 
+				new TimestampsAndPunctuatedWatermarksOperator<>(cleanedAssigner);
+		
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+				.setParallelism(inputParallelism);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Data sinks
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Writes a DataStream to the standard output stream (stdout).
 	 *
