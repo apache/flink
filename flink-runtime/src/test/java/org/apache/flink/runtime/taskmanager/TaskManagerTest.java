@@ -919,8 +919,9 @@ public class TaskManagerTest extends TestLogger {
 
 						// The task should fail after repeated requests
 						assertEquals(ExecutionState.FAILED, msg.getExecutionState());
-						assertEquals(PartitionNotFoundException.class,
-								msg.getError(ClassLoader.getSystemClassLoader()).getClass());
+						Throwable t = msg.getError(ClassLoader.getSystemClassLoader());
+						assertEquals("Thrown exception was not a PartitionNodFoundException: " + t.getMessage(), PartitionNotFoundException.class,
+								t.getClass());
 					}
 				};
 			}
