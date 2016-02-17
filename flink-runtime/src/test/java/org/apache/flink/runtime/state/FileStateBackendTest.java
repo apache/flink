@@ -266,6 +266,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		assertEquals("not enough data", holder.length, pos);
 		assertEquals("too much data", -1, is.read());
 		assertArrayEquals("wrong data", data, holder);
+		is.close();
 	}
 
 }
