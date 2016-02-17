@@ -18,7 +18,6 @@ package org.apache.flink.connectors.cassandra;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 
 import com.datastax.driver.core.Session;
@@ -41,7 +40,6 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ResultSet;
-import org.apache.zookeeper.KeeperException;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -54,29 +52,28 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore("javax.management.*")
 public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 
-
 	private static File tmpDir;
 
-    private static EmbeddedCassandraService cassandra;
-    private static Cluster.Builder builder;
-    private static Session session;
+	private static EmbeddedCassandraService cassandra;
+	private static Cluster.Builder builder;
+	private static Session session;
 
 	private static final long COUNT = 20;
 
-    //
-    //  QUERY
-    //
-    private static final String CREATE_KEYSPACE = "CREATE KEYSPACE test WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };";
-    private static final String DROP_KEYSPACE = "DROP KEYSPACE test;";
+	//
+	//  QUERY
+	//
+	private static final String CREATE_KEYSPACE = "CREATE KEYSPACE test WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };";
+	private static final String DROP_KEYSPACE = "DROP KEYSPACE test;";
 
-    private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.tuplesink(id bigint PRIMARY KEY, value text);";
+	private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.tuplesink(id bigint PRIMARY KEY, value text);";
 	private static final String INSERT_QUERY = "INSERT INTO test.tuplesink (id,value) VALUES (?,?);";
-    private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
-    private static final String DROP_TABLE = "DROP TABLE test.tuplesink;";
+	private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
+	private static final String DROP_TABLE = "DROP TABLE test.tuplesink;";
 
-    private static final String CREATE_TABLE_MAPPER = "CREATE TABLE IF NOT EXISTS test.mappersink(id bigint,value text,PRIMARY KEY(id))";
-    private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
-    private static final String DROP_TABLE_MAPPER = "DROP TABLE test.mappersink;";
+	private static final String CREATE_TABLE_MAPPER = "CREATE TABLE IF NOT EXISTS test.mappersink(id bigint,value text,PRIMARY KEY(id))";
+	private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
+	private static final String DROP_TABLE_MAPPER = "DROP TABLE test.mappersink;";
 
 	private static final ArrayList<Tuple2<Long,String>> collection = new ArrayList<>(20);
 	static {
@@ -155,27 +152,27 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void cassandraSink() throws Exception {
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
 		DataStream<Tuple2<Long, String>> source = env.fromCollection(collection);
 		
 		source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUERY) {
 
-            @Override
-            public Builder configureCluster(Builder cluster) {
+			@Override
+			public Builder configureCluster(Builder cluster) {
                 return CassandraConnectorTest.builder;
             }
-        });
+		});
 
 		env.execute();
 
-        ResultSet rs =  session.execute(SELECT_QUERY);
+		ResultSet rs =  session.execute(SELECT_QUERY);
 		Assert.assertEquals(COUNT, rs.all().size());
-        session.execute(DROP_TABLE);
+		session.execute(DROP_TABLE);
 	}
 
-	//
+
 	@Test(expected = JobExecutionException.class)
 	public void runtimeExceptionCreateQuery() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -189,7 +186,6 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 				return CassandraConnectorTest.builder;
 			}
 		});
-
 
 		env.execute();
 
@@ -216,46 +212,46 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void cassandraMapperSink() throws Exception {
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		//env.setParallelism(1);
 
-        DataStreamSource<Pojo> source = env
-                .addSource(new SourceFunction<Pojo>() {
+		DataStreamSource<Pojo> source = env
+				.addSource(new SourceFunction<Pojo>() {
 
-                    private boolean running = true;
-                    private volatile long cnt = 0;
+					private boolean running = true;
+					private volatile long cnt = 0;
 
-                    @Override
-                    public void run(SourceContext<Pojo> ctx) throws Exception {
-                        while (running) {
-                            ctx.collect(new Pojo(cnt, "cassandra-" + cnt));
-                            cnt++;
-                            if (cnt == COUNT) {
-                                cancel();
-                            }
-                        }
-                    }
+					@Override
+					public void run(SourceContext<Pojo> ctx) throws Exception {
+						while (running) {
+							ctx.collect(new Pojo(cnt, "cassandra-" + cnt));
+							cnt++;
+							if (cnt == COUNT) {
+								cancel();
+							}
+						}
+					}
 
-                    @Override
-                    public void cancel() {
+					@Override
+					public void cancel() {
                         running = false;
                     }
-                });
+				});
 
-        source.addSink(new CassandraMapperSink<Pojo>(CREATE_TABLE_MAPPER,Pojo.class) {
+		source.addSink(new CassandraMapperSink<Pojo>(CREATE_TABLE_MAPPER,Pojo.class) {
 
-            @Override
-            public Builder configureCluster(Builder cluster) {
+			@Override
+			public Builder configureCluster(Builder cluster) {
                 return CassandraConnectorTest.builder;
             }
-        });
+		});
 
 		env.execute();
 
-        ResultSet rs = session.execute(SELECT_QUERY_MAPPER);
-        Assert.assertEquals(COUNT,rs.all().size());
-        session.execute(DROP_TABLE_MAPPER);
-    }
+		ResultSet rs = session.execute(SELECT_QUERY_MAPPER);
+		Assert.assertEquals(COUNT,rs.all().size());
+		session.execute(DROP_TABLE_MAPPER);
+	}
 
 
 	//
