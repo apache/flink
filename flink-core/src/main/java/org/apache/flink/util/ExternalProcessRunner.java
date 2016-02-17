@@ -40,8 +40,6 @@ import java.util.List;
  */
 @Internal
 public class ExternalProcessRunner {
-	private final String entryPointClassName;
-
 	private final Process process;
 
 	private final Thread pipeForwarder;
@@ -53,8 +51,6 @@ public class ExternalProcessRunner {
 	 * The class must have a "main" method.
 	 */
 	public ExternalProcessRunner(String entryPointClassName, String[] parameters) throws IOException {
-		this.entryPointClassName = entryPointClassName;
-
 		String javaCommand = getJavaCommandPath();
 
 		List<String> commandList = new ArrayList<>();
@@ -92,9 +88,10 @@ public class ExternalProcessRunner {
 			pipeForwarder.join();
 
 			if (returnCode != 0) {
-				// determine whether we failed because of a ClassNotFoundException and forward that
-				if (getErrorOutput().toString().contains("Error: Could not find or load main class " + entryPointClassName)) {
-					throw new ClassNotFoundException("Error: Could not find or load main class " + entryPointClassName);
+
+				final String errorOutput = getErrorOutput().toString();
+				if (!errorOutput.isEmpty()) {
+					throw new RuntimeException(errorOutput);
 				}
 
 			}
