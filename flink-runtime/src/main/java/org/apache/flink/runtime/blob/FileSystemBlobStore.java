@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -63,13 +62,7 @@ class FileSystemBlobStore implements BlobStore {
 
 		this.basePath = stateBackendBasePath;
 
-		try {
-			FileSystem.get(new URI(basePath)).mkdirs(new Path(basePath));
-		}
-		catch (URISyntaxException e) {
-			throw new IOException(e);
-		}
-
+		FileSystem.get(new Path(basePath).toUri()).mkdirs(new Path(basePath));
 		LOG.info("Created blob directory {}.", basePath);
 	}
 
