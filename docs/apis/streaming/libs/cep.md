@@ -60,7 +60,7 @@ Pattern<Event, ?> pattern = Pattern.begin("start").where(evt -> evt.getId() == 4
     .next("middle").subtype(SubEvent.class).where(subEvt -> subEvt.getVolume() >= 10.0)
     .followedBy("end").where(evt -> evt.getName().equals("end"));
 
-PatternStream<Event> patternStream = CEP.from(input, pattern);
+PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 DataStream<Alert> result = patternStream.select(pattern -> {
     return createAlertFrom(pattern);
@@ -216,7 +216,7 @@ Given an input stream `input` and a pattern `pattern`, you create the `PatternSt
 DataStream<Event> input = ...
 Pattern<Event, ?> pattern = ...
 
-PatternStream<Event> patternStream = CEP.from(input, pattern);
+PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 {% endhighlight %}
 
 ### Selecting from Patterns
@@ -280,7 +280,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
 	.next("middle").where(new FilterFunction<Event>() {
 		@Override
 		public boolean filter(Event value) throws Exception {
-			return value.getName().equals("name");
+			return value.getName().equals("error");
 		}
 	}).followedBy("end").where(new FilterFunction<Event>() {
 		@Override
