@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.util;
 
-import org.apache.hadoop.conf.Configuration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,14 +42,8 @@ public class HDFSCopyUtilitiesTest {
 	 */
 	@Test
 	public void testCopyFromLocal() throws Exception {
-		Configuration config = new Configuration();
-		config.set("fs.default.name", "magic-1337:///");
 
 		File testFolder = tempFolder.newFolder();
-		File hadoopConfPath = new File(testFolder, "hadoop-conf.binary");
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(hadoopConfPath))) {
-			config.write(out);
-		}
 
 		File originalFile = new File(testFolder, "original");
 		File copyFile = new File(testFolder, "copy");
@@ -59,25 +52,7 @@ public class HDFSCopyUtilitiesTest {
 			out.writeUTF("Hello there, 42!");
 		}
 
-		try {
-			HDFSCopyFromLocal.copyFromLocal(hadoopConfPath,
-					originalFile,
-					new URI(copyFile.getAbsolutePath()));
-		} catch (Exception e) {
-			// The copying will try to write to filesystem "magic-1337" for which there is no
-			// implementation, the error message will contain the name of the file system and
-			// we check for that.
-			assertTrue(e.getMessage().contains("magic-1337"));
-		}
-
-		config.set("fs.default.name", "file:///");
-
-		hadoopConfPath.delete();
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(hadoopConfPath))) {
-			config.write(out);
-		}
-
-		HDFSCopyFromLocal.copyFromLocal(hadoopConfPath,
+		HDFSCopyFromLocal.copyFromLocal(
 				originalFile,
 				new URI(copyFile.getAbsolutePath()));
 
@@ -93,14 +68,8 @@ public class HDFSCopyUtilitiesTest {
 	 */
 	@Test
 	public void testCopyToLocal() throws Exception {
-		Configuration config = new Configuration();
-		config.set("fs.default.name", "magic-1337:///");
 
 		File testFolder = tempFolder.newFolder();
-		File hadoopConfPath = new File(testFolder, "hadoop-conf.binary");
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(hadoopConfPath))) {
-			config.write(out);
-		}
 
 		File originalFile = new File(testFolder, "original");
 		File copyFile = new File(testFolder, "copy");
@@ -109,25 +78,7 @@ public class HDFSCopyUtilitiesTest {
 			out.writeUTF("Hello there, 42!");
 		}
 
-		try {
-			HDFSCopyToLocal.copyToLocal(hadoopConfPath,
-					new URI(originalFile.getAbsolutePath()),
-					copyFile);
-		} catch (Exception e) {
-			// The copying will try to write to filesystem "magic-1337" for which there is no
-			// implementation, the error message will contain the name of the file system and
-			// we check for that.
-			assertTrue(e.getMessage().contains("magic-1337"));
-		}
-
-		config.set("fs.default.name", "file:///");
-
-		hadoopConfPath.delete();
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(hadoopConfPath))) {
-			config.write(out);
-		}
-
-		HDFSCopyToLocal.copyToLocal(hadoopConfPath,
+		HDFSCopyToLocal.copyToLocal(
 				new URI(originalFile.getAbsolutePath()),
 				copyFile);
 

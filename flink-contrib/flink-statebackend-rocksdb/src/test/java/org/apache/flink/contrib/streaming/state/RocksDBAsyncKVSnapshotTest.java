@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -29,7 +28,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.OneShotLatch;
@@ -44,13 +42,18 @@ import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskStateList;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -60,7 +63,7 @@ import static org.junit.Assert.assertTrue;
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
+@PrepareForTest({ResultPartitionWriter.class, FileSystem.class})
 @SuppressWarnings("serial")
 public class RocksDBAsyncKVSnapshotTest {
 
@@ -73,6 +76,10 @@ public class RocksDBAsyncKVSnapshotTest {
 	 */
 	@Test
 	public void testAsyncCheckpoints() throws Exception {
+		LocalFileSystem localFS = new LocalFileSystem();
+		localFS.initialize(new URI("file:///"), new Configuration());
+		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
+
 		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
 		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
 
