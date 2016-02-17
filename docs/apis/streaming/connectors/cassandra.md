@@ -29,7 +29,7 @@ under the License.
 This connector provides a sink that writes data into a [Cassandra](https://cassandra.apache.org/) database.
 
 The Flink Cassandra sink integrates with Flink's checkpointing mechanism to provide
-exactly-once processing semantics. To achieve that, Flink buffers incoming records
+at-least-once processing semantics. To achieve that, Flink buffers incoming records
 and commits them only when a checkpoint completes.
 
 To use this connector, add the following dependency to your project:
@@ -49,7 +49,7 @@ Follow the instructions from the [Cassandra Getting Started page](http://wiki.ap
 
 #### Cassandra Sink
 
-Flink's Cassandra sink is called `CassandraExactlyOnceSink`.
+Flink's Cassandra sink is called `CassandraAtLeastOnceSink`.
 
 The constructor accepts the following arguments:
 
@@ -57,6 +57,7 @@ The constructor accepts the following arguments:
 2. query to create a new table to write into (optional)
 3. query to insert data the a table
 4. checkpoint committer
+5. input serializer
 
 A checkpoint committer stores additional information about completed checkpoints
 in some resource. You can use a `CassandraCommitter` to store these in a separate
@@ -67,7 +68,7 @@ The CassandraCommitter constructor accepts the following arguments:
 2. Keyspace
 3. Table name
 
-The CassandraExactlyOnceSink is implemented as a custom operator
+The CassandraAtLeastOnceSink is implemented as a custom operator
 instead of a sink, and as such has to be used in a transform() call.
 
 Example:
@@ -75,26 +76,28 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.transform(
+input.transform(
   "Cassandra Sink",
   null,
-  new CassandraExactlyOnceSink<Tuple2<String, Integer>>(
+  new CassandraAtLeastOnceSink<Tuple2<String, Integer>>(
     "127.0.0.1",
     "CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
     "INSERT INTO example.values (id, counter) VALUES (?, ?);",
-    new CassandraCommitter("127.0.0.1", "example", "checkpoints")));
+    new CassandraCommitter("127.0.0.1", "example", "checkpoints"),
+    input.getType().createSerializer(env.getConfig())));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.transform(
+input.transform(
   "Cassandra Sink",
   null,
-  new CassandraExactlyOnceSink[(String, Integer)](
+  new CassandraAtLeastOnceSink[(String, Integer)](
     "127.0.0.1",
     "CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
     "INSERT INTO example.values (id, counter) VALUES (?, ?);",
-    new CassandraCommitter("127.0.0.1", "example", "checkpoints")));
+    new CassandraCommitter("127.0.0.1", "example", "checkpoints"),
+    input.getType().createSerializer(env.getConfig())));
 {% endhighlight %}
 </div>
 </div>

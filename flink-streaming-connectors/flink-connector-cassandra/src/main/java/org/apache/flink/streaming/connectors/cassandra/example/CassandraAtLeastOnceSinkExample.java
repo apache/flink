@@ -18,17 +18,17 @@
 package org.apache.flink.streaming.connectors.cassandra.example;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.cassandra.CassandraAtLeastOnceSink;
 import org.apache.flink.streaming.connectors.cassandra.CassandraCommitter;
-import org.apache.flink.streaming.connectors.cassandra.CassandraExactlyOnceSink;
 
 import java.util.UUID;
 
-public class CassandraExactlyOnceSinkExample {
+public class CassandraAtLeastOnceSinkExample {
 	public static void main(String[] args) throws Exception {
 
 		class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
@@ -66,16 +66,16 @@ public class CassandraExactlyOnceSinkExample {
 		env.setNumberOfExecutionRetries(1);
 		env.setStateBackend(new FsStateBackend("file:///" + System.getProperty("java.io.tmpdir") + "/flink/backend"));
 
-		env
-			.addSource(new MySource())
-			.transform(
-				"Cassandra Sink",
-				null,
-				new CassandraExactlyOnceSink<Tuple2<String, Integer>>(
-					"127.0.0.1",
-					"CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
-					"INSERT INTO example.values (id, counter) VALUES (?, ?);",
-					new CassandraCommitter("127.0.0.1", "example", "checkpoints")));
+		DataStream<Tuple2<String, Integer>> input = env.addSource(new MySource());
+		input.transform(
+			"Cassandra Sink",
+			null,
+			new CassandraAtLeastOnceSink<>(
+				"127.0.0.1",
+				"CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
+				"INSERT INTO example.values (id, counter) VALUES (?, ?);",
+				new CassandraCommitter("127.0.0.1", "example", "checkpoints"),
+				input.getType().createSerializer(env.getConfig())));
 
 		env.execute();
 	}

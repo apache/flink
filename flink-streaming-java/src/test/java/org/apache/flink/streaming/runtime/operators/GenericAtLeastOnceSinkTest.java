@@ -17,21 +17,18 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GenericExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple1<Integer>, GenericExactlyOnceSinkTest.ListSink> {
+public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<Integer>, GenericAtLeastOnceSinkTest.ListSink> {
 	@Override
 	protected ListSink createSink() {
 		return new ListSink();
@@ -104,11 +101,11 @@ public class GenericExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple1<I
 	/**
 	 * Simple sink that stores all records in a public list.
 	 */
-	public static class ListSink extends GenericExactlyOnceSink<Tuple1<Integer>> {
+	public static class ListSink extends GenericAtLeastOnceSink<Tuple1<Integer>> {
 		public List<Integer> values = new ArrayList<>();
 
 		public ListSink() {
-			super(new SimpleCommitter());
+			super(new SimpleCommitter(), TypeExtractor.getForObject(new Tuple1<>(1)).createSerializer(new ExecutionConfig()));
 		}
 
 		@Override

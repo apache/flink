@@ -24,20 +24,21 @@ import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.runtime.operators.GenericExactlyOnceSink;
+import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
 
 /**
  * Sink that emits its input elements into a Cassandra database. This sink is integrated with the checkpointing
- * mechanism to provide near exactly-once semantics.
+ * mechanism to provide near at-least-once semantics.
  * <p/>
  * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
- * checkpoint is completed. Should a job fail while the data is being committed, no exactly once guarantee can be made.
+ * checkpoint is completed. Should a job fail, while data is being committed, no exactly once guarantee can be made.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOnceSink<IN> {
+public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
 	private final String host;
 	private final String createQuery;
 	private final String insertQuery;
@@ -49,12 +50,12 @@ public class CassandraExactlyOnceSink<IN extends Tuple> extends GenericExactlyOn
 	private transient Throwable exception = null;
 	private transient final FutureCallback<ResultSet> callback;
 
-	public CassandraExactlyOnceSink(String host, String insertQuery, CheckpointCommitter committer) {
-		this(host, null, insertQuery, committer);
+	public CassandraAtLeastOnceSink(String host, String insertQuery, CheckpointCommitter committer, TypeSerializer<IN> serializer) {
+		this(host, null, insertQuery, committer, serializer);
 	}
 
-	public CassandraExactlyOnceSink(String host, String createQuery, String insertQuery, CheckpointCommitter committer) {
-		super(committer);
+	public CassandraAtLeastOnceSink(String host, String createQuery, String insertQuery, CheckpointCommitter committer, TypeSerializer<IN> serializer) {
+		super(committer, serializer);
 		if (host == null) {
 			throw new IllegalArgumentException("Host argument must not be null.");
 		}

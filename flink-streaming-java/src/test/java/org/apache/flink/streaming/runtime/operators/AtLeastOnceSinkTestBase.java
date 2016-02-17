@@ -33,7 +33,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-public abstract class ExactlyOnceSinkTestBase<IN, S extends GenericExactlyOnceSink<IN>> {
+public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSink<IN>> {
 
 	protected class OperatorExposingTask<IN> extends OneInputStreamTask<IN, IN> {
 		public OneInputStreamOperator<IN, IN> getOperator() {
@@ -62,12 +62,11 @@ public abstract class ExactlyOnceSinkTestBase<IN, S extends GenericExactlyOnceSi
 
 	@Test
 	public void testIdealCircumstances() throws Exception {
-		S sink = createSink();
 		OperatorExposingTask<IN> task = createTask();
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		streamConfig.setStreamOperator(sink);
+		streamConfig.setStreamOperator(createSink());
 
 		int elementCounter = 1;
 

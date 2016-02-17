@@ -17,9 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -42,28 +40,28 @@ import java.util.UUID;
 
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with the checkpointing
- * mechanism to provide near exactly-once semantics.
+ * mechanism to provide near at-least-once semantics.
  * <p/>
  * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
- * checkpoint is completed. Should a job fail while the data is being committed, no exactly-once guarantee can be made.
+ * checkpoint is completed. Should a job fail, while data is being committed, data will be committed twice.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
-	protected static final Logger LOG = LoggerFactory.getLogger(GenericExactlyOnceSink.class);
+public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(GenericAtLeastOnceSink.class);
 	private transient AbstractStateBackend.CheckpointStateOutputView out;
-	private TypeSerializer<IN> serializer;
-	protected transient TypeInformation<IN> typeInfo;
+	protected final TypeSerializer<IN> serializer;
 	protected final CheckpointCommitter committer;
 	protected final String id;
 
 	private ExactlyOnceState state = new ExactlyOnceState();
 
-	public GenericExactlyOnceSink(CheckpointCommitter committer) {
+	public GenericAtLeastOnceSink(CheckpointCommitter committer, TypeSerializer<IN> serializer) {
 		if (committer == null) {
 			throw new IllegalArgumentException("CheckpointCommitter argument must not be null.");
 		}
 		this.committer = committer;
+		this.serializer = serializer;
 		this.id = UUID.randomUUID().toString();
 	}
 
@@ -146,10 +144,6 @@ public abstract class GenericExactlyOnceSink<IN> extends AbstractStreamOperator<
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
-		if (serializer == null) {
-			typeInfo = TypeExtractor.getForObject(value);
-			serializer = typeInfo.createSerializer(getExecutionConfig());
-		}
 		//generate initial operator state
 		if (out == null) {
 			out = getStateBackend().createCheckpointStateOutputView(0, 0);

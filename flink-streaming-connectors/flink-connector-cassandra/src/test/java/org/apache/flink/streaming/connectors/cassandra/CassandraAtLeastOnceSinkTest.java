@@ -22,21 +22,18 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import org.apache.cassandra.service.CassandraDaemon;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.runtime.operators.ExactlyOnceSinkTestBase;
+import org.apache.flink.streaming.runtime.operators.AtLeastOnceSinkTestBase;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -46,7 +43,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
 
-public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3<String, Integer, Integer>, CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>>> {
+public class CassandraAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple3<String, Integer, Integer>, CassandraAtLeastOnceSink<Tuple3<String, Integer, Integer>>> {
 	private static File tmpDir;
 
 	private static final boolean EMBEDDED = true;
@@ -79,7 +76,7 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	public static void startCassandra() throws IOException {
 		//generate temporary files
 		tmpDir = CommonTestUtils.createTempDirectory();
-		ClassLoader classLoader = CassandraExactlyOnceSinkTest.class.getClassLoader();
+		ClassLoader classLoader = CassandraAtLeastOnceSink.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
 		tmp.createNewFile();
@@ -129,11 +126,12 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	}
 
 	@Override
-	protected CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>> createSink() {
-		return new CassandraExactlyOnceSink<>(
+	protected CassandraAtLeastOnceSink<Tuple3<String, Integer, Integer>> createSink() {
+		return new CassandraAtLeastOnceSink<>(
 			"127.0.0.1",
 			INSERT_DATA_QUERY,
-			new CassandraCommitter("127.0.0.1", "flink", "checkpoints"));
+			new CassandraCommitter("127.0.0.1", "flink", "checkpoints"),
+			TypeExtractor.getForObject(new Tuple3<>("", 0, 0)).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
@@ -150,7 +148,7 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	protected void verifyResultsIdealCircumstances(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraAtLeastOnceSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -168,7 +166,7 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	protected void verifyResultsDataPersistenceUponMissedNotify(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraAtLeastOnceSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -186,7 +184,7 @@ public class CassandraExactlyOnceSinkTest extends ExactlyOnceSinkTestBase<Tuple3
 	protected void verifyResultsDataDiscardingUponRestore(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraAtLeastOnceSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
