@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.timestamp;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -27,7 +28,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -38,6 +40,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -245,8 +248,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
-				int index = 0;
-				while (index < NUM_ELEMENTS) {
+				int index = 1;
+				while (index <= NUM_ELEMENTS) {
 					ctx.collect(index);
 					latch.await();
 					index++;
@@ -254,12 +257,10 @@ public class TimestampITCase {
 			}
 
 			@Override
-			public void cancel() {
-
-			}
+			public void cancel() {}
 		});
 
-		DataStream<Integer> extractOp = source1.assignTimestamps(
+		DataStream<Integer> extractOp = source1.assignTimestampsAndWatermarks(
 				new AscendingTimestampExtractor<Integer>() {
 					@Override
 					public long extractAscendingTimestamp(Integer element, long currentTimestamp) {
@@ -280,7 +281,7 @@ public class TimestampITCase {
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < NUM_ELEMENTS; j++) {
-			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j - 1))) {
+			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				Assert.fail("Wrong watermark.");
 			}
 		}
@@ -307,8 +308,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
-				int index = 0;
-				while (index < NUM_ELEMENTS) {
+				int index = 1;
+				while (index <= NUM_ELEMENTS) {
 					ctx.collect(index);
 					latch.await();
 					index++;
@@ -316,27 +317,22 @@ public class TimestampITCase {
 			}
 
 			@Override
-			public void cancel() {
-
-			}
+			public void cancel() {}
 		});
 
-		source1.assignTimestamps(new TimestampExtractor<Integer>() {
-			@Override
-			public long extractTimestamp(Integer element, long currentTimestamp) {
-				return element;
-			}
+		source1
+				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Integer>() {
+					
+					@Override
+					public long extractTimestamp(Integer element, long currentTimestamp) {
+						return element;
+					}
 
-			@Override
-			public long extractWatermark(Integer element, long currentTimestamp) {
-				return element - 1;
-			}
-
-			@Override
-			public long getCurrentWatermark() {
-				return Long.MIN_VALUE;
-			}
-		})
+					@Override
+					public long checkAndGetNextWatermark(Integer element, long extractedTimestamp) {
+						return extractedTimestamp - 1;
+					}
+				})
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
@@ -345,7 +341,7 @@ public class TimestampITCase {
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < NUM_ELEMENTS; j++) {
-			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j - 1))) {
+			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				Assert.fail("Wrong watermark.");
 			}
 		}
@@ -372,8 +368,8 @@ public class TimestampITCase {
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
 			public void run(SourceContext<Integer> ctx) throws Exception {
-				int index = 0;
-				while (index < NUM_ELEMENTS) {
+				int index = 1;
+				while (index <= NUM_ELEMENTS) {
 					ctx.collect(index);
 					Thread.sleep(100);
 					ctx.collect(index - 1);
@@ -383,27 +379,22 @@ public class TimestampITCase {
 			}
 
 			@Override
-			public void cancel() {
-
-			}
+			public void cancel() {}
 		});
 
-		source1.assignTimestamps(new TimestampExtractor<Integer>() {
-			@Override
-			public long extractTimestamp(Integer element, long currentTimestamp) {
-				return element;
-			}
+		source1
+				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Integer>() {
 
-			@Override
-			public long extractWatermark(Integer element, long currentTimestamp) {
-				return element - 1;
-			}
+					@Override
+					public long extractTimestamp(Integer element, long previousTimestamp) {
+						return element;
+					}
 
-			@Override
-			public long getCurrentWatermark() {
-				return Long.MIN_VALUE;
-			}
-		})
+					@Override
+					public long checkAndGetNextWatermark(Integer element, long extractedTimestamp) {
+						return extractedTimestamp - 1;
+					}
+				})
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
@@ -412,7 +403,7 @@ public class TimestampITCase {
 
 		// verify that we get NUM_ELEMENTS watermarks
 		for (int j = 0; j < NUM_ELEMENTS; j++) {
-			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j - 1))) {
+			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
 				Assert.fail("Wrong watermark.");
 			}
 		}
@@ -453,30 +444,84 @@ public class TimestampITCase {
 			}
 
 			@Override
-			public void cancel() {
-
-			}
+			public void cancel() {}
 		});
 
-		source1.assignTimestamps(new TimestampExtractor<Integer>() {
-			@Override
-			public long extractTimestamp(Integer element, long currentTimestamp) {
-				return element;
-			}
+		source1
+				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Integer>() {
 
-			@Override
-			public long extractWatermark(Integer element, long currentTimestamp) {
-				return Long.MIN_VALUE;
-			}
+					@Override
+					public long extractTimestamp(Integer element, long currentTimestamp) {
+						return element;
+					}
 
-			@Override
-			public long getCurrentWatermark() {
-				return Long.MIN_VALUE;
-			}
-		})
+					@Override
+					public long checkAndGetNextWatermark(Integer element, long extractedTimestamp) {
+						return -1L;
+					}
+				})
 			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
 
 
+		env.execute();
+
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
+	}
+
+	/**
+	 * This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks.
+	 * 
+	 * Same test as before, but using a different timestamp extractor
+	 */
+	@Test
+	public void testTimestampExtractorWithLongMaxWatermarkFromSource2() throws Exception {
+		final int NUM_ELEMENTS = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		
+		env.setParallelism(2);
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().enableTimestamps();
+		env.getConfig().setAutoWatermarkInterval(10);
+
+		DataStream<Integer> source1 = env.addSource(new EventTimeSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				int index = 0;
+				while (index < NUM_ELEMENTS) {
+					ctx.collectWithTimestamp(index, index);
+					ctx.collectWithTimestamp(index - 1, index - 1);
+					index++;
+					ctx.emitWatermark(new Watermark(index-2));
+				}
+
+				// emit the final Long.MAX_VALUE watermark, do it twice and verify that
+				// we only see one in the result
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+
+			@Override
+			public void cancel() {}
+		});
+
+		source1
+				.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Integer>() {
+
+					@Override
+					public long extractTimestamp(Integer element, long currentTimestamp) {
+						return element;
+					}
+
+					@Override
+					public long getCurrentWatermark() {
+						return -1L;
+					}
+				})
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
+		
 		env.execute();
 
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
@@ -625,8 +670,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-		}
+		public void processWatermark(Watermark mark) throws Exception {}
 	}
 
 	public static class DisabledTimestampCheckingOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
@@ -640,8 +684,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-		}
+		public void processWatermark(Watermark mark) throws Exception {}
 	}
 
 	public static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {
@@ -682,9 +725,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void cancel() {
-
-		}
+		public void cancel() {}
 	}
 
 	public static class MyNonWatermarkingSource implements SourceFunction<Integer> {
@@ -703,9 +744,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void cancel() {
-
-		}
+		public void cancel() {}
 	}
 
 	// This is a event-time source. This should only emit elements with timestamps. The test should
@@ -720,9 +759,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void cancel() {
-
-		}
+		public void cancel() {}
 	}
 
 	// This is a normal source. This should only emit elements without timestamps. The test should
@@ -737,9 +774,7 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void cancel() {
-
-		}
+		public void cancel() {}
 	}
 
 	// This is a normal source. This should only emit elements without timestamps. This also
@@ -755,8 +790,6 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void cancel() {
-
-		}
+		public void cancel() {}
 	}
 }

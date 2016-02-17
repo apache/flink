@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.scala
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.functions.TimestampExtractor
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
@@ -61,7 +61,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
       .keyBy(0)
@@ -106,7 +106,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
       .windowAll(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
@@ -132,17 +132,17 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 object WindowFoldITCase {
   private var testResults: mutable.MutableList[String] = null
 
-  private class Tuple2TimestampExtractor extends TimestampExtractor[(String, Int)] {
-    def extractTimestamp(element: (String, Int), currentTimestamp: Long): Long = {
-      element._2
+  private class Tuple2TimestampExtractor extends AssignerWithPeriodicWatermarks[(String, Int)] {
+    
+    private var currentTimestamp = -1L
+    
+    override def extractTimestamp(element: (String, Int), previousTimestamp: Long): Long = {
+      currentTimestamp = element._2
+      currentTimestamp
     }
 
-    def extractWatermark(element: (String, Int), currentTimestamp: Long): Long = {
-      element._2 - 1
-    }
-
-    def getCurrentWatermark: Long = {
-      Long.MinValue
+    override def getCurrentWatermark(): Long = {
+      currentTimestamp - 1
     }
   }
 }

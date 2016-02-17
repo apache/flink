@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.mockito.invocation.InvocationOnMock;
@@ -42,6 +43,7 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -67,15 +69,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	final Object checkpointLock;
 
 	StreamTask<?, ?> mockTask;
-
-	AbstractStateBackend stateBackend;
 	
 	
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
+		this(operator, new ExecutionConfig());
+	}
+	
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, ExecutionConfig executionConfig) {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
 		this.config = new StreamConfig(new Configuration());
-		this.executionConfig = new ExecutionConfig();
+		this.executionConfig = executionConfig;
 		this.checkpointLock = new Object();
 
 		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
@@ -100,6 +104,35 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				final long execTime = (Long) invocation.getArguments()[0];
+				final Triggerable target = (Triggerable) invocation.getArguments()[1];
+				
+				Thread caller = new Thread() {
+					@Override
+					public void run() {
+						final long delay = execTime - System.currentTimeMillis();
+						if (delay > 0) {
+							try {
+								Thread.sleep(delay);
+							} catch (InterruptedException ignored) {}
+						}
+						
+						synchronized (checkpointLock) {
+							try {
+								target.trigger(execTime);
+							} catch (Exception ignored) {}
+						}
+					}
+				};
+				caller.start();
+				
+				return null;
+			}
+		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
 	}
 
 	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {

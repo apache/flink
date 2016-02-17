@@ -1,23 +1,22 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one or more
-* contributor license agreements.  See the NOTICE file distributed with
-* this work for additional information regarding copyright ownership.
-* The ASF licenses this file to You under the Apache License, Version 2.0
-* (the "License"); you may not use this file except in compliance with
-* the License.  You may obtain a copy of the License at
-*
-*    http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -26,20 +25,25 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("serial")
 public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 	private static List<String> testResults;
@@ -47,7 +51,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testCoGroup() throws Exception {
 
-		testResults = Lists.newArrayList();
+		testResults = new ArrayList<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -74,10 +78,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).assignTimestamps(new Tuple2TimestampExtractor());
+		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
 		DataStream<Tuple2<String, Integer>> source2 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
-			private static final long serialVersionUID = 1L;
 
 			@Override
 			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
@@ -94,7 +97,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).assignTimestamps(new Tuple2TimestampExtractor());
+		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
 
 		source1.coGroup(source2)
@@ -127,7 +130,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute("CoGroup Test");
 
-		List<String> expectedResult = Lists.newArrayList(
+		List<String> expectedResult = Arrays.asList(
 				"F:(a,0)(a,1)(a,2) S:(a,0)(a,1)",
 				"F:(b,3)(b,4)(b,5) S:(b,3)",
 				"F:(a,6)(a,7)(a,8) S:",
@@ -142,14 +145,13 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testJoin() throws Exception {
 
-		testResults = Lists.newArrayList();
+		testResults = new ArrayList<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
 
 		DataStream<Tuple3<String, String, Integer>> source1 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
-			private static final long serialVersionUID = 1L;
 
 			@Override
 			public void run(SourceContext<Tuple3<String, String, Integer>> ctx) throws Exception {
@@ -166,12 +168,11 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {
-			}
-		}).assignTimestamps(new Tuple3TimestampExtractor());
+			public void cancel() {}
+			
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
-			private static final long serialVersionUID = 1L;
 
 			@Override
 			public void run(SourceContext<Tuple3<String, String, Integer>> ctx) throws Exception {
@@ -186,9 +187,9 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {
-			}
-		}).assignTimestamps(new Tuple3TimestampExtractor());
+			public void cancel() {}
+			
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 
 		source1.join(source2)
@@ -210,7 +211,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute("Join Test");
 
-		List<String> expectedResult = Lists.newArrayList(
+		List<String> expectedResult = Arrays.asList(
 				"(a,x,0):(a,u,0)",
 				"(a,x,0):(a,w,1)",
 				"(a,y,1):(a,u,0)",
@@ -237,7 +238,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testSelfJoin() throws Exception {
 
-		testResults = Lists.newArrayList();
+		testResults = new ArrayList<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -263,7 +264,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).assignTimestamps(new Tuple3TimestampExtractor());
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		source1.join(source1)
 				.where(new Tuple3KeyExtractor())
@@ -284,7 +285,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute("Self-Join Test");
 
-		List<String> expectedResult = Lists.newArrayList(
+		List<String> expectedResult = Arrays.asList(
 				"(a,x,0):(a,x,0)",
 				"(a,x,0):(a,y,1)",
 				"(a,x,0):(a,z,2)",
@@ -314,46 +315,36 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertEquals(expectedResult, testResults);
 	}
 
-	private static class Tuple2TimestampExtractor implements TimestampExtractor<Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
+	private static class Tuple2TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
+		
 		@Override
-		public long extractTimestamp(Tuple2<String, Integer> element, long currentTimestamp) {
+		public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
 			return element.f1;
 		}
 
 		@Override
-		public long extractWatermark(Tuple2<String, Integer> element, long currentTimestamp) {
-			return element.f1 - 1;
-		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
+		public long checkAndGetNextWatermark(Tuple2<String, Integer> element, long extractedTimestamp) {
+			return extractedTimestamp - 1;
 		}
 	}
 
-	private static class Tuple3TimestampExtractor implements TimestampExtractor<Tuple3<String, String, Integer>> {
-		private static final long serialVersionUID = 1L;
+	private static class Tuple3TimestampExtractor implements AssignerWithPeriodicWatermarks<Tuple3<String, String, Integer>> {
 
+		private long currentTimestamp;
+		
 		@Override
-		public long extractTimestamp(Tuple3<String, String, Integer> element, long currentTimestamp) {
+		public long extractTimestamp(Tuple3<String, String, Integer> element, long previousTimestamp) {
+			currentTimestamp = element.f2;
 			return element.f2;
 		}
 
 		@Override
-		public long extractWatermark(Tuple3<String, String, Integer> element, long currentTimestamp) {
-			return element.f2 - 1;
-		}
-
-		@Override
 		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
+			return currentTimestamp - 1;
 		}
 	}
 
 	private static class Tuple2KeyExtractor implements KeySelector<Tuple2<String,Integer>, String> {
-		private static final long serialVersionUID = 1L;
 
 		@Override
 		public String getKey(Tuple2<String, Integer> value) throws Exception {
@@ -362,7 +353,6 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	private static class Tuple3KeyExtractor implements KeySelector<Tuple3<String, String, Integer>, String> {
-		private static final long serialVersionUID = 1L;
 
 		@Override
 		public String getKey(Tuple3<String, String, Integer> value) throws Exception {
