@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.admin.AdminUtils;
 import kafka.common.KafkaException;
-import kafka.consumer.ConsumerConfig;
 import kafka.api.PartitionMetadata;
 import kafka.network.SocketServer;
 import kafka.server.KafkaConfig;
@@ -30,7 +29,7 @@ import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-import org.apache.flink.streaming.connectors.kafka.internals.ZooKeeperStringSerializer;
+import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -65,6 +64,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
 	private Properties standardProps;
+	private Properties additionalServerProperties;
 
 	public String getBrokerConnectionString() {
 		return brokerConnectionString;
@@ -97,7 +97,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public void restartBroker(int leaderId) throws Exception {
-		brokers.set(leaderId, getKafkaServer(leaderId, tmpKafkaDirs.get(leaderId), KAFKA_HOST, zookeeperConnectionString));
+		brokers.set(leaderId, getKafkaServer(leaderId, tmpKafkaDirs.get(leaderId)));
 	}
 
 	@Override
@@ -129,7 +129,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void prepare(int numKafkaServers) {
+	public void prepare(int numKafkaServers, Properties additionalServerProperties) {
+		this.additionalServerProperties = additionalServerProperties;
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 		tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
@@ -157,7 +158,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			brokers = new ArrayList<>(numKafkaServers);
 
 			for (int i = 0; i < numKafkaServers; i++) {
-				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i), KafkaTestEnvironment.KAFKA_HOST, zookeeperConnectionString));
+				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
 
 				SocketServer socketServer = brokers.get(i).socketServer();
 				brokerConnectionString += hostAndPortToUrlString(KafkaTestEnvironment.KAFKA_HOST, brokers.get(i).socketServer().boundPort(SecurityProtocol.PLAINTEXT)) + ",";
@@ -227,9 +228,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
+	public void createTestTopic(String topic, int numberOfPartitions, int replicationFactor, Properties topicConfig) {
 		// create topic with one client
-		Properties topicConfig = new Properties();
 		LOG.info("Creating topic {}", topic);
 
 		ZkUtils zkUtils = getZkUtils();
@@ -282,13 +282,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	/**
 	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed)
 	 */
-	protected static KafkaServer getKafkaServer(int brokerId, File tmpFolder,
-												String kafkaHost,
-												String zookeeperConnectionString) throws Exception {
+	protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {
 		Properties kafkaProperties = new Properties();
 
 		// properties have to be Strings
-		kafkaProperties.put("advertised.host.name", kafkaHost);
+		kafkaProperties.put("advertised.host.name", KAFKA_HOST);
 		kafkaProperties.put("broker.id", Integer.toString(brokerId));
 		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
@@ -298,6 +296,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		// for CI stability, increase zookeeper session timeout
 		kafkaProperties.put("zookeeper.session.timeout.ms", "30000");
 		kafkaProperties.put("zookeeper.connection.timeout.ms", "30000");
+		if(additionalServerProperties != null) {
+			kafkaProperties.putAll(additionalServerProperties);
+		}
 
 		final int numTries = 5;
 

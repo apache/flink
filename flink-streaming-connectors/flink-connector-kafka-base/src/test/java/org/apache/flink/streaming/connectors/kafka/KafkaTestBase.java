@@ -83,7 +83,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	@BeforeClass
 	public static void prepare() throws IOException, ClassNotFoundException {
 		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting KafkaITCase ");
+		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
 		
 
@@ -92,7 +92,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
 		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 
-		LOG.info("Starting KafkaITCase.prepare() for Kafka " + kafkaServer.getVersion());
+		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
 		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS);
 
@@ -116,7 +116,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	public static void shutDownServices() {
 
 		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Shut down KafkaITCase ");
+		LOG.info("    Shut down KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
 
 		flinkPort = -1;
@@ -127,7 +127,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		kafkaServer.shutdown();
 
 		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    KafkaITCase finished"); 
+		LOG.info("    KafkaTestBase finished");
 		LOG.info("-------------------------------------------------------------------------");
 	}
 

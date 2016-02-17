@@ -784,6 +784,10 @@ public class LegacyFetcher implements Fetcher {
 		private static long getInvalidOffsetBehavior(Properties config) {
 			long timeType;
 			String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+			if(val.equals("none")) {
+				throw new RuntimeException("Unable to find previous offset in consumer group. " +
+						"Set 'auto.offset.reset' to 'latest' or 'earliest' to automatically get the offset from Kafka");
+			}
 			if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
 				timeType = OffsetRequest.LatestTime();
 			} else {

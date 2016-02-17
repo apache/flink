@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.internals;
+package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 

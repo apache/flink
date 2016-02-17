@@ -293,7 +293,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				running = false;
 			}
 		});
-		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<Tuple2<Long, String>>(sinkSchema), FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings), null));
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "3");
+		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
 
 		// ----------- add consumer dataflow ----------
 
@@ -821,6 +823,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// add producing topology
 		Properties producerProps = new Properties();
 		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 30));
+		producerProps.setProperty("retries", "3");
 		producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
@@ -947,7 +950,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		});
 
 		KeyedSerializationSchema<Tuple2<Long, PojoValue>> schema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
-		kvStream.addSink(kafkaServer.getProducer(topic, schema, FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings), null));
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "3");
+		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 		env.execute("Write KV to Kafka");
 
 		// ----------- Read the data again -------------------
@@ -1026,7 +1031,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		TypeInformationKeyValueSerializationSchema<byte[], PojoValue> schema = new TypeInformationKeyValueSerializationSchema<>(byte[].class, PojoValue.class, env.getConfig());
 
-		kvStream.addSink(kafkaServer.getProducer(topic, schema, FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings), null));
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "3");
+		kvStream.addSink(kafkaServer.getProducer(topic, schema, producerProperties, null));
 
 		JobExecutionResult result = env.execute("Write deletes to Kafka");
 
@@ -1218,10 +1225,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				running = false;
 			}
 		}).setParallelism(parallelism);
-		
+
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "3");
 		stream.addSink(kafkaServer.getProducer(topicName,
 				new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(resultType, env.getConfig())),
-				FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings),
+				producerProperties,
 				new Tuple2Partitioner(parallelism))).setParallelism(parallelism);
 
 		env.execute("Write sequence");
