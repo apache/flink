@@ -64,6 +64,8 @@ public class LegacyFetcher implements Fetcher {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(LegacyFetcher.class);
 
+	private static final FetchPartition MARKER = new FetchPartition("n/a", -1, -1);
+	
 	
 	/** The properties that configure the Kafka connection */
 	private final Properties config;
@@ -81,7 +83,7 @@ public class LegacyFetcher implements Fetcher {
 	/** Reference the the thread that executed the run() method. */
 	private volatile Thread mainThread;
 	
-	/** Flag to shot the fetcher down */
+	/** Flag to shut the fetcher down */
 	private volatile boolean running = true;
 
 	/**
@@ -105,22 +107,18 @@ public class LegacyFetcher implements Fetcher {
 		
 		this.config = requireNonNull(props, "The config properties cannot be null");
 		this.userCodeClassloader = requireNonNull(userCodeClassloader);
-		if(initialPartitionsToRead.size() == 0) {
+		if (initialPartitionsToRead.size() == 0) {
 			throw new IllegalArgumentException("List of initial partitions is empty");
 		}
 
-		try {
-			for(Map.Entry<KafkaTopicPartition, Long> partitionToRead: initialPartitionsToRead.entrySet()) {
-				KafkaTopicPartition ktp = partitionToRead.getKey();
-				// we increment the offset by one so that we fetch the next message in the partition.
-				long offset = partitionToRead.getValue();
-				if(offset >= 0 && offset != FlinkKafkaConsumer08.OFFSET_NOT_SET) {
-					offset += 1L;
-				}
-				unassignedPartitions.addIfOpen(new FetchPartition(ktp.getTopic(), ktp.getPartition(), offset));
+		for (Map.Entry<KafkaTopicPartition, Long> partitionToRead: initialPartitionsToRead.entrySet()) {
+			KafkaTopicPartition ktp = partitionToRead.getKey();
+			// we increment the offset by one so that we fetch the next message in the partition.
+			long offset = partitionToRead.getValue();
+			if (offset >= 0 && offset != FlinkKafkaConsumer08.OFFSET_NOT_SET) {
+				offset += 1L;
 			}
-		} catch (IllegalStateException e) {
-			throw new RuntimeException("Fetcher initialization got interrupted", e);
+			unassignedPartitions.add(new FetchPartition(ktp.getTopic(), ktp.getPartition(), offset));
 		}
 		this.taskName = taskName;
 		this.error = new AtomicReference<>();
@@ -149,81 +147,64 @@ public class LegacyFetcher implements Fetcher {
 		this.mainThread = Thread.currentThread();
 
 		// keep presumably dead threads in the list until we are sure the thread is not alive anymore.
-		List<SimpleConsumerThread<T>> deadBrokerThreads = new ArrayList<>();
-		Map<Node, SimpleConsumerThread<T>> brokerToThread = new HashMap<>();
+		final Map<Node, SimpleConsumerThread<T>> brokerToThread = new HashMap<>();
 		try {
 			// Main loop polling elements from the unassignedPartitions queue to the threads
 			while (running && error.get() == null) {
 				try {
 					// wait for 5 seconds trying to get partitions to assign
 					List<FetchPartition> partitionsToAssign = unassignedPartitions.getBatchBlocking(5000);
+					partitionsToAssign.remove(MARKER);
+					
 					if(!partitionsToAssign.isEmpty()) {
 						LOG.info("Assigning {} partitions to broker threads", partitionsToAssign.size());
 						Map<Node, List<FetchPartition>> partitionsWithLeaders = findLeaderForPartitions(partitionsToAssign);
-
+						
 						// assign the partitions to the leaders (maybe start the threads)
 						for (Map.Entry<Node, List<FetchPartition>> partitionsWithLeader : partitionsWithLeaders.entrySet()) {
 							final Node leader = partitionsWithLeader.getKey();
 							final List<FetchPartition> partitions = partitionsWithLeader.getValue();
 							SimpleConsumerThread<T> brokerThread = brokerToThread.get(leader);
-							// TODO: maybe add a check again here if we are still running.
-							if (brokerThread == null) {
+
+							if (!running) {
+								break;
+							}
+							
+							if (brokerThread == null || !brokerThread.getNewPartitionsQueue().isOpen()) {
 								// start new thread
 								brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, partitions, leader);
 								brokerToThread.put(leader, brokerThread);
 							} else {
-								if(brokerThread.isAlive()) {
-									// put elements into queue of thread
-									ClosableBlockingQueue<FetchPartition> newPartitionsQueue = brokerThread.getNewPartitionsQueue();
-									for (FetchPartition fp : partitions) {
-										if (!newPartitionsQueue.addIfOpen(fp)) {
-											// we were unable to add the partition to the broker's queue
-											// the broker has closed in the meantime (the thread will shut down)
-											// create a new thread for connecting to this broker
-											List<FetchPartition> seedPartitions = new ArrayList<>();
-											seedPartitions.add(fp);
-											brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, seedPartitions, leader);
-											SimpleConsumerThread<T> oldThread = brokerToThread.put(leader, brokerThread);
-											if(oldThread != null) {
-												deadBrokerThreads.add(oldThread);
-											}
-											newPartitionsQueue = brokerThread.getNewPartitionsQueue(); // update queue for the subsequent partitions
-										}
-									}
-								} else {
-									// broker shut down in the meantime. Start it:
-									brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, partitions, leader);
-									SimpleConsumerThread<T> oldThread = brokerToThread.put(leader, brokerThread);
-									if(oldThread != null) {
-										deadBrokerThreads.add(oldThread);
+								// put elements into queue of thread
+								ClosableBlockingQueue<FetchPartition> newPartitionsQueue = brokerThread.getNewPartitionsQueue();
+								for (FetchPartition fp : partitions) {
+									if (!newPartitionsQueue.addIfOpen(fp)) {
+										// we were unable to add the partition to the broker's queue
+										// the broker has closed in the meantime (the thread will shut down)
+										// create a new thread for connecting to this broker
+										List<FetchPartition> seedPartitions = new ArrayList<>();
+										seedPartitions.add(fp);
+										brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, seedPartitions, leader);
+										brokerToThread.put(leader, brokerThread);
+										newPartitionsQueue = brokerThread.getNewPartitionsQueue(); // update queue for the subsequent partitions
 									}
 								}
 							}
 						}
 					} else {
 						// there were no partitions to assign. Check if any broker threads shut down.
-						Iterator<Map.Entry<Node, SimpleConsumerThread<T>>> bttIterator = brokerToThread.entrySet().iterator();
-						while(bttIterator.hasNext()) {
-							Map.Entry<Node, SimpleConsumerThread<T>> brokerAndThread = bttIterator.next();
-							if(!brokerAndThread.getValue().isAlive()) {
-								LOG.info("Removing stopped consumer thread {}", brokerAndThread.getValue().getName());
+						Iterator<SimpleConsumerThread<T>> bttIterator = brokerToThread.values().iterator();
+						while (bttIterator.hasNext()) {
+							SimpleConsumerThread<T> thread = bttIterator.next();
+							if(!thread.getNewPartitionsQueue().isOpen()) {
+								LOG.info("Removing stopped consumer thread {}", thread.getName());
 								bttIterator.remove();
 							}
 						}
 					}
 
-					if(deadBrokerThreads.size() > 0) {
-						// see how the dead brokers are doing
-						Iterator<SimpleConsumerThread<T>> deadBrokerThreadsIterator = deadBrokerThreads.iterator();
-						while(deadBrokerThreadsIterator.hasNext()) {
-							if(!deadBrokerThreadsIterator.next().isAlive()) {
-								deadBrokerThreadsIterator.remove();
-							}
-						}
-					}
-
-					if(brokerToThread.size() == 0 && unassignedPartitions.peek() == null) {
-						if(unassignedPartitions.close()) {
+					if (brokerToThread.size() == 0 && unassignedPartitions.isEmpty()) {
+						if (unassignedPartitions.close()) {
 							LOG.info("All consumer threads are finished, there are no more unassigned partitions. Stopping fetcher");
 							break;
 						}
@@ -248,17 +229,6 @@ public class LegacyFetcher implements Fetcher {
 					if (t.isAlive()) {
 						t.cancel();
 						runningThreads++;
-					}
-				}
-
-				// also ensure shutdown of dead brokers:
-				if (deadBrokerThreads.size() > 0) {
-					// see how the dead brokers are doing
-					for (SimpleConsumerThread<T> thread : deadBrokerThreads) {
-						if (thread.isAlive()) {
-							thread.cancel();
-							runningThreads++;
-						}
 					}
 				}
 				if(runningThreads > 0) {
@@ -316,6 +286,7 @@ public class LegacyFetcher implements Fetcher {
 		// create new list to remove elements from
 		List<FetchPartition> partitionsToAssignInternal = new ArrayList<>(partitionsToAssign);
 		Map<Node, List<FetchPartition>> leaderToPartitions = new HashMap<>();
+		
 		for(KafkaTopicPartitionLeader partitionLeader: topicPartitionWithLeaderList) {
 			if(partitionsToAssignInternal.size() == 0) {
 				// we are done: all partitions are assigned
@@ -512,6 +483,11 @@ public class LegacyFetcher implements Fetcher {
 							// close succeeded. Closing thread
 							LOG.info("Consumer thread {} does not have any partitions assigned anymore. Stopping thread.", getName());
 							running = false;
+							
+							// add the wake-up marker into the queue to make the main thread
+							// immediately wake up and termination faster
+							unassignedPartitions.add(MARKER);
+							
 							break;
 						} else {
 							// close failed: LegacyFetcher main thread added new partitions into the queue.
@@ -544,10 +520,8 @@ public class LegacyFetcher implements Fetcher {
 							// retry a few times, then return ALL partitions for new leader lookup
 							if(++reconnects >= reconnectLimit) {
 								LOG.warn("Unable to reach broker after {} retries. Returning all current partitions", reconnectLimit);
-								for(FetchPartition fp: this.partitions) {
-									if(!unassignedPartitions.addIfOpen(fp)) {
-										throw new RuntimeException("Main thread closed unassigned partitions queue");
-									}
+								for (FetchPartition fp: this.partitions) {
+									unassignedPartitions.add(fp);
 								}
 								this.partitions.clear();
 								continue; // jump to top of loop: will close thread or subscribe to new partitions
@@ -593,9 +567,9 @@ public class LegacyFetcher implements Fetcher {
 								// the broker we are connected to is not the leader for the partition.
 								LOG.warn("{} is not the leader of {}. Reassigning leader for partition", broker, fp);
 								LOG.debug("Error code = {}", code);
-								if(!unassignedPartitions.addIfOpen(fp)) {
-									throw new RuntimeException("Main thread closed unassigned partitions queue");
-								}
+								
+								unassignedPartitions.add(fp);
+								
 								partitionsIterator.remove(); // unsubscribe the partition ourselves
 								partitionsRemoved = true;
 							} else if (code != ErrorMapping.NoError()) {
@@ -693,6 +667,10 @@ public class LegacyFetcher implements Fetcher {
 					}
 					LOG.debug("This fetch contained {} messages ({} deleted messages)", messagesInFetch, deletedMessages);
 				} // end of fetch loop
+				
+				if (!newPartitionsQueue.close()) {
+					throw new Exception("Bug: Cleanly leaving fetcher thread without having a closed queue.");
+				}
 			}
 			catch (Throwable t) {
 				// report to the main thread
