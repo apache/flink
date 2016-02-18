@@ -74,7 +74,6 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 			this.mappingManager = new MappingManager(session);
 			this.mapper = mappingManager.mapper(clazz);
 		} catch (Exception e) {
-			logError(e.getMessage());
 			throw new RuntimeException("Cannot create CassandraMapperSink with input: " + clazz.getSimpleName(), e);
 		}
 	}

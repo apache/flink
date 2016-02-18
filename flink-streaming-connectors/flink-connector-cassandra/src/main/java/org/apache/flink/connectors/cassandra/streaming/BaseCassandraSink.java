@@ -127,10 +127,4 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 			throw new IllegalArgumentException(message);
 		}
 	}
-
-	protected void logError(String error){
-		if(LOG.isErrorEnabled()){
-			LOG.error(error);
-		}
-	}
 }
