@@ -228,7 +228,8 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
     source1.timeJoin(source2)
       .where(_._1)
-      .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS)))
+      .window(SlidingTimeWindows.of(
+        Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS)))
       .equalTo(_._1)
       .window(TumblingTimeWindows.of(Time.of(2, TimeUnit.MILLISECONDS)))
       .apply((l, r) => l.toString + ":" + r.toString)

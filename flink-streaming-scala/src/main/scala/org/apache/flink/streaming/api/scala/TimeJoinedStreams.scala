@@ -46,7 +46,8 @@ import org.apache.flink.util.Collector
   *
   * val result = one.join(two)
   *     .where {t => ... }
-  *     .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS))
+  *     .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS),
+  *       Time.of(2, TimeUnit.MILLISECONDS))
   *     .equalTo {t => ... }
   *     .window(TumblingTimeWindows.of(Time.of(2, TimeUnit.SECONDS)))
   *     .apply(new MyJoinFunction())
@@ -108,7 +109,8 @@ object TimeJoinedStreams {
     def window(assigner: WindowAssigner[AnyRef, TimeWindow])
     : TimeJoinedStreams.WithOneWindow[T1, T2, KEY] = {
       if (keySelector1 == null ) {
-        throw new UnsupportedOperationException("You first need to specify KeySelectors for input1 first")
+        throw new UnsupportedOperationException(
+          "You first need to specify KeySelectors for input1 first")
       }
       new TimeJoinedStreams.WithOneWindow[T1, T2, KEY](
         input1,
@@ -155,7 +157,12 @@ object TimeJoinedStreams {
         def getKey(in: T2) = cleanFun(in)
         override def getProducedType: TypeInformation[KEY] = localKeyType
       }
-      new WithKeysAndOneWindow[T1, T2, KEY](input1, input2, keySelector1, javaSelector, localKeyType, windowAssigner1)
+      new WithKeysAndOneWindow[T1, T2, KEY](input1,
+        input2,
+        keySelector1,
+        javaSelector,
+        localKeyType,
+        windowAssigner1)
     }
 
     /**
