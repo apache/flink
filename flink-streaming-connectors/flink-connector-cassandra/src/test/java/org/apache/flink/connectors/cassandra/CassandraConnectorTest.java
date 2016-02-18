@@ -16,7 +16,11 @@
  */
 package org.apache.flink.connectors.cassandra;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -29,7 +33,6 @@ import org.apache.flink.connectors.cassandra.batch.CassandraInputFormat;
 import org.apache.flink.connectors.cassandra.batch.CassandraOutputFormat;
 import org.apache.flink.connectors.cassandra.streaming.CassandraMapperSink;
 import org.apache.flink.connectors.cassandra.streaming.CassandraSink;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
