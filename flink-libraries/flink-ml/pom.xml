@@ -38,6 +38,7 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
