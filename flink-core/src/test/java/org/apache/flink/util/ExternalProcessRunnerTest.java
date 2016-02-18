@@ -27,8 +27,15 @@ public class ExternalProcessRunnerTest {
 
 	@Test(expected = ClassNotFoundException.class)
 	public void testClassNotFound() throws Exception {
-		ExternalProcessRunner runner = new ExternalProcessRunner("MyClassThatDoesNotExist", new String[]{});
-		runner.run();
+		final String nonExistingClassName = "MyClassThatDoesNotExist";
+		ExternalProcessRunner runner = new ExternalProcessRunner(nonExistingClassName, new String[]{});
+		try {
+			runner.run();
+		} catch (final Exception e) {
+			if (e.getMessage().contains(nonExistingClassName)) {
+				throw new ClassNotFoundException();
+			}
+		}
 	}
 
 	@Test
