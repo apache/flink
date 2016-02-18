@@ -56,10 +56,10 @@ extends AbstractGraphTest {
 		assertEquals(2 * vertexPairCount, graph.numberOfVertices());
 		assertEquals(2 * vertexPairCount, graph.numberOfEdges());
 
-		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1;
-		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1;
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1;
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1;
+		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
+		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
+		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
 		assertEquals(1, minInDegree);
 		assertEquals(1, minOutDegree);

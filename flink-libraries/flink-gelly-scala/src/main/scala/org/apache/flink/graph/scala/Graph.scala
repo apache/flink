@@ -18,24 +18,22 @@
 
 package org.apache.flink.graph.scala
 
-import org.apache.flink.util.Preconditions
 import org.apache.flink.api.common.functions.{FilterFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
 import org.apache.flink.graph.asm.translate.TranslateFunction
-import org.apache.flink.graph.validation.GraphValidator
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
+import org.apache.flink.graph.pregel.{ComputeFunction, MessageCombiner, VertexCentricConfiguration}
 import org.apache.flink.graph.spargel.{MessagingFunction, ScatterGatherConfiguration, VertexUpdateFunction}
+import org.apache.flink.graph.validation.GraphValidator
+import org.apache.flink.types.{LongValue, NullValue}
+import org.apache.flink.util.Preconditions
 import org.apache.flink.{graph => jg}
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
-import org.apache.flink.types.NullValue
-import org.apache.flink.graph.pregel.ComputeFunction
-import org.apache.flink.graph.pregel.MessageCombiner
-import org.apache.flink.graph.pregel.VertexCentricConfiguration
 
 object Graph {
 
@@ -803,8 +801,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    *
    * @return A DataSet of Tuple2<vertexId, inDegree>
    */
-  def inDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
+  def inDegrees(): DataSet[(K, LongValue)] = {
+    wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
   }
 
   /**
@@ -812,8 +810,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    *
    * @return A DataSet of Tuple2<vertexId, outDegree>
    */
-  def outDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.outDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
+  def outDegrees(): DataSet[(K, LongValue)] = {
+    wrap(jgraph.outDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
   }
 
   /**
@@ -821,8 +819,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    *
    * @return A DataSet of Tuple2<vertexId, degree>
    */
-  def getDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.getDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
+  def getDegrees(): DataSet[(K, LongValue)] = {
+    wrap(jgraph.getDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
   }
 
   /**

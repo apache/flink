@@ -61,6 +61,7 @@ import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.graph.validation.GraphValidator;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -867,25 +868,31 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, outDegree>}
 	 */
-	public DataSet<Tuple2<K, Long>> outDegrees() {
+	public DataSet<Tuple2<K, LongValue>> outDegrees() {
 
 		return vertices.coGroup(edges).where(0).equalTo(0).with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
 
 	private static final class CountNeighborsCoGroup<K, VV, EV>
-			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Long>> {
+			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, LongValue>> {
+		private LongValue degree = new LongValue();
+
+		private Tuple2<K, LongValue> vertexDegree = new Tuple2<>(null, degree);
+
 		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
-				Collector<Tuple2<K, Long>> out) {
+				Collector<Tuple2<K, LongValue>> out) {
 			long count = 0;
 			for (Edge<K, EV> edge : outEdges) {
 				count++;
 			}
+			degree.setValue(count);
 
 			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
 
 			if(vertexIterator.hasNext()) {
-				out.collect(new Tuple2<K, Long>(vertexIterator.next().f0, count));
+				vertexDegree.f0 = vertexIterator.next().f0;
+				out.collect(vertexDegree);
 			} else {
 				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
 			}
@@ -897,7 +904,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, inDegree>}
 	 */
-	public DataSet<Tuple2<K, Long>> inDegrees() {
+	public DataSet<Tuple2<K, LongValue>> inDegrees() {
 
 		return vertices.coGroup(edges).where(0).equalTo(1).with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
@@ -907,7 +914,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * @return A DataSet of {@code Tuple2<vertexId, degree>}
 	 */
-	public DataSet<Tuple2<K, Long>> getDegrees() {
+	public DataSet<Tuple2<K, LongValue>> getDegrees() {
 		return outDegrees().union(inDegrees()).groupBy(0).sum(1);
 	}
 
