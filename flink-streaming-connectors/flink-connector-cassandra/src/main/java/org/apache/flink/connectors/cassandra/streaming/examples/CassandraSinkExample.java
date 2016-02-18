@@ -21,11 +21,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.cassandra.streaming.CassandraSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster.Builder;
+
+import java.util.ArrayList;
 
 public class CassandraSinkExample {
 	
@@ -34,6 +35,14 @@ public class CassandraSinkExample {
 	static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)";
 	static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
 
+
+	private static final ArrayList<Tuple2<String,Integer>> collection = new ArrayList<>(20);
+	static {
+		for (int i = 0; i < 20; i++) {
+			collection.add(new Tuple2<>("cassandra-" + i,i));
+		}
+	}
+
 	public static void main(String[] args) throws Exception {
 	
 		LOG.debug("WriteTupleIntoCassandra");
@@ -41,27 +50,7 @@ public class CassandraSinkExample {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		DataStreamSource<Tuple2<String,Integer>> source = env
-				.addSource(new SourceFunction<Tuple2<String,Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					private volatile boolean running = true;
-
-					@Override
-					public void run(SourceContext<Tuple2<String,Integer>> ctx)
-							throws Exception {
-						for (int i = 0; i < 20; i++) {
-							Tuple2<String,Integer> msg = new Tuple2<>("message " + i,i);
-							ctx.collect(msg);
-						}
-						this.cancel();
-					}
-
-					@Override
-					public void cancel() {
-						running = false;
-					}
-				});
+		DataStreamSource<Tuple2<String,Integer>> source = env.fromCollection(collection);
 		
 		source.addSink(new CassandraSink<Tuple2<String,Integer>>(CREATE_TABLE, INSERT) {
 

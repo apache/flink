@@ -20,11 +20,12 @@ package org.apache.flink.connectors.cassandra.streaming.examples;
 import org.apache.flink.connectors.cassandra.streaming.CassandraMapperSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster.Builder;
+
+import java.util.ArrayList;
 
 public class CassandraMapperSinkExample {
 
@@ -32,6 +33,12 @@ public class CassandraMapperSinkExample {
 
 	private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);";
 
+	private static final ArrayList<Message> messages = new ArrayList<>(20);
+	static {
+		for (long i = 0; i < 20; i++) {
+			messages.add(new Message("cassandra-" + i));
+		}
+	}
 	public static void main(String[] args) throws Exception {
 
 		LOG.debug("WritePojoIntoCassandra");
@@ -39,27 +46,7 @@ public class CassandraMapperSinkExample {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		DataStreamSource<Message> source = env
-				.addSource(new SourceFunction<Message>() {
-					private static final long serialVersionUID = 1L;
-
-					private volatile boolean running = true;
-
-					@Override
-					public void run(SourceContext<Message> ctx)
-							throws Exception {
-						for (int i = 0; i < 20; i++) {
-							Message msg = new Message("message #" + i);
-							ctx.collect(msg);
-						}
-						cancel();
-					}
-
-					@Override
-					public void cancel() {
-						running = false;
-					}
-				});
+		DataStreamSource<Message> source = env.fromCollection(messages);
 
 		source.addSink(new CassandraMapperSink<Message>(CREATE_TABLE, Message.class){
 
