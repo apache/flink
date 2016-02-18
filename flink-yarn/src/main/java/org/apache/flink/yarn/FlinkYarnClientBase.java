@@ -367,9 +367,8 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		try {
 			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
 		} catch (IOException e) {
-			LOG.error("Error while setting the default " +
+			throw new IOException("Error while setting the default " +
 				"filesystem scheme from configuration.", e);
-			return null;
 		}
 		// ------------------ Check if the specified queue exists --------------
 
