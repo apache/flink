@@ -888,7 +888,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		LOG.info("Leader to shutdown {}", leaderId);
 
 
-		// run the topology that fails and recovers
+		// run the topology (the consumers must handle the failures)
 
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
@@ -896,7 +896,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1000));
+		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
 
@@ -909,7 +909,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				.addSink(new ValidatingExactlyOnceSink(totalElements)).setParallelism(1);
 
 		BrokerKillingMapper.killedLeaderBefore = false;
-		tryExecute(env, "One-to-one exactly once test");
+		tryExecute(env, "Broker failure once test");
 
 		// start a new broker:
 		kafkaServer.restartBroker(leaderId);
