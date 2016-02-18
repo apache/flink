@@ -18,73 +18,168 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.*;
 
 import static java.util.Objects.requireNonNull;
 
 
 public class StreamJoinOperator<K, IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, JoinFunction<IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+		implements TwoInputStreamOperator<IN1, IN2, OUT> , Triggerable {
 
-	private static final long serialVersionUID = 8650694601687319011L;
+	private static final long serialVersionUID = 1L;
 
-	private HeapWindowBuffer<IN1> stream1Buffer;
-	private HeapWindowBuffer<IN2> stream2Buffer;
-	private final KeySelector<IN1, K> keySelector1;
-	private final KeySelector<IN2, K> keySelector2;
-	private long stream1WindowLength;
-	private long stream2WindowLength;
+	private static final Logger LOG = LoggerFactory.getLogger(StreamJoinOperator.class);
 
-	protected transient long currentWatermark1 = -1L;
-	protected transient long currentWatermark2 = -1L;
-	protected transient long currentWatermark = -1L;
+	// ------------------------------------------------------------------------
+	// Configuration values and user functions
+	// ------------------------------------------------------------------------
 
-	private TypeSerializer<IN1> inputSerializer1;
-	private TypeSerializer<IN2> inputSerializer2;
+	protected final WindowAssigner<Object, TimeWindow> windowAssigner1;
+	protected final WindowAssigner<Object, TimeWindow> windowAssigner2;
+	// windowSize1 >= windowSize2
+	protected final long windowSize1;
+	protected final long windowSize2;
+
+	protected final KeySelector<IN1, K> keySelector1;
+	protected final KeySelector<IN2, K> keySelector2;
+
+	protected final StateDescriptor<? extends ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>>, ?> windowStateDescriptor;
+
+	protected final Trigger<Object, TimeWindow> trigger;
+
+
 	/**
 	 * If this is true. The current processing time is set as the timestamp of incoming elements.
 	 * This for use with a {@link org.apache.flink.streaming.api.windowing.evictors.TimeEvictor}
 	 * if eviction should happen based on processing time.
 	 */
-	private boolean setProcessingTime = false;
+	protected boolean setProcessingTime = false;
+
+	/**
+	 * This is used to copy the incoming element because it can be put into several window
+	 * buffers.
+	 */
+	protected TypeSerializer<IN1> inputSerializer1;
+	protected TypeSerializer<IN2> inputSerializer2;
+
+	/**
+	 * For serializing the key in checkpoints.
+	 */
+	protected final TypeSerializer<K> keySerializer;
+
+	/**
+	 * For serializing the window in checkpoints.
+	 */
+	protected final TypeSerializer<TimeWindow> windowSerializer1;
+	protected final TypeSerializer<TimeWindow> windowSerializer2;
+
+	// ------------------------------------------------------------------------
+	// State that is not checkpointed
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This is given to the {@code WindowFunction} for emitting elements with a given timestamp.
+	 */
+	protected transient TimestampedCollector<OUT> timestampedCollector;
+
+	protected transient long currentWatermark1 = -1L;
+	protected transient long currentWatermark2 = -1L;
+	protected transient long currentWatermark = -1L;
+	protected transient Context context = new Context(null, null);
+
+	// ------------------------------------------------------------------------
+	// State that needs to be checkpointed
+	// ------------------------------------------------------------------------
+	/**
+	 * Processing time timers that are currently in-flight.
+	 */
+	protected transient Set<Timer<K, TimeWindow>> processingTimeTimers;
+	protected transient PriorityQueue<Timer<K, TimeWindow>> processingTimeTimersQueue;
+
+	/**
+	 * Current waiting watermark callbacks.
+	 */
+	protected transient Set<Timer<K, TimeWindow>> watermarkTimers;
+	protected transient PriorityQueue<Timer<K, TimeWindow>> watermarkTimersQueue;
+
 
 	public StreamJoinOperator(JoinFunction<IN1, IN2, OUT> userFunction,
 					KeySelector<IN1, K> keySelector1,
 					KeySelector<IN2, K> keySelector2,
-					long stream1WindowLength,
-					long stream2WindowLength,
+				    TypeSerializer<K> keySerializer,
+				    WindowAssigner<Object, TimeWindow> windowAssigner1,
+				    TypeSerializer<TimeWindow> windowSerializer1,
+				    long windowSize1,
+				    WindowAssigner<Object, TimeWindow> windowAssigner2,
+				    TypeSerializer<TimeWindow> windowSerializer2,
+				    long windowSize2,
+				    StateDescriptor<? extends ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>>, ?> windowStateDescriptor,
 					TypeSerializer<IN1> inputSerializer1,
-					TypeSerializer<IN2> inputSerializer2) {
+					TypeSerializer<IN2> inputSerializer2,
+				    Trigger<Object, TimeWindow> trigger) {
 		super(userFunction);
 		this.keySelector1 = requireNonNull(keySelector1);
 		this.keySelector2 = requireNonNull(keySelector2);
+		this.keySerializer = requireNonNull(keySerializer);
 
-		this.stream1WindowLength = requireNonNull(stream1WindowLength);
-		this.stream2WindowLength = requireNonNull(stream2WindowLength);
+		this.windowAssigner1 = requireNonNull(windowAssigner1);
+		this.windowSerializer1 = requireNonNull(windowSerializer1);
+		this.windowSize1 = windowSize1;
+		this.windowAssigner2 = requireNonNull(windowAssigner2);
+		this.windowSerializer2 = requireNonNull(windowSerializer2);
+		this.windowSize2 = windowSize2;
+
+		this.windowStateDescriptor = requireNonNull(windowStateDescriptor);
 
 		this.inputSerializer1 = requireNonNull(inputSerializer1);
 		this.inputSerializer2 = requireNonNull(inputSerializer2);
+		this.trigger = requireNonNull(trigger);
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
+		timestampedCollector = new TimestampedCollector<>(output);
+
 		if (null == inputSerializer1 || null == inputSerializer2) {
 			throw new IllegalStateException("Input serializer was not set.");
 		}
 
-		this.stream1Buffer = new HeapWindowBuffer.Factory<IN1>().create();
-		this.stream2Buffer = new HeapWindowBuffer.Factory<IN2>().create();
+		// these could already be initialized from restoreState()
+		if (watermarkTimers == null) {
+			watermarkTimers = new HashSet<>();
+			watermarkTimersQueue = new PriorityQueue<>(100);
+		}
+
+		if (processingTimeTimers == null) {
+			processingTimeTimers = new HashSet<>();
+			processingTimeTimersQueue = new PriorityQueue<>(100);
+		}
+
+		context = new Context(null, null);
 	}
 
 	/**
@@ -92,58 +187,97 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	 * @throws Exception
 	 */
 	@Override
+	@SuppressWarnings("unchecked")
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
 		if (setProcessingTime) {
 			element.replace(element.getValue(), System.currentTimeMillis());
 		}
-		stream1Buffer.storeElement(element);
 
-		if (setProcessingTime) {
-			IN1 item1 = element.getValue();
-			long time1 = element.getTimestamp();
+		Collection<TimeWindow> elementWindows = windowAssigner1.assignWindows(element.getValue(), element.getTimestamp());
 
-			int expiredDataNum = 0;
-			for (StreamRecord<IN2> record2 : stream2Buffer.getElements()) {
-				IN2 item2 = record2.getValue();
-				long time2 = record2.getTimestamp();
-				if (time2 < time1 && time2 + this.stream2WindowLength >= time1) {
-					if (keySelector1.getKey(item1).equals(keySelector2.getKey(item2))) {
-						output.collect(new StreamRecord<>(userFunction.join(item1, item2)));
-					}
-				} else {
-					expiredDataNum++;
-				}
-			}
-			// clean data
-			stream2Buffer.removeElements(expiredDataNum);
+		K key = (K) getStateBackend().getCurrentKey();
+
+		for (TimeWindow window: elementWindows) {
+
+			ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>> windowState = getPartitionedState(window, windowSerializer1,
+					windowStateDescriptor);
+			context.key = key;
+			context.window = window;
+			CoGroupedStreams.TaggedUnion<IN1, IN2> unionElement = CoGroupedStreams.TaggedUnion.one(element.getValue());
+			windowState.add(unionElement);
+			TriggerResult triggerResult = context.onElement(unionElement, element.getTimestamp());
+			processTriggerResult(triggerResult, key, window);
+
 		}
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
 		if (setProcessingTime) {
 			element.replace(element.getValue(), System.currentTimeMillis());
 		}
-		stream2Buffer.storeElement(element);
 
-		if (setProcessingTime) {
-			IN2 item2 = element.getValue();
-			long time2 = element.getTimestamp();
+		Collection<TimeWindow> elementWindows2 = windowAssigner2.assignWindows(element.getValue(), element.getTimestamp());
+		Collection<TimeWindow> elementWindows1 = new ArrayList<>(elementWindows2.size());
+		// Convert windows of stream2 to corresponding windows of stream1
+		for(TimeWindow window : elementWindows2){
+			elementWindows1.add(new TimeWindow(window.getEnd() - windowSize1, window.getEnd()));
+		}
+		K key = (K) getStateBackend().getCurrentKey();
 
-			int expiredDataNum = 0;
-			for (StreamRecord<IN1> record1 : stream1Buffer.getElements()) {
-				IN1 item1 = record1.getValue();
-				long time1 = record1.getTimestamp();
-				if (time1 <= time2 && time1 + this.stream1WindowLength >= time2) {
-					if (keySelector1.getKey(item1).equals(keySelector2.getKey(item2))) {
-						output.collect(new StreamRecord<>(userFunction.join(item1, item2)));
-					}
+		for (TimeWindow window: elementWindows1) {
+
+			ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>> windowState = getPartitionedState(window, windowSerializer1,
+					windowStateDescriptor);
+			context.key = key;
+			context.window = window;
+			CoGroupedStreams.TaggedUnion<IN1, IN2> unionElement = CoGroupedStreams.TaggedUnion.two(element.getValue());
+			windowState.add(unionElement);
+
+			TriggerResult triggerResult = context.onElement(unionElement, element.getTimestamp());
+			processTriggerResult(triggerResult, key, window);
+		}
+	}
+
+	protected void processTriggerResult(TriggerResult triggerResult, K key, TimeWindow window) throws Exception {
+		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
+			// do nothing
+			return;
+		}
+
+		if (triggerResult.isFire()) {
+			timestampedCollector.setTimestamp(window.maxTimestamp());
+
+			ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>> windowState = getPartitionedState(window, windowSerializer1,
+					windowStateDescriptor);
+
+			Iterable<CoGroupedStreams.TaggedUnion<IN1, IN2>> contents = windowState.get();
+
+			List<IN1> oneValues = new ArrayList<>();
+			List<IN2> twoValues = new ArrayList<>();
+
+			for (CoGroupedStreams.TaggedUnion<IN1, IN2> val: contents) {
+				if (val.isOne()) {
+					oneValues.add(val.getOne());
 				} else {
-					expiredDataNum++;
+					twoValues.add(val.getTwo());
 				}
 			}
-			// clean data
-			stream1Buffer.removeElements(expiredDataNum);
+			for (IN1 val1: oneValues) {
+				for (IN2 val2: twoValues) {
+					timestampedCollector.collect(userFunction.join(val1, val2));
+				}
+			}
+			if (triggerResult.isPurge()) {
+				windowState.clear();
+				context.clear();
+			}
+		} else if (triggerResult.isPurge()) {
+			ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>> windowState = getPartitionedState(window, windowSerializer1,
+					windowStateDescriptor);
+			windowState.clear();
+			context.clear();
 		}
 	}
 
@@ -153,58 +287,27 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	 * @throws Exception
 	 */
 	private void processWatermark(long watermark) throws Exception{
-		if(setProcessingTime) {
-			return;
-		}
-		// process elements after current watermark1 and lower than mark
-		for (StreamRecord<IN1> record1 : stream1Buffer.getElements()) {
-			if(record1.getTimestamp() >= this.currentWatermark
-					&& record1.getTimestamp() < watermark){
-				for (StreamRecord<IN2> record2 : stream2Buffer.getElements()) {
-					if(keySelector1.getKey(record1.getValue()).equals(keySelector2.getKey(record2.getValue()))) {
-						if (record1.getTimestamp() >= record2.getTimestamp()
-								&& record2.getTimestamp() + this.stream2WindowLength >= record1.getTimestamp()) {
-							output.collect(new StreamRecord<>(userFunction.join(record1.getValue(), record2.getValue())));
-						}
-					}
-				}
-			}
-		}
+		boolean fire;
 
-		for (StreamRecord<IN2> record2 : stream2Buffer.getElements()) {
-			if(record2.getTimestamp() >= this.currentWatermark
-					&& record2.getTimestamp() < watermark){
-				for (StreamRecord<IN1> record1 : stream1Buffer.getElements()) {
-					if(keySelector1.getKey(record1.getValue()).equals(keySelector2.getKey(record2.getValue()))) {
-						if (record2.getTimestamp() > record1.getTimestamp()
-								&& record1.getTimestamp() + this.stream1WindowLength >= record2.getTimestamp()) {
-							output.collect(new StreamRecord<>(userFunction.join(record1.getValue(), record2.getValue())));
-						}
-					}
-				}
-			}
-		}
+		do {
+			Timer<K, TimeWindow> timer = watermarkTimersQueue.peek();
+			if (timer != null && timer.timestamp <= watermark) {
+				fire = true;
 
-		// clean data
-		int stream1Expired = 0;
-		for (StreamRecord<IN1> record1 : stream1Buffer.getElements()) {
-			if (record1.getTimestamp() + this.stream1WindowLength < watermark) {
-				stream1Expired++;
+				watermarkTimers.remove(timer);
+				watermarkTimersQueue.remove();
+
+				context.key = timer.key;
+				context.window = timer.window;
+				setKeyContext(timer.key);
+				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				processTriggerResult(triggerResult, context.key, context.window);
 			} else {
-				break;
+				fire = false;
 			}
-		}
-		stream1Buffer.removeElements(stream1Expired);
+		} while (fire);
 
-		int stream2Expired = 0;
-		for (StreamRecord<IN2> record2 : stream2Buffer.getElements()) {
-			if (record2.getTimestamp() + this.stream2WindowLength < watermark) {
-				stream2Expired++;
-			} else {
-				break;
-			}
-		}
-		stream2Buffer.removeElements(stream2Expired);
+		this.currentWatermark = watermark;
 	}
 
 	@Override
@@ -229,6 +332,35 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		this.currentWatermark2 = mark.getTimestamp();
 	}
 
+
+	@Override
+	public final void trigger(long time) throws Exception {
+		boolean fire;
+
+		do {
+			Timer<K, TimeWindow> timer = processingTimeTimersQueue.peek();
+			if (timer != null && timer.timestamp <= time) {
+				fire = true;
+
+				processingTimeTimers.remove(timer);
+				processingTimeTimersQueue.remove();
+
+				context.key = timer.key;
+				context.window = timer.window;
+				setKeyContext(timer.key);
+				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				processTriggerResult(triggerResult, context.key, context.window);
+			} else {
+				fire = false;
+			}
+		} while (fire);
+
+		// Also check any watermark timers. We might have some in here since
+		// Context.registerEventTimeTimer sets a trigger if an event-time trigger is registered
+		// that is already behind the watermark.
+		processWatermark(currentWatermark);
+	}
+
 	/**
 	 * When this flag is enabled the current processing time is set as the timestamp of elements
 	 * upon arrival. This must be used, for example, when using the
@@ -240,6 +372,180 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		return this;
 	}
 
+
+	/**
+	 * {@code Context} is a utility for handling {@code Trigger} invocations. It can be reused
+	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
+	 * the {@code Context}
+	 */
+	protected class Context implements Trigger.TriggerContext {
+		protected K key;
+		protected TimeWindow window;
+
+		public Context(K key, TimeWindow window) {
+			this.key = key;
+			this.window = window;
+		}
+
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+																	   Class<S> stateType,
+																	   S defaultState) {
+			requireNonNull(stateType, "The state type class must not be null");
+
+			TypeInformation<S> typeInfo;
+			try {
+				typeInfo = TypeExtractor.getForClass(stateType);
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Cannot analyze type '" + stateType.getName() +
+						"' from the class alone, due to generic type parameters. " +
+						"Please specify the TypeInformation directly.", e);
+			}
+
+			return getKeyValueState(name, typeInfo, defaultState);
+		}
+
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+																	   TypeInformation<S> stateType,
+																	   S defaultState) {
+
+			requireNonNull(name, "The name of the state must not be null");
+			requireNonNull(stateType, "The state type information must not be null");
+
+			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, stateType.createSerializer(getExecutionConfig()), defaultState);
+			return getPartitionedState(stateDesc);
+		}
+
+		@SuppressWarnings("unchecked")
+		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+			try {
+				return StreamJoinOperator.this.getPartitionedState(window, windowSerializer1, stateDescriptor);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public void registerProcessingTimeTimer(long time) {
+			Timer<K, TimeWindow> timer = new Timer<>(time, key, window);
+			if (processingTimeTimers.add(timer)) {
+				processingTimeTimersQueue.add(timer);
+				getRuntimeContext().registerTimer(time, StreamJoinOperator.this);
+			}
+		}
+
+		@Override
+		public void registerEventTimeTimer(long time) {
+			Timer<K, TimeWindow> timer = new Timer<>(time, key, window);
+			if (watermarkTimers.add(timer)) {
+				watermarkTimersQueue.add(timer);
+			}
+
+			if (time <= currentWatermark) {
+				// immediately schedule a trigger, so that we don't wait for the next
+				// watermark update to fire the watermark trigger
+				getRuntimeContext().registerTimer(time, StreamJoinOperator.this);
+			}
+		}
+
+		@Override
+		public void deleteProcessingTimeTimer(long time) {
+			Timer<K, TimeWindow> timer = new Timer<>(time, key, window);
+			if (processingTimeTimers.remove(timer)) {
+				processingTimeTimersQueue.remove(timer);
+			}
+		}
+
+		@Override
+		public void deleteEventTimeTimer(long time) {
+			Timer<K, TimeWindow> timer = new Timer<>(time, key, window);
+			if (watermarkTimers.remove(timer)) {
+				watermarkTimersQueue.remove(timer);
+			}
+
+		}
+
+		public TriggerResult onElement(CoGroupedStreams.TaggedUnion<IN1, IN2> element, long timestamp) throws Exception {
+			return trigger.onElement(element, timestamp, window, this);
+		}
+
+		public TriggerResult onProcessingTime(long time) throws Exception {
+			return trigger.onProcessingTime(time, window, this);
+		}
+
+		public TriggerResult onEventTime(long time) throws Exception {
+			return trigger.onEventTime(time, window, this);
+		}
+
+		public void clear() throws Exception {
+			trigger.clear(window, this);
+		}
+
+		@Override
+		public String toString() {
+			return "Context{" +
+					"key=" + key +
+					", window=" + window +
+					'}';
+		}
+	}
+
+	/**
+	 * Internal class for keeping track of in-flight timers.
+	 */
+	protected static class Timer<K, W extends Window> implements Comparable<Timer<K, W>> {
+		protected long timestamp;
+		protected K key;
+		protected W window;
+
+		public Timer(long timestamp, K key, W window) {
+			this.timestamp = timestamp;
+			this.key = key;
+			this.window = window;
+		}
+
+		@Override
+		public int compareTo(Timer<K, W> o) {
+			return Long.compare(this.timestamp, o.timestamp);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()){
+				return false;
+			}
+
+			Timer<?, ?> timer = (Timer<?, ?>) o;
+
+			return timestamp == timer.timestamp
+					&& key.equals(timer.key)
+					&& window.equals(timer.window);
+
+		}
+
+		@Override
+		public int hashCode() {
+			int result = (int) (timestamp ^ (timestamp >>> 32));
+			result = 31 * result + key.hashCode();
+			result = 31 * result + window.hashCode();
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return "Timer{" +
+					"timestamp=" + timestamp +
+					", key=" + key +
+					", window=" + window +
+					'}';
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  checkpointing and recovery
 	// ------------------------------------------------------------------------
@@ -248,25 +554,25 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		// we write the panes with the key/value maps into the stream
-		StateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		AbstractStateBackend.CheckpointStateOutputView out =
+				getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
-		out.writeLong(stream1WindowLength);
-		out.writeLong(stream2WindowLength);
-
-		MultiplexingStreamRecordSerializer<IN1> recordSerializer1 = new MultiplexingStreamRecordSerializer<>(inputSerializer1);
-		out.writeInt(stream1Buffer.size());
-		for (StreamRecord<IN1> element: stream1Buffer.getElements()) {
-			recordSerializer1.serialize(element, out);
+		out.writeInt(watermarkTimersQueue.size());
+		for (Timer<K, TimeWindow> timer : watermarkTimersQueue) {
+			keySerializer.serialize(timer.key, out);
+			windowSerializer1.serialize(timer.window, out);
+			out.writeLong(timer.timestamp);
 		}
 
-		MultiplexingStreamRecordSerializer<IN2> recordSerializer2 = new MultiplexingStreamRecordSerializer<>(inputSerializer2);
-		out.writeInt(stream2Buffer.size());
-		for (StreamRecord<IN2> element: stream2Buffer.getElements()) {
-			recordSerializer2.serialize(element, out);
+		out.writeInt(processingTimeTimers.size());
+		for (Timer<K, TimeWindow> timer : processingTimeTimersQueue) {
+			keySerializer.serialize(timer.key, out);
+			windowSerializer1.serialize(timer.window, out);
+			out.writeLong(timer.timestamp);
 		}
 
 		taskState.setOperatorState(out.closeAndGetHandle());
+
 		return taskState;
 	}
 
@@ -280,20 +586,28 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
 		DataInputView in = inputState.getState(userClassloader);
 
-		stream1WindowLength = in.readLong();
-		stream2WindowLength = in.readLong();
-
-		int numElements = in.readInt();
-
-		MultiplexingStreamRecordSerializer<IN1> recordSerializer1 = new MultiplexingStreamRecordSerializer<>(inputSerializer1);
-		for (int i = 0; i < numElements; i++) {
-			stream1Buffer.storeElement(recordSerializer1.deserialize(in).<IN1>asRecord());
+		int numWatermarkTimers = in.readInt();
+		watermarkTimers = new HashSet<>(numWatermarkTimers);
+		watermarkTimersQueue = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
+		for (int i = 0; i < numWatermarkTimers; i++) {
+			K key = keySerializer.deserialize(in);
+			TimeWindow window = windowSerializer1.deserialize(in);
+			long timestamp = in.readLong();
+			Timer<K, TimeWindow> timer = new Timer<>(timestamp, key, window);
+			watermarkTimers.add(timer);
+			watermarkTimersQueue.add(timer);
 		}
 
-		int numElements2 = in.readInt();
-		MultiplexingStreamRecordSerializer<IN2> recordSerializer2 = new MultiplexingStreamRecordSerializer<>(inputSerializer2);
-		for (int i = 0; i < numElements2; i++) {
-			stream2Buffer.storeElement(recordSerializer2.deserialize(in).<IN2>asRecord());
+		int numProcessingTimeTimers = in.readInt();
+		processingTimeTimers = new HashSet<>(numProcessingTimeTimers);
+		processingTimeTimersQueue = new PriorityQueue<>(Math.max(numProcessingTimeTimers, 1));
+		for (int i = 0; i < numProcessingTimeTimers; i++) {
+			K key = keySerializer.deserialize(in);
+			TimeWindow window = windowSerializer1.deserialize(in);
+			long timestamp = in.readLong();
+			Timer<K, TimeWindow> timer = new Timer<>(timestamp, key, window);
+			processingTimeTimers.add(timer);
+			processingTimeTimersQueue.add(timer);
 		}
 	}
 

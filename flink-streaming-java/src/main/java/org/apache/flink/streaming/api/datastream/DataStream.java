@@ -643,6 +643,14 @@ public class DataStream<T> {
 	}
 
 	/**
+	 * Creates a join operation. See {@link TimeJoinedStreams} for an example of how the keys
+	 * and buffer time can be specified.
+	 */
+	public <T2> TimeJoinedStreams<T, T2> timeJoin(DataStream<T2> otherStream) {
+		return new TimeJoinedStreams<>(this, otherStream);
+	}
+
+	/**
 	 * Windows this {@code DataStream} into tumbling time windows.
 	 *
 	 * <p>

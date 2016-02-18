@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -236,7 +237,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 
 	@Test
-	public void testBufferJoin() throws Exception {
+	public void test2WindowsJoin() throws Exception {
 
 		testResults = Lists.newArrayList();
 
@@ -298,11 +299,11 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 
-		source1.join(source2)
+		source1.timeJoin(source2)
 				.where(new Tuple3KeyExtractor())
-				.buffer(Time.of(3, TimeUnit.MILLISECONDS))
+				.window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS)))
 				.equalTo(new Tuple3KeyExtractor())
-				.buffer(Time.of(4, TimeUnit.MILLISECONDS))
+				.window(TumblingTimeWindows.of(Time.of(2, TimeUnit.MILLISECONDS)))
 				.apply(new JoinFunction<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>, String>() {
 					@Override
 					public String join(Tuple3<String, String, Integer> first, Tuple3<String, String, Integer> second) throws Exception {
@@ -321,14 +322,13 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		List<String> expectedResult = Lists.newArrayList(
 				"(a,x,0):(a,i,3)",
 				"(a,x,0):(a,u,0)",
+				"(b,y,1):(b,k,5)",
+				"(c,z,2):(c,x,6)",
 				"(d,u,3):(d,i,4)",
-				"(e,u,4):(e,w,1)",
 				"(f,w,5):(f,x,6)",
-				"(g,i,7):(g,i,3)",
 				"(h,j,6):(h,x,6)",
 				"(i,k,8):(i,z,10)",
-				"(j,k,9):(j,z,9)",
-				"(k,k,10):(k,z,8)");
+				"(j,k,9):(j,z,9)");
 
 		Collections.sort(expectedResult);
 		Collections.sort(testResults);
