@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -150,26 +151,37 @@ public class BackPressureStatsTracker {
 	 * is ignored.
 	 *
 	 * @param vertex Operator to get the stats for.
+	 * @return Flag indicating whether a sample with triggered.
 	 */
 	@SuppressWarnings("unchecked")
-	public void triggerStackTraceSample(ExecutionJobVertex vertex) {
+	public boolean triggerStackTraceSample(ExecutionJobVertex vertex) {
 		synchronized (lock) {
 			if (shutDown) {
-				return;
+				return false;
 			}
 
-			if (!pendingStats.contains(vertex)) {
-				pendingStats.add(vertex);
+			if (!pendingStats.contains(vertex) &&
+					!vertex.getGraph().getState().isTerminalState()) {
 
-				Future<StackTraceSample> sample = coordinator.triggerStackTraceSample(
-						vertex.getTaskVertices(),
-						numSamples,
-						delayBetweenSamples,
-						MAX_STACK_TRACE_DEPTH);
+				ExecutionContext executionContext = vertex.getGraph().getExecutionContext();
 
-				sample.onComplete(new StackTraceSampleCompletionCallback(
-						vertex), vertex.getGraph().getExecutionContext());
+				// Only trigger if still active job
+				if (executionContext != null) {
+					pendingStats.add(vertex);
+
+					Future<StackTraceSample> sample = coordinator.triggerStackTraceSample(
+							vertex.getTaskVertices(),
+							numSamples,
+							delayBetweenSamples,
+							MAX_STACK_TRACE_DEPTH);
+
+					sample.onComplete(new StackTraceSampleCompletionCallback(vertex), executionContext);
+
+					return true;
+				}
 			}
+
+			return false;
 		}
 	}
 

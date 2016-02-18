@@ -55,6 +55,8 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Ex
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -238,6 +240,13 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 
 							// Response to removal notification
 							expectMsgEquals(true);
+
+							//
+							// 3) Trigger stats for archived job
+							//
+							statsTracker.invalidateOperatorStatsCache();
+							assertFalse("Unexpected trigger", statsTracker.triggerStackTraceSample(vertex));
+
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -265,7 +274,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			ExecutionJobVertex vertex) throws InterruptedException {
 
 		statsTracker.invalidateOperatorStatsCache();
-		statsTracker.triggerStackTraceSample(vertex);
+		assertTrue("Failed to trigger", statsTracker.triggerStackTraceSample(vertex));
 
 		// Sleep minimum duration
 		Thread.sleep(20 * 10);
