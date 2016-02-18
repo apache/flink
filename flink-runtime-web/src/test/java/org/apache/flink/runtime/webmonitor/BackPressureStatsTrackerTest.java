@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -62,6 +64,7 @@ public class BackPressureStatsTrackerTest {
 				anyInt())).thenReturn(samplePromise.future());
 
 		ExecutionGraph graph = mock(ExecutionGraph.class);
+		when(graph.getState()).thenReturn(JobStatus.RUNNING);
 
 		// Same Thread execution context
 		when(graph.getExecutionContext()).thenReturn(new ExecutionContext() {
@@ -102,7 +105,7 @@ public class BackPressureStatsTrackerTest {
 				sampleCoordinator, 9999, numSamples, delayBetweenSamples);
 
 		// Trigger
-		tracker.triggerStackTraceSample(jobVertex);
+		assertTrue("Failed to trigger", tracker.triggerStackTraceSample(jobVertex));
 
 		verify(sampleCoordinator).triggerStackTraceSample(
 				eq(taskVertices),
@@ -111,7 +114,7 @@ public class BackPressureStatsTrackerTest {
 				eq(BackPressureStatsTracker.MAX_STACK_TRACE_DEPTH));
 
 		// Trigger again for pending request, should not fire
-		tracker.triggerStackTraceSample(jobVertex);
+		assertFalse("Unexpected trigger", tracker.triggerStackTraceSample(jobVertex));
 
 		assertTrue(tracker.getOperatorBackPressureStats(jobVertex).isEmpty());
 
