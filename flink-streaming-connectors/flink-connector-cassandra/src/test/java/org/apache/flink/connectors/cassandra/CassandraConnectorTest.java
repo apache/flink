@@ -53,13 +53,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Pojo.class})
 @PowerMockIgnore("javax.management.*")
-public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
+public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase implements Serializable {
 
 	private static File tmpDir;
 
-	private static EmbeddedCassandraService cassandra;
-	private static Cluster.Builder builder;
-	private static Session session;
+	private transient static EmbeddedCassandraService cassandra;
+	private transient static Cluster.Builder builder;
+	private transient static Session session;
 
 	private static final long COUNT = 20;
 
@@ -245,20 +245,22 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		session.execute(CREATE_TABLE);
-		DataSet<Tuple2<Long,String>> dataSet = env.fromCollection(collection);
+		DataSet<Tuple2<Long,String>> dataSet = env.fromCollection(collectiongit);
 		dataSet.output(new CassandraOutputFormat<Tuple2<Long,String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
-				return builder;
+				return CassandraConnectorTest.builder;
 			}
 		});
+
+		env.execute("Write data");
 
 		DataSet<Tuple2<Long,String>> inputDS = env.createInput(new CassandraInputFormat<Tuple2<Long,String>>(SELECT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
-				return builder;
+				return CassandraConnectorTest.builder;
 			}
 		});
 
