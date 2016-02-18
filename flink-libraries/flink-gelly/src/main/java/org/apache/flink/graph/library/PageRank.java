@@ -29,6 +29,7 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.types.LongValue;
 
 /**
  * This is an implementation of a simple PageRank algorithm, using a scatter-gather iteration.
@@ -56,8 +57,7 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 
 	@Override
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> network) throws Exception {
-
-		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
+		DataSet<Tuple2<K, LongValue>> vertexOutDegrees = network.outDegrees();
 
 		Graph<K, Double, Double> networkWithWeights = network
 				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
@@ -118,10 +118,10 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitWeights implements EdgeJoinFunction<Double, Long> {
+	private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
 
-		public Double edgeJoin(Double edgeValue, Long inputValue) {
-			return edgeValue / (double) inputValue;
+		public Double edgeJoin(Double edgeValue, LongValue inputValue) {
+			return edgeValue / (double) inputValue.getValue();
 		}
 	}
 

@@ -346,13 +346,13 @@ DataSet<K> getVertexIds()
 DataSet<Tuple2<K, K>> getEdgeIds()
 
 // get a DataSet of <vertex ID, in-degree> pairs for all vertices
-DataSet<Tuple2<K, Long>> inDegrees()
+DataSet<Tuple2<K, LongValue>> inDegrees()
 
 // get a DataSet of <vertex ID, out-degree> pairs for all vertices
-DataSet<Tuple2<K, Long>> outDegrees()
+DataSet<Tuple2<K, LongValue>> outDegrees()
 
 // get a DataSet of <vertex ID, degree> pairs for all vertices, where degree is the sum of in- and out- degrees
-DataSet<Tuple2<K, Long>> getDegrees()
+DataSet<Tuple2<K, LongValue>> getDegrees()
 
 // get the number of vertices
 long numberOfVertices()
@@ -381,13 +381,13 @@ getVertexIds: DataSet[K]
 getEdgeIds: DataSet[(K, K)]
 
 // get a DataSet of <vertex ID, in-degree> pairs for all vertices
-inDegrees: DataSet[(K, Long)]
+inDegrees: DataSet[(K, LongValue)]
 
 // get a DataSet of <vertex ID, out-degree> pairs for all vertices
-outDegrees: DataSet[(K, Long)]
+outDegrees: DataSet[(K, LongValue)]
 
 // get a DataSet of <vertex ID, degree> pairs for all vertices, where degree is the sum of in- and out- degrees
-getDegrees: DataSet[(K, Long)]
+getDegrees: DataSet[(K, LongValue)]
 
 // get the number of vertices
 numberOfVertices: Long
@@ -519,13 +519,13 @@ Note that if the input dataset contains a key multiple times, all Gelly join met
 {% highlight java %}
 Graph<Long, Double, Double> network = ...
 
-DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
+DataSet<Tuple2<Long, LongValue>> vertexOutDegrees = network.outDegrees();
 
 // assign the transition probabilities as the edge weights
 Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees,
-				new VertexJoinFunction<Double, Long>() {
-					public Double vertexJoin(Double vertexValue, Long inputValue) {
-						return vertexValue / inputValue;
+				new VertexJoinFunction<Double, LongValue>() {
+					public Double vertexJoin(Double vertexValue, LongValue inputValue) {
+						return vertexValue / inputValue.getValue();
 					}
 				});
 {% endhighlight %}
@@ -535,10 +535,10 @@ Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(v
 {% highlight scala %}
 val network: Graph[Long, Double, Double] = ...
 
-val vertexOutDegrees: DataSet[(Long, Long)] = network.outDegrees
+val vertexOutDegrees: DataSet[(Long, LongValue)] = network.outDegrees
 
 // assign the transition probabilities as the edge weights
-val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Double, v2: Long) => v1 / v2)
+val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Double, v2: LongValue) => v1 / v2.getValue())
 {% endhighlight %}
 </div>
 </div>
