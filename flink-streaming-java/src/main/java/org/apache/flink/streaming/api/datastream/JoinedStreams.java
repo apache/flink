@@ -143,7 +143,7 @@ public class JoinedStreams<T1, T2> {
 			}
 		}
 	}
-
+	
 	// ------------------------------------------------------------------------
 
 	/**
@@ -157,7 +157,7 @@ public class JoinedStreams<T1, T2> {
 	 */
 	@Public
 	public static class WithWindow<T1, T2, KEY, W extends Window> {
-
+		
 		private final DataStream<T1> input1;
 		private final DataStream<T2> input2;
 
@@ -173,23 +173,23 @@ public class JoinedStreams<T1, T2> {
 
 		@PublicEvolving
 		protected WithWindow(DataStream<T1> input1,
-							 DataStream<T2> input2,
-							 KeySelector<T1, KEY> keySelector1,
-							 KeySelector<T2, KEY> keySelector2,
-							 TypeInformation<KEY> keyType,
-							 WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
-							 Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
-							 Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor) {
-
+				DataStream<T2> input2,
+				KeySelector<T1, KEY> keySelector1,
+				KeySelector<T2, KEY> keySelector2,
+				TypeInformation<KEY> keyType,
+				WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
+				Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
+				Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor) {
+			
 			this.input1 = requireNonNull(input1);
 			this.input2 = requireNonNull(input2);
 
 			this.keySelector1 = requireNonNull(keySelector1);
 			this.keySelector2 = requireNonNull(keySelector2);
 			this.keyType = requireNonNull(keyType);
-
+			
 			this.windowAssigner = requireNonNull(windowAssigner);
-
+			
 			this.trigger = trigger;
 			this.evictor = evictor;
 		}
@@ -288,7 +288,7 @@ public class JoinedStreams<T1, T2> {
 
 		}
 	}
-
+	
 	// ------------------------------------------------------------------------
 	//  Implementation of the functions
 	// ------------------------------------------------------------------------

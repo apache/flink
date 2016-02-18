@@ -18,7 +18,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -40,7 +44,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 
 import static java.util.Objects.requireNonNull;
 
@@ -129,17 +138,17 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	public StreamJoinOperator(JoinFunction<IN1, IN2, OUT> userFunction,
 					KeySelector<IN1, K> keySelector1,
 					KeySelector<IN2, K> keySelector2,
-				    TypeSerializer<K> keySerializer,
-				    WindowAssigner<Object, TimeWindow> windowAssigner1,
-				    TypeSerializer<TimeWindow> windowSerializer1,
-				    long windowSize1,
-				    WindowAssigner<Object, TimeWindow> windowAssigner2,
-				    TypeSerializer<TimeWindow> windowSerializer2,
-				    long windowSize2,
-				    StateDescriptor<? extends ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>>, ?> windowStateDescriptor,
+					TypeSerializer<K> keySerializer,
+					WindowAssigner<Object, TimeWindow> windowAssigner1,
+					TypeSerializer<TimeWindow> windowSerializer1,
+					long windowSize1,
+					WindowAssigner<Object, TimeWindow> windowAssigner2,
+					TypeSerializer<TimeWindow> windowSerializer2,
+					long windowSize2,
+					StateDescriptor<? extends ListState<CoGroupedStreams.TaggedUnion<IN1, IN2>>, ?> windowStateDescriptor,
 					TypeSerializer<IN1> inputSerializer1,
 					TypeSerializer<IN2> inputSerializer2,
-				    Trigger<Object, TimeWindow> trigger) {
+					Trigger<Object, TimeWindow> trigger) {
 		super(userFunction);
 		this.keySelector1 = requireNonNull(keySelector1);
 		this.keySelector2 = requireNonNull(keySelector2);
@@ -388,9 +397,7 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		}
 
 		@Override
-		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-																	   Class<S> stateType,
-																	   S defaultState) {
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 			requireNonNull(stateType, "The state type class must not be null");
 
 			TypeInformation<S> typeInfo;
@@ -407,9 +414,7 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		}
 
 		@Override
-		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-																	   TypeInformation<S> stateType,
-																	   S defaultState) {
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 
 			requireNonNull(name, "The name of the state must not be null");
 			requireNonNull(stateType, "The state type information must not be null");
