@@ -101,7 +101,7 @@ public class IterateExample {
 
 		// emit results
 		if (params.has("output")) {
-			numbers.writeAsText(params.get("output"), 1);
+			numbers.writeAsText(params.get("output"));
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			numbers.print();

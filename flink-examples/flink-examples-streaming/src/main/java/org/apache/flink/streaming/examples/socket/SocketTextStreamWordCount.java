@@ -75,7 +75,7 @@ public class SocketTextStreamWordCount {
 						.sum(1);
 
 		if (params.has("output")) {
-			counts.writeAsText(params.get("output"), 1);
+			counts.writeAsText(params.get("output"));
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();

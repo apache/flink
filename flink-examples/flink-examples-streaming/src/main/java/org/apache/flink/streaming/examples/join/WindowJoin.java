@@ -89,7 +89,7 @@ public class WindowJoin {
 
 		// emit result
 		if (params.has("output")) {
-			joinedStream.writeAsText(params.get("output"), 1);
+			joinedStream.writeAsText(params.get("output"));
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			joinedStream.print();

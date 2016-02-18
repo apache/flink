@@ -79,7 +79,7 @@ public class IncrementalLearningSkeleton {
 
 		// emit result
 		if (params.has("output")) {
-			prediction.writeAsText(params.get("output"), 1);
+			prediction.writeAsText(params.get("output"));
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			prediction.print();
