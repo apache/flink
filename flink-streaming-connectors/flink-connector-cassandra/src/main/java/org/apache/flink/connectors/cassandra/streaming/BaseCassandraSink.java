@@ -53,6 +53,9 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 	protected transient FutureCallback<V> callback;
 
 	public BaseCassandraSink(String createQuery){
+		if(createQuery.isEmpty()){
+			throw new IllegalArgumentException("createQuery cannot be empty");
+		}
 		this.createQuery = createQuery;
 	}
 	
