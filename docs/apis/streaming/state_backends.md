@@ -38,8 +38,13 @@ chosen **State Backend**.
 
 ## Available State Backends
 
-Out of the box, Flink bundles two state backends: *MemoryStateBacked* and *FsStateBackend*. If nothing else is configured,
-the system will use the MemoryStateBacked.
+Out of the box, Flink bundles these state backends:
+
+ - *MemoryStateBacked*
+ - *FsStateBackend*
+ - *RocksDBStateBackend*
+
+If nothing else is configured, the system will use the MemoryStateBacked.
 
 
 ### The MemoryStateBackend
@@ -64,15 +69,48 @@ The MemoryStateBackend is encouraged for:
 
 ### The FsStateBackend
 
-The *FsStateBackend* (FileSystemStateBackend) is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+The *FsStateBackend* is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
 
-The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpoints, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
 The FsStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
   - All high-availability setups.
 
+### The RocksDBStateBackend
+
+The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+
+The RocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) data base
+that is (per default) stored in the TaskManager data directories. Upon checkpointing, the whole
+RocksDB data base will be checkpointed into the configured file system and directory. Minimal
+metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+
+The RocksDBStateBackend is encouraged for:
+
+  - Jobs with very large state, long windows, large key/value states.
+  - All high-availability setups.
+
+Note that the amount of state that you can keep is only limited by the amount of disc space available.
+This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
+This also means, however, that the maximum throughput that can be achieved will be lower with
+this state backend.
+
+**NOTE:** To use the RocksDBStateBackend you also have to add the correct maven dependency to your
+project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+The backend is currently not part of the binary distribution. See
+[here]({{ site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
+for an explanation of how to include it for cluster execution.
 
 ## Configuring a State Backend
 

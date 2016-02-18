@@ -603,14 +603,3 @@ arguments that will be fed to the script.
 {% endhighlight %}
 
 {% top %}
-
-Debugging
----------------
-
-If you are running Flink programs locally, you can debug your program following this guide.
-First you have to enable debugging by setting the debug switch in the `env.execute(debug=True)` call. After
-submitting your program, open the jobmanager log file, and look for a line that says
-`Waiting for external Process : <taskname>. Run python /tmp/flink/executor.py <port>` Now open `/tmp/flink` in your python
-IDE and run the `executor.py <port>`.
-
-{% top %}

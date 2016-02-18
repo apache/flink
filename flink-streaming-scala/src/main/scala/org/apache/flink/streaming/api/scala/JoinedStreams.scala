@@ -30,8 +30,6 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
-import scala.reflect.ClassTag
-
 /**
  * `JoinedStreams` represents two [[DataStream]]s that have been joined.
  * A streaming join operation is evaluated over elements in a window.
@@ -233,7 +231,7 @@ object JoinedStreams {
      * Completes the join operation with the user function that is executed
      * for windowed groups.
      */
-    def apply[O: TypeInformation: ClassTag](fun: (T1, T2) => O): DataStream[O] = {
+    def apply[O: TypeInformation](fun: (T1, T2) => O): DataStream[O] = {
       require(fun != null, "Join function must not be null.")
 
       val joiner = new FlatJoinFunction[T1, T2, O] {
@@ -249,7 +247,7 @@ object JoinedStreams {
      * Completes the join operation with the user function that is executed
      * for windowed groups.
      */
-    def apply[O: TypeInformation: ClassTag](fun: (T1, T2, Collector[O]) => Unit): DataStream[O] = {
+    def apply[O: TypeInformation](fun: (T1, T2, Collector[O]) => Unit): DataStream[O] = {
       require(fun != null, "Join function must not be null.")
 
       val joiner = new FlatJoinFunction[T1, T2, O] {
@@ -269,13 +267,13 @@ object JoinedStreams {
 
       val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-      join
+      asScalaStream(join
         .where(keySelector1)
         .equalTo(keySelector2)
         .window(windowAssigner)
         .trigger(trigger)
         .evictor(evictor)
-        .apply(clean(function), implicitly[TypeInformation[T]])
+        .apply(clean(function), implicitly[TypeInformation[T]]))
     }
 
     /**
@@ -286,13 +284,13 @@ object JoinedStreams {
 
       val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-      join
+      asScalaStream(join
         .where(keySelector1)
         .equalTo(keySelector2)
         .window(windowAssigner)
         .trigger(trigger)
         .evictor(evictor)
-        .apply(clean(function), implicitly[TypeInformation[T]])
+        .apply(clean(function), implicitly[TypeInformation[T]]))
     }
 
     /**

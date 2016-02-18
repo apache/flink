@@ -20,7 +20,7 @@ package org.apache.flink.streaming.examples.ml;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -50,8 +50,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class IncrementalLearningSkeleton {
 
-	private static DataStream<Integer> trainingData = null;
-	private static DataStream<Integer> newData = null;
 
 	// *************************************************************************
 	// PROGRAM
@@ -66,12 +64,12 @@ public class IncrementalLearningSkeleton {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		trainingData = env.addSource(new FiniteTrainingDataSource());
-		newData = env.addSource(new FiniteNewDataSource());
+		DataStream<Integer> trainingData = env.addSource(new FiniteTrainingDataSource());
+		DataStream<Integer> newData = env.addSource(new FiniteNewDataSource());
 
 		// build new model on every second of new data
 		DataStream<Double[]> model = trainingData
-				.assignTimestamps(new LinearTimestamp())
+				.assignTimestampsAndWatermarks(new LinearTimestamp())
 				.timeWindowAll(Time.of(5000, TimeUnit.MILLISECONDS))
 				.apply(new PartialModelBuilder());
 
@@ -80,7 +78,7 @@ public class IncrementalLearningSkeleton {
 
 		// emit result
 		if (fileOutput) {
-			prediction.writeAsText(outputPath, 1);
+			prediction.writeAsText(outputPath);
 		} else {
 			prediction.print();
 		}
@@ -147,26 +145,20 @@ public class IncrementalLearningSkeleton {
 		}
 	}
 
-	public static class LinearTimestamp implements TimestampExtractor<Integer> {
+	public static class LinearTimestamp implements AssignerWithPunctuatedWatermarks<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private long counter = 0L;
 
 		@Override
-		public long extractTimestamp(Integer element, long currentTimestamp) {
+		public long extractTimestamp(Integer element, long previousElementTimestamp) {
 			return counter += 10L;
 		}
 
 		@Override
-		public long extractWatermark(Integer element, long currentTimestamp) {
+		public long checkAndGetNextWatermark(Integer lastElement, long extractedTimestamp) {
 			return counter - 1;
 		}
-
-		@Override
-		public long getCurrentWatermark() {
-			return Long.MIN_VALUE;
-		}
-
 	}
 
 	/**

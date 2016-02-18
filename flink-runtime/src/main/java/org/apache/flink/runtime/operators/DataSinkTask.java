@@ -114,7 +114,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 		ExecutionConfig executionConfig;
 		try {
-			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+			ExecutionConfig c = InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY,
 					getUserCodeClassLoader());
@@ -130,7 +130,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 		
 		try {
-			
 			// initialize local strategies
 			MutableObjectIterator<IT> input1;
 			switch (this.config.getInputLocalStrategy(0)) {

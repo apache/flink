@@ -53,7 +53,7 @@ public class SavepointStoreFactoryTest {
 		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
 		assertTrue(store.getStateStore() instanceof FileSystemStateStore);
 
-		FileSystemStateStore<Savepoint> stateStore = (FileSystemStateStore<Savepoint>)
+		FileSystemStateStore<CompletedCheckpoint> stateStore = (FileSystemStateStore<CompletedCheckpoint>)
 				store.getStateStore();
 		assertEquals(new Path(rootPath), stateStore.getRootPath());
 	}

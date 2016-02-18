@@ -187,8 +187,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	@Override
 	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
 		if (userFunction instanceof OutputTypeConfigurable) {
+			@SuppressWarnings("unchecked")
 			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) userFunction;
-
 			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
 		}
 	}

@@ -58,7 +58,7 @@ public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 
 	@Test
 	public void testPathMillis() throws Exception {
-		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, 1);
+		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath);
 	}
 
 	@Test
@@ -68,12 +68,12 @@ public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 
 	@Test
 	public void testPathWriteModeMillis() throws Exception {
-		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
+		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 	}
 
 	@Test
 	public void testPathWriteModeMillisDelimiter() throws Exception {
-		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1, "\n", ",");
+		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, "\n", ",");
 	}
 
 	@Test
@@ -91,7 +91,7 @@ public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 	public void failPathWriteModeMillis() throws Exception {
 		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath);
 		try {
-			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
+			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 			fail("File should exist");
 		} catch (Exception e) {
 			assertTrue(e.getCause().getMessage().contains("File already exists"));
@@ -102,7 +102,7 @@ public class CsvOutputFormatITCase extends StreamingMultipleProgramsTestBase  {
 	public void failPathWriteModeMillisDelimiter() throws Exception {
 		OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath);
 		try {
-			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1, "\n", ",");
+			OutputFormatTestPrograms.wordCountToCsv(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, "\n", ",");
 			fail("File should exist.");
 		} catch (Exception e) {
 			assertTrue(e.getCause().getMessage().contains("File already exists"));

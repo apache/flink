@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -34,8 +33,8 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.SavepointCoordinator;
 import org.apache.flink.runtime.checkpoint.StateStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
@@ -130,11 +129,6 @@ public class ExecutionGraph implements Serializable {
 	/** The lock used to secure all access to mutable fields, especially the tracking of progress
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
-
-	/** The ID of the application this graph has been built for. This is
-	 * generated when the graph is created and reset if necessary (currently
-	 * only after {@link #restoreSavepoint(String)}). */
-	private ApplicationID appId = new ApplicationID();
 
 	/** The ID of the job this graph has been built for. */
 	private final JobID jobID;
@@ -359,7 +353,7 @@ public class ExecutionGraph implements Serializable {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			RecoveryMode recoveryMode,
-			StateStore<Savepoint> savepointStore) throws Exception {
+			StateStore<CompletedCheckpoint> savepointStore) throws Exception {
 
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
@@ -414,7 +408,6 @@ public class ExecutionGraph implements Serializable {
 
 		// Savepoint Coordinator
 		savepointCoordinator = new SavepointCoordinator(
-				appId,
 				jobID,
 				interval,
 				checkpointTimeout,
@@ -523,10 +516,6 @@ public class ExecutionGraph implements Serializable {
 
 	public Scheduler getScheduler() {
 		return scheduler;
-	}
-
-	public ApplicationID getApplicationID() {
-		return appId;
 	}
 
 	public JobID getJobID() {
@@ -916,9 +905,6 @@ public class ExecutionGraph implements Serializable {
 	 * this method. The operation might block. Make sure that calls don't block the job manager
 	 * actor.
 	 *
-	 * <p><strong>Note</strong>: a call to this method changes the {@link #appId} of the execution
-	 * graph if the operation is successful.
-	 *
 	 * @param savepointPath The path of the savepoint to rollback to.
 	 * @throws IllegalStateException If checkpointing is disabled
 	 * @throws IllegalStateException If checkpoint coordinator is shut down
@@ -929,11 +915,8 @@ public class ExecutionGraph implements Serializable {
 			if (savepointCoordinator != null) {
 				LOG.info("Restoring savepoint: " + savepointPath + ".");
 
-				ApplicationID oldAppId = appId;
-				this.appId = savepointCoordinator.restoreSavepoint(
+				savepointCoordinator.restoreSavepoint(
 						getAllVertices(), savepointPath);
-
-				LOG.info("Set application ID to {} (from: {}).", appId, oldAppId);
 			}
 			else {
 				// Sanity check

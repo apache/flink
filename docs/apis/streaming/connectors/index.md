@@ -4,7 +4,7 @@ title: "Streaming Connectors"
 # Sub-level navigation
 sub-nav-group: streaming
 sub-nav-id: connectors
-sub-nav-pos: 2
+sub-nav-pos: 3
 sub-nav-title: Connectors
 ---
 <!--

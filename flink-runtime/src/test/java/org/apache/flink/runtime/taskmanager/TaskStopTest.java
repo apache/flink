@@ -17,9 +17,6 @@
  */
 package org.apache.flink.runtime.taskmanager;
 
-import java.lang.reflect.Field;
-
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -40,8 +37,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
 import scala.concurrent.duration.FiniteDuration;
+
+import java.lang.reflect.Field;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -57,7 +56,6 @@ public class TaskStopTest {
 
 		TaskDeploymentDescriptor tddMock = mock(TaskDeploymentDescriptor.class);
 		when(tddMock.getTaskInfo()).thenReturn(taskInfoMock);
-		when(tddMock.getApplicationID()).thenReturn(new ApplicationID());
 		when(tddMock.getJobID()).thenReturn(mock(JobID.class));
 		when(tddMock.getVertexID()).thenReturn(mock(JobVertexID.class));
 		when(tddMock.getExecutionId()).thenReturn(mock(ExecutionAttemptID.class));

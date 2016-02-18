@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -30,17 +29,20 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * from user elements and assigning them as the internal timestamp of the {@link StreamRecord}.
  *
  * @param <T> The type of the input elements
+ * 
+ * @deprecated Subsumed by {@link TimestampsAndPeriodicWatermarksOperator} and
+ *             {@link TimestampsAndPunctuatedWatermarksOperator}.
  */
-@Internal
+@Deprecated
 public class ExtractTimestampsOperator<T>
 		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
 		implements OneInputStreamOperator<T, T>, Triggerable {
 
 	private static final long serialVersionUID = 1L;
 
-	transient long watermarkInterval;
+	private transient long watermarkInterval;
 
-	transient long currentWatermark;
+	private transient long currentWatermark;
 
 	public ExtractTimestampsOperator(TimestampExtractor<T> extractor) {
 		super(extractor);
@@ -55,7 +57,7 @@ public class ExtractTimestampsOperator<T>
 			registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		}
 
-		currentWatermark = Long.MIN_VALUE;
+		currentWatermark = -1L;
 	}
 
 	@Override

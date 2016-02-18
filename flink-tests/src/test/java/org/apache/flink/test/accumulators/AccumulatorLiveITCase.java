@@ -173,7 +173,7 @@ public class AccumulatorLiveITCase {
 		DataStream<String> input = env.fromCollection(inputData);
 		input
 				.flatMap(new NotifyingMapper())
-				.write(new NotifyingOutputFormat(), 1000).disableChaining();
+				.writeUsingOutputFormat(new NotifyingOutputFormat()).disableChaining();
 
 
 		jobGraph = env.getStreamGraph().getJobGraph();

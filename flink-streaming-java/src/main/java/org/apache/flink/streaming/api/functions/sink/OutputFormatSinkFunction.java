@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import java.io.IOException;
-import java.util.ArrayList;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -34,28 +33,21 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Simple implementation of the SinkFunction writing tuples in the specified
- * OutputFormat format. Tuples are collected to a list and written to the file
- * periodically. The target path and the overwrite mode are pre-packaged in
- * format.
+ * OutputFormat format.
  * 
- * @param <IN>
- *            Input type
+ * @param <IN> Input type
  */
 @PublicEvolving
-public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> implements
-	InputTypeConfigurable {
+public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implements InputTypeConfigurable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(FileSinkFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(OutputFormatSinkFunction.class);
 	
-	protected ArrayList<IN> tupleList = new ArrayList<IN>();
-	protected volatile OutputFormat<IN> format;
-	protected volatile boolean cleanupCalled = false;
-	protected int indexInSubtaskGroup;
-	protected int currentNumberOfSubtasks;
+	private OutputFormat<IN> format;
+	private boolean cleanupCalled = false;
 
-	public FileSinkFunction(OutputFormat<IN> format) {
+	public OutputFormatSinkFunction(OutputFormat<IN> format) {
 		this.format = format;
 	}
 
@@ -63,8 +55,8 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> implemen
 	public void open(Configuration parameters) throws Exception {
 		RuntimeContext context = getRuntimeContext();
 		format.configure(parameters);
-		indexInSubtaskGroup = context.getIndexOfThisSubtask();
-		currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
+		int indexInSubtaskGroup = context.getIndexOfThisSubtask();
+		int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
 		format.open(indexInSubtaskGroup, currentNumberOfSubtasks);
 	}
 
@@ -78,66 +70,33 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> implemen
 
 	@Override
 	public void invoke(IN record) throws Exception {
-		tupleList.add(record);
-		if (updateCondition()) {
-			flush();
+		try {
+			format.writeRecord(record);
+		} catch (Exception ex) {
+			cleanup();
+			throw ex;
 		}
 	}
 
 	@Override
 	public void close() throws IOException {
-		if (!tupleList.isEmpty()) {
-			flush();
-		}
 		try {
 			format.close();
 		} catch (Exception ex) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Error while writing element.", ex);
-			}
-			try {
-				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
-					cleanupCalled = true;
-					((CleanupWhenUnsuccessful) format).tryCleanupOnError();
-				}
-			} catch (Throwable t) {
-				LOG.error("Cleanup on error failed.", t);
-			}
+			cleanup();
+			throw ex;
 		}
 	}
 
-	protected void flush() {
+	private void cleanup() {
 		try {
-			for (IN rec : tupleList) {
-				format.writeRecord(rec);
+			if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
+				cleanupCalled = true;
+				((CleanupWhenUnsuccessful) format).tryCleanupOnError();
 			}
-		} catch (Exception ex) {
-			try {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Error while writing element.", ex);
-				}
-				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
-					cleanupCalled = true;
-					((CleanupWhenUnsuccessful) format).tryCleanupOnError();
-				}
-			} catch (Throwable t) {
-				LOG.error("Cleanup on error failed.", t);
-			}
-			throw new RuntimeException(ex);
+		} catch (Throwable t) {
+			LOG.error("Cleanup on error failed.", t);
 		}
-		resetParameters();
 	}
-
-	/**
-	 * Condition for writing the contents of tupleList and clearing it.
-	 * 
-	 * @return value of the updating condition
-	 */
-	protected abstract boolean updateCondition();
-
-	/**
-	 * Statements to be executed after writing a batch goes here.
-	 */
-	protected abstract void resetParameters();
 
 }

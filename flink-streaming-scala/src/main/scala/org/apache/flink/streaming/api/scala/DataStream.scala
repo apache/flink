@@ -30,7 +30,7 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
@@ -38,7 +38,6 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 @Public
 class DataStream[T](stream: JavaStream[T]) {
@@ -49,10 +48,10 @@ class DataStream[T](stream: JavaStream[T]) {
   def javaStream: JavaStream[T] = stream
 
   /**
-    * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
- *
-    * @return associated execution environment
-    */
+   * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
+   *
+   * @return associated execution environment
+   */
   def getExecutionEnvironment: StreamExecutionEnvironment =
     new StreamExecutionEnvironment(stream.getExecutionEnvironment)
 
@@ -112,7 +111,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @return The named operator
    */
   def name(name: String) : DataStream[T] = stream match {
-    case stream : SingleOutputStreamOperator[T,_] => stream.name(name)
+    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.name(name))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -131,7 +130,7 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def uid(uid: String) : DataStream[T] = javaStream match {
-    case stream : SingleOutputStreamOperator[T,_] => stream.uid(uid)
+    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -231,7 +230,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   def union(dataStreams: DataStream[T]*): DataStream[T] =
-    stream.union(dataStreams.map(_.javaStream): _*)
+    asScalaStream(stream.union(dataStreams.map(_.javaStream): _*))
 
   /**
    * Creates a new ConnectedStreams by connecting
@@ -239,20 +238,20 @@ class DataStream[T](stream: JavaStream[T]) {
    * DataStreams connected using this operators can be used with CoFunctions.
    */
   def connect[T2](dataStream: DataStream[T2]): ConnectedStreams[T, T2] =
-    stream.connect(dataStream.javaStream)
+    asScalaStream(stream.connect(dataStream.javaStream))
 
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = stream.keyBy(fields: _*)
+  def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = asScalaStream(stream.keyBy(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
   def keyBy(firstField: String, otherFields: String*): KeyedStream[T, JavaTuple] =
-   stream.keyBy(firstField +: otherFields.toArray: _*)
+    asScalaStream(stream.keyBy(firstField +: otherFields.toArray: _*))
 
   /**
    * Groups the elements of a DataStream by the given K key to
@@ -267,34 +266,7 @@ class DataStream[T](stream: JavaStream[T]) {
       def getKey(in: T) = cleanFun(in)
       override def getProducedType: TypeInformation[K] = keyType
     }
-    new JavaKeyedStream(stream, keyExtractor, keyType)
-  }
-
-  /**
-   * Partitions the elements of a DataStream by the given key positions (for tuple/array types) to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash(fields: Int*): DataStream[T] = stream.partitionByHash(fields: _*)
-
-  /**
-   * Groups the elements of a DataStream by the given field expressions to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash(firstField: String, otherFields: String*): DataStream[T] =
-    stream.partitionByHash(firstField +: otherFields.toArray: _*)
-
-  /**
-   * Groups the elements of a DataStream by the given K key to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def partitionByHash[K: TypeInformation](fun: T => K): DataStream[T] = {
-
-    val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
-      def getKey(in: T) = cleanFun(in)
-      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
-    }
-    stream.partitionByHash(keyExtractor)
+    asScalaStream(new JavaKeyedStream(stream, keyExtractor, keyType))
   }
 
   /**
@@ -305,7 +277,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
-    stream.partitionCustom(partitioner, field)
+    asScalaStream(stream.partitionCustom(partitioner, field))
 
   /**
    * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
@@ -315,7 +287,8 @@ class DataStream[T](stream: JavaStream[T]) {
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
-  : DataStream[T] = stream.partitionCustom(partitioner, field)
+        : DataStream[T] =
+    asScalaStream(stream.partitionCustom(partitioner, field))
 
   /**
    * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
@@ -326,20 +299,24 @@ class DataStream[T](stream: JavaStream[T]) {
    * of fields.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
-  : DataStream[T] = {
+      : DataStream[T] = {
+    
+    val keyType = implicitly[TypeInformation[K]]
     val cleanFun = clean(fun)
+    
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
-      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
+      override def getProducedType(): TypeInformation[K] = keyType
     }
-    stream.partitionCustom(partitioner, keyExtractor)
+
+    asScalaStream(stream.partitionCustom(partitioner, keyExtractor))
   }
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are broad casted to every parallel instance of the next component.
    */
-  def broadcast: DataStream[T] = stream.broadcast()
+  def broadcast: DataStream[T] = asScalaStream(stream.broadcast())
 
   /**
    * Sets the partitioning of the DataStream so that the output values all go to
@@ -347,27 +324,27 @@ class DataStream[T](stream: JavaStream[T]) {
    * since it might cause a serious performance bottleneck in the application.
    */
   @PublicEvolving
-  def global: DataStream[T] = stream.global()
+  def global: DataStream[T] = asScalaStream(stream.global())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are shuffled to the next component.
    */
   @PublicEvolving
-  def shuffle: DataStream[T] = stream.shuffle()
+  def shuffle: DataStream[T] = asScalaStream(stream.shuffle())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are forwarded to the local subtask of the next component (whenever
    * possible).
    */
-  def forward: DataStream[T] = stream.forward()
+  def forward: DataStream[T] = asScalaStream(stream.forward())
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are distributed evenly to the next component.
    */
-  def rebalance: DataStream[T] = stream.rebalance()
+  def rebalance: DataStream[T] = asScalaStream(stream.rebalance())
 
   /**
    * Sets the partitioning of the [[DataStream]] so that the output tuples
@@ -387,7 +364,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * downstream operations will have a differing number of inputs from upstream operations.
    */
   @PublicEvolving
-  def rescale: DataStream[T] = stream.rescale()
+  def rescale: DataStream[T] = asScalaStream(stream.rescale())
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
@@ -440,13 +417,16 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   @PublicEvolving
-  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedStreams[T, F] =>
-    (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
+  def iterate[R, F: TypeInformation](
+        stepFunction: ConnectedStreams[T, F] => (DataStream[F], DataStream[R]),
+        maxWaitTimeMillis:Long): DataStream[R] = {
+    
     val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
+    
     val connectedIterativeStream = stream.iterate(maxWaitTimeMillis).
                                    withFeedbackType(feedbackType)
 
-    val (feedback, output) = stepFunction(connectedIterativeStream)
+    val (feedback, output) = stepFunction(asScalaStream(connectedIterativeStream))
     connectedIterativeStream.closeWith(feedback.javaStream)
     output
   }
@@ -454,7 +434,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
    */
-  def map[R: TypeInformation: ClassTag](fun: T => R): DataStream[R] = {
+  def map[R: TypeInformation](fun: T => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -469,33 +449,33 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
    */
-  def map[R: TypeInformation: ClassTag](mapper: MapFunction[T, R]): DataStream[R] = {
+  def map[R: TypeInformation](mapper: MapFunction[T, R]): DataStream[R] = {
     if (mapper == null) {
       throw new NullPointerException("Map function must not be null.")
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(stream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](flatMapper: FlatMapFunction[T, R]): DataStream[R] = {
+  def flatMap[R: TypeInformation](flatMapper: FlatMapFunction[T, R]): DataStream[R] = {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]]
+    asScalaStream(stream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun: (T, Collector[R]) => Unit): DataStream[R] = {
+  def flatMap[R: TypeInformation](fun: (T, Collector[R]) => Unit): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
@@ -510,7 +490,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun: T => TraversableOnce[R]): DataStream[R] = {
+  def flatMap[R: TypeInformation](fun: T => TraversableOnce[R]): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
@@ -528,7 +508,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (filter == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
-    stream.filter(filter)
+    asScalaStream(stream.filter(filter))
   }
 
   /**
@@ -539,10 +519,10 @@ class DataStream[T](stream: JavaStream[T]) {
       throw new NullPointerException("Filter function must not be null.")
     }
     val cleanFun = clean(fun)
-    val filter = new FilterFunction[T] {
+    val filterFun = new FilterFunction[T] {
       def filter(in: T) = cleanFun(in)
     }
-    this.filter(filter)
+    filter(filterFun)
   }
 
   /**
@@ -560,8 +540,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param size The size of the window.
    */
   def timeWindowAll(size: Time): AllWindowedStream[T, TimeWindow] = {
-    val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    windowAll(assigner)
+    new AllWindowedStream(javaStream.timeWindowAll(size))
   }
 
   /**
@@ -579,8 +558,8 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param size The size of the window.
    */
   def timeWindowAll(size: Time, slide: Time): AllWindowedStream[T, TimeWindow] = {
-    val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    windowAll(assigner)
+    new AllWindowedStream(javaStream.timeWindowAll(size, slide))
+
   }
 
   /**
@@ -630,6 +609,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def windowAll[W <: Window](assigner: WindowAssigner[_ >: T, W]): AllWindowedStream[T, W] = {
     new AllWindowedStream[T, W](new JavaAllWindowedStream[T, W](stream, assigner))
   }
+  
   /**
    * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
    * The internal timestamps are, for example, used to to event-time window operations.
@@ -641,21 +621,82 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  @PublicEvolving
+  @deprecated
   def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
-    stream.assignTimestamps(clean(extractor))
+    asScalaStream(stream.assignTimestamps(clean(extractor)))
   }
 
   /**
-   * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
-   * The internal timestamps are, for example, used to to event-time window operations.
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
    *
-   * If you know that the timestamps are strictly increasing you can use an
-   * [[org.apache.flink.streaming.api.functions.AscendingTimestampExtractor]]. Otherwise,
-   * you should provide a [[TimestampExtractor]] that also implements
-   * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
+   * This method creates watermarks periodically (for example every second), based
+   * on the watermarks indicated by the given watermark generator. Even when no new elements
+   * in the stream arrive, the given watermark generator will be periodically checked for
+   * new watermarks. The interval in which watermarks are generated is defined in
+   * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]].
    *
-   * @see org.apache.flink.streaming.api.watermark.Watermark
+   * Use this method for the common cases, where some characteristic over all elements
+   * should generate the watermarks, or where watermarks are simply trailing behind the
+   * wall clock time by a certain amount.
+   *
+   * For cases where watermarks should be created in an irregular fashion, for example
+   * based on certain markers that some element carry, use the
+   * [[AssignerWithPunctuatedWatermarks]].
+   *
+   * @see AssignerWithPeriodicWatermarks
+   * @see AssignerWithPunctuatedWatermarks
+   * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
+   */
+  @PublicEvolving
+  def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]) 
+      : DataStream[T] = {
+
+    asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
+  }
+
+  /**
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
+   *
+   * This method creates watermarks based purely on stream elements. For each element
+   * that is handled via [[AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)]],
+   * the [[AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark()]] method is called,
+   * and a new watermark is emitted, if the returned watermark value is larger than the previous
+   * watermark.
+   *
+   * This method is useful when the data stream embeds watermark elements, or certain elements
+   * carry a marker that can be used to determine the current event time watermark. 
+   * This operation gives the programmer full control over the watermark generation. Users
+   * should be aware that too aggressive watermark generation (i.e., generating hundreds of
+   * watermarks every second) can cost some performance.
+   *
+   * For cases where watermarks should be created in a regular fashion, for example
+   * every x milliseconds, use the [[AssignerWithPeriodicWatermarks]].
+   *
+   * @see AssignerWithPunctuatedWatermarks
+   * @see AssignerWithPeriodicWatermarks
+   * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
+   */
+  @PublicEvolving
+  def assignTimestampsAndWatermarks(assigner: AssignerWithPunctuatedWatermarks[T])
+      : DataStream[T] = {
+
+    asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
+  }
+
+  /**
+   * Assigns timestamps to the elements in the data stream and periodically creates
+   * watermarks to signal event time progress.
+   * 
+   * This method is a shortcut for data streams where the element timestamp are known
+   * to be monotonously ascending within each parallel stream.
+   * In that case, the system can generate watermarks automatically and perfectly
+   * by tracking the ascending timestamps.
+   * 
+   * For cases where the timestamps are not monotonously increasing, use the more
+   * general methods [[assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)]]
+   * and [[assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)]].
    */
   @PublicEvolving
   def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
@@ -665,7 +706,7 @@ class DataStream[T](stream: JavaStream[T]) {
         cleanExtractor(element)
       }
     }
-    stream.assignTimestamps(extractorFunction)
+    asScalaStream(stream.assignTimestampsAndWatermarks(extractorFunction))
   }
 
   /**
@@ -674,7 +715,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
    */
-  def split(selector: OutputSelector[T]): SplitStream[T] = stream.split(selector)
+  def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the
@@ -738,21 +779,9 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def writeAsText(path: String): DataStreamSink[T] =
-    stream.writeAsText(path, 0L)
+    stream.writeAsText(path)
 
-  /**
-   * Writes a DataStream to the file specified by path in text format. The
-   * writing is performed periodically, every millis milliseconds. For
-   * every element of the DataStream the result of .toString
-   * is written.
-   *
-   * @param path The path pointing to the location the text file is written to
-   * @param millis The file update frequency
-   * @return The closed DataStream
-   */
-  @PublicEvolving
-  def writeAsText(path: String, millis: Long): DataStreamSink[T] =
-    stream.writeAsText(path, millis)
+
 
   /**
     * Writes a DataStream to the file specified by path in text format. For
@@ -773,30 +802,6 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-    * Writes a DataStream to the file specified by path in text format. The writing is performed
-    * periodically every millis milliseconds. For every element of the DataStream the result of
-    * .toString is written.
-    *
-    * @param path The path pointing to the location the text file is written to
-    * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
-    *                  OVERWRITE.
-    * @param millis The file update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsText(
-      path: String,
-      writeMode: FileSystem.WriteMode,
-      millis: Long)
-    : DataStreamSink[T] = {
-    if (writeMode != null) {
-      stream.writeAsText(path, writeMode, millis)
-    } else {
-      stream.writeAsText(path, millis)
-    }
-  }
-
-  /**
     * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
     * is performed periodically every millis milliseconds.
     *
@@ -808,25 +813,6 @@ class DataStream[T](stream: JavaStream[T]) {
     writeAsCsv(
       path,
       null,
-      0L,
-      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
-      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
-  }
-
-  /**
-    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
-    * is performed periodically every millis milliseconds.
-    *
-    * @param path Path to the location of the CSV file
-    * @param millis File update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsCsv(path: String, millis: Long): DataStreamSink[T] = {
-    writeAsCsv(
-      path,
-      null,
-      millis,
       ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
   }
@@ -844,7 +830,6 @@ class DataStream[T](stream: JavaStream[T]) {
     writeAsCsv(
       path,
       writeMode,
-      0L,
       ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
   }
@@ -855,26 +840,6 @@ class DataStream[T](stream: JavaStream[T]) {
     *
     * @param path Path to the location of the CSV file
     * @param writeMode Controls whether an existing file is overwritten or not
-    * @param millis File update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsCsv(path: String, writeMode: FileSystem.WriteMode, millis: Long): DataStreamSink[T] = {
-    writeAsCsv(
-      path,
-      writeMode,
-      millis,
-      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
-      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
-  }
-
-  /**
-    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
-    * is performed periodically every millis milliseconds.
-    *
-    * @param path Path to the location of the CSV file
-    * @param writeMode Controls whether an existing file is overwritten or not
-    * @param millis File update frequency
     * @param rowDelimiter Delimiter for consecutive rows
     * @param fieldDelimiter Delimiter for consecutive fields
     * @return The closed DataStream
@@ -883,7 +848,6 @@ class DataStream[T](stream: JavaStream[T]) {
   def writeAsCsv(
       path: String,
       writeMode: FileSystem.WriteMode,
-      millis: Long,
       rowDelimiter: String,
       fieldDelimiter: String)
     : DataStreamSink[T] = {
@@ -892,16 +856,15 @@ class DataStream[T](stream: JavaStream[T]) {
     if (writeMode != null) {
       of.setWriteMode(writeMode)
     }
-    stream.write(of.asInstanceOf[OutputFormat[T]], millis)
+    stream.writeUsingOutputFormat(of.asInstanceOf[OutputFormat[T]])
   }
 
   /**
-   * Writes a DataStream using the given [[OutputFormat]]. The
-   * writing is performed periodically, in every millis milliseconds.
+   * Writes a DataStream using the given [[OutputFormat]].
    */
   @PublicEvolving
-  def write(format: OutputFormat[T], millis: Long): DataStreamSink[T] = {
-    stream.write(format, millis)
+  def writeUsingOutputFormat(format: OutputFormat[T]): DataStreamSink[T] = {
+    stream.writeUsingOutputFormat(format)
   }
 
   /**

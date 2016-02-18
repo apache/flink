@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
+
 import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
@@ -26,17 +27,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.AbstractStateBackend
-import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.types.StringValue
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 import _root_.scala.language.implicitConversions
 
@@ -388,9 +386,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
-    val typeInfo = implicitly[TypeInformation[T]]
-    fromCollection(data)(implicitly[ClassTag[T]], typeInfo)
+  def fromElements[T: TypeInformation](data: T*): DataStream[T] = {
+    fromCollection(data)
   }
 
   /**
@@ -400,11 +397,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromCollection[T: ClassTag: TypeInformation](data: Seq[T]): DataStream[T] = {
+  def fromCollection[T: TypeInformation](data: Seq[T]): DataStream[T] = {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
 
-    javaEnv.fromCollection(scala.collection.JavaConversions.asJavaCollection(data), typeInfo)
+    val collection = scala.collection.JavaConversions.asJavaCollection(data)
+    asScalaStream(javaEnv.fromCollection(collection, typeInfo))
   }
 
   /**
@@ -413,74 +411,44 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromCollection[T: ClassTag : TypeInformation] (data: Iterator[T]): DataStream[T] = {
+  def fromCollection[T: TypeInformation] (data: Iterator[T]): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromCollection(data.asJava, typeInfo)
+    asScalaStream(javaEnv.fromCollection(data.asJava, typeInfo))
   }
 
   /**
    * Creates a DataStream from the given [[SplittableIterator]].
    */
-  def fromParallelCollection[T: ClassTag : TypeInformation] (data: SplittableIterator[T]):
-  DataStream[T] = {
+  def fromParallelCollection[T: TypeInformation] (data: SplittableIterator[T]):
+      DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.fromParallelCollection(data, typeInfo)
+    asScalaStream(javaEnv.fromParallelCollection(data, typeInfo))
   }
 
   /**
    * Creates a DataStream that represents the Strings produced by reading the
    * given file line wise. The file will be read with the system's default
    * character set.
-   *
    */
   def readTextFile(filePath: String): DataStream[String] =
-    javaEnv.readTextFile(filePath)
+    asScalaStream(javaEnv.readTextFile(filePath))
 
   /**
    * Creates a data stream that represents the Strings produced by reading the given file
    * line wise. The character set with the given name will be used to read the files.
    */
   def readTextFile(filePath: String, charsetName: String): DataStream[String] =
-    javaEnv.readTextFile(filePath, charsetName)
+    asScalaStream(javaEnv.readTextFile(filePath, charsetName))
 
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The file will be read with the system's default character set.
-   */
-  def readTextFileWithValue(filePath: String): DataStream[StringValue] =
-      javaEnv.readTextFileWithValue(filePath)
-
-  /**
-   * Creates a data stream that represents the strings produced by reading the given file
-   * line wise. This method is similar to the standard text file reader, but it produces
-   * a data stream with mutable StringValue objects, rather than Java Strings.
-   * StringValues can be used to tune implementations to be less object and garbage
-   * collection heavy. The boolean flag indicates whether to skip lines that cannot
-   * be read with the given character set.
-   */
-  def readTextFileWithValue(filePath: String, charsetName : String, skipInvalidLines : Boolean):
-    DataStream[StringValue] =
-    javaEnv.readTextFileWithValue(filePath, charsetName, skipInvalidLines)
 
   /**
    * Reads the given file with the given input format. The file path should be passed
    * as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
    */
-  def readFile[T: ClassTag : TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
-    DataStream[T] =
-    javaEnv.readFile(inputFormat, filePath)
+  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T], filePath: String):
+        DataStream[T] =
+    asScalaStream(javaEnv.readFile(inputFormat, filePath))
 
-  /**
-   * Creates a data stream that represents the primitive type produced by reading the given file
-   * line wise. The file path should be passed as a URI (e.g., "file:///some/local/file" or
-   * "hdfs://host:port/file/path").
-   */
-  def readFileOfPrimitives[T: ClassTag : TypeInformation](filePath: String,
-    delimiter: String = "\n", typeClass: Class[T]): DataStream[T] =
-    javaEnv.readFileOfPrimitives(filePath, delimiter, typeClass)
 
   /**
    * Creates a DataStream that contains the contents of file created while
@@ -490,9 +458,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * every 100 milliseconds.
    *
    */
-  def readFileStream(StreamPath: String, intervalMillis: Long = 100, watchType: WatchType = 
-    WatchType.ONLY_NEW_FILES): DataStream[String] =
-    javaEnv.readFileStream(StreamPath, intervalMillis, watchType)
+  def readFileStream(StreamPath: String, intervalMillis: Long = 100, 
+                     watchType: WatchType = WatchType.ONLY_NEW_FILES): DataStream[String] =
+    asScalaStream(javaEnv.readFileStream(StreamPath, intervalMillis, watchType))
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
@@ -502,8 +470,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
-    DataStream[String] =
-    javaEnv.socketTextStream(hostname, port)
+        DataStream[String] =
+    asScalaStream(javaEnv.socketTextStream(hostname, port))
 
   /**
    * Generic method to create an input data stream with a specific input format.
@@ -512,8 +480,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
    */
   @PublicEvolving
-  def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
-    javaEnv.createInput(inputFormat)
+  def createInput[T: TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
+    asScalaStream(javaEnv.createInput(inputFormat))
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
@@ -524,19 +492,19 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * To change this afterwards call DataStreamSource.setParallelism(int)
    *
    */
-  def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
+  def addSource[T: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
+    
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.addSource(cleanFun).returns(typeInfo)
+    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
   }
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
    * source functionality.
-   *
    */
-  def addSource[T: ClassTag: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
+  def addSource[T: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = scalaClean(function)
@@ -552,10 +520,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * <p>
+   * 
    * The program execution will be logged and displayed with a generated
    * default name.
-   *
    */
   def execute() = javaEnv.execute()
 
@@ -563,9 +530,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
-   * <p>
-   * The program execution will be logged and displayed with the provided name
-   *
+   * 
+   * The program execution will be logged and displayed with the provided name.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
 
@@ -574,7 +540,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * returns it as a String using a JSON representation of the execution data
    * flow graph. Note that this needs to be called, before the plan is
    * executed.
-   *
    */
   def getExecutionPlan = javaEnv.getExecutionPlan
 

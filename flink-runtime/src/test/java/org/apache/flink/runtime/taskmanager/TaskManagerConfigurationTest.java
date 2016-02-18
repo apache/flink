@@ -21,15 +21,18 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 import scala.Tuple2;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.UnknownHostException;
+import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.net.*;
 
 import static org.junit.Assert.*;
 
@@ -104,6 +107,38 @@ public class TaskManagerConfigurationTest {
 	}
 
 	@Test
+	public void testDefaultFsParameterLoading() {
+		final File tmpDir = getTmpDir();
+		final File confFile =  new File(tmpDir.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + ".yaml");
+
+		try {
+			final URI defaultFS = new URI("otherFS", null, "localhost", 1234, null, null, null);
+
+			final PrintWriter pw1 = new PrintWriter(confFile);
+			pw1.println("fs.default-scheme: "+ defaultFS);
+			pw1.close();
+
+			String filepath = confFile.getAbsolutePath();
+
+			String[] args = new String[]{"--configDir:"+filepath};
+			TaskManager.parseArgsAndLoadConfig(args);
+
+			Field f = FileSystem.class.getDeclaredField("defaultScheme");
+			f.setAccessible(true);
+			URI scheme = (URI) f.get(null);
+
+			assertEquals("Default Filesystem Scheme not configured.", scheme, defaultFS);
+		} catch (FileNotFoundException e) {
+			fail(e.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			confFile.delete();
+			tmpDir.delete();
+		}
+	}
+
+	@Test
 	public void testNetworkInterfaceSelection() {
 		ServerSocket server;
 		String hostname = "localhost";
@@ -145,4 +180,11 @@ public class TaskManagerConfigurationTest {
 		}
 	}
 
+	private File getTmpDir() {
+		File tmpDir = new File(CommonTestUtils.getTempDir() + File.separator
+			+ CommonTestUtils.getRandomDirectoryName() + File.separator);
+		tmpDir.mkdirs();
+
+		return tmpDir;
+	}
 }

@@ -25,10 +25,10 @@ import java.lang.annotation.Target;
 /**
  * Annotation for marking classes as public, stable interfaces.
  *
- * Classes, methods and fields with this annotation are stable across minor releases (1.0, 1.1, 1.2). In other words,
- * applications using @PublicInterface annotated classes will compile against newer versions of the same major release.
+ * <p>Classes, methods and fields with this annotation are stable across minor releases (1.0, 1.1, 1.2). In other words,
+ * applications using @Public annotated classes will compile against newer versions of the same major release.
  *
- * Only major releases (1.0, 2.0, 3.0) can break interfaces with this annotation.
+ * <p>Only major releases (1.0, 2.0, 3.0) can break interfaces with this annotation.
  */
 @Documented
 @Target(ElementType.TYPE)

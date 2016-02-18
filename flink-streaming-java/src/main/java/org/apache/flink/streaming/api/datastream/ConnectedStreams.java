@@ -31,10 +31,21 @@ import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
+import static java.util.Objects.requireNonNull;
+
 /**
- * {@code ConnectedStreams} represents two connected streams of (possible) different data types. It
- * can be used to apply transformations such as {@link CoMapFunction} on two
- * {@link DataStream DataStreams}
+ * ConnectedStreams represent two connected streams of (possibly) different data types.
+ * Connected streams are useful for cases where operations on one stream directly
+ * affect the operations on the other stream, usually via shared state between the streams.
+ *
+ * <p>An example for the use of connected streams would be to apply rules that change over time
+ * onto another stream. One of the connected streams has the rules, the other stream the
+ * elements to apply the rules to. The operation on the connected stream maintains the 
+ * current set of rules in the state. It may receive either a rule update and update the state
+ * or a data element and apply the rules in the state to the element.
+ *
+ * <p>The connected stream can be conceptually viewed as a union stream of an Either type, that
+ * holds either the first stream's type or the second stream's type.
  * 
  * @param <IN1> Type of the first input data steam.
  * @param <IN2> Type of the second input data stream.
@@ -42,20 +53,14 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 @Public
 public class ConnectedStreams<IN1, IN2> {
 
-	protected StreamExecutionEnvironment environment;
-	protected DataStream<IN1> inputStream1;
-	protected DataStream<IN2> inputStream2;
+	protected final StreamExecutionEnvironment environment;
+	protected final DataStream<IN1> inputStream1;
+	protected final DataStream<IN2> inputStream2;
 
-	protected ConnectedStreams(StreamExecutionEnvironment env,
-			DataStream<IN1> input1,
-			DataStream<IN2> input2) {
-		this.environment = env;
-		if (input1 != null) {
-			this.inputStream1 = input1;
-		}
-		if (input2 != null) {
-			this.inputStream2 = input2;
-		}
+	protected ConnectedStreams(StreamExecutionEnvironment env, DataStream<IN1> input1, DataStream<IN2> input2) {
+		this.environment = requireNonNull(env);
+		this.inputStream1 = requireNonNull(input1);
+		this.inputStream2 = requireNonNull(input2);
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -180,89 +185,6 @@ public class ConnectedStreams<IN1, IN2> {
 	public ConnectedStreams<IN1, IN2> keyBy(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
 		return new ConnectedStreams<>(environment, inputStream1.keyBy(keySelector1),
 				inputStream2.keyBy(keySelector2));
-	}
-
-	/**
-	 * PartitionBy operation for connected data stream. Partitions the elements of
-	 * input1 and input2 according to keyPosition1 and keyPosition2.
-	 *
-	 * @param keyPosition1
-	 *            The field used to compute the hashcode of the elements in the
-	 *            first input stream.
-	 * @param keyPosition2
-	 *            The field used to compute the hashcode of the elements in the
-	 *            second input stream.
-	 * @return The partitioned {@link ConnectedStreams}
-	 */
-	public ConnectedStreams<IN1, IN2> partitionByHash(int keyPosition1, int keyPosition2) {
-		return new ConnectedStreams<>(environment, inputStream1.partitionByHash(keyPosition1),
-				inputStream2.partitionByHash(keyPosition2));
-	}
-
-	/**
-	 * PartitionBy operation for connected data stream. Partitions the elements of
-	 * input1 and input2 according to keyPositions1 and keyPositions2.
-	 *
-	 * @param keyPositions1
-	 *            The fields used to group the first input stream.
-	 * @param keyPositions2
-	 *            The fields used to group the second input stream.
-	 * @return The partitioned {@link ConnectedStreams}
-	 */
-	public ConnectedStreams<IN1, IN2> partitionByHash(int[] keyPositions1, int[] keyPositions2) {
-		return new ConnectedStreams<>(environment, inputStream1.partitionByHash(keyPositions1),
-				inputStream2.partitionByHash(keyPositions2));
-	}
-
-	/**
-	 * PartitionBy operation for connected data stream using key expressions. Partitions
-	 * the elements of input1 and input2 according to field1 and field2. A
-	 * field expression is either the name of a public field or a getter method
-	 * with parentheses of the {@link DataStream}s underlying type. A dot can be
-	 * used to drill down into objects, as in {@code "field1.getInnerField2()" }
-	 *
-	 * @param field1
-	 *            The partitioning expressions for the first input
-	 * @param field2
-	 *            The partitioning expressions for the second input
-	 * @return The partitioned {@link ConnectedStreams}
-	 */
-	public ConnectedStreams<IN1, IN2> partitionByHash(String field1, String field2) {
-		return new ConnectedStreams<>(environment, inputStream1.partitionByHash(field1),
-				inputStream2.partitionByHash(field2));
-	}
-
-	/**
-	 * PartitionBy operation for connected data stream using key expressions. Partitions
-	 * the elements of input1 and input2 according to fields1 and fields2. A
-	 * field expression is either the name of a public field or a getter method
-	 * with parentheses of the {@link DataStream}s underlying type. A dot can be
-	 * used to drill down into objects, as in {@code "field1.getInnerField2()" }
-	 *
-	 * @param fields1
-	 *            The partitioning expressions for the first input
-	 * @param fields2
-	 *            The partitioning expressions for the second input
-	 * @return The partitioned {@link ConnectedStreams}
-	 */
-	public ConnectedStreams<IN1, IN2> partitionByHash(String[] fields1, String[] fields2) {
-		return new ConnectedStreams<>(environment, inputStream1.partitionByHash(fields1),
-				inputStream2.partitionByHash(fields2));
-	}
-
-	/**
-	 * PartitionBy operation for connected data stream. Partitions the elements of
-	 * input1 and input2 using keySelector1 and keySelector2.
-	 *
-	 * @param keySelector1
-	 *            The {@link KeySelector} used for partitioning the first input
-	 * @param keySelector2
-	 *            The {@link KeySelector} used for partitioning the second input
-	 * @return @return The partitioned {@link ConnectedStreams}
-	 */
-	public ConnectedStreams<IN1, IN2> partitionByHash(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
-		return new ConnectedStreams<>(environment, inputStream1.partitionByHash(keySelector1),
-				inputStream2.partitionByHash(keySelector2));
 	}
 
 	/**

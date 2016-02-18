@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import com.google.common.collect.Maps;
 
-import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -627,7 +626,7 @@ public class TaskTest {
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {
 		return new TaskDeploymentDescriptor(
-				new ApplicationID(), new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
 				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				invokable.getName(),
