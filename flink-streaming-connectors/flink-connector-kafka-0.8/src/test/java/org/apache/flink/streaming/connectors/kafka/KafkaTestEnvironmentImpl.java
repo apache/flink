@@ -42,7 +42,9 @@ import org.slf4j.LoggerFactory;
 import scala.collection.Seq;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.BindException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -135,10 +137,18 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 		tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
-		assertTrue("cannot create zookeeper temp dir", tmpZkDir.mkdirs());
+		try {
+			Files.createDirectories(tmpZkDir.toPath());
+		} catch (IOException e) {
+			fail("cannot create zookeeper temp dir: " + e.getMessage());
+		}
 
-		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir*" + (UUID.randomUUID().toString()));
-		assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
+		tmpKafkaParent = new File(tempDir, "kafkaITcase-kafka-dir" + (UUID.randomUUID().toString()));
+		try {
+			Files.createDirectories(tmpKafkaParent.toPath());
+		} catch (IOException e) {
+			fail("cannot create kafka temp dir: " + e.getMessage());
+		}
 
 		tmpKafkaDirs = new ArrayList<>(numKafkaServers);
 		for (int i = 0; i < numKafkaServers; i++) {
@@ -186,12 +196,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public void shutdown() {
-		for (KafkaServer broker : brokers) {
-			if (broker != null) {
-				broker.shutdown();
+		if (brokers != null) {
+			for (KafkaServer broker : brokers) {
+				if (broker != null) {
+					broker.shutdown();
+				}
 			}
+			brokers.clear();
 		}
-		brokers.clear();
 
 		if (zookeeper != null) {
 			try {
