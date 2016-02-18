@@ -40,7 +40,10 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ResultSet;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -198,7 +201,7 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 	@Test(expected = NullPointerException.class)
 	public void clazzNotSet() {
 
-		class Foo implements Serializable{
+		class Foo implements Serializable {
 		}
 		new CassandraMapperSink<Foo>(null) {
 
@@ -260,7 +263,7 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 	//
 
 	@Test
-	public void batch(){
+	public void batch() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -282,14 +285,10 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		try {
-			long count =inputDS.count();
-			Assert.assertEquals(count, 20L);
-			session.execute(DROP_TABLE);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+
+		long count =inputDS.count();
+		Assert.assertEquals(count, 20L);
+		session.execute(DROP_TABLE);
 	}
 
 	@AfterClass
