@@ -40,7 +40,6 @@ import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
  */
 public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
 	private final String host;
-	private final String createQuery;
 	private final String insertQuery;
 
 	private transient Cluster cluster;
@@ -51,10 +50,6 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 	private transient final FutureCallback<ResultSet> callback;
 
 	public CassandraAtLeastOnceSink(String host, String insertQuery, CheckpointCommitter committer, TypeSerializer<IN> serializer) {
-		this(host, null, insertQuery, committer, serializer);
-	}
-
-	public CassandraAtLeastOnceSink(String host, String createQuery, String insertQuery, CheckpointCommitter committer, TypeSerializer<IN> serializer) {
 		super(committer, serializer);
 		if (host == null) {
 			throw new IllegalArgumentException("Host argument must not be null.");
@@ -63,7 +58,6 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 			throw new IllegalArgumentException("Insert query argument must not be null.");
 		}
 		this.host = host;
-		this.createQuery = createQuery;
 		this.insertQuery = insertQuery;
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
@@ -97,9 +91,6 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 		super.open();
 		cluster = Cluster.builder().addContactPoint(host).build();
 		session = cluster.connect();
-		if (createQuery != null) {
-			session.execute(createQuery);
-		}
 		preparedStatement = session.prepare(insertQuery);
 	}
 

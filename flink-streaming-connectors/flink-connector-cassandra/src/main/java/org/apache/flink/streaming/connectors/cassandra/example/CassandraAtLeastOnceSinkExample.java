@@ -72,7 +72,6 @@ public class CassandraAtLeastOnceSinkExample {
 			null,
 			new CassandraAtLeastOnceSink<>(
 				"127.0.0.1",
-				"CREATE TABLE example.values (id text PRIMARY KEY, counter int);",
 				"INSERT INTO example.values (id, counter) VALUES (?, ?);",
 				new CassandraCommitter("127.0.0.1", "example", "checkpoints"),
 				input.getType().createSerializer(env.getConfig())));
