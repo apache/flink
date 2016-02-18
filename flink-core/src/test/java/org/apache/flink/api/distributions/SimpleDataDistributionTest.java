@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
+import org.apache.flink.types.Value;
 import org.apache.flink.types.StringValue;
 
 import org.junit.Assert;
@@ -40,7 +40,7 @@ public class SimpleDataDistributionTest {
 
 		// check correct data distribution
 		try {
-			SimpleDistribution dd = new SimpleDistribution(new Key<?>[] {new IntValue(1), new IntValue(2), new IntValue(3)});
+			SimpleDistribution dd = new SimpleDistribution(new Value[] {new IntValue(1), new IntValue(2), new IntValue(3)});
 			Assert.assertEquals(1, dd.getNumberOfFields());
 		}
 		catch (Throwable t) {
@@ -49,7 +49,7 @@ public class SimpleDataDistributionTest {
 		
 		// check incorrect key types
 		try {
-			new SimpleDistribution(new Key<?>[] {new IntValue(1), new StringValue("ABC"), new IntValue(3)});
+			new SimpleDistribution(new Value[] {new IntValue(1), new StringValue("ABC"), new IntValue(3)});
 			Assert.fail("Data distribution accepts inconsistent key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -57,7 +57,7 @@ public class SimpleDataDistributionTest {
 		
 		// check inconsistent number of keys
 		try {
-			new SimpleDistribution(new Key<?>[][] {{new IntValue(1)}, {new IntValue(2), new IntValue(2)}, {new IntValue(3)}});
+			new SimpleDistribution(new Value[][] {{new IntValue(1)}, {new IntValue(2), new IntValue(2)}, {new IntValue(3)}});
 			Assert.fail("Data distribution accepts inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -69,7 +69,7 @@ public class SimpleDataDistributionTest {
 		
 		// check correct data distribution
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key<?>[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				new Value[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(3), new StringValue("A"), new IntValue(1)}});
 		Assert.assertEquals(3, dd.getNumberOfFields());
@@ -77,7 +77,7 @@ public class SimpleDataDistributionTest {
 		// check inconsistent key types
 		try {
 			new SimpleDistribution( 
-					new Key<?>[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
+					new Value[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
 								{new IntValue(2), new StringValue("B"), new IntValue(1)}});
 			Assert.fail("Data distribution accepts incorrect key types");
 		} catch(IllegalArgumentException iae) {
@@ -87,7 +87,7 @@ public class SimpleDataDistributionTest {
 		// check inconsistent number of keys
 		try {
 			new SimpleDistribution(
-					new Key<?>[][] {{new IntValue(1), new IntValue(2)}, 
+					new Value[][] {{new IntValue(1), new IntValue(2)}, 
 								{new IntValue(2), new IntValue(2)}, 
 								{new IntValue(3)}});
 			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
@@ -101,7 +101,7 @@ public class SimpleDataDistributionTest {
 	public void testWriteRead() {
 		
 		SimpleDistribution ddWrite = new SimpleDistribution(
-				new Key<?>[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				new Value[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("B"), new IntValue(4)},
 							{new IntValue(2), new StringValue("B"), new IntValue(3)},
@@ -132,8 +132,8 @@ public class SimpleDataDistributionTest {
 		
 		// compare written and read distributions
 		for(int i=0;i<6;i++) {
-			Key<?>[] recW = ddWrite.getBucketBoundary(0, 6);
-			Key<?>[] recR = ddWrite.getBucketBoundary(0, 6);
+			Value[] recW = ddWrite.getBucketBoundary(0, 6);
+			Value[] recR = ddWrite.getBucketBoundary(0, 6);
 			
 			Assert.assertEquals(recW[0], recR[0]);
 			Assert.assertEquals(recW[1], recR[1]);
@@ -145,7 +145,7 @@ public class SimpleDataDistributionTest {
 	public void testGetBucketBoundary() {
 		
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key<?>[][] {{new IntValue(1), new StringValue("A")}, 
+				new Value[][] {{new IntValue(1), new StringValue("A")}, 
 							{new IntValue(2), new StringValue("B")}, 
 							{new IntValue(3), new StringValue("C")},
 							{new IntValue(4), new StringValue("D")},
@@ -153,7 +153,7 @@ public class SimpleDataDistributionTest {
 							{new IntValue(6), new StringValue("F")},
 							{new IntValue(7), new StringValue("G")}});
 		
-		Key<?>[] boundRec = dd.getBucketBoundary(0, 8);
+		Value[] boundRec = dd.getBucketBoundary(0, 8);
 		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 1);
 		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("A"));
 		

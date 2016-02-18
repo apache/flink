@@ -22,8 +22,8 @@ package org.apache.flink.runtime.testutils.recordutils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
 
 /**
  * A factory for a {@link TypePairComparator} for {@link Record}. The comparator uses a subset of
@@ -57,8 +57,8 @@ public class RecordPairComparatorFactory implements TypePairComparatorFactory<Re
 		final int[] pos1 = prc1.getKeyPositions();
 		final int[] pos2 = prc2.getKeyPositions();
 		
-		final Class<? extends Key<?>>[] types1 = prc1.getKeyTypes();
-		final Class<? extends Key<?>>[] types2 = prc2.getKeyTypes();
+		final Class<? extends Value>[] types1 = prc1.getKeyTypes();
+		final Class<? extends Value>[] types2 = prc2.getKeyTypes();
 		
 		checkComparators(pos1, pos2, types1, types2);
 		
@@ -78,8 +78,8 @@ public class RecordPairComparatorFactory implements TypePairComparatorFactory<Re
 		final int[] pos1 = prc1.getKeyPositions();
 		final int[] pos2 = prc2.getKeyPositions();
 		
-		final Class<? extends Key<?>>[] types1 = prc1.getKeyTypes();
-		final Class<? extends Key<?>>[] types2 = prc2.getKeyTypes();
+		final Class<? extends Value>[] types1 = prc1.getKeyTypes();
+		final Class<? extends Value>[] types2 = prc2.getKeyTypes();
 		
 		checkComparators(pos1, pos2, types1, types2);
 		
@@ -89,7 +89,7 @@ public class RecordPairComparatorFactory implements TypePairComparatorFactory<Re
 	// --------------------------------------------------------------------------------------------
 
 	private static final void checkComparators(int[] pos1, int[] pos2, 
-							Class<? extends Key<?>>[] types1, Class<? extends Key<?>>[] types2)
+							Class<? extends Value>[] types1, Class<? extends Value>[] types2)
 	{
 		if (pos1.length != pos2.length || types1.length != types2.length) {
 			throw new IllegalArgumentException(

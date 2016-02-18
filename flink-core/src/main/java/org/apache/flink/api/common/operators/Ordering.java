@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.types.Key;
 
 /**
  * This class represents an ordering on a set of fields. It specifies the fields and order direction
@@ -34,7 +33,7 @@ public class Ordering implements Cloneable {
 	
 	protected FieldList indexes = new FieldList();
 	
-	protected final ArrayList<Class<? extends Key<?>>> types = new ArrayList<Class<? extends Key<?>>>();
+	protected final ArrayList<Class<? extends Comparable<?>>> types = new ArrayList<Class<? extends Comparable<?>>>();
 	
 	protected final ArrayList<Order> orders = new ArrayList<Order>();
 
@@ -50,7 +49,7 @@ public class Ordering implements Cloneable {
 	 * @param type
 	 * @param order
 	 */
-	public Ordering(int index, Class<? extends Key<?>> type, Order order) {
+	public Ordering(int index, Class<? extends Comparable<?>> type, Order order) {
 		appendOrdering(index, type, order);
 	}
 	
@@ -63,7 +62,7 @@ public class Ordering implements Cloneable {
 	 * 
 	 * @return This ordering with an additional appended order requirement.
 	 */
-	public Ordering appendOrdering(Integer index, Class<? extends Key<?>> type, Order order) {
+	public Ordering appendOrdering(Integer index, Class<? extends Comparable<?>> type, Order order) {
 		if (index.intValue() < 0) {
 			throw new IllegalArgumentException("The key index must not be negative.");
 		}
@@ -97,7 +96,7 @@ public class Ordering implements Cloneable {
 		return this.indexes.get(index);
 	}
 	
-	public Class<? extends Key<?>> getType(int index) {
+	public Class<? extends Comparable<?>> getType(int index) {
 		if (index < 0 || index >= this.types.size()) {
 			throw new IndexOutOfBoundsException(String.valueOf(index));
 		}
@@ -114,7 +113,7 @@ public class Ordering implements Cloneable {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	public Class<? extends Key<?>>[] getTypes() {
+	public Class<? extends Comparable<?>>[] getTypes() {
 		return this.types.toArray(new Class[this.types.size()]);
 	}
 	
