@@ -91,7 +91,7 @@ public class ExternalProcessRunner {
 
 				final String errorOutput = getErrorOutput().toString();
 				if (!errorOutput.isEmpty()) {
-					throw new Exception(errorOutput);
+					throw new RuntimeException(errorOutput);
 				}
 
 			}
