@@ -245,7 +245,7 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase im
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		session.execute(CREATE_TABLE);
-		DataSet<Tuple2<Long,String>> dataSet = env.fromCollection(collectiongit);
+		DataSet<Tuple2<Long,String>> dataSet = env.fromCollection(collection);
 		dataSet.output(new CassandraOutputFormat<Tuple2<Long,String>>(INSERT_QUERY) {
 
 			@Override
