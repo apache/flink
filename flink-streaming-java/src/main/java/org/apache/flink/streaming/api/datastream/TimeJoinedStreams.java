@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,7 +29,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.StreamJoinOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
@@ -37,11 +37,7 @@ import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -66,19 +62,19 @@ import static java.util.Objects.requireNonNull;
  *** Join base on processing time ***
  * DataStream<T> result = one.join(two)
  *     .where(new MyFirstKeySelector())
- *     .window(Time.of(20, TimeUnit.SECONDS))
+ *     .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS))
  *     .equalTo(new MyFirstKeySelector())
- *     .window(Time.of(5, TimeUnit.SECONDS))
+ *     .window(TumblingTimeWindows.of(Time.of(2, TimeUnit.MILLISECONDS)))
  *     .apply(new MyJoinFunction());
  *
  *** Join base on event time ***
  * DataStream<T> result = one.join(two)
  *     .where(new MyFirstKeySelector())
  *     .assignTimestamps(timestampExtractor1)
- *     .window(Time.of(20, TimeUnit.SECONDS))
+ *     .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS))
  *     .equalTo(new MyFirstKeySelector())
  *     .assignTimestamps(timestampExtractor2)
- *     .window(Time.of(5, TimeUnit.SECONDS))
+ *     .window(TumblingTimeWindows.of(Time.of(2, TimeUnit.MILLISECONDS)))
  *     .apply(new MyJoinFunction());
  * } </pre>
  *
@@ -278,13 +274,9 @@ public class TimeJoinedStreams<T1, T2> {
 
 		/**
 		 * Completes the join operation with the user function that is executed
-		 * for each combination of elements with the same key in a window1.
+		 * for each combination of elements with the same key in a window.
 		 */
 		public <OUT> DataStream<OUT> apply(JoinFunction<T1, T2, OUT> function) {
-			StreamExecutionEnvironment env = getExecutionEnvironment();
-			function = env.clean(function);
-			boolean enableSetProcessingTime = env.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
-
 			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
 					function,
 					JoinFunction.class,
@@ -295,6 +287,18 @@ public class TimeJoinedStreams<T1, T2> {
 					"Join",
 					false);
 
+			return apply(function, resultType);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window1.
+		 */
+		public <OUT> DataStream<OUT> apply(JoinFunction<T1, T2, OUT> function, TypeInformation<OUT> resultType) {
+			StreamExecutionEnvironment env = getExecutionEnvironment();
+			function = env.clean(function);
+			boolean enableSetProcessingTime = env.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
 			CoGroupedStreams.UnionTypeInfo<T1, T2> unionType = new CoGroupedStreams.UnionTypeInfo<>(input1.getType(), input2.getType());
 
 			ListStateDescriptor<CoGroupedStreams.TaggedUnion<T1, T2>> stateDesc = new ListStateDescriptor<>("window-contents",
@@ -302,7 +306,7 @@ public class TimeJoinedStreams<T1, T2> {
 
 			StreamJoinOperator<KEY, T1, T2, OUT> joinOperator
 					= new StreamJoinOperator<>(
-					function,
+					new JoinCoGroupFunction<>(function),
 					keySelector1,
 					keySelector2,
 					keyType.createSerializer(getExecutionEnvironment().getConfig()),
@@ -333,6 +337,71 @@ public class TimeJoinedStreams<T1, T2> {
 			return new DataStream<>(getExecutionEnvironment(), twoInputTransformation);
 		}
 
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window.
+		 */
+		public <OUT> DataStream<OUT> apply(FlatJoinFunction<T1, T2, OUT> function) {
+			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
+					function,
+					JoinFunction.class,
+					true,
+					true,
+					input1.getType(),
+					input2.getType(),
+					"Join",
+					false);
+
+			return apply(function, resultType);
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window1.
+		 */
+		public <OUT> DataStream<OUT> apply(FlatJoinFunction<T1, T2, OUT> function, TypeInformation<OUT> resultType) {
+			StreamExecutionEnvironment env = getExecutionEnvironment();
+			function = env.clean(function);
+			boolean enableSetProcessingTime = env.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
+			CoGroupedStreams.UnionTypeInfo<T1, T2> unionType = new CoGroupedStreams.UnionTypeInfo<>(input1.getType(), input2.getType());
+
+			ListStateDescriptor<CoGroupedStreams.TaggedUnion<T1, T2>> stateDesc = new ListStateDescriptor<>("window-contents",
+					unionType.createSerializer(getExecutionEnvironment().getConfig()));
+
+			StreamJoinOperator<KEY, T1, T2, OUT> joinOperator
+					= new StreamJoinOperator<>(
+					new FlatJoinCoGroupFunction<>(function),
+					keySelector1,
+					keySelector2,
+					keyType.createSerializer(getExecutionEnvironment().getConfig()),
+					windowAssigner1,
+					windowAssigner1.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSize1,
+					windowAssigner2,
+					windowAssigner2.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					windowSize2,
+					stateDesc,
+					input1.getType().createSerializer(getExecutionEnvironment().getConfig()),
+					input2.getType().createSerializer(getExecutionEnvironment().getConfig()),
+					trigger
+			).enableSetProcessingTime(enableSetProcessingTime);
+
+			TwoInputTransformation<T1, T2, OUT> twoInputTransformation
+					= new TwoInputTransformation<>(
+					input1.keyBy(keySelector1).getTransformation(),
+					input2.keyBy(keySelector2).getTransformation(),
+					"Join",
+					joinOperator,
+					resultType,
+					parallelism
+			);
+			twoInputTransformation.setStateKeySelectors(keySelector1, keySelector2);
+			twoInputTransformation.setStateKeyType(keyType);
+
+			return new DataStream<>(getExecutionEnvironment(), twoInputTransformation);
+		}
 	}
 
 
@@ -363,33 +432,25 @@ public class TimeJoinedStreams<T1, T2> {
 		}
 	}
 
-	private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
-			extends WrappingFunction<CoGroupFunction<T1, T2, T>>
-			implements WindowFunction<Iterable<CoGroupedStreams.TaggedUnion<T1, T2>>, T, KEY, W> {
-
+	/**
+	 * CoGroup function that does a nested-loop join to get the join result. (FlatJoin version)
+	 */
+	private static class FlatJoinCoGroupFunction<T1, T2, T>
+			extends WrappingFunction<FlatJoinFunction<T1, T2, T>>
+			implements CoGroupFunction<T1, T2, T> {
 		private static final long serialVersionUID = 1L;
 
-		public CoGroupWindowFunction(CoGroupFunction<T1, T2, T> userFunction) {
-			super(userFunction);
+		public FlatJoinCoGroupFunction(FlatJoinFunction<T1, T2, T> wrappedFunction) {
+			super(wrappedFunction);
 		}
 
 		@Override
-		public void apply(KEY key,
-						W window,
-						Iterable<CoGroupedStreams.TaggedUnion<T1, T2>> values,
-						Collector<T> out) throws Exception {
-
-			List<T1> oneValues = new ArrayList<>();
-			List<T2> twoValues = new ArrayList<>();
-
-			for (CoGroupedStreams.TaggedUnion<T1, T2> val: values) {
-				if (val.isOne()) {
-					oneValues.add(val.getOne());
-				} else {
-					twoValues.add(val.getTwo());
+		public void coGroup(Iterable<T1> first, Iterable<T2> second, Collector<T> out) throws Exception {
+			for (T1 val1: first) {
+				for (T2 val2: second) {
+					wrappedFunction.join(val1, val2, out);
 				}
 			}
-			wrappedFunction.coGroup(oneValues, twoValues, out);
 		}
 	}
 }

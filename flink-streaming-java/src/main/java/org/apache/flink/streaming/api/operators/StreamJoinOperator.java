@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -55,7 +55,7 @@ import static java.util.Objects.requireNonNull;
 
 
 public class StreamJoinOperator<K, IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, JoinFunction<IN1, IN2, OUT>>
+		extends AbstractUdfStreamOperator<OUT, CoGroupFunction<IN1, IN2, OUT>>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> , Triggerable {
 
 	private static final long serialVersionUID = 1L;
@@ -135,7 +135,7 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	protected transient PriorityQueue<Timer<K, TimeWindow>> watermarkTimersQueue;
 
 
-	public StreamJoinOperator(JoinFunction<IN1, IN2, OUT> userFunction,
+	public StreamJoinOperator(CoGroupFunction<IN1, IN2, OUT> userFunction,
 					KeySelector<IN1, K> keySelector1,
 					KeySelector<IN2, K> keySelector2,
 					TypeSerializer<K> keySerializer,
@@ -273,11 +273,7 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 					twoValues.add(val.getTwo());
 				}
 			}
-			for (IN1 val1: oneValues) {
-				for (IN2 val2: twoValues) {
-					timestampedCollector.collect(userFunction.join(val1, val2));
-				}
-			}
+			userFunction.coGroup(oneValues, twoValues, timestampedCollector);
 			if (triggerResult.isPurge()) {
 				windowState.clear();
 				context.clear();

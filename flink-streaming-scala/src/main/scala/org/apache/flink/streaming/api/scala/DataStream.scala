@@ -751,6 +751,14 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+    * Creates a join operation. See [[JoinedStreams]] for an example of how the keys
+    * and window can be specified.
+    */
+  def timeJoin[T2](otherStream: DataStream[T2]): TimeJoinedStreams.Unspecified[T, T2] = {
+    TimeJoinedStreams.createJoin(this, otherStream)
+  }
+
+  /**
    * Writes a DataStream to the standard output stream (stdout). For each
    * element of the DataStream the result of .toString is
    * written.

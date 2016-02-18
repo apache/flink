@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.{SlidingTimeWindows, TumblingTimeWindows}
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
@@ -169,6 +169,87 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       "(a,j,7):(a,z,8)",
       "(a,k,8):(a,x,6)",
       "(a,k,8):(a,z,8)")
+
+    assertEquals(expectedResult.sorted, CoGroupJoinITCase.testResults.sorted)
+  }
+
+  @Test
+  def test2WindowsJoin(): Unit = {
+    CoGroupJoinITCase.testResults = mutable.MutableList()
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
+
+    val source1 = env.addSource(new SourceFunction[(String, String, Int)]() {
+      def run(ctx: SourceFunction.SourceContext[(String, String, Int)]) {
+        ctx.collect(("a", "x", 0))
+        ctx.collect(("b", "y", 1))
+        ctx.collect(("c", "z", 2))
+
+        ctx.collect(("d", "u", 3))
+        ctx.collect(("e", "u", 4))
+        ctx.collect(("f", "w", 5))
+
+        ctx.collect(("h", "j", 6))
+        ctx.collect(("g", "i", 7))
+        ctx.collect(("i", "k", 8))
+        ctx.collect(("j", "k", 9))
+        ctx.collect(("k", "k", 10))
+
+      }
+
+      def cancel() {}
+
+    }).assignTimestampsAndWatermarks(new CoGroupJoinITCase.Tuple3TimestampExtractor)
+
+    val source2 = env.addSource(new SourceFunction[(String, String, Int)]() {
+      def run(ctx: SourceFunction.SourceContext[(String, String, Int)]) {
+        ctx.collect(("a", "u", 0))
+        ctx.collect(("e", "w", 1))
+
+        ctx.collect(("g", "i", 3))
+        ctx.collect(("a", "i", 3))
+        ctx.collect(("d", "i", 4))
+        ctx.collect(("b", "k", 5))
+
+        ctx.collect(("c", "x", 6))
+        ctx.collect(("f", "x", 6))
+        ctx.collect(("h", "x", 6))
+        ctx.collect(("k", "z", 8))
+        ctx.collect(("j", "z", 9))
+        ctx.collect(("i", "z", 10))
+
+      }
+
+      def cancel() {}
+
+    }).assignTimestampsAndWatermarks(new CoGroupJoinITCase.Tuple3TimestampExtractor)
+
+    source1.timeJoin(source2)
+      .where(_._1)
+      .window(SlidingTimeWindows.of(Time.of(6, TimeUnit.MILLISECONDS), Time.of(2, TimeUnit.MILLISECONDS)))
+      .equalTo(_._1)
+      .window(TumblingTimeWindows.of(Time.of(2, TimeUnit.MILLISECONDS)))
+      .apply((l, r) => l.toString + ":" + r.toString)
+      .addSink(new SinkFunction[String]() {
+        def invoke(value: String) {
+          CoGroupJoinITCase.testResults += value
+        }
+      })
+
+    env.execute("Join Test")
+
+    val expectedResult = mutable.MutableList(
+      "(a,x,0):(a,i,3)",
+      "(a,x,0):(a,u,0)",
+      "(b,y,1):(b,k,5)",
+      "(c,z,2):(c,x,6)",
+      "(d,u,3):(d,i,4)",
+      "(f,w,5):(f,x,6)",
+      "(h,j,6):(h,x,6)",
+      "(i,k,8):(i,z,10)",
+      "(j,k,9):(j,z,9)")
 
     assertEquals(expectedResult.sorted, CoGroupJoinITCase.testResults.sorted)
   }

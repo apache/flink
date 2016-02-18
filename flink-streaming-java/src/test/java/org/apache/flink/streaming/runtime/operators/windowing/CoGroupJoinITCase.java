@@ -240,7 +240,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void test2WindowsJoin() throws Exception {
 
-		testResults = Lists.newArrayList();
+		testResults = new ArrayList<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -270,7 +270,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).assignTimestamps(new Tuple3TimestampExtractor());
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
 			private static final long serialVersionUID = 1L;
@@ -297,7 +297,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).assignTimestamps(new Tuple3TimestampExtractor());
+		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 
 		source1.timeJoin(source2)
@@ -320,7 +320,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute("Join Test");
 
-		List<String> expectedResult = Lists.newArrayList(
+		List<String> expectedResult = Arrays.asList(
 				"(a,x,0):(a,i,3)",
 				"(a,x,0):(a,u,0)",
 				"(b,y,1):(b,k,5)",
