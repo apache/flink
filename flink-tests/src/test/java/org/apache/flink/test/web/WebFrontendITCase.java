@@ -171,7 +171,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = 15000)
 	public void testStop() throws Exception {
 		// Create a task
 		final JobVertex sender = new JobVertex("Sender");
@@ -199,7 +199,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		waitForTaskManagers();
 	}
 
-	@Test(timeout = 5000)
+	@Test(timeout = 15000)
 	public void testStopYarn() throws Exception {
 		// Create a task
 		final JobVertex sender = new JobVertex("Sender");
