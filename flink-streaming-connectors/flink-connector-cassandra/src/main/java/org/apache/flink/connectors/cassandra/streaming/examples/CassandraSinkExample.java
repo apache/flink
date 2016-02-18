@@ -32,10 +32,7 @@ public class CassandraSinkExample {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraSinkExample.class);
 
-	static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)";
-	static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
-
-
+	private static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
 	private static final ArrayList<Tuple2<String,Integer>> collection = new ArrayList<>(20);
 	static {
 		for (int i = 0; i < 20; i++) {
@@ -43,6 +40,9 @@ public class CassandraSinkExample {
 		}
 	}
 
+	/*
+	 * table script: "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)"
+	 */
 	public static void main(String[] args) throws Exception {
 	
 		LOG.debug("WriteTupleIntoCassandra");
@@ -52,7 +52,7 @@ public class CassandraSinkExample {
 
 		DataStreamSource<Tuple2<String,Integer>> source = env.fromCollection(collection);
 		
-		source.addSink(new CassandraSink<Tuple2<String,Integer>>(CREATE_TABLE, INSERT) {
+		source.addSink(new CassandraSink<Tuple2<String,Integer>>(INSERT) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

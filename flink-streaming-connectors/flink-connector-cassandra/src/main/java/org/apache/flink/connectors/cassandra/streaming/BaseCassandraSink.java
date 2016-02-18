@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -46,18 +45,10 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(BaseCassandraSink.class);
 
-	protected final String createQuery;
 	protected transient Cluster cluster;
 	protected transient Session session;
 	protected transient Throwable asyncException = null;
 	protected transient FutureCallback<V> callback;
-
-	public BaseCassandraSink(String createQuery){
-		if(createQuery.isEmpty()){
-			throw new IllegalArgumentException("createQuery cannot be empty");
-		}
-		this.createQuery = createQuery;
-	}
 	
 	@Override
 	public void open(Configuration configuration) {
@@ -79,16 +70,6 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Cluster connection to Cassandra has been open. State: {} ",session.getState());
-		}
-
-		//  execute createQuery with only parallelism of 1
-		if(createQuery != null){
-			int parallelism = getRuntimeContext().getNumberOfParallelSubtasks();
-			if(parallelism  == 1) {
-				session.execute(createQuery);
-			} else {
-				throw new RuntimeException("It is allowed to create table only with parallelism of 1");
-			}
 		}
 	}
 	
@@ -123,11 +104,5 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 	
 	protected void catchException(ListenableFuture<V> future) {
 		Futures.addCallback(future, callback);
-	}
-	
-	protected void checkNullOrEmpty(String s, String message){
-		if(Strings.isNullOrEmpty(s)){
-			throw new IllegalArgumentException(message);
-		}
 	}
 }

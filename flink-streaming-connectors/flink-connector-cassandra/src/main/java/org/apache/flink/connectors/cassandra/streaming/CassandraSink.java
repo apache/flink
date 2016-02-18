@@ -17,6 +17,7 @@
 
 package org.apache.flink.connectors.cassandra.streaming;
 
+import com.google.common.base.Strings;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
@@ -37,16 +38,12 @@ public abstract class CassandraSink<IN extends Tuple> extends
 	private static final long serialVersionUID = 1L;
 
 	protected final String insertQuery;
-
 	protected transient PreparedStatement ps;
 
 	public CassandraSink(String insertQuery) {
-		this(null, insertQuery);
-	}
-
-	public CassandraSink(String createQuery, String insertQuery) {
-		super(createQuery);
-		checkNullOrEmpty(insertQuery, "insertQuery not set");
+		if(Strings.isNullOrEmpty(insertQuery)){
+			throw new IllegalArgumentException("insertQuery cannot be null or empty");
+		}
 		this.insertQuery = insertQuery;
 	}
 
@@ -60,7 +57,6 @@ public abstract class CassandraSink<IN extends Tuple> extends
 	public ListenableFuture<ResultSet> send(IN value) {
 
 		Object[] fields = extract(value);
-
 		return session.executeAsync(ps.bind(fields));
 	}
 

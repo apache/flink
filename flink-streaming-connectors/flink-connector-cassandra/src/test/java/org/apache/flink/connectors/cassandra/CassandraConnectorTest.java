@@ -154,13 +154,11 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void cassandraSink() throws Exception {
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
 
+		session.execute(CREATE_TABLE);
 		DataStream<Tuple2<Long, String>> source = env.fromCollection(collection);
-		
-		source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUERY) {
+		source.addSink(new CassandraSink<Tuple2<Long, String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
@@ -173,25 +171,6 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 		ResultSet rs =  session.execute(SELECT_QUERY);
 		Assert.assertEquals(COUNT, rs.all().size());
 		session.execute(DROP_TABLE);
-	}
-
-
-	@Test(expected = JobExecutionException.class)
-	public void runtimeExceptionCreateQuery() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-
-		DataStreamSource<Tuple2<Long, String>> source = env.fromCollection(collection);
-		source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUERY) {
-
-			@Override
-			public Builder configureCluster(Builder cluster) {
-				return CassandraConnectorTest.builder;
-			}
-		});
-
-		env.execute();
-
 	}
 
 	//
@@ -214,10 +193,9 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void cassandraMapperSink() throws Exception {
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		//env.setParallelism(1);
 
+		session.execute(CREATE_TABLE_MAPPER);
 		DataStreamSource<Pojo> source = env
 				.addSource(new SourceFunction<Pojo>() {
 
@@ -241,7 +219,7 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
                     }
 				});
 
-		source.addSink(new CassandraMapperSink<Pojo>(CREATE_TABLE_MAPPER,Pojo.class) {
+		source.addSink(new CassandraMapperSink<Pojo>(Pojo.class) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
@@ -264,12 +242,11 @@ public class CassandraConnectorTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
 	public void batch() throws Exception {
-
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		session.execute(CREATE_TABLE);
 		DataSet<Tuple2<Long,String>> dataSet = env.fromCollection(collection);
-
-		dataSet.output(new CassandraOutputFormat<Tuple2<Long,String>>(CREATE_TABLE,INSERT_QUERY) {
+		dataSet.output(new CassandraOutputFormat<Tuple2<Long,String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

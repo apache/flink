@@ -29,11 +29,12 @@ import com.datastax.driver.core.Cluster.Builder;
 
 public class BatchExample {
 
-	private static final String CREATE_TABLE = "CREATE TABLE test.batchz (number int, stringz text, PRIMARY KEY(number, stringz));";
 	private static final String INSERT_QUERY = "INSERT INTO test.batchz (number, stringz) VALUES (?,?);";
 	private static final String SELECT_QUERY = "SELECT number, stringz FROM test.batchz;";
 	
-
+	/*
+	 *	table script: "CREATE TABLE test.batchz (number int, stringz text, PRIMARY KEY(number, stringz));"
+	 */
 	public static void main(String[] args) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -46,7 +47,7 @@ public class BatchExample {
 
 		DataSet<Tuple2<Integer, String>> dataSet = env.fromCollection(collection);
 
-		dataSet.output(new CassandraOutputFormat<Tuple2<Integer, String>>(CREATE_TABLE, INSERT_QUERY) {
+		dataSet.output(new CassandraOutputFormat<Tuple2<Integer, String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

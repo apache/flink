@@ -31,24 +31,25 @@ public class CassandraMapperSinkExample {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraMapperSinkExample.class);
 
-	private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);";
-
 	private static final ArrayList<Message> messages = new ArrayList<>(20);
 	static {
 		for (long i = 0; i < 20; i++) {
 			messages.add(new Message("cassandra-" + i));
 		}
 	}
+
+	/*
+	 *	create table: "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);"
+	 */
 	public static void main(String[] args) throws Exception {
 
 		LOG.debug("WritePojoIntoCassandra");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
 
 		DataStreamSource<Message> source = env.fromCollection(messages);
 
-		source.addSink(new CassandraMapperSink<Message>(CREATE_TABLE, Message.class){
+		source.addSink(new CassandraMapperSink<Message>(Message.class){
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

@@ -46,23 +46,11 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	protected transient MappingManager mappingManager;
 
 	/**
-	 * Constructor for creating a CassandraMapperSink
+	 * The main constructor for creating CassandraMapperSink
 	 *
 	 * @param clazz			Class<IN> instance
 	 */
 	public CassandraMapperSink(Class<IN> clazz) {
-		this(null, clazz);
-	}
-
-
-	/**
-	 * The main constructor for creating CassandraMapperSink
-	 *
-	 * @param createQuery 	Query to create dynamically a Table into Cassandra
-	 * @param clazz			Class<IN> instance
-	 */
-	public CassandraMapperSink(String createQuery, Class<IN> clazz) {
-		super(createQuery);
 		Preconditions.checkNotNull(clazz, "Clazz cannot be null");
 		this.clazz = clazz;
 	}

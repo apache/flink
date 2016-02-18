@@ -38,7 +38,6 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 
 	private static final long serialVersionUID = 1L;
 
-	private final String createQuery;
 	private final String insertQuery;
 
 	private transient Cluster cluster;
@@ -48,15 +47,10 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 	private transient Throwable asyncException = null;
 
 	public CassandraOutputFormat(String insertQuery) {
-		this(null, insertQuery);
-	}
-
-	public CassandraOutputFormat(String createQuery, String insertQuery) {
 		if(Strings.isNullOrEmpty(insertQuery)){
 			throw new IllegalArgumentException("insertQuery cannot be null or empty");
 		}
 		this.insertQuery = insertQuery;
-		this.createQuery = createQuery;
 	}
 
 	@Override
@@ -80,16 +74,6 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 				asyncException = t;
 			}
 		};
-
-		//  execute createQuery with only parallelism of 1
-		if(createQuery != null){
-			int parallelism = getRuntimeContext().getNumberOfParallelSubtasks();
-			if(parallelism > 1) {
-				throw new IllegalStateException("It is allowed to create the table only with parallelism of 1");
-			} else {
-				session.execute(createQuery);
-			}
-		}
 	}
 
 	@Override
