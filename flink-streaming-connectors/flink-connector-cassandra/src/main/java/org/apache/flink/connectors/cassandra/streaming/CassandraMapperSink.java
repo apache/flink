@@ -25,12 +25,12 @@ import com.datastax.driver.mapping.MappingManager;
 import com.datastax.driver.mapping.Mapper;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.flink.connectors.cassandra.streaming.examples.WriteCassandraMapperSink;
+import org.apache.flink.connectors.cassandra.streaming.examples.CassandraMapperSinkExample;
 
 /**
  * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
  * it uses annotations from {@link com.datastax.driver.mapping}. See example.
- * {@link WriteCassandraMapperSink }
+ * {@link CassandraMapperSinkExample }
  *
  * @param <IN>			Type of the elements emitted by this sink
  */

@@ -27,7 +27,7 @@ import org.apache.flink.connectors.cassandra.batch.CassandraOutputFormat;
 
 import com.datastax.driver.core.Cluster.Builder;
 
-public class WriteBatch {
+public class BatchExample {
 
 	private static final String CREATE_TABLE = "CREATE TABLE test.batchz (number int, stringz text, PRIMARY KEY(number, stringz));";
 	private static final String INSERT_QUERY = "INSERT INTO test.batchz (number, stringz) VALUES (?,?);";

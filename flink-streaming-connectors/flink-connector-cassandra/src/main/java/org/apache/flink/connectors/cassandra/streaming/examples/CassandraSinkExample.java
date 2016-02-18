@@ -17,42 +17,44 @@
 
 package org.apache.flink.connectors.cassandra.streaming.examples;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connectors.cassandra.streaming.CassandraSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.connectors.cassandra.streaming.CassandraMapperSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster.Builder;
 
-public class WriteCassandraMapperSink {
+public class CassandraSinkExample {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(CassandraSinkExample.class);
 
-	private static final Logger LOG = LoggerFactory.getLogger(WriteCassandraMapperSink.class);
-
-	private static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);";
+	static final String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)";
+	static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
 
 	public static void main(String[] args) throws Exception {
-
-		LOG.debug("WritePojoIntoCassandra");
-
+	
+		LOG.debug("WriteTupleIntoCassandra");
+		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		DataStreamSource<Message> source = env
-				.addSource(new SourceFunction<Message>() {
+		DataStreamSource<Tuple2<String,Integer>> source = env
+				.addSource(new SourceFunction<Tuple2<String,Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					private volatile boolean running = true;
 
 					@Override
-					public void run(SourceContext<Message> ctx)
+					public void run(SourceContext<Tuple2<String,Integer>> ctx)
 							throws Exception {
 						for (int i = 0; i < 20; i++) {
-							Message msg = new Message("message #" + i);
+							Tuple2<String,Integer> msg = new Tuple2<>("message " + i,i);
 							ctx.collect(msg);
 						}
-						cancel();
+						this.cancel();
 					}
 
 					@Override
@@ -60,15 +62,16 @@ public class WriteCassandraMapperSink {
 						running = false;
 					}
 				});
-
-		source.addSink(new CassandraMapperSink<Message>(CREATE_TABLE, Message.class){
+		
+		source.addSink(new CassandraSink<Tuple2<String,Integer>>(CREATE_TABLE, INSERT) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
 				return cluster.addContactPoint("127.0.0.1");
 			}
 		});
+		
 
-		env.execute("Cassandra Sink example");
+		env.execute("WriteTupleIntoCassandra");
 	}
 }
