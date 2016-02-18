@@ -52,8 +52,7 @@ There are two types of CassandraSink:
 ##### CassandraSink
 The constructor accepts the following arguments:
 
-1. query to create a new table to write into (optional) - mind attention: The creation works only with parallelism of one due to [CASSANDRA-8387](https://issues.apache.org/jira/browse/CASSANDRA-8387)
-2. query to insert data the a table
+1. query to insert data the a table
 
 You have to implement configureCluster to provide at the Sink the information to connect to Apache Cassandra.
 
@@ -62,7 +61,7 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUERY) {
+source.addSink(new CassandraSink<Tuple2<Long, String>>(INSERT_QUERY) {
 			@Override
 			public Builder configureCluster(Builder cluster) {
 				return cluster.addContactPoint("127.0.0.1");
@@ -74,8 +73,7 @@ source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUER
 ##### CassandraMapperSink
 The constructor accepts the following arguments:
 
-1. query to create a new table to write into (optional) - mind attention: The creation works only with parallelism of one due to [CASSANDRA-8387](https://issues.apache.org/jira/browse/CASSANDRA-8387)
-2. Pojo's Class
+1. Pojo's Class
 
 You have to implement configureCluster to provide at the Sink the information to connect to Apache Cassandra.
 
@@ -121,7 +119,7 @@ public class Pojo implements Serializable {
 
 // FlinkJob
 
-source.addSink(new CassandraMapperSink<Pojo>(CREATE_TABLE_MAPPER,Pojo.class) {
+source.addSink(new CassandraMapperSink<Pojo>(Pojo.class) {
 
            @Override
            public Builder configureCluster(Builder cluster) {
