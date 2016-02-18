@@ -107,7 +107,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		int length = in.readInt();
 		if(length != 0) {
 			byte[] json = new byte[length];
-			in.read(json);
+			in.readFully(json);
 
 			Schema schema = new Schema.Parser().parse(new String(json));
 			setSchema(schema);
