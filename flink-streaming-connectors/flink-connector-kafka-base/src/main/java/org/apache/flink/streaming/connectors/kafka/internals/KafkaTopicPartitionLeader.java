@@ -20,8 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 import org.apache.kafka.common.Node;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Serializable Topic Partition info with leader Node information.
@@ -97,26 +95,4 @@ public class KafkaTopicPartitionLeader implements Serializable {
 				'}';
 	}
 
-
-	/**
-	 * Replaces an existing KafkaTopicPartition ignoring the leader in the given map.
-	 *
-	 * @param newKey new topicpartition
-	 * @param newValue new offset
-	 * @param map map to do the search in
-	 * @return oldValue the old value (offset)
-	 */
-	public static Long replaceIgnoringLeader(KafkaTopicPartitionLeader newKey, Long newValue, Map<KafkaTopicPartitionLeader, Long> map) {
-		Map<KafkaTopicPartitionLeader, Long> searchMap = new HashMap<>(map); // create copy for the iterator
-		for(Map.Entry<KafkaTopicPartitionLeader, Long> entry: searchMap.entrySet()) {
-			if(entry.getKey().getTopicPartition().equals(newKey.getTopicPartition())) {
-				Long oldValue = map.remove(entry.getKey());
-				if(map.put(newKey, newValue) != null) {
-					throw new IllegalStateException("Key was not removed before");
-				}
-				return oldValue;
-			}
-		}
-		return null;
-	}
 }

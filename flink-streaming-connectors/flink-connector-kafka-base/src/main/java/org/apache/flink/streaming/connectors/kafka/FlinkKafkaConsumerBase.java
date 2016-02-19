@@ -34,9 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.checkArgument;
 
 public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T>
 		implements CheckpointListener, CheckpointedAsynchronously<HashMap<KafkaTopicPartition, Long>>, ResultTypeQueryable<T> {
@@ -83,7 +82,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumerBase(KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
+		this.deserializer = requireNonNull(deserializer, "valueDeserializer");
 	}
 
 	// ------------------------------------------------------------------------
