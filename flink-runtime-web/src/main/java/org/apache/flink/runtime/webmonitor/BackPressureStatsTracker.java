@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -237,11 +238,15 @@ public class BackPressureStatsTracker {
 						return;
 					}
 
-					if (success != null) {
+					// Job finished, ignore.
+					JobStatus jobState = vertex.getGraph().getState();
+					if (jobState.isTerminalState()) {
+						LOG.debug("Ignoring sample, because job is in state " + jobState + ".");
+					} else if (success != null) {
 						OperatorBackPressureStats stats = createStatsFromSample(success);
 						operatorStatsCache.put(vertex, stats);
 					} else {
-						LOG.error("Failed to gather stack trace sample.", failure);
+						LOG.warn("Failed to gather stack trace sample.", failure);
 					}
 				} catch (Throwable t) {
 					LOG.error("Error during stats completion.", t);
