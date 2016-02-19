@@ -679,7 +679,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		for (int i = 0; i < jobManagerProcesses.size(); i++) {
 			JobManagerProcess jobManager = jobManagerProcesses.get(i);
-			if (jobManager.getJobManagerAkkaURL().equals(currentLeader)) {
+			if (jobManager.getJobManagerAkkaURL(timeout).equals(currentLeader)) {
 				leaderIndex = i;
 				break;
 			}
@@ -696,7 +696,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		JobManagerProcess jobManager = new JobManagerProcess(jobManagerPid++, config);
-		jobManager.createAndStart();
+		jobManager.startProcess();
 		LOG.info("Created and started {}.", jobManager);
 
 		return jobManager;
@@ -706,7 +706,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 			throws Exception {
 
 		TaskManagerProcess taskManager = new TaskManagerProcess(taskManagerPid++, config);
-		taskManager.createAndStart();
+		taskManager.startProcess();
 		LOG.info("Created and started {}.", taskManager);
 
 		return taskManager;

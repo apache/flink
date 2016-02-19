@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.JobManagerMode;
-import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -36,6 +35,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -47,11 +48,11 @@ public class JobManagerProcess extends TestJvmProcess {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProcess.class);
 
+	/** Pattern to parse the job manager port from the logs. */
+	private static final Pattern PORT_PATTERN = Pattern.compile(".*Starting JobManager at akka\\.tcp://flink@.*:(\\d+).*");
+
 	/** ID for this JobManager */
 	private final int id;
-
-	/** The port the JobManager listens on */
-	private final int jobManagerPort;
 
 	/** The configuration for the JobManager */
 	private final Configuration config;
@@ -59,39 +60,25 @@ public class JobManagerProcess extends TestJvmProcess {
 	/** Configuration parsed as args for {@link JobManagerProcess.JobManagerProcessEntryPoint} */
 	private final String[] jvmArgs;
 
+	/** The port the JobManager listens on */
+	private int jobManagerPort;
+
 	private ActorRef jobManagerRef;
 
 	/**
 	 * Creates a {@link JobManager} running in a separate JVM.
 	 *
-	 * <p>See {@link #JobManagerProcess(int, Configuration, int)} for a more
-	 * detailed
-	 * description.
-	 *
+	 * @param id     ID for the JobManager
 	 * @param config Configuration for the job manager process
+	 *
 	 * @throws Exception
 	 */
 	public JobManagerProcess(int id, Configuration config) throws Exception {
-		this(id, config, 0);
-	}
-
-	/**
-	 * Creates a {@link JobManager} running in a separate JVM.
-	 *
-	 * @param id             ID for the JobManager
-	 * @param config         Configuration for the job manager process
-	 * @param jobManagerPort Job manager port (if <code>0</code>, pick any available port)
-	 * @throws Exception
-	 */
-	public JobManagerProcess(int id, Configuration config, int jobManagerPort) throws Exception {
 		checkArgument(id >= 0, "Negative ID");
 		this.id = id;
 		this.config = checkNotNull(config, "Configuration");
-		this.jobManagerPort = jobManagerPort <= 0 ? NetUtils.getAvailablePort() : jobManagerPort;
 
 		ArrayList<String> args = new ArrayList<>();
-		args.add("--port");
-		args.add(String.valueOf(this.jobManagerPort));
 
 		for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
 			args.add("--" + entry.getKey());
@@ -117,20 +104,50 @@ public class JobManagerProcess extends TestJvmProcess {
 		return JobManagerProcessEntryPoint.class.getName();
 	}
 
-	public int getJobManagerPort() {
-		return jobManagerPort;
-	}
-
 	public Configuration getConfig() {
 		return config;
 	}
 
 	/**
+	 * Parses the port from the job manager logs and returns it.
+	 *
+	 * <p>If a call to this method succeeds, successive calls will directly
+	 * return the port and re-parse the logs.
+	 *
+	 * @param timeout Timeout for log parsing.
+	 * @return The port of the job manager
+	 * @throws InterruptedException  If interrupted while waiting before
+	 *                               retrying to parse the logs
+	 * @throws NumberFormatException If the parsed port is not a number
+	 */
+	public int getJobManagerPort(FiniteDuration timeout) throws InterruptedException, NumberFormatException {
+		if (jobManagerPort > 0) {
+			return jobManagerPort;
+		} else {
+			Deadline deadline = timeout.fromNow();
+			while (deadline.hasTimeLeft()) {
+				Matcher matcher = PORT_PATTERN.matcher(getProcessOutput());
+				if (matcher.find()) {
+					String port = matcher.group(1);
+					jobManagerPort = Integer.parseInt(port);
+					return jobManagerPort;
+				} else {
+					Thread.sleep(100);
+				}
+			}
+
+			throw new RuntimeException("Could not parse port from logs");
+		}
+	}
+
+	/**
 	 * Returns the Akka URL of this JobManager.
 	 */
-	public String getJobManagerAkkaURL() {
+	public String getJobManagerAkkaURL(FiniteDuration timeout) throws InterruptedException {
+		int port = getJobManagerPort(timeout);
+
 		return JobManager.getRemoteJobManagerAkkaURL(
-				new InetSocketAddress("localhost", jobManagerPort),
+				new InetSocketAddress("localhost", port),
 				Option.<String>empty());
 	}
 
@@ -166,7 +183,7 @@ public class JobManagerProcess extends TestJvmProcess {
 				// If the Actor is not reachable yet, this throws an Exception. Retry until the
 				// deadline passes.
 				this.jobManagerRef = AkkaUtils.getActorRef(
-						getJobManagerAkkaURL(),
+						getJobManagerAkkaURL(deadline.timeLeft()),
 						actorSystem,
 						deadline.timeLeft());
 
@@ -201,14 +218,11 @@ public class JobManagerProcess extends TestJvmProcess {
 		public static void main(String[] args) {
 			try {
 				ParameterTool params = ParameterTool.fromArgs(args);
-				final int port = Integer.valueOf(params.getRequired("port"));
-				LOG.info("Running on port {}.", port);
-
 				Configuration config = params.getConfiguration();
 				LOG.info("Configuration: {}.", config);
 
 				// Run the JobManager
-				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", port);
+				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", 0);
 
 				// Run forever. Forever, ever? Forever, ever!
 				new CountDownLatch(1).await();
@@ -219,5 +233,4 @@ public class JobManagerProcess extends TestJvmProcess {
 			}
 		}
 	}
-
 }

@@ -21,6 +21,13 @@ package org.apache.flink.test.recovery;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -35,16 +42,21 @@ import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import scala.Option;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -67,7 +79,9 @@ import static org.junit.Assert.fail;
  *
  * <p>This follows the same structure as {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  */
-public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends TestLogger {
+@SuppressWarnings("serial")
+@RunWith(Parameterized.class)
+public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
@@ -108,6 +122,23 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 
 	protected static final int PARALLELISM = 4;
 
+	// --------------------------------------------------------------------------------------------
+	//  Parametrization (run pipelined and batch)
+	// --------------------------------------------------------------------------------------------
+
+	private final ExecutionMode executionMode;
+
+	public JobManagerHAProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
+		this.executionMode = executionMode;
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> executionMode() {
+		return Arrays.asList(new Object[][]{
+				{ ExecutionMode.PIPELINED},
+				{ExecutionMode.BATCH}});
+	}
+
 	/**
 	 * Test program with JobManager failure.
 	 *
@@ -115,7 +146,75 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 	 * @param coordinateDir Coordination directory
 	 * @throws Exception
 	 */
-	public abstract void testJobManagerFailure(String zkQuorum, File coordinateDir) throws Exception;
+	public void testJobManagerFailure(String zkQuorum, final File coordinateDir) throws Exception {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zkQuorum);
+
+		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"leader", 1, config);
+		env.setParallelism(PARALLELISM);
+		env.setNumberOfExecutionRetries(1);
+		env.getConfig().setExecutionMode(executionMode);
+		env.getConfig().disableSysoutLogging();
+
+		final long NUM_ELEMENTS = 100000L;
+		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
+				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
+				.rebalance()
+				// the majority of the behavior is in the MapFunction
+				.map(new RichMapFunction<Long, Long>() {
+
+					private final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
+
+					private boolean markerCreated = false;
+					private boolean checkForProceedFile = true;
+
+					@Override
+					public Long map(Long value) throws Exception {
+						if (!markerCreated) {
+							int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+							AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
+									new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
+							markerCreated = true;
+						}
+
+						// check if the proceed file exists
+						if (checkForProceedFile) {
+							if (proceedFile.exists()) {
+								checkForProceedFile = false;
+							}
+							else {
+								// otherwise wait so that we make slow progress
+								Thread.sleep(100);
+							}
+						}
+						return value;
+					}
+				})
+				.reduce(new ReduceFunction<Long>() {
+					@Override
+					public Long reduce(Long value1, Long value2) {
+						return value1 + value2;
+					}
+				})
+				// The check is done in the mapper, because the client can currently not handle
+				// job manager losses/reconnects.
+				.flatMap(new RichFlatMapFunction<Long, Long>() {
+					@Override
+					public void flatMap(Long value, Collector<Long> out) throws Exception {
+						assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, (long) value);
+
+						int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+						AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
+								new File(coordinateDir, FINISH_MARKER_FILE_PREFIX + taskIndex));
+					}
+				});
+
+		result.output(new DiscardingOutputFormat<Long>());
+
+		env.execute();
+	}
 
 	@Test
 	public void testJobManagerProcessFailure() throws Exception {
@@ -154,7 +253,7 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 
 			// Start first process
 			jmProcess[0] = new JobManagerProcess(0, config);
-			jmProcess[0].createAndStart();
+			jmProcess[0].startProcess();
 
 			// Task manager configuration
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
@@ -222,7 +321,7 @@ public abstract class AbstractJobManagerProcessFailureRecoveryITCase extends Tes
 			jmProcess[0].destroy();
 
 			jmProcess[1] = new JobManagerProcess(1, config);
-			jmProcess[1].createAndStart();
+			jmProcess[1].startProcess();
 
 			jmProcess[1].getActorRef(testActorSystem, deadline.timeLeft());
 
