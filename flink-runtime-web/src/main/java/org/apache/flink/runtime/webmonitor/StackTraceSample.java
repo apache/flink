@@ -108,4 +108,12 @@ public class StackTraceSample {
 		return stackTracesByTask;
 	}
 
+	@Override
+	public String toString() {
+		return "StackTraceSample{" +
+				"sampleId=" + sampleId +
+				", startTime=" + startTime +
+				", endTime=" + endTime +
+				'}';
+	}
 }

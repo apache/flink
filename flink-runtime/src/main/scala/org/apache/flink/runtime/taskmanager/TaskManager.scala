@@ -729,19 +729,16 @@ class TaskManager(
                   // ---- Done ----
                   log.debug(s"Done with stack trace sample $sampleId.")
 
-                  sender ! ResponseStackTraceSampleSuccess(
-                    sampleId,
-                    executionId,
-                    currentTraces)
+                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
                 }
 
               case None =>
-                if (currentTraces.size() == 0) {
+                if (currentTraces.isEmpty()) {
                   throw new IllegalStateException(s"Cannot sample task $executionId. " +
                     s"Either the task is not known to the task manager or it is not running.")
                 } else {
-                  throw new IllegalStateException(s"Cannot sample task $executionId. " +
-                    s"Task was removed after ${currentTraces.size()} sample(s).")
+                  // Task removed during sampling. Reply with partial result.
+                  sender ! ResponseStackTraceSampleSuccess(sampleId, executionId, currentTraces)
                 }
             }
           } else {
