@@ -1810,6 +1810,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 					}
 				}
 
+				// if all buckets were spilled out of memory
+				if (this.bucketSegment == null) {
+					return null;
+				}
+
 				// this segment is done. check if there is another chained bucket
 				final long forwardPointer = this.bucketSegment.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
 				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
@@ -1847,7 +1852,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 						this.numInSegment++;
 					}
 				}
-	
+
+				// if all buckets were spilled out of memory
+				if (this.bucketSegment == null) {
+					return null;
+				}
+
 				// this segment is done. check if there is another chained bucket
 				final long forwardPointer = this.bucketSegment.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
 				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
