@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
@@ -62,6 +63,7 @@ public class BackPressureStatsTrackerTest {
 				anyInt())).thenReturn(samplePromise.future());
 
 		ExecutionGraph graph = mock(ExecutionGraph.class);
+		when(graph.getState()).thenReturn(JobStatus.RUNNING);
 
 		// Same Thread execution context
 		when(graph.getExecutionContext()).thenReturn(new ExecutionContext() {
