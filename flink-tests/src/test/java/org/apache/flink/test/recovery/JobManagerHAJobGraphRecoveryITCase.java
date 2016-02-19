@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.test.recovery;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -34,6 +34,8 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
+import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -75,7 +77,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests recovery of {@link SubmittedJobGraph} instances.
  */
-public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
+public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
@@ -253,8 +255,8 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 			jobManagerProcess[0] = new JobManagerProcess(0, config);
 			jobManagerProcess[1] = new JobManagerProcess(1, config);
 
-			jobManagerProcess[0].createAndStart();
-			jobManagerProcess[1].createAndStart();
+			jobManagerProcess[0].startProcess();
+			jobManagerProcess[1].startProcess();
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
@@ -299,7 +301,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 
 			// Who's the boss?
 			JobManagerProcess leadingJobManagerProcess;
-			if (jobManagerProcess[0].getJobManagerAkkaURL().equals(leaderListener.getAddress())) {
+			if (jobManagerProcess[0].getJobManagerAkkaURL(deadline.timeLeft()).equals(leaderListener.getAddress())) {
 				leadingJobManagerProcess = jobManagerProcess[0];
 			}
 			else {

@@ -173,8 +173,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			jobManagerProcess[0] = new JobManagerProcess(0, config);
 			jobManagerProcess[1] = new JobManagerProcess(1, config);
 
-			jobManagerProcess[0].createAndStart();
-			jobManagerProcess[1].createAndStart();
+			jobManagerProcess[0].startProcess();
+			jobManagerProcess[1].startProcess();
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
@@ -210,7 +210,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 			// Who's the boss?
 			JobManagerProcess leadingJobManagerProcess;
-			if (jobManagerProcess[0].getJobManagerAkkaURL().equals(leaderListener.getAddress())) {
+			if (jobManagerProcess[0].getJobManagerAkkaURL(deadline.timeLeft()).equals(leaderListener.getAddress())) {
 				leadingJobManagerProcess = jobManagerProcess[0];
 			}
 			else {
@@ -324,8 +324,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			jobManagerProcess[0] = new JobManagerProcess(0, config);
 			jobManagerProcess[1] = new JobManagerProcess(1, config);
 
-			jobManagerProcess[0].createAndStart();
-			jobManagerProcess[1].createAndStart();
+			jobManagerProcess[0].startProcess();
+			jobManagerProcess[1].startProcess();
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
@@ -354,7 +354,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			// Who's the boss?
 			JobManagerProcess leadingJobManagerProcess;
 			JobManagerProcess nonLeadingJobManagerProcess;
-			if (jobManagerProcess[0].getJobManagerAkkaURL().equals(leaderListener.getAddress())) {
+			if (jobManagerProcess[0].getJobManagerAkkaURL(testDeadline.timeLeft()).equals(leaderListener.getAddress())) {
 				leadingJobManagerProcess = jobManagerProcess[0];
 				nonLeadingJobManagerProcess = jobManagerProcess[1];
 			}
@@ -409,7 +409,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			assertTrue("Did not find expected output in logs.", success);
 		}
 		catch (Throwable t) {
-			// Print early (in some situtations the process logs get too big
+			// Print early (in some situations the process logs get too big
 			// for Travis and the root problem is not shown)
 			t.printStackTrace();
 
