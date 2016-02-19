@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import com.google.common.base.Preconditions;
-
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
@@ -45,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 
 /**
@@ -123,9 +123,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner
 	 */
 	public FlinkKafkaProducerBase(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
-		Preconditions.checkNotNull(topicId, "TopicID not set");
-		Preconditions.checkNotNull(serializationSchema, "serializationSchema not set");
-		Preconditions.checkNotNull(producerConfig, "producerConfig not set");
+		requireNonNull(topicId, "TopicID not set");
+		requireNonNull(serializationSchema, "serializationSchema not set");
+		requireNonNull(producerConfig, "producerConfig not set");
 		ClosureCleaner.ensureSerializable(customPartitioner);
 		ClosureCleaner.ensureSerializable(serializationSchema);
 

@@ -53,7 +53,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLongFromConfig;
+
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -205,8 +208,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	public FlinkKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
 		super(deserializer, props);
 
-		checkNotNull(topics, "topics");
-		this.props = checkNotNull(props, "props");
+		requireNonNull(topics, "topics");
+		this.props = requireNonNull(props, "props");
 
 		// validate the zookeeper properties
 		validateZooKeeperConfig(props);
@@ -278,7 +281,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			offsetsState = new HashMap<>();
 
 			// no restore request: overwrite offsets.
-			subscribedPartitionsWithOffsets.putAll(offsetHandler.getOffsets(subscribedPartitions, fetcher));
+			subscribedPartitionsWithOffsets.putAll(offsetHandler.getOffsets(subscribedPartitions));
 		}
 		if(subscribedPartitionsWithOffsets.size() != subscribedPartitions.size()) {
 			throw new IllegalStateException("The subscribed partitions map has more entries than the subscribed partitions " +
@@ -302,7 +305,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				// we use Kafka's own configuration parameter key for this.
 				// Note that the default configuration value in Kafka is 60 * 1000, so we use the
 				// same here.
-				long commitInterval = Long.valueOf(props.getProperty("auto.commit.interval.ms", "60000"));
+				long commitInterval = getLongFromConfig(props, "auto.commit.interval.ms", 60000);
 				offsetCommitter = new PeriodicOffsetCommitter<>(commitInterval, this);
 				offsetCommitter.setDaemon(true);
 				offsetCommitter.start();
@@ -394,6 +397,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param toCommit the offsets to commit
 	 * @throws Exception
 	 */
+	@Override
 	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> toCommit) throws Exception {
 		Map<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>();
 		for (KafkaTopicPartition tp : this.subscribedPartitions) {
@@ -488,15 +492,15 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(final List<String> topics, final Properties properties) {
 		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-		final int numRetries = Integer.valueOf(properties.getProperty(GET_PARTITIONS_RETRIES_KEY, Integer.toString(DEFAULT_GET_PARTITIONS_RETRIES)));
+		final int numRetries = getIntFromConfig(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
 
-		checkNotNull(seedBrokersConfString, "Configuration property " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " not set");
+		requireNonNull(seedBrokersConfString, "Configuration property " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " not set");
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
 
 		final String clientId = "flink-kafka-consumer-partition-lookup";
-		final int soTimeout = Integer.valueOf(properties.getProperty("socket.timeout.ms", "30000"));
-		final int bufferSize = Integer.valueOf(properties.getProperty("socket.receive.buffer.bytes", "65536"));
+		final int soTimeout = getIntFromConfig(properties, "socket.timeout.ms", 30000);
+		final int bufferSize = getIntFromConfig(properties, "socket.receive.buffer.bytes", 65536);
 
 		Random rnd = new Random();
 		retryLoop: for (int retry = 0; retry < numRetries; retry++) {
@@ -524,10 +528,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 					partitions.clear();
 					for (TopicMetadata item : metaData) {
 						if (item.errorCode() != ErrorMapping.NoError()) {
-							if (item.errorCode() == ErrorMapping.InvalidTopicCode() || item.errorCode() == ErrorMapping.UnknownTopicOrPartitionCode()) {
-								// fail hard if topic is unknown
-								throw new RuntimeException("Requested partitions for unknown topic", ErrorMapping.exceptionFor(item.errorCode()));
-							}
 							// warn and try more brokers
 							LOG.warn("Error while getting metadata from broker " + seedBroker + " to find partitions " +
 									"for " + topics.toString() + ". Error: " + ErrorMapping.exceptionFor(item.errorCode()).getMessage());

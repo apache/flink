@@ -22,7 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
 
 /**
  * A serializable representation of a kafka topic and a partition.
@@ -37,7 +38,7 @@ public class KafkaTopicPartition implements Serializable {
 	private final int cachedHash;
 
 	public KafkaTopicPartition(String topic, int partition) {
-		this.topic = checkNotNull(topic);
+		this.topic = requireNonNull(topic);
 		this.partition = partition;
 		this.cachedHash = 31 * topic.hashCode() + partition;
 	}
@@ -100,20 +101,6 @@ public class KafkaTopicPartition implements Serializable {
 		return sb.toString();
 	}
 
-	/**
-	 * Checks whether this partition is contained in the map with KafkaTopicPartitionLeaders
-	 *
-	 * @param map The map of KafkaTopicPartitionLeaders
-	 * @return true if the element is contained.
-	 */
-	public boolean isContained(Map<KafkaTopicPartitionLeader, ?> map) {
-		for(Map.Entry<KafkaTopicPartitionLeader, ?> entry : map.entrySet()) {
-			if(entry.getKey().getTopicPartition().equals(this)) {
-				return true;
-			}
-		}
-		return false;
-	}
 
 	public static List<KafkaTopicPartition> dropLeaderData(List<KafkaTopicPartitionLeader> partitionInfos) {
 		List<KafkaTopicPartition> ret = new ArrayList<>(partitionInfos.size());

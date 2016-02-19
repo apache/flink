@@ -43,9 +43,8 @@ public interface OffsetHandler {
 	 * will start from.
 	 * 
 	 * @param partitions The partitions for which to seeks the fetcher to the beginning.
-	 * @param fetcher The fetcher that will pull data from Kafka and must be positioned.
 	 */
-	Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions, Fetcher fetcher) throws Exception;
+	Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions) throws Exception;
 
 	/**
 	 * Closes the offset handler, releasing all resources.

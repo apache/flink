@@ -53,6 +53,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
 
 /**
  * This fetcher uses Kafka's low-level API to pull data from a specific
@@ -261,6 +262,11 @@ public class LegacyFetcher implements Fetcher {
 	/**
 	 * Find leaders for the partitions
 	 *
+	 * From a high level, the method does the following:
+	 *	 - Get a list of FetchPartitions (usually only a few partitions)
+	 *	 - Get the list of topics from the FetchPartitions list and request the partitions for the topics. (Kafka doesn't support getting leaders for a set of partitions)
+	 *	 - Build a Map<Leader, List<FetchPartition>> where only the requested partitions are contained.
+	 *
 	 * @param partitionsToAssign fetch partitions list
 	 * @return leader to partitions map
 	 */
@@ -274,44 +280,47 @@ public class LegacyFetcher implements Fetcher {
 		// when it is interrupted, so we run it only in a separate thread.
 		// since it sometimes refuses to shut down, we resort to the admittedly harsh
 		// means of killing the thread after a timeout.
-		PartitionInfoFetcher infoFetcher = new PartitionInfoFetcher(getTopics(partitionsToAssign), config);
+		PartitionInfoFetcher infoFetcher = new PartitionInfoFetcher(getTopics(partitionsToAssign), config); // this request is based on the topic names
 		infoFetcher.start();
 
 		KillerWatchDog watchDog = new KillerWatchDog(infoFetcher, 60000);
 		watchDog.start();
 
+		// this list contains ALL partitions of the requested topics
 		List<KafkaTopicPartitionLeader> topicPartitionWithLeaderList = infoFetcher.getPartitions();
+		// copy list to track unassigned partitions
+		List<FetchPartition> unassignedPartitions = new ArrayList<>(partitionsToAssign);
 
-		LOG.debug("topic partitions with leader list {}", topicPartitionWithLeaderList);
-		// create new list to remove elements from
-		List<FetchPartition> partitionsToAssignInternal = new ArrayList<>(partitionsToAssign);
+		// final mapping from leader -> list(fetchPartition)
 		Map<Node, List<FetchPartition>> leaderToPartitions = new HashMap<>();
-		
+
 		for(KafkaTopicPartitionLeader partitionLeader: topicPartitionWithLeaderList) {
-			if(partitionsToAssignInternal.size() == 0) {
+			if (unassignedPartitions.size() == 0) {
 				// we are done: all partitions are assigned
 				break;
 			}
-			Iterator<FetchPartition> fpIter = partitionsToAssignInternal.iterator();
-			while(fpIter.hasNext()) {
-				FetchPartition fp = fpIter.next();
-				if(fp.topic.equals(partitionLeader.getTopicPartition().getTopic())
-						&& fp.partition == partitionLeader.getTopicPartition().getPartition()) {
+			Iterator<FetchPartition> unassignedPartitionsIterator = unassignedPartitions.iterator();
+			while (unassignedPartitionsIterator.hasNext()) {
+				FetchPartition unassignedPartition = unassignedPartitionsIterator.next();
+				if (unassignedPartition.topic.equals(partitionLeader.getTopicPartition().getTopic())
+						&& unassignedPartition.partition == partitionLeader.getTopicPartition().getPartition()) {
+
 					// we found the leader for one of the fetch partitions
 					Node leader = partitionLeader.getLeader();
 					List<FetchPartition> partitionsOfLeader = leaderToPartitions.get(leader);
-					if(partitionsOfLeader == null) {
+					if (partitionsOfLeader == null) {
 						partitionsOfLeader = new ArrayList<>();
 						leaderToPartitions.put(leader, partitionsOfLeader);
 					}
-					partitionsOfLeader.add(fp);
-					fpIter.remove();
+					partitionsOfLeader.add(unassignedPartition);
+					unassignedPartitionsIterator.remove(); // partition has been assigned
 					break;
 				}
 			}
 		}
-		if(partitionsToAssignInternal.size() > 0) {
-			throw new RuntimeException("Unable to find a leader for partitions: " + partitionsToAssignInternal);
+
+		if(unassignedPartitions.size() > 0) {
+			throw new RuntimeException("Unable to find a leader for partitions: " + unassignedPartitions);
 		}
 
 		LOG.debug("Partitions with assigned leaders {}", leaderToPartitions);
@@ -426,12 +435,12 @@ public class LegacyFetcher implements Fetcher {
 			this.offsetsState = requireNonNull(offsetsState);
 			this.unassignedPartitions = requireNonNull(unassignedPartitions);
 
-			this.soTimeout = Integer.valueOf(config.getProperty("socket.timeout.ms", "30000"));
-			this.minBytes = Integer.valueOf(config.getProperty("fetch.min.bytes", "1"));
-			this.maxWait = Integer.valueOf(config.getProperty("fetch.wait.max.ms", "100"));
-			this.fetchSize = Integer.valueOf(config.getProperty("fetch.message.max.bytes", "1048576"));
-			this.bufferSize = Integer.valueOf(config.getProperty("socket.receive.buffer.bytes", "65536"));
-			this.reconnectLimit = Integer.valueOf(config.getProperty("flink.simple-consumer-reconnectLimit", "3"));
+			this.soTimeout = getIntFromConfig(config, "socket.timeout.ms", 30000);
+			this.minBytes = getIntFromConfig(config, "fetch.min.bytes", 1);
+			this.maxWait = getIntFromConfig(config, "fetch.wait.max.ms", 100);
+			this.fetchSize = getIntFromConfig(config, "fetch.message.max.bytes", 1048576);
+			this.bufferSize = getIntFromConfig(config, "socket.receive.buffer.bytes", 65536);
+			this.reconnectLimit = getIntFromConfig(config, "flink.simple-consumer-reconnectLimit", 3);
 		}
 
 		@Override

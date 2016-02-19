@@ -41,7 +41,6 @@ under the License.
 	</properties>
 
 	<dependencies>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-base_2.10</artifactId>
@@ -105,12 +104,6 @@ under the License.
 					<artifactId>snappy-java</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
 		</dependency>
 
 		<dependency>

@@ -89,7 +89,7 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	}
 
 	@Override
-	public Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions, Fetcher fetcher) throws Exception {
+	public Map<KafkaTopicPartition, Long> getOffsets(List<KafkaTopicPartition> partitions) throws Exception {
 		Map<KafkaTopicPartition, Long> ret = new HashMap<>(partitions.size());
 		for (KafkaTopicPartition tp : partitions) {
 			long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition());
