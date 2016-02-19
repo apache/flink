@@ -260,7 +260,9 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
 					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
 			{
-				serializer.serialize(defaultValue, outView);
+				TypeSerializer<T> duplicateSerializer = serializer.duplicate();
+				duplicateSerializer.serialize(defaultValue, outView);
+
 				outView.flush();
 				serializedDefaultValue = baos.toByteArray();
 			}
