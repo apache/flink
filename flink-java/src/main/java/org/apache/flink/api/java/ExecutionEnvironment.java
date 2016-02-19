@@ -554,7 +554,7 @@ public abstract class ExecutionEnvironment {
 		catch (Exception e) {
 			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
 					"Please specify the TypeInformation of the produced type explicitly by using the " +
-					"'createInput(InputFormat, TypeInformation)' method instead.");
+					"'createInput(InputFormat, TypeInformation)' method instead.", e);
 		}
 	}
 
