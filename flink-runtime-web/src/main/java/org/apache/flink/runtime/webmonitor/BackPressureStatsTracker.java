@@ -25,7 +25,6 @@ import com.google.common.collect.Maps;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
