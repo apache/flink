@@ -677,7 +677,57 @@ public class HashTableITCase {
 		
 		this.memManager.release(join.getFreedMemory());
 	}
-	
+
+	/*
+	 * Same test as {@link #testSparseProbeSpilling} but using a build-side outer join
+	 * that requires spilled build-side records to be returned and counted.
+	 */
+	@Test
+	public void testSparseProbeSpillingWithOuterJoin() throws IOException, MemoryAllocationException
+	{
+		final int NUM_BUILD_KEYS = 1000000;
+		final int NUM_BUILD_VALS = 1;
+		final int NUM_PROBE_KEYS = 20;
+		final int NUM_PROBE_VALS = 1;
+
+		MutableObjectIterator<Record> buildInput = new UniformRecordGenerator(
+				NUM_BUILD_KEYS, NUM_BUILD_VALS, false);
+
+		// allocate the memory for the HashTable
+		List<MemorySegment> memSegments;
+		try {
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 96);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+
+		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
+				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor,
+				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
+				memSegments, ioManager);
+		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), true);
+
+		int expectedNumResults = (Math.max(NUM_PROBE_KEYS, NUM_BUILD_KEYS) * NUM_BUILD_VALS)
+				* NUM_PROBE_VALS;
+
+		final Record recordReuse = new Record();
+		int numRecordsInJoinResult = 0;
+
+		while (join.nextRecord()) {
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
+			while (buildSide.next(recordReuse) != null) {
+				numRecordsInJoinResult++;
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", expectedNumResults, numRecordsInJoinResult);
+
+		join.close();
+
+		this.memManager.release(join.getFreedMemory());
+	}
+
 	/*
 	 * This test validates a bug fix against former memory loss in the case where a partition was spilled
 	 * during an insert into the same.

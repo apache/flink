@@ -339,11 +339,14 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	}
 	
 	/**
+	 * @param keepUnprobedSpilledPartitions If true then partitions that were spilled but received no further probe
+	 *                                      requests will be retained; used for build-side outer joins.
 	 * @return The number of write-behind buffers reclaimable after this method call.
 	 * 
 	 * @throws IOException
 	 */
-	public int finalizeProbePhase(List<MemorySegment> freeMemory, List<HashPartition<BT, PT>> spilledPartitions)
+	public int finalizeProbePhase(List<MemorySegment> freeMemory, List<HashPartition<BT, PT>> spilledPartitions,
+			boolean keepUnprobedSpilledPartitions)
 	throws IOException
 	{
 		if (isInMemory()) {
@@ -363,11 +366,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.partitionBuffers = null;
 			return 0;
 		}
-		else if (this.probeSideRecordCounter == 0) { 
+		else if (this.probeSideRecordCounter == 0 && !keepUnprobedSpilledPartitions) {
 			// partition is empty, no spilled buffers
 			// return the memory buffer
 			freeMemory.add(this.probeSideBuffer.getCurrentSegment());
-			
+
 			// delete the spill files
 			this.probeSideChannel.close();
 			this.buildSideChannel.deleteChannel();

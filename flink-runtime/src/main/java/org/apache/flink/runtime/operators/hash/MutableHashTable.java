@@ -288,12 +288,17 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * Iterator over the elements from the probe side.
 	 */
 	protected ProbeIterator<PT> probeIterator;
-	
+
+	/**
+	 * The reader for the spilled-file of the build partition that is currently read.
+	 */
+	private BlockChannelReader<MemorySegment> currentSpilledBuildSide;
+
 	/**
 	 * The reader for the spilled-file of the probe partition that is currently read.
 	 */
 	private BlockChannelReader<MemorySegment> currentSpilledProbeSide;
-	
+
 	/**
 	 * The channel enumerator that is used while processing the current partition to create
 	 * channels for the spill partitions it requires.
@@ -558,38 +563,40 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	}
 	
 	protected boolean prepareNextPartition() throws IOException {
-		
-		this.probeMatchedPhase = true;
-		this.unmatchedBuildVisited = false;
-		
 		// finalize and cleanup the partitions of the current table
 		int buffersAvailable = 0;
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
 			final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(i);
 			p.setFurtherPatitioning(this.furtherPartitioning);
-			buffersAvailable += p.finalizeProbePhase(this.availableMemory, this.partitionsPending);
+			buffersAvailable += p.finalizeProbePhase(this.availableMemory, this.partitionsPending, this.buildSideOuterJoin);
 		}
-		
+
 		this.partitionsBeingBuilt.clear();
 		this.writeBehindBuffersAvailable += buffersAvailable;
-		
+
 		releaseTable();
+
+		if (this.currentSpilledBuildSide != null) {
+			this.currentSpilledBuildSide.closeAndDelete();
+			this.currentSpilledBuildSide = null;
+		}
 
 		if (this.currentSpilledProbeSide != null) {
 			this.currentSpilledProbeSide.closeAndDelete();
 			this.currentSpilledProbeSide = null;
 		}
 
-		// check if there are pending partitions
-		if (!this.partitionsPending.isEmpty()) {
-			final HashPartition<BT, PT> p = this.partitionsPending.get(0);
-			
-			// build the next table
-			buildTableFromSpilledPartition(p);
+		if (this.partitionsPending.isEmpty()) {
+			// no more data
+			return false;
+		}
 
-			// set the probe side - gather memory segments for reading
-			LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
-			this.currentSpilledProbeSide = this.ioManager.createBlockChannelReader(p.getProbeSideChannel().getChannelID(), returnQueue);
+		// there are pending partitions
+		final HashPartition<BT, PT> p = this.partitionsPending.get(0);
+
+		if (p.probeSideRecordCounter == 0) {
+			// unprobed spilled partitions are only re-processed for a build-side outer join;
+			// there is no need to create a hash table since there are no probe-side records
 
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			MemorySegment seg1 = getNextBuffer();
@@ -601,24 +608,55 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				}
 			}
 			else {
-				throw new IllegalStateException("Attempting to begin probing of partition without any memory available");
+				throw new IllegalStateException("Attempting to begin reading spilled partition without any memory available");
 			}
 
-			ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide,
-				returnQueue, memory, this.availableMemory, this.probeSideSerializer, p.getProbeSideBlockCount());
-			this.probeIterator.set(probeReader);
+			this.currentSpilledBuildSide = this.ioManager.createBlockChannelReader(p.getBuildSideChannel().getChannelID());
+			final ChannelReaderInputView inView = new HeaderlessChannelReaderInputView(currentSpilledBuildSide, memory,
+				p.getBuildSideBlockCount(), p.getLastSegmentLimit(), false);
+			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView,
+				this.availableMemory, this.buildSideSerializer);
 
-			// unregister the pending partition
+			this.unmatchedBuildIterator = inIter;
+
 			this.partitionsPending.remove(0);
-			this.currentRecursionDepth = p.getRecursionLevel() + 1;
-			
-			// recursively get the next
-			return nextRecord();
+
+			return true;
+		}
+
+		this.probeMatchedPhase = true;
+		this.unmatchedBuildVisited = false;
+
+		// build the next table; memory must be allocated after this call
+		buildTableFromSpilledPartition(p);
+
+		// set the probe side - gather memory segments for reading
+		LinkedBlockingQueue<MemorySegment> returnQueue = new LinkedBlockingQueue<MemorySegment>();
+		this.currentSpilledProbeSide = this.ioManager.createBlockChannelReader(p.getProbeSideChannel().getChannelID(), returnQueue);
+
+		List<MemorySegment> memory = new ArrayList<MemorySegment>();
+		MemorySegment seg1 = getNextBuffer();
+		if (seg1 != null) {
+			memory.add(seg1);
+			MemorySegment seg2 = getNextBuffer();
+			if (seg2 != null) {
+				memory.add(seg2);
+			}
 		}
 		else {
-			// no more data
-			return false;
+			throw new IllegalStateException("Attempting to begin probing of partition without any memory available");
 		}
+
+		ChannelReaderInputViewIterator<PT> probeReader = new ChannelReaderInputViewIterator<PT>(this.currentSpilledProbeSide,
+			returnQueue, memory, this.availableMemory, this.probeSideSerializer, p.getProbeSideBlockCount());
+		this.probeIterator.set(probeReader);
+
+		// unregister the pending partition
+		this.partitionsPending.remove(0);
+		this.currentRecursionDepth = p.getRecursionLevel() + 1;
+
+		// recursively get the next
+		return nextRecord();
 	}
 	
 	public boolean nextRecord() throws IOException {
