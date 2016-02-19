@@ -42,7 +42,7 @@ public abstract class TestJvmProcess {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestJvmProcess.class);
 
-	/** Lock to guard {@link #createAndStart()} and {@link #destroy()} calls. */
+	/** Lock to guard {@link #startProcess()} and {@link #destroy()} calls. */
 	private final Object createDestroyLock = new Object();
 
 	/** The java command path */
@@ -122,7 +122,7 @@ public abstract class TestJvmProcess {
 	 * resource leaks. The created process will be child process and is not guaranteed to
 	 * terminate when the parent process terminates.
 	 */
-	public void createAndStart() throws IOException {
+	public void startProcess() throws IOException {
 		String[] cmd = new String[] {
 				javaCommandPath,
 				"-Dlog.level=DEBUG",

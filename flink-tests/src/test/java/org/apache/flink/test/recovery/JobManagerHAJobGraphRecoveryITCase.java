@@ -255,8 +255,8 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			jobManagerProcess[0] = new JobManagerProcess(0, config);
 			jobManagerProcess[1] = new JobManagerProcess(1, config);
 
-			jobManagerProcess[0].createAndStart();
-			jobManagerProcess[1].createAndStart();
+			jobManagerProcess[0].startProcess();
+			jobManagerProcess[1].startProcess();
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
@@ -301,7 +301,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 			// Who's the boss?
 			JobManagerProcess leadingJobManagerProcess;
-			if (jobManagerProcess[0].getJobManagerAkkaURL().equals(leaderListener.getAddress())) {
+			if (jobManagerProcess[0].getJobManagerAkkaURL(deadline.timeLeft()).equals(leaderListener.getAddress())) {
 				leadingJobManagerProcess = jobManagerProcess[0];
 			}
 			else {

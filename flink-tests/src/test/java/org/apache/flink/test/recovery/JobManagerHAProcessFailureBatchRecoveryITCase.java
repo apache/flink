@@ -253,7 +253,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 			// Start first process
 			jmProcess[0] = new JobManagerProcess(0, config);
-			jmProcess[0].createAndStart();
+			jmProcess[0].startProcess();
 
 			// Task manager configuration
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
@@ -321,7 +321,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			jmProcess[0].destroy();
 
 			jmProcess[1] = new JobManagerProcess(1, config);
-			jmProcess[1].createAndStart();
+			jmProcess[1].startProcess();
 
 			jmProcess[1].getActorRef(testActorSystem, deadline.timeLeft());
 
