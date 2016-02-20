@@ -102,7 +102,7 @@ public class TaskManagerTest extends TestLogger {
 
 	private static final FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
 
-	private static final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
+	private static final FiniteDuration d = new FiniteDuration(60, TimeUnit.SECONDS);
 
 	private static ActorSystem system;
 
@@ -1079,16 +1079,17 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<URL>emptyList(),
 						0);
 
-				// Make sure to register
-				Future<?> connectFuture = taskManager.ask(new TestingTaskManagerMessages
-						.NotifyWhenRegisteredAtJobManager(jobManager.actor()), remaining());
-				Await.ready(connectFuture, remaining());
-
 				// Submit the task
 				new Within(d) {
+
 					@Override
 					protected void run() {
 						try {
+							// Make sure to register
+							Future<?> connectFuture = taskManager.ask(new TestingTaskManagerMessages
+									.NotifyWhenRegisteredAtJobManager(jobManager.actor()), remaining());
+							Await.ready(connectFuture, remaining());
+
 							Future<Object> taskRunningFuture = taskManager.ask(
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(
 											tdd.getExecutionId()), timeout);
