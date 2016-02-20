@@ -52,17 +52,25 @@ object RexNodeTranslator {
         val l = extractAggCalls(b.left, relBuilder)
         val r = extractAggCalls(b.right, relBuilder)
         (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
-      case s: Substring =>
+
+      // Scalar functions
+      case s@Substring(_, _, Some(endIndex)) =>
         val str = extractAggCalls(s.str, relBuilder)
         val sta = extractAggCalls(s.beginIndex, relBuilder)
-        val end = extractAggCalls(s.endIndex, relBuilder)
+        val end = extractAggCalls(endIndex, relBuilder)
         (s.makeCopy(
-          List(str._1, sta._1, end._1)),
+          List(str._1, sta._1, Some(end._1))),
           (str._2 ::: sta._2) ::: end._2
         )
-      case e@_ =>
+
+      case s@Substring(_, _, None) =>
+        val str = extractAggCalls(s.str, relBuilder)
+        val sta = extractAggCalls(s.beginIndex, relBuilder)
+        (s.makeCopy(List(str._1, sta._1, None)), str._2 ::: sta._2)
+
+      case e@AnyRef =>
         throw new IllegalArgumentException(
-          s"Expression ${e} of type ${e.getClass()} not supported yet")
+          s"Expression $e of type ${e.getClass} not supported yet")
     }
   }
 
@@ -72,6 +80,7 @@ object RexNodeTranslator {
   def toRexNode(exp: Expression, relBuilder: RelBuilder): RexNode = {
 
     exp match {
+      // Basic operators
       case Literal(value, tpe) =>
         relBuilder.literal(value)
       case ResolvedFieldReference(name, tpe) =>
@@ -151,16 +160,24 @@ object RexNodeTranslator {
       case UnaryMinus(child) =>
         val c = toRexNode(child, relBuilder)
         relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, c)
-      case Substring(string, start, end) =>
+
+      // Scalar functions
+      case Substring(string, start, Some(end)) =>
         val str = toRexNode(string, relBuilder)
         val sta = toRexNode(start, relBuilder)
         val en = toRexNode(end, relBuilder)
         relBuilder.call(SqlStdOperatorTable.SUBSTRING, str, sta, en)
+
+      case Substring(string, start, None) =>
+        val str = toRexNode(string, relBuilder)
+        val sta = toRexNode(start, relBuilder)
+        relBuilder.call(SqlStdOperatorTable.SUBSTRING, str, sta)
+
       case a: Aggregation =>
-        throw new IllegalArgumentException(s"Aggregation expression ${a} not allowed at this place")
-      case e@_ =>
+        throw new IllegalArgumentException(s"Aggregation expression $a not allowed at this place")
+      case e@AnyRef =>
         throw new IllegalArgumentException(
-          s"Expression ${e} of type ${e.getClass()} not supported yet")
+          s"Expression $e of type ${e.getClass} not supported yet")
     }
   }
 

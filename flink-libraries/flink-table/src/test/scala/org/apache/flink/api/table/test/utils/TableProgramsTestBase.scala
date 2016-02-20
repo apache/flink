@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.test
+package org.apache.flink.api.table.test.utils
 
 import java.util
 
@@ -25,8 +25,8 @@ import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.table.{TableEnvironment => ScalaTableEnv}
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaEnv}
 import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.table.test.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.table.test.TableProgramsTestBase.TableConfigMode.{EFFICIENT, NULL}
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode.{EFFICIENT, NULL}
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.runners.Parameterized
