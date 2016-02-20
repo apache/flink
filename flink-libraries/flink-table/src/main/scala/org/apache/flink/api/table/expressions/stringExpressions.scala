@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, IntegerTypeInfo}
 case class Substring(
     str: Expression,
     beginIndex: Expression,
-    endIndex: Expression) extends Expression {
+    endIndex: Option[Expression] = None) extends Expression {
   def typeInfo = {
     if (str.typeInfo != BasicTypeInfo.STRING_TYPE_INFO) {
       throw new ExpressionException(
@@ -33,14 +33,23 @@ case class Substring(
       throw new ExpressionException(
         s"""Begin index must be an integer type in $this, is ${beginIndex.typeInfo}.""")
     }
-    if (!endIndex.typeInfo.isInstanceOf[IntegerTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""End index must be an integer type in $this, is ${endIndex.typeInfo}.""")
+    endIndex match {
+      case Some(endIdx) if !endIdx.typeInfo.isInstanceOf[IntegerTypeInfo[_]] =>
+        throw new ExpressionException(
+            s"""End index must be an integer type in $this, is ${endIdx.typeInfo}.""")
+        case _ => // ok
     }
 
     BasicTypeInfo.STRING_TYPE_INFO
   }
 
-  override def children: Seq[Expression] = Seq(str, beginIndex, endIndex)
-  override def toString = s"($str).substring($beginIndex, $endIndex)"
+  override def children: Seq[Expression] = endIndex match {
+    case Some(endIdx) => Seq(str, beginIndex, endIdx)
+    case None => Seq(str, beginIndex)
+  }
+
+  override def toString = endIndex match {
+    case Some(endIdx) => s"($str).substring($beginIndex, $endIndex)"
+    case None => s"($str).substring($beginIndex)"
+  }
 }

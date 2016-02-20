@@ -40,7 +40,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test
 	public void testSubstring() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -52,7 +52,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
-				.select("a.substring(0, b)");
+				.select("a.substring(1, b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
@@ -60,14 +60,14 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test
 	public void testSubstringWithMaxEnd() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
-				new Tuple2<>("ABCD", 2),
-				new Tuple2<>("ABCD", 1));
+				new Tuple2<>("ABCD", 3),
+				new Tuple2<>("ABCD", 2));
 
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 

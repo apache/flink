@@ -125,13 +125,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val substring: PackratParser[Expression] =
     atom ~ ".substring(" ~ expression ~ "," ~ expression ~ ")" ^^ {
-      case e ~ _ ~ from ~ _ ~ to ~ _ => Substring(e, from, to)
+      case e ~ _ ~ from ~ _ ~ to ~ _ => Substring(e, from, Some(to))
 
     }
 
   lazy val substringWithoutEnd: PackratParser[Expression] =
     atom ~ ".substring(" ~ expression ~ ")" ^^ {
-      case e ~ _ ~ from ~ _ => Substring(e, from, Literal(Integer.MAX_VALUE))
+      case e ~ _ ~ from ~ _ => Substring(e, from)
 
     }
 

@@ -19,9 +19,10 @@
 package org.apache.flink.api.table.codegen
 
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
@@ -29,12 +30,13 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenUtils._
 import org.apache.flink.api.table.codegen.Indenter.toISC
-import org.apache.flink.api.table.codegen.OperatorCodeGen._
+import org.apache.flink.api.table.codegen.calls.ScalarFunctions
+import org.apache.flink.api.table.codegen.calls.ScalarOperators._
 import org.apache.flink.api.table.plan.TypeConverter.sqlTypeToTypeInfo
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
-import org.apache.flink.api.common.functions.FlatJoinFunction
 
 /**
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
@@ -540,7 +542,7 @@ class CodeGenerator(
         }
       case INTEGER =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidShort) {
+        if (decimal.isValidInt) {
           generateNonNullLiteral(resultType, decimal.intValue().toString)
         }
         else {
@@ -702,10 +704,19 @@ class CodeGenerator(
         requireBoolean(operand)
         generateNot(nullCheck, operand)
 
+      // casting
       case CAST =>
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
+      // advanced scalar functions
+      case call: SqlOperator =>
+        val callGen = ScalarFunctions.getCallGenerator(call, operands.map(_.resultType))
+        callGen
+          .getOrElse(throw new CodeGenException(s"Unsupported call: $call"))
+          .generate(this, operands)
+
+      // unknown or invalid
       case call@_ =>
         throw new CodeGenException(s"Unsupported call: $call")
     }

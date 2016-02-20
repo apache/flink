@@ -63,8 +63,12 @@ trait ImplicitExpressionOperations {
   def count = Count(expr)
   def avg = Avg(expr)
 
-  def substring(beginIndex: Expression, endIndex: Expression = Literal(Int.MaxValue)) = {
-    Substring(expr, beginIndex, endIndex)
+  def substring(beginIndex: Expression, endIndex: Expression) = {
+    Substring(expr, beginIndex, Some(endIndex))
+  }
+
+  def substring(beginIndex: Expression) = {
+    Substring(expr, beginIndex)
   }
 
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)

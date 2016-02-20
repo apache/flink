@@ -18,35 +18,35 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.api.table.Row
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import scala.collection.JavaConverters._
-import org.apache.flink.api.table.codegen.CodeGenException
 
 @RunWith(classOf[Parameterized])
 class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test(expected = classOf[CodeGenException])
+  @Test
   def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
-      .select('a.substring(0, 'b))
+      .select('a.substring(1, 'b))
 
     val expected = "AA\nB"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test
   def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
+    val t = env.fromElements(("ABCD", 3), ("ABCD", 2)).as('a, 'b)
       .select('a.substring('b))
 
     val expected = "CD\nBCD"
