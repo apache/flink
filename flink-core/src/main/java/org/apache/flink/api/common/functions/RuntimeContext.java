@@ -219,7 +219,7 @@ public interface RuntimeContext {
 	 *
 	 *     public void open(Configuration cfg) {
 	 *         state = getRuntimeContext().getState(
-	 *                 new ValueStateDescriptor<Long>("count", 0L, LongSerializer.INSTANCE));
+	 *                 new ValueStateDescriptor<Long>("count", LongSerializer.INSTANCE, 0L));
 	 *     }
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
