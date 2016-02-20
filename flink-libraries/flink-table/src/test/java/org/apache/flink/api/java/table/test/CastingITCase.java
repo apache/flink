@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.codegen.CodeGenException;
-import org.apache.flink.api.table.test.TableProgramsTestBase;
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

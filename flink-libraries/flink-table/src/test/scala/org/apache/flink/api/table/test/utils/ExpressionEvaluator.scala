@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.api.table.test.utils
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
+import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.api.common.functions.{Function, MapFunction}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
+import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.plan.{RexNodeTranslator, TranslationContext}
+import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.runtime.FunctionCompiler
+import org.mockito.Mockito._
+
+/**
+  * Utility to translate and evaluate an RexNode or Table API expression to a String.
+  */
+object ExpressionEvaluator {
+
+  // TestCompiler that uses current class loader
+  class TestCompiler[T <: Function] extends FunctionCompiler[T] {
+    def compile(genFunc: GeneratedFunction[T]): Class[T] =
+      compile(getClass.getClassLoader, genFunc.name, genFunc.code)
+  }
+
+  private def prepareRelBuilder(typeInfo: TypeInformation[Any]): RelBuilder = {
+    // create DataSetTable
+    val dataSetMock = mock(classOf[DataSet[Any]])
+    when(dataSetMock.getType).thenReturn(typeInfo)
+    val tableName = TranslationContext.addDataSet(new DataSetTable[Any](
+      dataSetMock,
+      (0 until typeInfo.getArity).toArray,
+      (0 until typeInfo.getArity).map("f" + _).toArray))
+
+    // prepare RelBuilder
+    val relBuilder = TranslationContext.getRelBuilder
+    relBuilder.scan(tableName)
+    relBuilder
+  }
+
+  def evaluate(data: Any, typeInfo: TypeInformation[Any], expr: Expression): String = {
+    val relBuilder = prepareRelBuilder(typeInfo)
+    evaluate(data, typeInfo, relBuilder, RexNodeTranslator.toRexNode(expr, relBuilder))
+  }
+
+  def evaluate(
+      data: Any,
+      typeInfo: TypeInformation[Any],
+      relBuilder: RelBuilder,
+      rexNode: RexNode): String = {
+    // generate code for Mapper
+    val config = new TableConfig()
+    val generator = new CodeGenerator(config, typeInfo)
+    val genExpr = generator.generateExpression(relBuilder.cast(rexNode, VARCHAR)) // cast to String
+    val bodyCode =
+      s"""
+        |${genExpr.code}
+        |return ${genExpr.resultTerm};
+        |""".stripMargin
+    val genFunc = generator.generateFunction[MapFunction[Any, String]](
+      "TestFunction",
+      classOf[MapFunction[Any, String]],
+      bodyCode,
+      STRING_TYPE_INFO.asInstanceOf[TypeInformation[Any]])
+
+    // compile and evaluate
+    val clazz = new TestCompiler[MapFunction[Any, String]]().compile(genFunc)
+    val mapper = clazz.newInstance()
+    mapper.map(data)
+  }
+
+}
