@@ -462,6 +462,15 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		assertEquals(Arrays.asList("1", "1", "2", "2", "2", "2"), TestSink.collected);
 	}
 
+	/**
+	 * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+	 * assumed to be {@link MathUtils#murmurHash}.
+	 *
+	 * For the test to pass all FlatMappers must see at least two records in the iteration,
+	 * which can only be achieved if the hashed values of the input keys map to a complete
+	 * congruence system. Given that the test is designed for 3 parallel FlatMapper instances
+	 * keys chosen from the [1,3] range are a suitable choice.
+     */
 	@Test
 	public void testGroupByFeedback() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
