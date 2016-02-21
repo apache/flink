@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.util.MathUtils;
 
 /**
  * The output emitter decides to which of the possibly multiple output channels a record is sent.
@@ -187,37 +188,9 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private int[] hashPartitionDefault(T record, int numberOfChannels) {
 		int hash = this.comparator.hash(record);
 
-		hash = murmurHash(hash);
+		this.channels[0] = MathUtils.murmurHash(hash) % numberOfChannels;
 
-		if (hash >= 0) {
-			this.channels[0] = hash % numberOfChannels;
-		}
-		else if (hash != Integer.MIN_VALUE) {
-			this.channels[0] = -hash % numberOfChannels;
-		}
-		else {
-			this.channels[0] = 0;
-		}
-	
 		return this.channels;
-	}
-
-	private int murmurHash(int k) {
-		k *= 0xcc9e2d51;
-		k = Integer.rotateLeft(k, 15);
-		k *= 0x1b873593;
-		
-		k = Integer.rotateLeft(k, 13);
-		k *= 0xe6546b64;
-
-		k ^= 4;
-		k ^= k >>> 16;
-		k *= 0x85ebca6b;
-		k ^= k >>> 13;
-		k *= 0xc2b2ae35;
-		k ^= k >>> 16;
-
-		return k;
 	}
 
 	private final int[] rangePartition(final T record, int numberOfChannels) {
