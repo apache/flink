@@ -58,9 +58,11 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     * The stream is grouped by the first field. For each group, the resulting stream is folded by
     * summing up the second tuple field.
     *
+    * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+    * assumed to be {@link MathUtils#murmurHash}.
     */
   @Test
-  def testFoldOperator(): Unit = {
+  def testGroupedFoldOperator(): Unit = {
     val numElements = 10
     val numKeys = 2
 
