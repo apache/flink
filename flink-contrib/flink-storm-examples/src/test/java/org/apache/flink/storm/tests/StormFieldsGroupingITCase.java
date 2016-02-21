@@ -21,13 +21,19 @@ import backtype.storm.Config;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 
+import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
 import org.apache.flink.storm.tests.operators.TaskIdBolt;
 import org.apache.flink.storm.util.BoltFileSink;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+ * assumed to be {@link MathUtils#murmurHash}.
+ */
 public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
 	private final static String topologyId = "FieldsGrouping Test";
@@ -43,9 +49,9 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory("4> -1930858313\n" + "4> 1431162155\n" + "4> 1654374947\n"
-				+ "4> -65105105\n" + "3> -1155484576\n" + "3> 1033096058\n" + "3> -1557280266\n"
-				+ "3> -1728529858\n" + "3> -518907128\n" + "3> -252332814", this.resultPath);
+		compareResultsByLinesInMemory("3> -1155484576\n" + "3> 1033096058\n" + "3> -1930858313\n" +
+			"3> 1431162155\n" + "4> -1557280266\n" + "4> -1728529858\n" + "4> 1654374947\n" +
+			"4> -65105105\n" + "4> -518907128\n" + "4> -252332814\n", this.resultPath);
 	}
 
 	@Override
