@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SplitStream;
@@ -67,12 +68,13 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 	 * of Tuple2<Integer, Integer> is created. The stream is grouped according to the first tuple
 	 * value. Each group is folded where the second tuple value is summed up.
 	 *
-	 * @throws Exception
+	 * This test relies on the hash function used by the {@link DataStream#keyBy}, which is
+	 * assumed to be {@link MathUtils#murmurHash}.
 	 */
 	@Test
-	public void testFoldOperation() throws Exception {
+	public void testGroupedFoldOperation() throws Exception {
 		int numElements = 10;
-		int numKeys = 2;
+		final int numKeys = 2;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Integer, Integer>> sourceStream = env.addSource(new TupleSource(numElements, numKeys));
@@ -85,9 +87,13 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 					return accumulator + value.f1;
 				}
 			}).map(new RichMapFunction<Integer, Tuple2<Integer, Integer>>() {
+				int key = -1;
 				@Override
 				public Tuple2<Integer, Integer> map(Integer value) throws Exception {
-					return new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), value);
+					if (key == -1){
+						key = MathUtils.murmurHash(value) % numKeys;
+					}
+					return new Tuple2<>(key, value);
 				}
 			}).split(new OutputSelector<Tuple2<Integer, Integer>>() {
 				@Override
@@ -95,7 +101,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 					List<String> output = new ArrayList<>();
 
 					output.add(value.f0 + "");
-
 					return output;
 				}
 			});
@@ -120,7 +125,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		int counter2 = 0;
 
 		for (int i = 0; i < numElements; i++) {
-			if (i % 2 == 0) {
+			if (MathUtils.murmurHash(i) % numKeys == 0) {
 				counter1 += i;
 				builder1.append(counter1 + "\n");
 			} else {
@@ -196,7 +201,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, NonSerializable>> ctx) throws Exception {
 			for (int i = 0; i < numElements; i++) {
-				ctx.collect(new Tuple2<Integer, NonSerializable>(i, new NonSerializable(i)));
+				ctx.collect(new Tuple2<>(i, new NonSerializable(i)));
 			}
 		}
 
@@ -217,14 +222,13 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
 			for (int i = 0; i < numElements; i++) {
-				Tuple2<Integer, Integer> result = new Tuple2<>(i % numKeys, i);
+				Tuple2<Integer, Integer> result = new Tuple2<>(MathUtils.murmurHash(i) % numKeys, i);
 				ctx.collect(result);
 			}
 		}
 
 		@Override
 		public void cancel() {
-
 		}
 	}
 }
