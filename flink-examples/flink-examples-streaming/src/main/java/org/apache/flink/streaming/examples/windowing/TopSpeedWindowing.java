@@ -166,7 +166,7 @@ public class TopSpeedWindowing {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long extractAscendingTimestamp(Tuple4<Integer, Integer, Double, Long> element, long previous) {
+		public long extractAscendingTimestamp(Tuple4<Integer, Integer, Double, Long> element) {
 			return element.f3;
 		}
 	}

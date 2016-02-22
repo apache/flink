@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.assigners;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -54,8 +55,15 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		long start = timestamp - (timestamp % size);
-		return Collections.singletonList(new TimeWindow(start, start + size));
+		if (timestamp > Long.MIN_VALUE) {
+			// Long.MIN_VALUE is currently assigned when no timestamp is present
+			long start = timestamp - (timestamp % size);
+			return Collections.singletonList(new TimeWindow(start, start + size));
+		} else {
+			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
+					"Is the time characteristic set to 'ProcessingTime', or did you forget to call " +
+					"'DataStream.assignTimestampsAndWatermarks(...)'?");
+		}
 	}
 
 	public long getSize() {

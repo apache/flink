@@ -35,7 +35,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		implements OneInputStreamOperator<T, T>, Triggerable {
 
 	private static final long serialVersionUID = 1L;
-
+	
 	private transient long watermarkInterval;
 
 	private transient long currentWatermark;
@@ -43,14 +43,14 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
-		chainingStrategy = ChainingStrategy.ALWAYS;
+		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
 
-		currentWatermark = -1L;
+		currentWatermark = Long.MIN_VALUE;
 		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		
 		if (watermarkInterval > 0) {
@@ -60,18 +60,20 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
-		long newTimestamp = userFunction.extractTimestamp(element.getValue(), element.getTimestamp());
+		final long newTimestamp = userFunction.extractTimestamp(element.getValue(), 
+				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
+		
 		output.collect(element.replace(element.getValue(), newTimestamp));
 	}
 
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
-		long newWatermark = userFunction.getCurrentWatermark();
-		if (newWatermark > currentWatermark) {
-			currentWatermark = newWatermark;
+		Watermark newWatermark = userFunction.getCurrentWatermark();
+		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
+			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
-			output.emitWatermark(new Watermark(currentWatermark));
+			output.emitWatermark(newWatermark);
 		}
 
 		registerTimer(System.currentTimeMillis() + watermarkInterval, this);

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,21 +38,20 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 	
 	private static final long serialVersionUID = 1L;
 	
-	/** The current timestamp */
-	private long currentTimestamp = 0;
+	/** The current timestamp. */
+	private long currentTimestamp = Long.MIN_VALUE;
 
 	/** Handler that is called when timestamp monotony is violated */
 	private MonotonyViolationHandler violationHandler = new LoggingHandler();
+	
 	
 	/**
 	 * Extracts the timestamp from the given element. The timestamp must be monotonically increasing.
 	 *
 	 * @param element The element that the timestamp is extracted from.
-	 * @param previousElementTimestamp The current internal timestamp of the element.
-	 * 
 	 * @return The new timestamp.
 	 */
-	public abstract long extractAscendingTimestamp(T element, long previousElementTimestamp);
+	public abstract long extractAscendingTimestamp(T element);
 
 	/**
 	 * Sets the handler for violations to the ascending timestamp order.
@@ -68,7 +68,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 	
 	@Override
 	public final long extractTimestamp(T element, long elementPrevTimestamp) {
-		final long newTimestamp = extractAscendingTimestamp(element, elementPrevTimestamp);
+		final long newTimestamp = extractAscendingTimestamp(element);
 		if (newTimestamp >= this.currentTimestamp) {
 			this.currentTimestamp = newTimestamp;
 			return newTimestamp;
@@ -79,8 +79,8 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 	}
 
 	@Override
-	public final long getCurrentWatermark() {
-		return currentTimestamp - 1;
+	public final Watermark getCurrentWatermark() {
+		return new Watermark(currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1);
 	}
 
 	// ------------------------------------------------------------------------

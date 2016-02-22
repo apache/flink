@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -158,8 +159,8 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public long checkAndGetNextWatermark(Integer lastElement, long extractedTimestamp) {
-			return counter - 1;
+		public Watermark checkAndGetNextWatermark(Integer lastElement, long extractedTimestamp) {
+			return new Watermark(counter - 1);
 		}
 	}
 

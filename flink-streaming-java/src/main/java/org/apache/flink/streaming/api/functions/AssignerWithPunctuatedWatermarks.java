@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
+
 /**
  * The {@code AssignerWithPunctuatedWatermarks} assigns event time timestamps to elements,
  * and generates low watermarks that signal event time progress within the stream.
@@ -40,8 +42,8 @@ package org.apache.flink.streaming.api.functions;
  *         return element.getSequenceTimestamp();
  *     }
  *
- *     public long checkAndGetNextWatermark(MyElement lastElement, long extractedTimestamp) {
- *         return lastElement.isEndOfSequence() ? extractedTimestamp : -1L;
+ *     public Watermark checkAndGetNextWatermark(MyElement lastElement, long extractedTimestamp) {
+ *         return lastElement.isEndOfSequence() ? new Watermark(extractedTimestamp) : null;
  *     }
  * }
  * }</pre>
@@ -70,8 +72,7 @@ public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T
 	 * <p>For an example how to use this method, see the documentation of
 	 * {@link AssignerWithPunctuatedWatermarks this class}.
 	 *
-	 * @return A negative value, if no watermark should be emitted, positive value for
-	 *         emitting this value as a watermark.
+	 * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
 	 */
-	long checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
+	Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
 }

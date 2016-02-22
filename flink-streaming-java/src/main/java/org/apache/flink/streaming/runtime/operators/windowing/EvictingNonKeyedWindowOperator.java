@@ -59,7 +59,7 @@ public class EvictingNonKeyedWindowOperator<IN, OUT, W extends Window> extends N
 	@Override
 	@SuppressWarnings("unchecked, rawtypes")
 	protected void emitWindow(Context context) throws Exception {
-		timestampedCollector.setTimestamp(context.window.maxTimestamp());
+		timestampedCollector.setAbsoluteTimestamp(context.window.maxTimestamp());
 		EvictingWindowBuffer<IN> windowBuffer = (EvictingWindowBuffer<IN>) context.windowBuffer;
 
 		int toEvict = 0;

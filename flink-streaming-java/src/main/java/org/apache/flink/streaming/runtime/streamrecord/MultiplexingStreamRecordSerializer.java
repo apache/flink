@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -27,22 +26,24 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.io.IOException;
 
+import static java.util.Objects.requireNonNull;
+
 /**
- * Serializer for {@link StreamRecord} and {@link org.apache.flink.streaming.api.watermark.Watermark}. This does not behave like a normal
- * {@link TypeSerializer}, instead, this is only used at the
- * {@link org.apache.flink.streaming.runtime.tasks.StreamTask} level for transmitting
- * {@link StreamRecord StreamRecords} and {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks}. This serializer
- * can handle both of them, therefore it returns {@link Object} the result has
- * to be cast to the correct type.
+ * Serializer for {@link StreamRecord} and {@link Watermark}. This does not behave like a normal
+ * {@link TypeSerializer}, instead, this is only used at the stream task/opertator level for
+ * transmitting StreamRecords} and Watermarks.
  *
- * @param <T> The type of value in the {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}
+ * @param <T> The type of value in the StreamRecord
  */
 @Internal
 public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
 
 	private static final long serialVersionUID = 1L;
-
-	private static final long IS_WATERMARK = Long.MIN_VALUE;
+	
+	private static final int TAG_REC_WITH_TIMESTAMP = 0;
+	private static final int TAG_REC_WITHOUT_TIMESTAMP = 1;
+	private static final int TAG_WATERMARK = 2;
+	
 	
 	private final TypeSerializer<T> typeSerializer;
 
@@ -51,9 +52,16 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 		if (serializer instanceof MultiplexingStreamRecordSerializer || serializer instanceof StreamRecordSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
 		}
-		this.typeSerializer = Preconditions.checkNotNull(serializer);
+		this.typeSerializer = requireNonNull(serializer);
 	}
-	
+
+	public TypeSerializer<T> getContainedTypeSerializer() {
+		return this.typeSerializer;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 	
 	@Override
 	public boolean isImmutableType() {
@@ -61,14 +69,23 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	}
 
 	@Override
-	public TypeSerializer<StreamElement> duplicate() {
+	public MultiplexingStreamRecordSerializer<T> duplicate() {
 		TypeSerializer<T> copy = typeSerializer.duplicate();
 		return (copy == typeSerializer) ? this : new MultiplexingStreamRecordSerializer<T>(copy);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public StreamRecord<T> createInstance() {
-		return new StreamRecord<T>(typeSerializer.createInstance(), 0L);
+		return new StreamRecord<T>(typeSerializer.createInstance());
+	}
+
+	@Override
+	public int getLength() {
+		return -1;
 	}
 
 	@Override
@@ -76,14 +93,14 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 		// we can reuse the timestamp since Instant is immutable
 		if (from.isRecord()) {
 			StreamRecord<T> fromRecord = from.asRecord();
-			return new StreamRecord<T>(typeSerializer.copy(fromRecord.getValue()), fromRecord.getTimestamp());
+			return fromRecord.copy(typeSerializer.copy(fromRecord.getValue()));
 		}
 		else if (from.isWatermark()) {
 			// is immutable
 			return from;
 		}
 		else {
-			throw new RuntimeException("Cannot copy " + from);
+			throw new RuntimeException();
 		}
 	}
 
@@ -94,7 +111,7 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 			StreamRecord<T> reuseRecord = reuse.asRecord();
 
 			T valueCopy = typeSerializer.copy(fromRecord.getValue(), reuseRecord.getValue());
-			reuseRecord.replace(valueCopy, fromRecord.getTimestamp());
+			fromRecord.copyTo(valueCopy, reuseRecord);
 			return reuse;
 		}
 		else if (from.isWatermark()) {
@@ -107,19 +124,41 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	}
 
 	@Override
-	public int getLength() {
-		return -1;
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		int tag = source.readByte();
+		target.write(tag);
+
+		if (tag == TAG_REC_WITH_TIMESTAMP) {
+			// move timestamp
+			target.writeLong(source.readLong());
+			typeSerializer.copy(source, target);
+		}
+		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
+			typeSerializer.copy(source, target);
+		}
+		else if (tag == TAG_WATERMARK) {
+			target.writeLong(source.readLong());
+		}
+		else {
+			throw new IOException("Corrupt stream, found tag: " + tag);
+		}
 	}
 
 	@Override
 	public void serialize(StreamElement value, DataOutputView target) throws IOException {
 		if (value.isRecord()) {
 			StreamRecord<T> record = value.asRecord();
-			target.writeLong(record.getTimestamp());
+			
+			if (record.hasTimestamp()) {
+				target.write(TAG_REC_WITH_TIMESTAMP);
+				target.writeLong(record.getTimestamp());
+			} else {
+				target.write(TAG_REC_WITHOUT_TIMESTAMP);
+			}
 			typeSerializer.serialize(record.getValue(), target);
 		}
 		else if (value.isWatermark()) {
-			target.writeLong(IS_WATERMARK);
+			target.write(TAG_WATERMARK);
 			target.writeLong(value.asWatermark().getTimestamp());
 		}
 		else {
@@ -129,44 +168,50 @@ public final class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<
 	
 	@Override
 	public StreamElement deserialize(DataInputView source) throws IOException {
-		long millis = source.readLong();
-
-		if (millis == IS_WATERMARK) {
+		int tag = source.readByte();
+		if (tag == TAG_REC_WITH_TIMESTAMP) {
+			long timestamp = source.readLong();
+			return new StreamRecord<T>(typeSerializer.deserialize(source), timestamp);
+		}
+		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
+			return new StreamRecord<T>(typeSerializer.deserialize(source));
+		}
+		else if (tag == TAG_WATERMARK) {
 			return new Watermark(source.readLong());
 		}
 		else {
-			T element = typeSerializer.deserialize(source);
-			return new StreamRecord<T>(element, millis);
+			throw new IOException("Corrupt stream, found tag: " + tag);
 		}
 	}
 
 	@Override
 	public StreamElement deserialize(StreamElement reuse, DataInputView source) throws IOException {
-		long millis = source.readLong();
-
-		if (millis == IS_WATERMARK) {
+		int tag = source.readByte();
+		if (tag == TAG_REC_WITH_TIMESTAMP) {
+			long timestamp = source.readLong();
+			T value = typeSerializer.deserialize(source);
+			StreamRecord<T> reuseRecord = reuse.asRecord();
+			reuseRecord.replace(value, timestamp);
+			return reuseRecord;
+		}
+		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
+			T value = typeSerializer.deserialize(source);
+			StreamRecord<T> reuseRecord = reuse.asRecord();
+			reuseRecord.replace(value);
+			return reuseRecord;
+		}
+		else if (tag == TAG_WATERMARK) {
 			return new Watermark(source.readLong());
 		}
 		else {
-			StreamRecord<T> reuseRecord = reuse.asRecord();
-			T element = typeSerializer.deserialize(reuseRecord.getValue(), source);
-			reuseRecord.replace(element, millis);
-			return reuse;
+			throw new IOException("Corrupt stream, found tag: " + tag);
 		}
 	}
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		long millis = source.readLong();
-		target.writeLong(millis);
-
-		if (millis == IS_WATERMARK) {
-			target.writeLong(source.readLong());
-		} else {
-			typeSerializer.copy(source, target);
-		}
-	}
-
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof MultiplexingStreamRecordSerializer) {

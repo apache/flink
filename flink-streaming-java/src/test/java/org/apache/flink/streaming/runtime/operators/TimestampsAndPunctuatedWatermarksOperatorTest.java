@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -76,6 +76,32 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 		assertEquals(10L, ((StreamRecord<Tuple2<Long, Boolean>>) output.poll()).getTimestamp());
 		assertEquals(Long.MAX_VALUE, ((Watermark) output.poll()).getTimestamp());
 	}
+
+	@Test
+	public void testZeroOnNegativeTimestamps() throws Exception {
+
+		final AssignerWithPunctuatedWatermarks<Long> assigner = new NeverWatermarkExtractor();
+
+		final TimestampsAndPunctuatedWatermarksOperator<Long> operator =
+				new TimestampsAndPunctuatedWatermarksOperator<Long>(assigner);
+
+		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
+				new OneInputStreamOperatorTestHarness<Long, Long>(operator);
+
+		testHarness.open();
+
+		long[] values = { Long.MIN_VALUE, -1L, 0L, 1L, 2L, 3L, Long.MAX_VALUE };
+
+		for (long value : values) {
+			testHarness.processElement(new StreamRecord<>(value));
+		}
+
+		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+
+		for (long value: values) {
+			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 
@@ -88,8 +114,22 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 		}
 
 		@Override
-		public long checkAndGetNextWatermark(Tuple2<Long, Boolean> lastElement, long extractedTimestamp) {
-			return lastElement.f1 ? extractedTimestamp : -1L;
+		public Watermark checkAndGetNextWatermark(Tuple2<Long, Boolean> lastElement, long extractedTimestamp) {
+			return lastElement.f1 ? new Watermark(extractedTimestamp) : null;
+		}
+	}
+
+	private static class NeverWatermarkExtractor implements AssignerWithPunctuatedWatermarks<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public long extractTimestamp(Long element, long previousElementTimestamp) {
+			return element;
+		}
+
+		@Override
+		public Watermark checkAndGetNextWatermark(Long lastElement, long extractedTimestamp) {
+			return null;
 		}
 	}
 }

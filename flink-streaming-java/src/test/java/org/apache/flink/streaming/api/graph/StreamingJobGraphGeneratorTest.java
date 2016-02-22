@@ -76,7 +76,7 @@ public class StreamingJobGraphGeneratorTest {
 		}
 		config.setParallelism(dop);
 		
-		JobGraph jobGraph = compiler.createJobGraph("test");
+		JobGraph jobGraph = compiler.createJobGraph();
 		
 		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),

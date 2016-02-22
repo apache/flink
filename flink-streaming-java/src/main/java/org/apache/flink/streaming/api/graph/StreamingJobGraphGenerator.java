@@ -20,7 +20,9 @@ package org.apache.flink.streaming.api.graph;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+
 import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -51,6 +53,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +111,7 @@ public class StreamingJobGraphGenerator {
 		this.physicalEdgesInOrder = new ArrayList<>();
 	}
 
-	public JobGraph createJobGraph(String jobName) {
+	public JobGraph createJobGraph() {
 		jobGraph = new JobGraph(streamGraph.getJobName());
 
 		// make sure that all vertices start immediately
@@ -323,6 +326,8 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
+		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
+		
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
 		
 		config.setStateBackend(streamGraph.getStateBackend());

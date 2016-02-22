@@ -46,7 +46,7 @@ object WindowJoin {
     println("Usage: WindowJoin --grades <path> --salaries <path> --output <path>")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
     env.getConfig.setGlobalJobParameters(params)
 
     // Create streams for grades and salaries by mapping the inputs to the corresponding objects

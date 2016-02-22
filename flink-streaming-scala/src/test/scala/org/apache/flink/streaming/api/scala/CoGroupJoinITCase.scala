@@ -24,9 +24,11 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+
 import org.junit.Test
 import org.junit.Assert._
 
@@ -266,9 +268,8 @@ object CoGroupJoinITCase {
       element._2
     }
 
-    override def checkAndGetNextWatermark(
-        lastElement: (String, Int),
-        extractedTimestamp: Long): Long = extractedTimestamp - 1
+    override def checkAndGetNextWatermark(lastElement: (String, Int),
+        extractedTimestamp: Long): Watermark = new Watermark(extractedTimestamp - 1)
   }
 
   private class Tuple3TimestampExtractor extends 
@@ -279,6 +280,6 @@ object CoGroupJoinITCase {
 
     override def checkAndGetNextWatermark(
         lastElement: (String, String, Int),
-        extractedTimestamp: Long): Long = extractedTimestamp - 1
+        extractedTimestamp: Long): Watermark = new Watermark(extractedTimestamp - 1)
   }
 }
