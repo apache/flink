@@ -28,40 +28,129 @@ under the License.
 {:toc}
 
 
-Start working on your Flink Scala program in a few simple steps.
+## Build Tools
 
-## Requirements
+Flink projects can be built with different build tools.
+In order to get quickly started, Flink provides project templates for the following build tools:
+
+- [SBT](#sbt)
+- [Maven](#maven)
+
+These templates help you to set up the project structure and to create the initial build files. 
+
+## SBT
+
+### Create Project
+
+<ul class="nav nav-tabs" style="border-bottom: none;">
+    <li class="active"><a href="#giter8" data-toggle="tab">Use <strong>Giter8</strong></a></li>
+    <li><a href="#clone-repository" data-toggle="tab">Clone <strong>repository</strong></a></li>
+    <li><a href="#quickstart-script-sbt" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane active" id="giter8">
+    {% highlight bash %}
+    $ g8 tillrohrmann/flink-project
+    {% endhighlight %}
+    This will create a Flink project in the <strong>specified</strong> project directory from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
+    If you haven't installed <a href="https://github.com/n8han/giter8">giter8</a>, then please follow this <a href="https://github.com/n8han/giter8#installation">installation guide</a>. 
+    </div>
+    <div class="tab-pane" id="clone-repository">
+    {% highlight bash %}
+    $ git clone https://github.com/tillrohrmann/flink-project.git
+    {% endhighlight %}
+    This will create the Flink project in the directory <strong>flink-project</strong>. 
+    </div>
+    <div class="tab-pane" id="quickstart-script-sbt">
+    {% highlight bash %}
+    $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
+    {% endhighlight %}
+    This will create a Flink project in the <strong>specified</strong> project directory.
+    </div>
+</div>
+
+### Build Project
+
+In order to build your project you simply have to issue the `sbt clean assembly` command.
+This will create the fat-jar __your-project-name-assembly-0.1-SNAPSHOT.jar__ in the directory __target/scala_your-major-scala-version/__.
+
+### Run Project
+
+In order to run your project you have to issue the `sbt run` command.
+
+Per default, this will run your job in the same JVM as `sbt` is running.
+In order to run your job in a distinct JVM, add the following line to `build.sbt`
+
+~~~scala
+fork in run := true
+~~~
+ 
+
+#### IntelliJ
+
+We recommend using [IntelliJ](https://www.jetbrains.com/idea/) for your Flink job development.
+In order to get started, you have to import your newly created project into IntelliJ.
+You can do this via `File -> New -> Project from Existing Sources...` and then choosing your project's directory.
+IntelliJ will then automatically detect the `build.sbt` file and set everything up.
+
+In order to run your Flink job, it is recommended to choose the `mainRunner` module as the classpath of your __Run/Debug Configuration__.
+This will ensure, that all dependencies which are set to _provided_ will be available upon execution.
+You can configure the __Run/Debug Configurations__ via `Run -> Edit Configurations...` and then choose `mainRunner` from the _Use classpath of module_ dropbox.
+
+#### Eclipse
+
+In order to import the newly created project into [Eclipse](https://eclipse.org/), you first have to create Eclipse project files for it.
+These project files can be created via the [sbteclipse](https://github.com/typesafehub/sbteclipse) plugin.
+Add the following line to your `PROJECT_DIR/project/plugins.sbt` file:
+
+~~~bash
+addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
+~~~
+
+In `sbt` use the following command to create the Eclipse project files
+
+~~~bash
+> eclipse
+~~~
+
+Now you can import the project into Eclipse via `File -> Import... -> Existing Projects into Workspace` and then select the project directory.
+
+## Maven
+
+### Requirements
 
 The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (or higher) installations.
 
 
-## Create Project
+### Create Project
 
 Use one of the following commands to __create a project__:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
-    <li class="active"><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
-    <li><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
+    <li class="active"><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
+    <li><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
 </ul>
+
 <div class="tab-content">
-    <div class="tab-pane active" id="quickstart-script">
+    <div class="tab-pane active" id="maven-archetype">
+    {% highlight bash %}
+    $ mvn archetype:generate                               \
+      -DarchetypeGroupId=org.apache.flink              \
+      -DarchetypeArtifactId=flink-quickstart-scala     \
+      -DarchetypeVersion={{site.version}}
+    {% endhighlight %}
+    This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
+    </div>
+    <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
 {% endhighlight %}
     </div>
-    <div class="tab-pane" id="maven-archetype">
-{% highlight bash %}
-$ mvn archetype:generate                             \
-  -DarchetypeGroupId=org.apache.flink              \
-  -DarchetypeArtifactId=flink-quickstart-scala           \
-  -DarchetypeVersion={{site.version}}
-{% endhighlight %}
-    This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
-    </div>
 </div>
 
 
-## Inspect Project
+### Inspect Project
 
 There will be a new directory in your working directory. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
@@ -81,7 +170,7 @@ We recommend to __import this project into your IDE__. For Eclipse, you need the
 The IntelliJ IDE also supports Maven and offers a plugin for Scala development.
 
 
-## Build Project
+### Build Project
 
 If you want to __build your project__, go to your project directory and issue the `mvn clean package -Pbuild-jar` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-1.0-SNAPSHOT.jar__. There is also a fat-jar,  __target/your-artifact-id-1.0-SNAPSHOT-flink-fat-jar.jar__. This
 also contains all dependencies that get added to the maven project.
@@ -134,21 +223,5 @@ object WordCountJob {
 {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
 
 For a complete overview over our API, have a look at the [Programming Guide]({{ site.baseurl }}/apis/programming_guide.html) and [further example programs]({{ site.baseurl }}/apis/examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
-
-
-
-## Alternative Build Tools: SBT
- 
-To build and run applications with SBT instead of Maven is pretty straight forward. After creating the standard sbt [directory layout](http://www.scala-sbt.org/0.13/tutorial/Directories.html) it's enough to add the Flink dependencies to the `build.sbt` file:
-
-~~~scala
-libraryDependencies ++= Seq("org.apache.flink" % "flink-scala" % "{{site.version}}", "org.apache.flink" % "flink-clients" % "{{site.version}}") 
-~~~
-
-Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to class loading issues with Flink. To avoid these, append the following line to `build.sbt`:
-
-~~~scala
-fork in run := true 
-~~~
 
 
