@@ -711,6 +711,14 @@ public class LegacyFetcher implements Fetcher {
 			if (partitionsToGetOffsetsFor.size() > 0) {
 				getLastOffset(consumer, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
 				LOG.info("No prior offsets found for some partitions. Fetched the following start offsets {}", partitionsToGetOffsetsFor);
+
+				// setting the fetched offset also in the offset state.
+				// we subtract -1 from the offset
+				synchronized (sourceContext.getCheckpointLock()) {
+					for(FetchPartition fp: partitionsToGetOffsetsFor) {
+						this.offsetsState.put(new KafkaTopicPartition(fp.topic, fp.partition), fp.nextOffsetToRead - 1L);
+					}
+				}
 			}
 		}
 
