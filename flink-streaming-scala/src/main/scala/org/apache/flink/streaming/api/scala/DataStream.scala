@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -43,35 +44,95 @@ import scala.collection.JavaConverters._
 class DataStream[T](stream: JavaStream[T]) {
 
   /**
-   * Gets the underlying java DataStream object.
-   */
-  def javaStream: JavaStream[T] = stream
-
-  /**
    * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
    *
-   * @return associated execution environment
+   * @return associated execution environment 
+   * @deprecated Use [[executionEnvironment]] instead
    */
+  @deprecated
+  @PublicEvolving
   def getExecutionEnvironment: StreamExecutionEnvironment =
     new StreamExecutionEnvironment(stream.getExecutionEnvironment)
 
   /**
-   * Returns the ID of the DataStream.
-   *
-   * @return ID of the DataStream
+   * Returns the TypeInformation for the elements of this DataStream.
+   * 
+   * @deprecated Use [[dataType]] instead.
    */
+  @deprecated
   @PublicEvolving
-  def getId = stream.getId
+  def getType(): TypeInformation[T] = stream.getType()
+  
+  /**
+   * Sets the parallelism of this operation. This must be at least 1.
+   * 
+   * @deprecated Use [[parallelism(Int)]] instead.
+   */
+  @deprecated
+  @PublicEvolving
+  def setParallelism(parallelism: Int): DataStream[T] = {
+    this.parallelism(parallelism)
+  }
 
+  /**
+   * Returns the parallelism of this operation.
+   * 
+   * @deprecated Use [[parallelism]] instead.
+   */
+  @deprecated
+  @PublicEvolving
+  def getParallelism = stream.getParallelism
+
+  /**
+   * Returns the execution config.
+   * 
+   * @deprecated Use [[executionConfig]] instead.
+   */
+  @deprecated
+  @PublicEvolving
+  def getExecutionConfig = stream.getExecutionConfig
+
+  /**
+   * Returns the ID of the DataStream.
+   */
+  @Internal
+  private[flink] def getId = stream.getId()
+  
+  // --------------------------------------------------------------------------
+  //  Scalaesk accessors 
+  // --------------------------------------------------------------------------
+  
+  /**
+   * Gets the underlying java DataStream object.
+   */
+  def javaStream: JavaStream[T] = stream
+  
   /**
    * Returns the TypeInformation for the elements of this DataStream.
    */
-  def getType(): TypeInformation[T] = stream.getType()
+  def dataType: TypeInformation[T] = stream.getType()
+
+  /**
+   * Returns the execution config.
+   */
+  def executionConfig: ExecutionConfig = stream.getExecutionConfig()
+
+  /**
+   * Returns the [[StreamExecutionEnvironment]] associated with this data stream
+   */
+  def executionEnvironment: StreamExecutionEnvironment =
+    new StreamExecutionEnvironment(stream.getExecutionEnvironment())
+  
+  
+  /**
+   * Returns the parallelism of this operation.
+   */
+  def parallelism: Int = stream.getParallelism()
 
   /**
    * Sets the parallelism of this operation. This must be at least 1.
    */
-  def setParallelism(parallelism: Int): DataStream[T] = {
+  def parallelism(parallelism: Int): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(parallelism)
       case _ =>
@@ -83,26 +144,29 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Returns the parallelism of this operation.
-   */
-  def getParallelism = stream.getParallelism
-
-  /**
-   * Returns the execution config.
-   */
-  def getExecutionConfig = stream.getExecutionConfig
-
-  /**
    * Gets the name of the current data stream. This name is
    * used by the visualization and logging during runtime.
    *
    * @return Name of the stream.
    */
-  def getName : String = stream match {
+  def name: String = stream match {
     case stream : SingleOutputStreamOperator[T,_] => stream.getName
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
   }
+  
+  // --------------------------------------------------------------------------
+  
+  /**
+   * Gets the name of the current data stream. This name is
+   * used by the visualization and logging during runtime.
+   *
+   * @return Name of the stream.
+   * @deprecated Use [[name]] instead
+   */
+  @deprecated
+  @PublicEvolving
+  def getName : String = name
 
   /**
    * Sets the name of the current data stream. This name is
@@ -223,6 +287,10 @@ class DataStream[T](stream: JavaStream[T]) {
     this
   }
 
+  // --------------------------------------------------------------------------
+  //  Stream Transformations 
+  // --------------------------------------------------------------------------
+  
   /**
    * Creates a new DataStream by merging DataStream outputs of
    * the same type with each other. The DataStreams merged using this operator

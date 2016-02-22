@@ -39,9 +39,9 @@ public class StreamNode implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private static int currentSlotSharingIndex = 1;
 
-	transient private StreamExecutionEnvironment env;
+	private transient StreamExecutionEnvironment env;
 
-	private Integer id;
+	private int id;
 	private Integer parallelism = null;
 	private Long bufferTimeout = null;
 	private String operatorName;
@@ -66,7 +66,7 @@ public class StreamNode implements Serializable {
 
 	private String transformationId;
 
-	public StreamNode(StreamExecutionEnvironment env, Integer id, StreamOperator<?> operator,
+	public StreamNode(StreamExecutionEnvironment env, int id, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this.env = env;
@@ -122,7 +122,7 @@ public class StreamNode implements Serializable {
 		return inEdgeIndices;
 	}
 
-	public Integer getId() {
+	public int getId() {
 		return id;
 	}
 
@@ -134,7 +134,7 @@ public class StreamNode implements Serializable {
 		}
 	}
 
-	public void setParallelism(Integer parallelism) {
+	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 	}
 
@@ -266,11 +266,11 @@ public class StreamNode implements Serializable {
 
 		StreamNode that = (StreamNode) o;
 
-		return id.equals(that.id);
+		return id == that.id;
 	}
 
 	@Override
 	public int hashCode() {
-		return id.hashCode();
+		return id;
 	}
 }
