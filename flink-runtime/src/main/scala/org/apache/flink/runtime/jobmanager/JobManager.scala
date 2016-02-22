@@ -950,6 +950,8 @@ class JobManager(
             case None => defaultRestartStrategy
           }
 
+        log.info(s"Using restart strategy $restartStrategy for $jobId.")
+
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.get(jobGraph.getJobID) match {
           case Some((graph, currentJobInfo)) =>
