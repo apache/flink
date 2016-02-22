@@ -635,9 +635,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
    */
   @PublicEvolving
-  def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]) 
-      : DataStream[T] = {
-
+  def assignTimestampsAndWatermarks(assigner: AssignerWithPeriodicWatermarks[T]): DataStream[T] = {
     asScalaStream(stream.assignTimestampsAndWatermarks(assigner))
   }
 
@@ -659,7 +657,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * For cases where watermarks should be created in a regular fashion, for example
    * every x milliseconds, use the [[AssignerWithPeriodicWatermarks]].
-   *
+   * 
    * @see AssignerWithPunctuatedWatermarks
    * @see AssignerWithPeriodicWatermarks
    * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
@@ -688,7 +686,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
     val cleanExtractor = clean(extractor)
     val extractorFunction = new AscendingTimestampExtractor[T] {
-      def extractAscendingTimestamp(element: T, currentTimestamp: Long): Long = {
+      def extractAscendingTimestamp(element: T): Long = {
         cleanExtractor(element)
       }
     }

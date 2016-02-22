@@ -34,8 +34,7 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 
 	@Override
 	public void collect(StreamRecord<T> record) {
-		T copied = SerializationUtils.deserialize(SerializationUtils
-				.serialize((Serializable) record.getValue()));
+		T copied = SerializationUtils.deserialize(SerializationUtils.serialize((Serializable) record.getValue()));
 		outputs.add(copied);
 	}
 

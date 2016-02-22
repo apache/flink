@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * The {@code AssignerWithPeriodicWatermarks} assigns event time timestamps to elements,
@@ -50,11 +51,13 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
 
 	/**
 	 * Returns the current watermark. This method is periodically called by the
-	 * system to retrieve the current watermark.
+	 * system to retrieve the current watermark. The method may return null to
+	 * indicate that no new Watermark is available.
 	 * 
-	 * <p>The current watermark will be emitted only if it is larger than the previously
-	 * emitted watermark. If the current watermark is still identical to the previous
-	 * one, no progress in event time has happened since the previous call to this method.
+	 * <p>The returned watermark will be emitted only if it is non-null and larger
+	 * than the previously emitted watermark. If the current watermark is still
+	 * identical to the previous one, no progress in event time has happened since
+	 * the previous call to this method.
 	 * 
 	 * <p>If this method returns a value that is smaller than the previously returned watermark,
 	 * then the implementation does not properly handle the event stream timestamps.
@@ -67,5 +70,5 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
 	 * @see org.apache.flink.streaming.api.watermark.Watermark
 	 * @see ExecutionConfig#getAutoWatermarkInterval()
 	 */
-	long getCurrentWatermark();
+	Watermark getCurrentWatermark();
 }

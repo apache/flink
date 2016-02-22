@@ -27,8 +27,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.junit.After;
@@ -222,9 +222,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public long checkAndGetNextWatermark(Tuple2<Event, Long> lastElement,
-					long extractedTimestamp) {
-				return lastElement.f1 - 5;
+			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
+				return new Watermark(lastElement.f1 - 5);
 			}
 
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
@@ -308,9 +307,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public long checkAndGetNextWatermark(Tuple2<Event, Long> lastElement,
-					long extractedTimestamp) {
-				return lastElement.f1 - 5;
+			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
+				return new Watermark(lastElement.f1 - 5);
 			}
 
 		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {

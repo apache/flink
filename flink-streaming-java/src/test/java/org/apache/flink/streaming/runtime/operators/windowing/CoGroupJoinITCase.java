@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -337,8 +338,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long checkAndGetNextWatermark(Tuple2<String, Integer> element, long extractedTimestamp) {
-			return extractedTimestamp - 1;
+		public Watermark checkAndGetNextWatermark(Tuple2<String, Integer> element, long extractedTimestamp) {
+			return new Watermark(extractedTimestamp - 1);
 		}
 	}
 
@@ -350,9 +351,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long checkAndGetNextWatermark(Tuple3<String, String, Integer> lastElement,
-				long extractedTimestamp) {
-			return lastElement.f2 - 1;
+		public Watermark checkAndGetNextWatermark(Tuple3<String, String, Integer> lastElement, long extractedTimestamp) {
+			return new Watermark(lastElement.f2 - 1);
 		}
 	}
 

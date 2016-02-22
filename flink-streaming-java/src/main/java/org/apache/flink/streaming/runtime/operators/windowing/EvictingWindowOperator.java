@@ -104,7 +104,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		}
 
 		if (triggerResult.isFire()) {
-			timestampedCollector.setTimestamp(window.maxTimestamp());
+			timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
 
 			setKeyContext(key);
 

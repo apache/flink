@@ -328,9 +328,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		else {
 			// this source never completes, so emit a Long.MAX_VALUE watermark
 			// to not block watermark forwarding
-			if (getRuntimeContext().getExecutionConfig().areTimestampsEnabled()) {
-				sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
-			}
+			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
 
 			final Object waitLock = new Object();
 			while (running) {

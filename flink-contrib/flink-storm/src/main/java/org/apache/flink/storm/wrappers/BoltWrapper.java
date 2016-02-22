@@ -297,7 +297,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
-		this.flinkCollector.setTimestamp(element.getTimestamp());
+		this.flinkCollector.setTimestamp(element);
 
 		IN value = element.getValue();
 

@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.runtime.util.DataInputDeserializer;
+import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -64,5 +66,21 @@ public class StreamRecordSerializerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+	
+	@Test
+	public void testDeserializedValuesHaveNoTimestamps() throws Exception {
+		final StreamRecord<Long> original = new StreamRecord<>(42L);
+		
+		StreamRecordSerializer<Long> streamRecSer = new StreamRecordSerializer<Long>(LongSerializer.INSTANCE);
+
+		DataOutputSerializer buffer = new DataOutputSerializer(16);
+		streamRecSer.serialize(original, buffer);
+		
+		DataInputDeserializer input = new DataInputDeserializer(buffer.getByteArray(), 0, buffer.length());
+		StreamRecord<Long> result = streamRecSer.deserialize(input);
+		
+		assertFalse(result.hasTimestamp());
+		assertEquals(original, result);
 	}
 }

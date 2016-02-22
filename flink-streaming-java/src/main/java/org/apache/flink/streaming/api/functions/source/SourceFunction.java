@@ -116,7 +116,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * @param <T> The type of the elements produced by the source.
 	 */
 	@Public // Interface might be extended in the future with additional methods.
-	public static interface SourceContext<T> {
+	interface SourceContext<T> {
 
 		/**
 		 * Emits one element from the source. The result of {@link System#currentTimeMillis()} is set as
@@ -133,7 +133,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * @param timestamp The timestamp in milliseconds
 		 */
 		@PublicEvolving
-		public void collectWithTimestamp(T element, long timestamp);
+		void collectWithTimestamp(T element, long timestamp);
 
 		/**
 		 * Emits the given {@link org.apache.flink.streaming.api.watermark.Watermark}.

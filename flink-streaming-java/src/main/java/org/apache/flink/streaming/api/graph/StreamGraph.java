@@ -74,7 +74,7 @@ public class StreamGraph extends StreamingPlan {
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
-	private final StreamExecutionEnvironment environemnt;
+	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
 	
@@ -93,7 +93,7 @@ public class StreamGraph extends StreamingPlan {
 
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
-		this.environemnt = environment;
+		this.environment = environment;
 		this.executionConfig = environment.getConfig();
 		this.checkpointConfig = environment.getCheckpointConfig();
 
@@ -113,6 +113,11 @@ public class StreamGraph extends StreamingPlan {
 		iterationSourceSinkPairs = new HashSet<>();
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
+	}
+	
+	
+	public StreamExecutionEnvironment getEnvironment() {
+		return environment;
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -251,7 +256,7 @@ public class StreamGraph extends StreamingPlan {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
-		StreamNode vertex = new StreamNode(environemnt,
+		StreamNode vertex = new StreamNode(environment,
 			vertexID,
 			slotSharingGroup,
 			operatorObject,
@@ -572,7 +577,7 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
 
-		return jobgraphGenerator.createJobGraph(jobName);
+		return jobgraphGenerator.createJobGraph();
 	}
 
 	@Override

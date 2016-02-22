@@ -64,7 +64,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({StreamRecordSerializer.class, WrapperSetupHelper.class})
+@PrepareForTest({StreamRecordSerializer.class, WrapperSetupHelper.class, StreamRecord.class})
 public class BoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
@@ -197,7 +197,7 @@ public class BoltWrapperTest extends AbstractTest {
 			splitRecord.value = new Tuple1<Integer>(2);
 		}
 		wrapper.processElement(record);
-		verify(output).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
+		verify(output).collect(new StreamRecord<SplitStreamType>(splitRecord));
 
 		if (rawOutType2) {
 			splitRecord.streamId = "stream2";
@@ -207,7 +207,7 @@ public class BoltWrapperTest extends AbstractTest {
 			splitRecord.value = new Tuple1<Integer>(3);
 		}
 		wrapper.processElement(record);
-		verify(output, times(2)).collect(new StreamRecord<SplitStreamType>(splitRecord, 0));
+		verify(output, times(2)).collect(new StreamRecord<SplitStreamType>(splitRecord));
 	}
 
 	@SuppressWarnings("unchecked")

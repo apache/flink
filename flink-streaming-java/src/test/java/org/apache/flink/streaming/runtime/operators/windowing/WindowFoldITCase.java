@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -185,9 +186,8 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long checkAndGetNextWatermark(Tuple2<String, Integer> lastElement,
-				long extractedTimestamp) {
-			return lastElement.f1 - 1;
+		public Watermark checkAndGetNextWatermark(Tuple2<String, Integer> lastElement, long extractedTimestamp) {
+			return new Watermark(lastElement.f1 - 1);
 		}
 	}
 }

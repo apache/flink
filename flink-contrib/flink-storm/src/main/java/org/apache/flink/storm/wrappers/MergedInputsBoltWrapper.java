@@ -118,7 +118,7 @@ public final class MergedInputsBoltWrapper<IN, OUT> extends BoltWrapper<StormTup
 
 	@Override
 	public void processElement(final StreamRecord<StormTuple<IN>> element) throws Exception {
-		this.flinkCollector.setTimestamp(element.getTimestamp());
+		this.flinkCollector.setTimestamp(element);
 		this.bolt.execute(element.getValue());
 	}
 

@@ -113,6 +113,35 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
 	}
 
+	@Test
+	public void testNegativeTimestamps() throws Exception {
+
+		final AssignerWithPeriodicWatermarks<Long> assigner = new NeverWatermarkExtractor();
+
+		final TimestampsAndPeriodicWatermarksOperator<Long> operator =
+				new TimestampsAndPeriodicWatermarksOperator<Long>(assigner);
+
+		final ExecutionConfig config = new ExecutionConfig();
+		config.setAutoWatermarkInterval(50);
+
+		OneInputStreamOperatorTestHarness<Long, Long> testHarness =
+				new OneInputStreamOperatorTestHarness<Long, Long>(operator, config);
+
+		testHarness.open();
+
+		long[] values = { Long.MIN_VALUE, -1L, 0L, 1L, 2L, 3L, Long.MAX_VALUE };
+		
+		for (long value : values) {
+			testHarness.processElement(new StreamRecord<>(value));
+		}
+
+		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+		
+		for (long value: values) {
+			assertEquals(value, ((StreamRecord<?>) output.poll()).getTimestamp());
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	
 	private Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
@@ -138,7 +167,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 	private static class LongExtractor implements AssignerWithPeriodicWatermarks<Long> {
 		private static final long serialVersionUID = 1L;
 
-		private long currentTimestamp = -1L;
+		private long currentTimestamp = Long.MIN_VALUE;
 
 		@Override
 		public long extractTimestamp(Long element, long previousElementTimestamp) {
@@ -147,8 +176,22 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 		}
 
 		@Override
-		public long getCurrentWatermark() {
-			return currentTimestamp - 1;
+		public Watermark getCurrentWatermark() {
+			return new Watermark(currentTimestamp == Long.MIN_VALUE ? Long.MIN_VALUE : currentTimestamp - 1);
+		}
+	}
+
+	private static class NeverWatermarkExtractor implements AssignerWithPeriodicWatermarks<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public long extractTimestamp(Long element, long previousElementTimestamp) {
+			return element;
+		}
+
+		@Override
+		public Watermark getCurrentWatermark() {
+			return null;
 		}
 	}
 }

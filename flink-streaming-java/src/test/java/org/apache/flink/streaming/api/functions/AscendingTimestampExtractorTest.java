@@ -63,6 +63,17 @@ public class AscendingTimestampExtractorTest {
 		runInvalidTest(extractor);
 	}
 	
+	@Test
+	public void testInitialAndFinalWatermark() {
+		AscendingTimestampExtractor<Long> extractor = new LongExtractor();
+		assertEquals(Long.MIN_VALUE, extractor.getCurrentWatermark().getTimestamp());
+
+		extractor.extractTimestamp(Long.MIN_VALUE, -1L);
+		
+		extractor.extractTimestamp(Long.MAX_VALUE, -1L);
+		assertEquals(Long.MAX_VALUE - 1, extractor.getCurrentWatermark().getTimestamp());
+	}
+	
 	// ------------------------------------------------------------------------
 	
 	private void runValidTests(AscendingTimestampExtractor<Long> extractor) {
@@ -93,7 +104,7 @@ public class AscendingTimestampExtractorTest {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public long extractAscendingTimestamp(Long element, long currentTimestamp) {
+		public long extractAscendingTimestamp(Long element) {
 			return element;
 		}
 	}

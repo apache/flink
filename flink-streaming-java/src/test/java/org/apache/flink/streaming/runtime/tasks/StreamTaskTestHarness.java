@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleIn
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -103,7 +104,7 @@ public class StreamTaskTestHarness<OUT> {
 		this.jobConfig = new Configuration();
 		this.taskConfig = new Configuration();
 		this.executionConfig = new ExecutionConfig();
-		executionConfig.enableTimestamps();
+		
 		try {
 			InstantiationUtil.writeObjectToConfig(executionConfig, this.jobConfig, ExecutionConfig.CONFIG_KEY);
 		} catch (IOException e) {
@@ -113,6 +114,7 @@ public class StreamTaskTestHarness<OUT> {
 		streamConfig = new StreamConfig(taskConfig);
 		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
