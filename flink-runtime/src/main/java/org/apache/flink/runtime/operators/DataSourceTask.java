@@ -151,30 +151,24 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				try {
 					final Collector<OT> output = this.output;
 
-					if (objectReuseEnabled) {
-						OT reuse1 = serializer.createInstance();
-						OT reuse2 = serializer.createInstance();
-						OT reuse3 = serializer.createInstance();
+					// InputFormat.nextRecord can return null while InputFormat.reachedEnd returns false
+					OT instance = serializer.createInstance();
+					OT returned;
 
+					if (objectReuseEnabled) {
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
-
-							OT returned;
-							if ((returned = format.nextRecord(reuse1)) != null) {
+							if ((returned = format.nextRecord(instance)) != null) {
 								output.collect(returned);
-
-								reuse1 = reuse2;
-								reuse2 = reuse3;
-								reuse3 = returned;
 							}
 						}
 					} else {
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
-
-							OT returned;
-							if ((returned = format.nextRecord(serializer.createInstance())) != null) {
-								output.collect(returned);
+							if ((returned = format.nextRecord(instance)) != null) {
+								// enforce the use of a new object
+								instance = serializer.copy(returned);
+								output.collect(instance);
 							}
 						}
 					}
