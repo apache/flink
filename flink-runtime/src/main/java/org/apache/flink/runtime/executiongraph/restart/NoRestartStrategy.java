@@ -45,4 +45,9 @@ public class NoRestartStrategy implements RestartStrategy {
 	public static NoRestartStrategy create(Configuration configuration) {
 		return new NoRestartStrategy();
 	}
+
+	@Override
+	public String toString() {
+		return "NoRestartStrategy";
+	}
 }
