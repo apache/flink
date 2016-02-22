@@ -38,6 +38,7 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-scala_2.10</artifactId>
             <version>${project.version}</version>
+			<scope>provided</scope>
         </dependency>
         <!-- We need to add this explicitly because through shading the dependency on asm seems
         to go away. -->
@@ -50,6 +51,7 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients_2.10</artifactId>
             <version>${project.version}</version>
+			<scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
