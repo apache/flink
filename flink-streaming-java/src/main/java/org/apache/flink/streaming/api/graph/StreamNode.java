@@ -40,7 +40,7 @@ public class StreamNode implements Serializable {
 
 	transient private StreamExecutionEnvironment env;
 
-	private final Integer id;
+	private final int id;
 	private Integer parallelism = null;
 	private Long bufferTimeout = null;
 	private final String operatorName;
@@ -124,7 +124,7 @@ public class StreamNode implements Serializable {
 		return inEdgeIndices;
 	}
 
-	public Integer getId() {
+	public int getId() {
 		return id;
 	}
 
@@ -264,12 +264,11 @@ public class StreamNode implements Serializable {
 		}
 
 		StreamNode that = (StreamNode) o;
-
-		return id.equals(that.id);
+		return id == that.id;
 	}
 
 	@Override
 	public int hashCode() {
-		return id.hashCode();
+		return id;
 	}
 }
