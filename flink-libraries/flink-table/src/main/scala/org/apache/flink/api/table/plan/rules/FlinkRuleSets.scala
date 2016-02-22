@@ -76,9 +76,7 @@ object FlinkRuleSets {
 
     // simplify expressions rules
     ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.JOIN_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
 
     // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
@@ -99,9 +97,7 @@ object FlinkRuleSets {
     // translate to logical Flink nodes
     FlinkAggregateRule.INSTANCE,
     FlinkCalcRule.INSTANCE,
-    FlinkFilterRule.INSTANCE,
     FlinkJoinRule.INSTANCE,
-    FlinkProjectRule.INSTANCE,
     FlinkScanRule.INSTANCE,
     FlinkUnionRule.INSTANCE
   )
@@ -111,9 +107,7 @@ object FlinkRuleSets {
     // translate to DataSet nodes
     DataSetAggregateRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
-    DataSetFilterRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
-    DataSetProjectRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE
   )
