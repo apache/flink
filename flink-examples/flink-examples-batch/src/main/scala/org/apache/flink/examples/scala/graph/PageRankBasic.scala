@@ -20,6 +20,7 @@ package org.apache.flink.examples.scala.graph
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.GroupReduceFunction
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.PageRankData
 import org.apache.flink.api.java.aggregation.Aggregations.SUM
@@ -53,7 +54,7 @@ import scala.collection.JavaConverters._
  *
  * Usage:
  * {{{
- *   PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>
+ *   PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
@@ -72,16 +73,21 @@ object PageRankBasic {
   private final val EPSILON: Double = 0.0001
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: PageRankBasic " +
+      "--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
     // read input data
-    val pages = getPagesDataSet(env)
-    val links = getLinksDataSet(env)
+    val (pages, numPages) = getPagesDataSet(env, params)
+    val links = getLinksDataSet(env, params)
+    val maxIterations = params.getInt("iterations", 10)
 
     // assign initial ranks to pages
     val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages)).withForwardedFields("*->pageId")
@@ -126,11 +132,12 @@ object PageRankBasic {
     val result = finalRanks
 
     // emit result
-    if (fileOutput) {
-      result.writeAsCsv(outputPath, "\n", " ")
+    if (params.has("output")) {
+      result.writeAsCsv(params.get("output"), "\n", " ")
       // execute program
       env.execute("Basic PageRank Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
   }
@@ -149,62 +156,32 @@ object PageRankBasic {
   //     UTIL METHODS
   // *************************************************************************
 
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 5) {
-        pagesInputPath = args(0)
-        linksInputPath = args(1)
-        outputPath = args(2)
-        numPages = args(3).toLong
-        maxIterations = args(4).toInt
-
-        true
-      } else {
-        System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num " +
-          "pages> <num iterations>")
-
-        false
-      }
-    } else {
-      System.out.println("Executing PageRank Basic example with default parameters and built-in " +
-        "default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  Usage: PageRankBasic <pages path> <links path> <output path> <num " +
-        "pages> <num iterations>")
-
-      numPages = PageRankData.getNumberOfPages
-
-      true
-    }
-  }
-
-  private def getPagesDataSet(env: ExecutionEnvironment): DataSet[Long] = {
-    if (fileOutput) {
-      env.readCsvFile[Tuple1[Long]](pagesInputPath, fieldDelimiter = " ", lineDelimiter = "\n")
+  private def getPagesDataSet(env: ExecutionEnvironment, params: ParameterTool):
+                     (DataSet[Long], Long) = {
+    if (params.has("pages") && params.has("numPages")) {
+      val pages = env
+        .readCsvFile[Tuple1[Long]](params.get("pages"), fieldDelimiter = " ", lineDelimiter = "\n")
         .map(x => x._1)
+      (pages, params.getLong("numPages"))
     } else {
-      env.generateSequence(1, 15)
+      println("Executing PageRank example with default pages data set.")
+      println("Use --pages and --numPages to specify file input.")
+      (env.generateSequence(1, 15), PageRankData.getNumberOfPages)
     }
   }
 
-  private def getLinksDataSet(env: ExecutionEnvironment): DataSet[Link] = {
-    if (fileOutput) {
-      env.readCsvFile[Link](linksInputPath, fieldDelimiter = " ",
+  private def getLinksDataSet(env: ExecutionEnvironment, params: ParameterTool):
+                      DataSet[Link] = {
+    if (params.has("links")) {
+      env.readCsvFile[Link](params.get("links"), fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
+      println("Executing PageRank example with default links data set.")
+      println("Use --links to specify file input.")
       val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],
         v2.asInstanceOf[Long])}
       env.fromCollection(edges)
     }
   }
-
-  private var fileOutput: Boolean = false
-  private var pagesInputPath: String = null
-  private var linksInputPath: String = null
-  private var outputPath: String = null
-  private var numPages: Long = 0
-  private var maxIterations: Int = 10
 
 }

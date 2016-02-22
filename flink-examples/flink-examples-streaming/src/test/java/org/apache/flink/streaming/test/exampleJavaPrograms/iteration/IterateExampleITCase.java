@@ -42,6 +42,8 @@ public class IterateExampleITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		IterateExample.main(new String[]{inputPath, resultPath});
+		IterateExample.main(new String[]{
+				"--input", inputPath,
+				"--output", resultPath});
 	}
 }

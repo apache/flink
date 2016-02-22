@@ -39,7 +39,9 @@ public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		TopSpeedWindowing.main(new String[]{textPath, resultPath});
+		TopSpeedWindowing.main(new String[]{
+				"--input", textPath,
+				"--output", resultPath});
 
 	}
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.ml;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -57,9 +58,9 @@ public class IncrementalLearningSkeleton {
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("Usage: IncrementalLearningSkeleton --output <path>");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -77,9 +78,10 @@ public class IncrementalLearningSkeleton {
 		DataStream<Integer> prediction = newData.connect(model).map(new Predictor());
 
 		// emit result
-		if (fileOutput) {
-			prediction.writeAsText(outputPath);
+		if (params.has("output")) {
+			prediction.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			prediction.print();
 		}
 
@@ -215,32 +217,6 @@ public class IncrementalLearningSkeleton {
 			return 0;
 		}
 
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileOutput = false;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (args.length == 1) {
-				outputPath = args[0];
-			} else {
-				System.err.println("Usage: IncrementalLearningSkeleton <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing IncrementalLearningSkeleton with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: IncrementalLearningSkeleton <result path>");
-		}
-		return true;
 	}
 
 }

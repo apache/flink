@@ -48,7 +48,9 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			WordCount.main(new String[] {IN_FILE, OUT_FILE});
+			WordCount.main(new String[] {
+					"--input", IN_FILE,
+					"--output", OUT_FILE});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -64,7 +66,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			TPCHQuery3.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+			TPCHQuery3.main(new String[] {
+					"--lineitem", IN_FILE,
+					"--customer", IN_FILE,
+					"--orders", OUT_FILE,
+					"--output", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -80,7 +86,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			KMeans.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+			KMeans.main(new String[] {
+				"--points ", IN_FILE,
+				"--centroids ", IN_FILE,
+				"--output ", OUT_FILE,
+				"--iterations", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -96,7 +106,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			WebLogAnalysis.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+			WebLogAnalysis.main(new String[] {
+					"--documents", IN_FILE,
+					"--ranks", IN_FILE,
+					"--visits", OUT_FILE,
+					"--output", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -112,7 +126,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			ConnectedComponents.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+			ConnectedComponents.main(new String[] {
+					"--vertices", IN_FILE,
+					"--edges", IN_FILE,
+					"--output", OUT_FILE,
+					"--iterations", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -128,12 +146,17 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			PageRank.main(new String[]{IN_FILE, IN_FILE, OUT_FILE, "10", "123"});
+			PageRank.main(new String[]{
+					"--pages", IN_FILE,
+					"--links", IN_FILE,
+					"--output", OUT_FILE,
+					"--numPages", "10",
+					"--iterations", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("PagaRank failed with an exception");
+			Assert.fail("PageRank failed with an exception");
 		}
 		dump(env.getPlan());
 	}

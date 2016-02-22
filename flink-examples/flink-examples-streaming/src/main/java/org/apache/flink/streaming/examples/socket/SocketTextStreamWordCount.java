@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.examples.socket;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
@@ -33,7 +34,7 @@ import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
  * </p>
  * <p>
  * Usage:
- * <code>SocketTextStreamWordCount &lt;hostname&gt; &lt;port&gt; &lt;result path&gt;</code>
+ * <code>SocketTextStreamWordCount --hostname &lt;name&gt; --port &lt;n&gt; --output &lt;path&gt;</code>
  * </p>
  * <p>
  * This example shows how to:
@@ -46,18 +47,25 @@ import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
  * @see <a href="www.openbsd.org/cgi-bin/man.cgi?query=nc">netcat</a>
  */
 public class SocketTextStreamWordCount {
+
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (!params.has("hostname") || !params.has("port")) {
+			System.err.println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> [--output <path>]");
 			return;
 		}
 
 		// set up the execution environment
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 
 		// get input data
-		DataStream<String> text = env.socketTextStream(hostName, port, '\n', 0);
+		DataStream<String> text =
+				env.socketTextStream(params.get("hostname"), params.getInt("port"), '\n', 0);
 
 		DataStream<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
@@ -66,9 +74,10 @@ public class SocketTextStreamWordCount {
 						.keyBy(0)
 						.sum(1);
 
-		if (fileOutput) {
-			counts.writeAsText(outputPath);
+		if (params.has("output")) {
+			counts.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
 		}
 
@@ -76,30 +85,4 @@ public class SocketTextStreamWordCount {
 		env.execute("WordCount from SocketTextStream Example");
 	}
 
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileOutput = false;
-	private static String hostName;
-	private static int port;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		// parse input arguments
-		if (args.length == 3) {
-			fileOutput = true;
-			hostName = args[0];
-			port = Integer.valueOf(args[1]);
-			outputPath = args[2];
-		} else if (args.length == 2) {
-			hostName = args[0];
-			port = Integer.valueOf(args[1]);
-		} else {
-			System.err.println("Usage: SocketTextStreamWordCount <hostname> <port> [<output path>]");
-			return false;
-		}
-		return true;
-	}
 }

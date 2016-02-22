@@ -20,6 +20,7 @@ package org.apache.flink.streaming.scala.examples.join
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows
@@ -41,16 +42,16 @@ object WindowJoin {
 
   def main(args: Array[String]) {
 
-    if (!parseParameters(args)) {
-      return
-    }
+    val params = ParameterTool.fromArgs(args)
+    println("Usage: WindowJoin --grades <path> --salaries <path> --output <path>")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.getConfig.setGlobalJobParameters(params)
 
-    //Create streams for grades and salaries by mapping the inputs to the corresponding objects
-    val grades = setGradesInput(env)
-    val salaries = setSalariesInput(env)
+    // Create streams for grades and salaries by mapping the inputs to the corresponding objects
+    val grades = setGradesDataStream(env, params)
+    val salaries = setSalariesDataStream(env, params)
 
     //Join the two input streams by name on the last 2 seconds every second and create new
     //Person objects containing both grade and salary
@@ -60,9 +61,10 @@ object WindowJoin {
         .window(SlidingTimeWindows.of(Time.of(2, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
         .apply { (g, s) => Person(g.name, g.grade, s.salary) }
 
-    if (fileOutput) {
-      joined.writeAsText(outputPath)
+    if (params.has("output")) {
+      joined.writeAsText(params.get("output"))
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       joined.print()
     }
 
@@ -105,51 +107,24 @@ object WindowJoin {
   // UTIL METHODS
   // *************************************************************************
 
-  private var fileInput: Boolean = false
-  private var fileOutput: Boolean = false
-
-  private var gradesPath: String = null
-  private var salariesPath: String = null
-  private var outputPath: String = null
-
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      if (args.length == 1) {
-        fileOutput = true
-        outputPath = args(0)
-      }
-      else if (args.length == 3) {
-        fileInput = true
-        fileOutput = true
-        gradesPath = args(0)
-        salariesPath = args(1)
-        outputPath = args(2)
-      } else {
-        System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> " +
-          "<input path 2> <result path>")
-        return false
-      }
+  private def setGradesDataStream(env: StreamExecutionEnvironment, params: ParameterTool) :
+                       DataStream[Grade] = {
+    if (params.has("grades")) {
+      env.readTextFile(params.get("grades")).map(parseMap _ ).map(x => Grade(x._1, x._2, x._3))
     } else {
-      System.out.println("Executing WindowJoin with generated data.")
-      System.out.println("  Provide parameter to write to file.")
-      System.out.println("  Usage: WindowJoin <result path>")
-    }
-    true
-  }
-
-  private def setGradesInput(env: StreamExecutionEnvironment) : DataStream[Grade] = {
-    if (fileInput) {
-      env.readTextFile(gradesPath).map(parseMap _ ).map(x => Grade(x._1, x._2, x._3))
-    } else {
+      println("Executing WindowJoin example with default grades data set.")
+      println("Use --grades to specify file input.")
       env.fromCollection(gradeStream).map(x => Grade(x._1, x._2, x._3))
     }
   }
 
-  private def setSalariesInput(env: StreamExecutionEnvironment) : DataStream[Salary] = {
-    if (fileInput) {
-      env.readTextFile(salariesPath).map(parseMap _).map(x => Salary(x._1, x._2, x._3))
-    }
-    else {
+  private def setSalariesDataStream(env: StreamExecutionEnvironment, params: ParameterTool) :
+                         DataStream[Salary] = {
+    if (params.has("salaries")) {
+      env.readTextFile(params.get("salaries")).map(parseMap _).map(x => Salary(x._1, x._2, x._3))
+    } else {
+      println("Executing WindowJoin example with default salaries data set.")
+      println("Use --salaries to specify file input.")
       env.fromCollection(salaryStream).map(x => Salary(x._1, x._2, x._3))
     }
   }

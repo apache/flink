@@ -19,6 +19,7 @@
 package org.apache.flink.examples.scala.graph
 
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import scala.collection.JavaConverters._
 import org.apache.flink.api.scala.ExecutionEnvironment
@@ -68,15 +69,31 @@ import scala.collection.mutable
 object EnumTriangles {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: EnumTriangleBasic --edges <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
     // read input data
-    val edges = getEdgeDataSet(env)
+    val edges =
+      if (params.has("edges")) {
+        env.readCsvFile[Edge](
+          filePath = params.get("edges"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+      } else {
+        println("Executing EnumTriangles example with default edges data set.")
+        println("Use --edges to specify file input.")
+        val edges = EnumTrianglesData.EDGES.map {
+          case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
+        }
+        env.fromCollection(edges)
+      }
     
     // project edges by vertex id
     val edgesById = edges map(e => if (e.v1 < e.v2) e else Edge(e.v2, e.v1) )
@@ -89,11 +106,12 @@ object EnumTriangles {
               .withForwardedFieldsFirst("*")
     
     // emit result
-    if (fileOutput) {
-      triangles.writeAsCsv(outputPath, "\n", ",")
+    if (params.has("output")) {
+      triangles.writeAsCsv(params.get("output"), "\n", ",")
       // execute program
       env.execute("TriangleEnumeration Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       triangles.print()
     }
     
@@ -138,48 +156,5 @@ object EnumTriangles {
       }
     }
   }
-
-  // *************************************************************************
-  //     UTIL METHODS
-  // *************************************************************************
-
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 2) {
-        edgePath = args(0)
-        outputPath = args(1)
-
-        true
-      } else {
-        System.err.println("Usage: EnumTriangleBasic <edge path> <result path>")
-
-        false
-      }
-    } else {
-      System.out.println("Executing Enum Triangles Basic example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
-
-      true
-    }
-  }
-
-  private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
-    if (fileOutput) {
-      env.readCsvFile[Edge](edgePath, fieldDelimiter = " ", includedFields = Array(0, 1))
-    } else {
-      val edges = EnumTrianglesData.EDGES.map {
-        case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
-      }
-      env.fromCollection(edges)
-    }
-  }
-  
-  
-  private var fileOutput: Boolean = false
-  private var edgePath: String = null
-  private var outputPath: String = null
 
 }

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.PageRankData;
 import org.apache.flink.util.Collector;
 
@@ -58,7 +59,7 @@ import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
  * </ul>
  * 
  * <p>
- * Usage: <code>PageRankBasic &lt;pages path&gt; &lt;links path&gt; &lt;output path&gt; &lt;num pages&gt; &lt;num iterations&gt;</code><br>
+ * Usage: <code>PageRankBasic --pages &lt;path&gt; --links &lt;path&gt; --output &lt;path&gt; --numPages &lt;n&gt; --iterations &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.graph.util.PageRankData} and 10 iterations.
  * 
  * <p>
@@ -80,17 +81,22 @@ public class PageRank {
 	// *************************************************************************
 	
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
-			return;
-		}
+
+		ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("Usage: PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>");
+
+		final int numPages = params.getInt("numPages");
+		final int maxIterations = params.getInt("iterations", 10);
 		
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// make the parameters available to the web ui
+		env.getConfig().setGlobalJobParameters(params);
 		
 		// get input data
-		DataSet<Long> pagesInput = getPagesDataSet(env);
-		DataSet<Tuple2<Long, Long>> linksInput = getLinksDataSet(env);
+		DataSet<Long> pagesInput = getPagesDataSet(env, params);
+		DataSet<Tuple2<Long, Long>> linksInput = getLinksDataSet(env, params);
 		
 		// assign initial rank to pages
 		DataSet<Tuple2<Long, Double>> pagesWithRanks = pagesInput.
@@ -118,11 +124,12 @@ public class PageRank {
 				.filter(new EpsilonFilter()));
 
 		// emit result
-		if(fileOutput) {
-			finalPageRanks.writeAsCsv(outputPath, "\n", " ");
+		if (params.has("output")) {
+			finalPageRanks.writeAsCsv(params.get("output"), "\n", " ");
 			// execute program
 			env.execute("Basic Page Rank Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			finalPageRanks.print();
 		}
 
@@ -179,12 +186,12 @@ public class PageRank {
 
 		@Override
 		public void flatMap(Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>> value, Collector<Tuple2<Long, Double>> out){
-			Long[] neigbors = value.f1.f1;
+			Long[] neighbors = value.f1.f1;
 			double rank = value.f0.f1;
-			double rankToDistribute = rank / ((double) neigbors.length);
+			double rankToDistribute = rank / ((double) neighbors.length);
 				
-			for (int i = 0; i < neigbors.length; i++) {
-				out.collect(new Tuple2<Long, Double>(neigbors[i], rankToDistribute));
+			for (int i = 0; i < neighbors.length; i++) {
+				out.collect(new Tuple2<Long, Double>(neighbors[i], rankToDistribute));
 			}
 		}
 	}
@@ -225,61 +232,34 @@ public class PageRank {
 	//     UTIL METHODS
 	// *************************************************************************
 	
-	private static boolean fileOutput = false;
-	private static String pagesInputPath = null;
-	private static String linksInputPath = null;
-	private static String outputPath = null;
-	private static long numPages = 0;
-	private static int maxIterations = 10;
-	
-	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
-			if(args.length == 5) {
-				fileOutput = true;
-				pagesInputPath = args[0];
-				linksInputPath = args[1];
-				outputPath = args[2];
-				numPages = Integer.parseInt(args[3]);
-				maxIterations = Integer.parseInt(args[4]);
-			} else {
-				System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>");
-				return false;
-			}
+	private static DataSet<Long> getPagesDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("pages")) {
+			return env.readCsvFile(params.get("pages"))
+				.fieldDelimiter(" ")
+				.lineDelimiter("\n")
+				.types(Long.class)
+				.map(new MapFunction<Tuple1<Long>, Long>() {
+					@Override
+					public Long map(Tuple1<Long> v) {
+						return v.f0;
+					}
+				});
 		} else {
-			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>");
-			
-			numPages = PageRankData.getNumberOfPages();
-		}
-		return true;
-	}
-	
-	private static DataSet<Long> getPagesDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env
-						.readCsvFile(pagesInputPath)
-							.fieldDelimiter(" ")
-							.lineDelimiter("\n")
-							.types(Long.class)
-						.map(new MapFunction<Tuple1<Long>, Long>() {
-							@Override
-							public Long map(Tuple1<Long> v) { return v.f0; }
-						});
-		} else {
+			System.out.println("Executing PageRank example with default pages data set.");
+			System.out.println("Use --pages to specify file input.");
 			return PageRankData.getDefaultPagesDataSet(env);
 		}
 	}
-	
-	private static DataSet<Tuple2<Long, Long>> getLinksDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env.readCsvFile(linksInputPath)
-						.fieldDelimiter(" ")
-						.lineDelimiter("\n")
-						.types(Long.class, Long.class);
+
+	private static DataSet<Tuple2<Long, Long>> getLinksDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("links")) {
+			return env.readCsvFile(params.get("links"))
+				.fieldDelimiter(" ")
+				.lineDelimiter("\n")
+				.types(Long.class, Long.class);
 		} else {
+			System.out.println("Executing PageRank example with default links data set.");
+			System.out.println("Use --links to specify file input.");
 			return PageRankData.getDefaultEdgeDataSet(env);
 		}
 	}

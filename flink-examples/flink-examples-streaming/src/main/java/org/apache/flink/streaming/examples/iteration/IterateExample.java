@@ -20,6 +20,7 @@ package org.apache.flink.streaming.examples.iteration;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -37,8 +38,13 @@ import java.util.Random;
  * it performs to reach a specific threshold in an iterative streaming fashion. </p>
  *
  * <p>
- * This example shows how to use: <ul> <li>streaming iterations, <li>buffer timeout to enhance latency, <li>directed
- * outputs. </ul>
+ * This example shows how to use:
+ * <ul>
+ *   <li>streaming iterations,
+ *   <li>buffer timeout to enhance latency,
+ *   <li>directed outputs.
+ * </ul>
+ * </p>
  */
 public class IterateExample {
 
@@ -50,9 +56,9 @@ public class IterateExample {
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("  Usage: IterateExample --input <path> --output <path>");
 
 		// set up input for the stream of integer pairs
 
@@ -60,12 +66,17 @@ public class IterateExample {
 		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(1);
+		
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 
 		// create input stream of integer pairs
 		DataStream<Tuple2<Integer, Integer>> inputStream;
-		if (fileInput) {
-			inputStream = env.readTextFile(inputPath).map(new FibonacciInputMap());
+		if (params.has("input")) {
+			inputStream = env.readTextFile(params.get("input")).map(new FibonacciInputMap());
 		} else {
+			System.out.println("Executing Iterate example with default input data set.");
+			System.out.println("Use --input to specify file input.");
 			inputStream = env.addSource(new RandomFibonacciSource());
 		}
 
@@ -89,9 +100,10 @@ public class IterateExample {
 				.map(new OutputMap());
 
 		// emit results
-		if (fileOutput) {
-			numbers.writeAsText(outputPath);
+		if (params.has("output")) {
+			numbers.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			numbers.print();
 		}
 
@@ -208,39 +220,6 @@ public class IterateExample {
 				Exception {
 			return new Tuple2<>(new Tuple2<>(value.f0, value.f1), value.f4);
 		}
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileInput = false;
-	private static boolean fileOutput = false;
-	private static String inputPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			if (args.length == 1) {
-				fileOutput = true;
-				outputPath = args[0];
-			} else if (args.length == 2) {
-				fileInput = true;
-				inputPath = args[0];
-				fileOutput = true;
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: IterateExample <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing IterateExample with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: IterateExample <result path>");
-		}
-		return true;
 	}
 
 }

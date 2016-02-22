@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.graph
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
@@ -25,13 +26,33 @@ import org.apache.flink.util.Collector
 object  TransitiveClosureNaive {
 
   def main (args: Array[String]): Unit = {
-    if (!parseParameters(args)) {
-      return
-    }
 
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: TransitiveClosure --edges <path> --output <path> --iterations <n>")
+
+    // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val edges = getEdgesDataSet(env)
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
+    val edges =
+      if (params.has("edges")) {
+        env.readCsvFile[(Long, Long)](
+          filePath = params.get("edges"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+          .map { x => (x._1, x._2)}
+      } else {
+        println("Executing TransitiveClosure example with default edges data set.")
+        println("Use --edges to specify file input.")
+        val edgeData = ConnectedComponentsData.EDGES map {
+          case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
+        }
+        env.fromCollection(edgeData)
+      }
+
+    val maxIterations = params.getInt("iterations", 10)
 
     val paths = edges.iterateWithTermination(maxIterations) { prevPaths: DataSet[(Long, Long)] =>
 
@@ -56,61 +77,14 @@ object  TransitiveClosureNaive {
       (nextPaths, terminate)
     }
 
-    if (fileOutput) {
-      paths.writeAsCsv(outputPath, "\n", " ")
+    if (params.has("output")) {
+      paths.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala Transitive Closure Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       paths.print()
     }
 
-
-
   }
 
-
-  private var fileOutput: Boolean = false
-  private var edgesPath: String = null
-  private var outputPath: String = null
-  private var maxIterations: Int = 10
-
-  private def parseParameters(programArguments: Array[String]): Boolean = {
-    if (programArguments.length > 0) {
-      fileOutput = true
-      if (programArguments.length == 3) {
-        edgesPath = programArguments(0)
-        outputPath = programArguments(1)
-        maxIterations = Integer.parseInt(programArguments(2))
-      }
-      else {
-        System.err.println("Usage: TransitiveClosure <edges path> <result path> <max number of " +
-          "iterations>")
-        return false
-      }
-    }
-    else {
-      System.out.println("Executing TransitiveClosure example with default parameters and " +
-        "built-in default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  Usage: TransitiveClosure <edges path> <result path> <max number of " +
-        "iterations>")
-    }
-    true
-  }
-
-  private def getEdgesDataSet(env: ExecutionEnvironment): DataSet[(Long, Long)] = {
-    if (fileOutput) {
-      env.readCsvFile[(Long, Long)](
-        edgesPath,
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1))
-        .map { x => (x._1, x._2)}
-    }
-    else {
-      val edgeData = ConnectedComponentsData.EDGES map {
-        case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
-      }
-      env.fromCollection(edgeData)
-    }
-  }
 }
