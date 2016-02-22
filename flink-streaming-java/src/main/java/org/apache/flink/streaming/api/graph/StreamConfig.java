@@ -29,8 +29,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -73,6 +75,7 @@ public class StreamConfig implements Serializable {
 	private static final String STATE_PARTITIONER = "statePartitioner";
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 	
+	private static final String TIME_CHARACTERISTIC = "timechar";
 	
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -106,6 +109,19 @@ public class StreamConfig implements Serializable {
 
 	public Integer getVertexID() {
 		return config.getInteger(VERTEX_NAME, -1);
+	}
+	
+	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
+		config.setInteger(TIME_CHARACTERISTIC, characteristic.ordinal());
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		int ordinal = config.getInteger(TIME_CHARACTERISTIC, -1);
+		if (ordinal >= 0) {
+			return TimeCharacteristic.values()[ordinal];
+		} else {
+			throw new CorruptConfigurationException("time characteristic is not set");
+		}
 	}
 	
 	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {

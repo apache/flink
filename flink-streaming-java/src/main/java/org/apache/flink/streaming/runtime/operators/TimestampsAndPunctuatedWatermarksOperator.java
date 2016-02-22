@@ -36,30 +36,26 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 
 	private static final long serialVersionUID = 1L;
 
-	private transient long currentWatermark;
+	private long currentWatermark = Long.MIN_VALUE;
 
-	
+
 	public TimestampsAndPunctuatedWatermarksOperator(AssignerWithPunctuatedWatermarks<T> assigner) {
 		super(assigner);
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
-
-	@Override
-	public void open() throws Exception {
-		super.open();
-		currentWatermark = -1L;
+		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
 		final T value = element.getValue();
-		final long newTimestamp = userFunction.extractTimestamp(value, element.getTimestamp());
+		final long newTimestamp = userFunction.extractTimestamp(value, 
+				element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
+
 		output.collect(element.replace(element.getValue(), newTimestamp));
-		
-		final long nextWatermark = userFunction.checkAndGetNextWatermark(value, newTimestamp);
-		if (nextWatermark >= 0 && nextWatermark > currentWatermark) {
-			currentWatermark = nextWatermark;
-			output.emitWatermark(new Watermark(nextWatermark));
+
+		final Watermark nextWatermark = userFunction.checkAndGetNextWatermark(value, newTimestamp);
+		if (nextWatermark != null && nextWatermark.getTimestamp() > currentWatermark) {
+			currentWatermark = nextWatermark.getTimestamp();
+			output.emitWatermark(nextWatermark);
 		}
 	}
 

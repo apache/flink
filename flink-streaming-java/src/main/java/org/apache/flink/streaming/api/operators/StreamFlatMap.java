@@ -44,7 +44,7 @@ public class StreamFlatMap<IN, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		collector.setTimestamp(element.getTimestamp());
+		collector.setTimestamp(element);
 		userFunction.flatMap(element.getValue(), collector);
 	}
 

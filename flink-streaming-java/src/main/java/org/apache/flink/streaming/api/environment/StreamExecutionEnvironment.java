@@ -596,10 +596,8 @@ public abstract class StreamExecutionEnvironment {
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = requireNonNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
-			getConfig().disableTimestamps();
 			getConfig().setAutoWatermarkInterval(0);
 		} else {
-			getConfig().enableTimestamps();
 			getConfig().setAutoWatermarkInterval(200);
 		}
 	}

@@ -65,7 +65,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 			RecordWriterOutput<OUT>[] outputs = (RecordWriterOutput<OUT>[]) getStreamOutputs();
 
 			// If timestamps are enabled we make sure to remove cyclic watermark dependencies
-			if (getExecutionConfig().areTimestampsEnabled()) {
+			if (isSerializingTimestamps()) {
 				for (RecordWriterOutput<OUT> output : outputs) {
 					output.emitWatermark(new Watermark(Long.MAX_VALUE));
 				}

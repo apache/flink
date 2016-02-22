@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
@@ -147,8 +148,10 @@ object WindowFoldITCase {
       currentTimestamp
     }
 
-    def checkAndGetNextWatermark(lastElement: (String, Int), extractedTimestamp: Long): Long = {
-      lastElement._2 - 1
+    def checkAndGetNextWatermark(
+        lastElement: (String, Int),
+        extractedTimestamp: Long): Watermark = {
+      new Watermark(lastElement._2 - 1)
     }
   }
 }

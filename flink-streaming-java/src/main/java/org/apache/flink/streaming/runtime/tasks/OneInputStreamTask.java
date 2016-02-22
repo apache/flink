@@ -46,7 +46,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getCheckpointBarrierListener(), 
 					configuration.getCheckpointMode(),
 					getEnvironment().getIOManager(),
-					getExecutionConfig().areTimestampsEnabled());
+					isSerializingTimestamps());
 
 			// make sure that stream tasks report their I/O statistics
 			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();

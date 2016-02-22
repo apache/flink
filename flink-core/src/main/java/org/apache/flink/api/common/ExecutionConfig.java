@@ -168,47 +168,8 @@ public class ExecutionConfig implements Serializable {
 	 */
 	@PublicEvolving
 	public ExecutionConfig setAutoWatermarkInterval(long interval) {
-		enableTimestamps();
 		this.autoWatermarkInterval = interval;
 		return this;
-	}
-
-	/**
-	 * Enables streaming timestamps. When this is enabled all records that are emitted
-	 * from a source have a timestamp attached. This is required if a topology contains
-	 * operations that rely on watermarks and timestamps to perform operations, such as
-	 * event-time windows.
-	 *
-	 * <p>
-	 * This is automatically enabled if you enable automatic watermarks.
-	 *
-	 * @see #setAutoWatermarkInterval(long)
-	 */
-	@PublicEvolving
-	public ExecutionConfig enableTimestamps() {
-		this.timestampsEnabled = true;
-		return this;
-	}
-
-	/**
-	 * Disables streaming timestamps.
-	 *
-	 * @see #enableTimestamps()
-	 */
-	@PublicEvolving
-	public ExecutionConfig disableTimestamps() {
-		this.timestampsEnabled = false;
-		return this;
-	}
-
-	/**
-	 * Returns true when timestamps are enabled.
-	 *
-	 * @see #enableTimestamps()
-	 */
-	@PublicEvolving
-	public boolean areTimestampsEnabled() {
-		return timestampsEnabled;
 	}
 
 	/**

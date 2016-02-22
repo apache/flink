@@ -768,17 +768,17 @@ public class DataStream<T> {
 		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
-	
+
 	/**
 	 * Assigns timestamps to the elements in the data stream and periodically creates
 	 * watermarks to signal event time progress.
 	 *
 	 * <p>This method creates watermarks based purely on stream elements. For each element
 	 * that is handled via {@link AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)},
-	 * the {@link AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark(Object, long)} 
+	 * the {@link AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark(Object, long)}
 	 * method is called, and a new watermark is emitted, if the returned watermark value is
 	 * non-negative and greater than the previous watermark.
-	 * 
+	 *
 	 * <p>This method is useful when the data stream embeds watermark elements, or certain elements
 	 * carry a marker that can be used to determine the current event time watermark. 
 	 * This operation gives the programmer full control over the watermark generation. Users
@@ -794,7 +794,7 @@ public class DataStream<T> {
 	 *
 	 * @see AssignerWithPunctuatedWatermarks
 	 * @see AssignerWithPeriodicWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks) 
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
 	 */
 	public SingleOutputStreamOperator<T, ?> assignTimestampsAndWatermarks(
 			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {

@@ -217,7 +217,7 @@ public class WindowJoin {
 	private static class MyTimestampExtractor extends AscendingTimestampExtractor<Tuple3<Long, String, Integer>> {
 
 		@Override
-		public long extractAscendingTimestamp(Tuple3<Long, String, Integer> element, long currentTimestamp) {
+		public long extractAscendingTimestamp(Tuple3<Long, String, Integer> element) {
 			return element.f0;
 		}
 	}

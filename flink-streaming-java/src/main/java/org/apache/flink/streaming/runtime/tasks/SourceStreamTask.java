@@ -20,10 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Task for executing streaming sources.
@@ -56,57 +53,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void run() throws Exception {
-		final Object checkpointLock = getCheckpointLock();
-		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<>(getHeadOutput(), checkpointLock);
-		headOperator.run(checkpointLock, output);
+		headOperator.run(getCheckpointLock(), getHeadOutput());
 	}
 	
 	@Override
 	protected void cancelTask() throws Exception {
 		headOperator.cancel();
-	}
-
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * Special output for sources that ensures that sources synchronize on  the lock object before
-	 * emitting elements.
-	 *
-	 * <p>
-	 * This is required to ensure that no concurrent method calls on operators later in the chain
-	 * can occur. When operators register a timer the timer callback is synchronized
-	 * on the same lock object.
-	 *
-	 * @param <T> The type of elements emitted by the source.
-	 */
-	private class SourceOutput<T> implements Output<T> {
-		
-		private final Output<T> output;
-		private final Object lockObject;
-
-		public SourceOutput(Output<T> output, Object lockObject) {
-			this.output = output;
-			this.lockObject = lockObject;
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			synchronized (lockObject) {
-				output.emitWatermark(mark);
-			}
-		}
-
-		@Override
-		public void collect(T record) {
-			synchronized (lockObject) {
-				checkTimerException();
-				output.collect(record);
-			}
-		}
-
-		@Override
-		public void close() {
-			output.close();
-		}
 	}
 }

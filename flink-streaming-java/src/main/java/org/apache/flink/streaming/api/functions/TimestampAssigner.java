@@ -28,10 +28,6 @@ import org.apache.flink.api.common.functions.Function;
  * <p>Timestamps are represented in milliseconds since the Epoch
  * (midnight, January 1, 1970 UTC).
  * 
- * <p>A timestamp assigner that assigns to each element a timestamp via
- * {@link System#currentTimeMillis()} effectively realizes "ingestion time"
- * semantics.
- * 
  * @param <T> The type of the elements to which this assigner assigns timestamps.
  */
 public interface TimestampAssigner<T> extends Function {
@@ -39,10 +35,10 @@ public interface TimestampAssigner<T> extends Function {
 	/**
 	 * Assigns a timestamp to an element, in milliseconds since the Epoch.
 	 * 
-	 * <p>The method gets the previously assigned timestamp of the element.
+	 * <p>The method is passed the previously assigned timestamp of the element.
 	 * That previous timestamp may have been assigned from a previous assigner,
-	 * by ingestion time, or be simply uninitialized. In the latter case, the
-	 * timestamp will be a negative value.
+	 * by ingestion time. If the element did not carry a timestamp before, this value is
+	 * {@code Long.MIN_VALUE}. 
 	 *
 	 * @param element The element that the timestamp is wil be assigned to.
 	 * @param previousElementTimestamp The previous internal timestamp of the element,

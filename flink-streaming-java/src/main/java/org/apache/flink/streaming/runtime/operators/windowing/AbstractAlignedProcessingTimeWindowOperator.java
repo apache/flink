@@ -28,8 +28,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -234,7 +234,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 	
 	private void computeWindow(long timestamp) throws Exception {
-		out.setTimestamp(timestamp);
+		out.setAbsoluteTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
 		panes.evaluateWindow(out, new TimeWindow(timestamp, timestamp + windowSize), this);
 	}

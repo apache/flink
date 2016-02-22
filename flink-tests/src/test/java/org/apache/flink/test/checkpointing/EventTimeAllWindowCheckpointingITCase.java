@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichEventTimeSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -348,7 +348,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static class FailingSource extends RichEventTimeSourceFunction<Tuple2<Long, IntType>>
+	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
 			implements Checkpointed<Integer>, CheckpointListener
 	{
 		private static volatile boolean failedBefore = false;

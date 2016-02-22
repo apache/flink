@@ -59,9 +59,9 @@ public enum TimeCharacteristic {
 	 * Event time means that the time of each individual element in the stream (also called event)
 	 * is determined by the event's individual custom timestamp. These timestamps either exist in the
 	 * elements from before they entered the Flink streaming dataflow, or are user-assigned at the sources.
-	 * The big implication of this is that elements arrive in the sources and in all operators generally
-	 * out of order, meaning that elements with earlier timestamps may arrive after elements with
-	 * later timestamps.
+	 * The big implication of this is that it allows for elements to arrive in the sources and in
+	 * all operators out of order, meaning that elements with earlier timestamps may arrive after
+	 * elements with later timestamps.
 	 * <p>
 	 * Operators that window or order data with respect to event time must buffer data until they can
 	 * be sure that all timestamps for a certain time interval have been received. This is handled by

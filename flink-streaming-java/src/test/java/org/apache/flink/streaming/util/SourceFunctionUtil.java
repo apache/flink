@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,20 +29,16 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import static org.mockito.Mockito.*;
 
-public class SourceFunctionUtil<T> {
+public class SourceFunctionUtil {
 
-	public static <T> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
-		List<T> outputs = new ArrayList<T>();
+	public static <T extends Serializable> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
+		final List<T> outputs = new ArrayList<T>();
 		
 		if (sourceFunction instanceof RichFunction) {
 
@@ -58,14 +55,7 @@ public class SourceFunctionUtil<T> {
 			((RichFunction) sourceFunction).open(new Configuration());
 		}
 		try {
-			final Output<StreamRecord<T>> collector = new MockOutput<T>(outputs);
-			final Object lockingObject = new Object();
-			SourceFunction.SourceContext<T> ctx;
-			if (sourceFunction instanceof EventTimeSourceFunction) {
-				ctx = new StreamSource.ManualWatermarkContext<T>(lockingObject, collector, true);
-			} else {
-				ctx = new StreamSource.NonWatermarkContext<T>(lockingObject, collector);
-			}
+			SourceFunction.SourceContext<T> ctx = new CollectingSourceContext<T>(new Object(), outputs);
 			sourceFunction.run(ctx);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);

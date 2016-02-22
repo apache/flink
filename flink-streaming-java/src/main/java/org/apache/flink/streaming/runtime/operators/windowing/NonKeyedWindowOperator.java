@@ -247,7 +247,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	}
 
 	protected void emitWindow(Context context) throws Exception {
-		timestampedCollector.setTimestamp(context.window.maxTimestamp());
+		timestampedCollector.setAbsoluteTimestamp(context.window.maxTimestamp());
 
 		if (context.windowBuffer.size() > 0) {
 			userFunction.apply(

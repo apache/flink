@@ -93,12 +93,12 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from) {
-		return new StreamRecord<T>(typeSerializer.copy(from.getValue()), from.getTimestamp());
+		return from.copy(typeSerializer.copy(from.getValue()));
 	}
 
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
-		reuse.replace(typeSerializer.copy(from.getValue(), reuse.getValue()), 0);
+		from.copyTo(typeSerializer.copy(from.getValue(), reuse.getValue()), reuse);
 		return reuse;
 	}
 
@@ -109,14 +109,13 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	
 	@Override
 	public StreamRecord<T> deserialize(DataInputView source) throws IOException {
-		T element = typeSerializer.deserialize(source);
-		return new StreamRecord<T>(element, 0);
+		return new StreamRecord<T>(typeSerializer.deserialize(source));
 	}
 
 	@Override
 	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source) throws IOException {
 		T element = typeSerializer.deserialize(reuse.getValue(), source);
-		reuse.replace(element, 0);
+		reuse.replace(element);
 		return reuse;
 	}
 
@@ -125,6 +124,8 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 		typeSerializer.copy(source, target);
 	}
 
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof StreamRecordSerializer) {
