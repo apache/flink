@@ -21,6 +21,15 @@ import java.util.Properties;
 
 public class KafkaUtils {
 
+	public static boolean getBoolFromConfig(Properties config, String key, boolean defaultValue) {
+		try {
+			return Boolean.parseBoolean(config.getProperty(key, Boolean.toString(defaultValue)));
+		} catch(NumberFormatException nfe) {
+			throw new IllegalArgumentException("Value for configuration key='" + key + "' is not set correctly. " +
+				"Entered value='" + config.getProperty(key) + "'. Default value='" + defaultValue + "'");
+		}
+	}
+
 	public static int getIntFromConfig(Properties config, String key, int defaultValue) {
 		try {
 			return Integer.parseInt(config.getProperty(key, Integer.toString(defaultValue)));

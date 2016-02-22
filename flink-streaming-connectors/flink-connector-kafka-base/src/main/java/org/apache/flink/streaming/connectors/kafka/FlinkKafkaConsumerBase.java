@@ -46,8 +46,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	private static final long serialVersionUID = -6272159445203409112L;
 
-	/** The maximum number of pending non-committed checkpoints to track, to avoid memory leaks */
-	public static final int MAX_NUM_PENDING_CHECKPOINTS = 100;
+	/** The maximum number of pending offset commits to track, to avoid memory leaks */
+	public static final int MAX_PENDING_OFFSET_COMMITS = 100;
 
 
 	/** The schema to convert between Kafka#s byte messages, and Flink's objects */
@@ -55,8 +55,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	// ------  Runtime State  -------
 
-	/** Data for pending but uncommitted checkpoints */
-	protected final LinkedMap pendingCheckpoints = new LinkedMap();
+	/** Data for pending but uncommitted offsets */
+	protected final LinkedMap pendingOffsetCommitsByCheckpoint = new LinkedMap();
 
 	/** The offsets of the last returned elements */
 	protected transient HashMap<KafkaTopicPartition, Long> offsetsState;
@@ -109,12 +109,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		//noinspection unchecked
 		HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) offsetsState.clone();
 
-		// the map cannot be asynchronously updated, because only one checkpoint call can happen
-		// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-		pendingCheckpoints.put(checkpointId, currentOffsets);
-			
-		while (pendingCheckpoints.size() > MAX_NUM_PENDING_CHECKPOINTS) {
-			pendingCheckpoints.remove(0);
+		if (isAutoCommitEnabled()) {
+			// the map cannot be asynchronously updated, because only one checkpoint call can happen
+			// on this function at a time: either snapshotState() or notifyCheckpointComplete()
+			pendingOffsetCommitsByCheckpoint.put(checkpointId, currentOffsets);
+			while (pendingOffsetCommitsByCheckpoint.size() > MAX_PENDING_OFFSET_COMMITS) {
+				pendingOffsetCommitsByCheckpoint.remove(0);
+			}
 		}
 
 		return currentOffsets;
@@ -142,39 +143,43 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			LOG.debug("Committing offsets externally for checkpoint {}", checkpointId);
 		}
 
-		try {
-			HashMap<KafkaTopicPartition, Long> checkpointOffsets;
-	
-			// the map may be asynchronously updates when snapshotting state, so we synchronize
-			synchronized (pendingCheckpoints) {
-				final int posInMap = pendingCheckpoints.indexOf(checkpointId);
-				if (posInMap == -1) {
-					LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
+		if (isAutoCommitEnabled()) {
+			try {
+				HashMap<KafkaTopicPartition, Long> checkpointOffsets;
+
+				// the map may be asynchronously updates when snapshotting state, so we synchronize
+				synchronized (pendingOffsetCommitsByCheckpoint) {
+					final int posInMap = pendingOffsetCommitsByCheckpoint.indexOf(checkpointId);
+					if (posInMap == -1) {
+						LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
+						return;
+					}
+
+					//noinspection unchecked
+					checkpointOffsets = (HashMap<KafkaTopicPartition, Long>) pendingOffsetCommitsByCheckpoint.remove(posInMap);
+
+
+					// remove older checkpoints in map
+					for (int i = 0; i < posInMap; i++) {
+						pendingOffsetCommitsByCheckpoint.remove(0);
+					}
+				}
+				if (checkpointOffsets == null || checkpointOffsets.size() == 0) {
+					LOG.debug("Checkpoint state was empty.");
 					return;
 				}
-
-				//noinspection unchecked
-				checkpointOffsets = (HashMap<KafkaTopicPartition, Long>) pendingCheckpoints.remove(posInMap);
-
-				
-				// remove older checkpoints in map
-				for (int i = 0; i < posInMap; i++) {
-					pendingCheckpoints.remove(0);
+				commitOffsets(checkpointOffsets);
+			}
+			catch (Exception e) {
+				if (running) {
+					throw e;
 				}
+				// else ignore exception if we are no longer running
 			}
-			if (checkpointOffsets == null || checkpointOffsets.size() == 0) {
-				LOG.debug("Checkpoint state was empty.");
-				return;
-			}
-			commitOffsets(checkpointOffsets);
-		}
-		catch (Exception e) {
-			if (running) {
-				throw e;
-			}
-			// else ignore exception if we are no longer running
 		}
 	}
+
+	protected abstract boolean isAutoCommitEnabled();
 
 	protected abstract void commitOffsets(HashMap<KafkaTopicPartition, Long> checkpointOffsets) throws Exception;
 

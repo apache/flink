@@ -54,6 +54,7 @@ import java.util.Properties;
 import java.util.Random;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getBoolFromConfig;
 import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
 import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLongFromConfig;
 
@@ -301,7 +302,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 			// check whether we need to start the periodic checkpoint committer
 			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
-			if (!streamingRuntimeContext.isCheckpointingEnabled()) {
+			if (isAutoCommitEnabled() && !streamingRuntimeContext.isCheckpointingEnabled()) {
 				// we use Kafka's own configuration parameter key for this.
 				// Note that the default configuration value in Kafka is 60 * 1000, so we use the
 				// same here.
@@ -390,6 +391,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	// ------------------------------------------------------------------------
 	//  Checkpoint and restore
 	// ------------------------------------------------------------------------
+
+
+	@Override
+	protected boolean isAutoCommitEnabled() {
+		return getBoolFromConfig(props, "auto.commit.enable", true);
+	}
 
 	/**
 	 * Utility method to commit offsets.
