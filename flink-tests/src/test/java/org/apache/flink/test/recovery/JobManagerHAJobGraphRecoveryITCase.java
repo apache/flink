@@ -187,8 +187,13 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(0), null);
 			}
 
+			log.info("Leading job manager: " + leadingJobManager);
+			log.info("Non-leading job manager: " + nonLeadingJobManager);
+
 			// Submit the job
 			nonLeadingJobManager.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
+
+			log.info("Submitted job graph to " + nonLeadingJobManager);
 
 			// Wait for the job to start. We are asking the *leading** JM here although we've
 			// submitted the job to the non-leading JM. This is the behaviour under test.
