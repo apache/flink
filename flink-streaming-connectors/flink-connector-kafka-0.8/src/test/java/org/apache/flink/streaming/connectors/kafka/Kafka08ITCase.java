@@ -326,6 +326,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 				if (event.getType().equals(TreeCacheEvent.Type.NODE_UPDATED)) {
 					if(counter.incrementAndGet() == 3) {
 						// cancel job, node has been created
+						LOG.info("Cancelling job after all three ZK nodes were updated");
 						JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
 					}
 				}
@@ -338,6 +339,23 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		tc3.getListenable().addListener(stopListener);
 		tc3.start();
 
+		// the curator listener is not always working properly. Stop job after 10 seconds
+		final Tuple1<Throwable> error = new Tuple1<>();
+		Thread canceller = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(10_000L);
+					LOG.info("Cancelling job after 10 seconds");
+					JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+				} catch (Throwable t) {
+					if (!(t instanceof InterruptedException)) {
+						error.f0 = t;
+					}
+				}
+			}
+		});
+		canceller.start();
 
 		try {
 			env2.execute("Idlying Kafka source");
@@ -349,6 +367,12 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		tc1.close();
 		tc2.close();
 		tc3.close();
+
+		canceller.interrupt();
+		canceller.join();
+		if(error.f0 != null) {
+			throw new RuntimeException("Delayed cancelling thread had an error", error.f0);
+		}
 
 		// check if offsets are correctly in ZK
 		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
