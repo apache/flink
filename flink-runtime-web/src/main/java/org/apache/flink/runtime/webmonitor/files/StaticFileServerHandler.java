@@ -60,6 +60,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -126,7 +128,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			JobManagerRetriever retriever,
 			Future<String> localJobManagerAddressPromise,
 			FiniteDuration timeout,
-			File rootPath) {
+			File rootPath) throws IOException {
 
 		this(retriever, localJobManagerAddressPromise, timeout, rootPath, DEFAULT_LOGGER);
 	}
@@ -136,12 +138,12 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			Future<String> localJobManagerAddressFuture,
 			FiniteDuration timeout,
 			File rootPath,
-			Logger logger) {
+			Logger logger) throws IOException {
 
 		this.retriever = checkNotNull(retriever);
 		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
 		this.timeout = checkNotNull(timeout);
-		this.rootPath = checkNotNull(rootPath);
+		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 		this.logger = checkNotNull(logger);
 	}
 
@@ -196,16 +198,22 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * Response when running with leading JobManager.
 	 */
 	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-		throws IOException, ParseException {
+			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
 
-		if(!file.exists()) {
+		if (!file.exists()) {
 			// file does not exist. Try to load it with the classloader
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
+
 			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
-				if (resourceStream == null) {
+				// Check that we don't load anything from outside of the
+				// expected resource.
+				URI root = cl.getResource("web").toURI();
+				URI req = cl.getResource("web" + requestPath).toURI();
+
+				if (resourceStream == null || root.relativize(req).equals(req)) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
 						sendError(ctx, NOT_FOUND);
 						return;
@@ -218,6 +226,11 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
+			sendError(ctx, NOT_FOUND);
+			return;
+		}
+
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
