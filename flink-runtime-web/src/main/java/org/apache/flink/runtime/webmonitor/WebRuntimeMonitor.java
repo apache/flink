@@ -146,14 +146,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 		
 		// create an empty directory in temp for the web server
 		String rootDirFileName = "flink-web-" + UUID.randomUUID();
-		webRootDir = new File(System.getProperty("java.io.tmpdir"), rootDirFileName);
+		webRootDir = new File(getBaseDir(), rootDirFileName);
 		LOG.info("Using directory {} for the web interface files", webRootDir);
 
 		final boolean webSubmitAllow = cfg.isProgramSubmitEnabled();
 		if (webSubmitAllow) {
 			// create storage for uploads
 			String uploadDirName = "flink-web-upload-" + UUID.randomUUID();
-			this.uploadDir = new File(System.getProperty("java.io.tmpdir"), uploadDirName);
+			this.uploadDir = new File(getBaseDir(), uploadDirName);
 			if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
 				throw new IOException("Unable to create temporary directory to support jar uploads.");
 			}
@@ -423,5 +423,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
 		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise.future(), timeout);
+	}
+
+	File getBaseDir() {
+		return new File(System.getProperty("java.io.tmpdir"));
 	}
 }
