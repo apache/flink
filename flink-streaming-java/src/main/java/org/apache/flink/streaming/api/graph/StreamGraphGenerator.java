@@ -583,9 +583,7 @@ public class StreamGraphGenerator {
 				String inputGroupCandidate = streamGraph.getSlotSharingGroup(id);
 				if (inputGroup == null) {
 					inputGroup = inputGroupCandidate;
-					continue;
-				}
-				if (!inputGroup.equals(inputGroupCandidate)) {
+				} else if (!inputGroup.equals(inputGroupCandidate)) {
 					return "default";
 				}
 			}
