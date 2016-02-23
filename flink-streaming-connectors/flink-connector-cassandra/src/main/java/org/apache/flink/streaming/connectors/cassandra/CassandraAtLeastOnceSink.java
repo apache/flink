@@ -47,7 +47,7 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 	private transient PreparedStatement preparedStatement;
 
 	private transient Throwable exception = null;
-	private transient final FutureCallback<ResultSet> callback;
+	private transient FutureCallback<ResultSet> callback;
 
 	public CassandraAtLeastOnceSink(String host, String insertQuery, CheckpointCommitter committer, TypeSerializer<IN> serializer) {
 		super(committer, serializer);
@@ -59,16 +59,6 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 		}
 		this.host = host;
 		this.insertQuery = insertQuery;
-		this.callback = new FutureCallback<ResultSet>() {
-			@Override
-			public void onSuccess(ResultSet resultSet) {
-			}
-
-			@Override
-			public void onFailure(Throwable throwable) {
-				exception = throwable;
-			}
-		};
 	}
 
 	@Override
@@ -89,6 +79,16 @@ public class CassandraAtLeastOnceSink<IN extends Tuple> extends GenericAtLeastOn
 	@Override
 	public void open() throws Exception {
 		super.open();
+		this.callback = new FutureCallback<ResultSet>() {
+			@Override
+			public void onSuccess(ResultSet resultSet) {
+			}
+
+			@Override
+			public void onFailure(Throwable throwable) {
+				exception = throwable;
+			}
+		};
 		cluster = Cluster.builder().addContactPoint(host).build();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
