@@ -62,7 +62,7 @@ class FileSystemBlobStore implements BlobStore {
 
 		this.basePath = stateBackendBasePath;
 
-		FileSystem.get(new File(basePath).toURI()).mkdirs(new Path(basePath));
+		FileSystem.get(new Path(basePath).toUri).mkdirs(new Path(basePath));
 		LOG.info("Created blob directory {}.", basePath);
 	}
 
