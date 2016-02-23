@@ -380,7 +380,6 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				assertEquals(expectedIndex, response.getContent());
 
 				// 2) Request file outside of web root
-
 				// Create a test file in the web base dir (parent of web root)
 				File illegalFile = new File(webMonitor.getBaseDir(), "test-file-" + UUID.randomUUID());
 				illegalFile.deleteOnExit();
@@ -391,7 +390,15 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				client.sendGetRequest("../" + illegalFile.getName(), deadline.timeLeft());
 				response = client.getNextResponse(deadline.timeLeft());
 				assertEquals(
-						"Returned status code " + response.getStatus() + " for file outside of web root.",
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
+
+				// 3) Request non-existing file
+				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
 						HttpResponseStatus.NOT_FOUND,
 						response.getStatus());
 			}
@@ -461,6 +468,14 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				assertFalse("Did not respond with the file, but still copied it from the JAR.",
 						new File(webMonitor.getBaseDir(), "log4j-test.properties").exists());
+
+				// 3) Request non-existing file
+				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
+				response = client.getNextResponse(deadline.timeLeft());
+				assertEquals(
+						"Unexpected status code " + response.getStatus() + " for file outside of web root.",
+						HttpResponseStatus.NOT_FOUND,
+						response.getStatus());
 			}
 		} finally {
 			if (flink != null) {

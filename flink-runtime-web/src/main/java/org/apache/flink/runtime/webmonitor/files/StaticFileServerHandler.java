@@ -62,6 +62,7 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -208,20 +209,37 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
 
 			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
-				// Check that we don't load anything from outside of the
-				// expected resource.
-				URI root = cl.getResource("web").toURI();
-				URI req = cl.getResource("web" + requestPath).toURI();
+				boolean success = false;
+				try {
+					if (resourceStream != null) {
+						URL root = cl.getResource("web");
+						URL requested = cl.getResource("web" + requestPath);
 
-				if (resourceStream == null || root.relativize(req).equals(req)) {
+						if (root != null && requested != null) {
+							URI rootURI = new URI(root.getPath()).normalize();
+							URI requestedURI = new URI(requested.getPath()).normalize();
+
+							// Check that we don't load anything from outside of the
+							// expected scope.
+							if (!rootURI.relativize(requestedURI).equals(requestedURI)) {
+								logger.debug("Loading missing file from classloader: {}", requestPath);
+								// ensure that directory to file exists.
+								file.getParentFile().mkdirs();
+								Files.copy(resourceStream, file.toPath());
+
+								success = true;
+							}
+						}
+					}
+				} catch (Throwable t) {
+					logger.error("error while responding", t);
+				} finally {
+					if (!success) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
 						sendError(ctx, NOT_FOUND);
 						return;
+					}
 				}
-				logger.debug("Loading missing file from classloader: {}", requestPath);
-				// ensure that directory to file exists.
-				file.getParentFile().mkdirs();
-				Files.copy(resourceStream, file.toPath());
 			}
 		}
 
