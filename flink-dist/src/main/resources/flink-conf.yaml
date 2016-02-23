@@ -146,5 +146,3 @@ jobmanager.web.port: 8081
 # directory (see above) before configuring the storageDir.
 #
 # recovery.zookeeper.storageDir: hdfs:///recovery
-
-env.java.opts = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
