@@ -171,12 +171,23 @@ deploy_to_maven() {
 
   cd flink
   cp ../../deploysettings.xml .
-  echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml"
-  $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  
+  echo "Deploying Scala 2.11 version"
   cd tools && ./change-scala-version.sh 2.11 && cd ..
-  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
+  $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  
+  # It is important to first deploy scala 2.11 and then scala 2.10 so that the quickstarts (which are independent of the scala version)
+  # are depending on scala 2.10.
+  echo "Deploying Scala 2.10 version"
   cd tools && ./change-scala-version.sh 2.10 && cd ..
+  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
+
+  echo "Deploying Scala 2.10 / hadoop 1 version"
   ../generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
+
+
   sleep 4
   $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 }
@@ -199,13 +210,11 @@ make_binary_release "hadoop2" "" 2.10
 make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
 make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.10
 make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.10
-## make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
 make_binary_release "hadoop2" "" 2.11
 make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.11
 make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.11
 make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.11
-# make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
 copy_data
 
