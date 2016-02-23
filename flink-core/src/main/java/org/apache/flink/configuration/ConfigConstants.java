@@ -243,6 +243,11 @@ public final class ConfigConstants {
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
+	 * The vcores exposed by YYARN.
+	 */
+	public static final String YARN_VCORES = "yarn.containers.vcores";
+
+	/**
 	 * Percentage of heap space to remove from containers started by YARN.
 	 */
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
