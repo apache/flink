@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable byte type, representing the primitive
  * type {@code byte} (signed 8 bit integer).
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<ByteValue>, CopyableValue<ByteValue> {

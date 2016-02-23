@@ -37,8 +37,7 @@ import com.google.common.base.Preconditions;
  * The mutability allows to reuse the object inside the user code, also across invocations. Reusing a StringValue object
  * helps to increase the performance, as string objects are rather heavy-weight objects and incur a lot of garbage
  * collection overhead, if created and destroyed in masses.
- * 
- * @see org.apache.flink.types.Key
+ *
  * @see org.apache.flink.types.NormalizableKey
  * @see java.lang.String
  * @see java.lang.CharSequence

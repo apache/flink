@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable short integer type, representing the primitive
  * type {@code short}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
