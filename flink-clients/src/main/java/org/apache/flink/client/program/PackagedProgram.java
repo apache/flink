@@ -566,7 +566,8 @@ public class PackagedProgram {
 			// check for a main class
 			className = attributes.getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
 			if (className != null) {
-				return className;
+			    // Main-Class may use "/" as separator, not just "."
+				return className.replaceAll("/", "\\.");
 			} else {
 				throw new ProgramInvocationException("Neither a '" + MANIFEST_ATTRIBUTE_MAIN_CLASS + "', nor a '" +
 						MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS + "' entry was found in the jar file.");

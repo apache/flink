@@ -85,7 +85,8 @@ public class JarListHandler implements RequestHandler {
 					if (manifest != null) {
 						assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
 						if (assemblerClass == null) {
-							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+						    // Main-Class may use "/" as separator, not just "."
+							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS).replaceAll("/", "\\.");
 						}
 					}
 					if (assemblerClass != null) {
