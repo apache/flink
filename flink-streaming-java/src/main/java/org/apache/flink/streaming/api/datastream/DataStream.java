@@ -128,7 +128,7 @@ public class DataStream<T> {
 	 * @return ID of the DataStream
 	 */
 	@Internal
-	public Integer getId() {
+	public int getId() {
 		return transformation.getId();
 	}
 
