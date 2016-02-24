@@ -87,6 +87,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		// All three should be in ZK
 		assertEquals(3, ZooKeeper.getClient().getChildren().forPath(CheckpointsPath).size());
+		assertEquals(3, checkpoints.getNumberOfRetainedCheckpoints());
 
 		// Recover
 		checkpoints.recover();
@@ -102,6 +103,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		}
 
 		assertEquals(1, ZooKeeper.getClient().getChildren().forPath(CheckpointsPath).size());
+		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 		assertEquals(expected[2], checkpoints.getLatestCheckpoint());
 	}
 }
