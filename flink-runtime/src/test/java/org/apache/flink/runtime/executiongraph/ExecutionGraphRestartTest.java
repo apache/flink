@@ -440,8 +440,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		Execution failedExecution = executionVertices.next().getCurrentExecutionAttempt();
 
 		finishedExecution.markFinished();
-		failedExecution.fail(new Exception("Test Exception"));
 
+		failedExecution.fail(new Exception("Test Exception"));
 		failedExecution.cancelingComplete();
 
 		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
@@ -456,8 +456,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		// Wait for deploying after async restart
 		deadline = timeout.fromNow();
-		boolean success = false;
 
+		// Wait for all resources to be assigned after async restart
+		boolean success = false;
 		while (deadline.hasTimeLeft() && !success) {
 			success = true;
 
@@ -466,10 +467,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 					success = false;
 					Thread.sleep(100);
 					break;
-				} else {
-					vertex.getCurrentExecutionAttempt().switchToRunning();
 				}
 			}
+		}
+
+		// At this point all resources have been assigned
+		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+			assertNotNull("No assigned resource (test instability).", vertex.getCurrentAssignedResource());
+			vertex.getCurrentExecutionAttempt().switchToRunning();
 		}
 
 		// fail old finished execution, this should not affect the execution
