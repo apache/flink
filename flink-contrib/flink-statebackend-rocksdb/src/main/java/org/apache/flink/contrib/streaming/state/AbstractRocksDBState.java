@@ -252,9 +252,12 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			}
 		}
 
+		long startTime = System.currentTimeMillis();
 		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(localBackupPath.getAbsolutePath()))) {
 			backupEngine.createNewBackup(db);
 		}
+		long endTime = System.currentTimeMillis();
+		LOG.info("RocksDB (" + rocksDbPath + ") backup (synchronous part) took " + (endTime - startTime) + " ms.");
 
 		return new AsyncRocksDBSnapshot<>(
 			localBackupPath,
@@ -419,7 +422,10 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		@Override
 		public KvStateSnapshot<K, N, S, SD, RocksDBStateBackend> materialize() throws Exception {
 			try {
+				long startTime = System.currentTimeMillis();
 				HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
+				long endTime = System.currentTimeMillis();
+				LOG.info("RocksDB materialization from " + localBackupPath + " to " + backupUri + " (asynchronous part) took " + (endTime - startTime) + " ms.");
 				return state.createRocksDBSnapshot(backupUri, checkpointId);
 			} catch (Exception e) {
 				FileSystem fs = FileSystem.get(backupUri, HadoopFileSystem.getHadoopConfiguration());
