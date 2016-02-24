@@ -18,12 +18,9 @@
 
 package org.apache.flink.api.java.io.jdbc.example;
 
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.Statement;
 
 import org.apache.flink.api.java.DataSet;
@@ -31,7 +28,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 public class JDBCExample {
 
@@ -44,8 +40,8 @@ public class JDBCExample {
 						.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
 						.setDBUrl("jdbc:derby:memory:ebookshop")
 						.setQuery("select * from books")
-						.finish(),
-						new TupleTypeInfo(Tuple5.class, INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO, DOUBLE_TYPE_INFO, INT_TYPE_INFO)
+						.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
+						.finish()
 				);
 
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()

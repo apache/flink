@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -27,6 +28,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +44,8 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.types.NullValue;
 
+import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
+
 /**
  * InputFormat to read data from a database and generate tuples.
  * The InputFormat has to be configured using the supplied InputFormatBuilder.
@@ -48,7 +54,7 @@ import org.apache.flink.types.NullValue;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput {
+public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput, ResultTypeQueryable {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
@@ -109,7 +115,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 * @throws IOException Indicates that a resource could not be closed.
 	 */
 	@Override
-	public void close() throws IOException {
+	public void close() {
 		try {
 			resultSet.close();
 		} catch (SQLException se) {
@@ -303,6 +309,83 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 */
 	public static JDBCInputFormatBuilder buildJDBCInputFormat() {
 		return new JDBCInputFormatBuilder();
+	}
+	@Override
+	public TupleTypeInfo<OUT> getProducedType() {
+		try {
+			establishConnection();
+			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
+			resultSet = statement.executeQuery("select query.* from (" + query + ") query where 1 = 2");
+
+			ResultSetMetaData metaData = resultSet.getMetaData();
+			TypeInformation<?>[] typeInfos = new TypeInformation[metaData.getColumnCount()];
+			for (int x=0; x < typeInfos.length; x++) {
+				typeInfos[x] = getForClass(mapColumnType(metaData.getColumnType(x + 1)));
+			}
+			close();
+			return (TupleTypeInfo<OUT>) new TupleTypeInfo<>(Tuple.getTupleClass(typeInfos.length), typeInfos);
+		} catch (SQLException se) {
+			close();
+			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
+		} catch (ClassNotFoundException cnfe) {
+			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
+		}
+	}
+
+	private Class<?> mapColumnType(int type) throws SQLException {
+		switch (type) {
+			case java.sql.Types.NULL:
+				return NullValue.class;
+			case java.sql.Types.BOOLEAN:
+			case java.sql.Types.BIT:
+				return Boolean.class;
+			case java.sql.Types.CHAR:
+			case java.sql.Types.NCHAR:
+			case java.sql.Types.VARCHAR:
+			case java.sql.Types.LONGVARCHAR:
+			case java.sql.Types.LONGNVARCHAR:
+				return String.class;
+			case java.sql.Types.TINYINT:
+			case java.sql.Types.SMALLINT:
+				return Short.class;
+			case java.sql.Types.BIGINT:
+				return Long.class;
+			case java.sql.Types.INTEGER:
+				return Integer.class;
+			case java.sql.Types.FLOAT:
+			case java.sql.Types.DOUBLE:
+				return Double.class;
+			case java.sql.Types.REAL:
+				return Float.class;
+			case java.sql.Types.DECIMAL:
+			case java.sql.Types.NUMERIC:
+				return BigDecimal.class;
+			case java.sql.Types.DATE:
+				return java.sql.Date.class;
+			case java.sql.Types.TIME:
+				return java.sql.Time.class;
+			case java.sql.Types.TIMESTAMP:
+				return java.sql.Timestamp.class;
+			case java.sql.Types.SQLXML:
+				return java.sql.SQLXML.class;
+			default:
+				throw new SQLException("Unsupported sql-type [" + type + "]");
+
+				// case java.sql.Types.BINARY:
+				// case java.sql.Types.VARBINARY:
+				// case java.sql.Types.LONGVARBINARY:
+				// case java.sql.Types.ARRAY:
+				// case java.sql.Types.JAVA_OBJECT:
+				// case java.sql.Types.BLOB:
+				// case java.sql.Types.CLOB:
+				// case java.sql.Types.NCLOB:
+				// case java.sql.Types.DATALINK:
+				// case java.sql.Types.DISTINCT:
+				// case java.sql.Types.OTHER:
+				// case java.sql.Types.REF:
+				// case java.sql.Types.ROWID:
+				// case java.sql.Types.STRUCT:
+		}
 	}
 
 	public static class JDBCInputFormatBuilder {
