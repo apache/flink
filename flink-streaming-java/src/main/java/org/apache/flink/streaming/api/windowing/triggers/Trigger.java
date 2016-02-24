@@ -95,6 +95,11 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * callbacks and deal with state.
 	 */
 	public interface TriggerContext {
+
+		/**
+		 * Returns the current watermark time.
+		 */
+		long getCurrentWatermark();
 	
 		/**
 		 * Register a system time callback. When the current system time passes the specified

@@ -378,6 +378,10 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			this.processingTimeTimer = -1;
 		}
 
+		@Override
+		public long getCurrentWatermark() {
+			return currentWatermark;
+		}
 
 		@SuppressWarnings("unchecked")
 		protected Context(DataInputView in, ClassLoader userClassloader) throws Exception {

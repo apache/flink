@@ -337,6 +337,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			this.window = window;
 		}
 
+		public long getCurrentWatermark() {
+			return currentWatermark;
+		}
+
 		@Override
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
 			Class<S> stateType,
@@ -396,7 +400,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (time <= currentWatermark) {
 				// immediately schedule a trigger, so that we don't wait for the next
 				// watermark update to fire the watermark trigger
-				getRuntimeContext().registerTimer(time, WindowOperator.this);
+				getRuntimeContext().registerTimer(System.currentTimeMillis(), WindowOperator.this);
 			}
 		}
 
