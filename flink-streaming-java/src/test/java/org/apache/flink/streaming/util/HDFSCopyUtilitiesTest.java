@@ -17,6 +17,10 @@
  */
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.OperatingSystem;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -26,7 +30,6 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.net.URI;
 
 import static org.junit.Assert.assertTrue;
 
@@ -34,6 +37,11 @@ public class HDFSCopyUtilitiesTest {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void checkOperatingSystem() {
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 
 	/**
@@ -54,7 +62,7 @@ public class HDFSCopyUtilitiesTest {
 
 		HDFSCopyFromLocal.copyFromLocal(
 				originalFile,
-				new URI(copyFile.getAbsolutePath()));
+				new Path(copyFile.getAbsolutePath()).toUri());
 
 		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {
 			assertTrue(in.readUTF().equals("Hello there, 42!"));
@@ -79,7 +87,7 @@ public class HDFSCopyUtilitiesTest {
 		}
 
 		HDFSCopyToLocal.copyToLocal(
-				new URI(originalFile.getAbsolutePath()),
+				new Path(originalFile.getAbsolutePath()).toUri(),
 				copyFile);
 
 		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {
