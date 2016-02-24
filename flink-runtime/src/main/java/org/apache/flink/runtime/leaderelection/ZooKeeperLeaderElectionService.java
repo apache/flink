@@ -148,11 +148,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	@Override
 	public boolean hasLeadership() {
-		if(leaderLatch.getState().equals(LeaderLatch.State.STARTED)) {
-			return leaderLatch.hasLeadership();
-		} else {
-			return false;
-		}
+        return leaderLatch.hasLeadership();
 	}
 
 	@Override
