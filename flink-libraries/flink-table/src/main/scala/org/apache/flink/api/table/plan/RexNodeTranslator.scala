@@ -59,14 +59,14 @@ object RexNodeTranslator {
         val sta = extractAggCalls(s.beginIndex, relBuilder)
         val end = extractAggCalls(endIndex, relBuilder)
         (s.makeCopy(
-          List(str._1, sta._1, end._1)),
+          List(str._1, sta._1, Some(end._1))),
           (str._2 ::: sta._2) ::: end._2
         )
 
       case s@Substring(_, _, None) =>
         val str = extractAggCalls(s.str, relBuilder)
         val sta = extractAggCalls(s.beginIndex, relBuilder)
-        (s.makeCopy(List(str._1, sta._1)), str._2 ::: sta._2)
+        (s.makeCopy(List(str._1, sta._1, None)), str._2 ::: sta._2)
 
       case e@AnyRef =>
         throw new IllegalArgumentException(

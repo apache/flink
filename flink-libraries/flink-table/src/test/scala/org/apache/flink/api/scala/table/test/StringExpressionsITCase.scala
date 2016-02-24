@@ -32,6 +32,28 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
+  @Test
+  def testSubstring(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
+      .select('a.substring(1, 'b))
+
+    val expected = "AA\nB"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSubstringWithMaxEnd(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(("ABCD", 3), ("ABCD", 2)).as('a, 'b)
+      .select('a.substring('b))
+
+    val expected = "CD\nBCD"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   // Calcite does eagerly check expression types
   @Ignore
   @Test(expected = classOf[IllegalArgumentException])

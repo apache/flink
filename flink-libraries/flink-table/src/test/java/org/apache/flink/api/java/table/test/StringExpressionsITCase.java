@@ -40,6 +40,46 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
+	@Test
+	public void testSubstring() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+				new Tuple2<>("AAAA", 2),
+				new Tuple2<>("BBBB", 1));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+				.select("a.substring(1, b)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "AA\nB";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testSubstringWithMaxEnd() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+				new Tuple2<>("ABCD", 3),
+				new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+				.select("a.substring(b)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "CD\nBCD";
+		compareResultAsText(results, expected);
+	}
+
 	// Calcite does eagerly check expression types
 	@Ignore
 	@Test(expected = IllegalArgumentException.class)
