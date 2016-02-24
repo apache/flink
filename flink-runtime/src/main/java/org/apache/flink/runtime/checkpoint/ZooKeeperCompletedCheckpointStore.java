@@ -137,6 +137,11 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	public void recover() throws Exception {
 		LOG.info("Recovering checkpoints from ZooKeeper.");
 
+		// Clear local handles in order to prevent duplicates on
+		// recovery. The local handles should reflect the state
+		// of ZooKeeper.
+		checkpointStateHandles.clear();
+
 		// Get all there is first
 		List<Tuple2<StateHandle<CompletedCheckpoint>, String>> initialCheckpoints;
 		while (true) {
