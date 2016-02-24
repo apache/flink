@@ -715,6 +715,10 @@ class CodeGenerator(
         callGen
           .getOrElse(throw new CodeGenException(s"Unsupported call: $call"))
           .generate(this, operands)
+
+      // unknown or invalid
+      case call@_ =>
+        throw new CodeGenException(s"Unsupported call: $call")
     }
   }
 
