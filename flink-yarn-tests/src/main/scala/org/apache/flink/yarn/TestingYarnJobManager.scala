@@ -78,7 +78,4 @@ class TestingYarnJobManager(
     checkpointRecoveryFactory,
     savepointStore,
     jobRecoveryTimeout)
-  with TestingJobManagerLike {
-
-  override val taskManagerRunnerClass = classOf[TestingYarnTaskManagerRunner]
-}
+  with TestingJobManagerLike {}

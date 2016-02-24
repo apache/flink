@@ -29,16 +29,9 @@ import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 object YarnMessages {
 
-  case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
 
-  case object UnregisterClient extends RequiresLeaderSessionID
-
-  case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-    extends RequiresLeaderSessionID
   case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-
-  case object JobManagerStopped
 
   /**
     * Entry point to start a new YarnSession.
@@ -70,8 +63,8 @@ object YarnMessages {
       currentTimeout: FiniteDuration,
       deadline: Option[Deadline]) extends RequiresLeaderSessionID
 
-  /** Registration message sent from the [[ApplicationClient]] to the [[YarnJobManager]]. A
-    * succesful registration is acknowledged with a [[AcknowledgeApplicationClientRegistration]]
+  /** Registration message sent from the [[ApplicationClient]] to the [[YarnFlinkResourceManager]].
+    * A successful registration is acknowledged with a [[AcknowledgeApplicationClientRegistration]]
     * message.
     */
   case object RegisterApplicationClient extends RequiresLeaderSessionID

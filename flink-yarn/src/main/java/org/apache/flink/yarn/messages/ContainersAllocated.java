@@ -15,14 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.yarn;
+
+package org.apache.flink.yarn.messages;
+
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.flink.yarn.YarnFlinkResourceManager;
+import org.apache.hadoop.yarn.api.records.Container;
+
+import java.util.List;
 
 /**
- * Default implementation of {@link FlinkYarnClientBase} which starts an {@link YarnApplicationMasterRunner}.
+ * Message sent by the callback handler to the {@link YarnFlinkResourceManager}
+ * to notify it that a set of new containers is available.
+ * 
+ * NOTE: This message is not serializable, because the Container object is not serializable.
  */
-public class FlinkYarnClient extends FlinkYarnClientBase {
+public class ContainersAllocated implements RequiresLeaderSessionID {
+	
+	private final List<Container> containers;
+	
+	public ContainersAllocated(List<Container> containers) {
+		this.containers = containers;
+	}
+	
+	public List<Container> containers() {
+		return containers;
+	}
+
 	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return YarnApplicationMasterRunner.class;
+	public String toString() {
+		return "ContainersAllocated: " + containers;
 	}
 }

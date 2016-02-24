@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -395,8 +396,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 				} else {
 					Object obj = messageOption.get();
 
-					if(obj instanceof YarnMessages.YarnMessage) {
-						YarnMessages.YarnMessage msg = (YarnMessages.YarnMessage) obj;
+					if(obj instanceof InfoMessage) {
+						InfoMessage msg = (InfoMessage) obj;
 						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
 						LOG.warn("LocalGetYarnMessage returned unexpected type: " + messageOption);
@@ -445,7 +446,6 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 							new YarnMessages.LocalStopYarnSession(finalStatus,
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
-
 					Await.ready(response, akkaDuration);
 				} catch(Exception e) {
 					LOG.warn("Error while stopping YARN Application Client", e);
