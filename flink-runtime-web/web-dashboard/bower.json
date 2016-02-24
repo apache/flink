@@ -18,7 +18,7 @@
     "angular-ui-router": "0.2.15",
     "bootstrap": "3.3.6",
     "d3": "3.5.12",
-    "dagre-d3": "0.4.11",
+    "dagre-d3": "0.4.17",
     "font-awesome": "4.5.0",
     "moment-duration-format": "1.3.0",
     "qtip2": "2.2.1"
