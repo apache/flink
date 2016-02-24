@@ -14,11 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.connectors.cassandra.streaming;
 
 import com.datastax.driver.core.Cluster;
 
 public interface ClusterConfigurator {
+
+	/**
+	 * 	Configures the Cassandra Cluster.
+	 *
+	 * @param cluster builder of Cassandra Cluster
+	 * @return configurated builder
+	 */
 	Cluster.Builder configureCluster(Cluster.Builder cluster);
 }

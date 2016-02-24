@@ -32,10 +32,18 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * OutputFormat to write {@link org.apache.flink.api.java.tuple.Tuple} into Apache Cassandra.
+ *
+ * @param <OUT> type of Tuple
+ */
 public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 		RichOutputFormat<OUT> implements ClusterConfigurator {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CassandraOutputFormat.class);
 	private static final long serialVersionUID = 1L;
 
 	private final String insertQuery;
@@ -55,12 +63,18 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 
 	@Override
 	public void configure(Configuration parameters) {
+		this.cluster = configureCluster(Cluster.builder()).build();
 	}
 
+	/**
+	 * Opens a Session to Cassandra and initializes the prepared statement.
+	 *
+	 * @param taskNumber The number of the parallel instance.
+	 * @throws IOException Thrown, if the output could not be opened due to an
+	 * I/O problem.
+	 */
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-
-		this.cluster = configureCluster(Cluster.builder()).build();
 		this.session = cluster.connect();
 		this.ps = session.prepare(insertQuery);
 		this.callback = new FutureCallback<ResultSet>() {
@@ -102,9 +116,21 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 		return al;
 	}
 
+	/**
+	 * Closes all resources used.
+	 */
 	@Override
 	public void close() throws IOException {
-		session.close();
-		cluster.close();
+		try {
+			session.close();
+		}catch(Exception e) {
+			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+		}
+
+		try {
+			cluster.close();
+		} catch(Exception e) {
+			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+		}
 	}
 }

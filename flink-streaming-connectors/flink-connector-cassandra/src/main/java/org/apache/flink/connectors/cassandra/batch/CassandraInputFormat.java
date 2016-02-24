@@ -35,11 +35,19 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * 	InputFormat to read data from Apache Cassandra and generate ${@link Tuple}.
+ *
+ * @param <OUT> type of Tuple
+ */
 public abstract class CassandraInputFormat<OUT extends Tuple> extends
 		RichInputFormat<OUT, InputSplit> implements NonParallelInput,
 		ClusterConfigurator {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
 	private static final long serialVersionUID = 1L;
 	
 	private final String query;
@@ -65,8 +73,14 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 		return cachedStatistics;
 	}
 
+	/**
+	 * Opens a Session and executes the query.
+	 *
+	 * @param ignored
+	 * @throws IOException
+	 */
 	@Override
-	public void open(InputSplit split) throws IOException {
+	public void open(InputSplit ignored) throws IOException {
 		this.session = cluster.connect();
 		this.rs = session.execute(query);
 	}
@@ -102,9 +116,21 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 		return new DefaultInputSplitAssigner(inputSplits);
 	}
 
+	/**
+	 * Closes all resources used.
+	 */
 	@Override
 	public void close() throws IOException {
-		session.close();
-		cluster.close();
+		try {
+			session.close();
+		}catch(Exception e) {
+			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+		}
+
+		try {
+			cluster.close();
+		} catch(Exception e) {
+			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+		}
 	}
 }
