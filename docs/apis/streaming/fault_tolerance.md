@@ -33,13 +33,13 @@ transient program failures, etc.
 {:toc}
 
 
-Streaming Fault Tolerance (DataStream API)
-------------------------------------------
+Streaming Fault Tolerance
+-------------------------
 
 Flink has a checkpointing mechanism that recovers streaming jobs after failues. The checkpointing mechanism requires a *persistent* (or *durable*) source that
 can be asked for prior records again (Apache Kafka is a good example of such a source).
 
-The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the user-defined state (see [Working with State]({{ site.baseurl }}/apis/streaming_guide.html#working-with-state)) consistently to provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured [state backend](state_backends.html).
+The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the user-defined state (see [Working with State](state.html)) consistently to provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured [state backend](state_backends.html).
 
 The [docs on streaming fault tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html) describe in detail the technique behind Flink's streaming fault tolerance mechanism.
 
@@ -98,6 +98,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 </div>
 </div>
 
+{% top %}
 
 ### Fault Tolerance Guarantees of Data Sources and Sinks
 
@@ -195,8 +196,7 @@ state updates) of Flink coupled with bundled sinks:
 
 {% top %}
 
-Restart Strategies
-------------------
+## Restart Strategies
 
 Flink supports different restart strategies which control how the jobs are restarted in case of a failure.
 The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
@@ -258,7 +258,9 @@ env.setRestartStrategy(RestartStrategies.fixedDelay(
 </div>
 </div>
 
-## Fixed Delay Restart Strategy
+{% top %}
+
+### Fixed Delay Restart Strategy
 
 The fixed delay restart strategy attempts a given number of times to restart the job.
 If the maximum number of attempts is exceeded, the job eventually fails.
@@ -320,13 +322,13 @@ env.setRestartStrategy(RestartStrategies.fixedDelay(
 </div>
 </div>
 
-### Restart Attempts
+#### Restart Attempts
 
 The number of times that Flink retries the execution before the job is declared as failed is configurable via the *restart-strategy.fixed-delay.attempts* parameter.
 
 The default value is **1**.
 
-### Retry Delays
+#### Retry Delays
 
 Execution retries can be configured to be delayed. Delaying the retry means that after a failed execution, the re-execution does not start immediately, but only after a certain delay.
 
@@ -334,7 +336,9 @@ Delaying the retries can be helpful when the program interacts with external sys
 
 The default value is the value of *akka.ask.timeout*.
 
-## No Restart Strategy
+{% top %}
+
+### No Restart Strategy
 
 The job fails directly and no restart is attempted.
 
@@ -359,6 +363,4 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 </div>
 </div>
 
-[Back to top](#top)
-
-
+{% top %}
