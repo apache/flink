@@ -873,6 +873,16 @@ stream.assignTimestamps { timestampExtractor }
   </tbody>
 </table>
 
+Extraction from tuples, case classes and collections via anonymous pattern matching, like the following:
+{% highlight scala %}
+val data: DataStream[(Int, String, Double)] = // [...]
+data.map {
+  case (id, name, temperature) => // [...]
+}
+{% endhighlight %}
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="../scala_api_extensions.html">Scala API extension</a>.
+
+
 </div>
 </div>
 

@@ -1,0 +1,201 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.api.scala
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions._
+
+import scala.reflect.ClassTag
+
+package object extensions {
+
+  /**
+    * acceptPartialFunctions extends the original DataSet with methods with unique names
+    * that delegate to core higher-order functions (e.g. `map`) so that we can work around
+    * the fact that overloaded methods taking functions as parameters can't accept partial
+    * functions as well. This enables the possibility to directly apply pattern matching
+    * to decompose inputs such as tuples, case classes and collections.
+    *
+    * e.g.
+    * {{{
+    *   object Main {
+    *     import org.apache.flink.api.scala.extensions._
+    *     case class Point(x: Double, y: Double)
+    *     def main(args: Array[String]): Unit = {
+    *       val env = ExecutionEnvironment.getExecutionEnvironment
+    *       val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
+    *       ds.filterWith {
+    *         case Point(x, _) => x > 1
+    *       }.reduceWith {
+    *         case (Point(x1, y1), (Point(x2, y2))) => Point(x1 + y1, x2 + y2)
+    *       }.mapWith {
+    *         case Point(x, y) => (x, y)
+    *       }.flatMapWith {
+    *         case (x, y) => Seq('x' -> x, 'y' -> y)
+    *       }.groupingBy {
+    *         case (id, value) => id
+    *       }
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  implicit def acceptPartialFunctionsOnDataSet[T: TypeInformation](ds: DataSet[T]): OnDataSet[T] =
+    new OnDataSet[T](ds)
+
+  /**
+    * acceptPartialFunctions extends the original DataSet with methods with unique names
+    * that delegate to core higher-order functions (e.g. `map`) so that we can work around
+    * the fact that overloaded methods taking functions as parameters can't accept partial
+    * functions as well. This enables the possibility to directly apply pattern matching
+    * to decompose inputs such as tuples, case classes and collections.
+    *
+    * e.g.
+    * {{{
+    *   object Main {
+    *     import org.apache.flink.api.scala.extensions._
+    *     case class Point(x: Double, y: Double)
+    *     def main(args: Array[String]): Unit = {
+    *       val env = ExecutionEnvironment.getExecutionEnvironment
+    *       val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
+    *       ds.filterWith {
+    *         case Point(x, _) => x > 1
+    *       }.reduceWith {
+    *         case (Point(x1, y1), (Point(x2, y2))) => Point(x1 + y1, x2 + y2)
+    *       }.mapWith {
+    *         case Point(x, y) => (x, y)
+    *       }.flatMapWith {
+    *         case (x, y) => Seq('x' -> x, 'y' -> y)
+    *       }.groupingBy {
+    *         case (id, value) => id
+    *       }
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  implicit def acceptPartialFunctionsOnJoinDataSet[L: TypeInformation, R: TypeInformation](
+      ds: JoinDataSet[L, R]): OnJoinDataSet[L, R] =
+    new OnJoinDataSet[L, R](ds)
+
+  /**
+    * acceptPartialFunctions extends the original DataSet with methods with unique names
+    * that delegate to core higher-order functions (e.g. `map`) so that we can work around
+    * the fact that overloaded methods taking functions as parameters can't accept partial
+    * functions as well. This enables the possibility to directly apply pattern matching
+    * to decompose inputs such as tuples, case classes and collections.
+    *
+    * e.g.
+    * {{{
+    *   object Main {
+    *     import org.apache.flink.api.scala.extensions._
+    *     case class Point(x: Double, y: Double)
+    *     def main(args: Array[String]): Unit = {
+    *       val env = ExecutionEnvironment.getExecutionEnvironment
+    *       val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
+    *       ds.filterWith {
+    *         case Point(x, _) => x > 1
+    *       }.reduceWith {
+    *         case (Point(x1, y1), (Point(x2, y2))) => Point(x1 + y1, x2 + y2)
+    *       }.mapWith {
+    *         case Point(x, y) => (x, y)
+    *       }.flatMapWith {
+    *         case (x, y) => Seq('x' -> x, 'y' -> y)
+    *       }.groupingBy {
+    *         case (id, value) => id
+    *       }
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  implicit def acceptPartialFunctionsOnCrossDataSet[L: TypeInformation, R: TypeInformation](
+      ds: CrossDataSet[L, R]): OnCrossDataSet[L, R] =
+    new OnCrossDataSet[L, R](ds)
+
+  /**
+    * acceptPartialFunctions extends the original DataSet with methods with unique names
+    * that delegate to core higher-order functions (e.g. `map`) so that we can work around
+    * the fact that overloaded methods taking functions as parameters can't accept partial
+    * functions as well. This enables the possibility to directly apply pattern matching
+    * to decompose inputs such as tuples, case classes and collections.
+    *
+    * e.g.
+    * {{{
+    *   object Main {
+    *     import org.apache.flink.api.scala.extensions._
+    *     case class Point(x: Double, y: Double)
+    *     def main(args: Array[String]): Unit = {
+    *       val env = ExecutionEnvironment.getExecutionEnvironment
+    *       val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
+    *       ds.filterWith {
+    *         case Point(x, _) => x > 1
+    *       }.reduceWith {
+    *         case (Point(x1, y1), (Point(x2, y2))) => Point(x1 + y1, x2 + y2)
+    *       }.mapWith {
+    *         case Point(x, y) => (x, y)
+    *       }.flatMapWith {
+    *         case (x, y) => Seq('x' -> x, 'y' -> y)
+    *       }.groupingBy {
+    *         case (id, value) => id
+    *       }
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  implicit def acceptPartialFunctionsOnGroupedDataSet[T: TypeInformation: ClassTag](
+      ds: GroupedDataSet[T]):
+      OnGroupedDataSet[T] =
+    new OnGroupedDataSet[T](ds)
+  /**
+    * acceptPartialFunctions extends the original DataSet with methods with unique names
+    * that delegate to core higher-order functions (e.g. `map`) so that we can work around
+    * the fact that overloaded methods taking functions as parameters can't accept partial
+    * functions as well. This enables the possibility to directly apply pattern matching
+    * to decompose inputs such as tuples, case classes and collections.
+    *
+    * e.g.
+    * {{{
+    *   object Main {
+    *     import org.apache.flink.api.scala.extensions._
+    *     case class Point(x: Double, y: Double)
+    *     def main(args: Array[String]): Unit = {
+    *       val env = ExecutionEnvironment.getExecutionEnvironment
+    *       val ds = env.fromElements(Point(1, 2), Point(3, 4), Point(5, 6))
+    *       ds.filterWith {
+    *         case Point(x, _) => x > 1
+    *       }.reduceWith {
+    *         case (Point(x1, y1), (Point(x2, y2))) => Point(x1 + y1, x2 + y2)
+    *       }.mapWith {
+    *         case Point(x, y) => (x, y)
+    *       }.flatMapWith {
+    *         case (x, y) => Seq('x' -> x, 'y' -> y)
+    *       }.groupingBy {
+    *         case (id, value) => id
+    *       }
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  implicit def acceptPartialFunctionsOnCoGroupDataSet[L: TypeInformation, R: TypeInformation](
+      ds: CoGroupDataSet[L, R]): OnCoGroupDataSet[L, R] =
+    new OnCoGroupDataSet[L, R](ds)
+
+}
