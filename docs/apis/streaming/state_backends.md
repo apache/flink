@@ -1,7 +1,7 @@
 ---
 title:  "State Backends"
 sub-nav-group: streaming
-sub-nav-pos: 1
+sub-nav-pos: 2
 sub-nav-parent: fault_tolerance
 ---
 <!--
@@ -29,12 +29,14 @@ Programs written in the [Data Stream API](index.html) often hold state in variou
 - Transformation functions may use the key/value state interface to store values
 - Transformation functions may implement the `Checkpointed` interface to make their local variables fault tolerant
 
-See also [Working with State](index.html#working-with-state) in the streaming API guide.
+See also [Working with State](state.html) in the streaming API guide.
 
 When checkpointing is activated, such state is persisted upon checkpoints to guard against data loss and recover consistently.
 How the state is represented internally, and how and where it is persisted upon checkpoints depends on the
 chosen **State Backend**.
 
+* ToC
+{:toc}
 
 ## Available State Backends
 

@@ -9,7 +9,7 @@ sub-nav-group: streaming
 sub-nav-id: cep
 sub-nav-pos: 1
 sub-nav-parent: libs
-sub-nav-title: CEP
+sub-nav-title: Event Processing (CEP)
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

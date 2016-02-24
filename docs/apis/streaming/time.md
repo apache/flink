@@ -2,7 +2,8 @@
 title: "Working with Time"
 is_beta: false
 sub-nav-group: streaming
-sub-nav-pos: 2
+sub-nav-pos: 1
+sub-nav-parent: windows
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,19 +30,19 @@ under the License.
 When working with time windows it becomes necessary to think about the concept of time
 in a streaming program. Flink has support for three kinds of time:
 
-- *Processing time:* Processing time is simply the wall clock time of the machine that happens to be
+- **Processing time:** Processing time is simply the wall clock time of the machine that happens to be
     executing the transformation. Processing time is the simplest notion of time and provides the best
     performance. However, in distributed and asynchronous environments processing time does not provide
     determinism.
 
-- *Event time:* Event time is the time that each individual event occurred. This time is
+- **Event time:** Event time is the time that each individual event occurred. This time is
     typically embedded within the records before they enter Flink or can be extracted from their contents.
     When using event time, out-of-order events can be properly handled. For example, an event with a lower
     timestamp may arrive after an event with a higher timestamp, but transformations will handle these events
     correctly. Event time processing provides predictable results, but incurs more latency, as out-of-order
     events need to be buffered
 
-- *Ingestion time:* Ingestion time is the time that events enter Flink. In particular, the timestamp of
+- **Ingestion time:** Ingestion time is the time that events enter Flink. In particular, the timestamp of
     an event is assigned by the source operator as the current wall clock time of the machine that executes
     the source task at the time the records enter the Flink source. Ingestion time is more predictable
     than processing time, and gives lower latencies than event time as the latency does not depend on
@@ -56,7 +57,7 @@ that no event with timestamp lower than the timestamp of the watermark will ever
 
 Per default, a Flink Job is only set up for processing time semantics, so in order to write a
 program with processing time semantics nothing needs to be specified (e.g., the first [example
-](#example-program) in this guide follows processing time semantics). To perform processing-time
+](index.html#example-program) in this guide follows processing time semantics). To perform processing-time
 windowing you would use window assigners such as `SlidingProcessingTimeWindows` and
 `TumblingProcessingTimeWindows`.
 
