@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.fs.Path;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -34,6 +36,11 @@ public class HDFSCopyUtilitiesTest {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void checkOperatingSystem() {
+		Assume.assumeTrue("This test can't run successfully on Windows.", !System.getProperty("os.name").startsWith("Windows"));
+	}
 
 
 	/**
