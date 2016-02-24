@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.scala.examples.socket
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
-
-import scala.language.postfixOps
 
 /**
  * This example shows an implementation of WordCount with data from a text socket. 
@@ -35,7 +34,7 @@ import scala.language.postfixOps
  *
  * Usage:
  * {{{
- *   SocketTextStreamWordCount <hostname> <port> <output path>
+ *   SocketTextStreamWordCount --hostname <name> --port <n> [--output <path>]
  * }}}
  *
  * This example shows how to:
@@ -47,47 +46,30 @@ import scala.language.postfixOps
 object SocketTextStreamWordCount {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
+
+    val params = ParameterTool.fromArgs(args)
+    if (!params.has("hostname") || !params.has("port")) {
+      println("Usage: SocketTextStreamWordCount --hostname <name> --port <n> --output <path>")
       return
     }
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.setGlobalJobParameters(params)
 
     //Create streams for names and ages by mapping the inputs to the corresponding objects
-    val text = env.socketTextStream(hostName, port)
+    val text = env.socketTextStream(params.get("hostname"), params.getInt("port"))
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
       .keyBy(0)
       .sum(1)
 
-    if (fileOutput) {
-      counts.writeAsText(outputPath)
+    if (params.has("output")) {
+      counts.writeAsText(params.get("output"))
     } else {
-      counts print
+      println("Printing result to stdout. Use --output to specify output path.")
+      counts.print
     }
 
     env.execute("Scala SocketTextStreamWordCount Example")
   }
-
-  private def parseParameters(args: Array[String]): Boolean = {
-      if (args.length == 3) {
-        fileOutput = true
-        hostName = args(0)
-        port = args(1).toInt
-        outputPath = args(2)
-      } else if (args.length == 2) {
-        hostName = args(0)
-        port = args(1).toInt
-      } else {
-        System.err.println("Usage: SocketTextStreamWordCount <hostname> <port> [<output path>]")
-        return false
-      }
-    true
-  }
-
-  private var fileOutput: Boolean = false
-  private var hostName: String = null
-  private var port: Int = 0
-  private var outputPath: String = null
 
 }

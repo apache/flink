@@ -19,6 +19,7 @@ package org.apache.flink.examples.scala.clustering
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.examples.java.clustering.util.KMeansData
@@ -35,29 +36,29 @@ import scala.collection.JavaConverters._
  * Each point is assigned to the cluster center which is closest to it.
  * Subsequently, each cluster center is moved to the center (''mean'') of all points that have
  * been assigned to it.
- * The moved cluster centers are fed into the next iteration. 
- * The algorithm terminates after a fixed number of iterations (as in this implementation) 
+ * The moved cluster centers are fed into the next iteration.
+ * The algorithm terminates after a fixed number of iterations (as in this implementation)
  * or if cluster centers do not (significantly) move in an iteration.
  * This is the Wikipedia entry for the [[http://en.wikipedia
  * .org/wiki/K-means_clustering K-Means Clustering algorithm]].
  *
  * This implementation works on two-dimensional data points.
- * It computes an assignment of data points to cluster centers, i.e., 
+ * It computes an assignment of data points to cluster centers, i.e.,
  * each data point is annotated with the id of the final cluster (center) it belongs to.
  *
  * Input files are plain text files and must be formatted as follows:
  *
- *  - Data points are represented as two double values separated by a blank character.
- *    Data points are separated by newline characters.
- *    For example `"1.2 2.3\n5.3 7.2\n"` gives two data points (x=1.2, y=2.3) and (x=5.3,
- *    y=7.2).
- *  - Cluster centers are represented by an integer id and a point value.
- *    For example `"1 6.2 3.2\n2 2.9 5.7\n"` gives two centers (id=1, x=6.2,
- *    y=3.2) and (id=2, x=2.9, y=5.7).
+ * - Data points are represented as two double values separated by a blank character.
+ * Data points are separated by newline characters.
+ * For example `"1.2 2.3\n5.3 7.2\n"` gives two data points (x=1.2, y=2.3) and (x=5.3,
+ * y=7.2).
+ * - Cluster centers are represented by an integer id and a point value.
+ * For example `"1 6.2 3.2\n2 2.9 5.7\n"` gives two centers (id=1, x=6.2,
+ * y=3.2) and (id=2, x=2.9, y=5.7).
  *
  * Usage:
  * {{{
- *   KMeans <points path> <centers path> <result path> <num iterations>
+ *   KMeans --points <path> --centroids <path> --output <path> --iterations <n>
  * }}}
  * If no parameters are provided, the program is run with default data from
  * [[org.apache.flink.examples.java.clustering.util.KMeansData]]
@@ -65,23 +66,27 @@ import scala.collection.JavaConverters._
  *
  * This example shows how to use:
  *
- *  - Bulk iterations
- *  - Broadcast variables in bulk iterations
- *  - Custom Java objects (PoJos)
+ * - Bulk iterations
+ * - Broadcast variables in bulk iterations
+ * - Scala case classes
  */
 object KMeans {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    // checking input parameters
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>")
 
-    val points: DataSet[Point] = getPointDataSet(env)
-    val centroids: DataSet[Centroid] = getCentroidDataSet(env)
+    // set up execution environment
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-    val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
+    // get input data:
+    // read the points and centroids from the provided paths or fall back to default data
+    val points: DataSet[Point] = getPointDataSet(params, env)
+    val centroids: DataSet[Centroid] = getCentroidDataSet(params, env)
+
+    val finalCentroids = centroids.iterate(params.getInt("iterations", 10)) { currentCentroids =>
       val newCentroids = points
         .map(new SelectNearestCenter).withBroadcastSet(currentCentroids, "centroids")
         .map { x => (x._1, x._2, 1L) }.withForwardedFields("_1; _2")
@@ -94,136 +99,106 @@ object KMeans {
     val clusteredPoints: DataSet[(Int, Point)] =
       points.map(new SelectNearestCenter).withBroadcastSet(finalCentroids, "centroids")
 
-    if (fileOutput) {
-      clusteredPoints.writeAsCsv(outputPath, "\n", " ")
+    if (params.has("output")) {
+      clusteredPoints.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala KMeans Example")
-    }
-    else {
+    } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       clusteredPoints.print()
     }
 
   }
 
-  private def parseParameters(programArguments: Array[String]): Boolean = {
-    if (programArguments.length > 0) {
-      fileOutput = true
-      if (programArguments.length == 4) {
-        pointsPath = programArguments(0)
-        centersPath = programArguments(1)
-        outputPath = programArguments(2)
-        numIterations = Integer.parseInt(programArguments(3))
+  // *************************************************************************
+  //     UTIL FUNCTIONS
+  // *************************************************************************
 
-        true
-      }
-      else {
-        System.err.println("Usage: KMeans <points path> <centers path> <result path> <num " +
-          "iterations>")
-
-        false
-      }
-    }
-    else {
-      System.out.println("Executing K-Means example with default parameters and built-in default " +
-        "data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  We provide a data generator to create synthetic input files for this " +
-        "program.")
-      System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num " +
-        "iterations>")
-
-      true
-    }
-  }
-
-  private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {
-    if (fileOutput) {
-      env.readCsvFile[(Double, Double)](
-        pointsPath,
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1))
-        .map { x => new Point(x._1, x._2)}
-    }
-    else {
-      val points = KMeansData.POINTS map {
-        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
-      }
-      env.fromCollection(points)
-    }
-  }
-
-  private def getCentroidDataSet(env: ExecutionEnvironment): DataSet[Centroid] = {
-    if (fileOutput) {
-      env.readCsvFile[(Int, Double, Double)](
-        centersPath,
+  def getCentroidDataSet(params: ParameterTool, env: ExecutionEnvironment): DataSet[Centroid] = {
+    if (params.has("centroids")) {
+      env.readCsvFile[Centroid](
+        params.get("centroids"),
         fieldDelimiter = " ",
         includedFields = Array(0, 1, 2))
-        .map { x => new Centroid(x._1, x._2, x._3)}
-    }
-    else {
-      val centroids = KMeansData.CENTROIDS map {
+    } else {
+      println("Executing K-Means example with default centroid data set.")
+      println("Use --centroids to specify file input.")
+      env.fromCollection(KMeansData.CENTROIDS map {
         case Array(id, x, y) =>
           new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
-      }
-      env.fromCollection(centroids)
+      })
     }
   }
 
-  private var fileOutput: Boolean = false
-  private var pointsPath: String = null
-  private var centersPath: String = null
-  private var outputPath: String = null
-  private var numIterations: Int = 10
+  def getPointDataSet(params: ParameterTool, env: ExecutionEnvironment): DataSet[Point] = {
+    if (params.has("points")) {
+      env.readCsvFile[Point](
+        params.get("points"),
+        fieldDelimiter = " ",
+        includedFields = Array(0, 1))
+    } else {
+      println("Executing K-Means example with default points data set.")
+      println("Use --points to specify file input.")
+      env.fromCollection(KMeansData.POINTS map {
+        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
+      })
+    }
+  }
+
+  // *************************************************************************
+  //     DATA TYPES
+  // *************************************************************************
 
   /**
-   * A simple two-dimensional point.
-   */
-  class Point(var x: Double, var y: Double) extends Serializable {
-    def this() {
-      this(0, 0)
-    }
+    * Common trait for operations supported by both points and centroids
+    * Note: case class inheritance is not allowed in Scala
+    */
+  trait Coordinate extends Serializable {
 
-    def add(other: Point): Point = {
+    var x: Double
+    var y: Double
+
+    def add(other: Coordinate): this.type = {
       x += other.x
       y += other.y
       this
     }
 
-    def div(other: Long): Point = {
+    def div(other: Long): this.type = {
       x /= other
       y /= other
       this
     }
 
-    def euclideanDistance(other: Point): Double = {
+    def euclideanDistance(other: Coordinate): Double =
       Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y))
-    }
 
     def clear(): Unit = {
       x = 0
       y = 0
     }
 
-    override def toString: String = {
-      x + " " + y
-    }
+    override def toString: String =
+      s"$x $y"
+
   }
 
   /**
-   * A simple two-dimensional centroid, basically a point with an ID.
-   */
-  class Centroid(var id: Int, x: Double, y: Double) extends Point(x, y) {
-    def this() {
-      this(0, 0, 0)
-    }
+    * A simple two-dimensional point.
+    */
+  case class Point(var x: Double = 0, var y: Double = 0) extends Coordinate
+
+  /**
+    * A simple two-dimensional centroid, basically a point with an ID.
+    */
+  case class Centroid(var id: Int = 0, var x: Double = 0, var y: Double = 0) extends Coordinate {
 
     def this(id: Int, p: Point) {
       this(id, p.x, p.y)
     }
 
-    override def toString: String = {
-      id + " " + super.toString
-    }
+    override def toString: String =
+      s"$id ${super.toString}"
+
   }
 
   /** Determines the closest cluster center for a data point. */
@@ -250,6 +225,7 @@ object KMeans {
     }
 
   }
+
 }
 
 

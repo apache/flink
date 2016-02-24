@@ -63,6 +63,12 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<!--Disable shade-flink execution to avoid duplicate relocation of
+						dependencies-->
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
 						<id>shade-hadoop</id>
 						<phase>package</phase>
 						<goals>

@@ -47,7 +47,11 @@ public class ConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void testProgram() throws Exception {
-		ConnectedComponents.main(verticesPath, edgesPath, resultPath, "100");
+		ConnectedComponents.main(
+				"--vertices", verticesPath,
+				"--edges", edgesPath,
+				"--output", resultPath,
+				"--iterations", "100");
 	}
 
 	@Override

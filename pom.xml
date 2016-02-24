@@ -207,11 +207,25 @@ under the License.
 				<version>2.4</version>
 			</dependency>
 
-			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
+			<!-- common-beanutils-bean-collections is used by flink-shaded-hadoop2 -->
 			<dependency>
-				<groupId>commons-collections</groupId>
-				<artifactId>commons-collections</artifactId>
-				<version>3.2.2</version>
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils-bean-collections</artifactId>
+				<version>1.8.3</version>
+			</dependency>
+
+			<!--We have to bump the commons-configuration to version 1.7 because Hadoop uses per
+			default 1.6. This version has the problem that it depends on commons-beanutils-core and
+			commons-digester. Commons-digester depends on commons-beanutils. Both dependencies are
+			contains classes of commons-collections. Since the dependency reduced pom does not
+			exclude commons-beanutils from commons-configuration, sbt would pull it in again. The
+			solution is setting the version of commons-configuration to 1.7 which also depends on
+			common-beanutils. Consequently, the dependency reduced pom will also contain an
+			exclusion for commons-beanutils for commons-configuration. -->
+			<dependency>
+				<groupId>commons-configuration</groupId>
+				<artifactId>commons-configuration</artifactId>
+				<version>1.7</version>
 			</dependency>
 
 			<dependency>

@@ -45,6 +45,9 @@ public class WindowJoinITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WindowJoin.main(new String[]{gradesPath, salariesPath, resultPath});
+		WindowJoin.main(new String[]{
+				"--grades", gradesPath,
+				"--salaries", salariesPath,
+				"--output", resultPath});
 	}
 }

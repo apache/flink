@@ -120,4 +120,12 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 
 		return new FixedDelayRestartStrategy(maxAttempts, delay);
 	}
+
+	@Override
+	public String toString() {
+		return "FixedDelayRestartStrategy(" +
+				"maxNumberRestartAttempts=" + maxNumberRestartAttempts +
+				", delayBetweenRestartAttempts=" + delayBetweenRestartAttempts +
+				')';
+	}
 }

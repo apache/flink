@@ -24,7 +24,10 @@ public class SocketTextStreamWordCountITCase extends SocketProgramITCaseBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		SocketTextStreamWordCount.main(new String[]{HOST, port.toString(), resultPath});
+		SocketTextStreamWordCount.main(new String[]{
+				"--hostname", HOST,
+				"--port", port.toString(),
+				"--output", resultPath});
 	}
 
 }

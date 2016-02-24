@@ -121,6 +121,7 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnConfiguration.setBoolean(YarnConfiguration.RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME, true);
 		yarnConfiguration.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
 		yarnConfiguration.setInt(YarnConfiguration.RM_MAX_COMPLETED_APPLICATIONS, 2);
+		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES, 4);
 		yarnConfiguration.setInt(YarnConfiguration.DEBUG_NM_DELETE_DELAY_SEC, 3600);
 		yarnConfiguration.setBoolean(YarnConfiguration.LOG_AGGREGATION_ENABLED, false);
 		yarnConfiguration.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
@@ -371,6 +372,11 @@ public abstract class YarnTestBase extends TestLogger {
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
+
+			// wait for the nodeManagers to connect
+			while(!yarnCluster.waitForNodeManagersToConnect(500)) {
+				LOG.info("Waiting for Nodemanagers to connect");
+			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			LOG.error("setup failure", ex);

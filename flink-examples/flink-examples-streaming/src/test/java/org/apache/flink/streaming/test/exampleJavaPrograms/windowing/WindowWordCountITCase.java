@@ -45,6 +45,10 @@ public class WindowWordCountITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WindowWordCount.main(new String[]{textPath, resultPath, windowSize, slideSize});
+		WindowWordCount.main(new String[]{
+				"--input", textPath,
+				"--output", resultPath,
+				"--window", windowSize,
+				"--slide", slideSize});
 	}
 }

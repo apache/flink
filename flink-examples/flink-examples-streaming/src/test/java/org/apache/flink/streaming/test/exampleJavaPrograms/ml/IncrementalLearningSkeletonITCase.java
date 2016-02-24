@@ -37,6 +37,6 @@ public class IncrementalLearningSkeletonITCase extends StreamingProgramTestBase 
 
 	@Override
 	protected void testProgram() throws Exception {
-		IncrementalLearningSkeleton.main(new String[]{resultPath});
+		IncrementalLearningSkeleton.main(new String[]{"--output", resultPath});
 	}
 }

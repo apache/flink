@@ -39,23 +39,23 @@ The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (
 Use one of the following commands to __create a project__:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
-    <li class="active"><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
-    <li><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
+    <li class="active"><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
+    <li><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
 </ul>
 <div class="tab-content">
-    <div class="tab-pane active" id="quickstart-script">
+    <div class="tab-pane active" id="maven-archetype">
     {% highlight bash %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash
-    {% endhighlight %}
-    </div>
-    <div class="tab-pane" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                             \
+    $ mvn archetype:generate                               \
       -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java            \
+      -DarchetypeArtifactId=flink-quickstart-java      \
       -DarchetypeVersion={{site.version}}
     {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
+    </div>
+    <div class="tab-pane" id="quickstart-script">
+    {% highlight bash %}
+    $ curl https://flink.apache.org/q/quickstart.sh | bash
+    {% endhighlight %}
     </div>
 </div>
 

@@ -102,7 +102,9 @@ public class HDFSTest {
 			
 			DopOneTestEnvironment.setAsContext();
 			try {
-				WordCount.main(new String[]{file.toString(), result.toString()});
+				WordCount.main(new String[]{
+						"--input", file.toString(),
+						"--output", result.toString()});
 			}
 			catch(Throwable t) {
 				t.printStackTrace();

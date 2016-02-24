@@ -141,7 +141,19 @@ under the License.
 					<groupId>com.sun.jersey.contribs</groupId>
 					<artifactId>jersey-guice</artifactId>
 				</exclusion>
+				<!--We have to exclude beanutils because it is overlapping with commons-collections-->
+				<exclusion>
+					<groupId>commons-beanutils</groupId>
+					<artifactId>commons-beanutils</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!--Here we include all the missing parts of beanutils which are not included in the
+		commons-collections dependency-->
+		<dependency>
+			<groupId>commons-beanutils</groupId>
+			<artifactId>commons-beanutils-bean-collections</artifactId>
 		</dependency>
 
 		<dependency>
