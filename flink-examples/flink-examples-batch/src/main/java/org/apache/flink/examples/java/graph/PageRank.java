@@ -85,7 +85,7 @@ public class PageRank {
 		ParameterTool params = ParameterTool.fromArgs(args);
 		System.out.println("Usage: PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>");
 
-		final int numPages = params.getInt("numPages");
+		final int numPages = params.getInt("numPages", PageRankData.getNumberOfPages());
 		final int maxIterations = params.getInt("iterations", 10);
 		
 		// set up execution environment
