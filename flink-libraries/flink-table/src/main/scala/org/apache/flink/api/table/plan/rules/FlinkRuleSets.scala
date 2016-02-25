@@ -51,8 +51,8 @@ object FlinkRuleSets {
     // merge and push unions rules
     // TODO: Add a rule to enforce binary unions
     UnionEliminatorRule.INSTANCE,
-    JoinUnionTransposeRule.LEFT_UNION,
-    JoinUnionTransposeRule.RIGHT_UNION,
+    FlinkJoinUnionTransposeRule.LEFT_UNION,
+    FlinkJoinUnionTransposeRule.RIGHT_UNION,
     // non-all Union to all-union + distinct
     UnionToDistinctRule.INSTANCE,
 
