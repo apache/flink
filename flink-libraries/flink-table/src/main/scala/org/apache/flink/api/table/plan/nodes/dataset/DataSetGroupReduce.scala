@@ -24,12 +24,11 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.{TableConfig, Row}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.table.plan.{PlanGenException, TypeConverter}
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.{Row, TableConfig}
+
 import scala.collection.JavaConverters._
-import org.apache.flink.api.table.plan.TypeConverter
 
 /**
   * Flink RelNode which matches along with ReduceGroupOperator.
@@ -67,7 +66,16 @@ class DataSetGroupReduce(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config, expectedType)
+    expectedType match {
+      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
+        throw new PlanGenException("GroupReduce operations currently only support returning Rows.")
+      case _ => // ok
+    }
+
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
+      config,
+      // tell the input operator that this operator currently only supports Rows as input
+      Some(TypeConverter.DEFAULT_ROW_TYPE))
 
     // get the output types
     val fieldsNames = rowType.getFieldNames

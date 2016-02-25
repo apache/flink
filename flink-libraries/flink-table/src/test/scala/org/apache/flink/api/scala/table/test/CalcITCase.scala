@@ -22,15 +22,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.Row
-import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase
+import TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
-import org.apache.flink.api.table.test.TableProgramsTestBase
-import org.apache.flink.api.table.test.TableProgramsTestBase.TableConfigMode
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(
@@ -70,7 +69,7 @@ class CalcITCase(
   }
 
   @Test
-  def TestCalcWithAggregation(): Unit = {
+  def testCalcWithAggregation(): Unit = {
     
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable

@@ -26,7 +26,15 @@ import org.apache.flink.api.table.TableConfig
 trait DataSetRel extends RelNode {
 
   /**
-    * Translate the FlinkRelNode into Flink operator.
+    * Translates the FlinkRelNode into a Flink operator.
+    *
+    * @param config runtime configuration
+    * @param expectedType specifies the type the Flink operator should return. The type must
+    *                     have the same arity as the result. For instance, if the
+    *                     expected type is a RowTypeInfo this method will return a DataSet of
+    *                     type Row. If the expected type is Tuple2, the operator will return
+    *                     a Tuple2 if possible. Row otherwise.
+    * @return DataSet of type expectedType or RowTypeInfo
     */
   def translateToPlan(
       config: TableConfig,
