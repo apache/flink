@@ -31,9 +31,13 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -317,6 +321,26 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		for (JobVertex vertex : jobGraph.getVertices()) {
 			assertTrue(vertexIds.add(vertex.getID()));
 		}
+	}
+
+	/**
+	 * Tests that a changed operator name does not affect the hash.
+	 */
+	@Test
+	public void testChangedOperatorName() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		env.addSource(new NoOpSourceFunction(), "A").map(new NoOpMapFunction());
+		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+		JobVertexID expected = jobGraph.getVerticesAsArray()[0].getID();
+
+		env = StreamExecutionEnvironment.createLocalEnvironment();
+		env.addSource(new NoOpSourceFunction(), "B").map(new NoOpMapFunction());
+		jobGraph = env.getStreamGraph().getJobGraph();
+
+		JobVertexID actual = jobGraph.getVerticesAsArray()[0].getID();
+
+		assertEquals(expected, actual);
 	}
 
 	// ------------------------------------------------------------------------
