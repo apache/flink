@@ -368,4 +368,36 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		env.execute();
 	}
+
+	@Test
+	public void testSimplePatternWithSingleState() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple2<Integer, Integer>> input = env.fromElements(
+			new Tuple2<>(0, 1),
+			new Tuple2<>(0, 2));
+
+		Pattern<Tuple2<Integer, Integer>, ?> pattern =
+			Pattern.<Tuple2<Integer, Integer>>begin("start")
+				.where(new FilterFunction<Tuple2<Integer, Integer>>() {
+					@Override
+					public boolean filter(Tuple2<Integer, Integer> rec) throws Exception {
+						return rec.f1 == 1;
+					}
+				});
+
+		PatternStream<Tuple2<Integer, Integer>> pStream = CEP.pattern(input, pattern);
+
+		DataStream<Tuple2<Integer, Integer>> result = pStream.select(new PatternSelectFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+			@Override
+			public Tuple2<Integer, Integer> select(Map<String, Tuple2<Integer, Integer>> pattern) throws Exception {
+				return pattern.get("start");
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		expected = "(0,1)";
+
+		env.execute();
+	}
 }

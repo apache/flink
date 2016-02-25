@@ -227,25 +227,28 @@ public class NFA<T> implements Serializable {
 								break;
 							case TAKE:
 								final State<T> newState = stateTransition.getTargetState();
-								final DeweyNumber newVersion;
+								final DeweyNumber oldVersion;
+								final DeweyNumber newComputationStateVersion;
 								final State<T> previousState = computationState.getState();
 								final T previousEvent = computationState.getEvent();
 								final long previousTimestamp;
 								final long startTimestamp;
 
 								if (computationState.isStartState()) {
-									newVersion = new DeweyNumber(startEventCounter++);
+									oldVersion = new DeweyNumber(startEventCounter++);
+									newComputationStateVersion = oldVersion.addStage();
 									startTimestamp = timestamp;
 									previousTimestamp = -1L;
 
 								} else {
 									startTimestamp = computationState.getStartTimestamp();
 									previousTimestamp = computationState.getTimestamp();
+									oldVersion = computationState.getVersion();
 
 									if (newState.equals(computationState.getState())) {
-										newVersion = computationState.getVersion().increase();
+										newComputationStateVersion = oldVersion.increase();
 									} else {
-										newVersion = computationState.getVersion().addStage();
+										newComputationStateVersion = oldVersion.addStage();
 									}
 								}
 
@@ -256,7 +259,7 @@ public class NFA<T> implements Serializable {
 									previousState,
 									previousEvent,
 									previousTimestamp,
-									newVersion);
+									oldVersion);
 
 								// a new computation state is referring to the shared entry
 								sharedBuffer.lock(newState, event, timestamp);
@@ -265,7 +268,7 @@ public class NFA<T> implements Serializable {
 									newState,
 									event,
 									timestamp,
-									newVersion,
+									newComputationStateVersion,
 									startTimestamp));
 								break;
 						}
@@ -366,9 +369,15 @@ public class NFA<T> implements Serializable {
 		oos.writeObject(computationState.getVersion());
 		oos.writeLong(computationState.getStartTimestamp());
 
-		DataOutputViewStreamWrapper output = new DataOutputViewStreamWrapper(oos);
-
-		nonDuplicatingTypeSerializer.serialize(computationState.getEvent(), output);
+		if (computationState.getEvent() == null) {
+			// write that we don't have an event associated
+			oos.writeBoolean(false);
+		} else {
+			// write that we have an event associated
+			oos.writeBoolean(true);
+			DataOutputViewStreamWrapper output = new DataOutputViewStreamWrapper(oos);
+			nonDuplicatingTypeSerializer.serialize(computationState.getEvent(), output);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -378,8 +387,15 @@ public class NFA<T> implements Serializable {
 		final DeweyNumber version = (DeweyNumber)ois.readObject();
 		final long startTimestamp = ois.readLong();
 
-		DataInputViewStreamWrapper input = new DataInputViewStreamWrapper(ois);
-		final T event = nonDuplicatingTypeSerializer.deserialize(input);
+		final boolean hasEvent = ois.readBoolean();
+		final T event;
+
+		if (hasEvent) {
+			DataInputViewStreamWrapper input = new DataInputViewStreamWrapper(ois);
+			event = nonDuplicatingTypeSerializer.deserialize(input);
+		} else {
+			event = null;
+		}
 
 		return new ComputationState<>(state, event, timestamp, version, startTimestamp);
 	}
