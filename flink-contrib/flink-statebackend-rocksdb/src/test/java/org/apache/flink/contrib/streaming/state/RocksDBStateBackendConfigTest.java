@@ -26,6 +26,9 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
+import org.apache.flink.util.OperatingSystem;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Test;
 
 import org.rocksdb.CompactionStyle;
@@ -44,6 +47,11 @@ import static org.mockito.Mockito.*;
 public class RocksDBStateBackendConfigTest {
 	
 	private static final String TEMP_URI = new File(System.getProperty("java.io.tmpdir")).toURI().toString();
+
+	@Before
+	public void checkOperatingSystem() {
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 	// ------------------------------------------------------------------------
 	//  RocksDB local file directory
