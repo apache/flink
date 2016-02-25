@@ -30,6 +30,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.types.IntValue;
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -40,6 +42,8 @@ import java.util.Random;
  * objects that are retained and reused on future calls. The programs do not retain and later modify input objects.
  */
 public class OverwriteObjects {
+
+	public final static Logger LOG = LoggerFactory.getLogger(OverwriteObjects.class);
 
 	// DataSets are created with this number of elements
 	private static final int NUMBER_OF_ELEMENTS = 3 * 1000 * 1000;
@@ -56,13 +60,13 @@ public class OverwriteObjects {
 	}
 
 	public void run() throws Exception {
-		System.out.println("Random seed = " + RANDOM_SEED);
+		LOG.info("Random seed = {}", RANDOM_SEED);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		for (int parallelism = MAX_PARALLELISM ; parallelism > 0 ; parallelism--) {
-			System.out.println("Parallelism = " + parallelism);
+			LOG.info("Parallelism = {}", parallelism);
 
 			env.setParallelism(parallelism);
 
@@ -79,7 +83,7 @@ public class OverwriteObjects {
 		 * Test ChainedAllReduceDriver
 		 */
 
-		System.out.println("reduce");
+		LOG.info("Testing reduce");
 
 		env.getConfig().enableObjectReuse();
 
@@ -106,7 +110,7 @@ public class OverwriteObjects {
 		 * Test ReduceCombineDriver and ReduceDriver
 		 */
 
-		System.out.println("grouped reduce");
+		LOG.info("Testing grouped reduce");
 
 		env.getConfig().enableObjectReuse();
 
@@ -154,7 +158,7 @@ public class OverwriteObjects {
 
 			// Inner join
 
-			System.out.println("JoinHint: " + joinHint + "; inner join");
+			LOG.info("Testing inner join with JoinHint = {}", joinHint);
 
 			env.getConfig().enableObjectReuse();
 
@@ -177,7 +181,7 @@ public class OverwriteObjects {
 			// Left outer join
 
 			if (joinHint != JoinHint.BROADCAST_HASH_FIRST) {
-				System.out.println("JoinHint: " + joinHint + "; left outer join");
+				LOG.info("Testing left outer join with JoinHint = {}", joinHint);
 
 				env.getConfig().enableObjectReuse();
 
@@ -201,7 +205,7 @@ public class OverwriteObjects {
 			// Right outer join
 
 			if (joinHint != JoinHint.BROADCAST_HASH_SECOND) {
-				System.out.println("JoinHint: " + joinHint + "; right outer join");
+				LOG.info("Testing right outer join with JoinHint = {}", joinHint);
 
 				env.getConfig().enableObjectReuse();
 
@@ -225,7 +229,7 @@ public class OverwriteObjects {
 			// Full outer join
 
 			if (joinHint != JoinHint.BROADCAST_HASH_FIRST && joinHint != JoinHint.BROADCAST_HASH_SECOND) {
-				System.out.println("JoinHint: " + joinHint + "; full outer join");
+				LOG.info("Testing full outer join with JoinHint = {}", joinHint);
 
 				env.getConfig().enableObjectReuse();
 
