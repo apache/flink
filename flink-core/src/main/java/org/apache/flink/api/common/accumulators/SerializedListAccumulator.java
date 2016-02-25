@@ -42,14 +42,14 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 
 	private static final long serialVersionUID = 1L;
 
-	private ArrayList<byte[]> localValue = new ArrayList<byte[]>();
-	
+	private ArrayList<byte[]> localValue = new ArrayList<>();
+
 
 	@Override
 	public void add(T value) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public void add(T value, TypeSerializer<T> serializer) throws IOException {
 		try {
 			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -96,5 +96,10 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 			result.add(val);
 		}
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "SerializedListAccumulator: " + localValue.size() + " elements";
 	}
 }
