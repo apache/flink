@@ -148,7 +148,8 @@ make_binary_release() {
   cd "${dir_name}"
   ./tools/change-scala-version.sh ${SCALA_VERSION}
 
-  $MVN clean package $FLAGS -DskipTests
+  # enable release profile here (to check for the maven version)
+  $MVN clean package $FLAGS -DskipTests -Prelease -Dgpg.skip
 
   cd flink-dist/target/flink-$RELEASE_VERSION-bin/
   tar czf "${dir_name}.tgz" flink-$RELEASE_VERSION
@@ -208,13 +209,13 @@ make_source_release
 make_binary_release "hadoop1" "-Dhadoop.profile=1" 2.10
 make_binary_release "hadoop2" "" 2.10
 make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.10
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.10
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.10
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.10
 
 make_binary_release "hadoop2" "" 2.11
 make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.11
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.11
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.11
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.11
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.11
 
 copy_data
 
