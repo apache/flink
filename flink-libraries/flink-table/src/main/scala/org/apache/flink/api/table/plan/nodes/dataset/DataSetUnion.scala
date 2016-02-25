@@ -59,7 +59,10 @@ class DataSetUnion(
   override def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    ???
+
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
+    leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
   }
 
 }
