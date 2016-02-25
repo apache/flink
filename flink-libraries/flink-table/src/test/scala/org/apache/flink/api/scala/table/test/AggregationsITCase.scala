@@ -108,6 +108,22 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testAggregationAfterProjection(): Unit = {
+
+    // verify AggregateProjectMergeRule.
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(
+      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+      .select('_1, '_2, '_3)
+      .select('_1.avg, '_2.sum, '_3.count)
+
+    val expected = "1,3,2"
+    val result = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
   @Ignore // Calcite does not eagerly check types
   @Test(expected = classOf[ExpressionException])
   def testNonWorkingAggregationDataTypes(): Unit = {
