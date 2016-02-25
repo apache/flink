@@ -85,8 +85,16 @@ case $STARTSTOP in
 
         # Print a warning if daemons are already running on host
         if [ -f $pid ]; then
-            count=$(wc -l $pid | awk '{print $1}')
-            echo "[WARNING] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+          active=()
+          while IFS='' read -r p || [[ -n "$p" ]]; do
+            kill -0 $p >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+              active+=($p)
+            fi
+          done < "${pid}"
+
+          count="${#active[@]}"
+          echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
         fi
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
