@@ -70,7 +70,7 @@ class CalcITCase(
   }
 
   @Test
-  def TestCalcWithAggregation(): Unit = {
+  def testCalcWithAggregation(): Unit = {
     
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable

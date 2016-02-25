@@ -37,6 +37,8 @@ import scala.collection.JavaConversions._
 
 object TypeConverter {
 
+  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
+
   def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
     case BOOLEAN_TYPE_INFO => BOOLEAN
     case BOOLEAN_VALUE_TYPE_INFO => BOOLEAN
@@ -83,6 +85,24 @@ object TypeConverter {
       ??? // TODO more types
   }
 
+  /**
+    * Determines the return type of Flink operators based on the logical fields, the expected
+    * physical type and configuration parameters.
+    *
+    * For example:
+    *   - No physical type expected, only 3 non-null fields and efficient type usage enabled
+    *       -> return Tuple3
+    *   - No physical type expected, efficient type usage enabled, but 3 nullable fields
+    *       -> return Row because Tuple does not support null values
+    *   - Physical type expected
+    *       -> check if physical type is compatible and return it
+    *
+    * @param logicalRowType logical row information
+    * @param expectedPhysicalType expected physical type
+    * @param nullable fields can be nullable
+    * @param useEfficientTypes use the most efficient types (e.g. Tuples and value types)
+    * @return suitable return type
+    */
   def determineReturnType(
       logicalRowType: RelDataType,
       expectedPhysicalType: Option[TypeInformation[Any]],
