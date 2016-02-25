@@ -74,9 +74,10 @@ class SelectITCase(
   @Test
   def testSimpleSelectWithNaming(): Unit = {
 
+    // verify ProjectMergeRule.
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
-      .select('_1 as 'a, '_2 as 'b)
+      .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
