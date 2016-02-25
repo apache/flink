@@ -78,6 +78,31 @@
 		</dependency>
 	</dependencies>
 
+	<profiles>
+		<profile>
+			<id>windows</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<properties>
+				<suffix.test>"(?&lt;!(IT|Integration))(Test|Suite|Case)"</suffix.test>
+				<suffix.it>"(IT|Integration)(Test|Suite|Case)"</suffix.it>
+			</properties>
+		</profile>
+		<profile>
+			<id>default</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<suffix.test>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffix.test>
+				<suffix.it>(IT|Integration)(Test|Suite|Case)</suffix.it>
+			</properties>
+		</profile>
+	</profiles>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -117,7 +142,7 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
+							<suffixes>${suffix.test}</suffixes>
 							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
@@ -128,7 +153,7 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
+							<suffixes>${suffix.it}</suffixes>
 							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
