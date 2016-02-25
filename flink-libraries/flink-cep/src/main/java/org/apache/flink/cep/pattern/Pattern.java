@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  * a {@link NFA}.
  *
  * <pre>{@code
- * Pattern<T> pattern = Pattern.<T>begin("start")
+ * Pattern<T, F> pattern = Pattern.<T>begin("start")
  *   .next("middle").subtype(F.class)
  *   .followedBy("end").where(new MyFilterFunction());
  * }
