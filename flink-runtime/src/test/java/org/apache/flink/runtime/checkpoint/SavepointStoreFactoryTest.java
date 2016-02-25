@@ -20,11 +20,13 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SavepointStoreFactoryTest {
 
@@ -61,28 +63,34 @@ public class SavepointStoreFactoryTest {
 	@Test
 	public void testSavepointBackendFileSystemButCheckpointBackendJobManager() throws Exception {
 		Configuration config = new Configuration();
-
+		String rootPath = System.getProperty("java.io.tmpdir");
 		// This combination does not make sense, because the checkpoints will be
 		// lost after the job manager shuts down.
 		config.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
+		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, rootPath);
+
 		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof HeapStateStore);
+		assertTrue(store.getStateStore() instanceof FileSystemStateStore);
+
+		FileSystemStateStore<CompletedCheckpoint> stateStore = (FileSystemStateStore<CompletedCheckpoint>)
+				store.getStateStore();
+		assertEquals(new Path(rootPath), stateStore.getRootPath());
 	}
 
-	@Test
+	@Test(expected = IllegalConfigurationException.class)
 	public void testSavepointBackendFileSystemButNoDirectory() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
-		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof HeapStateStore);
+		SavepointStoreFactory.createFromConfig(config);
+		fail("Did not throw expected Exception");
 	}
 
-	@Test
+	@Test(expected = IllegalConfigurationException.class)
 	public void testUnexpectedSavepointBackend() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "unexpected");
-		SavepointStore store = SavepointStoreFactory.createFromConfig(config);
-		assertTrue(store.getStateStore() instanceof HeapStateStore);
+		SavepointStoreFactory.createFromConfig(config);
+		fail("Did not throw expected Exception");
 	}
 }
