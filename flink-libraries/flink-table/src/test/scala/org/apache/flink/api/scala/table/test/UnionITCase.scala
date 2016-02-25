@@ -23,17 +23,21 @@ import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{ExpressionException, Row}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import scala.collection.JavaConverters._
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase
+import TableProgramsTestBase.TableConfigMode
 
 @RunWith(classOf[Parameterized])
-class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class UnionITCase(
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+  extends TableProgramsTestBase(mode, configMode) {
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testUnion(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -46,7 +50,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testUnionWithFilter(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -85,7 +89,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testUnionWithAggregation(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -95,6 +99,25 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "18"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUnionWithJoin(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'd, 'c, 'e)
+    val ds3 = CollectionDataSets.getSmall5TupleDataSet(env).as('a2, 'b2, 'd2, 'c2, 'e2)
+
+    val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c))
+      .join(ds3.select('a2, 'b2, 'c2))
+      .where('a ==='a2).select('c, 'c2)
+
+    val results = joinDs.toDataSet[Row].collect()
+    val expected = "Hi,Hallo\n" + "Hallo,Hallo\n" +
+      "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
+      "Hallo Welt,Hallo Welt\n" + "Hallo Welt wie,Hallo Welt\n" +
+      "Hallo Welt,Hallo Welt wie\n" + "Hallo Welt wie,Hallo Welt wie\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }
