@@ -22,6 +22,9 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.util.OperatingSystem;
+import org.junit.Assume;
+import org.junit.Before;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +37,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 	private File dbDir;
 	private File chkDir;
+
+	@Before
+	public void checkOperatingSystem() {
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+	}
 
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {
