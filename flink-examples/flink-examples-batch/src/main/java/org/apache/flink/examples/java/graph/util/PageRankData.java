@@ -64,7 +64,7 @@ public class PageRankData {
 		{15L, 1L},
 	};
 	
-	private static long numPages = 15;
+	private static int numPages = 15;
 	
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 		
@@ -79,7 +79,7 @@ public class PageRankData {
 		return env.generateSequence(1, 15);
 	}
 	
-	public static long getNumberOfPages() {
+	public static int getNumberOfPages() {
 		return numPages;
 	}
 	
