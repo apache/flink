@@ -97,7 +97,10 @@ for p in $poms; do
   # To avoid accidentally replace version numbers in our dependencies 
   # sharing the version number with the current release use the following.
 
-  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" $p > "$tmp_nuname1"
+  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z0-9\.\_]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" $p > "$tmp_nuname1"
+
+  # replace the version also in the quickstart poms (so that the hadoop1 quickstart creates an hadoop1 project)
+  perl -0777 -pe "s:<flink.version>${old_version}</flink.version>:<flink.version>${new_version}</flink.version>:g" "$tmp_nuname1" > "$tmp_nuname2"
 
   # Alternatively when no version collisions are present this is enough:
   # sed -e "s/${old_version}/${new_version}/" $p > "$tmp_nuname1"
@@ -106,8 +109,8 @@ for p in $poms; do
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \
     -e "s/<!--hadoop2-->.*name>.*/${hadoop2}/" \
-    $tmp_nuname1 > "$tmp_nuname2"
-  rm $tmp_nuname1
-  mv $tmp_nuname2 $nuname
+    $tmp_nuname2 > "$tmp_nuname1"
+  rm $tmp_nuname2
+  mv $tmp_nuname1 $nuname
 done
 
