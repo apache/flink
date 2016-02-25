@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -39,7 +40,7 @@ public class HDFSCopyUtilitiesTest {
 
 	@Before
 	public void checkOperatingSystem() {
-		Assume.assumeTrue("This test can't run successfully on Windows.", !System.getProperty("os.name").startsWith("Windows"));
+		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
 	}
 
 
