@@ -92,6 +92,13 @@ Run the __Word Count example__ to see Flink at work.
 
 * You will find a file called __wordcount-result.txt__ in your current directory.
 
+## Stop
+
+To stop Flink when you're done, you just have to type:
+
+~~~bash
+$ bin/stop-local.sh
+~~~
 
 ## Cluster Setup
 
