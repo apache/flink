@@ -176,10 +176,17 @@ class TupleGenerator {
 		w.println(" * A tuple with " + numFields + " fields. Tuples are strongly typed; each field may be of a separate type.");
 		w.println(" * The fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position");
 		w.println(" * through the {@link #getField(int)} method. The tuple field positions start at zero.");
-		w.println(" * <p>");
-		w.println(" * Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work");
-		w.println(" * with Tuples to reuse objects in order to reduce pressure on the garbage collector.");
 		w.println(" *");
+		w.println(" * <p>Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work");
+		w.println(" * with Tuples to reuse objects in order to reduce pressure on the garbage collector.</p>");
+		w.println(" *");
+		w.println(" * <p>Warning: If you subclass " + className + ", then be sure to either <ul>");
+		w.println(" *  <li> not add any new fields, or </li>");
+		w.println(" *  <li> make it a POJO, and always declare the element type of your DataStreams/DataSets to your descendant");
+		w.println(" *       type. (That is, if you have a \"class Foo extends " + className + "\", then don't use instances of");
+		w.println(" *       Foo in a DataStream&lt;" + className + "&gt; / DataSet&lt;" + className + "&gt;, but declare it as");
+		w.println(" *       DataStream&lt;Foo&gt; / DataSet&lt;Foo&gt;.) </li>");
+		w.println(" * </ul></p>");
 		w.println(" * @see Tuple");
 		w.println(" *");
 		for (int i = 0; i < numFields; i++) {

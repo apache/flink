@@ -32,10 +32,17 @@ import org.apache.flink.util.StringUtils;
  * A tuple with 25 fields. Tuples are strongly typed; each field may be of a separate type.
  * The fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
  * through the {@link #getField(int)} method. The tuple field positions start at zero.
- * <p>
- * Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work
- * with Tuples to reuse objects in order to reduce pressure on the garbage collector.
  *
+ * <p>Tuples are mutable types, meaning that their fields can be re-assigned. This allows functions that work
+ * with Tuples to reuse objects in order to reduce pressure on the garbage collector.</p>
+ *
+ * <p>Warning: If you subclass Tuple25, then be sure to either <ul>
+ *  <li> not add any new fields, or </li>
+ *  <li> make it a POJO, and always declare the element type of your DataStreams/DataSets to your descendant
+ *       type. (That is, if you have a "class Foo extends Tuple25", then don't use instances of
+ *       Foo in a DataStream&lt;Tuple25&gt; / DataSet&lt;Tuple25&gt;, but declare it as
+ *       DataStream&lt;Foo&gt; / DataSet&lt;Foo&gt;.) </li>
+ * </ul></p>
  * @see Tuple
  *
  * @param <T0> The type of field 0
