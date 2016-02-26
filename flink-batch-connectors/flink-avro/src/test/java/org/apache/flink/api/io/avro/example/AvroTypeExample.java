@@ -34,20 +34,17 @@ public class AvroTypeExample {
 	
 	
 	public static void main(String[] args) throws Exception {
-		
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<User> users = env.createInput(new UserGeneratingInputFormat());
-		
+
 		users
 			.map(new NumberExtractingMapper())
 			.groupBy(1)
 			.reduceGroup(new ConcatenatingReducer())
 			.print();
-		
-		env.execute();
 	}
-	
 	
 	
 	public static final class NumberExtractingMapper implements MapFunction<User, Tuple2<User, Integer>> {
