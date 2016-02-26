@@ -67,7 +67,7 @@ import static org.junit.Assert.*;
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
-	private final WindowFunction<Iterable<String>, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
+	private final WindowFunction<String, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
 
 	@SuppressWarnings("unchecked")
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
@@ -79,8 +79,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 	};
 	
-	private final WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> validatingIdentityFunction =
-			new WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow>()
+	private final WindowFunction<Integer, Integer, Integer, TimeWindow> validatingIdentityFunction =
+			new WindowFunction<Integer, Integer, Integer, TimeWindow>()
 	{
 		@Override
 		public void apply(Integer key,
@@ -723,7 +723,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 	
-	private static class FailingFunction implements WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
+	private static class FailingFunction implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
 
 		private final int failAfterElements;
 		
@@ -751,7 +751,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class StatefulFunction extends RichWindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
+	private static class StatefulFunction extends RichWindowFunction<Integer, Integer, Integer, TimeWindow> {
 		
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries
