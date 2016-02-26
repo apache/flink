@@ -78,6 +78,10 @@ under the License.
 				<executions>
 					<execution>
 						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
