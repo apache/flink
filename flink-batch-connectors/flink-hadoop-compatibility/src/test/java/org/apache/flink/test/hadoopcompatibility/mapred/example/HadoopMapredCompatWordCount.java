@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.hadoopcompatibility.mapred.example;
+package org.apache.flink.test.hadoopcompatibility.mapred.example;
 
 import java.io.IOException;
 import java.util.Iterator;
