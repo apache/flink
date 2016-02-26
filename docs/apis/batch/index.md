@@ -1481,19 +1481,115 @@ env.execute()
 
 {% top %}
 
-Object reuse behavior
----------------------
+Operating on data objects in functions
+--------------------------------------
 
-Apache Flink is trying to reduce the number of object allocations for better performance.
+Flink's runtime exchanges data with user functions in form of Java objects. Functions receive input objects from the runtime as method parameters and return output objects as result. Because these objects are accessed by user functions and runtime code, it is very important to understand and follow the rules about how the user code may access, i.e., read and modify, these objects.
+ 
+User functions receive objects from Flink's runtime either as regular method parameters (like a `MapFunction`) or through an `Iterable` parameter (like a `GroupReduceFunction`). We refer to objects that the runtime passes to a user function as *input objects*. User functions can emit objects to the Flink runtime either as a method return value (like a `MapFunction`) or through a `Collector` (like a `FlatMapFunction`). We refer to objects which have been emitted by the user function to the runtime as *output objects*.
+ 
+Flink's DataSet API features two modes that differ in how Flink's runtime creates or reuses input objects. This behavior affects the guarantees and constraints for how user functions may interact with input and output objects. The following sections define these rules and give coding guidelines to write safe user function code. 
 
-By default, user defined functions (like `map()` or `groupReduce()`) are getting new objects on each call (or through an iterator). So it is possible to keep references to the objects inside the function (for example in a List).
+### Object-Reuse Disabled (DEFAULT)
 
-User defined functions are often chained, for example when two mappers with the same parallelism are defined one after another. In the chaining case, the functions in the chain are receiving the same object instances. So the the second `map()` function is receiving the objects the first `map()` is returning.
-This behavior can lead to errors when the first `map()` function keeps a list of all objects and the second mapper is modifying objects. In that case, the user has to manually create copies of the objects before putting them into the list.
+By default, Flink operates in object-reuse disabled mode. This mode ensures that functions always receive new input objects within a function call. The object-reuse disabled mode gives better guarantees and is safer to use. However, it comes with a certain processing overhead and might cause higher Java garbage collection activity. The following table explains how user functions may access input and output objects in object-reuse disabled mode.
 
-Also note that the system assumes that the user is not modifying the incoming objects in the `filter()` function.
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Guarantees and Restrictions</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Reading Input Objects</strong></td>
+      <td>
+        Within a method call it is guaranteed that the value of an input object does not change. This includes objects served by an Iterable. For example it is safe to collect input objects served by an Iterable in a List or Map. Note that objects may be modified after the method call is left. It is <strong>not safe</strong> to remember objects across function calls.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Modifying Input Objects</strong></td>
+      <td>You may modify input objects.</td>
+   </tr>
+   <tr>
+      <td><strong>Emitting Input Objects</strong></td>
+      <td>
+        You may emit input objects. The value of an input object may have changed after it was emitted. It is <strong>not safe</strong> to read an input object after it was emitted.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Reading Output Objects</strong></td>
+      <td>
+        An object that was given to a Collector or returned as method result might have changed its value. It is <strong>not safe</strong> to read an output object.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Modifying Output Objects</strong></td>
+      <td>You may modify an object after it was emitted and emit it again.</td>
+   </tr>
+  </tbody>
+</table>
 
-There is a switch at the `ExectionConfig` which allows users to enable the object reuse mode (`enableObjectReuse()`). For mutable types, Flink will reuse object instances. In practice that means that a `map()` function will always receive the same object instance (with its fields set to new values). The object reuse mode will lead to better performance because fewer objects are created, but the user has to manually take care of what they are doing with the object references.
+**Coding guidelines for the object-reuse disabled (default) mode:**
+
+- Do not remember and read input objects across method calls.
+- Do not read objects after you emitted them.
+
+
+### Object-Reuse Enabled
+
+In object-reuse enabled mode, Flink's runtime minimizes the number of object instantiations. This can improve the performance and can reduce the Java garbage collection pressure. The object-reuse enabled mode is activated by calling `ExecutionConfig.enableObjectReuse()`. The following table explains how user functions may access input and output objects in object-reuse enabled mode.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Guarantees and Restrictions</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Reading input objects received as regular method parameters</strong></td>
+      <td>
+        Input objects received as regular method arguments are not modified within a function call. Objects may be modified after method call is left. It is <strong>not safe</strong> to remember objects across function calls.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Reading input objects received from an Iterable parameter</strong></td>
+      <td>
+        Input objects received from an Iterable are only valid until the next() method is called. An Iterable or Iterator may serve the same object instance multiple times. It is <strong>not safe</strong> to remember input objects received from an Iterable, e.g., by putting them in a List or Map.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Modifying Input Objects</strong></td>
+      <td>You <strong>must not</strong> modify input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
+   </tr>
+   <tr>
+      <td><strong>Emitting Input Objects</strong></td>
+      <td>
+        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Reading Output Objects</strong></td>
+      <td>
+        An object that was given to a Collector or returned as method result might have changed its value. It is <strong>not safe</strong> to read an output object.
+      </td>
+   </tr>
+   <tr>
+      <td><strong>Modifying Output Objects</strong></td>
+      <td>You may modify an output object and emit it again.</td>
+   </tr>
+  </tbody>
+</table>
+
+**Coding guidelines for object-reuse enabled:**
+
+- Do not remember input objects received from an `Iterable`.
+- Do not remember and read input objects across method calls.
+- Do not modify or emit input objects, except for input objects of `MapFunction`, `FlatMapFunction`, `MapPartitionFunction`, `GroupReduceFunction`, `GroupCombineFunction`, `CoGroupFunction`, and `InputFormat.next(reuse)`.
+- To reduce object instantiations, you can always emit a dedicated output object which is repeatedly modified but never read.
 
 {% top %}
 
