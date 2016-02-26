@@ -91,6 +91,8 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	@Override
 	public void close() throws Exception {
+		super.close();
+		
 		// emit a final watermark
 		Watermark newWatermark = userFunction.getCurrentWatermark();
 		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
