@@ -23,10 +23,12 @@ import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+import java.util.Collections;
+
 @Internal
 public class ReduceApplyAllWindowFunction<W extends Window, T, R>
 	extends WrappingFunction<AllWindowFunction<T, R, W>>
-	implements AllWindowFunction<Iterable<T>, R, W> {
+	implements AllWindowFunction<T, R, W> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -51,6 +53,6 @@ public class ReduceApplyAllWindowFunction<W extends Window, T, R>
 				curr = reduceFunction.reduce(curr, val);
 			}
 		}
-		windowFunction.apply(window, curr, out);
+		windowFunction.apply(window, Collections.singletonList(curr), out);
 	}
 }

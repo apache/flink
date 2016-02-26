@@ -43,5 +43,5 @@ public interface AllWindowFunction<IN, OUT,  W extends Window> extends Function,
 	 *
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
 	 */
-	void apply(W window, IN values, Collector<OUT> out) throws Exception;
+	void apply(W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

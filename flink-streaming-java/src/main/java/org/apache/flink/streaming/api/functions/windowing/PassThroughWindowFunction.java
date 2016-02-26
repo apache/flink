@@ -27,7 +27,9 @@ public class PassThroughWindowFunction<K, W extends Window, T> implements Window
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void apply(K k, W window, T input, Collector<T> out) throws Exception {
-		out.collect(input);
+	public void apply(K k, W window, Iterable<T> input, Collector<T> out) throws Exception {
+		for (T in: input) {
+			out.collect(in);
+		}
 	}
 }
