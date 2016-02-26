@@ -32,6 +32,8 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
@@ -953,4 +955,17 @@ class DataStream[T](stream: JavaStream[T]) {
     new StreamExecutionEnvironment(stream.getExecutionEnvironment).scalaClean(f)
   }
 
+  /**
+    * Transforms the [[DataStream]] by using a custom [[OneInputStreamOperator]].
+    *
+    * @param operatorName name of the operator, for logging purposes
+    * @param operator the object containing the transformation logic
+    * @tparam R the type of elements emitted by the operator
+    */
+  @PublicEvolving
+  def transform[R: TypeInformation](
+      operatorName: String,
+      operator: OneInputStreamOperator[T, R]): DataStream[R] = {
+    asScalaStream(stream.transform(operatorName, implicitly[TypeInformation[R]], operator))
+  }
 }
