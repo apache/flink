@@ -20,8 +20,12 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ReduceIterableAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -35,8 +39,8 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
+import org.apache.flink.streaming.runtime.operators.windowing.buffers.ListWindowBuffer;
+import org.apache.flink.streaming.runtime.operators.windowing.buffers.ReducingWindowBuffer;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -59,7 +63,7 @@ public class NonKeyedWindowOperatorTest {
 	@SuppressWarnings("unchecked,rawtypes")
 	private WindowBufferFactory windowBufferFactory;
 
-	public NonKeyedWindowOperatorTest(WindowBufferFactory<?, ?> windowBufferFactory) {
+	public NonKeyedWindowOperatorTest(WindowBufferFactory<?, ?, ?> windowBufferFactory) {
 		this.windowBufferFactory = windowBufferFactory;
 	}
 
@@ -74,7 +78,7 @@ public class NonKeyedWindowOperatorTest {
 		final int WINDOW_SIZE = 3;
 		final int WINDOW_SLIDE = 1;
 
-		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
 				SlidingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS), Time.of(WINDOW_SLIDE, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				windowBufferFactory,
@@ -150,7 +154,7 @@ public class NonKeyedWindowOperatorTest {
 
 		final int WINDOW_SIZE = 3;
 
-		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
 				TumblingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				windowBufferFactory,
@@ -224,7 +228,7 @@ public class NonKeyedWindowOperatorTest {
 
 		final int WINDOW_SIZE = 3;
 
-		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new NonKeyedWindowOperator<>(
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new NonKeyedWindowOperator<>(
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
 				windowBufferFactory,
@@ -298,7 +302,7 @@ public class NonKeyedWindowOperatorTest {
 
 		final int WINDOW_SIZE = 4;
 
-		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new NonKeyedWindowOperator<>(
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new NonKeyedWindowOperator<>(
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
 				windowBufferFactory,
@@ -360,26 +364,9 @@ public class NonKeyedWindowOperatorTest {
 	public static class RichSumReducer extends RichReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private boolean openCalled = false;
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			openCalled = true;
-		}
-
-		@Override
-		public void close() throws Exception {
-			super.close();
-			closeCalled.incrementAndGet();
-		}
-
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
 				Tuple2<String, Integer> value2) throws Exception {
-			if (!openCalled) {
-				Assert.fail("Open was not called");
-			}
 			return new Tuple2<>(value2.f0, value1.f1 + value2.f1);
 		}
 	}
@@ -389,9 +376,11 @@ public class NonKeyedWindowOperatorTest {
 
 	@Parameterized.Parameters(name = "WindowBuffer = {0}")
 	@SuppressWarnings("unchecked,rawtypes")
-	public static Collection<WindowBufferFactory[]> windowBuffers(){
-		return Arrays.asList(new WindowBufferFactory[]{new PreAggregatingHeapWindowBuffer.Factory(new RichSumReducer())},
-				new WindowBufferFactory[]{new HeapWindowBuffer.Factory()}
+	public static Collection<WindowBufferFactory[]> windowBuffers() {
+		TupleSerializer<Tuple2> tuple2TupleSerializer = new TupleSerializer<>(Tuple2.class,
+				new TypeSerializer<?>[]{StringSerializer.INSTANCE, IntSerializer.INSTANCE});
+		return Arrays.asList(new WindowBufferFactory[]{new ReducingWindowBuffer.Factory(new SumReducer(), tuple2TupleSerializer)},
+				new WindowBufferFactory[]{new ListWindowBuffer.Factory(tuple2TupleSerializer)}
 				);
 	}
 

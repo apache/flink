@@ -18,39 +18,30 @@
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
  * A factory for {@link WindowBuffer WindowBuffers}.
  *
  * @param <T> The type of elements that the created {@code WindowBuffer} can store.
+ * @param <O> The type of elements that the created buffer will return when asked for its contents.
  * @param <B> The type of the created {@code WindowBuffer}
  */
 @Internal
-public interface WindowBufferFactory<T, B extends WindowBuffer<T>> extends Serializable {
-
-	/**
-	 * Sets the {@link RuntimeContext} that is used to initialize eventual user functions
-	 * inside the created buffers.
-	 */
-	void setRuntimeContext(RuntimeContext ctx);
-
-	/**
-	 * Calls {@code open()} on eventual user functions inside the buffer.
-	 */
-	void open(Configuration config) throws Exception;
-
-	/**
-	 * Calls {@code close()} on eventual user functions inside the buffer.
-	 */
-
-	void close() throws Exception;
+public interface WindowBufferFactory<T, O, B extends WindowBuffer<T, O>> extends Serializable {
 
 	/**
 	 * Creates a new {@code WindowBuffer}.
 	 */
 	B create();
+
+	/**
+	 * Restores a {@code WindowBuffer} from a previous snapshot written using
+	 * {@link WindowBuffer#snapshot(DataOutputView)}.
+	 */
+	B restoreFromSnapshot(DataInputView in) throws IOException;
 }
