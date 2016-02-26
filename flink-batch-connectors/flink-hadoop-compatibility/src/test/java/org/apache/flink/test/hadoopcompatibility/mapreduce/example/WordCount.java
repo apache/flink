@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.hadoopcompatibility.mapreduce.example;
+package org.apache.flink.test.hadoopcompatibility.mapreduce.example;
 
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
