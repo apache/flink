@@ -41,7 +41,7 @@ import org.apache.flink.types.NullValue;
  * 
  * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
  * 
- * @see org.apache.flink.graph.library.GSAConnectedComponents
+ * @see GSAConnectedComponents
  */
 @SuppressWarnings("serial")
 public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {

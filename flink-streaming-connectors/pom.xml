@@ -41,9 +41,12 @@ under the License.
 		<module>flink-connector-kafka-0.8</module>
 		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-elasticsearch</module>
+		<module>flink-connector-elasticsearch-examples</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
+		<module>flink-connector-twitter-examples</module>
 		<module>flink-connector-nifi</module>
+		<module>flink-connector-nifi-examples</module>
 	</modules>
 
 	<!-- See main pom.xml for explanation of profiles -->

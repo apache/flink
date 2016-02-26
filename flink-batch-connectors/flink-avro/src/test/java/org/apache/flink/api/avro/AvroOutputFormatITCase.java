@@ -18,20 +18,22 @@
 
 package org.apache.flink.api.avro;
 
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.io.avro.generated.Colors;
+import org.apache.flink.api.io.avro.generated.User;
 import org.junit.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.flink.api.io.avro.example.User;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -136,7 +138,18 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 
 		@Override
 		public User map(Tuple3<String, Integer, String> value) throws Exception {
-			return new User(value.f0, value.f1, value.f2);
+			User user = new User();
+
+			user.setName(value.f0);
+			user.setFavoriteNumber(value.f1);
+			user.setFavoriteColor(value.f2);
+			user.setTypeBoolTest(true);
+			user.setTypeArrayString(new ArrayList<CharSequence>());
+			user.setTypeArrayBoolean(new ArrayList<Boolean>());
+			user.setTypeEnum(Colors.BLUE);
+			user.setTypeMap(new HashMap<CharSequence, Long>());
+
+			return user;
 		}
 	}
 
