@@ -36,6 +36,7 @@ under the License.
 
 	<modules>
 		<module>flink-avro</module>
+		<module>flink-avro-examples</module>
 		<module>flink-jdbc</module>
 		<module>flink-jdbc-examples</module>
 		<module>flink-hadoop-compatibility</module>
