@@ -26,9 +26,9 @@
 # to reference a specific Flink version, because this is the only place where
 # we change the version for the complete docs when forking of a release branch
 # etc.
-version: "1.0-SNAPSHOT"
-version_hadoop1: "1.0-hadoop1-SNAPSHOT"
-version_short: "1.0" # Used for the top navbar w/o snapshot suffix
+version: "1.1-SNAPSHOT"
+version_hadoop1: "1.1-hadoop1-SNAPSHOT"
+version_short: "1.1" # Used for the top navbar w/o snapshot suffix
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.10"
