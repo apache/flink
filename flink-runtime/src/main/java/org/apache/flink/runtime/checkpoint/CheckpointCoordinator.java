@@ -741,7 +741,7 @@ public class CheckpointCoordinator {
 	//  Checkpoint State Restoring
 	// --------------------------------------------------------------------------------------------
 
-	public void restoreLatestCheckpointedState(
+	public boolean restoreLatestCheckpointedState(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
 			boolean allOrNothingState) throws Exception {
@@ -761,7 +761,7 @@ public class CheckpointCoordinator {
 				if (errorIfNoCheckpoint) {
 					throw new IllegalStateException("No completed checkpoint available");
 				} else {
-					return;
+					return false;
 				}
 			}
 
@@ -799,6 +799,8 @@ public class CheckpointCoordinator {
 					exec.setInitialState(state.getState(), recoveryTimestamp);
 				}
 			}
+
+			return true;
 		}
 	}
 
