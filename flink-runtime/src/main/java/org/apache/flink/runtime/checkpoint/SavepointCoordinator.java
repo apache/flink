@@ -72,6 +72,10 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	/** Mapping from checkpoint ID to promises for savepoints. */
 	private final Map<Long, Promise<String>> savepointPromises;
 
+	// TODO(uce) Temporary work around to restore initial state on
+	// failure during recovery. Will be superseded by FLINK-3397.
+	private volatile String savepointRestorePath;
+
 	public SavepointCoordinator(
 			JobID jobId,
 			long baseInterval,
@@ -100,6 +104,10 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();
+	}
+
+	public String getSavepointRestorePath() {
+		return savepointRestorePath;
 	}
 
 	// ------------------------------------------------------------------------
@@ -221,6 +229,10 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			checkpointIdCounter.start();
 			checkpointIdCounter.setCount(nextCheckpointId + 1);
 			LOG.info("Reset the checkpoint ID to {}", nextCheckpointId);
+
+			if (savepointRestorePath == null) {
+				savepointRestorePath = savepointPath;
+			}
 		}
 	}
 
