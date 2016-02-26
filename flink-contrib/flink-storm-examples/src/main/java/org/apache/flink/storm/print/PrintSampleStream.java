@@ -32,7 +32,15 @@ import java.util.Arrays;
  * Prints incoming tweets. Tweets can be filtered by keywords.
  */
 public class PrintSampleStream {
+	
 	public static void main(String[] args) throws Exception {
+		
+		if (args.length < 4) {
+			System.err.println(
+					"Usage: PrintSampleStream <consumer-key> <consumer-secret> <access-token> <access-token-secret>");
+			return;
+		}
+		
 		String consumerKey = args[0];
 		String consumerSecret = args[1];
 		String accessToken = args[2];
