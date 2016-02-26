@@ -19,10 +19,11 @@ package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.io.Serializable;
+import java.io.IOException;
 
 /**
  * A {@code WindowBuffer} is used by
@@ -37,9 +38,10 @@ import java.io.Serializable;
  * have their own instance of the {@code Evictor}.
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ * @param <O> The type of elements that this window buffer will return when asked for its contents.
  */
 @Internal
-public interface WindowBuffer<T> extends Serializable {
+public interface WindowBuffer<T, O> {
 
 	/**
 	 * Adds the element to the buffer.
@@ -51,16 +53,21 @@ public interface WindowBuffer<T> extends Serializable {
 	/**
 	 * Returns all elements that are currently in the buffer.
 	 */
-	Iterable<StreamRecord<T>> getElements();
+	Iterable<StreamRecord<O>> getElements();
 
 	/**
 	 * Returns all elements that are currently in the buffer. This will unwrap the contained
 	 * elements from their {@link StreamRecord}.
 	 */
-	Iterable<T> getUnpackedElements();
+	Iterable<O> getUnpackedElements();
 
 	/**
 	 * Returns the number of elements that are currently in the buffer.
 	 */
 	int size();
+
+	/**
+	 * Writes the contents of the window buffer to a {@link DataOutputView} for checkpointing.
+	 */
+	void snapshot(DataOutputView out) throws IOException;
 }

@@ -45,7 +45,6 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuffer;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
-import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.util.InstantiationUtil;
@@ -72,12 +71,13 @@ import static java.util.Objects.requireNonNull;
  * @see org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
  *
  * @param <IN> The type of the incoming elements.
+ * @param <ACC> The type of elements stored in the window buffers.
  * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 @Internal
-public class NonKeyedWindowOperator<IN, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<IN, OUT, W>>
+public class NonKeyedWindowOperator<IN, ACC, OUT, W extends Window>
+		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<ACC, OUT, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
@@ -92,7 +92,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 	private final Trigger<? super IN, ? super W> trigger;
 
-	private final WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory;
+	private final WindowBufferFactory<? super IN, ACC, ? extends WindowBuffer<IN, ACC>> windowBufferFactory;
 
 	/**
 	 * This is used to copy the incoming element because it can be put into several window
@@ -145,8 +145,8 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	 */
 	public NonKeyedWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
-			WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory,
-			AllWindowFunction<IN, OUT, W> windowFunction,
+			WindowBufferFactory<? super IN, ACC, ? extends WindowBuffer<IN, ACC>> windowBufferFactory,
+			AllWindowFunction<ACC, OUT, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger) {
 
 		super(windowFunction);
@@ -179,9 +179,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		if (inputSerializer == null) {
 			throw new IllegalStateException("Input serializer was not set.");
 		}
-
-		windowBufferFactory.setRuntimeContext(getRuntimeContext());
-		windowBufferFactory.open(getUserFunctionParameters());
 
 		// these could already be initialized from restoreState()
 		if (watermarkTimers == null) {
@@ -221,11 +218,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	public final void dispose() {
 		super.dispose();
 		windows.clear();
-		try {
-			windowBufferFactory.close();
-		} catch (Exception e) {
-			throw new RuntimeException("Error while closing WindowBufferFactory.", e);
-		}
 	}
 
 	@Override
@@ -236,7 +228,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		for (W window: elementWindows) {
 			Context context = windows.get(window);
 			if (context == null) {
-				WindowBuffer<IN> windowBuffer = windowBufferFactory.create();
+				WindowBuffer<IN, ACC> windowBuffer = windowBufferFactory.create();
 				context = new Context(window, windowBuffer);
 				windows.put(window, context);
 			}
@@ -356,7 +348,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	protected class Context implements TriggerContext {
 		protected W window;
 
-		protected WindowBuffer<IN> windowBuffer;
+		protected WindowBuffer<IN, ACC> windowBuffer;
 
 		protected HashMap<String, Serializable> state;
 
@@ -369,7 +361,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		public Context(
 				W window,
-				WindowBuffer<IN> windowBuffer) {
+				WindowBuffer<IN, ACC> windowBuffer) {
 			this.window = window;
 			this.windowBuffer = windowBuffer;
 			state = new HashMap<>();
@@ -394,12 +386,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			in.read(stateData);
 			state = InstantiationUtil.deserializeObject(stateData, userClassloader);
 
-			this.windowBuffer = windowBufferFactory.create();
-			int numElements = in.readInt();
-			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
-			for (int i = 0; i < numElements; i++) {
-				windowBuffer.storeElement(recordSerializer.deserialize(in).<IN>asRecord());
-			}
+			this.windowBuffer = windowBufferFactory.restoreFromSnapshot(in);
 		}
 
 		protected void writeToState(AbstractStateBackend.CheckpointStateOutputView out) throws IOException {
@@ -411,11 +398,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			out.writeInt(serializedState.length);
 			out.write(serializedState, 0, serializedState.length);
 
-			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
-			out.writeInt(windowBuffer.size());
-			for (StreamRecord<IN> element: windowBuffer.getElements()) {
-				recordSerializer.serialize(element, out);
-			}
+			windowBuffer.snapshot(out);
 		}
 
 		@Override
@@ -635,7 +618,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> getWindowBufferFactory() {
+	public WindowBufferFactory<? super IN, ACC, ? extends WindowBuffer<IN, ACC>> getWindowBufferFactory() {
 		return windowBufferFactory;
 	}
 }

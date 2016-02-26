@@ -25,9 +25,10 @@ import org.apache.flink.annotation.Internal;
  * the buffer.
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ * @param <O> The type of elements that this window buffer will return when asked for its contents.
  */
 @Internal
-public interface EvictingWindowBuffer<T> extends WindowBuffer<T> {
+public interface EvictingWindowBuffer<T, O> extends WindowBuffer<T, O> {
 
 	/**
 	 * Removes the given number of elements, starting from the beginning.

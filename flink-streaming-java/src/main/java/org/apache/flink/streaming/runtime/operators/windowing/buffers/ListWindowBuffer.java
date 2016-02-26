@@ -20,10 +20,13 @@ package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 
 /**
@@ -32,13 +35,20 @@ import java.util.ArrayDeque;
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
  */
 @Internal
-public class HeapWindowBuffer<T> implements EvictingWindowBuffer<T> {
-	private static final long serialVersionUID = 1L;
+public class ListWindowBuffer<T> implements EvictingWindowBuffer<T, T> {
+
+	private final TypeSerializer<T>  serializer;
 
 	private ArrayDeque<StreamRecord<T>> elements;
 
-	protected HeapWindowBuffer() {
+	protected ListWindowBuffer(TypeSerializer<T> serializer) {
+		this.serializer = serializer;
 		this.elements = new ArrayDeque<>();
+	}
+
+	protected ListWindowBuffer(ArrayDeque<StreamRecord<T>> elements, TypeSerializer<T> serializer) {
+		this.serializer = serializer;
+		this.elements = elements;
 	}
 
 	@Override
@@ -74,21 +84,44 @@ public class HeapWindowBuffer<T> implements EvictingWindowBuffer<T> {
 		return elements.size();
 	}
 
-	public static class Factory<T> implements WindowBufferFactory<T, HeapWindowBuffer<T>> {
+	@Override
+	public void snapshot(DataOutputView out) throws IOException {
+		out.writeInt(elements.size());
+
+		MultiplexingStreamRecordSerializer<T> recordSerializer = new MultiplexingStreamRecordSerializer<>(serializer);
+
+		for (StreamRecord<T> e: elements) {
+			recordSerializer.serialize(e, out);
+		}
+	}
+
+	public static class Factory<T> implements WindowBufferFactory<T, T, ListWindowBuffer<T>> {
 		private static final long serialVersionUID = 1L;
 
-		@Override
-		public void setRuntimeContext(RuntimeContext ctx) {}
+		private final TypeSerializer<T> serializer;
+
+		public Factory(TypeSerializer<T> serializer) {
+			this.serializer = serializer;
+		}
 
 		@Override
-		public void open(Configuration config) {}
+		public ListWindowBuffer<T> create() {
+			return new ListWindowBuffer<>(serializer);
+		}
 
 		@Override
-		public void close() {}
+		public ListWindowBuffer<T> restoreFromSnapshot(DataInputView in) throws IOException {
+			int size = in.readInt();
 
-		@Override
-		public HeapWindowBuffer<T> create() {
-			return new HeapWindowBuffer<>();
+			MultiplexingStreamRecordSerializer<T> recordSerializer = new MultiplexingStreamRecordSerializer<>(serializer);
+
+			ArrayDeque<StreamRecord<T>> elements = new ArrayDeque<>();
+
+			for (int i = 0; i < size; i++) {
+				elements.add(recordSerializer.deserialize(in).<T>asRecord());
+			}
+
+			return new ListWindowBuffer<>(elements, serializer);
 		}
 	}
 }
