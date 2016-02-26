@@ -36,6 +36,7 @@ under the License.
 	<modules>
 		<module>flink-gelly</module>
 		<module>flink-gelly-scala</module>
+		<module>flink-gelly-examples</module>
 		<module>flink-python</module>
 		<module>flink-table</module>
 		<module>flink-ml</module>
