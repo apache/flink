@@ -43,8 +43,9 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingNonKeyedWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.NonKeyedWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
+import org.apache.flink.streaming.runtime.operators.windowing.buffers.FoldingWindowBuffer;
+import org.apache.flink.streaming.runtime.operators.windowing.buffers.ListWindowBuffer;
+import org.apache.flink.streaming.runtime.operators.windowing.buffers.ReducingWindowBuffer;
 
 /**
  * A {@code AllWindowedStream} represents a data stream where the stream of
@@ -157,7 +158,7 @@ public class AllWindowedStream<T, W extends Window> {
 		if (evictor != null) {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new HeapWindowBuffer.Factory<T>(),
+					new ListWindowBuffer.Factory<>(getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 					new ReduceIterableAllWindowFunction<W, T>(function),
 					trigger,
 					evictor);
@@ -165,7 +166,7 @@ public class AllWindowedStream<T, W extends Window> {
 		} else {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new PreAggregatingHeapWindowBuffer.Factory<>(function),
+					new ReducingWindowBuffer.Factory<>(function, getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 					new ReduceIterableAllWindowFunction<W, T>(function),
 					trigger);
 		}
@@ -255,12 +256,12 @@ public class AllWindowedStream<T, W extends Window> {
 
 		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
 
-		NonKeyedWindowOperator<T, R, W> operator;
+		NonKeyedWindowOperator<T, T, R, W> operator;
 
 		if (evictor != null) {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new HeapWindowBuffer.Factory<T>(),
+					new ListWindowBuffer.Factory<>(getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 					function,
 					trigger,
 					evictor);
@@ -268,7 +269,7 @@ public class AllWindowedStream<T, W extends Window> {
 		} else {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new HeapWindowBuffer.Factory<T>(),
+					new ListWindowBuffer.Factory<>(getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 					function,
 					trigger);
 		}
@@ -329,7 +330,7 @@ public class AllWindowedStream<T, W extends Window> {
 		if (evictor != null) {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new HeapWindowBuffer.Factory<T>(),
+					new ListWindowBuffer.Factory<>(getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 					new ReduceApplyAllWindowFunction<>(preAggregator, function),
 					trigger,
 					evictor);
@@ -337,8 +338,8 @@ public class AllWindowedStream<T, W extends Window> {
 		} else {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				new PreAggregatingHeapWindowBuffer.Factory<>(preAggregator),
-				new ReduceApplyAllWindowFunction<>(preAggregator, function),
+				new ReducingWindowBuffer.Factory<>(preAggregator, getInputType().createSerializer(getExecutionEnvironment().getConfig())),
+				function,
 				trigger);
 		}
 
@@ -400,7 +401,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				new HeapWindowBuffer.Factory<T>(),
+				new ListWindowBuffer.Factory<>(getInputType().createSerializer(getExecutionEnvironment().getConfig())),
 				new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function),
 				trigger,
 				evictor);
@@ -410,8 +411,8 @@ public class AllWindowedStream<T, W extends Window> {
 
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				new HeapWindowBuffer.Factory<T>(),
-				new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function),
+				new FoldingWindowBuffer.Factory<>(foldFunction, initialValue, resultType.createSerializer(getExecutionEnvironment().getConfig())),
+				function,
 				trigger);
 		}
 
