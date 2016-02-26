@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 import org.apache.flink.api.common.state.{ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction
+import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners.{SlidingProcessingTimeWindows, TumblingTimeWindows, SlidingTimeWindows}
 import org.apache.flink.streaming.api.windowing.evictors.{CountEvictor, TimeEvictor}
@@ -65,7 +65,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val window2 = source
       .keyBy(0)
       .timeWindow(Time.minutes(1))
-      .apply(new WindowFunction[Iterable[(String, Int)], (String, Int), Tuple, TimeWindow]() {
+      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
         def apply(
             key: Tuple,
             window: TimeWindow,
@@ -114,7 +114,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .keyBy(0)
       .window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
-      .apply(new WindowFunction[Iterable[(String, Int)], (String, Int), Tuple, TimeWindow]() {
+      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
       def apply(
                     tuple: Tuple,
                     window: TimeWindow,
@@ -168,7 +168,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
       .evictor(CountEvictor.of(1000))
-      .apply(new WindowFunction[Iterable[(String, Int)], (String, Int), Tuple, TimeWindow]() {
+      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
       def apply(
                     tuple: Tuple,
                     window: TimeWindow,
@@ -207,7 +207,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
-                   values: (String, Int),
+                   values: Iterable[(String, Int)],
                    out: Collector[(String, Int)]) { }
       })
 
@@ -232,7 +232,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
         def apply(
                    tuple: Tuple,
                    window: TimeWindow,
-                   values: (String, Int),
+                   values: Iterable[(String, Int)],
                    out: Collector[(String, Int)]) { }
       })
 

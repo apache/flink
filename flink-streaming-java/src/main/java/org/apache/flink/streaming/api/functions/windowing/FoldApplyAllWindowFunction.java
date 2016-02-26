@@ -33,11 +33,12 @@ import org.apache.flink.util.Collector;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 
 @Internal
 public class FoldApplyAllWindowFunction<W extends Window, T, ACC>
 	extends WrappingFunction<AllWindowFunction<ACC, ACC, W>>
-	implements AllWindowFunction<Iterable<T>, ACC, W>, OutputTypeConfigurable<ACC> {
+	implements AllWindowFunction<T, ACC, W>, OutputTypeConfigurable<ACC> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -75,7 +76,7 @@ public class FoldApplyAllWindowFunction<W extends Window, T, ACC>
 			result = foldFunction.fold(result, val);
 		}
 
-		wrappedFunction.apply(window, result, out);
+		wrappedFunction.apply(window, Collections.singletonList(result), out);
 	}
 
 	@Override
