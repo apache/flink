@@ -137,4 +137,21 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
 
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testGroupedByExpression2(): Unit = {
+
+    // verify AggregateProjectPullUpConstantsRule
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .select('b, 4 as 'four, 'a)
+      .groupBy('b, 'four)
+      .select('four, 'a.sum)
+
+    val expected = "4,1\n" + "4,5\n" + "4,15\n" + "4,34\n" + "4,65\n" + "4,111\n"
+    val results = t.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
