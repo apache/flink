@@ -94,7 +94,7 @@ Run the __Word Count example__ to see Flink at work.
 
 ## Stop
 
-We are now ready to finally stop Flink; to do so all we have to do is to type the followin:
+To stop Flink when you're done, you just have to type:
 
 ~~~bash
 $ bin/stop-local.sh
