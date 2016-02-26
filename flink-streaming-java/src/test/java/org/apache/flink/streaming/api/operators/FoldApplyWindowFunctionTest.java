@@ -70,9 +70,11 @@ public class FoldApplyWindowFunctionTest {
 				@Override
 				public void apply(Integer integer,
 					TimeWindow window,
-					Integer input,
+					Iterable<Integer> input,
 					Collector<Integer> out) throws Exception {
-					out.collect(input);
+					for (Integer in: input) {
+						out.collect(in);
+					}
 				}
 			}
 		);

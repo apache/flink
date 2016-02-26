@@ -167,7 +167,7 @@ public class IncrementalLearningSkeleton {
 	/**
 	 * Builds up-to-date partial models on new training data.
 	 */
-	public static class PartialModelBuilder implements AllWindowFunction<Iterable<Integer>, Double[], TimeWindow> {
+	public static class PartialModelBuilder implements AllWindowFunction<Integer, Double[], TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
 		protected Double[] buildPartialModel(Iterable<Integer> values) {

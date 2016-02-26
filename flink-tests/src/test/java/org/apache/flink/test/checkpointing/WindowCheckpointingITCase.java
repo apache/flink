@@ -117,7 +117,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
-					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -175,7 +175,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
