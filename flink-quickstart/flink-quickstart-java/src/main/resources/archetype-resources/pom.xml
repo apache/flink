@@ -91,8 +91,7 @@ under the License.
 
 	<profiles>
 		<profile>
-			<!-- A profile that does everyting correctly:
-			We set the Flink dependencies to provided -->
+			<!-- Profile for packaging correct JAR files -->
 			<id>build-jar</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
