@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Internal, Public}
+import org.apache.flink.annotation.{PublicEvolving, Internal, Public}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
+import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream, SingleOutputStreamOperator, KeyedStream}
 import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction}
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.util.Collector
 
 /**
@@ -268,6 +270,13 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
+  }
+
+  @PublicEvolving
+  def transform[R: TypeInformation](
+      functionName: String,
+      operator: TwoInputStreamOperator[IN1, IN2, R]): DataStream[R] = {
+    asScalaStream(javaStream.transform(functionName, implicitly[TypeInformation[R]], operator))
   }
 }
 
