@@ -52,7 +52,8 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		long start = timestamp - (timestamp % size);
+		final long now = System.currentTimeMillis();
+		long start = now - (now % size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
 

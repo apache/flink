@@ -33,7 +33,7 @@ public class ProcessingTimeTrigger extends Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) {
-		ctx.registerProcessingTimeTimer(window.maxTimestamp());
+		ctx.registerProcessingTimeTimer(window.getEnd());
 		return TriggerResult.CONTINUE;
 	}
 
