@@ -31,6 +31,7 @@ import java.io.Serializable;
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
  * @param <KEY> The type of the key.
+ * @param <W> The type of {@code Window} that this window function can be applied on.
  */
 @Public
 public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function, Serializable {

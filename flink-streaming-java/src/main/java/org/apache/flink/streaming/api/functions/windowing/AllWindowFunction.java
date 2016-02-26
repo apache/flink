@@ -30,9 +30,10 @@ import java.io.Serializable;
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
+ * @param <W> The type of {@code Window} that this window function can be applied on.
  */
 @Public
-public interface AllWindowFunction<IN, OUT,  W extends Window> extends Function, Serializable {
+public interface AllWindowFunction<IN, OUT, W extends Window> extends Function, Serializable {
 
 	/**
 	 * Evaluates the window and outputs none or several elements.
