@@ -39,7 +39,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       // private[flink].
       "org.apache.flink.streaming.api.datastream.DataStream.getType",
       "org.apache.flink.streaming.api.datastream.DataStream.copy",
-      "org.apache.flink.streaming.api.datastream.DataStream.transform",
       "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
@@ -49,7 +48,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType1",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
-      "org.apache.flink.streaming.api.datastream.ConnectedStreams.transform",
 
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
@@ -59,7 +57,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.AllWindowedStream.getInputType",
 
-      "org.apache.flink.streaming.api.datastream.KeyedStream.transform",
       "org.apache.flink.streaming.api.datastream.KeyedStream.getKeySelector",
 
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
