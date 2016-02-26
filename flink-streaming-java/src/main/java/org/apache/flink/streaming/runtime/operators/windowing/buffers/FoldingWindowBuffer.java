@@ -63,7 +63,7 @@ public class FoldingWindowBuffer<T, ACC> implements WindowBuffer<T, ACC> {
 
 	@Override
 	public void storeElement(StreamRecord<T> element) throws Exception {
-		data.replace(foldFunction.fold(data.getValue(), element.getValue()), element.getTimestamp());
+		data.replace(foldFunction.fold(data.getValue(), element.getValue()));
 	}
 
 	@Override

@@ -57,7 +57,7 @@ public class ReducingWindowBuffer<T> implements WindowBuffer<T, T> {
 	@Override
 	public void storeElement(StreamRecord<T> element) throws Exception {
 		if (data == null) {
-			data = new StreamRecord<>(element.getValue(), element.getTimestamp());
+			data = element.copy(element.getValue());
 		} else {
 			data.replace(reduceFunction.reduce(data.getValue(), element.getValue()));
 		}
