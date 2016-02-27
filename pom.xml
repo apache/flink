@@ -843,6 +843,7 @@ under the License.
 						<exclude>CONTRIBUTING.md</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
+						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
