@@ -346,7 +346,7 @@ Once you specified the complete program you need to **trigger the program execut
 Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local
 machine or submit your program for execution on a cluster.
 
-The `execute()` method is returning a `JobExecutionResult`, thic caontains including execution
+The `execute()` method is returning a `JobExecutionResult`, this contains execution
 times and accumulator results.
 
 Please see the [Streaming Guide]({{ site.baseurl }}/apis/streaming/index.html)
@@ -390,7 +390,7 @@ DataSet<...> reduced = input
   .reduceGroup(/*do something*/);
 {% endhighlight %}
 
-while a a key can be specified on a DataStream using
+while a key can be specified on a DataStream using
 {% highlight java %}
 DataStream<...> input = // [...]
 DataStream<...> windowed = input
@@ -459,7 +459,7 @@ Specifying `keyBy(0)` will cause the system to use the full `Tuple2` as a key (w
 ### Define keys using Field Expressions
 {:.no_toc}
 
-Uou can use String-based field expressions to reference nested fields and define keys for grouping, sorting, joining, or coGrouping.
+You can use String-based field expressions to reference nested fields and define keys for grouping, sorting, joining, or coGrouping.
 
 Field expressions make it very easy to select fields in (nested) composite types such as [Tuple](#tuples-and-case-classes) and [POJO](#pojos) types.
 
@@ -1135,7 +1135,7 @@ You have the choice to implement either
 or {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}.
 
 ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a
-result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` i
+result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 {% top %}
