@@ -80,7 +80,7 @@ public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
 
-		SingleOutputStreamOperator<String, ?> map = source.map(new MapFunction<Long, String>() {
+		SingleOutputStreamOperator<String> map = source.map(new MapFunction<Long, String>() {
 
 			@Override
 			public String map(Long value) throws Exception {

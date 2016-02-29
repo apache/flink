@@ -30,14 +30,13 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
- * The SingleOutputStreamOperator represents a user defined transformation
+ * {@code SingleOutputStreamOperator} represents a user defined transformation
  * applied on a {@link DataStream} with one predefined output type.
  *
- * @param <T> The type of the elements in this Stream
- * @param <O> Type of the operator.
+ * @param <T> The type of the elements in this stream.
  */
 @Public
-public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<T, O>> extends DataStream<T> {
+public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
 		super(environment, transformation);
@@ -59,7 +58,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *
 	 * @return The named operator.
 	 */
-	public SingleOutputStreamOperator<T, O> name(String name){
+	public SingleOutputStreamOperator<T> name(String name){
 		transformation.setName(name);
 		return this;
 	}
@@ -77,7 +76,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with the specified ID.
 	 */
 	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> uid(String uid) {
+	public SingleOutputStreamOperator<T> uid(String uid) {
 		transformation.setUid(uid);
 		return this;
 	}
@@ -89,7 +88,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *            The parallelism for this operator.
 	 * @return The operator with set parallelism.
 	 */
-	public SingleOutputStreamOperator<T, O> setParallelism(int parallelism) {
+	public SingleOutputStreamOperator<T> setParallelism(int parallelism) {
 		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
@@ -107,48 +106,9 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *            The maximum time between two output flushes.
 	 * @return The operator with buffer timeout set.
 	 */
-	public SingleOutputStreamOperator<T, O> setBufferTimeout(long timeoutMillis) {
+	public SingleOutputStreamOperator<T> setBufferTimeout(long timeoutMillis) {
 		transformation.setBufferTimeout(timeoutMillis);
 		return this;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public SingleOutputStreamOperator<T, O> broadcast() {
-		return (SingleOutputStreamOperator<T, O>) super.broadcast();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> shuffle() {
-		return (SingleOutputStreamOperator<T, O>) super.shuffle();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public SingleOutputStreamOperator<T, O> forward() {
-		return (SingleOutputStreamOperator<T, O>) super.forward();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public SingleOutputStreamOperator<T, O> rebalance() {
-		return (SingleOutputStreamOperator<T, O>) super.rebalance();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> rescale() {
-		return (SingleOutputStreamOperator<T, O>) super.rescale();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> global() {
-		return (SingleOutputStreamOperator<T, O>) super.global();
 	}
 
 	/**
@@ -161,7 +121,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with the modified chaining strategy
 	 */
 	@PublicEvolving
-	private SingleOutputStreamOperator<T, O> setChainingStrategy(ChainingStrategy strategy) {
+	private SingleOutputStreamOperator<T> setChainingStrategy(ChainingStrategy strategy) {
 		this.transformation.setChainingStrategy(strategy);
 		return this;
 	}
@@ -176,7 +136,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with chaining disabled
 	 */
 	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> disableChaining() {
+	public SingleOutputStreamOperator<T> disableChaining() {
 		return setChainingStrategy(ChainingStrategy.NEVER);
 	}
 
@@ -188,7 +148,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with chaining set.
 	 */
 	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> startNewChain() {
+	public SingleOutputStreamOperator<T> startNewChain() {
 		return setChainingStrategy(ChainingStrategy.HEAD);
 	}
 
@@ -227,7 +187,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
 	 */
-	public O returns(String typeInfoString) {
+	public SingleOutputStreamOperator<T> returns(String typeInfoString) {
 		if (typeInfoString == null) {
 			throw new IllegalArgumentException("Type information string must not be null.");
 		}
@@ -254,18 +214,15 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * <li>etc.</li>
 	 * </ul>
 	 *
-	 * @param typeInfo
-	 *            type information as a return type hint
+	 * @param typeInfo type information as a return type hint
 	 * @return This operator with a given return type hint.
 	 */
-	public O returns(TypeInformation<T> typeInfo) {
+	public SingleOutputStreamOperator<T> returns(TypeInformation<T> typeInfo) {
 		if (typeInfo == null) {
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
 		transformation.setOutputType(typeInfo);
-		@SuppressWarnings("unchecked")
-		O returnType = (O) this;
-		return returnType;
+		return this;
 	}
 	
 	/**
@@ -292,7 +249,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return This operator with a given return type hint.
 	 */
 	@SuppressWarnings("unchecked")
-	public O returns(Class<T> typeClass) {
+	public SingleOutputStreamOperator<T> returns(Class<T> typeClass) {
 		if (typeClass == null) {
 			throw new IllegalArgumentException("Type class must not be null.");
 		}
@@ -308,7 +265,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 
 	@Override
 	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		return new SingleOutputStreamOperator<T, O>(this.getExecutionEnvironment(), new PartitionTransformation<T>(this.getTransformation(), partitioner));
+		return new SingleOutputStreamOperator<>(this.getExecutionEnvironment(), new PartitionTransformation<>(this.getTransformation(), partitioner));
 	}
 
 	/**
@@ -325,7 +282,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @param slotSharingGroup The slot sharing group name.
 	 */
 	@PublicEvolving
-	public SingleOutputStreamOperator<T, O> slotSharingGroup(String slotSharingGroup) {
+	public SingleOutputStreamOperator<T> slotSharingGroup(String slotSharingGroup) {
 		transformation.setSlotSharingGroup(slotSharingGroup);
 		return this;
 	}

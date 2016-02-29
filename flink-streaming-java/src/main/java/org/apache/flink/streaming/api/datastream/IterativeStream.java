@@ -35,7 +35,7 @@ import java.util.Collection;
  * @param <T> Type of the elements in this Stream
  */
 @PublicEvolving
-public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeStream<T>> {
+public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 
 	// We store these so that we can create a co-iteration if we need to
 	private DataStream<T> originalInput;
@@ -43,7 +43,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 	
 	protected IterativeStream(DataStream<T> dataStream, long maxWaitTime) {
 		super(dataStream.getExecutionEnvironment(),
-				new FeedbackTransformation<T>(dataStream.getTransformation(), maxWaitTime));
+				new FeedbackTransformation<>(dataStream.getTransformation(), maxWaitTime));
 		this.originalInput = dataStream;
 		this.maxWaitTime = maxWaitTime;
 		setBufferTimeout(dataStream.environment.getBufferTimeout());
@@ -126,7 +126,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 	 * @return A {@link ConnectedIterativeStreams}.
 	 */
 	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
-		return new ConnectedIterativeStreams<T, F>(originalInput, feedbackType, maxWaitTime);
+		return new ConnectedIterativeStreams<>(originalInput, feedbackType, maxWaitTime);
 	}
 	
 	/**
@@ -155,8 +155,8 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 				long waitTime) {
 			super(input.getExecutionEnvironment(),
 					input,
-					new DataStream<F>(input.getExecutionEnvironment(),
-							new CoFeedbackTransformation<F>(input.getParallelism(),
+					new DataStream<>(input.getExecutionEnvironment(),
+							new CoFeedbackTransformation<>(input.getParallelism(),
 									feedbackType,
 									waitTime)));
 			this.coFeedbackTransformation = (CoFeedbackTransformation<F>) getSecondInput().getTransformation();
@@ -173,7 +173,6 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 		 * @return The feedback stream.
 		 * 
 		 */
-		@SuppressWarnings({ "rawtypes", "unchecked" })
 		public DataStream<F> closeWith(DataStream<F> feedbackStream) {
 
 			Collection<StreamTransformation<?>> predecessors = feedbackStream.getTransformation().getTransitivePredecessors();
@@ -188,8 +187,10 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 			return feedbackStream;
 		}
 		
-		private UnsupportedOperationException groupingException = new UnsupportedOperationException(
-				"Cannot change the input partitioning of an iteration head directly. Apply the partitioning on the input and feedback streams instead.");
+		private UnsupportedOperationException groupingException =
+				new UnsupportedOperationException("Cannot change the input partitioning of an" +
+						"iteration head directly. Apply the partitioning on the input and" +
+						"feedback streams instead.");
 		
 		@Override
 		public ConnectedStreams<I, F> keyBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
