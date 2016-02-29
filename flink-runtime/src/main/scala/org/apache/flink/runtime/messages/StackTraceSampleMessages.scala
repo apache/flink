@@ -63,7 +63,11 @@ object StackTraceSampleMessages {
       sampleId: Int,
       executionId: ExecutionAttemptID,
       samples: java.util.List[Array[StackTraceElement]])
-    extends StackTraceSampleMessages
+    extends StackTraceSampleMessages {
+
+    override def toString: String =
+      s"ResponseStackTraceSampleSuccess($sampleId, $executionId, ${samples.size()} samples)"
+  }
 
   /**
     * Response after a failed stack trace sample (sent by the task managers to
