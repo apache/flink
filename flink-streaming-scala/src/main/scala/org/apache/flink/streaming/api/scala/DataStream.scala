@@ -780,16 +780,16 @@ class DataStream[T](stream: JavaStream[T]) {
    * Creates a co-group operation. See [[CoGroupedStreams]] for an example of how the keys
    * and window can be specified.
    */
-  def coGroup[T2](otherStream: DataStream[T2]): CoGroupedStreams.Unspecified[T, T2] = {
-    CoGroupedStreams.createCoGroup(this, otherStream)
+  def coGroup[T2](otherStream: DataStream[T2]): CoGroupedStreams[T, T2] = {
+    new CoGroupedStreams(this, otherStream)
   }
 
   /**
    * Creates a join operation. See [[JoinedStreams]] for an example of how the keys
    * and window can be specified.
    */
-  def join[T2](otherStream: DataStream[T2]): JoinedStreams.Unspecified[T, T2] = {
-    JoinedStreams.createJoin(this, otherStream)
+  def join[T2](otherStream: DataStream[T2]): JoinedStreams[T, T2] = {
+    new JoinedStreams(this, otherStream)
   }
 
   /**
