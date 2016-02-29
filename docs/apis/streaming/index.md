@@ -293,7 +293,7 @@ keyedStream.maxBy("key");
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a complete description of windows.
     {% highlight java %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
@@ -307,7 +307,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))); // Last 5 s
               <p><strong>WARNING:</strong> This is in many cases a <strong>non-parallel</strong> transformation. All records will be
                gathered in one task for the windowAll operator.</p>
   {% highlight java %}
-dataStream.windowAll(TumblingTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
+dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
   {% endhighlight %}
           </td>
         </tr>
@@ -410,7 +410,7 @@ dataStream.union(otherStream1, otherStream2, ...);
     {% highlight java %}
 dataStream.join(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply (new JoinFunction () {...});
     {% endhighlight %}
           </td>
@@ -422,7 +422,7 @@ dataStream.join(otherStream)
     {% highlight java %}
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply (new CoGroupFunction () {...});
     {% endhighlight %}
           </td>
@@ -669,7 +669,7 @@ keyedStream.maxBy("key")
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a description of windows.
     {% highlight scala %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
@@ -683,7 +683,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.seconds(5))) // Last 5 se
               <p><strong>WARNING:</strong> This is in many cases a <strong>non-parallel</strong> transformation. All records will be
                gathered in one task for the windowAll operator.</p>
   {% highlight scala %}
-dataStream.windowAll(TumblingTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
+dataStream.windowAll(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
   {% endhighlight %}
           </td>
         </tr>
@@ -759,7 +759,7 @@ dataStream.union(otherStream1, otherStream2, ...)
     {% highlight scala %}
 dataStream.join(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply { ... }
     {% endhighlight %}
           </td>
@@ -771,7 +771,7 @@ dataStream.join(otherStream)
     {% highlight scala %}
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
     .apply {}
     {% endhighlight %}
           </td>

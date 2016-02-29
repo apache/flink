@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermark
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
@@ -69,7 +69,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
     source1
       .keyBy(0)
-      .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+      .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0), { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) })
       .addSink(new SinkFunction[(String, Int)]() {
         def invoke(value: (String, Int)) {
@@ -116,7 +116,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
     }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
-      .windowAll(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+      .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .fold(("R:", 0), { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) })
       .addSink(new SinkFunction[(String, Int)]() {
       def invoke(value: (String, Int)) {

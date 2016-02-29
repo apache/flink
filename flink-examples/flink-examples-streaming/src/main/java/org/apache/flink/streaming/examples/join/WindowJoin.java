@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.util.Random;
@@ -84,7 +84,7 @@ public class WindowJoin {
 				.join(salaries)
 				.where(new NameKeySelector())
 				.equalTo(new NameKeySelector())
-				.window(TumblingTimeWindows.of(Time.of(5, TimeUnit.MILLISECONDS)))
+				.window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.MILLISECONDS)))
 				.apply(new MyJoinFunction());
 
 		// emit result

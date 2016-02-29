@@ -39,7 +39,7 @@ import java.util.List;
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(SlidingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
+ *   keyed.window(SlidingProcessingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
  * } </pre>
  */
 public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWindow> {
@@ -86,7 +86,7 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	}
 
 	/**
-	 * Creates a new {@code SlidingTimeWindows} {@link WindowAssigner} that assigns
+	 * Creates a new {@code SlidingProcessingTimeWindows} {@link WindowAssigner} that assigns
 	 * elements to sliding time windows based on the element timestamp.
 	 *
 	 * @param size The size of the generated windows.

@@ -62,7 +62,7 @@ windowing you would use window assigners such as `SlidingProcessingTimeWindows` 
 `TumblingProcessingTimeWindows`.
 
 In order to work with event time semantics, i.e. if you want to use window assigners such as
-`TumblingTimeWindows` or `SlidingTimeWindows`, you need to follow these steps:
+`TumblingEventTimeWindows` or `SlidingEventTimeWindows`, you need to follow these steps:
 
 - Set `enableTimestamps()`, as well the interval for watermark emission
 (`setAutoWatermarkInterval(long milliseconds)`) in `ExecutionConfig`.
