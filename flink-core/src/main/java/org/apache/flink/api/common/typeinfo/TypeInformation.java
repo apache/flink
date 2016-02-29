@@ -22,9 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.io.Serializable;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -128,7 +129,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	@PublicEvolving
 	public List<TypeInformation<?>> getGenericParameters() {
 		// Return an empty list as the default implementation
-		return new LinkedList<>();
+		return Collections.emptyList();
 	}
 
 	/**
@@ -175,4 +176,39 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @return true if obj can be equaled with this, otherwise false
 	 */
 	public abstract boolean canEqual(Object obj);
+	
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a TypeInformation for the type described by the given class.
+	 * 
+	 * <p>This method only works for non-generic types. For generic types, use the
+	 * {@link #of(TypeHint)} method.
+	 *
+	 * @param typeClass The class of the type.
+	 * @param <T> The generic type.
+	 *
+	 * @return The TypeInformation object for the type described by the hint.
+	 */
+	public static <T> TypeInformation<T> of(Class<T> typeClass) {
+		return TypeExtractor.createTypeInfo(typeClass);
+	}
+	
+	/**
+	 * Creates a TypeInformation for a generic type via a utility "type hint".
+	 * This method can be used as follows:
+	 * <pre>
+	 * {@code
+	 * TypeInformation<Tuple2<String, Long>> info = TypeInformation.of(new TypeHint<Tuple2<String, Long>>(){});
+	 * }
+	 * </pre>
+	 * 
+	 * @param typeHint The hint for the generic type.
+	 * @param <T> The generic type.
+	 *    
+	 * @return The TypeInformation object for the type described by the hint.
+	 */
+	public static <T> TypeInformation<T> of(TypeHint<T> typeHint) {
+		return typeHint.getTypeInfo();
+	}
 }
