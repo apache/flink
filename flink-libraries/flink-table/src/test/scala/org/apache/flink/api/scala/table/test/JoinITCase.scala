@@ -197,4 +197,24 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val results = joinT.toDataSet[Row]collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testJoinWithExpressionPreds(): Unit = {
+
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
+
+    val expected =
+        "I am fine.,Hallo Welt\n" +
+        "Luke Skywalker,Hallo Welt wie gehts?\n" +
+        "Luke Skywalker,ABC\n" +
+        "Comment#2,HIJ\n" +
+        "Comment#2,IJK"
+    val results = joinT.toDataSet[Row]collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
 }
