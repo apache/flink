@@ -27,7 +27,7 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-gelly_examples_2.10</artifactId>
+	<artifactId>flink-gelly-examples_2.10</artifactId>
 	<name>flink-gelly-examples</name>
 	<packaging>jar</packaging>
 
