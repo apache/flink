@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -310,7 +311,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		while (deadline.hasTimeLeft() && !success) {
 			success = true;
 			for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-				if (vertex.getExecutionState() != ExecutionState.FAILED) {
+				ExecutionState state = vertex.getExecutionState();
+				if (state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 					success = false;
 					Thread.sleep(100);
 					break;
@@ -488,6 +490,107 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(ExecutionState.FINISHED, finishedExecution.getState());
 
 		assertEquals(JobStatus.FINISHED, eg.getState());
+	}
+
+	/**
+	 * Tests that a graph is not restarted after cancellation via a call to
+	 * {@link ExecutionGraph#fail(Throwable)}. This can happen when a slot is
+	 * released concurrently with cancellation.
+	 */
+	@Test
+	public void testFailExecutionAfterCancel() throws Exception {
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+				new SimpleActorGateway(TestingUtils.directExecutionContext()),
+				2);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		scheduler.newInstanceAvailable(instance);
+
+		JobVertex vertex = new JobVertex("Test Vertex");
+		vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		vertex.setParallelism(1);
+
+		JobGraph jobGraph = new JobGraph("Test Job", vertex);
+		jobGraph.setRestartStrategyConfiguration(RestartStrategies.fixedDelayRestart(
+				Integer.MAX_VALUE, Integer.MAX_VALUE));
+
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				new JobID(),
+				"test job",
+				new Configuration(),
+				AkkaUtils.getDefaultTimeout(),
+				new FixedDelayRestartStrategy(1, 1000000));
+
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, eg.getState());
+
+		eg.scheduleForExecution(scheduler);
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		// Fail right after cancel (for example with concurrent slot release)
+		eg.cancel();
+
+		for (ExecutionVertex v : eg.getAllExecutionVertices()) {
+			v.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
+		}
+
+		assertEquals(JobStatus.CANCELED, eg.getState());
+
+		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
+
+		execution.cancelingComplete();
+		assertEquals(JobStatus.CANCELED, eg.getState());
+	}
+
+	/**
+	 * Tests that it is possible to fail a graph via a call to
+	 * {@link ExecutionGraph#fail(Throwable)} after cancellation.
+	 */
+	@Test
+	public void testFailExecutionGraphAfterCancel() throws Exception {
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+				new SimpleActorGateway(TestingUtils.directExecutionContext()),
+				2);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		scheduler.newInstanceAvailable(instance);
+
+		JobVertex vertex = new JobVertex("Test Vertex");
+		vertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		vertex.setParallelism(1);
+
+		JobGraph jobGraph = new JobGraph("Test Job", vertex);
+		jobGraph.setRestartStrategyConfiguration(RestartStrategies.fixedDelayRestart(
+				Integer.MAX_VALUE, Integer.MAX_VALUE));
+
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				new JobID(),
+				"test job",
+				new Configuration(),
+				AkkaUtils.getDefaultTimeout(),
+				new FixedDelayRestartStrategy(1, 1000000));
+
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, eg.getState());
+
+		eg.scheduleForExecution(scheduler);
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		// Fail right after cancel (for example with concurrent slot release)
+		eg.cancel();
+		assertEquals(JobStatus.CANCELLING, eg.getState());
+
+		eg.fail(new Exception("Test Exception"));
+		assertEquals(JobStatus.FAILING, eg.getState());
+
+		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
+
+		execution.cancelingComplete();
+		assertEquals(JobStatus.RESTARTING, eg.getState());
 	}
 
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {
