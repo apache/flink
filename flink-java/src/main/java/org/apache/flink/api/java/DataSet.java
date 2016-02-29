@@ -104,7 +104,6 @@ import java.util.List;
  *
  * @param <T> The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
-
 @Public
 public abstract class DataSet<T> {
 	
