@@ -191,7 +191,7 @@ window, and every time execution is triggered, 10 elements are retained in the w
 <div data-lang="java" markdown="1">
 {% highlight java %}
 keyedStream
-    .window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
+    .window(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10));
 {% endhighlight %}
@@ -200,7 +200,7 @@ keyedStream
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 keyedStream
-    .window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
+    .window(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10))
 {% endhighlight %}
@@ -214,7 +214,7 @@ The `WindowAssigner` defines how incoming elements are assigned to windows. A wi
 that has a begin-value, and an end-value corresponding to a begin-time and end-time. Elements with timestamp (according
 to some notion of time described above within these values are part of the window).
 
-For example, the `SlidingTimeWindows`
+For example, the `SlidingEventTimeWindows`
 assigner in the code above defines a window of size 5 seconds, and a slide of 1 second. Assume that
 time starts from 0 and is measured in milliseconds. Then, we have 6 windows
 that overlap: [0,5000], [1000,6000], [2000,7000], [3000, 8000], [4000, 9000], and [5000, 10000]. Each incoming
@@ -256,7 +256,7 @@ stream.window(GlobalWindows.create());
             watermark with value higher than its end-value is received.
           </p>
       {% highlight java %}
-stream.window(TumblingTimeWindows.of(Time.seconds(1)));
+stream.window(TumblingEventTimeWindows.of(Time.seconds(1)));
       {% endhighlight %}
         </td>
       </tr>
@@ -270,7 +270,7 @@ stream.window(TumblingTimeWindows.of(Time.seconds(1)));
 	          watermark with value higher than its end-value is received.
           </p>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)));
+stream.window(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1)));
     {% endhighlight %}
         </td>
       </tr>
@@ -338,7 +338,7 @@ stream.window(GlobalWindows.create)
             watermark with value higher than its end-value is received.
             </p>
       {% highlight scala %}
-stream.window(TumblingTimeWindows.of(Time.seconds(1)))
+stream.window(TumblingEventTimeWindows.of(Time.seconds(1)))
       {% endhighlight %}
           </td>
         </tr>
@@ -352,7 +352,7 @@ stream.window(TumblingTimeWindows.of(Time.seconds(1)))
             watermark with value higher than its end-value is received.
           </p>
     {% highlight scala %}
-stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+stream.window(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1)))
     {% endhighlight %}
         </td>
       </tr>
@@ -743,8 +743,7 @@ stream.countWindow(1000)
         <td>
     {% highlight java %}
 stream.window(GlobalWindows.create())
-  .trigger(CountTrigger.of(1000)
-  .evictor(CountEvictor.of(1000)))
+  .trigger(PurgingTrigger.of(CountTrigger.of(size)))
     {% endhighlight %}
         </td>
       </tr>
@@ -772,7 +771,7 @@ stream.timeWindow(Time.seconds(5))
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingTimeWindows.of((Time.seconds(5)))
+stream.window(TumblingEventTimeWindows.of((Time.seconds(5)))
   .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -786,7 +785,7 @@ stream.timeWindow(Time.seconds(5), Time.seconds(1))
 	</td>
         <td>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+stream.window(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1)))
   .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -800,7 +799,7 @@ stream.timeWindow(Time.seconds(5))
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingTimeWindows.of((Time.seconds(5)))
+stream.window(TumblingProcessingTimeWindows.of((Time.seconds(5)))
   .trigger(ProcessingTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -814,7 +813,7 @@ stream.timeWindow(Time.seconds(5), Time.seconds(1))
 	</td>
         <td>
     {% highlight java %}
-stream.window(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
   .trigger(ProcessingTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -834,7 +833,7 @@ same:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 nonKeyedStream
-    .windowAll(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
+    .windowAll(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10));
 {% endhighlight %}
@@ -843,7 +842,7 @@ nonKeyedStream
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 nonKeyedStream
-    .windowAll(SlidingTimeWindows.of(Time.seconds(5), Time.seconds(1))
+    .windowAll(SlidingEventTimeWindows.of(Time.seconds(5), Time.seconds(1))
     .trigger(CountTrigger.of(100))
     .evictor(CountEvictor.of(10))
 {% endhighlight %}

@@ -21,7 +21,7 @@ package org.apache.flink.streaming.scala.examples.join
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
 import scala.Stream._
@@ -56,7 +56,7 @@ object WindowJoin {
     val joined = grades.join(salaries)
         .where(_.name)
         .equalTo(_.name)
-        .window(SlidingTimeWindows.of(Time.seconds(2), Time.seconds(1)))
+        .window(SlidingEventTimeWindows.of(Time.seconds(2), Time.seconds(1)))
         .apply { (g, s) => Person(g.name, g.grade, s.salary) }
 
     if (params.has("output")) {
