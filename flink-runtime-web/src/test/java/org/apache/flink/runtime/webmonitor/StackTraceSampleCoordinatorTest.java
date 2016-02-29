@@ -226,17 +226,13 @@ public class StackTraceSampleCoordinatorTest {
 		Throwable cause = sampleFuture.failed().value().get().get();
 		assertTrue(cause.getCause().getMessage().contains("Time out"));
 
-		// Collect after the timeout
-		try {
-			ExecutionAttemptID executionId = vertices[0].getCurrentExecutionAttempt().getAttemptId();
-			coord.collectStackTraces(0, executionId, new ArrayList<StackTraceElement[]>());
-			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
-		}
+		// Collect after the timeout (should be ignored)
+		ExecutionAttemptID executionId = vertices[0].getCurrentExecutionAttempt().getAttemptId();
+		coord.collectStackTraces(0, executionId, new ArrayList<StackTraceElement[]>());
 	}
 
-	/** Tests that collecting an unknown sample fails. */
-	@Test(expected = IllegalStateException.class)
+	/** Tests that collecting an unknown sample is ignored. */
+	@Test
 	public void testCollectStackTraceForUnknownSample() throws Exception {
 		coord.collectStackTraces(0, new ExecutionAttemptID(), new ArrayList<StackTraceElement[]>());
 	}
