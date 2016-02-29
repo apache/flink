@@ -49,7 +49,7 @@ import org.apache.flink.util.Collector
  * val result = one.join(two)
  *     .where {t => ... }
  *     .equal {t => ... }
- *     .window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
+ *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyJoinFunction())
  * } }}}
  */

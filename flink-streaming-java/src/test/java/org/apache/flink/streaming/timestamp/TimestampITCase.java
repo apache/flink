@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.NoOpSink;
@@ -560,7 +560,7 @@ public class TimestampITCase {
 
 		source1
 				.keyBy(0)
-				.window(TumblingTimeWindows.of(Time.seconds(5)))
+				.window(TumblingEventTimeWindows.of(Time.seconds(5)))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					@Override
 					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2)  {
@@ -591,7 +591,7 @@ public class TimestampITCase {
 
 		source1
 				.keyBy(0)
-				.window(TumblingTimeWindows.of(Time.seconds(5)))
+				.window(TumblingEventTimeWindows.of(Time.seconds(5)))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 					@Override
 					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2)  {

@@ -572,7 +572,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Windows this DataStream into tumbling time windows.
    *
-   * This is a shortcut for either `.window(TumblingTimeWindows.of(size))` or
+   * This is a shortcut for either `.window(TumblingEventTimeWindows.of(size))` or
    * `.window(TumblingProcessingTimeWindows.of(size))` depending on the time characteristic
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].
@@ -590,7 +590,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Windows this DataStream into sliding time windows.
    *
-   * This is a shortcut for either `.window(SlidingTimeWindows.of(size, slide))` or
+   * This is a shortcut for either `.window(SlidingEventTimeWindows.of(size, slide))` or
    * `.window(SlidingProcessingTimeWindows.of(size, slide))` depending on the time characteristic
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].

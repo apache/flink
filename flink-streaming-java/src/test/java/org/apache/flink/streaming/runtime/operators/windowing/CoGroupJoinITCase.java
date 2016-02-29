@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -109,7 +109,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		source1.coGroup(source2)
 				.where(new Tuple2KeyExtractor())
 				.equalTo(new Tuple2KeyExtractor())
-				.window(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
 				.apply(new CoGroupFunction<Tuple2<String,Integer>, Tuple2<String,Integer>, String>() {
 					@Override
 					public void coGroup(Iterable<Tuple2<String, Integer>> first,
@@ -207,7 +207,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		source1.join(source2)
 				.where(new Tuple3KeyExtractor())
 				.equalTo(new Tuple3KeyExtractor())
-				.window(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
 				.apply(new JoinFunction<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>, String>() {
 					@Override
 					public String join(Tuple3<String, String, Integer> first, Tuple3<String, String, Integer> second) throws Exception {
@@ -284,7 +284,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		source1.join(source1)
 				.where(new Tuple3KeyExtractor())
 				.equalTo(new Tuple3KeyExtractor())
-				.window(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
 				.apply(new JoinFunction<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>, String>() {
 					@Override
 					public String join(Tuple3<String, String, Integer> first, Tuple3<String, String, Integer> second) throws Exception {

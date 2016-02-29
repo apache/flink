@@ -51,7 +51,7 @@ import scala.collection.JavaConverters._
  * val result = one.coGroup(two)
  *     .where(new MyFirstKeySelector())
  *     .equalTo(new MyFirstKeySelector())
- *     .window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
+ *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyCoGroupFunction())
  * } }}}
  */

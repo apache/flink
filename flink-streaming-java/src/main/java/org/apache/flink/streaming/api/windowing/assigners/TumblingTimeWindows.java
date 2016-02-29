@@ -19,80 +19,34 @@
 package org.apache.flink.streaming.api.windowing.assigners;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A {@link WindowAssigner} that windows elements into windows based on the timestamp of the
  * elements. Windows cannot overlap.
  *
- * <p>
- * For example, in order to window into windows of 1 minute:
- * <pre> {@code
- * DataStream<Tuple2<String, Integer>> in = ...;
- * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);
- * WindowedStream<Tuple2<String, Integer>, String, TimeWindow> windowed =
- *   keyed.window(TumblingTimeWindows.of(Time.minutes(1)));
- * } </pre>
+ * @deprecated Please use {@link TumblingEventTimeWindows}.
  */
 @PublicEvolving
-public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
+@Deprecated
+public class TumblingTimeWindows extends TumblingEventTimeWindows {
 	private static final long serialVersionUID = 1L;
 
-	private long size;
-
 	private TumblingTimeWindows(long size) {
-		this.size = size;
-	}
-
-	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		if (timestamp > Long.MIN_VALUE) {
-			// Long.MIN_VALUE is currently assigned when no timestamp is present
-			long start = timestamp - (timestamp % size);
-			return Collections.singletonList(new TimeWindow(start, start + size));
-		} else {
-			throw new RuntimeException("Record has Long.MIN_VALUE timestamp (= no timestamp marker). " +
-					"Is the time characteristic set to 'ProcessingTime', or did you forget to call " +
-					"'DataStream.assignTimestampsAndWatermarks(...)'?");
-		}
-	}
-
-	public long getSize() {
-		return size;
-	}
-
-	@Override
-	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return EventTimeTrigger.create();
-	}
-
-	@Override
-	public String toString() {
-		return "TumblingTimeWindows(" + size + ")";
+		super(size);
 	}
 
 	/**
 	 * Creates a new {@code TumblingTimeWindows} {@link WindowAssigner} that assigns
 	 * elements to time windows based on the element timestamp.
 	 *
+	 * @deprecated Please use {@link TumblingEventTimeWindows#of(Time)}.
+	 *
 	 * @param size The size of the generated windows.
 	 * @return The time policy.
 	 */
+	@Deprecated()
 	public static TumblingTimeWindows of(Time size) {
 		return new TumblingTimeWindows(size.toMilliseconds());
-	}
-
-	@Override
-	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
-		return new TimeWindow.Serializer();
 	}
 }
