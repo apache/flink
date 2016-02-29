@@ -126,6 +126,18 @@ class FilterITCase(
   }
 
   @Test
+  def testDisjunctivePreds(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+
+    val filterDs = ds.filter( 'a < 2 || 'a > 20)
+    val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
+    val results = filterDs.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testFilterMerge(): Unit = {
     // verify FilterMergeRule.
 

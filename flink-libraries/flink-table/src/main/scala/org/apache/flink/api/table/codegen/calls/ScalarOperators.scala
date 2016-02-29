@@ -303,7 +303,7 @@ object ScalarOperators {
       s"""
         |${left.code}
         |${right.code}
-        |boolean $resultTerm = ${left.resultTerm} && ${right.resultTerm};
+        |boolean $resultTerm = ${left.resultTerm} || ${right.resultTerm};
         |""".stripMargin
     }
 

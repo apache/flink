@@ -180,4 +180,21 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val results = joinT.toDataSet[Row]collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testJoinWithDisjunctivePred(): Unit = {
+
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10 )).select('c, 'g)
+
+    val expected =
+      "Hi,Hallo\n" +
+        "Hello,Hallo Welt\n" +
+        "I am fine.,IJK"
+    val results = joinT.toDataSet[Row]collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
