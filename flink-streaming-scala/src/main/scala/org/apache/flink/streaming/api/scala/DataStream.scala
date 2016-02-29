@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWi
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
@@ -125,7 +124,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def setParallelism(parallelism: Int): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(parallelism)
+      case ds: SingleOutputStreamOperator[T] => ds.setParallelism(parallelism)
       case _ =>
         throw new UnsupportedOperationException(
           "Operator " + stream + " cannot set the parallelism.")
@@ -140,7 +139,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @return Name of the stream.
    */
   def name: String = stream match {
-    case stream : SingleOutputStreamOperator[T,_] => stream.getName
+    case stream : SingleOutputStreamOperator[T] => stream.getName
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
   }
@@ -165,7 +164,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @return The named operator
    */
   def name(name: String) : DataStream[T] = stream match {
-    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.name(name))
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.name(name))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -184,7 +183,7 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def uid(uid: String) : DataStream[T] = javaStream match {
-    case stream : SingleOutputStreamOperator[T,_] => asScalaStream(stream.uid(uid))
+    case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
@@ -199,7 +198,7 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def disableChaining(): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.disableChaining()
+      case ds: SingleOutputStreamOperator[T] => ds.disableChaining()
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -215,7 +214,7 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def startNewChain(): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.startNewChain()
+      case ds: SingleOutputStreamOperator[T] => ds.startNewChain()
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -238,8 +237,7 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def slotSharingGroup(slotSharingGroup: String): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.slotSharingGroup(slotSharingGroup)
-      case sink: DataStreamSink[_] => sink.slotSharingGroup(slotSharingGroup)
+      case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -256,7 +254,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def setBufferTimeout(timeoutMillis: Long): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setBufferTimeout(timeoutMillis)
+      case ds: SingleOutputStreamOperator[T] => ds.setBufferTimeout(timeoutMillis)
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
