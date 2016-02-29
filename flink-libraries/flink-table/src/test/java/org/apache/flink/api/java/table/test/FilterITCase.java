@@ -126,6 +126,22 @@ public class FilterITCase extends TableProgramsTestBase {
 	}
 
 	@Test
+	public void testDisjunctivePreds() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
+		Table result = table.filter("a < 2 || a > 20");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "1,1,Hi\n" + "21,6,Comment#15\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
 	public void testIntegerBiggerThan128() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
