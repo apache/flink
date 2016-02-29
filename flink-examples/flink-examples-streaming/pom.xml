@@ -182,7 +182,7 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/iteration/*.class</include>			
+								<include>org/apache/flink/streaming/examples/iteration/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -250,7 +250,7 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/join/*.class</include>			
+								<include>org/apache/flink/streaming/examples/join/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -274,7 +274,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>			
+								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
