@@ -311,7 +311,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		while (deadline.hasTimeLeft() && !success) {
 			success = true;
 			for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-				if (vertex.getExecutionState() != ExecutionState.FAILED) {
+				ExecutionState state = vertex.getExecutionState();
+				if (state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
 					success = false;
 					Thread.sleep(100);
 					break;

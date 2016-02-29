@@ -399,15 +399,13 @@ public class ExecutionVertexCancelTest {
 
 			vertex.cancel();
 
-			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+			// Callback fails, leading to CANCELED
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
 			assertTrue(slot.isReleased());
 
-			assertNotNull(vertex.getFailureCause());
-
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -551,8 +549,7 @@ public class ExecutionVertexCancelTest {
 				Exception failureCause = new Exception("test exception");
 
 				vertex.fail(failureCause);
-				assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-				assertEquals(failureCause, vertex.getFailureCause());
+				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
 				assertTrue(slot.isReleased());
 			}
