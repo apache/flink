@@ -20,10 +20,13 @@ package org.apache.flink.api.table
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rel.logical.LogicalProject
+import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexCall, RexNode}
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
-import org.apache.flink.api.table.plan.RexNodeTranslator
+import org.apache.calcite.util.NlsString
+import org.apache.flink.api.table.plan.{PlanGenException, RexNodeTranslator}
 import RexNodeTranslator.{toRexNode, extractAggCalls}
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.parser.ExpressionParser
@@ -98,7 +101,29 @@ class Table(
       .map(toRexNode(_, relBuilder))
 
     relBuilder.project(exprs.toIterable.asJava)
-    new Table(relBuilder.build(), relBuilder)
+    var projected = relBuilder.build()
+
+    if(relNode == projected) {
+      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
+      //   Add a projection ourselves (will be automatically removed by translation rules).
+      val names = exprs.map{ e =>
+        e.getKind match {
+          case SqlKind.AS =>
+            e.asInstanceOf[RexCall].getOperands.get(1)
+              .asInstanceOf[RexLiteral].getValue
+              .asInstanceOf[NlsString].getValue
+          case SqlKind.INPUT_REF =>
+            relNode.getRowType.getFieldNames.get(e.asInstanceOf[RexInputRef].getIndex)
+          case _ =>
+            throw new PlanGenException("Unexpected expression type encountered.")
+        }
+
+      }
+
+      projected = LogicalProject.create(relNode, exprs.toList.asJava, names.toList.asJava)
+    }
+
+    new Table(projected, relBuilder)
   }
 
   /**
