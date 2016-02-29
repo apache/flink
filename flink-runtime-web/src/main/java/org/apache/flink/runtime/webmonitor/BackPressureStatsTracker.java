@@ -33,6 +33,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +171,10 @@ public class BackPressureStatsTracker {
 				if (executionContext != null) {
 					pendingStats.add(vertex);
 
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Triggering stack trace sample for tasks: " + Arrays.toString(vertex.getTaskVertices()));
+					}
+
 					Future<StackTraceSample> sample = coordinator.triggerStackTraceSample(
 							vertex.getTaskVertices(),
 							numSamples,
@@ -246,7 +251,7 @@ public class BackPressureStatsTracker {
 						OperatorBackPressureStats stats = createStatsFromSample(success);
 						operatorStatsCache.put(vertex, stats);
 					} else {
-						LOG.warn("Failed to gather stack trace sample.", failure);
+						LOG.debug("Failed to gather stack trace sample.", failure);
 					}
 				} catch (Throwable t) {
 					LOG.error("Error during stats completion.", t);
@@ -278,7 +283,7 @@ public class BackPressureStatsTracker {
 				if (sampledTasks.contains(taskId)) {
 					subtaskIndexMap.put(taskId, task.getParallelSubtaskIndex());
 				} else {
-					throw new RuntimeException("Outdated sample. A task, which is part of the " +
+					LOG.debug("Outdated sample. A task, which is part of the " +
 							"sample has been reset.");
 				}
 			}
