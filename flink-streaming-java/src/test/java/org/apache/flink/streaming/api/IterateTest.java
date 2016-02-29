@@ -68,7 +68,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Integer> source = env.fromElements(1, 10);
 
 		IterativeStream<Integer> iter1 = source.iterate();
-		SingleOutputStreamOperator<Integer, ?> map1 = iter1.map(NoOpIntMap);
+		SingleOutputStreamOperator<Integer> map1 = iter1.map(NoOpIntMap);
 		iter1.closeWith(map1).print();
 	}
 
@@ -289,8 +289,9 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		IterativeStream<Integer> iter1 = source1.union(source2).iterate();
 
 		DataStream<Integer> head1 = iter1.map(NoOpIntMap).name("map1");
-		DataStream<Integer> head2 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2).rebalance().name(
-				"shuffle");
+		DataStream<Integer> head2 = iter1.map(NoOpIntMap)
+				.setParallelism(DEFAULT_PARALLELISM / 2)
+				.name("shuffle").rebalance();
 		DataStreamSink<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2)
 				.addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(NoOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
@@ -302,7 +303,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 
 		iter1.closeWith(
 				source3.select("even").union(
-						head1.map(NoOpIntMap).broadcast().name("bc"),
+						head1.map(NoOpIntMap).name("bc").broadcast(),
 						head2.map(NoOpIntMap).shuffle()));
 
 		StreamGraph graph = env.getStreamGraph();

@@ -435,7 +435,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
 		env.setParallelism(10);
 
-		SingleOutputStreamOperator<Long, ?> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
+		SingleOutputStreamOperator<Long> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
 			@Override
 			public Long map(Tuple2<Long, Long> value) throws Exception {
 				return null;
@@ -759,7 +759,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 	@SuppressWarnings("rawtypes,unchecked")
 	private static Integer createDownStreamId(ConnectedStreams dataStream) {
-		SingleOutputStreamOperator<?, ?> coMap = dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
+		SingleOutputStreamOperator<?> coMap = dataStream.map(new CoMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Object>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override

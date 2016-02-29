@@ -197,9 +197,9 @@ public class ConnectedStreams<IN1, IN2> {
 	 * @param coMapper The CoMapFunction used to jointly transform the two input DataStreams
 	 * @return The transformed {@link DataStream}
 	 */
-	public <OUT> SingleOutputStreamOperator<OUT, ?> map(CoMapFunction<IN1, IN2, OUT> coMapper) {
+	public <R> SingleOutputStreamOperator<R> map(CoMapFunction<IN1, IN2, R> coMapper) {
 
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
 				CoMapFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
@@ -220,10 +220,10 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            DataStreams
 	 * @return The transformed {@link DataStream}
 	 */
-	public <OUT> SingleOutputStreamOperator<OUT, ?> flatMap(
-			CoFlatMapFunction<IN1, IN2, OUT> coFlatMapper) {
+	public <R> SingleOutputStreamOperator<R> flatMap(
+			CoFlatMapFunction<IN1, IN2, R> coFlatMapper) {
 
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
 				CoFlatMapFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
@@ -231,15 +231,15 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	@PublicEvolving
-	public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
-			TypeInformation<OUT> outTypeInfo,
-			TwoInputStreamOperator<IN1, IN2, OUT> operator) {
+	public <R> SingleOutputStreamOperator<R> transform(String functionName,
+			TypeInformation<R> outTypeInfo,
+			TwoInputStreamOperator<IN1, IN2, R> operator) {
 
 		// read the output type of the input Transforms to coax out errors about MissingTypeInfo
 		inputStream1.getType();
 		inputStream2.getType();
 
-		TwoInputTransformation<IN1, IN2, OUT> transform = new TwoInputTransformation<>(
+		TwoInputTransformation<IN1, IN2, R> transform = new TwoInputTransformation<>(
 				inputStream1.getTransformation(),
 				inputStream2.getTransformation(),
 				functionName,
@@ -263,7 +263,7 @@ public class ConnectedStreams<IN1, IN2> {
 		}
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(environment, transform);
+		SingleOutputStreamOperator<R> returnStream = new SingleOutputStreamOperator(environment, transform);
 
 		getExecutionEnvironment().addOperator(transform);
 

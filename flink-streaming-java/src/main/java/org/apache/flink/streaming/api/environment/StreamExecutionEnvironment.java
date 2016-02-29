@@ -735,7 +735,7 @@ public abstract class StreamExecutionEnvironment {
 
 		SourceFunction<OUT> function;
 		try {
-			function = new FromElementsFunction<OUT>(typeInfo.createSerializer(getConfig()), data);
+			function = new FromElementsFunction<>(typeInfo.createSerializer(getConfig()), data);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
@@ -789,7 +789,7 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT> DataStreamSource<OUT> fromCollection(Iterator<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 
-		SourceFunction<OUT> function = new FromIteratorFunction<OUT>(data);
+		SourceFunction<OUT> function = new FromIteratorFunction<>(data);
 		return addSource(function, "Collection Source", typeInfo);
 	}
 
@@ -838,7 +838,7 @@ public abstract class StreamExecutionEnvironment {
 	// private helper for passing different names
 	private <OUT> DataStreamSource<OUT> fromParallelCollection(SplittableIterator<OUT> iterator, TypeInformation<OUT>
 			typeInfo, String operatorName) {
-		return addSource(new FromSplittableIteratorFunction<OUT>(iterator), operatorName).returns(typeInfo);
+		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo);
 	}
 
 	/**
@@ -1033,8 +1033,8 @@ public abstract class StreamExecutionEnvironment {
 	// private helper for passing different names
 	private <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat,
 			TypeInformation<OUT> typeInfo, String sourceName) {
-		FileSourceFunction<OUT> function = new FileSourceFunction<OUT>(inputFormat, typeInfo);
-		return addSource(function, sourceName).returns(typeInfo);
+		FileSourceFunction<OUT> function = new FileSourceFunction<>(inputFormat, typeInfo);
+		return addSource(function, sourceName, typeInfo);
 	}
 
 	/**
@@ -1136,7 +1136,7 @@ public abstract class StreamExecutionEnvironment {
 			sourceOperator = new StreamSource<>(function);
 		}
 
-		return new DataStreamSource<OUT>(this, typeInfo, sourceOperator, isParallel, sourceName);
+		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
 
 	/**

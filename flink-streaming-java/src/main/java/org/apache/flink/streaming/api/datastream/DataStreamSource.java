@@ -29,14 +29,14 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
  * @param <T> Type of the elements in the DataStream created from the this source.
  */
 @Public
-public class DataStreamSource<T> extends SingleOutputStreamOperator<T, DataStreamSource<T>> {
+public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment,
 			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
 			boolean isParallel, String sourceName) {
-		super(environment, new SourceTransformation<T>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+		super(environment, new SourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
 
 		this.isParallel = isParallel;
 		if (!isParallel) {
