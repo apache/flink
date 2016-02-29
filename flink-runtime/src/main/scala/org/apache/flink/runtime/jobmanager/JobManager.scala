@@ -259,7 +259,7 @@ class JobManager(
     // shut down the extra thread pool for futures
     executorService.shutdown()
 
-    log.debug(s"Job manager ${self.path} is completely stopped.")
+    log.info(s"Job manager ${self.path} is completely stopped.")
   }
 
   /**
@@ -1489,7 +1489,7 @@ class JobManager(
           }
         }
 
-        eg.fail(cause)
+        eg.cancel()
 
         if (jobInfo.listeningBehaviour != ListeningBehaviour.DETACHED) {
           jobInfo.client ! decorateMessage(

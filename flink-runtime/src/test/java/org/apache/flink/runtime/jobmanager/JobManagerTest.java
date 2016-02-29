@@ -19,27 +19,35 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
+import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 
 import com.typesafe.config.Config;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayRestartStrategyConfiguration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.JobSubmitSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
@@ -61,6 +69,9 @@ import org.junit.Test;
 
 import scala.Some;
 import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
 
 import java.net.InetAddress;
 
@@ -137,7 +148,7 @@ public class JobManagerTest {
 								jobGraph,
 								ListeningBehaviour.EXECUTION_RESULT),
 						testActorGateway);
-				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+				expectMsgClass(JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(
 						new WaitForAllVerticesToBeRunningOrFinished(jid),
@@ -260,7 +271,7 @@ public class JobManagerTest {
 								jobGraph,
 								ListeningBehaviour.EXECUTION_RESULT),
 						testActorGateway);
-				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+				expectMsgClass(JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(new WaitForAllVerticesToBeRunning(jid), testActorGateway);
 				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
@@ -308,7 +319,7 @@ public class JobManagerTest {
 								jobGraph,
 								ListeningBehaviour.EXECUTION_RESULT),
 						testActorGateway);
-				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+				expectMsgClass(JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(new WaitForAllVerticesToBeRunning(jid), testActorGateway);
 				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
@@ -330,4 +341,62 @@ public class JobManagerTest {
 		}};
 	}
 
+	/**
+	 * Tests that execution graphs end up in a terminal state after calling
+	 * cancel and clear everything -- even when a restart strategy is
+	 * configured.
+	 */
+	@Test
+	public void testCancelAndClearEverything() throws Exception {
+		TestingCluster cluster = startTestingCluster(1, 1, DEFAULT_AKKA_ASK_TIMEOUT());
+
+		try {
+			Deadline deadline = TestingUtils.TESTING_DURATION().fromNow();
+
+			JobVertex vertex = new JobVertex("Blocking Test Vertex");
+			vertex.setParallelism(1);
+			vertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
+
+			JobGraph jobGraph = new JobGraph();
+			jobGraph.addVertex(vertex);
+
+			// Very long restart delay in order to catch the job in restarting
+			// state if erroneous
+			jobGraph.setRestartStrategyConfiguration(RestartStrategies.fixedDelayRestart(
+					Integer.MAX_VALUE, Integer.MAX_VALUE));
+
+			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
+
+			Future<?> submitFuture = jobManager.ask(new SubmitJob(
+					jobGraph, ListeningBehaviour.EXECUTION_RESULT), deadline.timeLeft());
+			Object resp = Await.result(submitFuture, deadline.timeLeft());
+			assertTrue("Job submission failed", resp instanceof JobSubmitSuccess);
+
+			Future<?> graphFuture = jobManager.ask(new RequestExecutionGraph(
+					jobGraph.getJobID()), deadline.timeLeft());
+			resp = Await.result(graphFuture, deadline.timeLeft());
+			assertTrue("ExecutionGraph request failed", resp instanceof ExecutionGraphFound);
+
+			ExecutionGraph graph = ((ExecutionGraphFound) resp).executionGraph();
+
+			// Kill the job manager => call cancelAndClearEverything
+			Patterns.gracefulStop(jobManager.actor(), deadline.timeLeft());
+
+			// Wait for terminal state
+			boolean isTerminalState = false;
+			JobStatus state = null;
+
+			while (!isTerminalState && deadline.hasTimeLeft()) {
+				state = graph.getState();
+				isTerminalState = state.isTerminalState();
+				Thread.sleep(100);
+			}
+
+			assertTrue("Not in terminal state (" + state + ")", isTerminalState);
+		} finally {
+			if (cluster != null) {
+				cluster.shutdown();
+			}
+		}
+	}
 }
