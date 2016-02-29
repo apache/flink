@@ -98,11 +98,11 @@ import com.google.common.base.Preconditions;
  * can be transformed into another DataStream by applying a transformation as
  * for example:
  * <ul>
- * <li>{@link DataStream#map},
- * <li>{@link DataStream#filter}, or
+ * <li>{@link DataStream#map}
+ * <li>{@link DataStream#filter}
  * </ul>
  *
- * @param <T> The type of the elements in this Stream
+ * @param <T> The type of the elements in this stream.
  */
 @Public
 public class DataStream<T> {
@@ -500,7 +500,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<T, R> mapper) {
+	public <R> SingleOutputStreamOperator<R> map(MapFunction<T, R> mapper) {
 
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
 				Utils.getCallLocationName(), true);
@@ -524,7 +524,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
 
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType(), Utils.getCallLocationName(), true);
@@ -547,7 +547,7 @@ public class DataStream<T> {
 	 *            DataStream.
 	 * @return The filtered DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> filter(FilterFunction<T> filter) {
+	public SingleOutputStreamOperator<T> filter(FilterFunction<T> filter) {
 		return transform("Filter", getType(), new StreamFilter<>(clean(filter)));
 
 	}
@@ -570,7 +570,7 @@ public class DataStream<T> {
 	 * @see DataStream
 	 */
 	@PublicEvolving
-	public <R extends Tuple> SingleOutputStreamOperator<R, ?> project(int... fieldIndexes) {
+	public <R extends Tuple> SingleOutputStreamOperator<R> project(int... fieldIndexes) {
 		return new StreamProjection<>(this, fieldIndexes).projectTupleX();
 	}
 
@@ -717,7 +717,7 @@ public class DataStream<T> {
 	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
 	 */
 	@Deprecated
-	public SingleOutputStreamOperator<T, ?> assignTimestamps(TimestampExtractor<T> extractor) {
+	public SingleOutputStreamOperator<T> assignTimestamps(TimestampExtractor<T> extractor) {
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
 		// from the source go to each extraction operator round robin.
@@ -753,7 +753,7 @@ public class DataStream<T> {
 	 * @see AssignerWithPunctuatedWatermarks
 	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
 	 */
-	public SingleOutputStreamOperator<T, ?> assignTimestampsAndWatermarks(
+	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
 		
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
@@ -796,7 +796,7 @@ public class DataStream<T> {
 	 * @see AssignerWithPeriodicWatermarks
 	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
 	 */
-	public SingleOutputStreamOperator<T, ?> assignTimestampsAndWatermarks(
+	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
 		
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
@@ -1017,7 +1017,7 @@ public class DataStream<T> {
 	 * @return the data stream constructed
 	 */
 	@PublicEvolving
-	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
+	public <R> SingleOutputStreamOperator<R> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();
@@ -1030,7 +1030,7 @@ public class DataStream<T> {
 				environment.getParallelism());
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment, resultTransform);
+		SingleOutputStreamOperator<R> returnStream = new SingleOutputStreamOperator(environment, resultTransform);
 
 		getExecutionEnvironment().addOperator(resultTransform);
 

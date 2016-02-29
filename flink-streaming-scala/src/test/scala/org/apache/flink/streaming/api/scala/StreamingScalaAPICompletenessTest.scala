@@ -108,7 +108,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
     checkMethods(
       "SingleOutputStreamOperator", "DataStream",
-      classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_,_]],
+      classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_]],
       classOf[DataStream[_]])
 
     checkMethods(
