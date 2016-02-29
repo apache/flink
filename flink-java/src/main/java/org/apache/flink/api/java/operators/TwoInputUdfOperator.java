@@ -26,17 +26,20 @@ import java.util.Set;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * The <tt>TwoInputUdfOperator</tt> is the base class of all binary operators that execute
@@ -262,14 +265,102 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		O returnType = (O) this;
 		return returnType;
 	}
-	
+
+	// ------------------------------------------------------------------------
+	//  type hinting
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>Classes can be used as type hints for non-generic types (classes without generic parameters),
+	 * but not for generic types like for example Tuples. For those generic types, please
+	 * use the {@link #returns(TypeHint)} method.
+	 *
+	 * <p>Use this method the following way:
+	 * <pre>{@code
+	 *     DataSet<String[]> result = 
+	 *         data1.join(data2).where("id").equalTo("fieldX")
+	 *              .with(new JoinFunctionWithNonInferrableReturnType())
+	 *              .returns(String[].class);
+	 * }</pre>
+	 *
+	 * @param typeClass The class of the returned data type.
+	 * @return This operator with the type information corresponding to the given type class.
+	 */
+	public O returns(Class<OUT> typeClass) {
+		requireNonNull(typeClass, "type class must not be null");
+
+		try {
+			return returns(TypeInformation.of(typeClass));
+		}
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("Cannot infer the type information from the class alone." +
+					"This is most likely because the class represents a generic type. In that case," +
+					"please use the 'returns(TypeHint)' method instead.", e);
+		}
+	}
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>Use this method the following way:
+	 * <pre>{@code
+	 *     DataSet<Tuple2<String, Double>> result = 
+	 *         data1.join(data2).where("id").equalTo("fieldX")
+	 *              .with(new JoinFunctionWithNonInferrableReturnType())
+	 *              .returns(new TypeHint<Tuple2<String, Double>>(){});
+	 * }</pre>
+	 *
+	 * @param typeHint The type hint for the returned data type.
+	 * @return This operator with the type information corresponding to the given type hint.
+	 */
+	public O returns(TypeHint<OUT> typeHint) {
+		requireNonNull(typeHint, "TypeHint must not be null");
+
+		try {
+			return returns(TypeInformation.of(typeHint));
+		}
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("Cannot infer the type information from the type hint. " +
+					"Make sure that the TypeHint does not use any generic type variables.");
+		}
+	}
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>In most cases, the methods {@link #returns(Class)} and {@link #returns(TypeHint)}
+	 * are preferable.
+	 *
+	 * @param typeInfo The type information for the returned data type.
+	 * @return This operator using the given type information for the return type.
+	 */
+	public O returns(TypeInformation<OUT> typeInfo) {
+		requireNonNull(typeInfo, "TypeInformation must not be null");
+
+		fillInType(typeInfo);
+		@SuppressWarnings("unchecked")
+		O returnType = (O) this;
+		return returnType;
+	}
+
 	/**
 	 * Adds a type information hint about the return type of this operator. 
-	 * 
+	 *
 	 * <p>
 	 * Type hints are important in cases where the Java compiler
 	 * throws away generic type information necessary for efficient execution.
-	 * 
+	 *
 	 * <p>
 	 * This method takes a type information string that will be parsed. A type information string can contain the following
 	 * types:
@@ -297,85 +388,16 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * @param typeInfoString
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
+	 *
+	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public O returns(String typeInfoString) {
 		if (typeInfoString == null) {
 			throw new IllegalArgumentException("Type information string must not be null.");
 		}
 		return returns(TypeInfoParser.<OUT>parse(typeInfoString));
-	}
-	
-	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
-	 * 
-	 * <p>
-	 * This method takes an instance of {@link org.apache.flink.api.common.typeinfo.TypeInformation} such as:
-	 * 
-	 * <ul>
-	 * <li>{@link org.apache.flink.api.common.typeinfo.BasicTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.TupleTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.PojoTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.WritableTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.ValueTypeInfo}</li>
-	 * <li>etc.</li>
-	 * </ul>
-	 *
-	 * @param typeInfo
-	 *            type information as a return type hint
-	 * @return This operator with a given return type hint.
-	 */
-	public O returns(TypeInformation<OUT> typeInfo) {
-		if (typeInfo == null) {
-			throw new IllegalArgumentException("Type information must not be null.");
-		}
-		fillInType(typeInfo);
-		
-		@SuppressWarnings("unchecked")
-		O returnType = (O) this;
-		return returnType;
-	}
-	
-	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
-	 * 
-	 * <p>
-	 * This method takes a class that will be analyzed by Flink's type extraction capabilities.
-	 * 
-	 * <p>
-	 * Examples for classes are:
-	 * <ul>
-	 * <li>Basic types such as <code>Integer.class</code>, <code>String.class</code>, etc.</li>
-	 * <li>POJOs such as <code>MyPojo.class</code></li>
-	 * <li>Classes that <b>extend</b> tuples. Classes like <code>Tuple1.class</code>,<code>Tuple2.class</code>, etc. are <b>not</b> sufficient.</li>
-	 * <li>Arrays such as <code>String[].class</code>, etc.</li>
-	 * </ul>
-	 *
-	 * @param typeClass
-	 *            class as a return type hint
-	 * @return This operator with a given return type hint.
-	 */
-	@SuppressWarnings("unchecked")
-	public O returns(Class<OUT> typeClass) {
-		if (typeClass == null) {
-			throw new IllegalArgumentException("Type class must not be null.");
-		}
-		
-		try {
-			TypeInformation<OUT> ti = (TypeInformation<OUT>) TypeExtractor.createTypeInfo(typeClass);
-			return returns(ti);
-		}
-		catch (InvalidTypesException e) {
-			throw new InvalidTypesException("The given class is not suited for providing necessary type information.", e);
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

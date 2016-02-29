@@ -20,14 +20,16 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * {@code SingleOutputStreamOperator} represents a user defined transformation
@@ -152,6 +154,83 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return setChainingStrategy(ChainingStrategy.HEAD);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Type hinting
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>Classes can be used as type hints for non-generic types (classes without generic parameters),
+	 * but not for generic types like for example Tuples. For those generic types, please
+	 * use the {@link #returns(TypeHint)} method.
+	 *
+	 * @param typeClass The class of the returned data type.
+	 * @return This operator with the type information corresponding to the given type class.
+	 */
+	public SingleOutputStreamOperator<T> returns(Class<T> typeClass) {
+		requireNonNull(typeClass, "type class must not be null.");
+
+		try {
+			return returns(TypeInformation.of(typeClass));
+		}
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("Cannot infer the type information from the class alone." +
+					"This is most likely because the class represents a generic type. In that case," +
+					"please use the 'returns(TypeHint)' method instead.");
+		}
+	}
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>Use this method the following way:
+	 * <pre>{@code
+	 *     DataStream<Tuple2<String, Double>> result = 
+	 *         stream.flatMap(new FunctionWithNonInferrableReturnType())
+	 *               .returns(new TypeHint<Tuple2<String, Double>>(){});
+	 * }</pre>
+	 *
+	 * @param typeHint The type hint for the returned data type.
+	 * @return This operator with the type information corresponding to the given type hint.
+	 */
+	public SingleOutputStreamOperator<T> returns(TypeHint<T> typeHint) {
+		requireNonNull(typeHint, "TypeHint must not be null");
+
+		try {
+			return returns(TypeInformation.of(typeHint));
+		}
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("Cannot infer the type information from the type hint. " +
+					"Make sure that the TypeHint does not use any generic type variables.");
+		}
+	}
+
+	/**
+	 * Adds a type information hint about the return type of this operator. This method
+	 * can be used in cases where Flink cannot determine automatically what the produced
+	 * type of a function is. That can be the case if the function uses generic type variables
+	 * in the return type that cannot be inferred from the input type.
+	 *
+	 * <p>In most cases, the methods {@link #returns(Class)} and {@link #returns(TypeHint)}
+	 * are preferable.
+	 *
+	 * @param typeInfo type information as a return type hint
+	 * @return This operator with a given return type hint.
+	 */
+	public SingleOutputStreamOperator<T> returns(TypeInformation<T> typeInfo) {
+		requireNonNull(typeInfo, "TypeInformation must not be null");
+		
+		transformation.setOutputType(typeInfo);
+		return this;
+	}
+	
 	/**
 	 * Adds a type information hint about the return type of this operator. 
 	 * 
@@ -186,7 +265,11 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @param typeInfoString
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
+	 * 
+	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public SingleOutputStreamOperator<T> returns(String typeInfoString) {
 		if (typeInfoString == null) {
 			throw new IllegalArgumentException("Type information string must not be null.");
@@ -194,74 +277,9 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return returns(TypeInfoParser.<T>parse(typeInfoString));
 	}
 	
-	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
-	 * 
-	 * <p>
-	 * This method takes an instance of {@link org.apache.flink.api.common.typeinfo.TypeInformation} such as:
-	 * 
-	 * <ul>
-	 * <li>{@link org.apache.flink.api.common.typeinfo.BasicTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.TupleTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.PojoTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.WritableTypeInfo}</li>
-	 * <li>{@link org.apache.flink.api.java.typeutils.ValueTypeInfo}</li>
-	 * <li>etc.</li>
-	 * </ul>
-	 *
-	 * @param typeInfo type information as a return type hint
-	 * @return This operator with a given return type hint.
-	 */
-	public SingleOutputStreamOperator<T> returns(TypeInformation<T> typeInfo) {
-		if (typeInfo == null) {
-			throw new IllegalArgumentException("Type information must not be null.");
-		}
-		transformation.setOutputType(typeInfo);
-		return this;
-	}
-	
-	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
-	 * 
-	 * <p>
-	 * This method takes a class that will be analyzed by Flink's type extraction capabilities.
-	 * 
-	 * <p>
-	 * Examples for classes are:
-	 * <ul>
-	 * <li>Basic types such as <code>Integer.class</code>, <code>String.class</code>, etc.</li>
-	 * <li>POJOs such as <code>MyPojo.class</code></li>
-	 * <li>Classes that <b>extend</b> tuples. Classes like <code>Tuple1.class</code>,<code>Tuple2.class</code>, etc. are <b>not</b> sufficient.</li>
-	 * <li>Arrays such as <code>String[].class</code>, etc.</li>
-	 * </ul>
-	 *
-	 * @param typeClass
-	 *            class as a return type hint
-	 * @return This operator with a given return type hint.
-	 */
-	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<T> returns(Class<T> typeClass) {
-		if (typeClass == null) {
-			throw new IllegalArgumentException("Type class must not be null.");
-		}
-		
-		try {
-			TypeInformation<T> ti = (TypeInformation<T>) TypeExtractor.createTypeInfo(typeClass);
-			return returns(ti);
-		}
-		catch (InvalidTypesException e) {
-			throw new InvalidTypesException("The given class is not suited for providing necessary type information.", e);
-		}
-	}
+	// ------------------------------------------------------------------------
+	//  Miscellaneous
+	// ------------------------------------------------------------------------
 
 	@Override
 	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
