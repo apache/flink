@@ -19,7 +19,6 @@
 package org.apache.flink.api.table.plan
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.schema.impl.AbstractTable
@@ -32,7 +31,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.{TableTable, DataSetTable}
+import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.plan.schema.DataStreamTable
 
 object TranslationContext {
 
@@ -113,6 +113,16 @@ object TranslationContext {
       case None =>
         false
     }
+  }
+
+  /**
+   * Adds a stream Table to the tables registry so it can be used by
+   * the streaming Table API.
+   */
+  def addDataStream(newTable: DataStreamTable[_]): String = {
+    val tabName = "_DataStreamTable_" + nameCntr.getAndIncrement()
+    tables.add(tabName, newTable)
+    tabName
   }
 
   def getUniqueName: String = {
