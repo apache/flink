@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.table
 
+import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.{RelTraitSet, RelOptUtil}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -75,7 +76,17 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     // optimize the logical Flink plan
     val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
     val flinkOutputProps = RelTraitSet.createEmpty()
-    val optPlan = optProgram.run(planner, decorPlan, flinkOutputProps)
+
+    val optPlan = try {
+      optProgram.run(planner, decorPlan, flinkOutputProps)
+    }
+    catch {
+      case e: CannotPlanException =>
+        throw new PlanGenException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+          s"${RelOptUtil.toString(lPlan)}\n" +
+          "Please consider filing a bug report.", e)
+    }
 
     println("---------------")
     println("Optimized Plan:")
@@ -87,7 +98,17 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     val dataSetOutputProps = RelTraitSet.createEmpty()
       .plus(DataSetConvention.INSTANCE)
       .plus(RelCollations.of()).simplify()
-    val dataSetPlan = dataSetProgram.run(planner, optPlan, dataSetOutputProps)
+
+    val dataSetPlan = try {
+      dataSetProgram.run(planner, optPlan, dataSetOutputProps)
+    }
+    catch {
+      case e: CannotPlanException =>
+        throw new PlanGenException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+            s"${RelOptUtil.toString(lPlan)}\n" +
+            "Please consider filing a bug report.", e)
+    }
 
     println("-------------")
     println("DataSet Plan:")
