@@ -38,9 +38,9 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -165,7 +165,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Windows this {@code KeyedStream} into tumbling time windows.
 	 *
 	 * <p>
-	 * This is a shortcut for either {@code .window(TumblingTimeWindows.of(size))} or
+	 * This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
@@ -176,7 +176,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(TumblingProcessingTimeWindows.of(size));
 		} else {
-			return window(TumblingTimeWindows.of(size));
+			return window(TumblingEventTimeWindows.of(size));
 		}
 	}
 
@@ -184,7 +184,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Windows this {@code KeyedStream} into sliding time windows.
 	 *
 	 * <p>
-	 * This is a shortcut for either {@code .window(SlidingTimeWindows.of(size, slide))} or
+	 * This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
 	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
@@ -195,7 +195,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return window(SlidingProcessingTimeWindows.of(size, slide));
 		} else {
-			return window(SlidingTimeWindows.of(size, slide));
+			return window(SlidingEventTimeWindows.of(size, slide));
 		}
 	}
 
