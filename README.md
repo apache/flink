@@ -1,10 +1,55 @@
 # Apache Flink
 
-Apache Flink is an open source platform for scalable batch and stream data processing. Flink supports batch and streaming analytics,
-in one system. Analytical programs can be written in concise and elegant APIs in Java and Scala.
+Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
 
+Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
+
+
+### Features
+
+* A streaming-first runtime that supports both batch processing and data streaming programs
+
+* Elegant and fluent APIs in Java and Scala
+
+* A runtime that supports very high throughput and low event latency at the same time
+
+* Support for *event time* and *out-of-order* processing in the DataStream API, based on the *Dataflow Model*
+
+* Flexible windowing (time, count, sessions, custom triggers) accross different time semantics (event time, processing time)
+
+* Fault-tolerance with *exactly-once* processing guarantees
+
+* Natural back-pressure in streaming programs.
+
+* Libraries for Graph processing (batch), Machine Learning (batch), and Complex Event Processing (streaming)
+
+* Built-in support for iterative programs (BSP) and in the DataSet (batch) API.
+
+* Custom memory management to for efficient and robust switching between in-memory and out-of-core data processing algorithms.
+
+* Compatibility layers for Apache Hadoop MapReduce and Apache Storm.
+
+* Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem.
+
+
+### Streaming Example
 ```scala
-case class WordWithCount(word: String, count: Int)
+case class WordWithCount(word: String, count: Long)
+
+val text = env.socketTextStream(host, port, '\n')
+
+val windowCounts = text.flatMap { w => w.split("\\s") }
+  .map { w => WordWithCount(w, 1) }
+  .keyBy("word")
+  .timeWindow(Time.seconds(5))
+  .sum("count")
+
+windowCounts.print()
+```
+
+### Batch Example
+```scala
+case class WordWithCount(word: String, count: Long)
 
 val text = env.readTextFile(path)
 
@@ -16,16 +61,6 @@ val counts = text.flatMap { _.split("\\W+") }
 counts.writeAsCsv(outputPath)
 ```
 
-These are some of the unique features of Flink:
-
-* Hybrid batch/streaming runtime that supports batch processing and data streaming programs.
-* Custom memory management to guarantee efficient, adaptive, and highly robust switching between in-memory and out-of-core data processing algorithms.
-* Flexible and expressive windowing semantics for data stream programs.
-* Built-in program optimizer that chooses the proper runtime operations for each program.
-* Custom type analysis and serialization stack for high performance.
-
-
-Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 
 ## Building Apache Flink from Source
@@ -34,21 +69,23 @@ Prerequisites for building Flink:
 
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
 * git
-* Maven (at least version 3.0.4)
+* Maven (we recommend version 3.0.4)
 * Java 7 or 8
 
 ```
 git clone https://github.com/apache/flink.git
 cd flink
-mvn clean package -DskipTests # this will take up to 5 minutes
+mvn clean package -DskipTests # this will take up to 10 minutes
 ```
 
 Flink is now installed in `build-target`
 
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.0.3 creates the libraries properly.*
 
 ## Developing Flink
 
 The Flink committers use IntelliJ IDEA and Eclipse IDE to develop the Flink codebase.
+We recommend IntelliJ IDEA for developing projects that involve Scala code.
 
 Minimal requirements for an IDE are:
 * Support for Java and Scala (also mixed projects)
