@@ -179,7 +179,9 @@ public class StackTraceSampleCoordinator {
 										pending.getSampleId());
 
 								pending.discard(new RuntimeException("Time out"));
-								pendingSamples.remove(pending.getSampleId());
+								if (pendingSamples.remove(pending.getSampleId()) != null) {
+									rememberRecentSampleId(pending.getSampleId());
+								}
 							}
 						}
 					} catch (Throwable t) {
@@ -319,7 +321,9 @@ public class StackTraceSampleCoordinator {
 							sampleId, executionId);
 				}
 			} else {
-				throw new IllegalStateException("Unknown sample ID " + sampleId);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Unknown sample ID " + sampleId);
+				}
 			}
 		}
 	}
