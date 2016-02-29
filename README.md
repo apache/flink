@@ -19,17 +19,17 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 * Fault-tolerance with *exactly-once* processing guarantees
 
-* Natural back-pressure in streaming programs.
+* Natural back-pressure in streaming programs
 
 * Libraries for Graph processing (batch), Machine Learning (batch), and Complex Event Processing (streaming)
 
-* Built-in support for iterative programs (BSP) and in the DataSet (batch) API.
+* Built-in support for iterative programs (BSP) in the DataSet (batch) API
 
-* Custom memory management to for efficient and robust switching between in-memory and out-of-core data processing algorithms.
+* Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 
-* Compatibility layers for Apache Hadoop MapReduce and Apache Storm.
+* Compatibility layers for Apache Hadoop MapReduce and Apache Storm
 
-* Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem.
+* Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem
 
 
 ### Streaming Example
@@ -53,8 +53,8 @@ case class WordWithCount(word: String, count: Long)
 
 val text = env.readTextFile(path)
 
-val counts = text.flatMap { _.split("\\W+") }
-  .map { WordWithCount(_, 1) }
+val counts = text.flatMap { w => w.split("\\s") }
+  .map { w => WordWithCount(w, 1) }
   .groupBy("word")
   .sum("count")
 
