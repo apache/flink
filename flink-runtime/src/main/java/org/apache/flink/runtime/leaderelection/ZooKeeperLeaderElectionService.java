@@ -148,7 +148,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	@Override
 	public boolean hasLeadership() {
-        return leaderLatch.hasLeadership();
+		return leaderLatch.hasLeadership();
 	}
 
 	@Override
