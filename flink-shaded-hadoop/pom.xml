@@ -117,6 +117,7 @@ under the License.
 									<include>io.netty:netty:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
+									<include>org.htrace:htrace-core</include>
 
 									<!-- This dependency needs to be included to properly get rid of the HTTP Components dependency -->
 									<include>net.java.dev.jets3t:jets3t</include>
@@ -151,6 +152,10 @@ under the License.
 								<relocation>
 									<pattern>org.apache.commons.httpclient</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.commons.httpclient</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.htrace</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.htrace</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
