@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.{AbstractTableEnvironment, Table}
+import org.apache.flink.streaming.api.scala.DataStream
 
 /**
  * Environment for working with the Table API.
@@ -85,6 +86,41 @@ class TableEnvironment extends AbstractTableEnvironment {
    */
   def registerDataSet[T](name: String, dataset: DataSet[T], fields: Expression*): Unit = {
     registerDataSetInternal(name, dataset.javaSet, fields.toArray)
+  }
+
+    /**
+   * Converts the [[DataStream]] to a [[Table]]. The field names can be specified like this:
+   *
+   * {{{
+   *   val in: DataStream[(String, Int)] = ...
+   *   val table = in.as('a, 'b)
+   * }}}
+   *
+   * This results in a [[Table]] that has field `a` of type `String` and field `b`
+   * of type `Int`.
+   */
+  def fromDataStream[T](set: DataStream[T], fields: Expression*): Table = {
+    new ScalaStreamTranslator(config).createTable(set, fields.toArray)
+  }
+
+  /**
+   * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
+   * The fields of the DataSet type are used to name the
+   * [[org.apache.flink.api.table.Table]] fields.
+   */
+  def fromDataStream[T](set: DataStream[T]): Table = {
+    new ScalaStreamTranslator(config).createTable(set)
+  }
+
+  /**
+   * Converts the given [[org.apache.flink.api.table.Table]] to
+   * a DataStream. The given type must have exactly the same field types and field order as the
+   * [[org.apache.flink.api.table.Table]]. Row and tuple types can be mapped by position.
+   * POJO types require name equivalence to be mapped correctly as their fields do not have
+   * an order.
+   */
+  def toDataStream[T: TypeInformation](table: Table): DataStream[T] = {
+     new ScalaStreamTranslator(config).translate[T](table.relNode)
   }
 
 }

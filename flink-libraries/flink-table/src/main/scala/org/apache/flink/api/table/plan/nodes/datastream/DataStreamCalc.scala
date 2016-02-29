@@ -16,27 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.dataset
+package org.apache.flink.api.table.plan.nodes.datastream
 
-import org.apache.calcite.plan.{RelOptPlanner, RelOptCost, RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.FlinkCalc
-import org.apache.flink.api.table.typeutils.TypeConverter
-import TypeConverter._
-import org.apache.flink.api.table.TableConfig
-import org.apache.calcite.rex._
+import org.apache.flink.api.table.typeutils.TypeConverter._
+import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
-  * Flink RelNode which matches along with LogicalCalc.
+  * Flink RelNode which matches along with FlatMapOperator.
   *
   */
-class DataSetCalc(
+class DataStreamCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
@@ -45,18 +43,19 @@ class DataSetCalc(
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc
-  with DataSetRel {
+  with DataStreamRel {
 
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataSetCalc(
+    new DataStreamCalc(
       cluster,
       traitSet,
       inputs.get(0),
       rowType,
       calcProgram,
-      ruleDescription)
+      ruleDescription
+    )
   }
 
   override def toString: String = calcToString(calcProgram, getExpressionString(_, _, _))
@@ -69,30 +68,10 @@ class DataSetCalc(
         calcProgram.getCondition != null)
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
-
-    val child = this.getInput
-    val rowCnt = RelMetadataQuery.getRowCount(child)
-    val exprCnt = calcProgram.getExprCount
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * exprCnt, 0)
-  }
-
-  override def getRows: Double = {
-    val child = this.getInput
-    val rowCnt = RelMetadataQuery.getRowCount(child)
-
-    if (calcProgram.getCondition != null) {
-      // we reduce the result card to push filters down
-      (rowCnt * 0.75).min(1.0)
-    } else {
-      rowCnt
-    }
-  }
-
   override def translateToPlan(config: TableConfig,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config)
+    val inputDataStream = input.asInstanceOf[DataStreamRel].translateToPlan(config)
 
     val returnType = determineReturnType(
       getRowType,
@@ -100,11 +79,11 @@ class DataSetCalc(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    val generator = new CodeGenerator(config, inputDS.getType)
+    val generator = new CodeGenerator(config, inputDataStream.getType)
 
     val body = functionBody(
       generator,
-      inputDS.getType,
+      inputDataStream.getType,
       getRowType,
       calcProgram,
       config,
@@ -117,7 +96,6 @@ class DataSetCalc(
       returnType)
 
     val mapFunc = calcMapFunction(genFunction)
-    inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
+    inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
   }
-
 }

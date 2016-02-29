@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.dataset
+package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.plan.nodes.FlinkRel
+import org.apache.flink.streaming.api.datastream.DataStream
 
-import scala.collection.JavaConversions._
-
-trait DataSetRel extends RelNode with FlinkRel {
+trait DataStreamRel extends RelNode with FlinkRel {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
@@ -39,30 +35,12 @@ trait DataSetRel extends RelNode with FlinkRel {
     *                     expected type is a RowTypeInfo this method will return a DataSet of
     *                     type Row. If the expected type is Tuple2, the operator will return
     *                     a Tuple2 if possible. Row otherwise.
-    * @return DataSet of type expectedType or RowTypeInfo
+    * @return DataStream of type expectedType or RowTypeInfo
     */
   def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]] = None)
-    : DataSet[Any]
-
-  private[flink] def estimateRowSize(rowType: RelDataType): Double = {
-
-    rowType.getFieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
-      t match {
-        case SqlTypeName.TINYINT => s + 1
-        case SqlTypeName.SMALLINT => s + 2
-        case SqlTypeName.INTEGER => s + 4
-        case SqlTypeName.BIGINT => s + 8
-        case SqlTypeName.BOOLEAN => s + 1
-        case SqlTypeName.FLOAT => s + 4
-        case SqlTypeName.DOUBLE => s + 8
-        case SqlTypeName.VARCHAR => s + 12
-        case SqlTypeName.CHAR => s + 1
-        case _ => throw new IllegalArgumentException("Unsupported data type encountered")
-      }
-    }
-
-  }
+    : DataStream[Any]
 
 }
+

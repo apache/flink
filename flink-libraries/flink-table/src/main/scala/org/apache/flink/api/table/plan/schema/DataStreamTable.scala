@@ -18,34 +18,20 @@
 
 package org.apache.flink.api.table.plan.schema
 
-import java.lang.Double
-import java.util
-import java.util.Collections
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.streaming.api.datastream.DataStream
 
-import org.apache.calcite.rel.{RelCollation, RelDistribution}
-import org.apache.calcite.schema.Statistic
-import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.api.java.DataSet
-
-class DataSetTable[T](
-    val dataSet: DataSet[T],
+class DataStreamTable[T](
+    val dataStream: DataStream[T],
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String])
-  extends FlinkTable[T](dataSet.getType, fieldIndexes, fieldNames) {
+  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames) {
 
-  override def getStatistic: Statistic = {
-    new DefaultDataSetStatistic
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    val builder = typeFactory.builder
+    fieldNames.zip(fieldTypes)
+      .foreach( f => builder.add(f._1, f._2).nullable(true) )
+    builder.build
   }
 
-}
-
-class DefaultDataSetStatistic extends Statistic {
-
-  override def getRowCount: Double = 1000d
-
-  override def getCollations: util.List[RelCollation] = Collections.emptyList()
-
-  override def isKey(columns: ImmutableBitSet): Boolean = false
-
-  override def getDistribution: RelDistribution = null
 }
