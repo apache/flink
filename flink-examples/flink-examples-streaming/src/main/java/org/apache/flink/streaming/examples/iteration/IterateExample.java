@@ -58,7 +58,6 @@ public class IterateExample {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("  Usage: IterateExample --input <path> --output <path>");
 
 		// set up input for the stream of integer pairs
 

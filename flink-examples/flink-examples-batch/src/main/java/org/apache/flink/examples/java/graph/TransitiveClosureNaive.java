@@ -18,7 +18,6 @@
 
 package org.apache.flink.examples.java.graph;
 
-import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -34,13 +33,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 @SuppressWarnings("serial")
-public class TransitiveClosureNaive implements ProgramDescription {
+public class TransitiveClosureNaive {
 
 	public static void main (String... args) throws Exception {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: TransitiveClosure --edges <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -117,10 +115,4 @@ public class TransitiveClosureNaive implements ProgramDescription {
 			transitiveClosure.print();
 		}
 	}
-
-	@Override
-	public String getDescription() {
-		return "Parameters: --edges <path> --output <path> --iterations <n>";
-	}
-
 }

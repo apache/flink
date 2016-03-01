@@ -48,7 +48,6 @@ object WordCount {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    System.out.println("Usage: WordCount --input <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -78,7 +77,6 @@ object WordCount {
     }
 
   }
-
 }
 
 

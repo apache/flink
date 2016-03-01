@@ -53,7 +53,6 @@ public class WindowWordCount {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("  Usage: WindowWordCount --input <path> --output <path> --window <n> --slide <n>");
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -96,5 +95,4 @@ public class WindowWordCount {
 		// execute program
 		env.execute("WindowWordCount");
 	}
-
 }

@@ -66,8 +66,6 @@ object ConnectedComponents {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: ConnectedComponents " +
-      "--vertices <path> --edges <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -151,5 +149,4 @@ object ConnectedComponents {
       env.fromCollection(edgeData)
     }
   }
-
 }

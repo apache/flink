@@ -102,7 +102,8 @@ public class DistCp {
 
 
 		FlatMapOperator<FileCopyTask, Object> res = inputTasks.flatMap(new RichFlatMapFunction<FileCopyTask, Object>() {
-			
+
+			private static final long serialVersionUID = 1109254230243989929L;
 			private LongCounter fileCounter;
 			private LongCounter bytesCounter;
 
@@ -185,5 +186,4 @@ public class DistCp {
 			}
 		}
 	}
-
 }

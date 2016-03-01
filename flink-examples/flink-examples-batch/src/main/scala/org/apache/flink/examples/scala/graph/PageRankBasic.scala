@@ -75,8 +75,6 @@ object PageRankBasic {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: PageRankBasic " +
-      "--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -183,5 +181,4 @@ object PageRankBasic {
       env.fromCollection(edges)
     }
   }
-
 }

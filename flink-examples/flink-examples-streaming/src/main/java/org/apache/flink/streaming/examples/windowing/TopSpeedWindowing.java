@@ -53,7 +53,6 @@ public class TopSpeedWindowing {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.err.println("Usage: TopSpeedWindowingExample --input <path> --output <path>");
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);

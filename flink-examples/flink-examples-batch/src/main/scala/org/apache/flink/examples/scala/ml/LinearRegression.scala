@@ -64,7 +64,6 @@ object LinearRegression {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: LinearRegression --input <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -157,5 +156,4 @@ object LinearRegression {
       (Params(theta0, theta1), 1)
     }
   }
-
 }

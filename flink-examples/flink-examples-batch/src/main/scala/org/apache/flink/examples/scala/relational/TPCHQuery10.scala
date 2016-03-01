@@ -175,5 +175,4 @@ object TPCHQuery10 {
         fieldDelimiter = "|",
         includedFields = Array(0, 1) )
   }
-  
 }

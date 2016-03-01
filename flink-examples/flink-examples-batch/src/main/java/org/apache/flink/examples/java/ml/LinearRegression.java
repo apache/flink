@@ -73,7 +73,6 @@ public class LinearRegression {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: LinearRegression --input <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

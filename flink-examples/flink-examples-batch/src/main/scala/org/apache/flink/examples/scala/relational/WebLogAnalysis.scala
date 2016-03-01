@@ -93,7 +93,6 @@ object WebLogAnalysis {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: --documents <path> --ranks <path> --visits <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
