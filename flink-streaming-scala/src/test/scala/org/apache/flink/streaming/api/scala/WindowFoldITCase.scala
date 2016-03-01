@@ -70,7 +70,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
     source1
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .fold(("R:", 0)){ (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
+      .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
         def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
@@ -117,7 +117,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
     source1
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .fold(("R:", 0)){ (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
+      .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
       .addSink(new SinkFunction[(String, Int)]() {
       def invoke(value: (String, Int)) {
         WindowFoldITCase.testResults += value.toString
