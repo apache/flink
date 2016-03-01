@@ -74,8 +74,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("a", 7));
 				ctx.collect(Tuple2.of("a", 8));
 
-				// so we get a final big watermark
-				ctx.collect(Tuple2.of("a", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override
@@ -96,8 +95,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("c", 7));
 				ctx.collect(Tuple2.of("c", 8));
 
-				// so we get a final big watermark
-				ctx.collect(Tuple2.of("a", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override
@@ -172,8 +170,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple3.of("a", "j", 7));
 				ctx.collect(Tuple3.of("a", "k", 8));
 
-				// so we get a final big watermark
-				ctx.collect(Tuple3.of("a", "k", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override
@@ -194,8 +191,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple3.of("a", "x", 6));
 				ctx.collect(Tuple3.of("a", "z", 8));
 
-				// so we get a final high watermark
-				ctx.collect(Tuple3.of("a", "z", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override
@@ -272,8 +268,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple3.of("a", "j", 7));
 				ctx.collect(Tuple3.of("a", "k", 8));
 
-				// so we get a final high watermark
-				ctx.collect(Tuple3.of("a", "k", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override

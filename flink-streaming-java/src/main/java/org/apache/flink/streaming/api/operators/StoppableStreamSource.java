@@ -41,7 +41,14 @@ public class StoppableStreamSource<OUT, SRC extends SourceFunction<OUT> & Stoppa
 		super(sourceFunction);
 	}
 
+	/**
+	 * Marks the source a stopped and calls {@link StoppableFunction#stop()} on the user function.
+	 */
 	public void stop() {
+		// important: marking the source as stopped has to happen before the function is stopped.
+		// the flag that tracks this status is volatile, so the memory model also guarantees
+		// the happens-before relationship
+		markCanceledOrStopped();
 		userFunction.stop();
 	}
 }

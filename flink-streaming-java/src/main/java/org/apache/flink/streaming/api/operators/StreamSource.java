@@ -42,14 +42,19 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	
 	private transient SourceFunction.SourceContext<OUT> ctx;
 
+	private transient volatile boolean canceledOrStopped = false;
+	
+	
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
+	
 	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
+		final SourceFunction.SourceContext<OUT> ctx;
 		
 		switch (timeCharacteristic) {
 			case EventTime:
@@ -66,19 +71,60 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				throw new Exception(String.valueOf(timeCharacteristic));
 		}
 
-		userFunction.run(ctx);
+		// copy to a field to give the 'cancel()' method access
+		this.ctx = ctx;
+		
+		try {
+			userFunction.run(ctx);
 
-		ctx.close();
+			// if we get here, then the user function either exited after being done (finite source)
+			// or the function was canceled or stopped. For the finite source case, we should emit
+			// a final watermark that indicates that we reached the end of event-time
+			if (!isCanceledOrStopped()) {
+				ctx.emitWatermark(Watermark.MAX_WATERMARK);
+			}
+		} finally {
+			// make sure that the context is closed in any case
+			ctx.close();
+		}
 	}
 
 	public void cancel() {
+		// important: marking the source as stopped has to happen before the function is stopped.
+		// the flag that tracks this status is volatile, so the memory model also guarantees
+		// the happens-before relationship
+		markCanceledOrStopped();
 		userFunction.cancel();
+		
 		// the context may not be initialized if the source was never running.
 		if (ctx != null) {
 			ctx.close();
 		}
 	}
+
+	/**
+	 * Marks this source as canceled or stopped.
+	 * 
+	 * <p>This indicates that any exit of the {@link #run(Object, Output)} method
+	 * cannot be interpreted as the result of a finite source.  
+	 */
+	protected void markCanceledOrStopped() {
+		this.canceledOrStopped = true;
+	}
 	
+	/**
+	 * Checks whether the source has been canceled or stopped. 
+	 * @return True, if the source is canceled or stopped, false is not.
+	 */
+	protected boolean isCanceledOrStopped() {
+		return canceledOrStopped;
+	}
+
+	/**
+	 * Checks whether any asynchronous thread (checkpoint trigger, timer, watermark generator, ...)
+	 * has caused an exception. If one of these threads caused an exception, this method will
+	 * throw that exception.
+	 */
 	void checkAsyncException() {
 		getContainingTask().checkTimerException();
 	}

@@ -18,15 +18,22 @@
 
 package org.apache.flink.runtime.minicluster
 
+import java.util
+
 import akka.actor.{ActorRef, ActorSystem}
+import org.apache.flink.api.common.JobID
 
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.messages.JobManagerMessages
+import org.apache.flink.runtime.messages.JobManagerMessages.{StoppingFailure, StoppingResponse, RunningJobsStatus, RunningJobs}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
+
+import scala.concurrent.Await
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -209,6 +216,36 @@ class LocalFlinkMiniCluster(
       JobManager.ARCHIVE_NAME + "_" + (index + 1)
     } else {
       JobManager.ARCHIVE_NAME
+    }
+  }
+  
+  // --------------------------------------------------------------------------
+  //  Actions on running jobs
+  // --------------------------------------------------------------------------
+  
+  def currentlyRunningJobs: Iterable[JobID] = {
+    val leader = getLeaderGateway(timeout)
+    val future = leader.ask(JobManagerMessages.RequestRunningJobsStatus, timeout)
+                       .mapTo[RunningJobsStatus]
+    Await.result(future, timeout).runningJobs.map(_.getJobId)
+  }
+
+  def getCurrentlyRunningJobsJava(): java.util.List[JobID] = {
+    val list = new java.util.ArrayList[JobID]()
+    currentlyRunningJobs.foreach(list.add)
+    list
+  }
+  
+  def stopJob(id: JobID) : Unit = {
+    val leader = getLeaderGateway(timeout)
+    val response = leader.ask(new JobManagerMessages.StopJob(id), timeout)
+                         .mapTo[StoppingResponse]
+    val rc = Await.result(response, timeout)
+
+    rc match {
+      case failure: StoppingFailure =>
+        throw new Exception(s"Stopping the job with ID $id failed.", failure.cause)
+      case _ =>
     }
   }
 }
