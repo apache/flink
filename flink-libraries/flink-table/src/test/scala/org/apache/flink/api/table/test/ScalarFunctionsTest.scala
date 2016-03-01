@@ -52,6 +52,33 @@ class ScalarFunctionsTest {
       "Thi")
   }
 
+  @Test
+  def testTrim(): Unit = {
+    testFunction(
+      'f8.trim(),
+      "f8.trim()",
+      "TRIM(f8)",
+      "This is a test String.")
+
+    testFunction(
+      'f8.trim(removeLeading = true, removeTrailing = true, " "),
+      "trim(f8)",
+      "TRIM(f8)",
+      "This is a test String.")
+
+    testFunction(
+      'f8.trim(removeLeading = false, removeTrailing = true, " "),
+      "f8.trim(TRAILING, ' ')",
+      "TRIM(TRAILING FROM f8)",
+      " This is a test String.")
+
+    testFunction(
+      'f0.trim(removeLeading = true, removeTrailing = true, "."),
+      "trim(BOTH, '.', f0)",
+      "TRIM(BOTH '.' FROM f0)",
+      "This is a test String")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testFunction(
@@ -59,7 +86,7 @@ class ScalarFunctionsTest {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    val testData = new Row(8)
+    val testData = new Row(9)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -68,6 +95,7 @@ class ScalarFunctionsTest {
     testData.setField(5, 4.5.toFloat)
     testData.setField(6, 4.6)
     testData.setField(7, 3)
+    testData.setField(8, " This is a test String. ")
 
     val typeInfo = new RowTypeInfo(Seq(
       STRING_TYPE_INFO,
@@ -77,7 +105,8 @@ class ScalarFunctionsTest {
       LONG_TYPE_INFO,
       FLOAT_TYPE_INFO,
       DOUBLE_TYPE_INFO,
-      INT_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
 
     val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
     assertEquals(expected, exprResult)
@@ -88,7 +117,8 @@ class ScalarFunctionsTest {
       ExpressionParser.parseExpression(exprString))
     assertEquals(expected, exprStringResult)
 
-    // TODO test SQL expression
+    val exprSqlResult = ExpressionEvaluator.evaluate(testData, typeInfo, sqlExpr)
+    assertEquals(expected, exprSqlResult)
   }
 
 

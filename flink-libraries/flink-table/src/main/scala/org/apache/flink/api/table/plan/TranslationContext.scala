@@ -20,14 +20,17 @@ package org.apache.flink.api.table.plan
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.tools.{Frameworks, RelBuilder}
+import org.apache.calcite.sql.parser.SqlParser
+import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
 object TranslationContext {
 
+  private var frameworkConfig: FrameworkConfig = null
   private var relBuilder: RelBuilder = null
   private var tables: SchemaPlus = null
   private var tabNames: Map[AbstractTable, String] = null
@@ -40,10 +43,17 @@ object TranslationContext {
     // register table in Cascading schema
     tables = Frameworks.createRootSchema(true)
 
+    // TODO move this to TableConfig when we implement full SQL support
+    // configure sql parser
+    // we use Java lex because back ticks are easier than double quotes in programming
+    // and cases are preserved
+    val parserConfig = SqlParser.configBuilder().setLex(Lex.JAVA).build()
+
     // initialize RelBuilder
-    val frameworkConfig = Frameworks
+    frameworkConfig = Frameworks
       .newConfigBuilder
       .defaultSchema(tables)
+      .parserConfig(parserConfig)
       .traitDefs(ConventionTraitDef.INSTANCE)
       .build
 
@@ -76,6 +86,10 @@ object TranslationContext {
 
   def getRelBuilder: RelBuilder = {
     relBuilder
+  }
+
+  def getFrameworkConfig: FrameworkConfig = {
+    frameworkConfig
   }
 
 }

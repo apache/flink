@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.scala.table
 
-import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions._
 
 import scala.language.implicitConversions
 
@@ -63,17 +63,67 @@ trait ImplicitExpressionOperations {
   def count = Count(expr)
   def avg = Avg(expr)
 
-  def substring(beginIndex: Expression, endIndex: Expression) = {
-    Substring(expr, beginIndex, Some(endIndex))
-  }
-
-  def substring(beginIndex: Expression) = {
-    Substring(expr, beginIndex)
-  }
-
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)
 
   def as(name: Symbol) = Naming(expr, name.name)
+
+  // scalar functions
+
+  /**
+    * Creates a substring of the given string between the given indices.
+    *
+    * @param beginIndex first character of the substring (starting at 1, inclusive)
+    * @param endIndex last character of the substring (starting at 1, inclusive)
+    * @return substring
+    */
+  def substring(beginIndex: Expression, endIndex: Expression) = {
+    Call(BuiltInFunctionNames.SUBSTRING, expr, beginIndex, endIndex)
+  }
+
+  /**
+    * Creates a substring of the given string beginning at the given index to the end.
+    *
+    * @param beginIndex first character of the substring (starting at 1, inclusive)
+    * @return substring
+    */
+  def substring(beginIndex: Expression) = {
+    Call(BuiltInFunctionNames.SUBSTRING, expr, beginIndex)
+  }
+
+  /**
+    * Removes leading and/or trailing characters from the given string.
+    *
+    * @param removeLeading if true, remove leading characters (default: true)
+    * @param removeTrailing if true, remove trailing characters (default: true)
+    * @param character String containing the character (default: " ")
+    * @return trimmed string
+    */
+  def trim(
+      removeLeading: Boolean = true,
+      removeTrailing: Boolean = true,
+      character: Expression = BuiltInFunctionConstants.TRIM_DEFAULT_CHAR) = {
+    if (removeLeading && removeTrailing) {
+      Call(
+        BuiltInFunctionNames.TRIM,
+        BuiltInFunctionConstants.TRIM_BOTH,
+        character,
+        expr)
+    } else if (removeLeading) {
+      Call(
+        BuiltInFunctionNames.TRIM,
+        BuiltInFunctionConstants.TRIM_LEADING,
+        character,
+        expr)
+    } else if (removeTrailing) {
+      Call(
+        BuiltInFunctionNames.TRIM,
+        BuiltInFunctionConstants.TRIM_TRAILING,
+        character,
+        expr)
+    } else {
+      expr
+    }
+  }
 }
 
 /**

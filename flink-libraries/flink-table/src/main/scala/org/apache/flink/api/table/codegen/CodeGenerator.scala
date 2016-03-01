@@ -19,7 +19,7 @@
 package org.apache.flink.api.table.codegen
 
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.{SqlLiteral, SqlOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
@@ -576,6 +576,9 @@ class CodeGenerator(
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case NULL =>
         generateNullLiteral(resultType)
+      case SYMBOL =>
+        val symbolOrdinal = value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
+        generateNonNullLiteral(resultType, symbolOrdinal.toString)
       case _ => ??? // TODO more types
     }
   }

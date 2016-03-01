@@ -40,7 +40,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     ("""(?i)\Q""" + kw.key + """\E""").r
   }
 
-  // KeyWord
+  // Keyword
 
   lazy val AS: Keyword = Keyword("as")
   lazy val COUNT: Keyword = Keyword("count")
@@ -90,7 +90,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val atom: PackratParser[Expression] =
     ( "(" ~> expression <~ ")" ) | literalExpr | fieldReference
 
-  // suffix ops
+  // suffix operators
+
   lazy val isNull: PackratParser[Expression] = atom <~ ".isNull" ^^ { e => IsNull(e) }
   lazy val isNotNull: PackratParser[Expression] = atom <~ ".isNotNull" ^^ { e => IsNotNull(e) }
 
@@ -120,26 +121,79 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     atom <~ ".cast(DATE)" ^^ { e => Cast(e, BasicTypeInfo.DATE_TYPE_INFO) }
 
   lazy val as: PackratParser[Expression] = atom ~ ".as(" ~ fieldReference ~ ")" ^^ {
-    case e ~ _ ~ as ~ _ => Naming(e, as.name)
+    case e ~ _ ~ target ~ _ => Naming(e, target.name)
   }
 
-  lazy val substring: PackratParser[Expression] =
-    atom ~ ".substring(" ~ expression ~ "," ~ expression ~ ")" ^^ {
-      case e ~ _ ~ from ~ _ ~ to ~ _ => Substring(e, from, Some(to))
+  // general function calls
 
-    }
+  lazy val functionCall = ident ~ "(" ~ rep1sep(expression, ",") ~ ")" ^^ {
+    case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args: _*)
+  }
 
-  lazy val substringWithoutEnd: PackratParser[Expression] =
-    atom ~ ".substring(" ~ expression ~ ")" ^^ {
-      case e ~ _ ~ from ~ _ => Substring(e, from)
+  lazy val functionCallWithoutArgs = ident ~ "()" ^^ {
+    case name ~ _ => Call(name.toUpperCase)
+  }
 
-    }
+  lazy val suffixFunctionCall = atom ~ "." ~ ident ~ "(" ~ rep1sep(expression, ",") ~ ")" ^^ {
+    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args : _*)
+  }
+
+  lazy val suffixFunctionCallWithoutArgs = atom ~ "." ~ ident ~ "()" ^^ {
+    case operand ~ _ ~ name ~ _ => Call(name.toUpperCase, operand)
+  }
+
+  // special calls
+
+  lazy val specialFunctionCalls = trim | trimWithoutArgs
+
+  lazy val specialSuffixFunctionCalls = suffixTrim | suffixTrimWithoutArgs
+
+  lazy val trimWithoutArgs = "trim(" ~ expression ~ ")" ^^ {
+    case _ ~ operand ~ _ =>
+      Call(
+        BuiltInFunctionNames.TRIM,
+        BuiltInFunctionConstants.TRIM_BOTH,
+        BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
+        operand)
+  }
+
+  lazy val suffixTrimWithoutArgs = atom ~ ".trim()" ^^ {
+    case operand ~ _ =>
+      Call(
+        BuiltInFunctionNames.TRIM,
+        BuiltInFunctionConstants.TRIM_BOTH,
+        BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
+        operand)
+  }
+
+  lazy val trim = "trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~ expression ~
+      "," ~ expression ~ ")" ^^ {
+    case _ ~ trimType ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
+      val flag = trimType match {
+        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
+        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
+        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
+      }
+      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+  }
+
+  lazy val suffixTrim = atom ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
+      expression ~ ")" ^^ {
+    case operand ~ _ ~ trimType ~ _ ~ trimCharacter ~ _ =>
+      val flag = trimType match {
+        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
+        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
+        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
+      }
+      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+  }
 
   lazy val suffix =
     isNull | isNotNull |
       abs | sum | min | max | count | avg | cast |
-      substring | substringWithoutEnd | atom
-
+      specialFunctionCalls |functionCall | functionCallWithoutArgs |
+      specialSuffixFunctionCalls | suffixFunctionCall | suffixFunctionCallWithoutArgs |
+      atom
 
   // unary ops
 
