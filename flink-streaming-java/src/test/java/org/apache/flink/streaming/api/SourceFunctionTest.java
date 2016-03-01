@@ -60,25 +60,4 @@ public class SourceFunctionTest {
 				7));
 		assertEquals(expectedList, actualList);
 	}
-
-// TODO: does not work because we cannot set the internal socket anymore
-//	@Test
-//	public void socketTextStreamTest() throws Exception {
-//		List<String> expectedList = Arrays.asList("a", "b", "c");
-//		List<String> actualList = new ArrayList<String>();
-//
-//		byte[] data = { 'a', '\n', 'b', '\n', 'c', '\n' };
-//
-//		Socket socket = mock(Socket.class);
-//		when(socket.getInputStream()).thenReturn(new ByteArrayInputStream(data));
-//		when(socket.isClosed()).thenReturn(false);
-//		when(socket.isConnected()).thenReturn(true);
-//
-//		SocketTextStreamFunction source = new SocketTextStreamFunction("", 0, '\n', 0);
-//		source.open(new Configuration());
-//		while (!source.reachedEnd()) {
-//			actualList.add(source.next());
-//		}
-//		assertEquals(expectedList, actualList);
-//	}
 }
