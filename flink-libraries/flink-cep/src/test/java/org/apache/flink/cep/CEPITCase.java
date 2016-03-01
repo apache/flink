@@ -296,9 +296,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(2, "end", 2.0), 8L),
 			Tuple2.of(new Event(1, "middle", 5.0), 7L),
 			Tuple2.of(new Event(3, "middle", 6.0), 9L),
-			Tuple2.of(new Event(3, "end", 7.0), 7L),
-			// last element for high final watermark
-			Tuple2.of(new Event(3, "end", 7.0), 100L)
+			Tuple2.of(new Event(3, "end", 7.0), 7L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
 
 			@Override

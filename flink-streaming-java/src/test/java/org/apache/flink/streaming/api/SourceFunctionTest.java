@@ -61,9 +61,9 @@ public class SourceFunctionTest {
 		assertEquals(expectedList, actualList);
 	}
 
-	@Test
-	public void socketTextStreamTest() throws Exception {
-		// TODO: does not work because we cannot set the internal socket anymore
+// TODO: does not work because we cannot set the internal socket anymore
+//	@Test
+//	public void socketTextStreamTest() throws Exception {
 //		List<String> expectedList = Arrays.asList("a", "b", "c");
 //		List<String> actualList = new ArrayList<String>();
 //
@@ -80,5 +80,5 @@ public class SourceFunctionTest {
 //			actualList.add(source.next());
 //		}
 //		assertEquals(expectedList, actualList);
-	}
+//	}
 }
