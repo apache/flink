@@ -166,7 +166,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
-  def fold[R: TypeInformation](initialValue: R, fun: (R,T) => R): DataStream[R] = {
+  def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
