@@ -91,27 +91,17 @@ trait ImplicitExpressionOperations {
   }
 
   /**
-    * Removes leading and trailing whitespaces from the given string.
-    *
-    * @return trimmed string
-    */
-  def trim() = {
-    Call(
-      BuiltInFunctionNames.TRIM,
-      BuiltInFunctionConstants.TRIM_BOTH,
-      BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
-      expr)
-  }
-
-  /**
     * Removes leading and/or trailing characters from the given string.
     *
-    * @param removeLeading if true, remove leading characters
-    * @param removeTrailing if true, remove trailing characters
-    * @param character String containing the character
+    * @param removeLeading if true, remove leading characters (default: true)
+    * @param removeTrailing if true, remove trailing characters (default: true)
+    * @param character String containing the character (default: " ")
     * @return trimmed string
     */
-  def trim(removeLeading: Boolean, removeTrailing: Boolean, character: Expression) = {
+  def trim(
+      removeLeading: Boolean = true,
+      removeTrailing: Boolean = true,
+      character: Expression = BuiltInFunctionConstants.TRIM_DEFAULT_CHAR) = {
     if (removeLeading && removeTrailing) {
       Call(
         BuiltInFunctionNames.TRIM,
