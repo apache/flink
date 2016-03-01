@@ -225,7 +225,6 @@ public class ZooKeeperUtils {
 			ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH,
 			ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
 
-
 		StateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
 			"completedCheckpoint");

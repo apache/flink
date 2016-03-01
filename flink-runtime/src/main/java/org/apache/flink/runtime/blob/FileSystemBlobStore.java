@@ -40,6 +40,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Blob store backed by {@link FileSystem}.
+ *
+ * <p>This is used in addition to the local blob storage
  */
 class FileSystemBlobStore implements BlobStore {
 
@@ -49,18 +51,15 @@ class FileSystemBlobStore implements BlobStore {
 	private final String basePath;
 
 	FileSystemBlobStore(Configuration config) throws IOException {
-		String stateBackendBasePath = config.getString(
-				ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "");
+		String recoveryPath = config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, null);
 
-		if (stateBackendBasePath.equals("")) {
+		if (recoveryPath == null) {
 			throw new IllegalConfigurationException(String.format("Missing configuration for " +
-				"file system state backend recovery path. Please specify via " +
-				"'%s' key.", ConfigConstants.ZOOKEEPER_RECOVERY_PATH));
+					"file system state backend recovery path. Please specify via " +
+					"'%s' key.", ConfigConstants.ZOOKEEPER_RECOVERY_PATH));
 		}
 
-		stateBackendBasePath += "/blob";
-
-		this.basePath = stateBackendBasePath;
+		this.basePath = recoveryPath + "/blob";
 
 		FileSystem.get(new Path(basePath).toUri()).mkdirs(new Path(basePath));
 		LOG.info("Created blob directory {}.", basePath);
