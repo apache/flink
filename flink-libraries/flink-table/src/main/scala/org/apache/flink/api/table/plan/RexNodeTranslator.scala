@@ -19,10 +19,13 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.table.expressions._
+
+import scala.collection.JavaConversions._
 
 object RexNodeTranslator {
 
@@ -54,19 +57,9 @@ object RexNodeTranslator {
         (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
 
       // Scalar functions
-      case s@Substring(_, _, Some(endIndex)) =>
-        val str = extractAggCalls(s.str, relBuilder)
-        val sta = extractAggCalls(s.beginIndex, relBuilder)
-        val end = extractAggCalls(endIndex, relBuilder)
-        (s.makeCopy(
-          List(str._1, sta._1, Some(end._1))),
-          (str._2 ::: sta._2) ::: end._2
-        )
-
-      case s@Substring(_, _, None) =>
-        val str = extractAggCalls(s.str, relBuilder)
-        val sta = extractAggCalls(s.beginIndex, relBuilder)
-        (s.makeCopy(List(str._1, sta._1, None)), str._2 ::: sta._2)
+      case c@Call(name, args@_*) =>
+        val newArgs = args.map(extractAggCalls(_, relBuilder)).toList
+        (c.makeCopy(name :: newArgs.map(_._1)), newArgs.flatMap(_._2))
 
       case e@AnyRef =>
         throw new IllegalArgumentException(
@@ -162,16 +155,10 @@ object RexNodeTranslator {
         relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, c)
 
       // Scalar functions
-      case Substring(string, start, Some(end)) =>
-        val str = toRexNode(string, relBuilder)
-        val sta = toRexNode(start, relBuilder)
-        val en = toRexNode(end, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.SUBSTRING, str, sta, en)
-
-      case Substring(string, start, None) =>
-        val str = toRexNode(string, relBuilder)
-        val sta = toRexNode(start, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.SUBSTRING, str, sta)
+      case Call(name, args@_*) =>
+        val rexArgs = args.map(toRexNode(_, relBuilder))
+        val sqlOperator = toSqlOperator(name)
+        relBuilder.call(sqlOperator, rexArgs)
 
       case a: Aggregation =>
         throw new IllegalArgumentException(s"Aggregation expression $a not allowed at this place")
@@ -195,6 +182,14 @@ object RexNodeTranslator {
         SqlStdOperatorTable.COUNT, false, null, name, rexNode)
       case a: Avg => relBuilder.aggregateCall(
         SqlStdOperatorTable.AVG, false, null, name, rexNode)
+    }
+  }
+
+  private def toSqlOperator(name: String): SqlOperator = {
+    name match {
+      case BuiltInFunctionNames.SUBSTRING => SqlStdOperatorTable.SUBSTRING
+      case BuiltInFunctionNames.TRIM => SqlStdOperatorTable.TRIM
+      case _ => ???
     }
   }
 

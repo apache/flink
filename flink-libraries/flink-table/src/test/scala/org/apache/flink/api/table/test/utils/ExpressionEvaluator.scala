@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.table.test.utils
 
+import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.tools.{Frameworks, RelBuilder}
 import org.apache.flink.api.common.functions.{Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -44,7 +45,7 @@ object ExpressionEvaluator {
       compile(getClass.getClassLoader, genFunc.name, genFunc.code)
   }
 
-  private def prepareRelBuilder(typeInfo: TypeInformation[Any]): RelBuilder = {
+  private def prepareTable(typeInfo: TypeInformation[Any]): (String, RelBuilder) = {
     // create DataSetTable
     val dataSetMock = mock(classOf[DataSet[Any]])
     when(dataSetMock.getType).thenReturn(typeInfo)
@@ -56,11 +57,27 @@ object ExpressionEvaluator {
     // prepare RelBuilder
     val relBuilder = TranslationContext.getRelBuilder
     relBuilder.scan(tableName)
-    relBuilder
+
+    (tableName, relBuilder)
+  }
+
+  def evaluate(data: Any, typeInfo: TypeInformation[Any], sqlExpr: String): String = {
+    // create DataSetTable
+    val table = prepareTable(typeInfo)
+
+    // create RelNode from SQL expression
+    val planner = Frameworks.getPlanner(TranslationContext.getFrameworkConfig)
+    val parsed = planner.parse("SELECT " + sqlExpr + " FROM " + table._1)
+    val validated = planner.validate(parsed)
+    val converted = planner.rel(validated)
+
+    val expr: RexNode = converted.rel.asInstanceOf[LogicalProject].getChildExps.get(0)
+
+    evaluate(data, typeInfo, table._2, expr)
   }
 
   def evaluate(data: Any, typeInfo: TypeInformation[Any], expr: Expression): String = {
-    val relBuilder = prepareRelBuilder(typeInfo)
+    val relBuilder = prepareTable(typeInfo)._2
     evaluate(data, typeInfo, relBuilder, RexNodeTranslator.toRexNode(expr, relBuilder))
   }
 
