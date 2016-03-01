@@ -100,17 +100,11 @@ public class BlobServer extends Thread implements BlobService {
 		if (recoveryMode == RecoveryMode.STANDALONE) {
 			this.blobStore = new VoidBlobStore();
 		}
-		// Recovery. Check that everything has been setup correctly. This is not clean, but it's
-		// better to resolve this with some upcoming changes to the state backend setup.
+		// Recovery.
 		else if (recoveryMode == RecoveryMode.ZOOKEEPER) {
-			if (config.containsKey(ConfigConstants.ZOOKEEPER_RECOVERY_PATH)) {
-				this.blobStore = new FileSystemBlobStore(config);
-			} else {
-				throw new IllegalConfigurationException("Missing '" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH
-						+ "' configuration key. Please configure a path for recovery files.");
-			}
+			this.blobStore = new FileSystemBlobStore(config);
 		} else {
-			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + "'.");
+			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + ".");
 		}
 
 		// configure the maximum number of concurrent connections
