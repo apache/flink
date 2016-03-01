@@ -102,7 +102,6 @@ public class WebLogAnalysis {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		System.out.println("Usage: WebLogAnalysis --documents <path> --ranks <path> --visits <path> --output <path>");
 
 		env.getConfig().setGlobalJobParameters(params);
 
@@ -147,7 +146,7 @@ public class WebLogAnalysis {
 			result.print();
 		}
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************

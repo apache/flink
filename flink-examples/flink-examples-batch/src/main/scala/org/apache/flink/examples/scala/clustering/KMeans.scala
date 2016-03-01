@@ -76,7 +76,6 @@ object KMeans {
 
     // checking input parameters
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
@@ -225,7 +224,6 @@ object KMeans {
     }
 
   }
-
 }
 
 

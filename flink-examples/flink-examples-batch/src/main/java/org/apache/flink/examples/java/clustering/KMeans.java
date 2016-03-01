@@ -82,7 +82,6 @@ public class KMeans {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

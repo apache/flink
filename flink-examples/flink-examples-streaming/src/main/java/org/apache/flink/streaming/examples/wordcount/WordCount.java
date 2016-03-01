@@ -56,7 +56,6 @@ public class WordCount {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: WordCount --input <path> --output <path>");
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

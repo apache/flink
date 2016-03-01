@@ -37,7 +37,6 @@ public class SessionWindowing {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		System.out.println("Usage: SessionWindowing --output <path>");
 
 		env.getConfig().setGlobalJobParameters(params);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);

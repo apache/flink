@@ -82,7 +82,6 @@ public class EnumTriangles {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: EnumTriangleBasic --edges <path> --output <path>");
 
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -124,7 +123,7 @@ public class EnumTriangles {
 			triangles.print();
 		}
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************

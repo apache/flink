@@ -216,5 +216,4 @@ public class TPCHQuery10 {
 					.includeFields("1100")
 					.types(Integer.class, String.class);
 	}
-			
 }

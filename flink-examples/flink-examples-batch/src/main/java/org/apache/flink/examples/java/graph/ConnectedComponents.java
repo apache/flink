@@ -19,7 +19,6 @@
 
 package org.apache.flink.examples.java.graph;
 
-import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -74,7 +73,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * </ul>
  */
 @SuppressWarnings("serial")
-public class ConnectedComponents implements ProgramDescription {
+public class ConnectedComponents {
 	
 	// *************************************************************************
 	//     PROGRAM
@@ -84,7 +83,6 @@ public class ConnectedComponents implements ProgramDescription {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: ConnectedComponents --vertices <path> --edges <path> --output <path> --iterations <n>");
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -185,13 +183,6 @@ public class ConnectedComponents implements ProgramDescription {
 		}
 	}
 
-
-
-	@Override
-	public String getDescription() {
-		return "Parameters: --vertices <path> --edges <path> --output <path> --iterations <n>";
-	}
-	
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************

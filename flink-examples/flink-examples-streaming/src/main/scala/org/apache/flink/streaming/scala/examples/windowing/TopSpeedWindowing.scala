@@ -58,7 +58,6 @@ object TopSpeedWindowing {
   def main(args: Array[String]) {
 
     val params = ParameterTool.fromArgs(args)
-    println("Usage: TopSpeedWindowing --input <path> --output <path>")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.setGlobalJobParameters(params)
@@ -124,5 +123,4 @@ object TopSpeedWindowing {
     val record = line.substring(1, line.length - 1).split(",")
     (record(0).toInt, record(1).toInt, record(2).toDouble, record(3).toLong)
   }
-
 }

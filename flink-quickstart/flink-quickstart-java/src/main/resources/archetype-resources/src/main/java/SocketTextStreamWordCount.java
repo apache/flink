@@ -84,7 +84,6 @@ public class SocketTextStreamWordCount {
 		// execute program
 		env.execute("WordCount from SocketTextStream Example");
 	}
-
 	//
 	// 	User Functions
 	//

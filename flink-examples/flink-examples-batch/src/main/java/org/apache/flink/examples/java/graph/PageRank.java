@@ -83,7 +83,6 @@ public class PageRank {
 	public static void main(String[] args) throws Exception {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>");
 
 		final int numPages = params.getInt("numPages", PageRankData.getNumberOfPages());
 		final int maxIterations = params.getInt("iterations", 10);
@@ -135,7 +134,7 @@ public class PageRank {
 
 		
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
@@ -147,7 +146,7 @@ public class PageRank {
 		Tuple2<Long, Double> outPageWithRank;
 		
 		public RankAssigner(double rank) {
-			this.outPageWithRank = new Tuple2<Long, Double>(-1l, rank);
+			this.outPageWithRank = new Tuple2<Long, Double>(-1L, rank);
 		}
 		
 		@Override
@@ -189,9 +188,9 @@ public class PageRank {
 			Long[] neighbors = value.f1.f1;
 			double rank = value.f0.f1;
 			double rankToDistribute = rank / ((double) neighbors.length);
-				
-			for (int i = 0; i < neighbors.length; i++) {
-				out.collect(new Tuple2<Long, Double>(neighbors[i], rankToDistribute));
+
+			for (Long neighbor: neighbors) {
+				out.collect(new Tuple2<Long, Double>(neighbor, rankToDistribute));
 			}
 		}
 	}

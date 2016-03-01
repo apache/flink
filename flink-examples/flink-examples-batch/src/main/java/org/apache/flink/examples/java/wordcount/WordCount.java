@@ -62,7 +62,6 @@ public class WordCount {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-		System.out.println("Usage: WordCount --input <path> --output <path>");
 
 		// get input data
 		DataSet<String> text;
@@ -94,7 +93,7 @@ public class WordCount {
 		}
 
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************

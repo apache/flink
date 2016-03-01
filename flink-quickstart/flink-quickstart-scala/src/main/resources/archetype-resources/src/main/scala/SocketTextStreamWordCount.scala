@@ -66,5 +66,4 @@ object SocketTextStreamWordCount {
 
     env.execute("Scala SocketTextStreamWordCount Example")
   }
-
 }

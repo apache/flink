@@ -71,7 +71,6 @@ object EnumTriangles {
   def main(args: Array[String]) {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: EnumTriangleBasic --edges <path> --output <path>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -156,5 +155,4 @@ object EnumTriangles {
       }
     }
   }
-
 }

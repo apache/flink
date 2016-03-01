@@ -23,12 +23,11 @@ import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
 
-object  TransitiveClosureNaive {
+object TransitiveClosureNaive {
 
   def main (args: Array[String]): Unit = {
 
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    println("Usage: TransitiveClosure --edges <path> --output <path> --iterations <n>")
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -86,5 +85,4 @@ object  TransitiveClosureNaive {
     }
 
   }
-
 }

@@ -49,6 +49,7 @@ public class WriteIntoKafka {
 
 		// very simple data generator
 		DataStream<String> messageStream = env.addSource(new SourceFunction<String>() {
+			private static final long serialVersionUID = 6369260445318862378L;
 			public boolean running = true;
 
 			@Override
