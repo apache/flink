@@ -49,6 +49,11 @@ object ScalarFunctions {
     STRING_TYPE_INFO,
     BuiltInMethod.SUBSTRING.method)
 
+  addSqlFunctionTrim(
+    TRIM,
+    Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO)
+
   // ----------------------------------------------------------------------------------------------
 
   def getCallGenerator(
@@ -67,6 +72,14 @@ object ScalarFunctions {
       method: Method)
     : Unit = {
     sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGenerator(returnType, method)
+  }
+
+  private def addSqlFunctionTrim(
+      sqlOperator: SqlOperator,
+      operandTypes: Seq[TypeInformation[_]],
+      returnType: TypeInformation[_])
+    : Unit = {
+    sqlFunctions((sqlOperator, operandTypes)) = new TrimCallGenerator(returnType)
   }
 
 }
