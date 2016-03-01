@@ -22,6 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
@@ -101,14 +102,15 @@ public class BlobServer extends Thread implements BlobService {
 		}
 		// Recovery. Check that everything has been setup correctly. This is not clean, but it's
 		// better to resolve this with some upcoming changes to the state backend setup.
-		else if (config.containsKey(ConfigConstants.STATE_BACKEND) &&
-				config.containsKey(ConfigConstants.ZOOKEEPER_RECOVERY_PATH)) {
-
-			this.blobStore = new FileSystemBlobStore(config);
-		}
-		// Fallback.
-		else {
-			this.blobStore = new VoidBlobStore();
+		else if (recoveryMode == RecoveryMode.ZOOKEEPER) {
+			if (config.containsKey(ConfigConstants.ZOOKEEPER_RECOVERY_PATH)) {
+				this.blobStore = new FileSystemBlobStore(config);
+			} else {
+				throw new IllegalConfigurationException("Missing '" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH
+						+ "' configuration key. Please configure a path for recovery files.");
+			}
+		} else {
+			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + "'.");
 		}
 
 		// configure the maximum number of concurrent connections

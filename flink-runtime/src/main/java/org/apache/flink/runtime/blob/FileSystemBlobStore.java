@@ -40,6 +40,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Blob store backed by {@link FileSystem}.
+ *
+ * <p>This is used in addition to the local blob storage.
  */
 class FileSystemBlobStore implements BlobStore {
 
