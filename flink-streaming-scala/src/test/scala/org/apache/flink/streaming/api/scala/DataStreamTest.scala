@@ -68,7 +68,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val windowed = connected
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L), func)
+      .fold((0L, 0L))(func)
 
     windowed.name("testWindowFold")
 
@@ -247,7 +247,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val windowed: DataStream[(Long, Long)] = map
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L), (x: (Long, Long), y: (Long, Long)) => (0L, 0L))
+      .fold((0L, 0L))((x: (Long, Long), y: (Long, Long)) => (0L, 0L))
 
     windowed.print()
     val sink = map.addSink(x => {})
@@ -309,7 +309,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val flatten: DataStream[Int] = window
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
-      .fold(0, (accumulator: Int, value: String) => 0)
+      .fold(0)((accumulator: Int, value: String) => 0)
     assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
 
     // TODO check for custom case class
@@ -404,7 +404,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(foldFunction == getFunctionForDataStream(fold))
     assert(
       getFunctionForDataStream(map.keyBy(x=>x)
-        .fold("", (x: String, y: Int) => ""))
+        .fold("")((x: String, y: Int) => ""))
         .isInstanceOf[FoldFunction[_, _]])
 
     val connect = fold.connect(flatMap)
