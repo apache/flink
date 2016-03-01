@@ -17,34 +17,78 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-class SumAggregate[T: Numeric] extends Aggregate[T] {
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.table.Row
 
-  private var result: T = _
-  val numericResult = implicitly[Numeric[T]]
-  /**
-    * Initialize the aggregate state.
-    */
-  override def initiateAggregate: Unit = {
-    result = implicitly[Numeric[T]].zero
+abstract class SumAggregate[T: Numeric]
+  extends Aggregate[T] {
+
+  private val numeric = implicitly[Numeric[T]]
+
+  override def initiate(partial: Row): Unit = {
+    partial.setField(aggOffsetInRow, numeric.zero)
   }
 
-  /**
-    * Feed the aggregate field value.
-    *
-    * @param value
-    */
-  override def aggregate(value: Any): Unit = {
-    val input: T = value.asInstanceOf[T]
-
-    result = numericResult.plus(result, input.asInstanceOf[T])
+  override def merge(partial1: Row, buffer: Row): Unit = {
+    val partialValue = partial1.productElement(aggOffsetInRow).asInstanceOf[T]
+    val bufferValue = buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+    buffer.setField(aggOffsetInRow, numeric.plus(partialValue, bufferValue))
   }
 
-  /**
-    * Return final aggregated value.
-    *
-    * @return
-    */
-  override def getAggregated(): T = {
-    result
+  override def evaluate(buffer: Row): T = {
+    buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    val input = value.asInstanceOf[T]
+    partial.setField(aggOffsetInRow, input)
+  }
+}
+
+class ByteSumAggregate extends SumAggregate[Byte] {
+  private val partialType = Array(SqlTypeName.TINYINT)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
+  }
+}
+
+class ShortSumAggregate extends SumAggregate[Short] {
+  private val partialType = Array(SqlTypeName.SMALLINT)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
+  }
+}
+
+class IntSumAggregate extends SumAggregate[Int] {
+  private val partialType = Array(SqlTypeName.INTEGER)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
+  }
+}
+
+class LongSumAggregate extends SumAggregate[Long] {
+  private val partialType = Array(SqlTypeName.BIGINT)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
+  }
+}
+
+class FloatSumAggregate extends SumAggregate[Float] {
+  private val partialType = Array(SqlTypeName.FLOAT)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
+  }
+}
+
+class DoubleSumAggregate extends SumAggregate[Double] {
+  private val partialType = Array(SqlTypeName.DOUBLE)
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
 }

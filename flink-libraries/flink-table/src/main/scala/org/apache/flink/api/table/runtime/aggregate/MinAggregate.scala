@@ -17,70 +17,96 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import scala.reflect.runtime.universe._
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.table.Row
 
-abstract class MinAggregate[T: Numeric] extends Aggregate[T] {
+abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
 
-  var result: T = _
-  val numericResult = implicitly[Numeric[T]]
+  private val numeric = implicitly[Numeric[T]]
 
-  override def aggregate(value: Any): Unit = {
-    val input: T = value.asInstanceOf[T]
-
-    result = numericResult.min(result, input)
+  /**
+   * Initiate the partial aggregate value in Row.
+   * @param partial
+   */
+  override def initiate(partial: Row): Unit = {
+    partial.setField(aggOffsetInRow, numeric.zero)
   }
 
-  override def getAggregated(): T = {
-    result
+  /**
+   * Accessed in MapFunction, prepare the input of partial aggregate.
+   * @param value
+   * @param partial
+   */
+  override def prepare(value: Any, partial: Row): Unit = {
+    partial.setField(aggOffsetInRow, value)
   }
 
+  /**
+   * Accessed in CombineFunction and GroupReduceFunction, merge partial
+   * aggregate result into aggregate buffer.
+   * @param partial
+   * @param buffer
+   */
+  override def merge(partial: Row, buffer: Row): Unit = {
+    val partialValue = partial.productElement(aggOffsetInRow).asInstanceOf[T]
+    val bufferValue = buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+    buffer.setField(aggOffsetInRow, numeric.min(partialValue, bufferValue))
+  }
+
+  /**
+   * Return the final aggregated result based on aggregate buffer.
+   * @param buffer
+   * @return
+   */
+  override def evaluate(buffer: Row): T = {
+    buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+  }
 }
 
-// Numeric doesn't have max value
-class TinyMinAggregate extends MinAggregate[Byte] {
+class ByteMinAggregate extends MinAggregate[Byte] {
+  private val partialType = Array(SqlTypeName.TINYINT)
 
-  override def initiateAggregate: Unit = {
-    result = Byte.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
 
-class SmallMinAggregate extends MinAggregate[Short] {
+class ShortMinAggregate extends MinAggregate[Short] {
+  private val partialType = Array(SqlTypeName.SMALLINT)
 
-  override def initiateAggregate: Unit = {
-    result = Short.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
 
 class IntMinAggregate extends MinAggregate[Int] {
+  private val partialType = Array(SqlTypeName.INTEGER)
 
-    override def initiateAggregate: Unit = {
-    result = Int.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
 
 class LongMinAggregate extends MinAggregate[Long] {
+  private val partialType = Array(SqlTypeName.BIGINT)
 
-  override def initiateAggregate: Unit = {
-    result = Long.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
 
 class FloatMinAggregate extends MinAggregate[Float] {
+  private val partialType = Array(SqlTypeName.FLOAT)
 
-  override def initiateAggregate: Unit = {
-    result = Float.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
 
 class DoubleMinAggregate extends MinAggregate[Double] {
+  private val partialType = Array(SqlTypeName.DOUBLE)
 
-  override def initiateAggregate: Unit = {
-    result = Double.MaxValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    partialType
   }
-
 }
