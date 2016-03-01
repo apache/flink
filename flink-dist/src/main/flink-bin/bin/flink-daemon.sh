@@ -94,7 +94,10 @@ case $STARTSTOP in
           done < "${pid}"
 
           count="${#active[@]}"
-          echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+
+          if [ ${count} -gt 0 ]; then
+            echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
+          fi
         fi
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
