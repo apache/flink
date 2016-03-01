@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -105,7 +106,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public Map<String, Future<Path>> getDistributedCacheEntries() {
-		return null;
+		return Collections.emptyMap();
 	}
 
 	@Override

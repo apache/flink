@@ -102,7 +102,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				}
 			}).when(mockTask).createStateBackend(any(String.class), any(TypeSerializer.class));
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new RuntimeException(e.getMessage(), e);
 		}
 		
 		doAnswer(new Answer<Void>() {

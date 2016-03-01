@@ -74,13 +74,12 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("a", 7));
 				ctx.collect(Tuple2.of("a", 8));
 
-				// so that we get a high final watermark to process the previously sent elements
-				ctx.collect(Tuple2.of("a", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override
-			public void cancel() {
-			}
+			public void cancel() {}
+			
 		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
 		source1
@@ -139,8 +138,7 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 				ctx.collect(Tuple2.of("b", 5));
 				ctx.collect(Tuple2.of("a", 5));
 
-				// so that we get a high final watermark to process the previously sent elements
-				ctx.collect(Tuple2.of("a", 20));
+				// source is finite, so it will have an implicit MAX watermark when it finishes
 			}
 
 			@Override

@@ -59,8 +59,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("a", 7))
         ctx.collect(("a", 8))
 
-        // so we get a big watermark to trigger processing of the previous elements
-        ctx.collect(("a", 20))
+        // source is finite, so it will have an implicit MAX watermark when it finishes
       }
 
       def cancel() {
@@ -107,8 +106,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
         ctx.collect(("b", 5))
         ctx.collect(("a", 5))
 
-        // so we get a big watermark to trigger processing of the previous elements
-        ctx.collect(("a", 20))
+        // source is finite, so it will have an implicit MAX watermark when it finishes
       }
 
       def cancel() {
