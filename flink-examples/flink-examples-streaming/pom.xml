@@ -182,7 +182,7 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/iteration/*.class</include>			
+								<include>org/apache/flink/streaming/examples/iteration/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -250,7 +250,7 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/join/*.class</include>			
+								<include>org/apache/flink/streaming/examples/join/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -274,7 +274,7 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>			
+								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -305,13 +305,13 @@ under the License.
 
 					<!-- WindowWordCount -->
 					<execution>
-						<id>WindowWordCount</id>
+						<id>SocketWindowWordCount</id>
 						<phase>package</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>WindowWordCount</classifier>
+							<classifier>SocketWindowWordCount</classifier>
 
 							<archive>
 								<manifestEntries>
@@ -320,10 +320,8 @@ under the License.
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/WindowWordCount.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/SocketWindowWordCount.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/SocketWindowWordCount$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -522,7 +520,7 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-Twitter.jar" tofile="${project.basedir}/target/Twitter.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WindowWordCount.jar" tofile="${project.basedir}/target/WindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
 							</target>
 						</configuration>
 					</execution>
