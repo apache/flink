@@ -34,6 +34,15 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>force-shading</artifactId>
+			<version>1.0.0</version>
+			<!-- This is necessary to prevent shading of this module -->
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- BINARIES -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
