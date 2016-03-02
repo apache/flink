@@ -45,10 +45,14 @@ class AggregateReduceGroupFunction(
     extends RichGroupReduceFunction[Row, Row] {
 
   private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
+  private var aggregateBuffer: Row = _
+  private var output: Row = _
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
+    aggregateBuffer = new Row(intermediateRowArity)
+    output = new Row(finalRowLength)
   }
 
   /**
@@ -62,27 +66,20 @@ class AggregateReduceGroupFunction(
    */
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    val aggregateBuffer = new Row(intermediateRowArity)
     // Initiate intermediate aggregate value.
     aggregates.foreach(_.initiate(aggregateBuffer))
 
     // Merge intermediate aggregate value to buffer.
     var last: Row = null
-    records.foreach((record) =>  {
+    records.foreach((record) => {
       aggregates.foreach(_.merge(record, aggregateBuffer))
       last = record
     })
 
-    // Set group keys to aggregateBuffer.
-    for (i <- 0 until groupKeysMapping.length) {
-      aggregateBuffer.setField(i, last.productElement(i))
-    }
-
-    val output = new Row(finalRowLength)
     // Set group keys value to final output.
     groupKeysMapping.map {
       case (after, previous) =>
-        output.setField(after, aggregateBuffer.productElement(previous))
+        output.setField(after, last.productElement(previous))
     }
 
     // Evaluate final aggregate value and set to output.
@@ -114,10 +111,14 @@ class AggregateReduceCombineFunction(
     extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
 
   private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
+  private var aggregateBuffer: Row = _
+  private var output: Row = _
 
   override def open(config: Configuration): Unit = {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
+    aggregateBuffer = new Row(intermediateRowArity)
+    output = new Row(finalRowLength)
   }
 
   /**
@@ -131,27 +132,20 @@ class AggregateReduceCombineFunction(
    */
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    val aggregateBuffer = new Row(intermediateRowArity)
     // Initiate intermediate aggregate value.
     aggregates.foreach(_.initiate(aggregateBuffer))
 
     // Merge intermediate aggregate value to buffer.
     var last: Row = null
-    records.foreach((record) =>  {
+    records.foreach((record) => {
       aggregates.foreach(_.merge(record, aggregateBuffer))
       last = record
     })
 
-    // Set group keys to aggregateBuffer.
-    for (i <- 0 until groupKeysMapping.length) {
-      aggregateBuffer.setField(i, last.productElement(i))
-    }
-
-    val output = new Row(finalRowLength)
     // Set group keys value to final output.
     groupKeysMapping.map {
       case (after, previous) =>
-        output.setField(after, aggregateBuffer.productElement(previous))
+        output.setField(after, last.productElement(previous))
     }
 
     // Evaluate final aggregate value and set to output.
@@ -172,12 +166,8 @@ class AggregateReduceCombineFunction(
    */
   override def combine(records: Iterable[Row]): Row = {
 
-    val aggregateBuffer = new Row(intermediateRowArity)
     // Initiate intermediate aggregate value.
-    aggregates.map((aggregate) => {
-      aggregate.initiate(aggregateBuffer)
-      aggregate
-    })
+    aggregates.foreach(_.initiate(aggregateBuffer))
 
     // Merge intermediate aggregate value to buffer.
     var last: Row = null

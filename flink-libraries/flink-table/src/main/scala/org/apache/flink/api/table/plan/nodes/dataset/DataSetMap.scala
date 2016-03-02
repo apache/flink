@@ -24,7 +24,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.{MapFunction, MapPartitionFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.TypeConverter
+import org.apache.flink.api.table.plan.{PlanGenException, TypeConverter}
 import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableConfig}
@@ -66,14 +66,25 @@ class DataSetMap(
 
   override def translateToPlan(config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    
-    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config)
+
+    expectedType match {
+      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
+        throw new PlanGenException("GroupReduce operations " +
+            "currently only support returning Rows.")
+      case _ => // ok
+    }
+
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
+      config,
+      // tell the input operator that this operator currently only supports Rows as input
+      Some(TypeConverter.DEFAULT_ROW_TYPE))
+
     val returnType = determineReturnType(
       getRowType,
       expectedType,
       config.getNullCheck,
       config.getEfficientTypeUsage)
-    val mapFunc = func.apply(config, inputDataSet.getType, returnType)
-    inputDataSet.map(mapFunc)
+    val mapFunc = func.apply(config, inputDS.getType, returnType)
+    inputDS.map(mapFunc)
   }
 }

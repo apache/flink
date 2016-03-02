@@ -154,6 +154,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
   def testGroupedAggregateWithExpression(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
