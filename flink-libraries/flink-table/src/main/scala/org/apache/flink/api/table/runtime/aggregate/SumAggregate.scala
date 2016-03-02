@@ -43,6 +43,8 @@ abstract class SumAggregate[T: Numeric]
     val input = value.asInstanceOf[T]
     partial.setField(aggOffsetInRow, input)
   }
+
+  override def supportPartial: Boolean = true
 }
 
 class ByteSumAggregate extends SumAggregate[Byte] {

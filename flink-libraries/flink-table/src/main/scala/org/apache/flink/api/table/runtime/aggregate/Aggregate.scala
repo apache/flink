@@ -81,7 +81,7 @@ trait Aggregate[T] extends Serializable {
    * Whether aggregate function support partial aggregate.
    * @return
    */
-  def supportPartial: Boolean = true
+  def supportPartial: Boolean = false
 
   /**
    * Set the aggregate data offset in Row.

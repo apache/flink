@@ -45,7 +45,7 @@ class DataSetAggregateRule
     val inputType = agg.getInput.getRowType()
 
     // add grouping fields, position keys in the input, and input type
-    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(agg,
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(agg.getNamedAggCalls,
         inputType, rel.getRowType, grouping)
 
     val mapNode = new DataSetMap(rel.getCluster,

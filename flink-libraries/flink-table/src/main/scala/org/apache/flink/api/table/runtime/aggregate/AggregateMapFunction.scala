@@ -19,33 +19,44 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
 
-class AggregateMapFunction(
+class AggregateMapFunction[IN, OUT](
     private val aggregates: Array[Aggregate[_]],
     private val aggFields: Array[Int],
-    private val groupingKeys: Array[Int]) extends RichMapFunction[Row, Row] {
+    private val groupingKeys: Array[Int],
+    @transient private val returnType: TypeInformation[OUT])
+    extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
   
-  private final val partialRowLength = groupingKeys.length +
-      aggregates.map(_.intermediateDataType.length).sum
+  private var partialRowLength: Int = _
+  private var output: Row = _
   
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
     Preconditions.checkArgument(aggregates.size == aggFields.size)
+    partialRowLength = groupingKeys.length +
+        aggregates.map(_.intermediateDataType.length).sum
+    output = new Row(partialRowLength)
   }
 
-  override def map(value: Row): Row = {
+  override def map(value: IN): OUT = {
     
-    val output = new Row(partialRowLength)
+    val input = value.asInstanceOf[Row]
     for (i <- 0 until aggregates.length) {
-      val fieldValue = value.productElement(aggFields(i))
+      val fieldValue = input.productElement(aggFields(i))
       aggregates(i).prepare(fieldValue, output)
     }
     for (i <- 0 until groupingKeys.length) {
-      output.setField(i, value.productElement(groupingKeys(i)))
+      output.setField(i, input.productElement(groupingKeys(i)))
     }
-    output
+    output.asInstanceOf[OUT]
+  }
+
+  override def getProducedType: TypeInformation[OUT] = {
+    returnType
   }
 }

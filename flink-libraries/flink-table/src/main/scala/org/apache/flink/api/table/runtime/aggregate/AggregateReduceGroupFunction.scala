@@ -40,10 +40,11 @@ import scala.collection.JavaConversions._
 class AggregateReduceGroupFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)])
+    private val aggregateMapping: Array[(Int, Int)],
+    private val intermediateRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] {
 
-  private final val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
+  private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -60,24 +61,34 @@ class AggregateReduceGroupFunction(
    *
    */
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
-    
-    val inputItr = records.iterator
-    val buffer = inputItr.next
-    while (inputItr.hasNext) {
-      val next = inputItr.next
-      aggregates.foreach(_.merge(next, buffer))
+
+    val aggregateBuffer = new Row(intermediateRowArity)
+    // Initiate intermediate aggregate value.
+    aggregates.foreach(_.initiate(aggregateBuffer))
+
+    // Merge intermediate aggregate value to buffer.
+    var last: Row = null
+    records.foreach((record) =>  {
+      aggregates.foreach(_.merge(record, aggregateBuffer))
+      last = record
+    })
+
+    // Set group keys to aggregateBuffer.
+    for (i <- 0 until groupKeysMapping.length) {
+      aggregateBuffer.setField(i, last.productElement(i))
     }
 
-    val output: Row = new Row(finalRowLength)
-
+    val output = new Row(finalRowLength)
+    // Set group keys value to final output.
     groupKeysMapping.map {
       case (after, previous) =>
-        output.setField(after, buffer.productElement(previous))
+        output.setField(after, aggregateBuffer.productElement(previous))
     }
 
+    // Evaluate final aggregate value and set to output.
     aggregateMapping.map {
       case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(buffer))
+        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
     }
 
     out.collect(output)
@@ -98,12 +109,13 @@ class AggregateReduceGroupFunction(
 class AggregateReduceCombineFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)])
+    private val aggregateMapping: Array[(Int, Int)],
+    private val intermediateRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
 
   private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
 
-  override def open(config: Configuration) {
+  override def open(config: Configuration): Unit = {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
   }
@@ -118,23 +130,34 @@ class AggregateReduceCombineFunction(
    *
    */
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
-    val inputItr = records.iterator
-    val buffer = inputItr.next
-    while (inputItr.hasNext) {
-      val next = inputItr.next
-      aggregates.foreach(_.merge(next, buffer))
+
+    val aggregateBuffer = new Row(intermediateRowArity)
+    // Initiate intermediate aggregate value.
+    aggregates.foreach(_.initiate(aggregateBuffer))
+
+    // Merge intermediate aggregate value to buffer.
+    var last: Row = null
+    records.foreach((record) =>  {
+      aggregates.foreach(_.merge(record, aggregateBuffer))
+      last = record
+    })
+
+    // Set group keys to aggregateBuffer.
+    for (i <- 0 until groupKeysMapping.length) {
+      aggregateBuffer.setField(i, last.productElement(i))
     }
 
-    val output: Row = new Row(finalRowLength)
-
+    val output = new Row(finalRowLength)
+    // Set group keys value to final output.
     groupKeysMapping.map {
       case (after, previous) =>
-        output.setField(after, buffer.productElement(previous))
+        output.setField(after, aggregateBuffer.productElement(previous))
     }
 
+    // Evaluate final aggregate value and set to output.
     aggregateMapping.map {
       case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(buffer))
+        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
     }
 
     out.collect(output)
@@ -149,12 +172,25 @@ class AggregateReduceCombineFunction(
    */
   override def combine(records: Iterable[Row]): Row = {
 
-    val inputItr = records.iterator
-    val buffer = inputItr.next
-    while (inputItr.hasNext) {
-      val next = inputItr.next
-      aggregates.foreach(_.merge(next, buffer))
+    val aggregateBuffer = new Row(intermediateRowArity)
+    // Initiate intermediate aggregate value.
+    aggregates.map((aggregate) => {
+      aggregate.initiate(aggregateBuffer)
+      aggregate
+    })
+
+    // Merge intermediate aggregate value to buffer.
+    var last: Row = null
+    records.foreach((record) => {
+      aggregates.foreach(_.merge(record, aggregateBuffer))
+      last = record
+    })
+
+    // Set group keys to aggregateBuffer.
+    for (i <- 0 until groupKeysMapping.length) {
+      aggregateBuffer.setField(i, last.productElement(i))
     }
-    buffer
+
+    aggregateBuffer
   }
 }

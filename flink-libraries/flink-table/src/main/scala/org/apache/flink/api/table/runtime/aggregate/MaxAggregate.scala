@@ -25,14 +25,6 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
   private val numeric = implicitly[Numeric[T]]
 
   /**
-   * Initiate the partial aggregate value in Row.
-   * @param intermediate
-   */
-  override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, numeric.zero)
-  }
-
-  /**
    * Accessed in MapFunction, prepare the input of partial aggregate.
    * @param value
    * @param intermediate
@@ -61,6 +53,8 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
   override def evaluate(buffer: Row): T = {
     buffer.productElement(aggOffsetInRow).asInstanceOf[T]
   }
+
+  override def supportPartial: Boolean = true
 }
 
 class ByteMaxAggregate extends MaxAggregate[Byte] {
@@ -68,6 +62,10 @@ class ByteMaxAggregate extends MaxAggregate[Byte] {
 
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
+  }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Byte.MinValue)
   }
 }
 
@@ -77,6 +75,10 @@ class ShortMaxAggregate extends MaxAggregate[Short] {
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
   }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Short.MinValue)
+  }
 }
 
 class IntMaxAggregate extends MaxAggregate[Int] {
@@ -84,6 +86,10 @@ class IntMaxAggregate extends MaxAggregate[Int] {
 
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
+  }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Int.MinValue)
   }
 }
 
@@ -93,6 +99,10 @@ class LongMaxAggregate extends MaxAggregate[Long] {
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
   }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Long.MinValue)
+  }
 }
 
 class FloatMaxAggregate extends MaxAggregate[Float] {
@@ -101,6 +111,10 @@ class FloatMaxAggregate extends MaxAggregate[Float] {
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
   }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Float.MinValue)
+  }
 }
 
 class DoubleMaxAggregate extends MaxAggregate[Double] {
@@ -108,5 +122,9 @@ class DoubleMaxAggregate extends MaxAggregate[Double] {
 
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
+  }
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(aggOffsetInRow, Double.MinValue)
   }
 }

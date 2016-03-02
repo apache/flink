@@ -43,4 +43,6 @@ class CountAggregate extends Aggregate[Long] {
   override def intermediateDataType: Array[SqlTypeName] = {
     Array(SqlTypeName.BIGINT)
   }
+
+  override def supportPartial: Boolean = true
 }

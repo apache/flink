@@ -26,14 +26,18 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.nodes.logical.FlinkAggregate
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.table.{Row, TableConfig}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil {
+
+  type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
+  type JavaList[T] = java.util.List[T]
 
   /**
    * Create Flink operator functions for aggregates. It includes 2 implementations of Flink 
@@ -58,57 +62,56 @@ object AggregateUtil {
    * }}}
    *
    */
-  def createOperatorFunctionsForAggregates(aggregate: FlinkAggregate,
+  def createOperatorFunctionsForAggregates(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType, outputType: RelDataType,
       groupings: Array[Int]): AggregateResult = {
 
-    val aggregateCalls: Seq[AggregateCall] = aggregate.getAggCallList
+    val aggregateFunctionsAndFieldIndexes =
+      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    val aggFieldIndexes = new Array[Int](aggregateCalls.size)
-    val aggregates = new Array[Aggregate[_ <: Any]](aggregateCalls.size)
+    val aggFieldIndexes = aggregateFunctionsAndFieldIndexes._1
+    val aggregates = aggregateFunctionsAndFieldIndexes._2
 
-    transformToAggregateFunctions(aggregateCalls, aggFieldIndexes,
-      aggregates, inputType, groupings.length)
+    val mapFunction = (
+        config: TableConfig,
+        inputType: TypeInformation[Any],
+        returnType: TypeInformation[Any]) => {
 
-    val mapFunction = new AggregateMapFunction(aggregates, aggFieldIndexes, groupings)
+      val aggregateMapFunction = new AggregateMapFunction[Row, Row](
+        aggregates, aggFieldIndexes, groupings, returnType.asInstanceOf[RowTypeInfo])
+
+      aggregateMapFunction.asInstanceOf[MapFunction[Any, Any]]
+    }
 
     val bufferDataType: RelRecordType =
       createAggregateBufferDataType(groupings, aggregates, inputType)
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
-    var groupingOffsetMapping = ArrayBuffer[(Int, Int)]()
+    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
 
     // the mapping relation between aggregate function index in list and its corresponding
     // field index in output Row.
-    var aggOffsetMapping = ArrayBuffer[(Int, Int)]()
+    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
 
-
-    outputType.getFieldList.zipWithIndex.foreach {
-      case (fieldType: RelDataTypeField, outputIndex: Int) =>
-
-        val aggregateIndex: Int = getMatchedAggregateIndex(aggregate, fieldType)
-        if (aggregateIndex != -1) {
-          aggOffsetMapping += ((outputIndex, aggregateIndex))
-        } else {
-          val groupKeyIndex: Int = getMatchedFieldIndex(inputType, fieldType, groupings)
-          if (groupKeyIndex != -1) {
-            groupingOffsetMapping += ((outputIndex, groupKeyIndex))
-          } else {
-            throw new PlanGenException("Could not find output field in input data type " +
-                "or aggregate function.")
-          }
-        }
+    if (groupingOffsetMapping.length != groupings.length ||
+        aggOffsetMapping.length != namedAggregates.length) {
+      throw new PlanGenException("Could not find output field in input data type " +
+          "or aggregate functions.")
     }
 
-    val allPartialAggregate = aggregates.map(_.supportPartial).foldLeft(true)(_ && _)
+    val allPartialAggregate = aggregates.map(_.supportPartial).reduce(_ && _)
+
+    val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
 
     val reduceGroupFunction =
       if (allPartialAggregate) {
-        new AggregateReduceCombineFunction(aggregates, groupingOffsetMapping.toArray,
-          aggOffsetMapping.toArray)
+        (config: TableConfig, inputType: TypeInformation[Row], returnType: TypeInformation[Row]) =>
+          new AggregateReduceCombineFunction(aggregates, groupingOffsetMapping,
+            aggOffsetMapping, intermediateRowArity)
       } else {
-        new AggregateReduceGroupFunction(aggregates, groupingOffsetMapping.toArray,
-          aggOffsetMapping.toArray)
+        (config: TableConfig, inputType: TypeInformation[Row], returnType: TypeInformation[Row]) =>
+          new AggregateReduceGroupFunction(aggregates, groupingOffsetMapping,
+            aggOffsetMapping, intermediateRowArity)
       }
 
     new AggregateResult(mapFunction, reduceGroupFunction, bufferDataType)
@@ -116,10 +119,12 @@ object AggregateUtil {
 
   private def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
-      aggFieldIndexes: Array[Int],
-      aggregates: Array[Aggregate[_ <: Any]],
       inputType: RelDataType,
-      groupKeysCount: Int): Unit = {
+      groupKeysCount: Int): (Array[Int], Array[Aggregate[_ <: Any]]) = {
+
+    // store the aggregate fields of each aggregate function, by the same order of aggregates.
+    val aggFieldIndexes = new Array[Int](aggregateCalls.size)
+    val aggregates = new Array[Aggregate[_ <: Any]](aggregateCalls.size)
 
     // set the start offset of aggregate buffer value to group keys' length, 
     // as all the group keys would be moved to the start fields of intermediate
@@ -232,6 +237,8 @@ object AggregateUtil {
       aggregates(index).setAggOffsetInRow(aggOffset)
       aggOffset += aggregates(index).intermediateDataType.length
     }
+
+    (aggFieldIndexes, aggregates)
   }
 
   private def createAggregateBufferDataType(
@@ -259,51 +266,64 @@ object AggregateUtil {
     partialType
   }
 
-  private def getMatchedAggregateIndex(aggregate: FlinkAggregate,
-      outputFieldType: RelDataTypeField): Int = {
+  // Find the mapping between the index of aggregate list and aggregated value index in output Row.
+  private def getAggregateMapping(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      outputType: RelDataType): Array[(Int, Int)] = {
 
-    aggregate.getNamedAggCalls.zipWithIndex.foreach {
-      case (namedAggCall, index) =>
-        if (namedAggCall.getValue.equals(outputFieldType.getName) &&
-            namedAggCall.getKey.getType.equals(outputFieldType.getType)) {
-          return index
+    // the mapping relation between aggregate function index in list and its corresponding
+    // field index in output Row.
+    var aggOffsetMapping = ArrayBuffer[(Int, Int)]()
+
+    outputType.getFieldList.zipWithIndex.foreach{
+      case (outputFieldType, outputIndex) =>
+        namedAggregates.zipWithIndex.foreach {
+          case (namedAggCall, aggregateIndex) =>
+            if (namedAggCall.getValue.equals(outputFieldType.getName) &&
+                namedAggCall.getKey.getType.equals(outputFieldType.getType)) {
+              aggOffsetMapping += ((outputIndex, aggregateIndex))
+            }
         }
     }
-
-    -1
+   
+    aggOffsetMapping.toArray
   }
 
-  private def getMatchedFieldIndex(inputDatType: RelDataType,
-      outputFieldType: RelDataTypeField, groupKeys: Array[Int]): Int = {
-    var inputIndex = -1
-    val inputFields = inputDatType.getFieldList
-    // find the field index in input data type.
-    for (i <- 0 until inputFields.size) {
-      val inputFieldType = inputFields.get(i)
-      if (outputFieldType.getName.equals(inputFieldType.getName) &&
-          outputFieldType.getType.equals(inputFieldType.getType)) {
-        inputIndex = i
-      }
-    }
+  // Find the mapping between the index of group key in intermediate aggregate Row and its index
+  // in output Row.
+  private def getGroupKeysMapping(inputDatType: RelDataType,
+      outputType: RelDataType, groupKeys: Array[Int]): Array[(Int, Int)] = {
 
-    if (inputIndex != -1) {
-      // as aggregated field in output data type would not have a matched field in 
-      // input data, so if inputIndex is not -1, it must be a group key. Then we can 
-      // find the field index in buffer data by the group keys index mapping between 
-      // input data and buffer data.
-      for (i <- 0 until groupKeys.length) {
-        if (inputIndex == groupKeys(i)) {
-          return i
+    // the mapping relation between field index of intermediate aggregate Row and output Row.
+    var groupingOffsetMapping = ArrayBuffer[(Int, Int)]()
+
+    outputType.getFieldList.zipWithIndex.foreach {
+      case (outputFieldType, outputIndex) =>
+        inputDatType.getFieldList.zipWithIndex.foreach {
+          // find the field index in input data type.
+          case (inputFieldType, inputIndex) =>
+            if (outputFieldType.getName.equals(inputFieldType.getName) &&
+                outputFieldType.getType.equals(inputFieldType.getType)) {
+              // as aggregated field in output data type would not have a matched field in
+              // input data, so if inputIndex is not -1, it must be a group key. Then we can
+              // find the field index in buffer data by the group keys index mapping between
+              // input data and buffer data.
+              for (i <- 0 until groupKeys.length) {
+                if (inputIndex == groupKeys(i)) {
+                  groupingOffsetMapping += ((outputIndex, i))
+                }
+              }
+            }
         }
-      }
     }
 
-    -1
+    groupingOffsetMapping.toArray
   }
 }
 
 case class AggregateResult(
-    val mapFunc: MapFunction[Row, Row],
-    val reduceGroupFunc: GroupReduceFunction[Row, Row],
+    val mapFunc: (TableConfig, TypeInformation[Any], TypeInformation[Any]) =>
+        MapFunction[Any, Any],
+    val reduceGroupFunc: (TableConfig, TypeInformation[Row], TypeInformation[Row]) =>
+        GroupReduceFunction[Row, Row],
     val intermediateDataType: RelDataType) {
 }

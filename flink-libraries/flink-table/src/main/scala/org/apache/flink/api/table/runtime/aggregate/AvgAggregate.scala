@@ -41,6 +41,8 @@ abstract class IntegralAvgAggregate[T] extends Aggregate[T] {
   override def intermediateDataType: Array[SqlTypeName] = {
     intermediateType
   }
+
+  override def supportPartial: Boolean = true
 }
 
 class ByteAvgAggregate extends IntegralAvgAggregate[Byte] {
@@ -125,6 +127,8 @@ abstract class FloatingAvgAggregate[T: Numeric] extends Aggregate[T] {
   override def intermediateDataType: Array[SqlTypeName] = {
     partialType
   }
+
+  override def supportPartial: Boolean = true
 }
 
 class FloatAvgAggregate extends FloatingAvgAggregate[Float] {

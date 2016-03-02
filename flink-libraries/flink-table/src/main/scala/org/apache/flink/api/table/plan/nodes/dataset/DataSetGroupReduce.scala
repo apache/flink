@@ -40,7 +40,8 @@ class DataSetGroupReduce(
     rowType: RelDataType,
     opName: String,
     groupingKeys: Array[Int],
-    func: GroupReduceFunction[Row, Row])
+    func: (TableConfig, TypeInformation[Row], TypeInformation[Row]) =>
+        GroupReduceFunction[Row, Row])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -85,15 +86,19 @@ class DataSetGroupReduce(
     .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
+    val groupReduceFunction =
+      func.apply(config, inputDS.getType.asInstanceOf[RowTypeInfo], rowTypeInfo)
 
     if (groupingKeys.length > 0) {
-      inputDS.asInstanceOf[DataSet[Row]].groupBy(groupingKeys: _*).reduceGroup(func)
-      .returns(rowTypeInfo)
-      .asInstanceOf[DataSet[Any]]
+      inputDS.asInstanceOf[DataSet[Row]]
+          .groupBy(groupingKeys: _*)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .asInstanceOf[DataSet[Any]]
     }
     else {
       // global aggregation
-      inputDS.asInstanceOf[DataSet[Row]].reduceGroup(func)
+      inputDS.asInstanceOf[DataSet[Row]].reduceGroup(groupReduceFunction)
       .returns(rowTypeInfo).asInstanceOf[DataSet[Any]]
     }
   }

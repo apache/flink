@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.{MapFunction, MapPartitionFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.TypeConverter
+import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableConfig}
 
@@ -40,7 +41,7 @@ class DataSetMap(
     input: RelNode,
     rowType: RelDataType,
     opName: String,
-    func: MapFunction[Row, Row])
+    func: (TableConfig, TypeInformation[Any], TypeInformation[Any]) => MapFunction[Any, Any])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -64,17 +65,15 @@ class DataSetMap(
   override def toString = opName
 
   override def translateToPlan(config: TableConfig,
-                               expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config, expectedType)
-
-    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(f => f.getType.getSqlTypeName)
-      .map(n => TypeConverter.sqlTypeToTypeInfo(n))
-      .toArray
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
     
-    val rowTypeInfo = new RowTypeInfo(fieldTypes)
-    
-    inputDataSet.asInstanceOf[DataSet[Row]].map(func)
-      .returns(rowTypeInfo).asInstanceOf[DataSet[Any]]
+    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config)
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage)
+    val mapFunc = func.apply(config, inputDataSet.getType, returnType)
+    inputDataSet.map(mapFunc)
   }
 }
