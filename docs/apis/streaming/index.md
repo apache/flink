@@ -847,16 +847,12 @@ val all = split.select("even","odd")
 		to the feedback channel, and the rest of the elements are forwarded downstream.
 		See <a href="#iterations">iterations</a> for a complete description.
                 {% highlight java %}
-initialStream. iterate {
+initialStream.iterate {
   iteration => {
     val iterationBody = iteration.map {/*do something*/}
     (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
   }
 }
-IterativeStream<Long> iteration = initialStream.iterate();
-DataStream<Long> iterationBody = iteration.map (/*do something*/);
-DataStream<Long> feedback = iterationBody.filter ( _ > 0);
-iteration.closeWith(feedback);
                 {% endhighlight %}
             </p>
           </td>
