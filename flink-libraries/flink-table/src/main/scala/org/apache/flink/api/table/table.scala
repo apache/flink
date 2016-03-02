@@ -271,6 +271,21 @@ class Table(
   }
 
   /**
+   * Removes duplicate values and returns only distinct (different) values.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.select("key, value").distinct()
+   * }}}
+   */
+  def distinct(): Table = {
+    relBuilder.push(relNode)
+    relBuilder.distinct()
+    new Table(relBuilder.build(), relBuilder)
+  }
+
+  /**
    * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
    * operations must not overlap, use [[as]] to rename fields if necessary. You can use
    * where and select clauses after a join to further specify the behaviour of the join.
@@ -334,7 +349,7 @@ class Table(
 
   /**
    * Get the process of the sql parsing, print AST and physical execution plan.The AST
-   * show the structure of the supplied statement. The execution plan shows how the table 
+   * show the structure of the supplied statement. The execution plan shows how the table
    * referenced by the statement will be scanned.
    */
   def explain(extended: Boolean): String = {
