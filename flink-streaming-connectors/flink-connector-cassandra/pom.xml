@@ -144,6 +144,18 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.cassandra</groupId>
 			<artifactId>cassandra-all</artifactId>
 			<version>${cassandra.version}</version>

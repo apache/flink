@@ -166,7 +166,7 @@ public class CassandraSink<IN> {
 			DataStream<T> tupleInput = (DataStream<T>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
 		} else {
-			throw new IllegalArgumentException("POJOs are currently not supported.");
+			return new CassandraPojoSinkBuilder<>(input, input.getType(), input.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
 		}
 	}
 
@@ -275,8 +275,25 @@ public class CassandraSink<IN> {
 					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraIdempotentExactlyOnceSink<>(query, serializer, builder, jobID, new CassandraCommitter(builder))))
 					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraIdempotentExactlyOnceSink<>(query, serializer, builder, jobID, committer)));
 			} else {
-				throw new IllegalArgumentException("There is currently no dedicated support for at-least-once guarantees.");
+				return new CassandraSink<>(input.addSink(new CassandraTupleAtLeastOnceSink<IN>(query, builder)).name("Cassandra Sink"));
 			}
+		}
+	}
+
+	public static class CassandraPojoSinkBuilder<IN> extends CassandraSinkBuilder<IN> {
+		public CassandraPojoSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
+			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		public CassandraSink<IN> build() throws Exception {
+			if (consistency == ConsistencyLevel.EXACTLY_ONCE) {
+				throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
+			}
+			if (consistency == ConsistencyLevel.At_LEAST_ONCE) {
+				return new CassandraSink<>(input.addSink(new CassandraPojoAtLeastOnceSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
+			}
+			throw new IllegalArgumentException("No consistency level was specified.");
 		}
 	}
 }

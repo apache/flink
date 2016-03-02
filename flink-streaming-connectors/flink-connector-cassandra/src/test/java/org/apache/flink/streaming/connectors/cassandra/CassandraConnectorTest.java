@@ -23,10 +23,20 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.AtLeastOnceSinkTestBase;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
@@ -34,6 +44,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -48,6 +59,12 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 
 	private static final boolean EMBEDDED = true;
 	private static EmbeddedCassandraService cassandra;
+	private transient static ClusterBuilder builder = new ClusterBuilder() {
+		@Override
+		protected Cluster buildCluster(Cluster.Builder builder) {
+			return builder.addContactPoint("127.0.0.1").build();
+		}
+	};
 	private static Cluster cluster;
 	private static Session session;
 
@@ -57,6 +74,14 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	private static final String CLEAR_TABLE_QUERY = "TRUNCATE flink.test;";
 	private static final String INSERT_DATA_QUERY = "INSERT INTO flink.test (id, counter, batch_id) VALUES (?, ?, ?)";
 	private static final String SELECT_DATA_QUERY = "SELECT * FROM flink.test;";
+
+	private static final ArrayList<Tuple3<String, Integer, Integer>> collection = new ArrayList<>(20);
+
+	static {
+		for (int i = 0; i < 20; i++) {
+			collection.add(new Tuple3<>("" + UUID.randomUUID(), i, 0));
+		}
+	}
 
 	private static class EmbeddedCassandraService {
 		CassandraDaemon cassandraDaemon;
@@ -72,6 +97,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 		}
 	}
 
+	//=====Setup========================================================================================================
 	@BeforeClass
 	public static void startCassandra() throws IOException {
 		//generate temporary files
@@ -102,6 +128,11 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 			cassandra.start();
 		}
 
+		try {
+			Thread.sleep(1000 * 10);
+		} catch (InterruptedException e) { //give cassandra a few seconds to start up
+		}
+
 		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
 		session = cluster.connect();
 
@@ -125,6 +156,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 		tmpDir.delete();
 	}
 
+	//=====Exactly-Once=================================================================================================
 	@Override
 	protected CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>> createSink() {
 		try {
@@ -138,12 +170,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 					}
 				},
 				"testJob",
-				new CassandraCommitter(new ClusterBuilder() {
-					@Override
-					protected Cluster buildCluster(Cluster.Builder builder) {
-						return builder.addContactPoint("127.0.0.1").build();
-					}
-				}));
+				new CassandraCommitter(builder));
 		} catch (Exception e) {
 			Assert.fail("Failure while initializing sink: " + e.getMessage());
 			return null;
@@ -215,5 +242,75 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 			list.remove(new Integer(s.getInt("counter")));
 		}
 		Assert.assertTrue("The following ID's were not found in the ResultSet: " + list.toString(), list.isEmpty());
+	}
+
+	//=====At-Least-Once================================================================================================
+	@Test
+	public void testCassandraTupleAtLeastOnceSink() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStream<Tuple3<String, Integer, Integer>> source = env.fromCollection(collection);
+		source.addSink(new CassandraTupleAtLeastOnceSink<Tuple3<String, Integer, Integer>>(INSERT_DATA_QUERY, builder));
+
+		env.execute();
+
+		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		Assert.assertEquals(20, rs.all().size());
+	}
+
+	@Test
+	public void testCassandraPojoAtLeastOnceSink() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStreamSource<Pojo> source = env
+			.addSource(new SourceFunction<Pojo>() {
+
+				private boolean running = true;
+				private volatile int cnt = 0;
+
+				@Override
+				public void run(SourceContext<Pojo> ctx) throws Exception {
+					while (running) {
+						ctx.collect(new Pojo(UUID.randomUUID().toString(), cnt, 0));
+						cnt++;
+						if (cnt == 20) {
+							cancel();
+						}
+					}
+				}
+
+				@Override
+				public void cancel() {
+					running = false;
+				}
+			});
+
+		source.addSink(new CassandraPojoAtLeastOnceSink<>(Pojo.class, builder));
+
+		env.execute();
+
+		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		Assert.assertEquals(20, rs.all().size());
+	}
+
+	@Test
+	public void testCassandraBatchFormats() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataSet<Tuple3<String, Integer, Integer>> dataSet = env.fromCollection(collection);
+		dataSet.output(new CassandraOutputFormat<Tuple3<String, Integer, Integer>>(INSERT_DATA_QUERY, builder));
+
+		env.execute("Write data");
+
+		DataSet<Tuple3<String, Integer, Integer>> inputDS = env.createInput(
+			new CassandraInputFormat<Tuple3<String, Integer, Integer>>(SELECT_DATA_QUERY, builder),
+			new TupleTypeInfo(Tuple3.class, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
+
+
+		long count = inputDS.count();
+		Assert.assertEquals(count, 20L);
 	}
 }
