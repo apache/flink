@@ -50,6 +50,8 @@ under the License.
 	</scm>
 
 	<modules>
+		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
+		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-shaded-hadoop</module>
 		<module>flink-shaded-curator</module>
@@ -104,6 +106,13 @@ under the License.
 	</properties>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>force-shading</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
@@ -987,6 +996,13 @@ under the License.
 							</filters>
 							<artifactSet>
 								<includes>
+									<!-- Unfortunately, the next line is necessary for now to force the execution
+									of the Shade plugin upon all sub modules. This will generate effective poms,
+									i.e. poms which do not contain properties which are derived from this root pom.
+									In particular, the Scala version properties are defined in the root pom and without
+									shading, the root pom would have to be Scala suffixed and thereby all other modules.
+									-->
+									<include>org.apache.flink:force-shading</include>
 									<include>com.google.guava:*</include>
 									<include>org.ow2.asm:*</include>
 								</includes>
