@@ -40,28 +40,11 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testAllDistinct() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.getSmall3TupleDataSet(env);
-
-		Table table = tableEnv.fromDataSet(input, "a, b, c");
-
-		Table distinct = table.distinct();
-
-		DataSet<Row> ds = tableEnv.toDataSet(distinct, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
 	public void testDistinct() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
@@ -69,7 +52,7 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 
 		DataSet<Row> ds = tableEnv.toDataSet(distinct, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "1\n" + "2\n";
+		String expected = "1\n" + "2\n" + "3\n"+ "4\n"+ "5\n"+ "6\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -82,7 +65,7 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 
 		Table table = tableEnv.fromDataSet(input, "a, b, c, d, e");
 
-		Table distinct = table.groupBy("a").select("e").distinct();
+		Table distinct = table.groupBy("a, e").select("e").distinct();
 
 		DataSet<Row> ds = tableEnv.toDataSet(distinct, Row.class);
 		List<Row> results = ds.collect();

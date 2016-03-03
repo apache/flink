@@ -314,7 +314,7 @@ class Table(
   }
 
   /**
-   * Union two[[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+   * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
    * must fully overlap.
    *
    * Example:
@@ -384,7 +384,7 @@ class GroupedTable(
     * Example:
     *
     * {{{
-    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(0, 10))
+    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(1, 10))
     * }}}
     */
   def select(fields: Expression*): Table = {
@@ -420,7 +420,7 @@ class GroupedTable(
     * Example:
     *
     * {{{
-    *   in.select("key, value.avg + " The average" as average, other.substring(0, 10)")
+    *   in.select("key, value.avg + " The average" as average, other.substring(1, 10)")
     * }}}
     */
   def select(fields: String): Table = {

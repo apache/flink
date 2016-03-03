@@ -34,25 +34,13 @@ import scala.collection.JavaConverters._
 class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
   @Test
-  def testAllDistinct(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
-
-    val distinct = ds.distinct()
-
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n"
-    val results = distinct.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testDistinct(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
     val distinct = ds.select('b).distinct()
 
-    val expected = "1\n" + "2\n"
+    val expected = "1\n" + "2\n" + "3\n"+ "4\n"+ "5\n"+ "6\n"
     val results = distinct.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -62,7 +50,7 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'c, 'd, 'e)
 
-    val distinct = ds.groupBy('a).select('e).distinct()
+    val distinct = ds.groupBy('a, 'e).select('e).distinct()
 
     val expected = "1\n" + "2\n" + "3\n"
     val results = distinct.toDataSet[Row].collect()
