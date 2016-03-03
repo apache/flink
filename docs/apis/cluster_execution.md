@@ -86,7 +86,7 @@ takes the path(s) to the JAR file(s).
 ## Linking with modules not contained in the binary distribution
 
 The binary distribution contains jar packages in the `lib` folder that are automatically
-provided to the classpath of your distrbuted programs. Almost all of Flink classes are
+provided to the classpath of your distributed programs. Almost all of Flink classes are
 located there with a few exceptions, for example the streaming connectors and some freshly
 added modules. To run code depending on these modules you need to make them accessible
 during runtime, for which we suggest two options:
