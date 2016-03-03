@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.net;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -278,17 +277,10 @@ public class ConnectionUtils {
 
 					case HEURISTIC:
 						if (LOG.isDebugEnabled()) {
-							LOG.debug("Checking address {} using heuristics: linkLocal: {} loopback: {}",
-									interfaceAddress, interfaceAddress.isLinkLocalAddress(),
-									interfaceAddress.isLoopbackAddress());
+							LOG.debug("Choosing InetAddress.getLocalHost() address as a heuristic.");
 						}
-						// pick a non-loopback non-link-local address
-						if (interfaceAddress instanceof Inet4Address && !interfaceAddress.isLinkLocalAddress() &&
-								!interfaceAddress.isLoopbackAddress())
-						{
-							return tryLocalHostBeforeReturning(interfaceAddress, targetAddress, logging);
-						}
-						break;
+
+						return InetAddress.getLocalHost();
 
 					default:
 						throw new RuntimeException("Unsupported strategy: " + strategy);
