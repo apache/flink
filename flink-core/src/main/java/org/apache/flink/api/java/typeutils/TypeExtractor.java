@@ -890,8 +890,8 @@ public class TypeExtractor {
 		}
 		
 		if (!(type instanceof TypeVariable<?>)) {
-			// check for basic type
-			if (typeInfo.isBasicType()) {
+			// check for Java Basic Types
+			if (typeInfo instanceof BasicTypeInfo) {
 				
 				TypeInformation<?> actual;
 				// check if basic type at all
@@ -904,8 +904,8 @@ public class TypeExtractor {
 				}
 				
 			}
-			// check for tuple
-			else if (typeInfo.isTupleType()) {
+			// check for Java Tuples
+			else if (typeInfo instanceof TupleTypeInfo) {
 				// check if tuple at all
 				if (!(isClassType(type) && Tuple.class.isAssignableFrom(typeToClass(type)))) {
 					throw new InvalidTypesException("Tuple type expected.");
@@ -1079,9 +1079,9 @@ public class TypeExtractor {
 			// check for generic object
 			else if (typeInfo instanceof GenericTypeInfo<?>) {
 				Class<?> clazz = null;
-				if (!(isClassType(type) && ((GenericTypeInfo<?>) typeInfo).getTypeClass() == (clazz = typeToClass(type)))) {
-					throw new InvalidTypesException("Generic object type '"
-							+ ((GenericTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
+				if (!(isClassType(type) && (clazz = typeToClass(type)).isAssignableFrom(((GenericTypeInfo<?>) typeInfo).getTypeClass()))) {
+					throw new InvalidTypesException("Generic type '"
+							+ ((GenericTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' or a subclass of it expected but was '"
 							+ clazz.getCanonicalName() + "'.");
 				}
 			}
