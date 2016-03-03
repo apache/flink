@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
@@ -31,7 +31,8 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
+import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -657,7 +658,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * The internal timestamps are, for example, used to to event-time window operations.
    *
    * If you know that the timestamps are strictly increasing you can use an
-   * [[org.apache.flink.streaming.api.functions.AscendingTimestampExtractor]]. Otherwise,
+   * [[AscendingTimestampExtractor]]. Otherwise,
    * you should provide a [[TimestampExtractor]] that also implements
    * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
    *
@@ -681,6 +682,11 @@ class DataStream[T](stream: JavaStream[T]) {
    * Use this method for the common cases, where some characteristic over all elements
    * should generate the watermarks, or where watermarks are simply trailing behind the
    * wall clock time by a certain amount.
+   *
+   * For the second case and when the watermarks are required to lag behind the maximum
+   * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
+   * amount is known in advance, use the
+   * {@link org.apache.flink.streaming.api.functions.TimestampExtractorWithFixedAllowedLateness}.
    *
    * For cases where watermarks should be created in an irregular fashion, for example
    * based on certain markers that some element carry, use the

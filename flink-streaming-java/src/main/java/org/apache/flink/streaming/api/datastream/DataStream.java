@@ -50,6 +50,8 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -704,7 +706,7 @@ public class DataStream<T> {
 	 *
 	 * <p>
 	 * If you know that the timestamps are strictly increasing you can use an
-	 * {@link org.apache.flink.streaming.api.functions.AscendingTimestampExtractor}. Otherwise,
+	 * {@link AscendingTimestampExtractor}. Otherwise,
 	 * you should provide a {@link TimestampExtractor} that also implements
 	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
 	 *
@@ -712,7 +714,7 @@ public class DataStream<T> {
 	 * 
 	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)}
 	 *             of {@link #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)}
-	 *             instread.
+	 *             instead.
 	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
 	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
 	 */
@@ -740,6 +742,11 @@ public class DataStream<T> {
 	 * <p>Use this method for the common cases, where some characteristic over all elements
 	 * should generate the watermarks, or where watermarks are simply trailing behind the
 	 * wall clock time by a certain amount.
+	 *
+	 * <p>For the second case and when the watermarks are required to lag behind the maximum
+	 * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
+	 * amount is known in advance, use the
+	 * {@link BoundedOutOfOrdernessTimestampExtractor}.
 	 * 
 	 * <p>For cases where watermarks should be created in an irregular fashion, for example
 	 * based on certain markers that some element carry, use the
