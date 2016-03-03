@@ -22,6 +22,12 @@ under the License.
 
 	<modelVersion>4.0.0</modelVersion>
 
+	<parent>
+		<groupId>org.apache</groupId>
+		<artifactId>apache</artifactId>
+		<version>14</version>
+	</parent>
+
 	<!---
 	This module is used a dependency in the root pom. It activates shading for all sub modules
 	through an include rule in the shading configuration. This assures that Maven always generates
@@ -35,5 +41,64 @@ under the License.
 	<version>1.0.0</version>
 
 	<packaging>jar</packaging>
+
+	<profiles>
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.4</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<version>1.4.1</version>
+						<executions>
+							<execution>
+								<id>enforce-maven</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<requireMavenVersion>
+											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
+											<version>(,3.3)</version>
+										</requireMavenVersion>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-release-plugin</artifactId>
+							<version>2.1</version>
+							<configuration>
+								<mavenExecutorId>forked-path</mavenExecutorId>
+								<useReleaseProfile>false</useReleaseProfile>
+								<arguments>${arguments} -Psonatype-oss-release</arguments>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
