@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 
 /**
  * Interface for user functions that extract timestamps from elements.
@@ -29,7 +30,7 @@ import org.apache.flink.api.common.functions.Function;
  *
  * <p>
  * Note: If you know that timestamps are monotonically increasing you can use
- * {@link org.apache.flink.streaming.api.functions.AscendingTimestampExtractor}. This will
+ * {@link AscendingTimestampExtractor}. This will
  * keep track of watermarks.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
