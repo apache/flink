@@ -1212,22 +1212,18 @@ someStream.map(...).disableChaining();
         </p>
       </td>
     </tr>
-   <tr>
-      <td>Start a new resource group</td>
+    <tr>
+      <td>Set slot sharing group</td>
       <td>
-        <p>Start a new resource group containing the map and the subsequent operators.
+        <p>Set the slot sharing group of an operation. Flink will put operations with the same
+        slot sharing group into the same slot while keeping operations that don't have the
+        slot sharing group in other slots. This can be used to isolate slots. The slot sharing
+        group is inherited from input operations if all input operations are in the same slot
+        sharing group.
+        The name of the default slot sharing group is "default", operations can explicitly
+        be put into this group by calling slotSharingGroup("default").
 {% highlight java %}
-someStream.filter(...).startNewResourceGroup();
-{% endhighlight %}
-        </p>
-      </td>
-    </tr>
-   <tr>
-      <td>Isolate resources</td>
-      <td>
-        <p>Isolate the operator in its own slot.
-{% highlight java %}
-someStream.map(...).isolateResources();
+someStream.filter(...).slotSharingGroup("name");
 {% endhighlight %}
         </p>
       </td>
@@ -1271,22 +1267,18 @@ someStream.map(...).disableChaining()
         </p>
       </td>
     </tr>
-   <tr>
-      <td>Start a new resource group</td>
+  <tr>
+      <td>Set slot sharing group</td>
       <td>
-        <p>Start a new resource group containing the map and the subsequent operators.
-{% highlight scala %}
-someStream.filter(...).startNewResourceGroup()
-{% endhighlight %}
-        </p>
-      </td>
-    </tr>
-   <tr>
-      <td>Isolate resources</td>
-      <td>
-        <p>Isolate the operator in its own slot.
-{% highlight scala %}
-someStream.map(...).isolateResources()
+        <p>Set the slot sharing group of an operation. Flink will put operations with the same
+        slot sharing group into the same slot while keeping operations that don't have the
+        slot sharing group in other slots. This can be used to isolate slots. The slot sharing
+        group is inherited from input operations if all input operations are in the same slot
+        sharing group.
+        The name of the default slot sharing group is "default", operations can explicitly
+        be put into this group by calling slotSharingGroup("default").
+{% highlight java %}
+someStream.filter(...).slotSharingGroup("name")
 {% endhighlight %}
         </p>
       </td>
