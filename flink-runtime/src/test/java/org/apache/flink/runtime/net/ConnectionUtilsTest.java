@@ -31,7 +31,7 @@ import java.net.InetSocketAddress;
 public class ConnectionUtilsTest {
 
 	@Test
-	public void testFindConnectableAddress() {
+	public void testReturnLocalHostAddressUsingHeuristics() {
 		int unusedPort;
 		try {
 			unusedPort = org.apache.flink.util.NetUtils.getAvailablePort();
@@ -55,12 +55,8 @@ public class ConnectionUtilsTest {
 			// we should have found a heuristic address
 			assertNotNull(add);
 
-			// these checks are desirable, but will not work on every machine
-			// such as machines with no connected network media, which may
-			// default to a link local address
-			// assertFalse(add.isLinkLocalAddress());
-			// assertFalse(add.isLoopbackAddress());
-			// assertFalse(add.isAnyLocalAddress());
+			// make sure that we returned the InetAddress.getLocalHost as a heuristic
+			assertEquals(InetAddress.getLocalHost(), add);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
