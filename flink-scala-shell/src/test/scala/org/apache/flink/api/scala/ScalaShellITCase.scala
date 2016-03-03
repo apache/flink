@@ -155,7 +155,7 @@ class ScalaShellITCase extends TestLogger {
 
     // find jar file that contains the ml code
     var externalJar = ""
-    val folder = new File("../flink-libraries/flink-ml/target/")
+    val folder = new File("../../flink-libraries/flink-ml/target/")
     val listOfFiles = folder.listFiles()
 
     for (i <- listOfFiles.indices) {
