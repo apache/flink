@@ -252,7 +252,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 *
 	 */
 	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
-		File cwd = new File("target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+		File cwd = new File("target/" + yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
 		
@@ -598,7 +598,7 @@ public abstract class YarnTestBase extends TestLogger {
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script
 		// to upload them to Amazon S3.
 		if(isOnTravis()) {
-			File target = new File("../target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+			File target = new File("../target" + yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 			if(!target.mkdirs()) {
 				LOG.warn("Error creating dirs to {}", target);
 			}
