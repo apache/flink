@@ -35,15 +35,15 @@ import static org.junit.Assert.fail;
 
 public class ClassLoaderITCase {
 
-	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
+	private static final String INPUT_SPLITS_PROG_JAR_FILE = "customsplit-test-jar.jar";
 
-	private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE = "target/streaming-customsplit-test-jar.jar";
+	private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE = "streaming-customsplit-test-jar.jar";
 
-	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
+	private static final String STREAMING_PROG_JAR_FILE = "streamingclassloader-test-jar.jar";
 
-	private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE = "target/streaming-checkpointed-classloader-test-jar.jar";
+	private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE = "streaming-checkpointed-classloader-test-jar.jar";
 
-	private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
+	private static final String KMEANS_JAR_PATH = "kmeans-test-jar.jar";
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
