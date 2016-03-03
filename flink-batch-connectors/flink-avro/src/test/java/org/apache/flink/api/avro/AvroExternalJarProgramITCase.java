@@ -40,7 +40,7 @@ import org.junit.Test;
 
 public class AvroExternalJarProgramITCase {
 
-	private static final String JAR_FILE = "target/maven-test-jar.jar";
+	private static final String JAR_FILE = "maven-test-jar.jar";
 
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 

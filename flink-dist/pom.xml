@@ -35,14 +35,6 @@ under the License.
 
 	<dependencies>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>force-shading</artifactId>
-			<version>1.0.0</version>
-			<!-- This is necessary to prevent shading of this module -->
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- BINARIES -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -185,6 +177,15 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
 							</transformers>
 						</configuration>
+					</execution>
+					<execution>
+						<!--
+						Disable inherited shade-flink to prevent the Shade plugin from changing the project.basedir. The basedir
+						is changed by the Shade plugin when dependencyReducedPomLocation is set to a different location than the
+						original basedir. We do that in the root pom.xml.
+						-->
+						<id>shade-flink</id>
+						<phase>none</phase>
 					</execution>
 				</executions>
 			</plugin>
