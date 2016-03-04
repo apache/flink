@@ -111,6 +111,13 @@ $(function() {
   codeTabs();
   viewSolution();
 
+  // Display anchor links when hovering over headers. For documentation of the
+  // configuration options, see the AnchorJS documentation.
+  anchors.options = {
+      placement: 'right'
+  };
+  anchors.add();
+
   $(window).bind('hashchange', function() {
     maybeScrollToHash();
   });
