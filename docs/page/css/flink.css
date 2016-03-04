@@ -225,3 +225,14 @@ th {
 td {
 	padding: 5px;
 }
+
+/*=============================================================================
+            AnchorJS (anchor links when hovering over headers)
+=============================================================================*/
+
+.anchorjs-link:hover {
+    text-decoration: none;
+}
+*:hover > .anchorjs-link {
+    transition: color .25s linear;
+}
