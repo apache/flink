@@ -1493,7 +1493,7 @@ DataStream<Integer> iterationBody = iteration.map(/* this is executed many times
 
 To close an iteration and define the iteration tail, call the `closeWith(feedbackStream)` method of the `IterativeStream`.
 The DataStream given to the `closeWith` function will be fed back to the iteration head.
-A common pattern is to use a filter to separate the part of the strem that is fed back,
+A common pattern is to use a filter to separate the part of the stream that is fed back,
 and the part of the stream which is propagated forward. These filters can, e.g., define
 the "termination" logic, where an element is allowed to propagate downstream rather
 than being fed back.
