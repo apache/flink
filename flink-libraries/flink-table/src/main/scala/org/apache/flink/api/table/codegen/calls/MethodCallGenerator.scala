@@ -21,7 +21,7 @@ package org.apache.flink.api.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.CodeGenUtils._
+import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
@@ -30,33 +30,12 @@ class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extend
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
-    val defaultValue = primitiveDefaultValue(returnType)
-
-    val resultCode = if (codeGenerator.nullCheck) {
-      s"""
-        |${operands.map(_.code).mkString("\n")}
-        |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
-        |  $resultTerm = ${method.getDeclaringClass.getCanonicalName}.${method.getName}(
-        |    ${operands.map(_.resultTerm).mkString(", ")});
-        |}
-        |""".stripMargin
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+      (operandResultTerms) =>
+        s"""
+          |${method.getDeclaringClass.getCanonicalName}.
+          |  ${method.getName}(${operandResultTerms.mkString(", ")})
+         """.stripMargin
     }
-    else {
-      s"""
-        |${operands.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = ${method.getDeclaringClass.getCanonicalName}.
-        |  ${method.getName}(${operands.map(_.resultTerm).mkString(", ")});
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
   }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.api.table.codegen.calls
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.CodeGenUtils._
+import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
@@ -36,43 +36,18 @@ class TrimCallGenerator(returnType: TypeInformation[_]) extends CallGenerator {
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     val method = BuiltInMethod.TRIM.method
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
-    val defaultValue = primitiveDefaultValue(returnType)
-
-    val methodCall =
-      s"""
-        |${method.getDeclaringClass.getCanonicalName}.${method.getName}(
-        |  ${operands.head.resultTerm} == ${BOTH.ordinal()} ||
-        |    ${operands.head.resultTerm} == ${LEADING.ordinal()},
-        |  ${operands.head.resultTerm} == ${BOTH.ordinal()} ||
-        |    ${operands.head.resultTerm} == ${TRAILING.ordinal()},
-        |  ${operands(1).resultTerm},
-        |  ${operands(2).resultTerm})
-        |""".stripMargin
-
-    val resultCode = if (codeGenerator.nullCheck) {
-      s"""
-        |${operands.map(_.code).mkString("\n")}
-        |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
-        |  $resultTerm = $methodCall;
-        |}
-        |""".stripMargin
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+      (operandResultTerms) =>
+        s"""
+          |${method.getDeclaringClass.getCanonicalName}.${method.getName}(
+          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
+          |    ${operandResultTerms.head} == ${LEADING.ordinal()},
+          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
+          |    ${operandResultTerms.head} == ${TRAILING.ordinal()},
+          |  ${operandResultTerms(1)},
+          |  ${operandResultTerms(2)})
+          |""".stripMargin
     }
-    else {
-      s"""
-        |${operands.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = $methodCall;
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
   }
 
 }
