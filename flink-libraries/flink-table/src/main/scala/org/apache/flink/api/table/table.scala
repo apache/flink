@@ -385,16 +385,23 @@ class GroupedTable(
       .map(_._2).reduce( (x,y) => x ::: y)
 
     // apply aggregations
-    if (aggCalls.nonEmpty) {
-      relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
-    }
+    relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
 
     // get selection expressions
-    val exprs: List[RexNode] = extractedAggCalls
-      .map(_._1)
-      .map(toRexNode(_, relBuilder))
+    val exprs: List[RexNode] = try {
+       extractedAggCalls
+        .map(_._1)
+        .map(toRexNode(_, relBuilder))
+    }
+    catch {
+      case iae: IllegalArgumentException  =>
+        throw new IllegalArgumentException(
+          "Only grouping fields and aggregations allowed after groupBy.", iae)
+      case e: Exception => throw e
+    }
 
     relBuilder.project(exprs.toIterable.asJava)
+
     new Table(relBuilder.build(), relBuilder)
   }
 

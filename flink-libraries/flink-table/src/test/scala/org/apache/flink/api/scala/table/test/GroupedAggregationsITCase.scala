@@ -39,12 +39,19 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      // must fail. '_foo not a valid field
       .groupBy('_foo)
       .select('a.avg)
+  }
 
-    val expected = ""
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Test(expected = classOf[IllegalArgumentException])
+  def testGroupingInvalidSelection(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .groupBy('a, 'b)
+      // must fail. 'c is not a grouping key or aggregation
+      .select('c)
   }
 
   @Test

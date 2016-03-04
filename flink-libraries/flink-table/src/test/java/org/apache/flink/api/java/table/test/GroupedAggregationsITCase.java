@@ -47,16 +47,25 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		tableEnv
+			.fromDataSet(input, "a, b, c")
+			// must fail. Field foo is not in input
+			.groupBy("foo")
+			.select("a.avg");
+	}
 
-		Table result = table
-				.groupBy("foo").select("a.avg");
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupingInvalidSelection() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+
+		tableEnv
+			.fromDataSet(input, "a, b, c")
+			.groupBy("a, b")
+			// must fail. Field c is not a grouping key or aggregation
+			.select("c");
 	}
 
 	@Test
