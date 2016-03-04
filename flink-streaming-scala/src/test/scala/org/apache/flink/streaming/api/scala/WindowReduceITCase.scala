@@ -20,20 +20,21 @@ package org.apache.flink.streaming.api.scala
 
 import java.util.concurrent.TimeUnit
 
-import org.apache.flink.api.common.functions.FoldFunction
+import org.apache.flink.api.common.functions.{ReduceFunction, FoldFunction}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.scala.testutils.{CheckingIdentityRichWindowFunction, CheckingIdentityRichAllWindowFunction}
+import org.apache.flink.streaming.api.scala.testutils.{CheckingIdentityRichAllWindowFunction, CheckingIdentityRichWindowFunction}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.junit.Test
+
 import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -41,11 +42,11 @@ import scala.collection.mutable
  * Tests for Folds over windows. These also test whether OutputTypeConfigurable functions
  * work for windows, because FoldWindowFunction is OutputTypeConfigurable.
  */
-class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
+class WindowReduceITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
-  def testFoldWindow(): Unit = {
-    WindowFoldITCase.testResults = mutable.MutableList()
+  def testReduceWindow(): Unit = {
+    WindowReduceITCase.testResults = mutable.MutableList()
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -68,36 +69,36 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowReduceITCase.Tuple2TimestampExtractor)
 
     source1
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
+      .reduce( (a, b) => (a._1 + b._1, a._2 + b._2) )
       .addSink(new SinkFunction[(String, Int)]() {
         def invoke(value: (String, Int)) {
-        WindowFoldITCase.testResults += value.toString
+          WindowReduceITCase.testResults += value.toString
         }
       })
 
-    env.execute("Fold Window Test")
+    env.execute("Reduce Window Test")
 
     val expectedResult = mutable.MutableList(
-      "(R:aaa,3)",
-      "(R:aaa,21)",
-      "(R:bbb,12)")
+      "(aaa,3)",
+      "(aaa,21)",
+      "(bbb,12)")
 
-    assertEquals(expectedResult.sorted, WindowFoldITCase.testResults.sorted)
+    assertEquals(expectedResult.sorted, WindowReduceITCase.testResults.sorted)
   }
 
   @Test
-  def testFoldWithWindowFunction(): Unit = {
-    WindowFoldITCase.testResults = mutable.MutableList()
+  def testReduceWithWindowFunction(): Unit = {
+    WindowReduceITCase.testResults = mutable.MutableList()
     CheckingIdentityRichWindowFunction.reset()
 
-    val foldFunc = new FoldFunction[(String, Int), (String, Int)] {
-      override def fold(accumulator: (String, Int), value: (String, Int)): (String, Int) = {
-        (accumulator._1 + value._1, accumulator._2 + value._2)
+    val reduceFunc = new ReduceFunction[(String, Int)] {
+      override def reduce(a: (String, Int), b: (String, Int)): (String, Int) = {
+        (a._1 + b._1, a._2 + b._2)
       }
     }
     
@@ -122,36 +123,35 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowReduceITCase.Tuple2TimestampExtractor)
     
     source1
       .keyBy(0)
       .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply(
-        ("R:", 0),
-        foldFunc,
+        reduceFunc,
         new CheckingIdentityRichWindowFunction[(String, Int), Tuple, TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
         def invoke(value: (String, Int)) {
-          WindowFoldITCase.testResults += value.toString
+          WindowReduceITCase.testResults += value.toString
         }
       })
 
-    env.execute("Fold Window Test")
+    env.execute("Reduce Window Test")
 
     val expectedResult = mutable.MutableList(
-      "(R:aaa,3)",
-      "(R:aaa,21)",
-      "(R:bbb,12)")
+      "(aaa,3)",
+      "(aaa,21)",
+      "(bbb,12)")
 
-    assertEquals(expectedResult.sorted, WindowFoldITCase.testResults.sorted)
+    assertEquals(expectedResult.sorted, WindowReduceITCase.testResults.sorted)
 
     CheckingIdentityRichWindowFunction.checkRichMethodCalls()
   }
 
   @Test
-  def testFoldAllWindow(): Unit = {
-    WindowFoldITCase.testResults = mutable.MutableList()
+  def testReduceAllWindow(): Unit = {
+    WindowReduceITCase.testResults = mutable.MutableList()
     
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -174,34 +174,34 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowReduceITCase.Tuple2TimestampExtractor)
 
     source1
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-      .fold(("R:", 0)) { (acc: (String, Int), v: (String, Int)) => (acc._1 + v._1, acc._2 + v._2) }
+      .reduce( (a, b) => (a._1 + b._1, a._2 + b._2) )
       .addSink(new SinkFunction[(String, Int)]() {
       def invoke(value: (String, Int)) {
-        WindowFoldITCase.testResults += value.toString
+        WindowReduceITCase.testResults += value.toString
       }
     })
 
     env.execute("Fold All-Window Test")
 
     val expectedResult = mutable.MutableList(
-      "(R:aaa,3)",
-      "(R:bababa,24)")
+      "(aaa,3)",
+      "(bababa,24)")
 
-    assertEquals(expectedResult.sorted, WindowFoldITCase.testResults.sorted)
+    assertEquals(expectedResult.sorted, WindowReduceITCase.testResults.sorted)
   }
 
   @Test
-  def testFoldAllWithWindowFunction(): Unit = {
-    WindowFoldITCase.testResults = mutable.MutableList()
+  def testReduceAllWithWindowFunction(): Unit = {
+    WindowReduceITCase.testResults = mutable.MutableList()
     CheckingIdentityRichAllWindowFunction.reset()
-    
-    val foldFunc = new FoldFunction[(String, Int), (String, Int)] {
-      override def fold(accumulator: (String, Int), value: (String, Int)): (String, Int) = {
-        (accumulator._1 + value._1, accumulator._2 + value._2)
+
+    val reduceFunc = new ReduceFunction[(String, Int)] {
+      override def reduce(a: (String, Int), b: (String, Int)): (String, Int) = {
+        (a._1 + b._1, a._2 + b._2)
       }
     }
     
@@ -226,40 +226,39 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).assignTimestampsAndWatermarks(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestampsAndWatermarks(new WindowReduceITCase.Tuple2TimestampExtractor)
 
     source1
       .windowAll(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
       .apply(
-        ("R:", 0),
-        foldFunc,
+        reduceFunc,
         new CheckingIdentityRichAllWindowFunction[(String, Int), TimeWindow]())
       .addSink(new SinkFunction[(String, Int)]() {
         def invoke(value: (String, Int)) {
-          WindowFoldITCase.testResults += value.toString
+          WindowReduceITCase.testResults += value.toString
         }
       })
 
     env.execute("Fold All-Window Test")
 
     val expectedResult = mutable.MutableList(
-      "(R:aaa,3)",
-      "(R:bababa,24)")
+      "(aaa,3)",
+      "(bababa,24)")
 
-    assertEquals(expectedResult.sorted, WindowFoldITCase.testResults.sorted)
+    assertEquals(expectedResult.sorted, WindowReduceITCase.testResults.sorted)
 
     CheckingIdentityRichAllWindowFunction.checkRichMethodCalls()
   }
 }
 
-
-object WindowFoldITCase {
+object WindowReduceITCase {
+  
   private var testResults: mutable.MutableList[String] = null
 
   private class Tuple2TimestampExtractor extends AssignerWithPunctuatedWatermarks[(String, Int)] {
-    
+
     private var currentTimestamp = -1L
-    
+
     override def extractTimestamp(element: (String, Int), previousTimestamp: Long): Long = {
       currentTimestamp = element._2
       currentTimestamp
@@ -272,3 +271,6 @@ object WindowFoldITCase {
     }
   }
 }
+
+
+
