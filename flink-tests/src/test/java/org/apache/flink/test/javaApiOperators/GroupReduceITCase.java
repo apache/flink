@@ -24,6 +24,10 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.DataSink;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.MapOperator;
+import org.apache.flink.api.java.operators.PartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -38,6 +42,7 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -362,7 +367,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(2); // important because it determines how often the combiner is called
+		env.setParallelism(4); // important because it determines how often the combiner is called
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple2<Integer, String>> reduceDs = ds.
@@ -376,6 +381,62 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"34,test4\n" +
 				"65,test5\n" +
 				"111,test6\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testCorrectnessOfGroupReduceOnTuplesWithCombineAndExplicitPartition() throws Exception {
+		/*
+		 * check correctness of groupReduce on tuples with combine
+		 */
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4); // important because it determines how often the combiner is called
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Integer, String>> reduceDs = ds.partitionByHash(1).
+			groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine());
+
+		List<Tuple2<Integer, String>> result = reduceDs.collect();
+
+		String expected = "1,test1\n" +
+			"5,test2\n" +
+			"15,test3\n" +
+			"34,test4\n" +
+			"65,test5\n" +
+			"111,test6\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testCorrectnessOfGroupReduceOnTuplesWithPartitionAsInputToMapAndReduce() throws Exception {
+
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4); // important because it determines how often the combiner is called
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		// First partition the input data
+		PartitionOperator<Tuple3<Integer, Long, String>> pData = ds.partitionByHash(1);
+		// the partitioned data is passed to a mapper function
+		MapOperator<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> mapData =
+			pData.map(new IdentityMapper<Tuple3<Integer, Long, String>>()).setParallelism(4);
+		mapData.collect();
+        // the partitoned data is passed to a groupReducer
+		DataSet<Tuple2<Integer, String>> reduceDs = pData.
+			groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine());
+
+		List<Tuple2<Integer, String>> result = reduceDs.collect();
+
+		String expected = "1,test1\n" +
+			"5,test2\n" +
+			"15,test3\n" +
+			"34,test4\n" +
+			"65,test5\n" +
+			"111,test6\n";
 
 		compareResultAsTuples(result, expected);
 	}
@@ -430,95 +491,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
-	@Test
-	public void testCorrectnessOfGroupreduceWithExplicitPartitionOfReducer() throws Exception {
-		/*
-		 * check correctness of groupReduce with descending group sort
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
-
-		DataSet<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			ds.flatMap(new Tokenizer()).partitionByHash(0)
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
-
-		List<Tuple2<String, Integer>> result = counts.collect();
-		String expected = "am,1\n"
-			+
-			"are,1\n" +
-			"comment,1\n" +
-			"fine,1\n" +
-			"hello,3\n" +
-			"hi,1\n"+
-			"how,1\n"+
-			"i,1\n"+
-			"lol,1\n"+
-			"luke,1\n"+
-			"random,1\n"+
-			"skywalker,1\n"+
-			"world,2\n"+
-			"you,1\n";
-
-		compareResultAsTuples(result, expected);
-	}
-
-	@Test
-	public void testCorrectnessOfGroupreduceWithoutExplicitPartitionOfReducer() throws Exception {
-		/*
-		 * check correctness of groupReduce with descending group sort
-		 */
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
-
-		DataSet<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			ds.flatMap(new Tokenizer())
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
-
-		List<Tuple2<String, Integer>> result = counts.collect();
-		String expected = "am,1\n"
-			+
-			"are,1\n" +
-			"comment,1\n" +
-			"fine,1\n" +
-			"hello,3\n" +
-			"hi,1\n"+
-			"how,1\n"+
-			"i,1\n"+
-			"lol,1\n"+
-			"luke,1\n"+
-			"random,1\n"+
-			"skywalker,1\n"+
-			"world,2\n"+
-			"you,1\n";
-
-		compareResultAsTuples(result, expected);
-	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
-	}
 	@Test
 	public void testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector() throws Exception {
 		/*
@@ -1541,7 +1513,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
-
 			int i = 0;
 			String s = "";
 
@@ -1551,7 +1522,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			}
 
 			out.collect(new Tuple2<>(i, s));
-
 		}
 	}
 

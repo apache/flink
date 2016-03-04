@@ -233,6 +233,27 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testReduceWithPartition() throws Exception {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.partitionByHash(1).
+			groupBy(1).reduce(new Tuple3Reduce("replace"));
+
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
+
+		String expected = "1,1,Hi\n" +
+			"5,2,replace\n" +
+			"15,3,replace\n" +
+			"34,4,replace\n" +
+			"65,5,replace\n" +
+			"111,6,replace\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
 	public void testReduceATupleReturningKeySelector() throws Exception {
 		/*
 		 * Reduce with a Tuple-returning KeySelector
