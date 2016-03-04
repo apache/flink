@@ -241,7 +241,7 @@ Table result = left.union(right);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Removes duplicate values and returns only distinct (different) values.</p>
+        <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.distinct();
@@ -355,7 +355,7 @@ val result = left.union(right);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Removes duplicate values and returns only distinct (different) values.</p>
+        <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
 {% highlight scala %}
 val in = ds.as('a, 'b, 'c);
 val result = in.distinct();
