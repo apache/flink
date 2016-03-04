@@ -124,6 +124,55 @@ trait ImplicitExpressionOperations {
       expr
     }
   }
+
+  /**
+    * Returns the length of a String.
+    */
+  def charLength() = {
+    Call(BuiltInFunctionNames.CHAR_LENGTH, expr)
+  }
+
+  /**
+    * Returns all of the characters in a String in upper case using the rules of
+    * the default locale.
+    */
+  def upperCase() = {
+    Call(BuiltInFunctionNames.UPPER_CASE, expr)
+  }
+
+  /**
+    * Returns all of the characters in a String in lower case using the rules of
+    * the default locale.
+    */
+  def lowerCase() = {
+    Call(BuiltInFunctionNames.LOWER_CASE, expr)
+  }
+
+  /**
+    * Converts the initial letter of each word in a String to uppercase.
+    * Assumes a String containing only [A-Za-z0-9], everything else is treated as whitespace.
+    */
+  def initCap() = {
+    Call(BuiltInFunctionNames.INIT_CAP, expr)
+  }
+
+  /**
+    * Returns true, if a String matches the specified LIKE pattern.
+    *
+    * e.g. "Jo_n%" matches all Strings that start with "Jo(arbitrary letter)n"
+    */
+  def like(pattern: Expression) = {
+    Call(BuiltInFunctionNames.LIKE, expr, pattern)
+  }
+
+  /**
+    * Returns true, if a String matches the specified SQL regex pattern.
+    *
+    * e.g. "A+" matches all Strings that consist of at least one A
+    */
+  def similar(pattern: Expression) = {
+    Call(BuiltInFunctionNames.SIMILAR, expr, pattern)
+  }
 }
 
 /**

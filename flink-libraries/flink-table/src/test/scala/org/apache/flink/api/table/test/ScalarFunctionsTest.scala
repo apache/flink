@@ -31,6 +31,10 @@ import org.junit.Test
 
 class ScalarFunctionsTest {
 
+  // ----------------------------------------------------------------------------------------------
+  // String functions
+  // ----------------------------------------------------------------------------------------------
+
   @Test
   def testSubstring(): Unit = {
     testFunction(
@@ -77,6 +81,117 @@ class ScalarFunctionsTest {
       "trim(BOTH, '.', f0)",
       "TRIM(BOTH '.' FROM f0)",
       "This is a test String")
+  }
+
+  @Test
+  def testCharLength(): Unit = {
+    testFunction(
+      'f0.charLength(),
+      "f0.charLength()",
+      "CHAR_LENGTH(f0)",
+      "22")
+
+    testFunction(
+      'f0.charLength(),
+      "charLength(f0)",
+      "CHARACTER_LENGTH(f0)",
+      "22")
+  }
+
+  @Test
+  def testUpperCase(): Unit = {
+    testFunction(
+      'f0.upperCase(),
+      "f0.upperCase()",
+      "UPPER(f0)",
+      "THIS IS A TEST STRING.")
+  }
+
+  @Test
+  def testLowerCase(): Unit = {
+    testFunction(
+      'f0.lowerCase(),
+      "f0.lowerCase()",
+      "LOWER(f0)",
+      "this is a test string.")
+  }
+
+  @Test
+  def testInitCap(): Unit = {
+    testFunction(
+      'f0.initCap(),
+      "f0.initCap()",
+      "INITCAP(f0)",
+      "This Is A Test String.")
+  }
+
+  @Test
+  def testConcat(): Unit = {
+    testFunction(
+      'f0 + 'f0,
+      "f0 + f0",
+      "f0||f0",
+      "This is a test String.This is a test String.")
+  }
+
+  @Test
+  def testLike(): Unit = {
+    testFunction(
+      'f0.like("Th_s%"),
+      "f0.like('Th_s%')",
+      "f0 LIKE 'Th_s%'",
+      "true")
+
+    testFunction(
+      'f0.like("%is a%"),
+      "f0.like('%is a%')",
+      "f0 LIKE '%is a%'",
+      "true")
+  }
+
+  @Test
+  def testNotLike(): Unit = {
+    testFunction(
+      !'f0.like("Th_s%"),
+      "!f0.like('Th_s%')",
+      "f0 NOT LIKE 'Th_s%'",
+      "false")
+
+    testFunction(
+      !'f0.like("%is a%"),
+      "!f0.like('%is a%')",
+      "f0 NOT LIKE '%is a%'",
+      "false")
+  }
+
+  @Test
+  def testSimilar(): Unit = {
+    testFunction(
+      'f0.similar("_*"),
+      "f0.similar('_*')",
+      "f0 SIMILAR TO '_*'",
+      "true")
+
+    testFunction(
+      'f0.similar("This (is)? a (test)+ Strin_*"),
+      "f0.similar('This (is)? a (test)+ Strin_*')",
+      "f0 SIMILAR TO 'This (is)? a (test)+ Strin_*'",
+      "true")
+  }
+
+  @Test
+  def testNotSimilar(): Unit = {
+    testFunction(
+      !'f0.similar("_*"),
+      "!f0.similar('_*')",
+      "f0 NOT SIMILAR TO '_*'",
+      "false")
+
+    testFunction(
+      !'f0.similar("This (is)? a (test)+ Strin_*"),
+      "!f0.similar('This (is)? a (test)+ Strin_*')",
+      "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
+      "false")
   }
 
   // ----------------------------------------------------------------------------------------------

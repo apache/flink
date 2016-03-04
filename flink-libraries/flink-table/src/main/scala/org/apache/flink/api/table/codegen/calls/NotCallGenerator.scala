@@ -18,24 +18,20 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import java.lang.reflect.Method
+import org.apache.flink.api.table.codegen.calls.ScalarOperators.generateNot
+import org.apache.flink.api.table.codegen.{GeneratedExpression, CodeGenerator}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
-
-class MethodCallGenerator(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+/**
+  * Inverts the boolean value of a CallGenerator result.
+  */
+class NotCallGenerator(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
-      (operandResultTerms) =>
-        s"""
-          |${method.getDeclaringClass.getCanonicalName}.
-          |  ${method.getName}(${operandResultTerms.mkString(", ")})
-         """.stripMargin
-    }
+    val expr = callGenerator.generate(codeGenerator, operands)
+    generateNot(codeGenerator.nullCheck, expr)
   }
+
 }
