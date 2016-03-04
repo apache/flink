@@ -15,32 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.scala.function
 
-import java.io.Serializable
+package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.annotation.Public
-import org.apache.flink.api.common.functions.Function
+import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction => JAllWindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
-/**
- * Base interface for functions that are evaluated over non-grouped windows,
- * i.e., windows over all stream partitions.
- *
- * @tparam IN The type of the input value.
- * @tparam OUT The type of the output value.
- */
-@Public
-trait AllWindowFunction[IN, OUT, W <: Window] extends Function with Serializable {
+import scala.collection.JavaConverters._
 
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param window The window that is being evaluated.
-    * @param input  The elements in the window being evaluated.
-    * @param out    A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def apply(window: W, input: Iterable[IN], out: Collector[OUT])
+/**
+ * A wrapper function that exposes a Scala Function3 as a Java AllWindowFunction.
+ */
+final class ScalaAllWindowFunction[IN, OUT, W <: Window](
+        private[this] val function: (W, Iterable[IN], Collector[OUT]) => Unit)
+    extends JAllWindowFunction[IN, OUT, W] {
+  
+  @throws(classOf[Exception])
+  override def apply(window: W, input: java.lang.Iterable[IN], out: Collector[OUT]) {
+    function.apply(window, input.asScala, out)
+  }
 }
