@@ -44,6 +44,12 @@ case class Call(functionName: String, args: Expression*) extends Expression {
 object BuiltInFunctionNames {
   val SUBSTRING = "SUBSTRING"
   val TRIM = "TRIM"
+  val CHAR_LENGTH = "CHARLENGTH"
+  val UPPER_CASE = "UPPERCASE"
+  val LOWER_CASE = "LOWERCASE"
+  val INIT_CAP = "INITCAP"
+  val LIKE = "LIKE"
+  val SIMILAR = "SIMILAR"
 }
 
 /**

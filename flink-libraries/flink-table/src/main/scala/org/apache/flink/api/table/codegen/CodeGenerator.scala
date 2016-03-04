@@ -712,6 +712,13 @@ class CodeGenerator(
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
+      // string arithmetic
+      case CONCAT =>
+        val left = operands.head
+        val right = operands(1)
+        requireString(left)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+
       // advanced scalar functions
       case call: SqlOperator =>
         val callGen = ScalarFunctions.getCallGenerator(call, operands.map(_.resultType))

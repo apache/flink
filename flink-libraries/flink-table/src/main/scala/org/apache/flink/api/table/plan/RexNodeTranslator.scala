@@ -189,6 +189,12 @@ object RexNodeTranslator {
     name match {
       case BuiltInFunctionNames.SUBSTRING => SqlStdOperatorTable.SUBSTRING
       case BuiltInFunctionNames.TRIM => SqlStdOperatorTable.TRIM
+      case BuiltInFunctionNames.CHAR_LENGTH => SqlStdOperatorTable.CHAR_LENGTH
+      case BuiltInFunctionNames.UPPER_CASE => SqlStdOperatorTable.UPPER
+      case BuiltInFunctionNames.LOWER_CASE => SqlStdOperatorTable.LOWER
+      case BuiltInFunctionNames.INIT_CAP => SqlStdOperatorTable.INITCAP
+      case BuiltInFunctionNames.LIKE => SqlStdOperatorTable.LIKE
+      case BuiltInFunctionNames.SIMILAR => SqlStdOperatorTable.SIMILAR_TO
       case _ => ???
     }
   }
