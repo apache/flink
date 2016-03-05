@@ -137,7 +137,7 @@ class AccetPFJoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1).projecting { case (_, r @ (_, _, _)) => r }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1).projecting { case (_, r @ (_, _, _, _, _)) => r }
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,0,Hallo,1\n" + "2,2,1,Hallo Welt,2\n" + "2,2,1,Hallo Welt,2\n"

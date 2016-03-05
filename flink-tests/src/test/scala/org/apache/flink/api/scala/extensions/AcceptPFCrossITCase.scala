@@ -57,10 +57,10 @@ class AcceptPFCrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
      * check correctness of cross on two tuple inputs
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall5TupleDataSet(env)
+    val ds1 = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2).projecting {
-      case ((_, _, l3, l4), (_, _, r3, r4)) => (l3 + r3, l4 + r4)
+    val crossDs = ds1.cross(ds2).projecting {
+      case ((_, _, l3, l4, _), (_, _, r3, r4, _)) => (l3 + r3, l4 + r4)
     }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -77,9 +77,9 @@ class AcceptPFCrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
      * check correctness of cross if UDF returns left input object
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2).projecting {
+    val crossDs = ds1.cross(ds2).projecting {
       case (l @ (_, _, _), _) => l
     }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -95,10 +95,10 @@ class AcceptPFCrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
      * check correctness of cross if UDF returns right input object
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2).projecting {
-      case (_, r @ (_, _, _)) => r
+    val crossDs = ds1.cross(ds2).projecting {
+      case (_, r @ (_, _, _, _, _)) => r
     }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -115,10 +115,10 @@ class AcceptPFCrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
      * as with normal cross)
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.getSmall5TupleDataSet(env)
+    val ds1 = CollectionDataSets.getSmall5TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.crossWithHuge(ds2).projecting {
-      case ((_, _, l3, l4), (_, _, r3, r4)) => (l3 + r3, l4 + r4)
+    val crossDs = ds1.crossWithHuge(ds2).projecting {
+      case ((_, _, l3, l4, _), (_, _, r3, r4, _)) => (l3 + r3, l4 + r4)
     }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -135,12 +135,10 @@ class AcceptPFCrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
      * as with normal cross)
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets
-      .getSmall5TupleDataSet(env)
-    val ds2 = CollectionDataSets
-      .getSmall5TupleDataSet(env)
-    val crossDs = ds.crossWithTiny(ds2).projecting {
-      case ((_, _, l3, l4), (_, _, r3, r4)) => (l3 + r3, l4 + r4)
+    val ds1 = CollectionDataSets.getSmall5TupleDataSet(env)
+    val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
+    val crossDs = ds1.crossWithTiny(ds2).projecting {
+      case ((_, _, l3, l4, _), (_, _, r3, r4, _)) => (l3 + r3, l4 + r4)
     }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
