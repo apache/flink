@@ -126,7 +126,7 @@ package object extensions {
     */
   implicit def acceptPartialFunctionsOnJoinedStream
       [L: TypeInformation, R: TypeInformation, K, W <: Window](
-      ds: JoinedStreams.WithWindow[L, R, K, W]) =
+      ds: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]) =
     new OnJoinedStream[L, R, K, W](ds)
 
   /**
