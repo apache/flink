@@ -64,7 +64,9 @@ public class MemoryManager {
 	/** The lock used on the shared structures. */
 	private final Object lock = new Object();
 
-	/** The memory pool from which we draw memory segments. Specific to on-heap or off-heap memory */
+	/** The memory pool from which we draw memory segments. Specific to on-heap or off-heap memory. Note that, the size
+	 *  of the pool is never decreasing even when isPreAllocated is set to false. In case size reduction become relevant
+	 *  it is worth to consider to use soft references for segments. */
 	private final MemoryPool memoryPool;
 	
 	/** Memory segments allocated per memory owner */
@@ -220,7 +222,7 @@ public class MemoryManager {
 		synchronized (lock) {
 			return isPreAllocated ?
 					memoryPool.getNumberOfAvailableMemorySegments() == totalNumPages :
-					numNonAllocatedPages == totalNumPages;
+					memoryPool.getNumberOfAvailableMemorySegments() + numNonAllocatedPages == totalNumPages;
 		}
 	}
 
@@ -276,8 +278,8 @@ public class MemoryManager {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
-			// in the case of pre-allocated memory, the 'numNonAllocatedPages' is zero, in the
-			// lazy case, the 'freeSegments.size()' is zero.
+			// In the case of pre-allocated memory, the 'numNonAllocatedPages' is zero, in the
+			// lazy case it is initially 'totalNumPages' and decreasing to zero.
 			if (numPages > (memoryPool.getNumberOfAvailableMemorySegments() + numNonAllocatedPages)) {
 				throw new MemoryAllocationException("Could not allocate " + numPages + " pages. Only " +
 						(memoryPool.getNumberOfAvailableMemorySegments() + numNonAllocatedPages)
@@ -290,20 +292,19 @@ public class MemoryManager {
 				allocatedSegments.put(owner, segmentsForOwner);
 			}
 
-			if (isPreAllocated) {
-				for (int i = numPages; i > 0; i--) {
-					MemorySegment segment = memoryPool.requestSegmentFromPool(owner);
-					target.add(segment);
-					segmentsForOwner.add(segment);
+			for (int i = numPages; i > 0; i--) {
+				MemorySegment segment;
+				if (memoryPool.getNumberOfAvailableMemorySegments()  > 0) {
+					segment = memoryPool.requestSegmentFromPool(owner);
+				} else {
+					// In case the segments are preallocated, it should never allocate new segments. The out of memory
+					// case is already checked above.
+					assert !isPreAllocated;
+					segment = memoryPool.allocateNewSegment(owner);
+					--numNonAllocatedPages;
 				}
-			}
-			else {
-				for (int i = numPages; i > 0; i--) {
-					MemorySegment segment = memoryPool.allocateNewSegment(owner);
-					target.add(segment);
-					segmentsForOwner.add(segment);
-				}
-				numNonAllocatedPages -= numPages;
+				target.add(segment);
+				segmentsForOwner.add(segment);
 			}
 		}
 		// -------------------- END CRITICAL SECTION -------------------
@@ -349,14 +350,8 @@ public class MemoryManager {
 					}
 				}
 
-				if (isPreAllocated) {
-					// release the memory in any case
-					memoryPool.returnSegmentToPool(segment);
-				}
-				else {
-					segment.free();
-					numNonAllocatedPages++;
-				}
+				// release the memory in any case
+				memoryPool.returnSegmentToPool(segment);
 			}
 			catch (Throwable t) {
 				throw new RuntimeException("Error removing book-keeping reference to allocated memory segment.", t);
@@ -423,13 +418,7 @@ public class MemoryManager {
 								}
 							}
 
-							if (isPreAllocated) {
-								memoryPool.returnSegmentToPool(seg);
-							}
-							else {
-								seg.free();
-								numNonAllocatedPages++;
-							}
+							memoryPool.returnSegmentToPool(seg);
 						}
 						catch (Throwable t) {
 							throw new RuntimeException(
@@ -477,16 +466,8 @@ public class MemoryManager {
 			}
 
 			// free each segment
-			if (isPreAllocated) {
-				for (MemorySegment seg : segments) {
-					memoryPool.returnSegmentToPool(seg);
-				}
-			}
-			else {
-				for (MemorySegment seg : segments) {
-					seg.free();
-				}
-				numNonAllocatedPages += segments.size();
+			for (MemorySegment seg : segments) {
+				memoryPool.returnSegmentToPool(seg);
 			}
 
 			segments.clear();
