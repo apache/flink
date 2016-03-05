@@ -183,6 +183,10 @@ grouped.combineGroupWith {
 data1.join(data2).where(0).equalTo(1).projecting {
   case ((pk, tx), (products, fk)) => tx -> products
 }
+
+data1.cross(data2).projecting {
+  case ((a, _), (_, b) => a -> b
+}
 {% endhighlight %}
       </td>
     </tr>
