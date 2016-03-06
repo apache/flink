@@ -23,6 +23,7 @@ import org.apache.flink.api.table.Row
 abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
 
   private val numeric = implicitly[Numeric[T]]
+  protected var minIndex: Int = _
 
   /**
    * Accessed in MapFunction, prepare the input of partial aggregate.
@@ -30,7 +31,11 @@ abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
    * @param partial
    */
   override def prepare(value: Any, partial: Row): Unit = {
-    partial.setField(aggOffsetInRow, value)
+    if (value == null) {
+      initiate(partial)
+    } else {
+      partial.setField(minIndex, value)
+    }
   }
 
   /**
@@ -40,9 +45,9 @@ abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
    * @param buffer
    */
   override def merge(partial: Row, buffer: Row): Unit = {
-    val partialValue = partial.productElement(aggOffsetInRow).asInstanceOf[T]
-    val bufferValue = buffer.productElement(aggOffsetInRow).asInstanceOf[T]
-    buffer.setField(aggOffsetInRow, numeric.min(partialValue, bufferValue))
+    val partialValue = partial.productElement(minIndex).asInstanceOf[T]
+    val bufferValue = buffer.productElement(minIndex).asInstanceOf[T]
+    buffer.setField(minIndex, numeric.min(partialValue, bufferValue))
   }
 
   /**
@@ -51,10 +56,14 @@ abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
    * @return
    */
   override def evaluate(buffer: Row): T = {
-    buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+    buffer.productElement(minIndex).asInstanceOf[T]
   }
 
   override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    minIndex = aggOffset
+  }
 }
 
 class ByteMinAggregate extends MinAggregate[Byte] {
@@ -65,7 +74,7 @@ class ByteMinAggregate extends MinAggregate[Byte] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Byte.MaxValue)
+    intermediate.setField(minIndex, Byte.MaxValue)
   }
 }
 
@@ -77,7 +86,7 @@ class ShortMinAggregate extends MinAggregate[Short] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Short.MaxValue)
+    intermediate.setField(minIndex, Short.MaxValue)
   }
 }
 
@@ -89,7 +98,7 @@ class IntMinAggregate extends MinAggregate[Int] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Int.MaxValue)
+    intermediate.setField(minIndex, Int.MaxValue)
   }
 }
 
@@ -101,7 +110,7 @@ class LongMinAggregate extends MinAggregate[Long] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Long.MaxValue)
+    intermediate.setField(minIndex, Long.MaxValue)
   }
 }
 
@@ -113,7 +122,7 @@ class FloatMinAggregate extends MinAggregate[Float] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Float.MaxValue)
+    intermediate.setField(minIndex, Float.MaxValue)
   }
 }
 
@@ -125,6 +134,6 @@ class DoubleMinAggregate extends MinAggregate[Double] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Double.MaxValue)
+    intermediate.setField(minIndex, Double.MaxValue)
   }
 }

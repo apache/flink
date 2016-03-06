@@ -31,14 +31,13 @@ class AggregateMapFunction[IN, OUT](
     @transient private val returnType: TypeInformation[OUT])
     extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
   
-  private var partialRowLength: Int = _
   private var output: Row = _
   
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
     Preconditions.checkArgument(aggregates.size == aggFields.size)
-    partialRowLength = groupingKeys.length +
+    val partialRowLength = groupingKeys.length +
         aggregates.map(_.intermediateDataType.length).sum
     output = new Row(partialRowLength)
   }

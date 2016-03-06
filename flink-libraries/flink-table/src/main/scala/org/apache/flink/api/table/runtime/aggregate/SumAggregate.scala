@@ -24,27 +24,36 @@ abstract class SumAggregate[T: Numeric]
   extends Aggregate[T] {
 
   private val numeric = implicitly[Numeric[T]]
+  protected var sumIndex: Int = _
 
   override def initiate(partial: Row): Unit = {
-    partial.setField(aggOffsetInRow, numeric.zero)
+    partial.setField(sumIndex, numeric.zero)
   }
 
   override def merge(partial1: Row, buffer: Row): Unit = {
-    val partialValue = partial1.productElement(aggOffsetInRow).asInstanceOf[T]
-    val bufferValue = buffer.productElement(aggOffsetInRow).asInstanceOf[T]
-    buffer.setField(aggOffsetInRow, numeric.plus(partialValue, bufferValue))
+    val partialValue = partial1.productElement(sumIndex).asInstanceOf[T]
+    val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
+    buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
   }
 
   override def evaluate(buffer: Row): T = {
-    buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+    buffer.productElement(sumIndex).asInstanceOf[T]
   }
 
   override def prepare(value: Any, partial: Row): Unit = {
-    val input = value.asInstanceOf[T]
-    partial.setField(aggOffsetInRow, input)
+    if (value == null) {
+      initiate(partial)
+    } else {
+      val input = value.asInstanceOf[T]
+      partial.setField(sumIndex, input)
+    }
   }
 
   override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    sumIndex = aggOffset
+  }
 }
 
 class ByteSumAggregate extends SumAggregate[Byte] {

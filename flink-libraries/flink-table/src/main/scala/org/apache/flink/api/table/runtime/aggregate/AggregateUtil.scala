@@ -149,87 +149,84 @@ object AggregateUtil {
       val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)).getType.getSqlTypeName
       aggregateCall.getAggregation match {
         case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction => {
-          sqlTypeName match {
+          aggregates(index) = sqlTypeName match {
             case TINYINT =>
-              aggregates(index) = new ByteSumAggregate
+              new ByteSumAggregate
             case SMALLINT =>
-              aggregates(index) = new ShortSumAggregate
+              new ShortSumAggregate
             case INTEGER =>
-              aggregates(index) = new IntSumAggregate
+              new IntSumAggregate
             case BIGINT =>
-              aggregates(index) = new LongSumAggregate
+              new LongSumAggregate
             case FLOAT =>
-              aggregates(index) = new FloatSumAggregate
+              new FloatSumAggregate
             case DOUBLE =>
-              aggregates(index) = new DoubleSumAggregate
+              new DoubleSumAggregate
             case sqlType: SqlTypeName =>
               throw new PlanGenException("Sum aggregate does no support type:" + sqlType)
           }
-          setAggregateDataOffset(index)
         }
         case _: SqlAvgAggFunction => {
-          sqlTypeName match {
+          aggregates(index) = sqlTypeName match {
             case TINYINT =>
-              aggregates(index) = new ByteAvgAggregate
+               new ByteAvgAggregate
             case SMALLINT =>
-              aggregates(index) = new ShortAvgAggregate
+              new ShortAvgAggregate
             case INTEGER =>
-              aggregates(index) = new IntAvgAggregate
+              new IntAvgAggregate
             case BIGINT =>
-              aggregates(index) = new LongAvgAggregate
+              new LongAvgAggregate
             case FLOAT =>
-              aggregates(index) = new FloatAvgAggregate
+              new FloatAvgAggregate
             case DOUBLE =>
-              aggregates(index) = new DoubleAvgAggregate
+              new DoubleAvgAggregate
             case sqlType: SqlTypeName =>
               throw new PlanGenException("Avg aggregate does no support type:" + sqlType)
           }
-          setAggregateDataOffset(index)
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
-          if (sqlMinMaxFunction.isMin) {
+          aggregates(index) = if (sqlMinMaxFunction.isMin) {
             sqlTypeName match {
               case TINYINT =>
-                aggregates(index) = new ByteMinAggregate
+                new ByteMinAggregate
               case SMALLINT =>
-                aggregates(index) = new ShortMinAggregate
+                new ShortMinAggregate
               case INTEGER =>
-                aggregates(index) = new IntMinAggregate
+                new IntMinAggregate
               case BIGINT =>
-                aggregates(index) = new LongMinAggregate
+                new LongMinAggregate
               case FLOAT =>
-                aggregates(index) = new FloatMinAggregate
+                new FloatMinAggregate
               case DOUBLE =>
-                aggregates(index) = new DoubleMinAggregate
+                new DoubleMinAggregate
               case sqlType: SqlTypeName =>
                 throw new PlanGenException("Min aggregate does no support type:" + sqlType)
             }
           } else {
             sqlTypeName match {
               case TINYINT =>
-                aggregates(index) = new ByteMaxAggregate
+                new ByteMaxAggregate
               case SMALLINT =>
-                aggregates(index) = new ShortMaxAggregate
+                new ShortMaxAggregate
               case INTEGER =>
-                aggregates(index) = new IntMaxAggregate
+                new IntMaxAggregate
               case BIGINT =>
-                aggregates(index) = new LongMaxAggregate
+                new LongMaxAggregate
               case FLOAT =>
-                aggregates(index) = new FloatMaxAggregate
+                new FloatMaxAggregate
               case DOUBLE =>
-                aggregates(index) = new DoubleMaxAggregate
+                new DoubleMaxAggregate
               case sqlType: SqlTypeName =>
                 throw new PlanGenException("Max aggregate does no support type:" + sqlType)
             }
           }
-          setAggregateDataOffset(index)
         }
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggregate
-          setAggregateDataOffset(index)
         case unSupported: SqlAggFunction =>
           throw new PlanGenException("unsupported Function: " + unSupported.getName)
       }
+      setAggregateDataOffset(index)
     }
 
     // set the aggregate intermediate data start index in Row, and update current value.

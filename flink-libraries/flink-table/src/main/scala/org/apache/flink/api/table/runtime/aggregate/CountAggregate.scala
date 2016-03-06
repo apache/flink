@@ -21,23 +21,28 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.table.Row
 
 class CountAggregate extends Aggregate[Long] {
+  private var countIndex: Int = _
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, 0L)
+    intermediate.setField(countIndex, 0L)
   }
 
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialCount = intermediate.productElement(aggOffsetInRow).asInstanceOf[Long]
-    val bufferCount = buffer.productElement(aggOffsetInRow).asInstanceOf[Long]
-    buffer.setField(aggOffsetInRow, partialCount + bufferCount)
+    val partialCount = intermediate.productElement(countIndex).asInstanceOf[Long]
+    val bufferCount = buffer.productElement(countIndex).asInstanceOf[Long]
+    buffer.setField(countIndex, partialCount + bufferCount)
   }
 
   override def evaluate(buffer: Row): Long = {
-    buffer.productElement(aggOffsetInRow).asInstanceOf[Long]
+    buffer.productElement(countIndex).asInstanceOf[Long]
   }
 
   override def prepare(value: Any, intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, 1L)
+    if (value == null) {
+      intermediate.setField(countIndex, 0L)
+    } else {
+      intermediate.setField(countIndex, 1L)
+    }
   }
 
   override def intermediateDataType: Array[SqlTypeName] = {
@@ -45,4 +50,8 @@ class CountAggregate extends Aggregate[Long] {
   }
 
   override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggIndex: Int): Unit = {
+    countIndex = aggIndex
+  }
 }

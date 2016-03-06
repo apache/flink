@@ -23,6 +23,7 @@ import org.apache.flink.api.table.Row
 abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
 
   private val numeric = implicitly[Numeric[T]]
+  protected var maxIndex = -1
 
   /**
    * Accessed in MapFunction, prepare the input of partial aggregate.
@@ -30,7 +31,11 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
    * @param intermediate
    */
   override def prepare(value: Any, intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, value)
+    if (value == null) {
+      initiate(intermediate)
+    } else {
+      intermediate.setField(maxIndex, value)
+    }
   }
 
   /**
@@ -40,9 +45,9 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
    * @param buffer
    */
   override def merge(intermediate: Row, buffer: Row): Unit = {
-    val partialValue = intermediate.productElement(aggOffsetInRow).asInstanceOf[T]
-    val bufferValue = buffer.productElement(aggOffsetInRow).asInstanceOf[T]
-    buffer.setField(aggOffsetInRow, numeric.max(partialValue, bufferValue))
+    val partialValue = intermediate.productElement(maxIndex).asInstanceOf[T]
+    val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
+    buffer.setField(maxIndex, numeric.max(partialValue, bufferValue))
   }
 
   /**
@@ -51,10 +56,14 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
    * @return
    */
   override def evaluate(buffer: Row): T = {
-    buffer.productElement(aggOffsetInRow).asInstanceOf[T]
+    buffer.productElement(maxIndex).asInstanceOf[T]
   }
 
   override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    maxIndex = aggOffset
+  }
 }
 
 class ByteMaxAggregate extends MaxAggregate[Byte] {
@@ -65,7 +74,7 @@ class ByteMaxAggregate extends MaxAggregate[Byte] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Byte.MinValue)
+    intermediate.setField(maxIndex, Byte.MinValue)
   }
 }
 
@@ -77,7 +86,7 @@ class ShortMaxAggregate extends MaxAggregate[Short] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Short.MinValue)
+    intermediate.setField(maxIndex, Short.MinValue)
   }
 }
 
@@ -89,7 +98,7 @@ class IntMaxAggregate extends MaxAggregate[Int] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Int.MinValue)
+    intermediate.setField(maxIndex, Int.MinValue)
   }
 }
 
@@ -101,7 +110,7 @@ class LongMaxAggregate extends MaxAggregate[Long] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Long.MinValue)
+    intermediate.setField(maxIndex, Long.MinValue)
   }
 }
 
@@ -113,7 +122,7 @@ class FloatMaxAggregate extends MaxAggregate[Float] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Float.MinValue)
+    intermediate.setField(maxIndex, Float.MinValue)
   }
 }
 
@@ -125,6 +134,6 @@ class DoubleMaxAggregate extends MaxAggregate[Double] {
   }
 
   override def initiate(intermediate: Row): Unit = {
-    intermediate.setField(aggOffsetInRow, Double.MinValue)
+    intermediate.setField(maxIndex, Double.MinValue)
   }
 }

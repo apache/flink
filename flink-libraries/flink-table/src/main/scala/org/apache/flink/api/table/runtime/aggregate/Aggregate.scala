@@ -42,8 +42,6 @@ import org.apache.flink.api.table.Row
  */
 trait Aggregate[T] extends Serializable {
 
-  protected var aggOffsetInRow: Int = _
-
   /**
    * Initiate the intermediate aggregate value in Row.
    * @param intermediate
@@ -78,16 +76,14 @@ trait Aggregate[T] extends Serializable {
   def intermediateDataType: Array[SqlTypeName]
 
   /**
-   * Whether aggregate function support partial aggregate.
-   * @return
-   */
-  def supportPartial: Boolean = false
-
-  /**
    * Set the aggregate data offset in Row.
    * @param aggOffset
    */
-  final def setAggOffsetInRow(aggOffset: Int) = {
-    aggOffsetInRow = aggOffset
-  }
+  def setAggOffsetInRow(aggOffset: Int)
+
+  /**
+    * Whether aggregate function support partial aggregate.
+   * @return
+   */
+  def supportPartial: Boolean = false
 }

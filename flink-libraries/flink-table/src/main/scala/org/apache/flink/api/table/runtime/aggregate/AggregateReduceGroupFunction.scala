@@ -44,13 +44,13 @@ class AggregateReduceGroupFunction(
     private val intermediateRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] {
 
-  private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
   private var aggregateBuffer: Row = _
   private var output: Row = _
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
+    val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowLength)
   }
@@ -110,13 +110,13 @@ class AggregateReduceCombineFunction(
     private val intermediateRowArity: Int)
     extends RichGroupReduceFunction[Row, Row] with CombineFunction[Row, Row] {
 
-  private val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
   private var aggregateBuffer: Row = _
   private var output: Row = _
 
   override def open(config: Configuration): Unit = {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
+    val finalRowLength: Int = groupKeysMapping.length + aggregateMapping.length
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowLength)
   }
