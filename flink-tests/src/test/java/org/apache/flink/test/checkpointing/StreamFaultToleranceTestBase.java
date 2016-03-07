@@ -37,8 +37,8 @@ import static org.junit.Assert.fail;
  */
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
-	protected static final int NUM_TASK_MANAGERS = 2;
-	protected static final int NUM_TASK_SLOTS = 3;
+	protected static final int NUM_TASK_MANAGERS = 3;
+	protected static final int NUM_TASK_SLOTS = 4;
 	protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
 	private static ForkableFlinkMiniCluster cluster;
