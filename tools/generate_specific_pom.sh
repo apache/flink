@@ -78,12 +78,20 @@ if [[ -z "$new_pom_name" ]]; then
 fi
 echo "Using $nupom as name for the generated pom file."
 
-poms=`find $flink_home -name pom.xml`
-for p in $poms; do
+# export relevant variables for find command subshells
+export hadoop1
+export hadoop2
+export nupom
+
+# paths may contain spaces
+find "$flink_home" -name pom.xml -exec bash -c '
+  
+  p="$0"
+
   # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
-  tmp_nuname1="`dirname $p`/__generate_specific_pom_tmp1"
-  tmp_nuname2="`dirname $p`/__generate_specific_pom_tmp2"
-  nuname="`dirname $p`/${nupom}"
+  tmp_nuname1="`dirname "$p"`/__generate_specific_pom_tmp1"
+  tmp_nuname2="`dirname "$p"`/__generate_specific_pom_tmp2"
+  nuname="`dirname "$p"`/${nupom}"
   # Now we do search and replace of explicit strings.  The best way of
   # seeing what the below does is by doing a diff between the original
   # pom and the generated pom (pom.hadoop1.xml or pom.hadoop2.xml). We
@@ -97,7 +105,7 @@ for p in $poms; do
   # To avoid accidentally replace version numbers in our dependencies 
   # sharing the version number with the current release use the following.
 
-  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z0-9\.\_]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" $p > "$tmp_nuname1"
+  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z0-9\.\_]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" "$p" > "$tmp_nuname1"
 
   # replace the version also in the quickstart poms (so that the hadoop1 quickstart creates an hadoop1 project)
   perl -0777 -pe "s:<flink.version>${old_version}</flink.version>:<flink.version>${new_version}</flink.version>:g" "$tmp_nuname1" > "$tmp_nuname2"
@@ -109,8 +117,9 @@ for p in $poms; do
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \
     -e "s/<!--hadoop2-->.*name>.*/${hadoop2}/" \
-    $tmp_nuname2 > "$tmp_nuname1"
-  rm $tmp_nuname2
-  mv $tmp_nuname1 $nuname
-done
+    "$tmp_nuname2" > "$tmp_nuname1"
+  rm "$tmp_nuname2"
+  mv "$tmp_nuname1" "$nuname"
+
+' "{}" \; # pass file name as argument
 

@@ -22,15 +22,15 @@
 #
 
 function getVersion() {
-	here="`dirname \"$0\"`"              # relative
-	here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
-	if [ -z "$here" ] ; then
-		# error; for some reason, the path is not accessible
-		# to the script (e.g. permissions re-evaled after suid)
-		exit 1  # fail
-	fi
-	flink_home="`dirname \"$here\"`"
-	cd $flink_home
+    here="`dirname \"$0\"`"              # relative
+    here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
+    if [ -z "$here" ] ; then
+        # error; for some reason, the path is not accessible
+        # to the script (e.g. permissions re-evaled after suid)
+        exit 1  # fail
+    fi
+    flink_home="`dirname \"$here\"`"
+    cd "$flink_home"
 	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^([0-9]+.[0-9]+(.[0-9]+)?(-[a-zA-Z0-9]+)?)$'`
 }
 
@@ -69,7 +69,7 @@ cd dummy-lifecycle-mapping-plugin
 mvn -B install
 cd ..
 
-# this will take a while
+
 CURRENT_FLINK_VERSION=`getVersion`
 if [[ "$CURRENT_FLINK_VERSION" == *-SNAPSHOT ]]; then
     CURRENT_FLINK_VERSION_HADOOP1=${CURRENT_FLINK_VERSION/-SNAPSHOT/-hadoop1-SNAPSHOT}
