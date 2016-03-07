@@ -27,12 +27,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -41,40 +39,32 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.AlignedEventTimeWindowOperator;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.*;
 
 /**
- * This verifies that checkpointing works correctly with event time windows. This is more
- * strict than {@link WindowCheckpointingITCase} because for event-time the contents
- * of the emitted windows are deterministic.
+ * Special version of {@link EventTimeWindowCheckpointingITCase} for
+ * {@link AlignedEventTimeWindowOperator}
  */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class EventTimeWindowCheckpointingITCase extends TestLogger {
+public class AlignedEventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
@@ -83,12 +73,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
-
-	public EventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
-		this.stateBackendEnum = stateBackendEnum;
-	}
 
 	@BeforeClass
 	public static void startTestCluster() {
@@ -110,34 +95,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	@Before
 	public void initStateBackend() throws IOException {
-		switch (stateBackendEnum) {
-			case MEM:
-				this.stateBackend = new MemoryStateBackend();
-				break;
-			case FILE: {
-				String backups = tempFolder.newFolder().getAbsolutePath();
-				this.stateBackend = new FsStateBackend("file://" + backups);
-				break;
-			}
-			case ROCKSDB: {
-				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
-				rdb.setDbStoragePath(rocksDb);
-				this.stateBackend = rdb;
-				break;
-			}
-			case ROCKSDB_FULLY_ASYNC: {
-				String rocksDb = tempFolder.newFolder().getAbsolutePath();
-				String rocksDbBackups = tempFolder.newFolder().toURI().toString();
-				RocksDBStateBackend rdb = new RocksDBStateBackend(rocksDbBackups, new MemoryStateBackend());
-				rdb.setDbStoragePath(rocksDb);
-				rdb.enableFullyAsyncSnapshots();
-				this.stateBackend = rdb;
-				break;
-			}
-
-		}
+		this.stateBackend = new MemoryStateBackend();
 	}
 
 	// ------------------------------------------------------------------------
@@ -166,7 +124,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.window(new TestTumblingEventTimeWindows(WINDOW_SIZE)) // force generic WindowOperator
+					.timeWindow(Time.milliseconds(WINDOW_SIZE))
 					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
@@ -204,7 +162,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 			windowOp.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
-			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof WindowOperator);
+			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof AlignedEventTimeWindowOperator);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -238,7 +196,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.window(new TestTumblingEventTimeWindows(WINDOW_SIZE)) // force generic WindowOperator
+					.timeWindow(Time.milliseconds(WINDOW_SIZE))
 					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
@@ -280,7 +238,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 			windowOp.addSink(new CountValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
-			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof WindowOperator);
+			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof AlignedEventTimeWindowOperator);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -315,7 +273,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.window(new TestSlidingEventTimeWindows(WINDOW_SIZE, WINDOW_SLIDE)) // force generic WindowOperator
+					.timeWindow(Time.milliseconds(WINDOW_SIZE), Time.milliseconds(WINDOW_SLIDE))
 					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
@@ -353,7 +311,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 			windowOp.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
-			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof WindowOperator);
+			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof AlignedEventTimeWindowOperator);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -387,7 +345,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.window(new TestTumblingEventTimeWindows(WINDOW_SIZE)) // force generic WindowOperator
+					.timeWindow(Time.milliseconds(WINDOW_SIZE))
 					.apply(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -429,7 +387,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							});
 			windowOp.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
-			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof WindowOperator);
+			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof AlignedEventTimeWindowOperator);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -464,7 +422,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.window(new TestSlidingEventTimeWindows(WINDOW_SIZE, WINDOW_SLIDE)) // force generic WindowOperator
+					.timeWindow(Time.milliseconds(WINDOW_SIZE), Time.milliseconds(WINDOW_SLIDE))
 					.apply(
 							new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -509,7 +467,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 			windowOp.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
-			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof WindowOperator);
+			assertTrue(((OneInputTransformation)windowOp.getTransformation()).getOperator() instanceof AlignedEventTimeWindowOperator);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -798,28 +756,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Parametrization for testing with different state backends
-	// ------------------------------------------------------------------------
-
-
-	@Parameterized.Parameters(name = "StateBackend = {0}")
-	@SuppressWarnings("unchecked,rawtypes")
-	public static Collection<Object[]> parameters(){
-		return Arrays.asList(new Object[][] {
-				{StateBackendEnum.MEM},
-				{StateBackendEnum.FILE},
-				{StateBackendEnum.ROCKSDB},
-				{StateBackendEnum.ROCKSDB_FULLY_ASYNC}
-			}
-		);
-	}
-
-	private enum StateBackendEnum {
-		MEM, FILE, ROCKSDB, ROCKSDB_FULLY_ASYNC
-	}
-
-
-	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
@@ -830,27 +766,5 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		public IntType() {}
 
 		public IntType(int value) { this.value = value; }
-	}
-
-	/**
-	 * Special subclass of {@link TumblingEventTimeWindows} to disable usage of the optimized
-	 * {@link org.apache.flink.streaming.runtime.operators.windowing.AlignedEventTimeWindowOperator}
-	 * for these tests.
-	 */
-	private static class TestTumblingEventTimeWindows extends TumblingEventTimeWindows {
-		public TestTumblingEventTimeWindows(int WINDOW_SIZE) {
-			super(WINDOW_SIZE);
-		}
-	}
-
-	/**
-	 * Special subclass of {@link SlidingEventTimeWindows} to disable usage of the optimized
-	 * {@link org.apache.flink.streaming.runtime.operators.windowing.AlignedEventTimeWindowOperator}
-	 * for these tests.
-	 */
-	private static class TestSlidingEventTimeWindows extends SlidingEventTimeWindows {
-		public TestSlidingEventTimeWindows(int WINDOW_SIZE, int WINDOW_SLIDE) {
-			super(WINDOW_SIZE, WINDOW_SLIDE);
-		}
 	}
 }
