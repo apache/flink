@@ -336,15 +336,15 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 					LocatedFileStatus file = bucketFiles.next();
 					if (file.getPath().toString().endsWith(pendingSuffix)) {
 						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-							LOG.debug("Deleting leftover pending file {}", file.getPath().toString());
+						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+							LOG.debug("(OPEN) Deleting leftover pending file {}", file.getPath().toString());
 							fs.delete(file.getPath(), true);
 						}
 					}
 					if (file.getPath().toString().endsWith(inProgressSuffix)) {
 						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-							LOG.debug("Deleting leftover in-progress file {}", file.getPath().toString());
+						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+							LOG.debug("(OPEN) Deleting leftover in-progress file {}", file.getPath().toString());
 							fs.delete(file.getPath(), true);
 						}
 					}
@@ -637,6 +637,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 			writer.flush();
 		}
 		if (outStream != null) {
+			outStream.flush();
 			hflushOrSync(outStream);
 			bucketState.currentFile = currentPartPath.toString();
 			bucketState.currentFileValidLength = outStream.getPos();
@@ -681,10 +682,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 					LOG.debug("In-progress file {} is still in-progress, moving to final location.", partPath);
 					// it was still in progress, rename to final path
 					fs.rename(partInProgressPath, partPath);
+				} else if (fs.exists(partPath)) {
+					LOG.debug("In-Progress file {} was already moved to final location {}.", bucketState.currentFile, partPath);
 				} else {
-					LOG.error("In-Progress file {} was neither moved to pending nor is still in progress.", bucketState.currentFile);
-					throw new RuntimeException("In-Progress file " + bucketState.currentFile+ " " +
-							"was neither moved to pending nor is still in progress.");
+					LOG.debug("In-Progress file {} was neither moved to pending nor is still in progress. Possibly, " +
+							"it was moved to final location by a previous snapshot restore", bucketState.currentFile);
 				}
 
 				refTruncate = reflectTruncate(fs);
@@ -739,9 +741,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				} else {
 					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
 					Path validLengthFilePath = new Path(partPath.getParent(), validLengthPrefix + partPath.getName()).suffix(validLengthSuffix);
-					FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-					lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
-					lengthFileOut.close();
+					if (!fs.exists(validLengthFilePath)) {
+						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
+						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
+						lengthFileOut.close();
+					}
 				}
 
 				// invalidate in the state object
@@ -772,14 +776,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 				try {
 					if (fs.exists(pendingPath)) {
-						LOG.debug(
-								"Moving pending file {} to final location after complete checkpoint {}.",
-								pendingPath,
-								pastCheckpointId);
+						LOG.debug("(RESTORE) Moving pending file {} to final location after complete checkpoint {}.", pendingPath, pastCheckpointId);
 						fs.rename(pendingPath, finalPath);
 					}
 				} catch (IOException e) {
-					LOG.error("Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
+					LOG.error("(RESTORE) Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
 					throw new RuntimeException("Error while renaming pending file " + pendingPath+ " to final path " + finalPath, e);
 				}
 			}
@@ -800,14 +801,15 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				LocatedFileStatus file = bucketFiles.next();
 				if (file.getPath().toString().endsWith(pendingSuffix)) {
 					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
+					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+						LOG.debug("(RESTORE) Deleting pending file {}", file.getPath().toString());
 						fs.delete(file.getPath(), true);
 					}
 				}
 				if (file.getPath().toString().endsWith(inProgressSuffix)) {
 					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-						LOG.debug("Deleting in-progress file {}", file.getPath().toString());
+					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+						LOG.debug("(RESTORE) Deleting in-progress file {}", file.getPath().toString());
 						fs.delete(file.getPath(), true);
 					}
 				}
