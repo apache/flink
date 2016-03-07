@@ -18,14 +18,18 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.HeapValueStateIterator;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -87,6 +91,18 @@ public class FsValueState<K, N, V>
 		}
 		return stateDesc.getDefaultValue();
 	}
+
+	@Override
+	public StateIterator<K, ValueState<V>> getForAllKeys(N namespace) {
+		Map<K, V> namespaceState = state.get(namespace);
+		if (namespaceState == null) {
+			return new HeapValueStateIterator<>(Collections.<Map.Entry<K, V>>emptyIterator());
+		}
+
+		final Iterator<Map.Entry<K, V>> it = namespaceState.entrySet().iterator();
+		return new HeapValueStateIterator<>(it);
+	}
+
 
 	@Override
 	public void update(V value) {

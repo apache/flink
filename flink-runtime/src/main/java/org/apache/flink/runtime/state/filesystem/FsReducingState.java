@@ -21,13 +21,17 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.HeapReducingStateIterator;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -92,6 +96,17 @@ public class FsReducingState<K, N, V>
 			return currentNSState.get(currentKey);
 		}
 		return null;
+	}
+
+	@Override
+	public StateIterator<K, ReducingState<V>> getForAllKeys(N namespace) {
+		Map<K, V> namespaceState = state.get(namespace);
+		if (namespaceState == null) {
+			return new HeapReducingStateIterator<>(Collections.<Map.Entry<K, V>>emptyIterator());
+		}
+
+		final Iterator<Map.Entry<K, V>> it = namespaceState.entrySet().iterator();
+		return new HeapReducingStateIterator<>(it);
 	}
 
 	@Override

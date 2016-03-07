@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -102,6 +103,11 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	}
 
 	@Override
+	public StateIterator<K, FoldingState<T, ACC>> getForAllKeys(N namespace) throws IOException {
+		return new Iterator(namespace);
+	}
+
+	@Override
 	public void add(T value) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
@@ -124,6 +130,49 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
+	}
+
+	private class Iterator extends RocksDBStateIterator<K, FoldingState<T, ACC>, N> {
+
+		private ProxyState proxyState;
+
+		public Iterator(N namespace) throws IOException {
+			super(backend, writeOptions, columnFamily, namespace, namespaceSerializer);
+
+			proxyState = new ProxyState();
+		}
+
+		@Override
+		public FoldingState<T, ACC> state() throws Exception {
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(rocksIterator.value()));
+
+			final ACC acc= valueSerializer.deserialize(in);
+			in.close();
+			proxyState.acc = acc;
+
+			return proxyState;
+		}
+
+		private class ProxyState implements FoldingState<T, ACC> {
+			ACC acc;
+
+			@Override
+			public ACC get() {
+				return acc;
+			}
+
+			@Override
+			public void add(T value) {
+				throw new RuntimeException("Not supported.");
+			}
+
+			@Override
+			public void clear() {
+				throw new RuntimeException("Not supported.");
+			}
+		}
+
 	}
 }
 

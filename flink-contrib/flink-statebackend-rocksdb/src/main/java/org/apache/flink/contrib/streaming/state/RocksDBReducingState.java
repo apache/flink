@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -100,6 +101,11 @@ public class RocksDBReducingState<K, N, V>
 	}
 
 	@Override
+	public StateIterator<K, ReducingState<V>> getForAllKeys(N namespace) throws Exception {
+		return new Iterator(namespace);
+	}
+
+	@Override
 	public void add(V value) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
@@ -122,6 +128,49 @@ public class RocksDBReducingState<K, N, V>
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
+	}
+
+	private class Iterator extends RocksDBStateIterator<K, ReducingState<V>, N> {
+
+		private ProxyState proxyState;
+
+		public Iterator(N namespace) throws IOException {
+			super(backend, writeOptions, columnFamily, namespace, namespaceSerializer);
+
+			proxyState = new ProxyState();
+		}
+
+		@Override
+		public ReducingState<V> state() throws Exception {
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(rocksIterator.value()));
+
+			final V value = valueSerializer.deserialize(in);
+			in.close();
+			proxyState.value = value;
+
+			return proxyState;
+		}
+
+		private class ProxyState implements ReducingState<V> {
+			V value;
+
+			@Override
+			public V get() throws Exception {
+				return value;
+			}
+
+			@Override
+			public void add(V value) throws Exception {
+				throw new RuntimeException("Not supported.");
+			}
+
+			@Override
+			public void clear() {
+				throw new RuntimeException("Not supported.");
+			}
+		}
+
 	}
 }
 

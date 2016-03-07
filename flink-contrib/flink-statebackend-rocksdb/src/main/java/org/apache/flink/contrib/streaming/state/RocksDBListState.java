@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -114,6 +115,11 @@ public class RocksDBListState<K, N, V>
 	}
 
 	@Override
+	public StateIterator<K, ListState<V>> getForAllKeys(N namespace) throws IOException {
+		return new Iterator(namespace);
+	}
+
+	@Override
 	public void add(V value) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
@@ -130,5 +136,56 @@ public class RocksDBListState<K, N, V>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
+
+	private class Iterator extends RocksDBStateIterator<K, ListState<V>, N> {
+
+		private ProxyState proxyState;
+
+		public Iterator(N namespace) throws IOException {
+			super(backend, writeOptions, columnFamily, namespace, namespaceSerializer);
+
+			proxyState = new ProxyState();
+		}
+
+		@Override
+		public ListState<V> state() throws Exception {
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(rocksIterator.value()));
+
+			List<V> list = new ArrayList<>();
+			while (in.available() > 0) {
+				list.add(valueSerializer.deserialize(in));
+				if (in.available() > 0) {
+					in.readByte();
+				}
+			}
+
+			in.close();
+			proxyState.list = list;
+
+			return proxyState;
+		}
+
+		private class ProxyState implements ListState<V> {
+			List<V> list;
+
+			@Override
+			public Iterable<V> get() throws Exception {
+				return list;
+			}
+
+			@Override
+			public void add(V value) throws Exception {
+				throw new RuntimeException("Not supported.");
+			}
+
+			@Override
+			public void clear() {
+				throw new RuntimeException("Not supported.");
+			}
+		}
+
+	}
+
 }
 

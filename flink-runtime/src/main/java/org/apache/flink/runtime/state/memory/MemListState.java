@@ -20,14 +20,17 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.HeapListStateIterator;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -65,6 +68,17 @@ public class MemListState<K, N, V>
 			}
 		}
 		return Collections.emptyList();
+	}
+
+	@Override
+	public StateIterator<K, ListState<V>> getForAllKeys(N namespace) {
+		Map<K, ArrayList<V>> namespaceState = state.get(namespace);
+		if (namespaceState == null) {
+			return new HeapListStateIterator<>(Collections.<Map.Entry<K, ArrayList<V>>>emptyIterator());
+		}
+
+		final Iterator<Map.Entry<K, ArrayList<V>>> it = namespaceState.entrySet().iterator();
+		return new HeapListStateIterator<>(it);
 	}
 
 	@Override

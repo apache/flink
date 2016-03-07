@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 
 /**
  * Key/Value state implementation for user-defined state. The state is backed by a state
@@ -50,6 +51,8 @@ public interface KvState<K, N, S extends State, SD extends StateDescriptor<S, ?>
 	 * @param namespace The namespace.
 	 */
 	void setCurrentNamespace(N namespace);
+
+	StateIterator<K, S> getForAllKeys(N namespace) throws Exception;
 
 	/**
 	 * Creates a snapshot of this state.

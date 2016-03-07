@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -38,6 +39,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.types.IntValue;
@@ -47,6 +49,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.*;
 
@@ -73,6 +78,509 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	}
 
 	@Test
+	public void testIterateEmptyNamespace() throws Exception {
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> valueId = new ValueStateDescriptor<>("value", String.class, null);
+		valueId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		StateIterator<Object, ValueState<String>> valueStateIterator = backend.getPartitionedStateForAllKeys(
+				null,
+				VoidSerializer.INSTANCE,
+				valueId);
+
+		assertFalse(valueStateIterator.advance());
+
+		ReducingStateDescriptor<String> reducingId = new ReducingStateDescriptor<>("reduce",
+				new ReduceFunction<String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public String reduce(String value1, String value2) throws Exception {
+						return null;
+					}
+				},
+				String.class);
+		reducingId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		StateIterator<Object, ReducingState<String>> reducingStateIterator = backend.getPartitionedStateForAllKeys(
+				null,
+				VoidSerializer.INSTANCE,
+				reducingId);
+
+		assertFalse(reducingStateIterator.advance());
+
+		ListStateDescriptor<String> listId = new ListStateDescriptor<>("list", String.class);
+		listId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		StateIterator<Object, ListState<String>> listStateIterator = backend.getPartitionedStateForAllKeys(
+				null,
+				VoidSerializer.INSTANCE,
+				listId);
+
+		assertFalse(listStateIterator.advance());
+
+		FoldingStateDescriptor<String, String> foldingId= new FoldingStateDescriptor<>("reduce",
+				"",
+				new FoldFunction<String, String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public String fold(String accumulator, String value) throws Exception {
+						return null;
+					}
+				},
+				String.class);
+		foldingId.initializeSerializerUnlessSet(new ExecutionConfig());
+		StateIterator<Object, FoldingState<String, String>> foldingStateIterator = backend.getPartitionedStateForAllKeys(
+				null,
+				VoidSerializer.INSTANCE,
+				foldingId);
+
+		assertFalse(foldingStateIterator.advance());
+	}
+
+	/**
+	 * Verifies that we can correctly iterate over different namespaces and that namespaces don't
+	 * clash.
+	 */
+	@Test
+	@SuppressWarnings("unchecked, rawtypes")
+	public void testValueStateIterator() throws Exception {
+
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ValueState<String> state = backend.getPartitionedState("namespace1", StringSerializer.INSTANCE, kvId);
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		assertNull(state.value());
+		state.update("1");
+		backend.setCurrentKey(2);
+		assertNull(state.value());
+		state.update("2");
+		backend.setCurrentKey(1);
+		assertEquals("1", state.value());
+
+		// second namespace
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+
+		// verify that it is still empty
+		{
+			StateIterator<Integer, ValueState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+
+			assertEquals(false, allStates.advance());
+		}
+
+		// some modifications to the second namespace
+		backend.setCurrentKey(1);
+		assertNull(state.value());
+		state.update("one");
+		backend.setCurrentKey(2);
+		assertNull(state.value());
+		state.update("two");
+		backend.setCurrentKey(3);
+		assertNull(state.value());
+		state.update("three");
+		assertEquals("three", state.value());
+		backend.setCurrentKey(1);
+		assertEquals("one", state.value());
+
+		// check the view over all keys for namespace1
+		{
+			StateIterator<Integer, ValueState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace1",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "1"));
+			expected.add(new Tuple2<>(2, "2"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().value()));
+			}
+
+			assertEquals(expected, actual);
+		}
+
+
+		// check the view over all keys for namespace2, delete one of the entries and check afterwards
+		// whether it is gone
+		{
+			StateIterator<Integer, ValueState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "one"));
+			expected.add(new Tuple2<>(2, "two"));
+			expected.add(new Tuple2<>(3, "three"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().value()));
+				if (allStates.key().equals(3)) {
+					allStates.delete();
+				}
+			}
+
+			assertEquals(expected, actual);
+		}
+
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+		backend.setCurrentKey(3);
+		assertNull(state.value());
+		backend.setCurrentKey(2);
+		assertEquals("two", state.value());
+	}
+
+	/**
+	 * Verifies that we can correctly iterate over different namespaces and that namespaces don't
+	 * clash.
+	 */
+	@Test
+	@SuppressWarnings("unchecked, rawtypes")
+	public void testReducingStateIterator() throws Exception {
+
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ReducingState<String> state = backend.getPartitionedState("namespace1", StringSerializer.INSTANCE, kvId);
+
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		assertNull(state.get());
+		state.add("1");
+		backend.setCurrentKey(2);
+		assertNull(state.get());
+		state.add("2");
+		backend.setCurrentKey(1);
+		assertEquals("1", state.get());
+		state.add("1");
+
+		// second namespace
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+
+		// verify that it is still empty
+		{
+			StateIterator<Integer, ReducingState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+
+			assertEquals(false, allStates.advance());
+		}
+
+		// some modifications to the second namespace
+		backend.setCurrentKey(1);
+		assertNull(state.get());
+		state.add("one");
+		backend.setCurrentKey(2);
+		assertNull(state.get());
+		state.add("two");
+		backend.setCurrentKey(3);
+		assertNull(state.get());
+		state.add("three");
+		assertEquals("three", state.get());
+		backend.setCurrentKey(2);
+		assertEquals("two", state.get());
+		state.add("two");
+
+		// check the view over all keys for namespace1
+		{
+			StateIterator<Integer, ReducingState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace1",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "1,1"));
+			expected.add(new Tuple2<>(2, "2"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().get()));
+			}
+
+			assertEquals(expected, actual);
+		}
+
+
+		// check the view over all keys for namespace2, delete one of the entries and check afterwards
+		// whether it is gone
+		{
+			StateIterator<Integer, ReducingState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "one"));
+			expected.add(new Tuple2<>(2, "two,two"));
+			expected.add(new Tuple2<>(3, "three"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().get()));
+				if (allStates.key().equals(3)) {
+					allStates.delete();
+				}
+			}
+
+			assertEquals(expected, actual);
+		}
+
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+		backend.setCurrentKey(3);
+		assertNull(state.get());
+		backend.setCurrentKey(2);
+		assertEquals("two,two", state.get());
+	}
+
+	/**
+	 * Verifies that we can correctly iterate over different namespaces and that namespaces don't
+	 * clash.
+	 */
+	@Test
+	@SuppressWarnings("unchecked, rawtypes")
+	public void testListStateIterator() throws Exception {
+		Joiner joiner = Joiner.on(",");
+
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ListState<String> state = backend.getPartitionedState("namespace1", StringSerializer.INSTANCE, kvId);
+
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		assertEquals("", joiner.join(state.get()));
+		state.add("1");
+		backend.setCurrentKey(2);
+		assertEquals("", joiner.join(state.get()));
+		state.add("2");
+		backend.setCurrentKey(1);
+		assertEquals("1", joiner.join(state.get()));
+		state.add("1");
+
+		// second namespace
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+
+		// verify that it is still empty
+		{
+			StateIterator<Integer, ListState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+
+			assertEquals(false, allStates.advance());
+		}
+
+		// some modifications to the second namespace
+		backend.setCurrentKey(1);
+		assertEquals("", joiner.join(state.get()));
+		state.add("one");
+		backend.setCurrentKey(2);
+		assertEquals("", joiner.join(state.get()));
+		state.add("two");
+		backend.setCurrentKey(3);
+		assertEquals("", joiner.join(state.get()));
+		state.add("three");
+		assertEquals("three", joiner.join(state.get()));
+		backend.setCurrentKey(2);
+		assertEquals("two", joiner.join(state.get()));
+		state.add("two");
+
+		// check the view over all keys for namespace1
+		{
+			StateIterator<Integer, ListState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace1",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "1,1"));
+			expected.add(new Tuple2<>(2, "2"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), joiner.join(allStates.state().get())));
+			}
+
+			assertEquals(expected, actual);
+		}
+
+
+		// check the view over all keys for namespace2, delete one of the entries and check afterwards
+		// whether it is gone
+		{
+			StateIterator<Integer, ListState<String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "one"));
+			expected.add(new Tuple2<>(2, "two,two"));
+			expected.add(new Tuple2<>(3, "three"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), joiner.join(allStates.state().get())));
+				if (allStates.key().equals(3)) {
+					allStates.delete();
+				}
+			}
+
+			assertEquals(expected, actual);
+		}
+
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+		backend.setCurrentKey(3);
+		assertEquals("", joiner.join(state.get()));
+		backend.setCurrentKey(2);
+		assertEquals("two,two", joiner.join(state.get()));
+	}
+
+	/**
+	 * Verifies that we can correctly iterate over different namespaces and that namespaces don't
+	 * clash.
+	 */
+	@Test
+	@SuppressWarnings("unchecked, rawtypes")
+	public void testFoldingStateIterator() throws Exception {
+
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new AppendingFold(),
+				String.class);
+
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		FoldingState<Integer, String> state = backend.getPartitionedState("namespace1", StringSerializer.INSTANCE, kvId);
+
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		assertEquals("Fold-Initial:", state.get());
+		state.add(1);
+		backend.setCurrentKey(2);
+		assertEquals("Fold-Initial:", state.get());
+		state.add(2);
+		backend.setCurrentKey(1);
+		assertEquals("Fold-Initial:,1", state.get());
+		state.add(1);
+
+		// second namespace
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+
+		// verify that it is still empty
+		{
+			StateIterator<Integer, FoldingState<Integer, String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+
+			assertEquals(false, allStates.advance());
+		}
+
+		// some modifications to the second namespace
+		backend.setCurrentKey(1);
+		assertEquals("Fold-Initial:", state.get());
+		state.add(1337);
+		backend.setCurrentKey(2);
+		assertEquals("Fold-Initial:", state.get());
+		state.add(20);
+		backend.setCurrentKey(3);
+		assertEquals("Fold-Initial:", state.get());
+		state.add(33);
+		assertEquals("Fold-Initial:,33", state.get());
+		backend.setCurrentKey(2);
+		assertEquals("Fold-Initial:,20", state.get());
+		state.add(42);
+
+		// check the view over all keys for namespace1
+		{
+			StateIterator<Integer, FoldingState<Integer, String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace1",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "Fold-Initial:,1,1"));
+			expected.add(new Tuple2<>(2, "Fold-Initial:,2"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().get()));
+			}
+
+			assertEquals(expected, actual);
+		}
+
+
+		// check the view over all keys for namespace2, delete one of the entries and check afterwards
+		// whether it is gone
+		{
+			StateIterator<Integer, FoldingState<Integer, String>> allStates = backend.getPartitionedStateForAllKeys(
+					"namespace2",
+					StringSerializer.INSTANCE,
+					kvId);
+
+			Set<Tuple2<Integer, String>> expected = new HashSet<>();
+			expected.add(new Tuple2<>(1, "Fold-Initial:,1337"));
+			expected.add(new Tuple2<>(2, "Fold-Initial:,20,42"));
+			expected.add(new Tuple2<>(3, "Fold-Initial:,33"));
+
+			Set<Tuple2<Integer, String>> actual = new HashSet<>();
+
+			while (allStates.advance()) {
+				actual.add(new Tuple2<>(allStates.key(), allStates.state().get()));
+				if (allStates.key().equals(3)) {
+					allStates.delete();
+				}
+			}
+
+			assertEquals(expected, actual);
+		}
+
+		state = backend.getPartitionedState("namespace2", StringSerializer.INSTANCE, kvId);
+		backend.setCurrentKey(3);
+		assertEquals("Fold-Initial:", state.get());
+		backend.setCurrentKey(2);
+		assertEquals("Fold-Initial:,20,42", state.get());
+	}
+
+
+	@Test
+	@SuppressWarnings("unchecked, rawtypes")
 	public void testValueState() throws Exception {
 
 		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
@@ -127,10 +635,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		assertEquals("u3", state.value());
 
 		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
+		// restore the first snapshot and validate it
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 		backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
 
+		// discard snapshot, to verify that discarding them does not affect other snapshots
+		// or working state
 		for (String key: snapshot1.keySet()) {
 			snapshot1.get(key).discardState();
 		}
@@ -143,10 +654,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		assertEquals("2", restored1.value());
 
 		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
+		// restore the second snapshot and validate it
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 		backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
 
+		// discard snapshot, to verify that discarding them does not affect other snapshots
+		// or working state
 		for (String key: snapshot2.keySet()) {
 			snapshot2.get(key).discardState();
 		}
@@ -174,7 +688,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		// later if null values where actually stored in the state instead of acting as clear()
 		try {
 			LongSerializer.INSTANCE.serialize(null,
-				new DataOutputViewStreamWrapper(new ByteArrayOutputStream()));
+					new DataOutputViewStreamWrapper(new ByteArrayOutputStream()));
 			fail("Should faill with NullPointerException");
 		} catch (NullPointerException e) {
 			// alrighty
@@ -217,11 +731,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			}
 		}
 
-
 		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
-		backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+		// restore the snapshot
+		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 0);
 
 		for (String key: snapshot1.keySet()) {
 			snapshot1.get(key).discardState();
@@ -290,6 +804,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
@@ -307,6 +823,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
@@ -385,6 +903,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
@@ -402,6 +922,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
@@ -431,7 +953,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
 					"Fold-Initial:",
 					new AppendingFold(),
-				String.class);
+					String.class);
 
 			FoldingState<Integer, String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
@@ -486,6 +1008,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
@@ -503,6 +1027,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
 
+			// discard snapshot, to verify that discarding them does not affect other snapshots
+			// or working state
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
@@ -527,12 +1053,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	public void testValueStateRestoreWithWrongSerializers() {
 		try {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0),
-				"test_op",
-				IntSerializer.INSTANCE);
+					"test_op",
+					IntSerializer.INSTANCE);
 
 			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
 			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
-			
+
 			ValueState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			backend.setCurrentKey(1);
@@ -561,7 +1087,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 			@SuppressWarnings("unchecked")
 			TypeSerializer<String> fakeStringSerializer =
-				(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
+					(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
 			try {
 				kvId = new ValueStateDescriptor<>("id", fakeStringSerializer, null);

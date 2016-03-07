@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -95,6 +96,10 @@ public class RocksDBValueState<K, N, V>
 	}
 
 	@Override
+	public StateIterator<K, ValueState<V>> getForAllKeys(N namespace) throws Exception {
+		return new Iterator(namespace);
+	}
+	@Override
 	public void update(V value) throws IOException {
 		if (value == null) {
 			clear();
@@ -112,5 +117,49 @@ public class RocksDBValueState<K, N, V>
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
+
+	private class Iterator extends RocksDBStateIterator<K, ValueState<V>, N> {
+
+		private ProxyState proxyState;
+
+		public Iterator(N namespace) throws IOException {
+			super(backend, writeOptions, columnFamily, namespace, namespaceSerializer);
+
+			proxyState = new ProxyState();
+		}
+
+		@Override
+		public ValueState<V> state() throws Exception {
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(rocksIterator.value()));
+
+			final V value = valueSerializer.deserialize(in);
+			in.close();
+			proxyState.value = value;
+
+			return proxyState;
+		}
+
+		private class ProxyState implements ValueState<V> {
+			V value;
+
+			@Override
+			public V value() {
+				return value;
+			}
+
+			@Override
+			public void update(V value) {
+				throw new RuntimeException("Not supported.");
+			}
+
+			@Override
+			public void clear() {
+				throw new RuntimeException("Not supported.");
+			}
+		}
+
+	}
+
 }
 

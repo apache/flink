@@ -51,7 +51,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
 	/** Serializer for the namespace */
-	private final TypeSerializer<N> namespaceSerializer;
+	protected final TypeSerializer<N> namespaceSerializer;
 
 	/** The current namespace, which the next value methods will refer to */
 	private N currentNamespace;
@@ -93,9 +93,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	protected void writeKeyAndNamespace(DataOutputView out) throws IOException {
-		backend.keySerializer().serialize(backend.currentKey(), out);
-		out.writeByte(42);
 		namespaceSerializer.serialize(currentNamespace, out);
+		out.writeByte(42);
+		backend.keySerializer().serialize(backend.currentKey(), out);
 	}
 
 	@Override

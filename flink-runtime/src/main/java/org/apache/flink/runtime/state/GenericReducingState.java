@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -83,6 +84,47 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	@Override
 	public T get() throws Exception {
 		return wrappedState.value();
+	}
+
+	@Override
+	public StateIterator<K, ReducingState<T>> getForAllKeys(N namespace) throws Exception {
+		final StateIterator<K, ValueState<T>> wrappedIterator = wrappedState.getForAllKeys(namespace);
+		return new StateIterator<K, ReducingState<T>>() {
+			@Override
+			public K key() {
+				return wrappedIterator.key();
+			}
+
+			@Override
+			public ReducingState<T> state() throws Exception {
+				return new ReducingState<T>() {
+					@Override
+					public T get() throws Exception {
+						return wrappedIterator.state().value();
+					}
+
+					@Override
+					public void add(T value) throws Exception {
+						throw new RuntimeException("Not supported.");
+					}
+
+					@Override
+					public void clear() {
+						throw new RuntimeException("Not supported.");
+					}
+				};
+			}
+
+			@Override
+			public void delete() throws Exception {
+				wrappedIterator.delete();
+			}
+
+			@Override
+			public boolean advance() throws Exception {
+				return wrappedIterator.advance();
+			}
+		};
 	}
 
 	@Override
