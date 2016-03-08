@@ -17,68 +17,123 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.table.Row
+
 abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
 
-  var result: T = _
-  val numericResult = implicitly[Numeric[T]]
+  private val numeric = implicitly[Numeric[T]]
+  protected var maxIndex = -1
 
-  override def aggregate(value: Any): Unit = {
-    val input: T = value.asInstanceOf[T]
-
-    result = numericResult.max(result, input)
+  /**
+   * Accessed in MapFunction, prepare the input of partial aggregate.
+   * @param value
+   * @param intermediate
+   */
+  override def prepare(value: Any, intermediate: Row): Unit = {
+    if (value == null) {
+      initiate(intermediate)
+    } else {
+      intermediate.setField(maxIndex, value)
+    }
   }
 
-  override def getAggregated(): T = {
-    result
+  /**
+   * Accessed in CombineFunction and GroupReduceFunction, merge partial
+   * aggregate result into aggregate buffer.
+   * @param intermediate
+   * @param buffer
+   */
+  override def merge(intermediate: Row, buffer: Row): Unit = {
+    val partialValue = intermediate.productElement(maxIndex).asInstanceOf[T]
+    val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
+    buffer.setField(maxIndex, numeric.max(partialValue, bufferValue))
   }
 
+  /**
+   * Return the final aggregated result based on aggregate buffer.
+   * @param buffer
+   * @return
+   */
+  override def evaluate(buffer: Row): T = {
+    buffer.productElement(maxIndex).asInstanceOf[T]
+  }
+
+  override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggOffset: Int): Unit = {
+    maxIndex = aggOffset
+  }
 }
 
-// Numeric doesn't have min value
-class TinyIntMaxAggregate extends MaxAggregate[Byte] {
+class ByteMaxAggregate extends MaxAggregate[Byte] {
+  private val intermediateType = Array(SqlTypeName.TINYINT)
 
-  override def initiateAggregate: Unit = {
-    result = Byte.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Byte.MinValue)
+  }
 }
 
-class SmallIntMaxAggregate extends MaxAggregate[Short] {
+class ShortMaxAggregate extends MaxAggregate[Short] {
+  private val intermediateType = Array(SqlTypeName.SMALLINT)
 
-  override def initiateAggregate: Unit = {
-    result = Short.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Short.MinValue)
+  }
 }
 
 class IntMaxAggregate extends MaxAggregate[Int] {
+  private val intermediateType = Array(SqlTypeName.INTEGER)
 
-  override def initiateAggregate: Unit = {
-    result = Int.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Int.MinValue)
+  }
 }
 
 class LongMaxAggregate extends MaxAggregate[Long] {
+  private val intermediateType = Array(SqlTypeName.BIGINT)
 
-  override def initiateAggregate: Unit = {
-    result = Long.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Long.MinValue)
+  }
 }
 
 class FloatMaxAggregate extends MaxAggregate[Float] {
+  private val intermediateType = Array(SqlTypeName.FLOAT)
 
-  override def initiateAggregate: Unit = {
-    result = Float.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Float.MinValue)
+  }
 }
 
 class DoubleMaxAggregate extends MaxAggregate[Double] {
+  private val intermediateType = Array(SqlTypeName.DOUBLE)
 
-  override def initiateAggregate: Unit = {
-    result = Double.MinValue
+  override def intermediateDataType: Array[SqlTypeName] = {
+    intermediateType
   }
 
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, Double.MinValue)
+  }
 }
