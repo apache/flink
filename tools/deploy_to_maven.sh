@@ -17,6 +17,9 @@
 # limitations under the License.
 ################################################################################
 
+# fail on errors
+set -e
+
 #
 # Deploys snapshot builds to Apache's snapshot repository.
 #
@@ -68,6 +71,7 @@ git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
 cd dummy-lifecycle-mapping-plugin
 mvn -B install
 cd ..
+rm -rf dummy-lifecycle-mapping-plugin
 
 
 CURRENT_FLINK_VERSION=`getVersion`
