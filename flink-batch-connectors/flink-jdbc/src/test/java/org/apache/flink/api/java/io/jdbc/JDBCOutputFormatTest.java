@@ -49,7 +49,7 @@ public class JDBCOutputFormatTest {
 	@BeforeClass
 	public static void setUpClass() throws SQLException {
 		try {
-			System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.record.io.jdbc.DevNullLogStream.DEV_NULL");
+			System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.io.jdbc.DerbyUtil.DEV_NULL");
 			prepareDerbyDatabase();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();

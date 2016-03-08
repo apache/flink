@@ -57,7 +57,7 @@ public class JDBCInputFormatTest {
 	}
 
 	private static void prepareDerbyDatabase() throws ClassNotFoundException, SQLException {
-		System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.record.io.jdbc.DevNullLogStream.DEV_NULL");
+		System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.io.jdbc.DerbyUtil.DEV_NULL");
 		String dbURL = "jdbc:derby:memory:ebookshop;create=true";
 		Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
 		conn = DriverManager.getConnection(dbURL);

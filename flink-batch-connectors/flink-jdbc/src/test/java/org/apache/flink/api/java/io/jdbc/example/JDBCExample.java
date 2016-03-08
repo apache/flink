@@ -57,6 +57,7 @@ public class JDBCExample {
 	}
 
 	private static void prepareTestDb() throws Exception {
+		System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.io.jdbc.DerbyUtil.DEV_NULL");
 		String dbURL = "jdbc:derby:memory:ebookshop;create=true";
 		Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
 		Connection conn = DriverManager.getConnection(dbURL);
