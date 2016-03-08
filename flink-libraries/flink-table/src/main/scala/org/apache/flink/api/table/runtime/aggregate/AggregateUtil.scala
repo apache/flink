@@ -99,7 +99,7 @@ object AggregateUtil {
           "or aggregate functions.")
     }
 
-    val allPartialAggregate = aggregates.map(_.supportPartial).reduce(_ && _)
+    val allPartialAggregate = aggregates.map(_.supportPartial).forall(x => x)
 
     val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
 
