@@ -26,8 +26,7 @@
 # to reference a specific Flink version, because this is the only place where
 # we change the version for the complete docs when forking of a release branch
 # etc.
-version: "1.0-SNAPSHOT"
-version_hadoop1: "1.0-hadoop1-SNAPSHOT"
+version: "1.0.0"
 version_short: "1.0" # Used for the top navbar w/o snapshot suffix
 
 # This suffix is appended to the Scala-dependent Maven artifact names
@@ -41,9 +40,8 @@ github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
 # Setup quickstart uses this => to be changed
-FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop1.tgz"
-FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop2.tgz"
-FLINK_DOWNLOAD_URL_YARN_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.9.1/flink-0.9.1-bin-hadoop2-yarn.tgz"
+FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.0/flink-1.0.0-bin-hadoop1-scala_2.10.tgz"
+FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.0/flink-1.0.0-bin-hadoop2-scala_2.10.tgz"
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG
@@ -72,4 +70,4 @@ kramdown:
 host: 0.0.0.0
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-master
+baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.0
