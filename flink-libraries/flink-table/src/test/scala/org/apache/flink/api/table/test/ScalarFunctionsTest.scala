@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.test
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
@@ -192,6 +193,187 @@ class ScalarFunctionsTest {
       "!f0.similar('This (is)? a (test)+ Strin_*')",
       "f0 NOT SIMILAR TO 'This (is)? a (test)+ Strin_*'",
       "false")
+  }
+
+  @Test
+  def testMod(): Unit = {
+    testFunction(
+      'f4.mod('f7),
+      "f4.mod(f7)",
+      "MOD(f4, f7)",
+      "2")
+
+    testFunction(
+      'f4.mod(3),
+      "mod(f4, 3)",
+      "MOD(f4, 3)",
+      "2")
+
+    testFunction(
+      'f4 % 3,
+      "mod(44, 3)",
+      "MOD(44, 3)",
+      "2")
+
+  }
+
+  @Test
+  def testExp(): Unit = {
+    testFunction(
+      'f2.exp(),
+      "f2.exp()",
+      "EXP(f2)",
+      math.exp(42.toByte).toString)
+
+    testFunction(
+      'f3.exp(),
+      "f3.exp()",
+      "EXP(f3)",
+      math.exp(43.toShort).toString)
+
+    testFunction(
+      'f4.exp(),
+      "f4.exp()",
+      "EXP(f4)",
+      math.exp(44.toLong).toString)
+
+    testFunction(
+      'f5.exp(),
+      "f5.exp()",
+      "EXP(f5)",
+      math.exp(4.5.toFloat).toString)
+
+    testFunction(
+      'f6.exp(),
+      "f6.exp()",
+      "EXP(f6)",
+      math.exp(4.6).toString)
+
+    testFunction(
+      'f7.exp(),
+      "exp(3)",
+      "EXP(3)",
+      math.exp(3).toString)
+  }
+
+  @Test
+  def testLog10(): Unit = {
+    testFunction(
+      'f2.log10(),
+      "f2.log10()",
+      "LOG10(f2)",
+      math.log10(42.toByte).toString)
+
+    testFunction(
+      'f3.log10(),
+      "f3.log10()",
+      "LOG10(f3)",
+      math.log10(43.toShort).toString)
+
+    testFunction(
+      'f4.log10(),
+      "f4.log10()",
+      "LOG10(f4)",
+      math.log10(44.toLong).toString)
+
+    testFunction(
+      'f5.log10(),
+      "f5.log10()",
+      "LOG10(f5)",
+      math.log10(4.5.toFloat).toString)
+
+    testFunction(
+      'f6.log10(),
+      "f6.log10()",
+      "LOG10(f6)",
+      math.log10(4.6).toString)
+  }
+
+  @Test
+  def testPower(): Unit = {
+    testFunction(
+      'f2.power('f7),
+      "f2.power(f7)",
+      "POWER(f2, f7)",
+      math.pow(42.toByte, 3).toString)
+
+    testFunction(
+      'f3.power('f6),
+      "f3.power(f6)",
+      "POWER(f3, f6)",
+      math.pow(43.toShort, 4.6D).toString)
+
+    testFunction(
+      'f4.power('f5),
+      "f4.power(f5)",
+      "POWER(f4, f5)",
+      math.pow(44.toLong, 4.5.toFloat).toString)
+  }
+
+  @Test
+  def testLn(): Unit = {
+    testFunction(
+      'f2.ln(),
+      "f2.ln()",
+      "LN(f2)",
+      math.log(42.toByte).toString)
+
+    testFunction(
+      'f3.ln(),
+      "f3.ln()",
+      "LN(f3)",
+      math.log(43.toShort).toString)
+
+    testFunction(
+      'f4.ln(),
+      "f4.ln()",
+      "LN(f4)",
+      math.log(44.toLong).toString)
+
+    testFunction(
+      'f5.ln(),
+      "f5.ln()",
+      "LN(f5)",
+      math.log(4.5.toFloat).toString)
+
+    testFunction(
+      'f6.ln(),
+      "f6.ln()",
+      "LN(f6)",
+      math.log(4.6).toString)
+  }
+
+  @Test
+  def testAbs(): Unit = {
+    testFunction(
+      'f2.abs(),
+      "f2.abs()",
+      "ABS(f2)",
+      SqlFunctions.abs(42.toByte).toString)
+
+    testFunction(
+      'f3.abs(),
+      "f3.abs()",
+      "ABS(f3)",
+      SqlFunctions.abs(43.toShort).toString)
+
+    testFunction(
+      'f4.abs(),
+      "f4.abs()",
+      "ABS(f4)",
+      SqlFunctions.abs(44.toLong).toString)
+
+    testFunction(
+      'f5.abs(),
+      "f5.abs()",
+      "ABS(f5)",
+      SqlFunctions.abs(4.5.toFloat).toString)
+
+    testFunction(
+      'f6.abs(),
+      "f6.abs()",
+      "ABS(f6)",
+      SqlFunctions.abs(4.6).toString)
   }
 
   // ----------------------------------------------------------------------------------------------

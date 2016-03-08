@@ -17,6 +17,9 @@
  */
 package org.apache.flink.api.table.expressions
 
+import org.apache.calcite.linq4j.tree.Types
+import org.apache.calcite.runtime.SqlFunctions
+
 /**
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
@@ -50,6 +53,12 @@ object BuiltInFunctionNames {
   val INIT_CAP = "INITCAP"
   val LIKE = "LIKE"
   val SIMILAR = "SIMILAR"
+  val MOD = "MOD"
+  val EXP = "EXP"
+  val LOG10 = "LOG10"
+  val POWER = "POWER"
+  val LN = "LN"
+  val ABS = "ABS"
 }
 
 /**
@@ -60,4 +69,12 @@ object BuiltInFunctionConstants {
   val TRIM_LEADING = Literal(1)
   val TRIM_TRAILING = Literal(2)
   val TRIM_DEFAULT_CHAR = Literal(" ")
+}
+
+object BuiltInMethods {
+  val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
+  val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
+  val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
+  val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
+  val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
 }
