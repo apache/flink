@@ -17,26 +17,73 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.table.Row
+
 /**
- * Represents a SQL aggregate function. The user should first initialize the aggregate, then feed it
- * with grouped aggregate field values, and finally get the aggregated value.
- * @tparam T the output type
+ * The interface for all Flink aggregate functions, which expressed in terms of initiate(),
+ * prepare(), merge() and evaluate(). The aggregate functions would be executed in 2 phases:
+ * -- In Map phase, use prepare() to transform aggregate field value into intermediate
+ * aggregate value.
+ * -- In GroupReduce phase, use merge() to merge grouped intermediate aggregate values
+ * into aggregate buffer. Then use evaluate() to calculate the final aggregated value.
+ * For associative decomposable aggregate functions, they support partial aggregate. To optimize
+ * the performance, a Combine phase would be added between Map phase and GroupReduce phase,
+ * -- In Combine phase, use merge() to merge sub-grouped intermediate aggregate values
+ * into aggregate buffer.
+ *
+ * The intermediate aggregate value is stored inside Row, aggOffsetInRow is used as the start
+ * field index in Row, so different aggregate functions could share the same Row as intermediate
+ * aggregate value/aggregate buffer, as their aggregate values could be stored in distinct fields
+ * of Row with no conflict. The intermediate aggregate value is required to be a sequence of JVM
+ * primitives, and Flink use intermediateDataType() to get its data types in SQL side.
+ *
+ * @tparam T Aggregated value type.
  */
 trait Aggregate[T] extends Serializable {
-  /**
-   * Initialize the aggregate state.
-   */
-  def initiateAggregate
 
   /**
-   * Feed the aggregate field value.
+   * Initiate the intermediate aggregate value in Row.
+   * @param intermediate
+   */
+  def initiate(intermediate: Row): Unit
+
+  /**
+   * Transform the aggregate field value into intermediate aggregate data.
    * @param value
+   * @param intermediate
    */
-  def aggregate(value: Any)
+  def prepare(value: Any, intermediate: Row): Unit
 
   /**
-   * Return final aggregated value.
+   * Merge intermediate aggregate data into aggregate buffer.
+   * @param intermediate
+   * @param buffer
+   */
+  def merge(intermediate: Row, buffer: Row): Unit
+
+  /**
+   * Calculate the final aggregated result based on aggregate buffer.
+   * @param buffer
    * @return
    */
-  def getAggregated(): T
+  def evaluate(buffer: Row): T
+
+  /**
+   * Intermediate aggregate value types.
+   * @return
+   */
+  def intermediateDataType: Array[SqlTypeName]
+
+  /**
+   * Set the aggregate data offset in Row.
+   * @param aggOffset
+   */
+  def setAggOffsetInRow(aggOffset: Int)
+
+  /**
+    * Whether aggregate function support partial aggregate.
+   * @return
+   */
+  def supportPartial: Boolean = false
 }

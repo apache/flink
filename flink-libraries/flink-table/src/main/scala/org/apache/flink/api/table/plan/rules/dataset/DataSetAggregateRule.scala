@@ -21,10 +21,11 @@ package org.apache.flink.api.table.plan.rules.dataset
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetGroupReduce}
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetGroupReduce, DataSetMap}
 import org.apache.flink.api.table.plan.nodes.logical.{FlinkAggregate, FlinkConvention}
+import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
+
 import scala.collection.JavaConversions._
-import org.apache.flink.api.table.runtime.aggregate.AggregateFactory
 
 class DataSetAggregateRule
   extends ConverterRule(
@@ -44,17 +45,24 @@ class DataSetAggregateRule
     val inputType = agg.getInput.getRowType()
 
     // add grouping fields, position keys in the input, and input type
-    val aggregateFunction = AggregateFactory.createAggregateInstance(agg.getAggCallList,
-        inputType, grouping)
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(agg.getNamedAggCalls,
+        inputType, rel.getRowType, grouping)
+
+    val mapNode = new DataSetMap(rel.getCluster,
+      traitSet,
+      convInput,
+      aggregateResult.intermediateDataType,
+      agg.toString,
+      aggregateResult.mapFunc)
 
     new DataSetGroupReduce(
       rel.getCluster,
       traitSet,
-      convInput,
+      mapNode,
       rel.getRowType,
       agg.toString,
-      grouping,
-      aggregateFunction)
+      (0 until grouping.length).toArray,
+      aggregateResult.reduceGroupFunc)
   }
 }
 

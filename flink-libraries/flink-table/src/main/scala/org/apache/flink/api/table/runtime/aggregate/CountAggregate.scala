@@ -17,18 +17,41 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.table.Row
+
 class CountAggregate extends Aggregate[Long] {
-  private var count: Long = 0L
+  private var countIndex: Int = _
 
-  override def initiateAggregate: Unit = {
-    count = 0
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(countIndex, 0L)
   }
 
-  override def aggregate(value: Any): Unit = {
-    count += 1
+  override def merge(intermediate: Row, buffer: Row): Unit = {
+    val partialCount = intermediate.productElement(countIndex).asInstanceOf[Long]
+    val bufferCount = buffer.productElement(countIndex).asInstanceOf[Long]
+    buffer.setField(countIndex, partialCount + bufferCount)
   }
 
-  override def getAggregated(): Long = {
-    count
+  override def evaluate(buffer: Row): Long = {
+    buffer.productElement(countIndex).asInstanceOf[Long]
+  }
+
+  override def prepare(value: Any, intermediate: Row): Unit = {
+    if (value == null) {
+      intermediate.setField(countIndex, 0L)
+    } else {
+      intermediate.setField(countIndex, 1L)
+    }
+  }
+
+  override def intermediateDataType: Array[SqlTypeName] = {
+    Array(SqlTypeName.BIGINT)
+  }
+
+  override def supportPartial: Boolean = true
+
+  override def setAggOffsetInRow(aggIndex: Int): Unit = {
+    countIndex = aggIndex
   }
 }
