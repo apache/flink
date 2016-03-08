@@ -53,9 +53,7 @@ trait ImplicitExpressionOperations {
   def - (other: Expression) = Minus(expr, other)
   def / (other: Expression) = Div(expr, other)
   def * (other: Expression) = Mul(expr, other)
-  def % (other: Expression) = Mod(expr, other)
-
-  def abs = Abs(expr)
+  def % (other: Expression) = mod(other)
 
   def sum = Sum(expr)
   def min = Min(expr)
@@ -68,6 +66,36 @@ trait ImplicitExpressionOperations {
   def as(name: Symbol) = Naming(expr, name.name)
 
   // scalar functions
+
+  /**
+    * Calculates the remainder of division the given number by another one.
+    */
+  def mod(other: Expression) = Mod(expr, other)
+
+  /**
+    * Calculates the Euler's number raised to the given power.
+    */
+  def exp() = Call(BuiltInFunctionNames.EXP, expr)
+
+  /**
+    * Calculates the base 10 logarithm of given value.
+    */
+  def log10() = Call(BuiltInFunctionNames.LOG10, expr)
+
+  /**
+    * Calculates the natural logarithm of given value.
+    */
+  def ln() = Call(BuiltInFunctionNames.LN, expr)
+
+  /**
+    * Calculates the given number raised to the power of the other value.
+    */
+  def power(other: Expression) = Call(BuiltInFunctionNames.POWER, expr, other)
+
+  /**
+    * Calculates the absolute value of given one.
+    */
+  def abs() = Call(BuiltInFunctionNames.ABS, expr)
 
   /**
     * Creates a substring of the given string between the given indices.

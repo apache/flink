@@ -50,6 +50,12 @@ object BuiltInFunctionNames {
   val INIT_CAP = "INITCAP"
   val LIKE = "LIKE"
   val SIMILAR = "SIMILAR"
+  val MOD = "MOD"
+  val EXP = "EXP"
+  val LOG10 = "LOG10"
+  val POWER = "POWER"
+  val LN = "LN"
+  val ABS = "ABS"
 }
 
 /**

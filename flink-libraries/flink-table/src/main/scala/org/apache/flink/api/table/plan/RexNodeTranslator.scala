@@ -195,6 +195,12 @@ object RexNodeTranslator {
       case BuiltInFunctionNames.INIT_CAP => SqlStdOperatorTable.INITCAP
       case BuiltInFunctionNames.LIKE => SqlStdOperatorTable.LIKE
       case BuiltInFunctionNames.SIMILAR => SqlStdOperatorTable.SIMILAR_TO
+      case BuiltInFunctionNames.EXP => SqlStdOperatorTable.EXP
+      case BuiltInFunctionNames.LOG10 => SqlStdOperatorTable.LOG10
+      case BuiltInFunctionNames.POWER => SqlStdOperatorTable.POWER
+      case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
+      case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
+      case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
       case _ => ???
     }
   }
