@@ -22,30 +22,30 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalUnion
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkUnion, FlinkConvention}
-
-import scala.collection.JavaConversions._
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
 
 class FlinkUnionRule
   extends ConverterRule(
       classOf[LogicalUnion],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
+      DataSetConvention.INSTANCE,
       "FlinkUnionRule")
   {
 
     def convert(rel: RelNode): RelNode = {
-      val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convInputs = union.getInputs.toList.map(
-        RelOptRule.convert(_, FlinkConvention.INSTANCE)
-      )
 
-      new FlinkUnion(
+      val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
+      val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
+
+      new DataSetUnion(
         rel.getCluster,
         traitSet,
-        convInputs,
-        union.all)
+        convLeft,
+        convRight,
+        rel.getRowType,
+        union.toString)
     }
   }
 

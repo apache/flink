@@ -22,30 +22,32 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkAggregate, FlinkConvention}
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
+import scala.collection.JavaConversions._
 
 class FlinkAggregateRule
   extends ConverterRule(
       classOf[LogicalAggregate],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
+      DataSetConvention.INSTANCE,
       "FlinkAggregateRule")
   {
 
     def convert(rel: RelNode): RelNode = {
       val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConvention.INSTANCE)
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
 
-      new FlinkAggregate(
+      new DataSetAggregate(
         rel.getCluster,
         traitSet,
         convInput,
-        agg.indicator,
-        agg.getGroupSet,
-        agg.getGroupSets,
-        agg.getAggCallList)
-    }
+        agg.getNamedAggCalls,
+        rel.getRowType,
+        agg.getInput.getRowType,
+        agg.toString,
+        agg.getGroupSet.toArray)
+      }
   }
 
 object FlinkAggregateRule {

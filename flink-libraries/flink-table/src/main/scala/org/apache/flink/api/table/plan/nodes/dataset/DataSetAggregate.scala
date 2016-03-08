@@ -20,43 +20,46 @@ package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.plan.{PlanGenException, TypeConverter}
+import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableConfig}
 
 import scala.collection.JavaConverters._
 
 /**
-  * Flink RelNode which matches along with ReduceGroupOperator.
+  * Flink RelNode which matches along with a LogicalAggregate.
   */
-class DataSetGroupReduce(
+class DataSetAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowType: RelDataType,
+    inputType: RelDataType,
     opName: String,
-    groupingKeys: Array[Int],
-    func: (TableConfig, TypeInformation[Row], TypeInformation[Row]) =>
-        GroupReduceFunction[Row, Row])
+    grouping: Array[Int])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataSetGroupReduce(
+    new DataSetAggregate(
       cluster,
       traitSet,
       inputs.get(0),
+      namedAggregates,
       rowType,
+      inputType,
       opName,
-      groupingKeys,
-      func
-    )
+      grouping)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -69,9 +72,14 @@ class DataSetGroupReduce(
 
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        throw new PlanGenException("GroupReduce operations currently only support returning Rows.")
+        throw new PlanGenException("Aggregate operations currently only support returning Rows.")
       case _ => // ok
     }
+
+    val groupingKeys = (0 until grouping.length).toArray
+    // add grouping fields, position keys in the input, and input type
+    val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
+      inputType, rowType, grouping, config)
 
     val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
       config,
@@ -79,27 +87,28 @@ class DataSetGroupReduce(
       Some(TypeConverter.DEFAULT_ROW_TYPE))
 
     // get the output types
-    val fieldsNames = rowType.getFieldNames
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
     .map(f => f.getType.getSqlTypeName)
     .map(n => TypeConverter.sqlTypeToTypeInfo(n))
     .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
-    val groupReduceFunction =
-      func.apply(config, inputDS.getType.asInstanceOf[RowTypeInfo], rowTypeInfo)
+    val mappedInput = inputDS.map(aggregateResult.mapFunc)
+    val groupReduceFunction = aggregateResult.reduceGroupFunc
 
     if (groupingKeys.length > 0) {
-      inputDS.asInstanceOf[DataSet[Row]]
-          .groupBy(groupingKeys: _*)
-          .reduceGroup(groupReduceFunction)
-          .returns(rowTypeInfo)
-          .asInstanceOf[DataSet[Any]]
+      mappedInput.asInstanceOf[DataSet[Row]]
+        .groupBy(groupingKeys: _*)
+        .reduceGroup(groupReduceFunction)
+        .returns(rowTypeInfo)
+        .asInstanceOf[DataSet[Any]]
     }
     else {
       // global aggregation
-      inputDS.asInstanceOf[DataSet[Row]].reduceGroup(groupReduceFunction)
-      .returns(rowTypeInfo).asInstanceOf[DataSet[Any]]
+      mappedInput.asInstanceOf[DataSet[Row]]
+        .reduceGroup(groupReduceFunction)
+        .returns(rowTypeInfo)
+        .asInstanceOf[DataSet[Any]]
     }
   }
 }
