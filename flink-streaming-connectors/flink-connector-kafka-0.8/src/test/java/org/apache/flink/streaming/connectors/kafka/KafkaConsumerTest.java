@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -81,7 +82,7 @@ public class KafkaConsumerTest {
 	@Test
 	public void testSnapshot() {
 		try {
-			Field offsetsField = FlinkKafkaConsumerBase.class.getDeclaredField("offsetsState");
+			Field offsetsField = FlinkKafkaConsumerBase.class.getDeclaredField("partitionState");
 			Field runningField = FlinkKafkaConsumerBase.class.getDeclaredField("running");
 			Field mapField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingCheckpoints");
 
@@ -92,18 +93,19 @@ public class KafkaConsumerTest {
 			FlinkKafkaConsumer08<?> consumer = mock(FlinkKafkaConsumer08.class);
 			when(consumer.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
 
-
+			HashMap<KafkaTopicPartition, KafkaPartitionState> testState = new HashMap<>();
 			HashMap<KafkaTopicPartition, Long> testOffsets = new HashMap<>();
 			long[] offsets = new long[] { 43, 6146, 133, 16, 162, 616 };
 			int j = 0;
 			for (long i: offsets) {
 				KafkaTopicPartition ktp = new KafkaTopicPartition("topic", j++);
+				testState.put(ktp, new KafkaPartitionState(ktp.getPartition(), i));
 				testOffsets.put(ktp, i);
 			}
 
 			LinkedMap map = new LinkedMap();
 
-			offsetsField.set(consumer, testOffsets);
+			offsetsField.set(consumer, testState);
 			runningField.set(consumer, true);
 			mapField.set(consumer, map);
 
@@ -118,7 +120,9 @@ public class KafkaConsumerTest {
 				HashMap<KafkaTopicPartition, Long> checkpointCopy = (HashMap<KafkaTopicPartition, Long>) checkpoint.clone();
 
 				for (Map.Entry<KafkaTopicPartition, Long> e: testOffsets.entrySet()) {
-					testOffsets.put(e.getKey(), e.getValue() + 1);
+					KafkaTopicPartition ktp = e.getKey();
+					testState.put(ktp, new KafkaPartitionState(ktp.getPartition(), e.getValue() + 1));
+					testOffsets.put(ktp, e.getValue() + 1);
 				}
 
 				assertEquals(checkpointCopy, checkpoint);

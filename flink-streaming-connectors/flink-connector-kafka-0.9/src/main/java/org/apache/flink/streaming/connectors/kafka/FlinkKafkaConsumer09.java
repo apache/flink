@@ -269,7 +269,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		this.subscribedPartitionsAsFlink = assignPartitions(this.partitionInfos, numConsumers, thisConsumerIndex);
 		if(this.subscribedPartitionsAsFlink.isEmpty()) {
 			LOG.info("This consumer doesn't have any partitions assigned");
-			this.offsetsState = null;
+			this.partitionState = null;
 			return;
 		} else {
 			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
@@ -302,13 +302,13 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		// check if we need to explicitly seek to a specific offset (restore case)
 		if(restoreToOffset != null) {
 			// we are in a recovery scenario
-			for(Map.Entry<KafkaTopicPartition, Long> offset: restoreToOffset.entrySet()) {
+			for(Map.Entry<KafkaTopicPartition, Long> info: restoreToOffset.entrySet()) {
 				// seek all offsets to the right position
-				this.consumer.seek(new TopicPartition(offset.getKey().getTopic(), offset.getKey().getPartition()), offset.getValue() + 1);
+				this.consumer.seek(new TopicPartition(info.getKey().getTopic(), info.getKey().getPartition()), info.getValue() + 1);
 			}
-			this.offsetsState = restoreToOffset;
+			this.partitionState = restoreInfoFromCheckpoint();
 		} else {
-			this.offsetsState = new HashMap<>();
+			this.partitionState = new HashMap<>();
 		}
 	}
 
@@ -474,8 +474,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 								break pollLoop;
 							}
 							synchronized (sourceContext.getCheckpointLock()) {
-								sourceContext.collect(value);
-								flinkKafkaConsumer.offsetsState.put(flinkPartition, record.offset());
+								flinkKafkaConsumer.processElement(sourceContext, flinkPartition, value, record.offset());
 							}
 						}
 					}

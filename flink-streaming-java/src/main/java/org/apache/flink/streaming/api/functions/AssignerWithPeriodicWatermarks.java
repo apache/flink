@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * 
  * <p>Use this class to generate watermarks in a periodical interval.
  * At most every {@code i} milliseconds (configured via
- * {@link ExecutionConfig#getAutoWatermarkInterval()}, the system will call the
+ * {@link ExecutionConfig#getAutoWatermarkInterval()}), the system will call the
  * {@link #getCurrentWatermark()} method to probe for the next watermark value.
  * The system will generate a new watermark, if the probed value is non-null
  * and has a timestamp larger than that of the previous watermark (to preserve
