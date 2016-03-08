@@ -20,16 +20,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This documentation is for Apache Flink version {{ site.version }}, which is the
-current development version of the next upcoming major release of Apache Flink.
+This documentation is for Apache Flink version {{ site.version }}.
 
-Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is
-a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed
-computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying
-native iteration support, managed memory, and program optimization.
+Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
 
-If you want to write your first program, look at one of the available quickstarts, and refer to the
-[DataSet API guide](apis/batch/index.html) or the [DataStream API guide](apis/streaming/index.html).
+## First Steps
+
+- **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [write a simple program](quickstart/run_example_quickstart.html) working on live Wikipedia edits.
+
+- **Setup:** The [local]({{ site.baseurl }}/setup/local_setup.html), [cluster](setup/cluster_setup.html), and [cloud](setup/gce_setup.html) setup guides show you how to deploy Flink.
+
+- **Programming Guides**: You can check out our guides about [basic concepts](apis/common/index.html) and the [DataStream API](apis/streaming/index.html) or [DataSet API](apis/batch/index.html) to learn how to write your first Flink programs.
+
+- **Migration Guide**: Check out the [0.10 to 1.0 migration guide](https://cwiki.apache.org/confluence/display/FLINK/Migration+Guide%3A+0.10.x+to+1.0.x) if you are upgrading from Flink 0.10.x.
 
 ## Stack
 
