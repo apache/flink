@@ -30,6 +30,7 @@ import kafka.message.MessageAndOffset;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
@@ -61,13 +62,12 @@ import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getInt
  * 
  * <p>This code is in parts based on the tutorial code for the low-level Kafka consumer.</p>
  */
-public class LegacyFetcher implements Fetcher {
+public class LegacyFetcher<T> implements Fetcher {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(LegacyFetcher.class);
 
 	private static final FetchPartition MARKER = new FetchPartition("n/a", -1, -1);
-	
-	
+
 	/** The properties that configure the Kafka connection */
 	private final Properties config;
 	
@@ -79,7 +79,6 @@ public class LegacyFetcher implements Fetcher {
 	
 	/** The classloader for dynamically loaded classes */
 	private final ClassLoader userCodeClassloader;
-
 	
 	/** Reference the the thread that executed the run() method. */
 	private volatile Thread mainThread;
@@ -94,6 +93,9 @@ public class LegacyFetcher implements Fetcher {
 	 */
 	private final ClosableBlockingQueue<FetchPartition> unassignedPartitions = new ClosableBlockingQueue<>();
 
+	/** The {@link FlinkKafkaConsumer08} to whom this Fetcher belongs. */
+	private final FlinkKafkaConsumer08<T> flinkKafkaConsumer;
+
 	/**
 	 * Create a LegacyFetcher instance.
 	 *
@@ -103,20 +105,23 @@ public class LegacyFetcher implements Fetcher {
 	 * @param userCodeClassloader classloader for loading user code
 	 */
 	public LegacyFetcher(
-				Map<KafkaTopicPartition, Long> initialPartitionsToRead, Properties props,
+				FlinkKafkaConsumer08<T> owner,
+				Map<KafkaTopicPartition, KafkaPartitionState> initialPartitionsToRead,
+				Properties props,
 				String taskName, ClassLoader userCodeClassloader) {
-		
+
+		this.flinkKafkaConsumer = requireNonNull(owner);
 		this.config = requireNonNull(props, "The config properties cannot be null");
 		this.userCodeClassloader = requireNonNull(userCodeClassloader);
 		if (initialPartitionsToRead.size() == 0) {
 			throw new IllegalArgumentException("List of initial partitions is empty");
 		}
 
-		for (Map.Entry<KafkaTopicPartition, Long> partitionToRead: initialPartitionsToRead.entrySet()) {
+		for (Map.Entry<KafkaTopicPartition, KafkaPartitionState> partitionToRead: initialPartitionsToRead.entrySet()) {
 			KafkaTopicPartition ktp = partitionToRead.getKey();
 			// we increment the offset by one so that we fetch the next message in the partition.
-			long offset = partitionToRead.getValue();
-			if (offset >= 0 && offset != FlinkKafkaConsumer08.OFFSET_NOT_SET) {
+			long offset = partitionToRead.getValue().getOffset();
+			if (offset >= 0 && offset != FlinkKafkaConsumerBase.OFFSET_NOT_SET) {
 				offset += 1L;
 			}
 			unassignedPartitions.add(new FetchPartition(ktp.getTopic(), ktp.getPartition(), offset));
@@ -141,7 +146,7 @@ public class LegacyFetcher implements Fetcher {
 	@Override
 	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
 						KeyedDeserializationSchema<T> deserializer,
-						HashMap<KafkaTopicPartition, Long> lastOffsets) throws Exception {
+						HashMap<KafkaTopicPartition, KafkaPartitionState> partitionState) throws Exception {
 
 		// NOTE: This method needs to always release all resources it acquires
 
@@ -173,7 +178,7 @@ public class LegacyFetcher implements Fetcher {
 							
 							if (brokerThread == null || !brokerThread.getNewPartitionsQueue().isOpen()) {
 								// start new thread
-								brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, partitions, leader);
+								brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, partitions, leader);
 								brokerToThread.put(leader, brokerThread);
 							} else {
 								// put elements into queue of thread
@@ -185,7 +190,7 @@ public class LegacyFetcher implements Fetcher {
 										// create a new thread for connecting to this broker
 										List<FetchPartition> seedPartitions = new ArrayList<>();
 										seedPartitions.add(fp);
-										brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, lastOffsets, seedPartitions, leader);
+										brokerThread = createAndStartSimpleConsumerThread(sourceContext, deserializer, seedPartitions, leader);
 										brokerToThread.put(leader, brokerThread);
 										newPartitionsQueue = brokerThread.getNewPartitionsQueue(); // update queue for the subsequent partitions
 									}
@@ -241,15 +246,13 @@ public class LegacyFetcher implements Fetcher {
 
 	private <T> SimpleConsumerThread<T> createAndStartSimpleConsumerThread(SourceFunction.SourceContext<T> sourceContext,
 																		KeyedDeserializationSchema<T> deserializer,
-																		HashMap<KafkaTopicPartition, Long> lastOffsets,
 																		List<FetchPartition> seedPartitions, Node leader) throws IOException, ClassNotFoundException {
-		SimpleConsumerThread<T> brokerThread;
 		final KeyedDeserializationSchema<T> clonedDeserializer =
 				InstantiationUtil.clone(deserializer, userCodeClassloader);
 
 		// seed thread with list of fetch partitions (otherwise it would shut down immediately again
-		brokerThread = new SimpleConsumerThread<>(this, config,
-				leader, seedPartitions, unassignedPartitions, sourceContext, clonedDeserializer, lastOffsets);
+		SimpleConsumerThread<T> brokerThread = new SimpleConsumerThread<>(this, config,
+				leader, seedPartitions, unassignedPartitions, sourceContext, clonedDeserializer);
 
 		brokerThread.setName(String.format("SimpleConsumer - %s - broker-%s (%s:%d)",
 				taskName, leader.id(), leader.host(), leader.port()));
@@ -387,8 +390,7 @@ public class LegacyFetcher implements Fetcher {
 		
 		private final SourceFunction.SourceContext<T> sourceContext;
 		private final KeyedDeserializationSchema<T> deserializer;
-		private final HashMap<KafkaTopicPartition, Long> offsetsState;
-		
+
 		private final List<FetchPartition> partitions;
 		
 		private final Node broker;
@@ -398,8 +400,6 @@ public class LegacyFetcher implements Fetcher {
 		private final LegacyFetcher owner;
 
 		private final ClosableBlockingQueue<FetchPartition> unassignedPartitions;
-
-
 
 		private volatile boolean running = true;
 
@@ -424,15 +424,13 @@ public class LegacyFetcher implements Fetcher {
 									List<FetchPartition> seedPartitions,
 									ClosableBlockingQueue<FetchPartition> unassignedPartitions,
 									SourceFunction.SourceContext<T> sourceContext,
-									KeyedDeserializationSchema<T> deserializer,
-									HashMap<KafkaTopicPartition, Long> offsetsState) {
+									KeyedDeserializationSchema<T> deserializer) {
 			this.owner = owner;
 			this.config = config;
 			this.broker = broker;
 			this.partitions = seedPartitions;
 			this.sourceContext = requireNonNull(sourceContext);
 			this.deserializer = requireNonNull(deserializer);
-			this.offsetsState = requireNonNull(offsetsState);
 			this.unassignedPartitions = requireNonNull(unassignedPartitions);
 
 			this.soTimeout = getIntFromConfig(config, "socket.timeout.ms", 30000);
@@ -661,8 +659,7 @@ public class LegacyFetcher implements Fetcher {
 									continue partitionsLoop;
 								}
 								synchronized (sourceContext.getCheckpointLock()) {
-									sourceContext.collect(value);
-									offsetsState.put(topicPartition, offset);
+									owner.flinkKafkaConsumer.processElement(sourceContext, topicPartition, value, offset);
 								}
 								
 								// advance offset for the next request
@@ -703,7 +700,7 @@ public class LegacyFetcher implements Fetcher {
 			List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
 
 			for (FetchPartition fp : partitions) {
-				if (fp.nextOffsetToRead == FlinkKafkaConsumer08.OFFSET_NOT_SET) {
+				if (fp.nextOffsetToRead == FlinkKafkaConsumerBase.OFFSET_NOT_SET) {
 					// retrieve the offset from the consumer
 					partitionsToGetOffsetsFor.add(fp);
 				}
@@ -716,7 +713,7 @@ public class LegacyFetcher implements Fetcher {
 				// we subtract -1 from the offset
 				synchronized (sourceContext.getCheckpointLock()) {
 					for(FetchPartition fp: partitionsToGetOffsetsFor) {
-						this.offsetsState.put(new KafkaTopicPartition(fp.topic, fp.partition), fp.nextOffsetToRead - 1L);
+						owner.flinkKafkaConsumer.updateOffsetForPartition(new KafkaTopicPartition(fp.topic, fp.partition), fp.nextOffsetToRead - 1L);
 					}
 				}
 			}

@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.Fetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.LegacyFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.OffsetHandler;
@@ -107,11 +108,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	private static final long serialVersionUID = -6272159445203409112L;
 	
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer08.class);
-
-	/** Magic number to define an unset offset. Negative offsets are not used by Kafka (invalid),
-	 * and we pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else. */
-	public static final long OFFSET_NOT_SET = -915623761776L;
-
 
 	/** Configuration key for the number of retries for getting the partition info */
 	public static final String GET_PARTITIONS_RETRIES_KEY = "flink.get-partitions.retry";
@@ -252,17 +248,19 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			this.fetcher = null; // fetcher remains null
 			return;
 		}
-		
 
 		// offset handling
 		offsetHandler = new ZookeeperOffsetHandler(props);
 
 		committedOffsets = new HashMap<>();
 
-		Map<KafkaTopicPartition, Long> subscribedPartitionsWithOffsets = new HashMap<>(subscribedPartitions.size());
-		// initially load the map with "offset not set"
+		// initially load the map with "offset not set", last max read timestamp set to Long.MIN_VALUE
+		// and mark the partition as in-active, until we receive the first element
+		Map<KafkaTopicPartition, KafkaPartitionState> subscribedPartitionsWithOffsets =
+			new HashMap<>(subscribedPartitions.size());
 		for(KafkaTopicPartition ktp: subscribedPartitions) {
-			subscribedPartitionsWithOffsets.put(ktp, FlinkKafkaConsumer08.OFFSET_NOT_SET);
+			subscribedPartitionsWithOffsets.put(ktp,
+				new KafkaPartitionState(ktp.getPartition(), FlinkKafkaConsumerBase.OFFSET_NOT_SET));
 		}
 
 		// seek to last known pos, from restore request
@@ -272,16 +270,20 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 						thisConsumerIndex, KafkaTopicPartition.toString(restoreToOffset));
 			}
 			// initialize offsets with restored state
-			this.offsetsState = restoreToOffset;
-			subscribedPartitionsWithOffsets.putAll(restoreToOffset);
+			this.partitionState = restoreInfoFromCheckpoint();
+			subscribedPartitionsWithOffsets.putAll(partitionState);
 			restoreToOffset = null;
 		}
 		else {
-			// start with empty offsets
-			offsetsState = new HashMap<>();
+			// start with empty partition state
+			partitionState = new HashMap<>();
 
 			// no restore request: overwrite offsets.
-			subscribedPartitionsWithOffsets.putAll(offsetHandler.getOffsets(subscribedPartitions));
+			for(Map.Entry<KafkaTopicPartition, Long> offsetInfo: offsetHandler.getOffsets(subscribedPartitions).entrySet()) {
+				KafkaTopicPartition key = offsetInfo.getKey();
+				subscribedPartitionsWithOffsets.put(key,
+					new KafkaPartitionState(key.getPartition(), offsetInfo.getValue()));
+			}
 		}
 		if(subscribedPartitionsWithOffsets.size() != subscribedPartitions.size()) {
 			throw new IllegalStateException("The subscribed partitions map has more entries than the subscribed partitions " +
@@ -289,22 +291,22 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 
 		// create fetcher
-		fetcher = new LegacyFetcher(subscribedPartitionsWithOffsets, props,
+		fetcher = new LegacyFetcher<T>(this, subscribedPartitionsWithOffsets, props,
 				getRuntimeContext().getTaskName(), getRuntimeContext().getUserCodeClassLoader());
 	}
 
 	@Override
 	public void run(SourceContext<T> sourceContext) throws Exception {
 		if (fetcher != null) {
-			// For non-checkpointed sources, a thread which periodically commits the current offset into ZK.
-			PeriodicOffsetCommitter<T> offsetCommitter = null;
-
-			// check whether we need to start the periodic checkpoint committer
 			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
+
+			// if we have a non-checkpointed source, start a thread which periodically commits
+			// the current offset into ZK.
+
+			PeriodicOffsetCommitter<T> offsetCommitter = null;
 			if (!streamingRuntimeContext.isCheckpointingEnabled()) {
 				// we use Kafka's own configuration parameter key for this.
-				// Note that the default configuration value in Kafka is 60 * 1000, so we use the
-				// same here.
+				// Note that the default configuration value in Kafka is 60 * 1000, so we use the same here.
 				long commitInterval = getLongFromConfig(props, "auto.commit.interval.ms", 60000);
 				offsetCommitter = new PeriodicOffsetCommitter<>(commitInterval, this);
 				offsetCommitter.setDaemon(true);
@@ -313,7 +315,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			}
 
 			try {
-				fetcher.run(sourceContext, deserializer, offsetsState);
+				fetcher.run(sourceContext, deserializer, partitionState);
 			} finally {
 				if (offsetCommitter != null) {
 					offsetCommitter.close();
@@ -439,7 +441,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		private final FlinkKafkaConsumer08<T> consumer;
 		private volatile boolean running = true;
 
-		public PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer08<T> consumer) {
+		PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer08<T> consumer) {
 			this.commitInterval = commitInterval;
 			this.consumer = consumer;
 		}
@@ -453,9 +455,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 						Thread.sleep(commitInterval);
 						//  ------------  commit current offsets ----------------
 
-						// create copy of current offsets
+						// create copy a deep copy of the current offsets
 						@SuppressWarnings("unchecked")
-						HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) consumer.offsetsState.clone();
+						HashMap<KafkaTopicPartition, Long> currentOffsets = new HashMap<>(consumer.partitionState.size());
+						for (Map.Entry<KafkaTopicPartition, KafkaPartitionState> entry: consumer.partitionState.entrySet()) {
+							currentOffsets.put(entry.getKey(), entry.getValue().getOffset());
+						}
 						consumer.commitOffsets(currentOffsets);
 					} catch (InterruptedException e) {
 						if (running) {
@@ -474,7 +479,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			this.running = false;
 			this.interrupt();
 		}
-
 	}
 
 

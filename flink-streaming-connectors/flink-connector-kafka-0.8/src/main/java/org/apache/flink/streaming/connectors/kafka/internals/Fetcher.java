@@ -39,8 +39,10 @@ public interface Fetcher {
 	/**
 	 * Starts fetch data from Kafka and emitting it into the stream.
 	 * 
-	 * <p>To provide exactly once guarantees, the fetcher needs emit a record and update the update
-	 * of the last consumed offset in one atomic operation:</p>
+	 * <p>To provide exactly once guarantees, the fetcher needs emit a record and update the last
+	 * consumed offset in one atomic operation. This is done in the
+	 * {@link org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase#processElement(SourceFunction.SourceContext, KafkaTopicPartition, Object, long)}
+	 * which is called from within the {@link SourceFunction.SourceContext#getCheckpointLock()}, as shown below:</p>
 	 * <pre>{@code
 	 * 
 	 * while (running) {
@@ -48,8 +50,7 @@ public interface Fetcher {
 	 *     long offset = ...
 	 *     int partition = ...
 	 *     synchronized (sourceContext.getCheckpointLock()) {
-	 *         sourceContext.collect(next);
-	 *         lastOffsets[partition] = offset;
+	 *         processElement(sourceContext, partition, next, offset)
 	 *     }
 	 * }
 	 * }</pre>
@@ -60,8 +61,7 @@ public interface Fetcher {
 	 * @param lastOffsets The map into which to store the offsets for which elements are emitted (operator state)
 	 */
 	<T> void run(SourceFunction.SourceContext<T> sourceContext, KeyedDeserializationSchema<T> valueDeserializer,
-				HashMap<KafkaTopicPartition, Long> lastOffsets) throws Exception;
-
+				HashMap<KafkaTopicPartition, KafkaPartitionState> lastOffsets) throws Exception;
 
 	/**
 	 * Exit run loop with given error and release all resources.

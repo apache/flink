@@ -24,7 +24,7 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZookeeperOffsetHandler.class);
 	
-	private static final long OFFSET_NOT_SET = FlinkKafkaConsumer08.OFFSET_NOT_SET;
+	private static final long OFFSET_NOT_SET = FlinkKafkaConsumerBase.OFFSET_NOT_SET;
 
 	private final String groupId;
 
