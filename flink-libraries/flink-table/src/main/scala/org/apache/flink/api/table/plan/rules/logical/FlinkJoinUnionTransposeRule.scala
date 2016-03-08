@@ -33,7 +33,7 @@ import org.apache.calcite.rel.core.Union
 /**
  * This rule is a copy of Calcite's JoinUnionTransposeRule.
  * Calcite's implementation checks whether one of the operands is a LogicalUnion,
- * which fails in our case, when it matches with a FlinkUnion.
+ * which fails in our case, when it matches with a DataSetUnion.
  * This rule changes this check to match Union, instead of LogicalUnion only.
  * The rest of the rule's logic has not been changed.
  */

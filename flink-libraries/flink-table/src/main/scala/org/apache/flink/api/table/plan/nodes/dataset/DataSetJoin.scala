@@ -20,12 +20,16 @@ package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.functions.JoinFunction
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.runtime.FlatJoinRunner
 import org.apache.flink.api.table.{TableConfig, Row}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.table.plan.TypeConverter._
@@ -35,6 +39,7 @@ import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 import org.apache.flink.api.table.plan.TypeConverter
+import org.apache.calcite.rex.RexNode
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -46,12 +51,14 @@ class DataSetJoin(
     right: RelNode,
     rowType: RelDataType,
     opName: String,
+    joinCondition: RexNode,
+    joinRowType: RelDataType,
+    joinInfo: JoinInfo,
     joinKeysLeft: Array[Int],
     joinKeysRight: Array[Int],
     joinType: JoinType,
     joinHint: JoinHint,
-    func: (TableConfig, TypeInformation[Any], TypeInformation[Any], TypeInformation[Any]) =>
-      FlatJoinFunction[Any, Any, Any])
+    ruleDescription: String)
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -65,12 +72,14 @@ class DataSetJoin(
       inputs.get(1),
       rowType,
       opName,
+      joinCondition,
+      joinRowType,
+      joinInfo,
       joinKeysLeft,
       joinKeysRight,
       joinType,
       joinHint,
-      func
-    )
+      ruleDescription)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -90,8 +99,42 @@ class DataSetJoin(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    val joinFun = func.apply(config, leftDataSet.getType, rightDataSet.getType, returnType)
-      leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+    val generator = new CodeGenerator(config, leftDataSet.getType, Some(rightDataSet.getType))
+    val conversion = generator.generateConverterResultExpression(
+      returnType,
+      joinRowType.getFieldNames)
+
+    var body = ""
+
+    if (joinInfo.isEqui) {
+      // only equality condition
+      body = s"""
+           |${conversion.code}
+           |${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+    }
+    else {
+      val condition = generator.generateExpression(joinCondition)
+      body = s"""
+           |${condition.code}
+           |if (${condition.resultTerm}) {
+           |  ${conversion.code}
+           |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |}
+           |""".stripMargin
+    }
+    val genFunction = generator.generateFunction(
+      ruleDescription,
+      classOf[FlatJoinFunction[Any, Any, Any]],
+      body,
+      returnType)
+
+    val joinFun = new FlatJoinRunner[Any, Any, Any](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
+
+    leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
       .`with`(joinFun).asInstanceOf[DataSet[Any]]
   }
 

@@ -24,15 +24,19 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex.{RexInputRef, RexCall}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkJoin, FlinkConvention}
+import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.table.TableException
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetJoin, DataSetConvention}
+import scala.collection.JavaConversions._
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class FlinkJoinRule
   extends ConverterRule(
       classOf[LogicalJoin],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
+      DataSetConvention.INSTANCE,
       "FlinkJoinRule")
   {
 
@@ -85,19 +89,47 @@ class FlinkJoinRule
     }
 
     def convert(rel: RelNode): RelNode = {
-      val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConvention.INSTANCE)
-      val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConvention.INSTANCE)
 
-      new FlinkJoin(
-        rel.getCluster,
-        traitSet,
-        convLeft,
-        convRight,
-        join.getCondition,
-        join.getJoinType,
-        join.getVariablesStopped)
+      val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convLeft: RelNode = RelOptRule.convert(join.getInput(0), DataSetConvention.INSTANCE)
+      val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
+
+      // get the equality keys
+      val joinInfo = join.analyzeCondition
+      val keyPairs = joinInfo.pairs
+
+      if (keyPairs.isEmpty) {
+        // if no equality keys => not supported
+        throw new TableException("Joins should have at least one equality condition")
+      }
+      else {
+        // at least one equality expression => generate a join function
+        val conditionType = join.getCondition.getType
+        val leftKeys = ArrayBuffer.empty[Int]
+        val rightKeys = ArrayBuffer.empty[Int]
+
+        keyPairs.foreach(pair => {
+          leftKeys.add(pair.source)
+          rightKeys.add(pair.target)}
+        )
+
+        new DataSetJoin(
+          rel.getCluster,
+          traitSet,
+          convLeft,
+          convRight,
+          rel.getRowType,
+          join.toString,
+          join.getCondition,
+          join.getRowType,
+          joinInfo,
+          leftKeys.toArray,
+          rightKeys.toArray,
+          JoinType.INNER,
+          null,
+          description)
+      }
     }
   }
 
