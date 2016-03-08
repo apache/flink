@@ -95,7 +95,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val isNull: PackratParser[Expression] = atom <~ ".isNull" ^^ { e => IsNull(e) }
   lazy val isNotNull: PackratParser[Expression] = atom <~ ".isNotNull" ^^ { e => IsNotNull(e) }
 
-  lazy val abs: PackratParser[Expression] = atom <~ ".abs" ^^ { e => Abs(e) }
 
   lazy val sum: PackratParser[Expression] =
     (atom <~ ".sum" ^^ { e => Sum(e) }) | (SUM ~ "(" ~> atom <~ ")" ^^ { e => Sum(e) })
@@ -190,7 +189,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffix =
     isNull | isNotNull |
-      abs | sum | min | max | count | avg | cast |
+      sum | min | max | count | avg | cast |
       specialFunctionCalls |functionCall | functionCallWithoutArgs |
       specialSuffixFunctionCalls | suffixFunctionCall | suffixFunctionCallWithoutArgs |
       atom

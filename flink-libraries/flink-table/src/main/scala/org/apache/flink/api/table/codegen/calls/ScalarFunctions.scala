@@ -24,7 +24,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 
 import scala.collection.mutable
 
@@ -109,13 +109,84 @@ object ScalarFunctions {
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
     BuiltInMethod.SIMILAR.method)
 
+  // arithmetic functions
+
+  addSqlFunctionMethod(
+    LOG10,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG10)
+
+  addSqlFunctionMethod(
+    LN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LN)
+
+  addSqlFunctionMethod(
+    EXP,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.EXP)
+
+  addSqlFunctionMethod(
+    POWER,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.POWER)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(BYTE_TYPE_INFO),
+    BYTE_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(SHORT_TYPE_INFO),
+    SHORT_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(FLOAT_TYPE_INFO),
+    FLOAT_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+  addSqlFunctionMethod(
+    ABS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ABS)
+
+
   // ----------------------------------------------------------------------------------------------
 
   def getCallGenerator(
       call: SqlOperator,
       operandTypes: Seq[TypeInformation[_]])
     : Option[CallGenerator] = {
+
     sqlFunctions.get((call, operandTypes))
+      .orElse(sqlFunctions.find(entry => entry._1._1 == call
+        && entry._1._2.length == operandTypes.length
+        && entry._1._2.zip(operandTypes).forall {
+        case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
+        case _ => false
+      }).map(_._2))
+
   }
 
   // ----------------------------------------------------------------------------------------------

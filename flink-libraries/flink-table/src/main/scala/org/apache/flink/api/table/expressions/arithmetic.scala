@@ -85,9 +85,3 @@ case class Mul(left: Expression, right: Expression) extends BinaryArithmetic {
 case class Mod(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left % $right)"
 }
-
-case class Abs(child: Expression) extends UnaryExpression {
-  def typeInfo = child.typeInfo
-
-  override def toString = s"abs($child)"
-}
