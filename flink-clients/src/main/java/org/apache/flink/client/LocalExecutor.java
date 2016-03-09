@@ -20,6 +20,7 @@ package org.apache.flink.client;
 
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -206,7 +207,7 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		final int parallelism = plan.getDefaultParallelism() == -1 ? 1 : plan.getDefaultParallelism();
+		final int parallelism = plan.getDefaultParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? 1 : plan.getDefaultParallelism();
 
 		Optimizer pc = new Optimizer(new DataStatistics(), this.configuration);
 		pc.setDefaultParallelism(parallelism);
@@ -271,7 +272,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception Thrown, if the optimization process that creates the execution plan failed.
 	 */
 	public static String optimizerPlanAsJSON(Plan plan) throws Exception {
-		final int parallelism = plan.getDefaultParallelism() == -1 ? 1 : plan.getDefaultParallelism();
+		final int parallelism = plan.getDefaultParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? 1 : plan.getDefaultParallelism();
 
 		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
 		pc.setDefaultParallelism(parallelism);

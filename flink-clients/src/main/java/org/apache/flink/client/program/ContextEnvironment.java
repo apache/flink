@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -78,7 +79,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
 				+ ") : " + getIdString();
 	}
 	

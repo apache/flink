@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -55,7 +56,7 @@ public class JobVertex implements java.io.Serializable {
 	private final ArrayList<JobEdge> inputs = new ArrayList<JobEdge>();
 
 	/** Number of subtasks to split this task into at runtime.*/
-	private int parallelism = -1;
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;

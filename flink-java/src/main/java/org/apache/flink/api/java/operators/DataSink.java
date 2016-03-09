@@ -21,6 +21,7 @@ package org.apache.flink.api.java.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -47,7 +48,7 @@ public class DataSink<T> {
 	
 	private String name;
 	
-	private int parallelism = -1;
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	private Configuration parameters;
 

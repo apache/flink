@@ -52,9 +52,6 @@ import org.apache.flink.util.Visitor;
 @Internal
 public class Plan implements Visitable<Operator<?>> {
 
-	/** The default parallelism indicates to use the cluster's default */
-	private static final int DEFAULT_PARALELLISM = -1;
-	
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
@@ -65,7 +62,7 @@ public class Plan implements Visitable<Operator<?>> {
 	protected String jobName;
 
 	/** The default parallelism to use for nodes that have no explicitly specified parallelism. */
-	protected int defaultParallelism = DEFAULT_PARALELLISM;
+	protected int defaultParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
 	/** Hash map for files in the distributed cache: registered name to cache entry. */
 	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<>();
@@ -91,7 +88,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName) {
-		this(sinks, jobName, DEFAULT_PARALELLISM);
+		this(sinks, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -122,7 +119,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param jobName The name to display for the job.
 	 */
 	public Plan(GenericDataSinkBase<?> sink, String jobName) {
-		this(sink, jobName, DEFAULT_PARALELLISM);
+		this(sink, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -152,7 +149,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks) {
-		this(sinks, DEFAULT_PARALELLISM);
+		this(sinks, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -180,7 +177,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sink The data sink of the data flow.
 	 */
 	public Plan(GenericDataSinkBase<?> sink) {
-		this(sink, DEFAULT_PARALELLISM);
+		this(sink, ExecutionConfig.PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -287,8 +284,8 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param defaultParallelism The default parallelism for the plan.
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
-		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
-			"The default parallelism must be positive, or -1 if the system should use the globally configured default.");
+		checkArgument(defaultParallelism >= 1 || defaultParallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The default parallelism must be positive, or ExecutionConfig.PARALLELISM_DEFAULT if the system should use the globally configured default.");
 		
 		this.defaultParallelism = defaultParallelism;
 	}

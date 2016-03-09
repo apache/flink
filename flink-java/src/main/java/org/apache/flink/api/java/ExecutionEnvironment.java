@@ -160,7 +160,7 @@ public abstract class ExecutionEnvironment {
 	 * set will insert eventually an operation that runs non-parallel (parallelism of one).
 	 *
 	 * @return The parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environments default parallelism should be used.
+	 *         returns {@link ExecutionConfig#PARALLELISM_DEFAULT}, if the environment's default parallelism should be used.
 	 */
 	public int getParallelism() {
 		return config.getParallelism();

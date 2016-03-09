@@ -18,6 +18,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.ExecutionConfig;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -103,7 +104,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			}
 		}
 		else {
-			parallelism = -1;
+			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
 		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());

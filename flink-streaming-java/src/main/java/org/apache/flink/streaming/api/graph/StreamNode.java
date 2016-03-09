@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -129,7 +130,7 @@ public class StreamNode implements Serializable {
 	}
 
 	public int getParallelism() {
-		if (parallelism == -1) {
+		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
 			return env.getParallelism();
 		} else {
 			return parallelism;

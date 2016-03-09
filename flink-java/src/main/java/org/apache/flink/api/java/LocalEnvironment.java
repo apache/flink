@@ -20,6 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -137,7 +138,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String toString() {
-		return "Local Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
+		return "Local Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
 				+ ") : " + getIdString();
 	}
 

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.base.ReduceOperatorBase
 import org.junit.Test
 
 import org.apache.flink.api.scala._
+import org.apache.flink.api.common.ExecutionConfig
 
 class ReduceTranslationTest {
   @Test
@@ -52,7 +53,8 @@ class ReduceTranslationTest {
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
       assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0)
-      assertTrue(reducer.getParallelism == 1 || reducer.getParallelism == -1)
+      assertTrue(reducer.getParallelism == 1 ||
+        reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }
     catch {
@@ -81,7 +83,8 @@ class ReduceTranslationTest {
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
-      assertTrue(reducer.getParallelism == parallelism || reducer.getParallelism == -1)
+      assertTrue(reducer.getParallelism == parallelism ||
+        reducer.getParallelism == ExecutionConfig.PARALLELISM_DEFAULT)
       assertArrayEquals(Array[Int](2), reducer.getKeyColumns(0))
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }
