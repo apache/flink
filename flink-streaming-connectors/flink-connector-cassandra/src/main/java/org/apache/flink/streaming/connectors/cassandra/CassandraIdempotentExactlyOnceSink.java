@@ -31,6 +31,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Sink that emits its input elements into a Cassandra database. This sink is integrated with the checkpointing
  * mechanism and provides exactly-once guarantees for idempotent updates.
@@ -52,6 +54,9 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 
 	private ClusterBuilder builder;
 
+	private int updatesSent = 0;
+	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
+
 	protected CassandraIdempotentExactlyOnceSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
 		super(committer, serializer, jobID);
 		this.insertQuery = insertQuery;
@@ -64,6 +69,7 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
 			public void onSuccess(ResultSet resultSet) {
+				updatesConfirmed.incrementAndGet();
 			}
 
 			@Override
@@ -107,10 +113,19 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 			BoundStatement s = preparedStatement.bind(fields);
 			s.setDefaultTimestamp(timestamp);
 			ResultSetFuture result = session.executeAsync(s);
+			updatesSent++;
 			if (result != null) {
 				//add callback to detect errors
 				Futures.addCallback(result, callback);
 			}
 		}
+		while (updatesSent != updatesConfirmed.get()) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+			}
+		}
+		updatesSent = 0;
+		updatesConfirmed.set(0);
 	}
 }
