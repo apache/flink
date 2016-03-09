@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.apache.commons.io.FileUtils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -178,7 +179,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		sender.setParallelism(2);
 		sender.setInvokableClass(StoppableInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", new ExecutionConfig(), sender);
 		final JobID jid = jobGraph.getJobID();
 
 		cluster.submitJobDetached(jobGraph);
@@ -206,7 +207,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		sender.setParallelism(2);
 		sender.setInvokableClass(StoppableInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", new ExecutionConfig(), sender);
 		final JobID jid = jobGraph.getJobID();
 
 		cluster.submitJobDetached(jobGraph);

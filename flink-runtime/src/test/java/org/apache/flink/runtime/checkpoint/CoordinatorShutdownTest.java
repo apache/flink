@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -60,7 +61,7 @@ public class CoordinatorShutdownTest {
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
-			JobGraph testGraph = new JobGraph("test job", vertex);
+			JobGraph testGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 
 					5000, 60000, 0L, Integer.MAX_VALUE));
 			
@@ -112,7 +113,7 @@ public class CoordinatorShutdownTest {
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
-			JobGraph testGraph = new JobGraph("test job", vertex);
+			JobGraph testGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
 					5000, 60000, 0L, Integer.MAX_VALUE));
 			

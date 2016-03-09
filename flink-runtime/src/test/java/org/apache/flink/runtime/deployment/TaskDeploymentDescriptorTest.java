@@ -26,6 +26,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -54,10 +55,12 @@ public class TaskDeploymentDescriptorTest {
 			final List<InputGateDeploymentDescriptor> inputGates = new ArrayList<InputGateDeploymentDescriptor>(0);
 			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
 			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
-	
-			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
-				indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber, jobConfiguration, taskConfiguration,
-				invokableClass.getName(), producedResults, inputGates, requiredJars, requiredClasspaths, 47);
+			final ExecutionConfig executionConfig = new ExecutionConfig();
+
+			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId,
+				executionConfig, taskName, indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber,
+				jobConfiguration, taskConfiguration, invokableClass.getName(), producedResults, inputGates,
+				requiredJars, requiredClasspaths, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 	
@@ -75,6 +78,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
+			assertEquals(orig.getExecutionConfig(), copy.getExecutionConfig());
 
 			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());
 			assertEquals(orig.getRequiredClasspaths(), copy.getRequiredClasspaths());

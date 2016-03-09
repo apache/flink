@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -75,6 +76,7 @@ public class VertexSlotSharingTest {
 					new JobID(),
 					"test job",
 					new Configuration(),
+					new ExecutionConfig(),
 					AkkaUtils.getDefaultTimeout(),
 					new NoRestartStrategy());
 			eg.attachJobGraph(vertices);

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -61,6 +62,7 @@ public class TaskStopTest {
 		when(tddMock.getExecutionId()).thenReturn(mock(ExecutionAttemptID.class));
 		when(tddMock.getJobConfiguration()).thenReturn(mock(Configuration.class));
 		when(tddMock.getTaskConfiguration()).thenReturn(mock(Configuration.class));
+		when(tddMock.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
 		when(tddMock.getInvokableClassName()).thenReturn("className");
 
 		task = new Task(tddMock, mock(MemoryManager.class), mock(IOManager.class), mock(NetworkEnvironment.class),

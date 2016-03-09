@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +40,6 @@ public abstract class AbstractInvokable {
 
 	/** The environment assigned to this invokable. */
 	private Environment environment;
-
-	/** The execution config, cached from the deserialization from the JobConfiguration */
-	private ExecutionConfig executionConfig;
 
 	/**
 	 * Starts the execution.
@@ -125,29 +121,10 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the global ExecutionConfig, obtained from the job configuration.
+	 * Returns the global ExecutionConfig.
 	 */
 	public ExecutionConfig getExecutionConfig() {
-		if (executionConfig != null) {
-			return executionConfig;
-		}
-
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					getUserCodeClassLoader());
-
-			if (executionConfig == null) {
-				LOG.warn("Environment did not contain an ExecutionConfig - using a default config.");
-				executionConfig = new ExecutionConfig();
-			}
-			return executionConfig;
-		}
-		catch (Exception e) {
-			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig", e);
-			return new ExecutionConfig();
-		}
+		return this.environment.getExecutionConfig();
 	}
 
 	/**

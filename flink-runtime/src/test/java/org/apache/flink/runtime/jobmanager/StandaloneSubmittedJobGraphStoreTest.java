@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -37,7 +38,7 @@ public class StandaloneSubmittedJobGraphStoreTest {
 		StandaloneSubmittedJobGraphStore jobGraphs = new StandaloneSubmittedJobGraphStore();
 
 		SubmittedJobGraph jobGraph = new SubmittedJobGraph(
-				new JobGraph("testNoOps"),
+				new JobGraph("testNoOps", new ExecutionConfig()),
 				new JobInfo(ActorRef.noSender(), ListeningBehaviour.DETACHED, 0, Integer.MAX_VALUE));
 
 		assertEquals(0, jobGraphs.recoverJobGraphs().size());

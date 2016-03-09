@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -268,6 +269,6 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		return new JobGraph("Blocking test job", sender, receiver);
+		return new JobGraph("Blocking test job", new ExecutionConfig(), sender, receiver);
 	}
 }
