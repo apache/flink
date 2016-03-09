@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.Futures;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
 
@@ -57,6 +58,8 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 	private int updatesSent = 0;
 	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
 
+	private transient Object[] fields;
+
 	protected CassandraIdempotentExactlyOnceSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
 		super(committer, serializer, jobID);
 		this.insertQuery = insertQuery;
@@ -80,6 +83,8 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 		cluster = builder.getCluster();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
+
+		fields = new Object[((TupleSerializer<IN>) serializer).getArity()];
 	}
 
 	@Override
@@ -105,7 +110,6 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 		}
 		//set values for prepared statement
 		for (IN value : values) {
-			Object[] fields = new Object[value.getArity()];
 			for (int x = 0; x < value.getArity(); x++) {
 				fields[x] = value.getField(x);
 			}
