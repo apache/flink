@@ -16,7 +16,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -30,16 +29,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-// TODO: 3/8/16 should I override the open() 
-public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaConsumer09<T> {
+public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsumer09WithWM<T> {
 
-	/** Keeps the minimum timestamp seen, per topic per partition */
-	private final Map<String, Map<Integer, Long>> minSeenTimestamps =
-		new HashMap<String, Map<Integer, Long>>();
+	/** Keeps track of the minimum timestamp seen, per Kafka topic per partition */
+	private final Map<String, Map<Integer, Long>> minSeenTimestampsPerTopicAndPartition = new HashMap<String, Map<Integer, Long>>();
 
-	private long lastEmittedWatermark = Long.MIN_VALUE;
+	/** Tracks the last emitted watermark. */
+	private Long lastEmittedWatermark;
 
-	protected AssignerWithPunctuatedWatermarks<T> punctuatedWatermarkAssigner;
+	/**
+	 * The user-specified methods to extract the timestamps from the records in Kafka, and
+	 * to decide when to emit watermarks.
+	 */
+	private final AssignerWithPunctuatedWatermarks<T> punctuatedWatermarkAssigner;
 
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
@@ -50,6 +52,9 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaC
 	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 * @param timestampAssigner
+	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
+	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(String topic, DeserializationSchema<T> valueDeserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
@@ -68,6 +73,9 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaC
 	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
+	 * @param timestampAssigner
+	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
+	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
@@ -86,6 +94,9 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaC
 	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 * @param timestampAssigner
+	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
+	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, DeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
@@ -104,6 +115,9 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaC
 	 *           The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 * @param timestampAssigner
+	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
+	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
@@ -114,58 +128,25 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractFlinkKafkaC
 	@Override
 	public void processElement(SourceContext<T> sourceContext, TopicPartition partitionInfo, T value) {
 		// extract the timestamp based on the user-specified extractor
-		// and emit the element with the new timestamp
-		long extractedTimestamp = this.punctuatedWatermarkAssigner.extractTimestamp(value, Long.MIN_VALUE);
+		// emits the element with the new timestamp
+		// updates the list of minimum timestamps seen per topic per partition (if necessary)
+		// gets the minimum timestamp across all topics and all local partitions
+		// if it is time to emit a watermark (based on the user-specified function, it sends a watermark
+		// containing the minimum timestamp seen so far, across all local partitions for a given topic
+
+		// todo when it terminates and there are partitions with no more elements???
+
+		long extractedTimestamp = punctuatedWatermarkAssigner.extractTimestamp(value, Long.MIN_VALUE);
 		sourceContext.collectWithTimestamp(value, extractedTimestamp);
 
-		// update the list of minimum timestamps seen per partition
-		boolean updated = updateMinimumTimestampForPartition(partitionInfo, extractedTimestamp);
+		updateMinimumTimestampForPartition(partitionInfo, extractedTimestamp);
+		long minTimestamp = getMinimumTimestampAcrossAllTopics();
 
-		// get the minimum timestamp for the topic across all local partitions
-		long minTimestampForTopic = getMinimumTimestampForTopic(partitionInfo);
+		final Watermark nextWatermark = punctuatedWatermarkAssigner
+			.checkAndGetNextWatermark(value, extractedTimestamp);
 
-		// if the user specified extractor allows it and the extracted timestamp has a later timestamp
-		// than the last emitted watermark for the topic, emit a new watermark to signal event-time progress
-		final Watermark nextWatermark = this.punctuatedWatermarkAssigner.checkAndGetNextWatermark(value, minTimestampForTopic);
-		if (nextWatermark != null && nextWatermark.getTimestamp() > lastEmittedWatermark) {
-			lastEmittedWatermark = nextWatermark.getTimestamp();
-			sourceContext.emitWatermark(nextWatermark);
+		if (nextWatermark != null) {
+			emitWatermarkIfMarkingProgress(sourceContext, minTimestamp);
 		}
-	}
-
-
-	private Map<Integer, Long> getMinTimestampsPerPartitionForTopic(String topic) {
-		Map<Integer, Long> minTimestampsForTopic = this.minSeenTimestamps.get(topic);
-		if(minTimestampsForTopic == null) {
-			LOG.info("Tracking timestamps for topic: " + topic);
-			this.minSeenTimestamps.put(topic, new HashMap<Integer, Long>());
-		}
-		return minTimestampsForTopic;
-	}
-
-	private boolean updateMinimumTimestampForPartition(TopicPartition partitionInfo, long timestamp) {
-		Map<Integer, Long> minTimestampsForTopic =
-			getMinTimestampsPerPartitionForTopic(partitionInfo.topic());
-
-		Integer partition = partitionInfo.partition();
-		Long minTimestampForPartition = minTimestampsForTopic.get(partition);
-		if(minTimestampForPartition == null || timestamp < minTimestampForPartition) {
-			minTimestampsForTopic.put(partition, timestamp);
-			return true;
-		}
-		return false;
-	}
-
-	private long getMinimumTimestampForTopic(TopicPartition partitionInfo) {
-		Map<Integer, Long> minTimestampsForTopic =
-			getMinTimestampsPerPartitionForTopic(partitionInfo.topic());
-
-		long minTimestamp = Long.MAX_VALUE;
-		for(Long ts: minTimestampsForTopic.values()){
-			if(ts < minTimestamp) {
-				minTimestamp = ts;
-			}
-		}
-		return minTimestamp == Long.MAX_VALUE ? Long.MIN_VALUE : minTimestamp;
 	}
 }
