@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -26,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsumer09WithWM<T> {
+public class FlinkKafkaConsumer08WithPunctuatedWM<T> extends AbstractKafkaConsumer08WithWM<T>{
 
 	/**
 	 * The user-specified methods to extract the timestamps from the records in Kafka, and
@@ -35,7 +37,7 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	private final AssignerWithPunctuatedWatermarks<T> punctuatedWatermarkAssigner;
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * @param topic
 	 *           The name of the topic that should be consumed.
@@ -47,13 +49,15 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPunctuatedWM(String topic, DeserializationSchema<T> valueDeserializer, Properties props,
+	public FlinkKafkaConsumer08WithPunctuatedWM(String topic,
+												DeserializationSchema<T> valueDeserializer,
+												Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
 		this(Collections.singletonList(topic), valueDeserializer, props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
@@ -68,14 +72,15 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPunctuatedWM(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
+	public FlinkKafkaConsumer08WithPunctuatedWM(String topic,
+												KeyedDeserializationSchema<T> deserializer,
+												Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
-		super(Collections.singletonList(topic), deserializer, props);
-		this.punctuatedWatermarkAssigner = timestampAssigner;
+		this(Collections.singletonList(topic), deserializer, props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing multiple topics to the consumer.
 	 *
@@ -89,14 +94,15 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, DeserializationSchema<T> deserializer, Properties props,
+	public FlinkKafkaConsumer08WithPunctuatedWM(List<String> topics,
+												DeserializationSchema<T> deserializer,
+												Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
-		super(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
-		this.punctuatedWatermarkAssigner = timestampAssigner;
+		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing multiple topics and a key/value deserialization schema.
 	 *
@@ -110,14 +116,16 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPunctuatedWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
+	public FlinkKafkaConsumer08WithPunctuatedWM(List<String> topics,
+												KeyedDeserializationSchema<T> deserializer,
+												Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
 		this.punctuatedWatermarkAssigner = timestampAssigner;
 	}
 
 	@Override
-	public void processElement(SourceContext<T> sourceContext, String topic, int partition, T value) {
+	public void processElement(SourceFunction.SourceContext<T> sourceContext, String topic, int partition, T value) {
 		// extract the timestamp based on the user-specified extractor
 		// emits the element with the new timestamp
 		// updates the list of minimum timestamps seen per topic per partition (if necessary)

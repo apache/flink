@@ -180,7 +180,7 @@ public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<
 		this.consumerId = UUID.randomUUID().toString();
 	}
 
-	public abstract void processElement(SourceContext<T> sourceContext, TopicPartition partitionInfo, T value);
+	public abstract void processElement(SourceContext<T> sourceContext, String topic, int partition, T value);
 
 	/**
 	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable)
@@ -420,7 +420,7 @@ public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<
 								break pollLoop;
 							}
 							synchronized (sourceContext.getCheckpointLock()) {
-								flinkKafkaConsumer.processElement(sourceContext, partition, value);
+								flinkKafkaConsumer.processElement(sourceContext, partition.topic(), partition.partition(), value);
 								flinkKafkaConsumer.offsetsState.put(flinkPartition, record.offset());
 							}
 						}

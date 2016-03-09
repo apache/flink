@@ -17,8 +17,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -29,13 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer09WithWM<T> implements Triggerable {
-
-	/**
-	 * The user-specified methods to extract the timestamps from the records in Kafka, and
-	 * to decide when to emit watermarks.
-	 */
-	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+public class FlinkKafkaConsumer08WithPeriodicWM<T> extends AbstractKafkaConsumer08WithWM<T> implements Triggerable {
 
 	/**
 	 * The interval between periodic watermark emissions, as configured via the
@@ -48,7 +42,13 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	private SourceContext<T> srcContext = null;
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * The user-specified methods to extract the timestamps from the records in Kafka, and
+	 * to decide when to emit watermarks.
+	 */
+	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+
+	/**
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * @param topic
 	 *           The name of the topic that should be consumed.
@@ -60,13 +60,15 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPeriodicWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPeriodicWM(String topic, DeserializationSchema<T> valueDeserializer, Properties props,
-											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+	public FlinkKafkaConsumer08WithPeriodicWM(String topic,
+												DeserializationSchema<T> valueDeserializer,
+												Properties props,
+												AssignerWithPeriodicWatermarks<T> timestampAssigner) {
 		this(Collections.singletonList(topic), valueDeserializer, props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
@@ -81,14 +83,15 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPeriodicWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPeriodicWM(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
-											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
-		super(Collections.singletonList(topic), deserializer, props);
-		this.periodicWatermarkAssigner = timestampAssigner;
+	public FlinkKafkaConsumer08WithPeriodicWM(String topic,
+												KeyedDeserializationSchema<T> deserializer,
+												Properties props,
+												AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		this(Collections.singletonList(topic), deserializer, props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing multiple topics to the consumer.
 	 *
@@ -98,18 +101,19 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 *           The de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
-	 *@param timestampAssigner
+	 * @param timestampAssigner
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPeriodicWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPeriodicWM(List<String> topics, DeserializationSchema<T> deserializer, Properties props,
-											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
-		super(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
-		this.periodicWatermarkAssigner = timestampAssigner;
+	public FlinkKafkaConsumer08WithPeriodicWM(List<String> topics,
+												DeserializationSchema<T> deserializer,
+												Properties props,
+												AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props, timestampAssigner);
 	}
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 *
 	 * This constructor allows passing multiple topics and a key/value deserialization schema.
 	 *
@@ -123,27 +127,16 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 *           The user-specified methods to extract the timestamps and decide when to emit watermarks.
 	 *           This has to implement the {@link AssignerWithPeriodicWatermarks} interface.
 	 */
-	public FlinkKafkaConsumer09WithPeriodicWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
-											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+	public FlinkKafkaConsumer08WithPeriodicWM(List<String> topics,
+												KeyedDeserializationSchema<T> deserializer,
+												Properties props,
+												AssignerWithPeriodicWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
 		this.periodicWatermarkAssigner = timestampAssigner;
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		if(runtime == null) {
-			runtime = (StreamingRuntimeContext) getRuntimeContext();
-		}
-
-		watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
-			runtime.registerTimer(System.currentTimeMillis() + watermarkInterval, this);
-		}
-	}
-
-	@Override
-	public void processElement(SourceContext<T> sourceContext, String topic, int partition, T value) {
+	public void processElement(SourceFunction.SourceContext<T> sourceContext, String topic, int partition, T value) {
 		if(srcContext == null) {
 			srcContext = sourceContext;
 		}
@@ -180,4 +173,5 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	private long getTimeToNextWaternark() {
 		return System.currentTimeMillis() + watermarkInterval;
 	}
+
 }

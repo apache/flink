@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
-import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collections;
 import java.util.List;
@@ -91,7 +90,7 @@ public class FlinkKafkaConsumer09<T> extends AbstractKafkaConsumer09<T> {
 	}
 
 	@Override
-	public void processElement(SourceContext<T> sourceContext, TopicPartition partitionInfo,  T value) {
+	public void processElement(SourceContext<T> sourceContext, String topic, int partition, T value) {
 		sourceContext.collect(value);
 	}
 }

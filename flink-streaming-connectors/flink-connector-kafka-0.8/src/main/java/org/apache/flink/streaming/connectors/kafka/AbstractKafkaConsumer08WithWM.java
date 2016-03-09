@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaConsumer09<T> {
+public abstract class AbstractKafkaConsumer08WithWM<T> extends AbstractKafkaConsumer08<T> {
 
 	/** Keeps track of the minimum timestamp seen, per Kafka topic per partition */
 	private final Map<String, Map<Integer, Long>> minSeenTimestampsPerTopicAndPartition = new HashMap<String, Map<Integer, Long>>();
@@ -33,15 +33,15 @@ public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaCons
 	protected Long lastEmittedWatermark = Long.MIN_VALUE;
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
 	 * <p>
 	 * This constructor allows passing multiple topics and a key/value deserialization schema.
 	 *
 	 * @param topics       The Kafka topics to read from.
 	 * @param deserializer The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
-	 * @param props        The properties that are used to configure both the fetcher and the offset handler.
+	 * @param props
 	 */
-	protected AbstractKafkaConsumer09WithWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public AbstractKafkaConsumer08WithWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
 		super(topics, deserializer, props);
 	}
 
