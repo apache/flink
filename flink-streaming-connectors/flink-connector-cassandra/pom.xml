@@ -49,6 +49,7 @@ under the License.
 				<configuration>
 					<reuseForks>true</reuseForks>
 					<forkCount>1</forkCount>
+					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -126,7 +127,7 @@ under the License.
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>16.0.1</version>
+			<version>${guava.version}</version>
 		</dependency>
 
 		<dependency>

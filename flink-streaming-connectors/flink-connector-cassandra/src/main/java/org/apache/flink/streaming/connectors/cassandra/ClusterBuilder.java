@@ -21,11 +21,23 @@ import com.datastax.driver.core.Cluster;
 
 import java.io.Serializable;
 
+/**
+ * This class is used to configure a {@link com.datastax.driver.core.Cluster} after deployment.
+ * The cluster represents the connection that will be established to Cassandra.
+ */
 public abstract class ClusterBuilder implements Serializable {
 
 	public Cluster getCluster() {
 		return buildCluster(Cluster.builder());
 	}
 
+	/**
+	 * Configures the connection to Cassandra.
+	 * The configuration is done by calling methods on the builder object
+	 * and finalizing the configuration with build().
+	 *
+	 * @param builder connection builder
+	 * @return configured connection
+	 */
 	protected abstract Cluster buildCluster(Cluster.Builder builder);
 }

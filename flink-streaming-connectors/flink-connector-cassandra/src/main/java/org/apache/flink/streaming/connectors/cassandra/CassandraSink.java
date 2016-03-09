@@ -30,15 +30,12 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
-import java.util.UUID;
-
 /**
  * This class wraps different Cassandra sink implementations to provide a common interface for all of them.
  *
  * @param <IN> input type
  */
 public class CassandraSink<IN> {
-	private static final String jobID = UUID.randomUUID().toString().replace("-", "_");
 	private final boolean useDataStreamSink;
 	private DataStreamSink<IN> sink1;
 	private SingleOutputStreamOperator<IN> sink2;
@@ -170,19 +167,14 @@ public class CassandraSink<IN> {
 		}
 	}
 
-	public enum ConsistencyLevel {
-		At_LEAST_ONCE,
-		EXACTLY_ONCE
-	}
-
 	public abstract static class CassandraSinkBuilder<IN> {
 		protected final DataStream<IN> input;
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
-		protected ConsistencyLevel consistency = ConsistencyLevel.At_LEAST_ONCE;
 		protected ClusterBuilder builder;
 		protected String query;
 		protected CheckpointCommitter committer;
+		protected boolean isWriteAheadLogEnabled;
 
 		public CassandraSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			this.input = input;
@@ -192,7 +184,6 @@ public class CassandraSink<IN> {
 
 		/**
 		 * Sets the query that is to be executed for every record.
-		 * This parameter is mandatory.
 		 *
 		 * @param query query to use
 		 * @return this builder
@@ -202,12 +193,28 @@ public class CassandraSink<IN> {
 			return this;
 		}
 
+		/**
+		 * Sets the cassandra host to connect to.
+		 *
+		 * @param host host to connect to
+		 * @return this builder
+		 */
 		public CassandraSinkBuilder<IN> setHost(String host) {
 			return setHost(host, 9042);
 		}
 
+		/**
+		 * Sets the cassandra host/port to connect to.
+		 *
+		 * @param host host to connect to
+		 * @param port port to connect to
+		 * @return this builder
+		 */
 		public CassandraSinkBuilder<IN> setHost(final String host, final int port) {
-			builder = new ClusterBuilder() {
+			if (this.builder != null) {
+				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
+			}
+			this.builder = new ClusterBuilder() {
 				@Override
 				protected Cluster buildCluster(Cluster.Builder builder) {
 					return builder.addContactPoint(host).withPort(port).build();
@@ -217,39 +224,40 @@ public class CassandraSink<IN> {
 		}
 
 		/**
-		 * Specifies the desired consistency level for this sink. Different sink implementations may be used depending
-		 * on this parameter.
-		 * This parameter is mandatory.
-		 *
-		 * @param consistency desired consistency level
-		 * @return this builder
-		 */
-		public CassandraSinkBuilder<IN> setConsistencyLevel(ConsistencyLevel consistency) {
-			this.consistency = consistency;
-			return this;
-		}
-
-		/**
 		 * Sets the ClusterBuilder for this sink. A ClusterBuilder is used to configure the connection to cassandra.
-		 * This field is mandatory.
 		 *
 		 * @param builder ClusterBuilder to configure the connection to cassandra
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> setClusterBuilder(ClusterBuilder builder) {
+			if (this.builder != null) {
+				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
+			}
 			this.builder = builder;
 			return this;
 		}
 
 		/**
-		 * Sets the CheckpointCommitter for this sink. A CheckpointCommitter stores information about completed checkpoints
-		 * in a resource outside of Flink.
-		 * If the desired consistency level is EXACTLY_ONCE and this field is not set, a default committer will be used.
+		 * Enables the write-ahead log, which allows exactly-once processing for non-deterministic algorithms that use
+		 * idempotent updates.
 		 *
-		 * @param committer
 		 * @return this builder
 		 */
-		public CassandraSinkBuilder<IN> setCheckpointCommitter(CheckpointCommitter committer) {
+		public CassandraSinkBuilder<IN> enableWriteAheadLog() {
+			this.isWriteAheadLogEnabled = true;
+			return this;
+		}
+
+		/**
+		 * Enables the write-ahead log, which allows exactly-once processing for non-deterministic algorithms that use
+		 * idempotent updates.
+		 *
+		 * @param committer CheckpointCommitter, that stores informationa bout completed checkpoints in an external
+		 *                  resource. By default this information is stored within a separate table within Cassandra.
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> enableWriteAheadLog(CheckpointCommitter committer) {
+			this.isWriteAheadLogEnabled = true;
 			this.committer = committer;
 			return this;
 		}
@@ -261,6 +269,15 @@ public class CassandraSink<IN> {
 		 * @throws Exception
 		 */
 		public abstract CassandraSink<IN> build() throws Exception;
+
+		protected void sanityCheck() {
+			if (query == null || query.length() == 0) {
+				throw new IllegalArgumentException("Query must not be null or empty.");
+			}
+			if (builder == null) {
+				throw new IllegalArgumentException("Cassandra host information must be supplied using either setHost() or setClusterBuilder().");
+			}
+		}
 	}
 
 	public static class CassandraTupleSinkBuilder<IN extends Tuple> extends CassandraSinkBuilder<IN> {
@@ -270,12 +287,13 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> build() throws Exception {
-			if (consistency == ConsistencyLevel.EXACTLY_ONCE) {
+			sanityCheck();
+			if (isWriteAheadLogEnabled) {
 				return committer == null
-					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraIdempotentExactlyOnceSink<>(query, serializer, builder, jobID, new CassandraCommitter(builder))))
-					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraIdempotentExactlyOnceSink<>(query, serializer, builder, jobID, committer)));
+					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, new CassandraCommitter(builder))))
+					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, committer)));
 			} else {
-				return new CassandraSink<>(input.addSink(new CassandraTupleAtLeastOnceSink<IN>(query, builder)).name("Cassandra Sink"));
+				return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
 			}
 		}
 	}
@@ -287,13 +305,12 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> build() throws Exception {
-			if (consistency == ConsistencyLevel.EXACTLY_ONCE) {
+			sanityCheck();
+			if (isWriteAheadLogEnabled) {
 				throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
+			} else {
+				return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
 			}
-			if (consistency == ConsistencyLevel.At_LEAST_ONCE) {
-				return new CassandraSink<>(input.addSink(new CassandraPojoAtLeastOnceSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
-			}
-			throw new IllegalArgumentException("No consistency level was specified.");
 		}
 	}
 }

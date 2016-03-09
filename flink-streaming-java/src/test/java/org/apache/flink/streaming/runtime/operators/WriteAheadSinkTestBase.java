@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -25,6 +26,10 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,10 +38,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSink<IN>> {
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(ResultPartitionWriter.class)
+@PowerMockIgnore("javax.management.*")
+public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> {
 
-	protected class OperatorExposingTask<IN> extends OneInputStreamTask<IN, IN> {
-		public OneInputStreamOperator<IN, IN> getOperator() {
+	protected class OperatorExposingTask<INT> extends OneInputStreamTask<INT, INT> {
+		public OneInputStreamOperator<INT, INT> getOperator() {
 			return this.headOperator;
 		}
 	}
@@ -66,6 +74,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(createSink());
 
 		int elementCounter = 1;
@@ -117,6 +126,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(sink);
 
 		int elementCounter = 1;
@@ -164,6 +174,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(sink);
 
 		int elementCounter = 1;
@@ -186,6 +197,10 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 			elementCounter++;
 		}
 		testHarness.waitForInputProcessing();
+		
+		task.getOperator().close();
+		task.getOperator().open();
+
 		task.getOperator().restoreState(states.get(states.size() - 1), 0);
 
 		for (int x = 0; x < 20; x++) {
@@ -205,14 +220,12 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 	}
 
 	private StreamTaskState copyTaskState(StreamTaskState toCopy) throws IOException, ClassNotFoundException {
-		synchronized (toCopy.getFunctionState()) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ObjectOutputStream oos = new ObjectOutputStream(baos);
-			oos.writeObject(toCopy);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(toCopy);
 
-			ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-			ObjectInputStream ois = new ObjectInputStream(bais);
-			return (StreamTaskState) ois.readObject();
-		}
+		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		ObjectInputStream ois = new ObjectInputStream(bais);
+		return (StreamTaskState) ois.readObject();
 	}
 }

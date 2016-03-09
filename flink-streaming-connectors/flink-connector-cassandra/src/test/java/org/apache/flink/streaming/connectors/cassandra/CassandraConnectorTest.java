@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -26,25 +28,33 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.runtime.operators.AtLeastOnceSinkTestBase;
+import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -54,7 +64,11 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.UUID;
 
-public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<String, Integer, Integer>, CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>>> {
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(ResultPartitionWriter.class)
+@PowerMockIgnore("javax.management.*")
+public class CassandraConnectorTest extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
+	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorTest.class);
 	private static File tmpDir;
 
 	private static final boolean EMBEDDED = true;
@@ -62,7 +76,11 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	private transient static ClusterBuilder builder = new ClusterBuilder() {
 		@Override
 		protected Cluster buildCluster(Cluster.Builder builder) {
-			return builder.addContactPoint("127.0.0.1").build();
+			return builder
+				.addContactPoint("127.0.0.1")
+				.withQueryOptions(new QueryOptions().setConsistencyLevel(ConsistencyLevel.ONE).setSerialConsistencyLevel(ConsistencyLevel.LOCAL_SERIAL))
+				.withoutJMXReporting()
+				.withoutMetrics().build();
 		}
 	};
 	private static Cluster cluster;
@@ -102,7 +120,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	public static void startCassandra() throws IOException {
 		//generate temporary files
 		tmpDir = CommonTestUtils.createTempDirectory();
-		ClassLoader classLoader = CassandraIdempotentExactlyOnceSink.class.getClassLoader();
+		ClassLoader classLoader = CassandraTupleWriteAheadSink.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
 		tmp.createNewFile();
@@ -133,11 +151,22 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 		} catch (InterruptedException e) { //give cassandra a few seconds to start up
 		}
 
-		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
+		cluster = builder.getCluster();
 		session = cluster.connect();
 
 		session.execute(CREATE_KEYSPACE_QUERY);
 		session.execute(CREATE_TABLE_QUERY);
+	}
+
+	@Before
+	public void checkIfIgnore() {
+		String runtime = System.getProperty("java.runtime.name");
+				String version = System.getProperty("java.runtime.version");
+		LOG.info("Running tests on runtime: '{}', version: '{}'", runtime, version);
+		// The tests are failing on Oracle JDK 7 on Travis due to garbage collection issues.
+		// Oracle JDK identifies itself as "Java(TM) SE Runtime Environment"
+		// OpenJDK is "OpenJDK Runtime Environment"
+		Assume.assumeFalse(runtime.startsWith("Java") && version.startsWith("1.7"));
 	}
 
 	@After
@@ -158,23 +187,12 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 
 	//=====Exactly-Once=================================================================================================
 	@Override
-	protected CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>> createSink() {
-		try {
-			return new CassandraIdempotentExactlyOnceSink<>(
-				INSERT_DATA_QUERY,
-				TypeExtractor.getForObject(new Tuple3<>("", 0, 0)).createSerializer(new ExecutionConfig()),
-				new ClusterBuilder() {
-					@Override
-					protected Cluster buildCluster(Cluster.Builder builder) {
-						return builder.addContactPoint("127.0.0.1").build();
-					}
-				},
-				"testJob",
-				new CassandraCommitter(builder));
-		} catch (Exception e) {
-			Assert.fail("Failure while initializing sink: " + e.getMessage());
-			return null;
-		}
+	protected CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> createSink() throws Exception {
+		return new CassandraTupleWriteAheadSink<>(
+			INSERT_DATA_QUERY,
+			TypeExtractor.getForObject(new Tuple3<>("", 0, 0)).createSerializer(new ExecutionConfig()),
+			builder,
+			new CassandraCommitter(builder));
 	}
 
 	@Override
@@ -191,7 +209,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	protected void verifyResultsIdealCircumstances(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -209,7 +227,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	protected void verifyResultsDataPersistenceUponMissedNotify(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -227,7 +245,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 	protected void verifyResultsDataDiscardingUponRestore(
 		OneInputStreamTaskTestHarness<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> harness,
 		OneInputStreamTask<Tuple3<String, Integer, Integer>, Tuple3<String, Integer, Integer>> task,
-		CassandraIdempotentExactlyOnceSink<Tuple3<String, Integer, Integer>> sink) {
+		CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>> sink) {
 
 		ResultSet result = session.execute(SELECT_DATA_QUERY);
 		ArrayList<Integer> list = new ArrayList<>();
@@ -244,6 +262,60 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 		Assert.assertTrue("The following ID's were not found in the ResultSet: " + list.toString(), list.isEmpty());
 	}
 
+	@Test
+	public void testCassandraCommitter() throws Exception {
+		CassandraCommitter cc1 = new CassandraCommitter(builder);
+		cc1.setJobId("job");
+		cc1.setOperatorId("operator");
+		cc1.setOperatorSubtaskId(0);
+
+		CassandraCommitter cc2 = new CassandraCommitter(builder);
+		cc2.setJobId("job");
+		cc2.setOperatorId("operator");
+		cc2.setOperatorSubtaskId(1);
+
+		CassandraCommitter cc3 = new CassandraCommitter(builder);
+		cc3.setJobId("job");
+		cc3.setOperatorId("operator1");
+		cc3.setOperatorSubtaskId(0);
+
+		cc1.createResource();
+
+		cc1.open();
+		cc2.open();
+		cc3.open();
+
+		Assert.assertFalse(cc1.isCheckpointCommitted(1));
+		Assert.assertFalse(cc2.isCheckpointCommitted(1));
+		Assert.assertFalse(cc3.isCheckpointCommitted(1));
+
+		cc1.commitCheckpoint(1);
+		Assert.assertTrue(cc1.isCheckpointCommitted(1));
+		//verify that other sub-tasks aren't affected
+		Assert.assertFalse(cc2.isCheckpointCommitted(1));
+		//verify that other tasks aren't affected
+		Assert.assertFalse(cc3.isCheckpointCommitted(1));
+
+		Assert.assertFalse(cc1.isCheckpointCommitted(2));
+
+		cc1.close();
+		cc2.close();
+		cc3.close();
+
+		cc1 = new CassandraCommitter(builder);
+		cc1.setJobId("job");
+		cc1.setOperatorId("operator");
+		cc1.setOperatorSubtaskId(0);
+
+		cc1.open();
+
+		//verify that checkpoint data is not destroyed within open/close and not reliant on internally cached data
+		Assert.assertTrue(cc1.isCheckpointCommitted(1));
+		Assert.assertFalse(cc1.isCheckpointCommitted(2));
+
+		cc1.close();
+	}
+
 	//=====At-Least-Once================================================================================================
 	@Test
 	public void testCassandraTupleAtLeastOnceSink() throws Exception {
@@ -251,7 +323,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 		env.setParallelism(1);
 
 		DataStream<Tuple3<String, Integer, Integer>> source = env.fromCollection(collection);
-		source.addSink(new CassandraTupleAtLeastOnceSink<Tuple3<String, Integer, Integer>>(INSERT_DATA_QUERY, builder));
+		source.addSink(new CassandraTupleSink<Tuple3<String, Integer, Integer>>(INSERT_DATA_QUERY, builder));
 
 		env.execute();
 
@@ -287,7 +359,7 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 				}
 			});
 
-		source.addSink(new CassandraPojoAtLeastOnceSink<>(Pojo.class, builder));
+		source.addSink(new CassandraPojoSink<>(Pojo.class, builder));
 
 		env.execute();
 

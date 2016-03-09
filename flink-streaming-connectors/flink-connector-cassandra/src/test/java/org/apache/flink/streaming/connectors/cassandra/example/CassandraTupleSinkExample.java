@@ -26,7 +26,13 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.ArrayList;
 
-public class CassandraTupleAtLeastOnceSinkExample {
+/**
+ * This is an example showing the to use the Tuple Cassandra Sink in the Streaming API.
+ *
+ * The example assumes that a table exists in a local cassandra database, according to the following query:
+ * CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)
+ */
+public class CassandraTupleSinkExample {
 	private static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
 	private static final ArrayList<Tuple2<String, Integer>> collection = new ArrayList<>(20);
 
@@ -36,9 +42,6 @@ public class CassandraTupleAtLeastOnceSinkExample {
 		}
 	}
 
-	/*
-	 * table script: "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)"
-	 */
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

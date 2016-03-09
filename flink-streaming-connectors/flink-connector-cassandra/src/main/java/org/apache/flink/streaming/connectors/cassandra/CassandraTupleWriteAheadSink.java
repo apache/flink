@@ -28,19 +28,21 @@ import com.google.common.util.concurrent.Futures;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
+import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Sink that emits its input elements into a Cassandra database. This sink is integrated with the checkpointing
- * mechanism and provides exactly-once guarantees for idempotent updates.
- * <p/>
- * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
- * checkpoint is completed.
+ * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a
+ * {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only commits them to cassandra
+ * if a checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
+public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 
@@ -52,8 +54,13 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 
 	private ClusterBuilder builder;
 
-	protected CassandraIdempotentExactlyOnceSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
-		super(committer, serializer, jobID);
+	private int updatesSent = 0;
+	private AtomicInteger updatesConfirmed = new AtomicInteger(0);
+
+	private transient Object[] fields;
+
+	protected CassandraTupleWriteAheadSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, CheckpointCommitter committer) throws Exception {
+		super(committer, serializer, UUID.randomUUID().toString().replace("-", "_"));
 		this.insertQuery = insertQuery;
 		this.builder = builder;
 		ClosureCleaner.clean(builder, true);
@@ -61,19 +68,26 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 
 	public void open() throws Exception {
 		super.open();
+		if (!getRuntimeContext().isCheckpointingEnabled()) {
+			throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
+		}
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
 			public void onSuccess(ResultSet resultSet) {
+				updatesConfirmed.incrementAndGet();
 			}
 
 			@Override
 			public void onFailure(Throwable throwable) {
 				exception = throwable;
+				LOG.error("Error while sending value.", throwable);
 			}
 		};
 		cluster = builder.getCluster();
 		session = cluster.connect();
 		preparedStatement = session.prepare(insertQuery);
+
+		fields = new Object[((TupleSerializer<IN>) serializer).getArity()];
 	}
 
 	@Override
@@ -92,14 +106,13 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 	}
 
 	@Override
-	protected void sendValue(Iterable<IN> values, long timestamp) throws Exception {
+	protected void sendValues(Iterable<IN> values, long timestamp) throws Exception {
 		//verify that no query failed until now
 		if (exception != null) {
 			throw new Exception(exception);
 		}
 		//set values for prepared statement
 		for (IN value : values) {
-			Object[] fields = new Object[value.getArity()];
 			for (int x = 0; x < value.getArity(); x++) {
 				fields[x] = value.getField(x);
 			}
@@ -107,10 +120,19 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 			BoundStatement s = preparedStatement.bind(fields);
 			s.setDefaultTimestamp(timestamp);
 			ResultSetFuture result = session.executeAsync(s);
+			updatesSent++;
 			if (result != null) {
 				//add callback to detect errors
 				Futures.addCallback(result, callback);
 			}
 		}
+		try {
+			while (updatesSent != updatesConfirmed.get()) {
+				Thread.sleep(100);
+			}
+		} catch (InterruptedException e) {
+		}
+		updatesSent = 0;
+		updatesConfirmed.set(0);
 	}
 }

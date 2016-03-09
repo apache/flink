@@ -29,6 +29,12 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.ArrayList;
 
+/**
+ * This is an example showing the to use the Cassandra Input-/OutputFormats in the Batch API.
+ * 
+ * The example assumes that a table exists in a local cassandra database, according to the following query: 
+ * CREATE TABLE test.batches (number int, strings text, PRIMARY KEY(number, strings));
+ */
 public class BatchExample {
 	private static final String INSERT_QUERY = "INSERT INTO test.batches (number, strings) VALUES (?,?);";
 	private static final String SELECT_QUERY = "SELECT number, strings FROM test.batches;";

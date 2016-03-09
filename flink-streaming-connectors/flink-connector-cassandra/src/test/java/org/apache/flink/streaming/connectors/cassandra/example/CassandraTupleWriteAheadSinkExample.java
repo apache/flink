@@ -29,41 +29,17 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.UUID;
 
-public class CassandraIdempotentExactlyOnceSinkExample {
+/**
+ * This is an example showing the to use the Cassandra Sink (with write-ahead log) in the Streaming API.
+ *
+ * The example assumes that a table exists in a local cassandra database, according to the following query:
+ * CREATE TABLE example.values (id text, count int, PRIMARY KEY(id));
+ * 
+ * Important things to note are that checkpointing is enabled, a StateBackend is set and the enableWriteAheadLog() call
+ * when creating the CassandraSink.
+ */
+public class CassandraTupleWriteAheadSinkExample {
 	public static void main(String[] args) throws Exception {
-
-		class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
-			private int counter = 0;
-			private boolean stop = false;
-
-			@Override
-			public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
-				while (!stop) {
-					Thread.sleep(50);
-					ctx.collect(new Tuple2<>("" + UUID.randomUUID(), 1));
-					counter++;
-					if (counter == 100) {
-						stop = true;
-					}
-				}
-			}
-
-			@Override
-			public void cancel() {
-				stop = true;
-			}
-
-			@Override
-			public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-				return counter;
-			}
-
-			@Override
-			public void restoreState(Integer state) throws Exception {
-				this.counter = state;
-			}
-		}
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.enableCheckpointing(1000);
@@ -72,7 +48,7 @@ public class CassandraIdempotentExactlyOnceSinkExample {
 
 		CassandraSink<Tuple2<String, Integer>> sink = CassandraSink.addSink(env.addSource(new MySource()))
 			.setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
-			.setConsistencyLevel(CassandraSink.ConsistencyLevel.EXACTLY_ONCE)
+			.enableWriteAheadLog()
 			.setClusterBuilder(new ClusterBuilder() {
 				@Override
 				public Cluster buildCluster(Cluster.Builder builder) {
@@ -84,5 +60,37 @@ public class CassandraIdempotentExactlyOnceSinkExample {
 		sink.name("Cassandra Sink").disableChaining().setParallelism(1).uid("hello");
 
 		env.execute();
+	}
+
+	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
+		private int counter = 0;
+		private boolean stop = false;
+
+		@Override
+		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+			while (!stop) {
+				Thread.sleep(50);
+				ctx.collect(new Tuple2<>("" + UUID.randomUUID(), 1));
+				counter++;
+				if (counter == 100) {
+					stop = true;
+				}
+			}
+		}
+
+		@Override
+		public void cancel() {
+			stop = true;
+		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return counter;
+		}
+
+		@Override
+		public void restoreState(Integer state) throws Exception {
+			this.counter = state;
+		}
 	}
 }

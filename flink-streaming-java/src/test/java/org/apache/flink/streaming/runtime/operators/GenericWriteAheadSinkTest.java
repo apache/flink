@@ -21,14 +21,22 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.junit.Assert;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<Integer>, GenericAtLeastOnceSinkTest.ListSink> {
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(ResultPartitionWriter.class)
+@PowerMockIgnore("javax.management.*")
+public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
 	@Override
 	protected ListSink createSink() throws Exception {
 		return new ListSink();
@@ -101,7 +109,7 @@ public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<I
 	/**
 	 * Simple sink that stores all records in a public list.
 	 */
-	public static class ListSink extends GenericAtLeastOnceSink<Tuple1<Integer>> {
+	public static class ListSink extends GenericWriteAheadSink<Tuple1<Integer>> {
 		public List<Integer> values = new ArrayList<>();
 
 		public ListSink() throws Exception {
@@ -109,7 +117,7 @@ public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<I
 		}
 
 		@Override
-		protected void sendValue(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected void sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}
@@ -121,17 +129,15 @@ public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<I
 
 		@Override
 		public void open() throws Exception {
-			checkpoints = new ArrayList<>();
 		}
 
 		@Override
 		public void close() throws Exception {
-			checkpoints.clear();
-			checkpoints = null;
 		}
 
 		@Override
 		public void createResource() throws Exception {
+			checkpoints = new ArrayList<>();
 		}
 
 		@Override

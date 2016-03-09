@@ -51,21 +51,33 @@ This method returns a CassandraSinkBuilder, which offers methods to further conf
 The following configuration methods can be used:
 
 1. setQuery(String query)
-2. setConsistencyLevel(ConsistencyLevel level)
+2. setHost(String host[, int port])
 3. setClusterBuilder(ClusterBuilder builder)
-4. setCheckpointCommitter(CheckpointCommitter committer)
+4. enableWriteAheadLog([CheckpointCommitter committer])
 5. build()
 
 setQuery() sets the query that is executed for every value the sink receives.
-setConsistencyLevel() sets the desired consistency level (AT_LEAST_ONCE / EXACTLY_ONCE).
-setClusterBuilder() sets the cluster builder that is used to configure the connection to cassandra.
-setCheckpointCommitter() is an optional method for EXACTLY_ONCE processing.
+setHost() sets the cassandra host/port to connect to. This method is intended for simple use-cases.
+setClusterBuilder() sets the cluster builder that is used to configure the connection to cassandra. The setHost() functionality can be subsumed with this method.
+enableWriteAheadLog() is an optional method, that allows exactly-once processing for non-deterministic algorithms.
 
 A checkpoint committer stores additional information about completed checkpoints
-in some resource. You can use a `CassandraCommitter` to store these in a separate
-table in cassandra. Note that this table will NOT be cleaned up by Flink.
+in some resource. This information is used to prevent a full replay of the last
+completed checkpoint in case of a failure.
+You can use a `CassandraCommitter` to store these in a separate table in cassandra.
+Note that this table will NOT be cleaned up by Flink.
 
 build() finalizes the configuration and returns the CassandraSink.
+
+Flink can provide exactly-once guarantees if the query is idempotent (meaning it can be applied multiple
+times without changing the result) and checkpointing is enabled. In case of a failure the failed
+checkpoint will be replayed completely.
+
+Furthermore, for non-deterministic programs the write-ahead log has to be enabled. For such a program
+the replayed checkpoint may be completely different than the previous attempt, which may leave the
+database in an inconsitent state since part of the first attempt may already be written.
+The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt. 
+Note that that enabling this feature will have an adverse impact on latency.
 
 Example:
 
@@ -74,8 +86,6 @@ Example:
 {% highlight java %}
 CassandraSink.addSink(input)
   .setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
-  .setConsistencyLevel(CassandraSink.ConsistencyLevel.EXACTLY_ONCE)
-  .setCheckpointCommitter(new CassandraCommitter())
   .setClusterBuilder(new ClusterBuilder() {
     @Override
     public Cluster buildCluster(Cluster.Builder builder) {
@@ -89,8 +99,6 @@ CassandraSink.addSink(input)
 {% highlight scala %}
 CassandraSink.addSink(input)
   .setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
-  .setConsistencyLevel(CassandraSink.ConsistencyLevel.EXACTLY_ONCE)
-  .setCheckpointCommitter(new CassandraCommitter())
   .setClusterBuilder(new ClusterBuilder() {
     @Override
     public Cluster buildCluster(Cluster.Builder builder) {

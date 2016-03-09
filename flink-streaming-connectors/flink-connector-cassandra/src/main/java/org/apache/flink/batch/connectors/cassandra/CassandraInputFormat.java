@@ -117,13 +117,13 @@ public class CassandraInputFormat<OUT extends Tuple> extends RichInputFormat<OUT
 		try {
 			session.close();
 		} catch (Exception e) {
-			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+			LOG.info("Inputformat couldn't be closed." + e.getMessage(), e);
 		}
 
 		try {
 			cluster.close();
 		} catch (Exception e) {
-			LOG.info("Inputformat couldn't be closed - " + e.getMessage());
+			LOG.info("Inputformat couldn't be closed." + e.getMessage(), e);
 		}
 	}
 }

@@ -48,8 +48,8 @@ import java.util.UUID;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
-	protected static final Logger LOG = LoggerFactory.getLogger(GenericAtLeastOnceSink.class);
+public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
 	private transient AbstractStateBackend.CheckpointStateOutputView out;
 	protected final TypeSerializer<IN> serializer;
@@ -57,7 +57,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 
 	private ExactlyOnceState state = new ExactlyOnceState();
 
-	public GenericAtLeastOnceSink(CheckpointCommitter committer, TypeSerializer<IN> serializer, String jobID) throws Exception {
+	public GenericWriteAheadSink(CheckpointCommitter committer, TypeSerializer<IN> serializer, String jobID) throws Exception {
 		this.committer = committer;
 		this.serializer = serializer;
 		this.id = UUID.randomUUID().toString();
@@ -70,6 +70,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 		committer.setOperatorId(id);
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
+		cleanState();
 	}
 
 	public void close() throws Exception {
@@ -82,26 +83,27 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @param checkpointId
 	 * @throws IOException
 	 */
-	private void saveHandleInState(final long checkpointId, final long timestamp) throws IOException {
-		synchronized (state) {
-			//only add handle if a new OperatorState was created since the last snapshot
-			if (out != null) {
-				StateHandle<DataInputView> handle = out.closeAndGetHandle();
+	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
+		//only add handle if a new OperatorState was created since the last snapshot
+		if (out != null) {
+			StateHandle<DataInputView> handle = out.closeAndGetHandle();
+			if (state.pendingHandles.containsKey(checkpointId)) {
+				//we already have a checkpoint stored for that ID that may have been partially written,
+				//so we discard this "alternate version" and use the stored checkpoint
+				handle.discardState();
+			} else {
 				state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
-				out = null;
 			}
+			out = null;
 		}
 	}
 
 	@Override
 	public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-		synchronized (state) {
-			StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-			saveHandleInState(checkpointId, timestamp);
-
-			taskState.setFunctionState(state);
-			return taskState;
-		}
+		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		saveHandleInState(checkpointId, timestamp);
+		taskState.setFunctionState(state);
+		return taskState;
 	}
 
 	@Override
@@ -109,6 +111,21 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 		super.restoreState(state, recoveryTimestamp);
 		this.state = (ExactlyOnceState) state.getFunctionState();
 		out = null;
+	}
+
+	private void cleanState() throws Exception {
+		synchronized (this.state.pendingHandles) { //remove all handles that were already committed
+			Set<Long> pastCheckpointIds = this.state.pendingHandles.keySet();
+			Set<Long> checkpointsToRemove = new HashSet<>();
+			for (Long pastCheckpointId : pastCheckpointIds) {
+				if (committer.isCheckpointCommitted(pastCheckpointId)) {
+					checkpointsToRemove.add(pastCheckpointId);
+				}
+			}
+			for (Long toRemove : checkpointsToRemove) {
+				this.state.pendingHandles.remove(toRemove);
+			}
+		}
 	}
 
 	@Override
@@ -123,7 +140,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 					if (!committer.isCheckpointCommitted(pastCheckpointId)) {
 						Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
 						DataInputView in = handle.f1.getState(getUserCodeClassloader());
-						sendValue(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
+						sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
 						committer.commitCheckpoint(pastCheckpointId);
 					}
 					checkpointsToRemove.add(pastCheckpointId);
@@ -144,7 +161,8 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @param value value to be written
 	 * @throws Exception
 	 */
-	protected abstract void sendValue(Iterable<IN> value, long timestamp) throws Exception;
+
+	protected abstract void sendValues(Iterable<IN> value, long timestamp) throws Exception;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
@@ -165,7 +183,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * This state is used to keep a list of all StateHandles (essentially references to past OperatorStates) that were
 	 * used since the last completed checkpoint.
 	 **/
-	public class ExactlyOnceState implements StateHandle<Serializable> {
+	public static class ExactlyOnceState implements StateHandle<Serializable> {
 		protected TreeMap<Long, Tuple2<Long, StateHandle<DataInputView>>> pendingHandles;
 
 		public ExactlyOnceState() {
@@ -179,10 +197,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 
 		@Override
 		public void discardState() throws Exception {
-			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
-				pair.f1.discardState();
-			}
-			pendingHandles = new TreeMap<>();
+			//we specifically want the state to survive failed jobs, so we don't discard anything
 		}
 
 		@Override
@@ -192,6 +207,10 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 				stateSize += pair.f1.getStateSize();
 			}
 			return stateSize;
+		}
+
+		public String toString() {
+			return this.pendingHandles.toString();
 		}
 	}
 }
