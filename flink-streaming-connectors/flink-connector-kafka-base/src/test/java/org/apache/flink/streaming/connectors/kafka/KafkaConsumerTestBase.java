@@ -47,16 +47,17 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.runtime.taskmanager.RuntimeEnvironment;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
@@ -747,6 +748,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			final String topic = "topic-" + i;
 			deleteTestTopic(topic);
 		}
+	}
+
+	/** An extractor that emits a Watermark whenever the timestamp <b>in the record</b> is equal to {@code -1}. */
+	private class TestPunctuatedTSExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<Integer, Integer>> {
+
+		@Override
+		public Watermark checkAndGetNextWatermark(Tuple2<Integer, Integer> lastElement, long extractedTimestamp) {
+			return (lastElement.f1 == -1) ? new Watermark(1) : null;
+		}
+
+		@Override
+		public long extractTimestamp(Tuple2<Integer, Integer> element, long previousElementTimestamp) {
+			return element.f1;
+		}
+	}
+
+	public void runWithPunctuatedTimestampExtractor() throws Exception {
+		// TODO: 3/9/16 IMPLEMENT THIS
+		// it has to be a producer comsumer where the producer writes in two different partitions
+		// and the consumer reads and creates the watermarks accordingly.
+	}
+
+	public void runWithPeriodicTimestampExtractor() throws Exception {
+		// TODO: 3/9/16 IMPLEMENT THIS
 	}
 
 	private static class Tuple2WithTopicDeserializationSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> {
