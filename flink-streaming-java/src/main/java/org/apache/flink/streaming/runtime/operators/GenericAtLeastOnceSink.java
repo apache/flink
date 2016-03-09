@@ -123,7 +123,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 					if (!committer.isCheckpointCommitted(pastCheckpointId)) {
 						Tuple2<Long, StateHandle<DataInputView>> handle = state.pendingHandles.get(pastCheckpointId);
 						DataInputView in = handle.f1.getState(getUserCodeClassloader());
-						sendValue(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
+						sendValues(new ReusingMutableToRegularIteratorWrapper<>(new InputViewIterator<>(in, serializer), serializer), handle.f0);
 						committer.commitCheckpoint(pastCheckpointId);
 					}
 					checkpointsToRemove.add(pastCheckpointId);
@@ -144,7 +144,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @param value value to be written
 	 * @throws Exception
 	 */
-	protected abstract void sendValue(Iterable<IN> value, long timestamp) throws Exception;
+	protected abstract void sendValues(Iterable<IN> value, long timestamp) throws Exception;
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {

@@ -109,7 +109,7 @@ public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<I
 		}
 
 		@Override
-		protected void sendValue(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
+		protected void sendValues(Iterable<Tuple1<Integer>> values, long timestamp) throws Exception {
 			for (Tuple1<Integer> value : values) {
 				this.values.add(value.f0);
 			}

@@ -98,7 +98,7 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 	}
 
 	@Override
-	protected void sendValue(Iterable<IN> values, long timestamp) throws Exception {
+	protected void sendValues(Iterable<IN> values, long timestamp) throws Exception {
 		//verify that no query failed until now
 		if (exception != null) {
 			throw new Exception(exception);
