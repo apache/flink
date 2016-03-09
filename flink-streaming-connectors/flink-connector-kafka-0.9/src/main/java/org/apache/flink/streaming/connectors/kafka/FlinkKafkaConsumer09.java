@@ -54,7 +54,7 @@ public class FlinkKafkaConsumer09<T> extends AbstractKafkaConsumer09<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer09(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(Collections.singletonList(topic), deserializer, props);
+		this(Collections.singletonList(topic), deserializer, props);
 	}
 
 	/**
@@ -70,7 +70,7 @@ public class FlinkKafkaConsumer09<T> extends AbstractKafkaConsumer09<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		super(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**

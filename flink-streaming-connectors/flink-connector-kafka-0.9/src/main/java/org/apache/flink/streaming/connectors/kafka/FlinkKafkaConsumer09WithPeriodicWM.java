@@ -83,8 +83,7 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 */
 	public FlinkKafkaConsumer09WithPeriodicWM(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
 											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
-		super(Collections.singletonList(topic), deserializer, props);
-		this.periodicWatermarkAssigner = timestampAssigner;
+		this(Collections.singletonList(topic), deserializer, props, timestampAssigner);
 	}
 
 	/**
@@ -104,8 +103,7 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer
 	 */
 	public FlinkKafkaConsumer09WithPeriodicWM(List<String> topics, DeserializationSchema<T> deserializer, Properties props,
 											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
-		super(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
-		this.periodicWatermarkAssigner = timestampAssigner;
+		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props, timestampAssigner);
 	}
 
 	/**

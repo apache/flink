@@ -70,8 +70,7 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
-		super(Collections.singletonList(topic), deserializer, props);
-		this.punctuatedWatermarkAssigner = timestampAssigner;
+		this(Collections.singletonList(topic), deserializer, props, timestampAssigner);
 	}
 
 	/**
@@ -91,8 +90,7 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends AbstractKafkaConsum
 	 */
 	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, DeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
-		super(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
-		this.punctuatedWatermarkAssigner = timestampAssigner;
+		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props, timestampAssigner);
 	}
 
 	/**
