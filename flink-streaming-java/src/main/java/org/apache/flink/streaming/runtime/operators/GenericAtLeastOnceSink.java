@@ -83,25 +83,20 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @throws IOException
 	 */
 	private void saveHandleInState(final long checkpointId, final long timestamp) throws IOException {
-		synchronized (state) {
-			//only add handle if a new OperatorState was created since the last snapshot
-			if (out != null) {
-				StateHandle<DataInputView> handle = out.closeAndGetHandle();
-				state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
-				out = null;
-			}
+		//only add handle if a new OperatorState was created since the last snapshot
+		if (out != null) {
+			StateHandle<DataInputView> handle = out.closeAndGetHandle();
+			state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
+			out = null;
 		}
 	}
 
 	@Override
 	public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-		synchronized (state) {
-			StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
-			saveHandleInState(checkpointId, timestamp);
-
-			taskState.setFunctionState(state);
-			return taskState;
-		}
+		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		saveHandleInState(checkpointId, timestamp);
+		taskState.setFunctionState(state);
+		return taskState;
 	}
 
 	@Override
