@@ -16,62 +16,49 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common;
+package org.apache.flink.api.java.operator;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.Operator;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
-public class ExecutionConfigTest {
-
-	@Test
-	public void testDoubleTypeRegistration() {
-		ExecutionConfig config = new ExecutionConfig();
-		List<Class<?>> types = Arrays.<Class<?>>asList(Double.class, Integer.class, Double.class);
-		List<Class<?>> expectedTypes = Arrays.<Class<?>>asList(Double.class, Integer.class);
-
-		for(Class<?> tpe: types) {
-			config.registerKryoType(tpe);
-		}
-
-		int counter = 0;
-
-		for(Class<?> tpe: config.getRegisteredKryoTypes()){
-			assertEquals(tpe, expectedTypes.get(counter++));
-		}
-
-		assertTrue(counter == expectedTypes.size());
-	}
+public class OperatorTest {
 
 	@Test
 	public void testConfigurationOfParallelism() {
-		ExecutionConfig config = new ExecutionConfig();
+		Operator operator = new MockOperator();
 
 		// verify that PARALLELISM_UNKNOWN does not change initial parallelism
-		int parallelism = config.getParallelism();
-		config.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
+		int parallelism = operator.getParallelism();
+		operator.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
 
-		assertEquals(parallelism, config.getParallelism());
+		assertEquals(parallelism, operator.getParallelism());
 
 		// verify explicit change in parallelism
 		parallelism = 36;
-		config.setParallelism(parallelism);
+		operator.setParallelism(parallelism);
 
-		assertEquals(parallelism, config.getParallelism());
+		assertEquals(parallelism, operator.getParallelism());
 
 		// verify that PARALLELISM_UNKNOWN does not change configured parallelism
-		config.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
+		operator.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
 
-		assertEquals(parallelism, config.getParallelism());
+		assertEquals(parallelism, operator.getParallelism());
 
 		// verify that parallelism is reset to default flag value
 		parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-		config.setParallelism(parallelism);
+		operator.setParallelism(parallelism);
 
-		assertEquals(parallelism, config.getParallelism());
+		assertEquals(parallelism, operator.getParallelism());
+	}
+
+	private class MockOperator extends Operator {
+		public MockOperator() {
+			super(ExecutionEnvironment.createCollectionsEnvironment(), ValueTypeInfo.NULL_VALUE_TYPE_INFO);
+		}
 	}
 }

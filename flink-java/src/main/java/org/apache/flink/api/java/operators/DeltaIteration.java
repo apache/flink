@@ -22,6 +22,7 @@ import java.util.Arrays;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
@@ -59,7 +60,7 @@ public class DeltaIteration<ST, WT> {
 	
 	private String name;
 	
-	private int parallelism = -1;
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
 	private boolean solutionSetUnManaged;
 	
@@ -176,7 +177,8 @@ public class DeltaIteration<ST, WT> {
 	 * @return The iteration object, for function call chaining.
 	 */
 	public DeltaIteration<ST, WT> parallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
+		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The parallelism must be positive, or ExecutionConfig.PARALLELISM_DEFAULT (use default).");
 		this.parallelism = parallelism;
 		return this;
 	}
@@ -184,7 +186,7 @@ public class DeltaIteration<ST, WT> {
 	/**
 	 * Gets the iteration's parallelism.
 	 * 
-	 * @return The iterations parallelism, or -1, if not set.
+	 * @return The iteration's parallelism, or {@link ExecutionConfig#PARALLELISM_DEFAULT} if not set.
 	 */
 	public int getParallelism() {
 		return parallelism;

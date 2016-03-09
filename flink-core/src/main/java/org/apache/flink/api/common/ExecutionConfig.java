@@ -67,9 +67,22 @@ public class ExecutionConfig implements Serializable {
 
 	/**
 	 * The constant to use for the parallelism, if the system should use the number
-	 *  of currently available slots.
+	 * of currently available slots.
 	 */
 	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
+
+	/**
+	 * The flag value indicating use of the default parallelism. This value can
+	 * be used to reset the parallelism back to the default state.
+	 */
+	public static final int PARALLELISM_DEFAULT = -1;
+
+	/**
+	 * The flag value indicating an unknown or unset parallelism. This value is
+	 * not a valid parallelism and indicates that the parallelism should remain
+	 * unchanged.
+	 */
+	public static final int PARALLELISM_UNKNOWN = -2;
 
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
@@ -80,7 +93,7 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean useClosureCleaner = true;
 
-	private int parallelism = -1;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -212,7 +225,8 @@ public class ExecutionConfig implements Serializable {
 	 * with a parallelism of one (the final reduce to the single result value).
 	 *
 	 * @return The parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environment's default parallelism should be used.
+	 *         returns {@link #PARALLELISM_DEFAULT} if the environment's default parallelism
+	 *         should be used.
 	 */
 	public int getParallelism() {
 		return parallelism;
@@ -231,11 +245,13 @@ public class ExecutionConfig implements Serializable {
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		if (parallelism < 1 && parallelism != -1) {
-			throw new IllegalArgumentException(
-					"Parallelism must be at least one, or -1 (use system default).");
+		if (parallelism != PARALLELISM_UNKNOWN) {
+			if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
+				throw new IllegalArgumentException(
+					"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+			}
+			this.parallelism = parallelism;
 		}
-		this.parallelism = parallelism;
 		return this;
 	}
 

@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +43,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	
 	protected String name;								// the name of the contract instance. optional.
 		
-	private int parallelism = -1;				// the number of parallel instances to use. -1, if unknown
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
 	/**
 	 * The return type of the user function.
@@ -162,9 +163,10 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	}
 
 	/**
-	 * Gets the parallelism for this contract instance. The parallelism denotes
-	 * how many parallel instances of the user function will be spawned during the execution. If this
-	 * value is <code>-1</code>, then the system will decide the number of parallel instances by itself.
+	 * Gets the parallelism for this contract instance. The parallelism denotes how many
+	 * parallel instances of the user function will be spawned during the execution. If this
+	 * value is {@link ExecutionConfig#PARALLELISM_DEFAULT}, then the system will decide the
+	 * number of parallel instances by itself.
 	 *
 	 * @return The parallelism.
 	 */
@@ -174,10 +176,10 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 
 	/**
 	 * Sets the parallelism for this contract instance. The parallelism denotes
-	 * how many parallel instances of the user function will be spawned during the execution. Set this
-	 * value to <code>-1</code> to let the system decide on its own.
+	 * how many parallel instances of the user function will be spawned during the execution.
 	 *
-	 * @param parallelism The number of parallel instances to spawn. -1, if unspecified.
+	 * @param parallelism The number of parallel instances to spawn. Set this value to
+	 *        {@link ExecutionConfig#PARALLELISM_DEFAULT} to let the system decide on its own.
 	 */
 	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;

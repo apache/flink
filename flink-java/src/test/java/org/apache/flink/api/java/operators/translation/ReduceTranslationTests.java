@@ -21,6 +21,7 @@ package org.apache.flink.api.java.operators.translation;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
@@ -71,7 +72,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0);
 			
 			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == -1);
+			assertTrue(reducer.getParallelism() == 1 || reducer.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT);
 			
 			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
 		}
@@ -110,7 +111,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
 			
 			// parallelism was not configured on the operator
-			assertTrue(reducer.getParallelism() == parallelism || reducer.getParallelism() == -1);
+			assertTrue(reducer.getParallelism() == parallelism || reducer.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT);
 			
 			// check keys
 			assertArrayEquals(new int[] {2}, reducer.getKeyColumns(0));
