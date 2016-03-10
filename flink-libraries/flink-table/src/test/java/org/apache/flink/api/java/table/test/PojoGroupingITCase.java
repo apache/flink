@@ -39,7 +39,7 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test(expected = TableException.class)
+	@Test
 	public void testPojoGrouping() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

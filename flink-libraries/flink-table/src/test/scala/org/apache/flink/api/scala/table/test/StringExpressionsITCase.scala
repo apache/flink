@@ -21,6 +21,7 @@ package org.apache.flink.api.scala.table.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
@@ -54,32 +55,24 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // Calcite does eagerly check expression types
-  @Ignore
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
       .select('a.substring(0, 'b))
 
-    val expected = "AAA\nBB"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // Calcite does eagerly check expression types
-  @Ignore
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
       .select('a.substring('b, 15))
 
-    val expected = "AAA\nBB"
     val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 

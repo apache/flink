@@ -49,8 +49,9 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
+		Table table = tableEnv
+			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
+			.select("a, b, c");
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -69,8 +70,9 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
+		Table table = tableEnv
+			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
+			.select("a, b, c");
 
 		TypeInformation<?> ti = new TupleTypeInfo<Tuple3<Integer, Long, String>>(
 			BasicTypeInfo.INT_TYPE_INFO,
@@ -99,8 +101,9 @@ public class AsITCase extends TableProgramsTestBase {
 		data.add(new Tuple4<>("lol", 2, 1.0, "Hi"));
 		data.add(new Tuple4<>("Test me", 4, 3.33, "Hello world"));
 
-		Table table =
-				tableEnv.fromDataSet(env.fromCollection(data), "a, b, c, d");
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data), "a, b, c, d")
+			.select("a, b, c, d");
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
@@ -118,12 +121,13 @@ public class AsITCase extends TableProgramsTestBase {
 		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
 		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
 
-		Table table =
-			tableEnv.fromDataSet(env.fromCollection(data),
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d");
+				"name AS d")
+			.select("a, b, c, d");
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -144,12 +148,13 @@ public class AsITCase extends TableProgramsTestBase {
 		data.add(new PrivateSmallPojo("Anna", 56, 10000.00, "Engineering"));
 		data.add(new PrivateSmallPojo("Lucy", 42, 6000.00, "HR"));
 
-		Table table =
-			tableEnv.fromDataSet(env.fromCollection(data),
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d");
+				"name AS d")
+			.select("a, b, c, d");
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -170,12 +175,13 @@ public class AsITCase extends TableProgramsTestBase {
 		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
 		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
 
-		Table table =
-			tableEnv.fromDataSet(env.fromCollection(data),
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d");
+				"name AS d")
+			.select("a, b, c, d");
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
@@ -196,12 +202,13 @@ public class AsITCase extends TableProgramsTestBase {
 		data.add(new PrivateSmallPojo("Anna", 56, 10000.00, "Engineering"));
 		data.add(new PrivateSmallPojo("Lucy", 42, 6000.00, "HR"));
 
-		Table table =
-			tableEnv.fromDataSet(env.fromCollection(data),
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d");
+				"name AS d")
+			.select("a, b, c, d");
 
 		DataSet<PrivateSmallPojo2> ds = tableEnv.toDataSet(table, PrivateSmallPojo2.class);
 		List<PrivateSmallPojo2> results = ds.collect();
@@ -217,13 +224,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
-
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -231,13 +232,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
-
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -245,13 +240,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
-
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -259,13 +248,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
-
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -273,14 +256,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
-		Table table =
-				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
-						" c");
-
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b,  c");
 	}
 
 	// --------------------------------------------------------------------------------------------
