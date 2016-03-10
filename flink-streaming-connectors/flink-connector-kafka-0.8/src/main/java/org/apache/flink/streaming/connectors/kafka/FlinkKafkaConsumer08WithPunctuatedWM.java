@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer08WithPunctuatedWM<T> extends AbstractKafkaConsumer08WithWM<T>{
+public class FlinkKafkaConsumer08WithPunctuatedWM<T> extends FlinkKafkaConsumer08Base<T> {
 
 	/**
 	 * The user-specified methods to extract the timestamps from the records in Kafka, and

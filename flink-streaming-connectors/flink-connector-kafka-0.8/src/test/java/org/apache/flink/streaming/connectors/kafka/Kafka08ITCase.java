@@ -198,9 +198,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
-		assertTrue(o1 == AbstractKafkaConsumer08.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
-		assertTrue(o2 == AbstractKafkaConsumer08.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
-		assertTrue(o3 == AbstractKafkaConsumer08.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
+		assertTrue(o1 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
+		assertTrue(o2 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
+		assertTrue(o3 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
 
 		LOG.info("Manipulating offsets");
 

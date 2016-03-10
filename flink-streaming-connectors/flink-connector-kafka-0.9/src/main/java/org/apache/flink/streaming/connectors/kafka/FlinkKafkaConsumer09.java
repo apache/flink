@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer09<T> extends AbstractKafkaConsumer09<T> {
+public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumer09Base<T> {
 
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x

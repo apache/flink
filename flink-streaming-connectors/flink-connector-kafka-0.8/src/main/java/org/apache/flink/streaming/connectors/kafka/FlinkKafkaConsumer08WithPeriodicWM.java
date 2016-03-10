@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer08WithPeriodicWM<T> extends AbstractKafkaConsumer08WithWM<T> implements Triggerable {
+public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08Base<T> implements Triggerable {
 
 	/**
 	 * The interval between periodic watermark emissions, as configured via the

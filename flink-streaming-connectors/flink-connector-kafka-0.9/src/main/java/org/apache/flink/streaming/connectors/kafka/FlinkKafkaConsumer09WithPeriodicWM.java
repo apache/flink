@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class FlinkKafkaConsumer09WithPeriodicWM<T> extends AbstractKafkaConsumer09WithWM<T> implements Triggerable {
+public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09Base<T> implements Triggerable {
 
 	/**
 	 * The user-specified methods to extract the timestamps from the records in Kafka, and

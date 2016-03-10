@@ -68,13 +68,13 @@ import static java.util.Objects.requireNonNull;
  * is constructed. That means that the client that submits the program needs to be able to
  * reach the Kafka brokers or ZooKeeper.</p>
  */
-public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
+public abstract class FlinkKafkaConsumer09Base<T> extends FlinkKafkaComsumerWithWMBase<T> {
 
 	// ------------------------------------------------------------------------
 	
 	private static final long serialVersionUID = 2324564345203409112L;
 	
-	static final Logger LOG = LoggerFactory.getLogger(AbstractKafkaConsumer09.class);
+	static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer09Base.class);
 
 	/**  Configuration key to change the polling timeout **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
@@ -125,7 +125,7 @@ public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
-	protected AbstractKafkaConsumer09(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	protected FlinkKafkaConsumer09Base(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
 		super(deserializer, props);
 		requireNonNull(topics, "topics");
 		this.properties = requireNonNull(props, "props");
@@ -179,8 +179,6 @@ public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<
 
 		this.consumerId = UUID.randomUUID().toString();
 	}
-
-	public abstract void processElement(SourceContext<T> sourceContext, String topic, int partition, T value);
 
 	/**
 	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable)
@@ -378,11 +376,11 @@ public abstract class AbstractKafkaConsumer09<T> extends FlinkKafkaConsumerBase<
 	 * On cancel, we'll wakeup the .poll() call and wait for it to return
 	 */
 	private static class ConsumerThread<T> extends Thread {
-		private final AbstractKafkaConsumer09<T> flinkKafkaConsumer;
+		private final FlinkKafkaConsumer09Base<T> flinkKafkaConsumer;
 		private final SourceContext<T> sourceContext;
 		private boolean running = true;
 
-		public ConsumerThread(AbstractKafkaConsumer09<T> flinkKafkaConsumer, SourceContext<T> sourceContext) {
+		public ConsumerThread(FlinkKafkaConsumer09Base<T> flinkKafkaConsumer, SourceContext<T> sourceContext) {
 			this.flinkKafkaConsumer = flinkKafkaConsumer;
 			this.sourceContext = sourceContext;
 		}

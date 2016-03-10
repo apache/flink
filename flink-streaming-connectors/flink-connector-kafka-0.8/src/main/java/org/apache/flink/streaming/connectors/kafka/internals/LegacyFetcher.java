@@ -29,7 +29,7 @@ import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.AbstractKafkaConsumer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08Base;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
@@ -94,8 +94,8 @@ public class LegacyFetcher<T> implements Fetcher {
 	 */
 	private final ClosableBlockingQueue<FetchPartition> unassignedPartitions = new ClosableBlockingQueue<>();
 
-	/** The {@link AbstractKafkaConsumer08} to whom this Fetcher belongs. */
-	private final AbstractKafkaConsumer08<T> flinkKafkaConsumer;
+	/** The {@link FlinkKafkaConsumer08Base} to whom this Fetcher belongs. */
+	private final FlinkKafkaConsumer08Base<T> flinkKafkaConsumer;
 
 	/**
 	 * Create a LegacyFetcher instance.
@@ -106,7 +106,7 @@ public class LegacyFetcher<T> implements Fetcher {
 	 * @param userCodeClassloader classloader for loading user code
 	 */
 	public LegacyFetcher(
-				AbstractKafkaConsumer08<T> owner,
+				FlinkKafkaConsumer08Base<T> owner,
 				Map<KafkaTopicPartition, Long> initialPartitionsToRead, Properties props,
 				String taskName, ClassLoader userCodeClassloader) {
 
@@ -121,7 +121,7 @@ public class LegacyFetcher<T> implements Fetcher {
 			KafkaTopicPartition ktp = partitionToRead.getKey();
 			// we increment the offset by one so that we fetch the next message in the partition.
 			long offset = partitionToRead.getValue();
-			if (offset >= 0 && offset != AbstractKafkaConsumer08.OFFSET_NOT_SET) {
+			if (offset >= 0 && offset != FlinkKafkaConsumer08Base.OFFSET_NOT_SET) {
 				offset += 1L;
 			}
 			unassignedPartitions.add(new FetchPartition(ktp.getTopic(), ktp.getPartition(), offset));
@@ -705,7 +705,7 @@ public class LegacyFetcher<T> implements Fetcher {
 			List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
 
 			for (FetchPartition fp : partitions) {
-				if (fp.nextOffsetToRead == AbstractKafkaConsumer08.OFFSET_NOT_SET) {
+				if (fp.nextOffsetToRead == FlinkKafkaConsumer08Base.OFFSET_NOT_SET) {
 					// retrieve the offset from the consumer
 					partitionsToGetOffsetsFor.add(fp);
 				}
@@ -812,7 +812,7 @@ public class LegacyFetcher<T> implements Fetcher {
 		@Override
 		public void run() {
 			try {
-				result = AbstractKafkaConsumer08.getPartitionsForTopic(topics, properties);
+				result = FlinkKafkaConsumer08Base.getPartitionsForTopic(topics, properties);
 			}
 			catch (Throwable t) {
 				this.error = t;

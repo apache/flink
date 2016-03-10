@@ -16,15 +16,16 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaConsumer09<T> {
+public abstract class FlinkKafkaComsumerWithWMBase<T> extends FlinkKafkaConsumerBase<T> {
+
 
 	/** Keeps track of the minimum timestamp seen, per Kafka topic per partition */
 	private final Map<String, Map<Integer, Long>> minSeenTimestampsPerTopicAndPartition = new HashMap<String, Map<Integer, Long>>();
@@ -33,16 +34,16 @@ public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaCons
 	protected Long lastEmittedWatermark = Long.MIN_VALUE;
 
 	/**
-	 * Creates a new Kafka streaming source consumer for Kafka 0.9.x
+	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
 	 * <p>
-	 * This constructor allows passing multiple topics and a key/value deserialization schema.
+	 * <p>To determine which kink of fetcher and offset handler to use, please refer to the docs
+	 * at the beginning of this class.</p>
 	 *
-	 * @param topics       The Kafka topics to read from.
-	 * @param deserializer The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
-	 * @param props        The properties that are used to configure both the fetcher and the offset handler.
+	 * @param deserializer The deserializer to turn raw byte messages into Java/Scala objects.
+	 * @param props
 	 */
-	protected AbstractKafkaConsumer09WithWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(topics, deserializer, props);
+	public FlinkKafkaComsumerWithWMBase(KeyedDeserializationSchema<T> deserializer, Properties props) {
+		super(deserializer, props);
 	}
 
 	/**
@@ -90,7 +91,7 @@ public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaCons
 	 * watermark.
 	 * @return {@code true} if the Watermark was successfully emitted, {@code false} otherwise.
 	 */
-	protected boolean emitWatermarkIfMarkingProgress(SourceContext<T> sourceContext, long wmTimestamp) {
+	protected boolean emitWatermarkIfMarkingProgress(SourceFunction.SourceContext<T> sourceContext, long wmTimestamp) {
 		if(wmTimestamp > lastEmittedWatermark) {
 			lastEmittedWatermark = wmTimestamp;
 			Watermark toEmit = new Watermark(wmTimestamp);
@@ -130,4 +131,5 @@ public abstract class AbstractKafkaConsumer09WithWM<T> extends AbstractKafkaCons
 		}
 		return minTimestampsForTopic;
 	}
+
 }

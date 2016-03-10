@@ -97,13 +97,13 @@ import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLon
  * is constructed. That means that the client that submits the program needs to be able to
  * reach the Kafka brokers or ZooKeeper.</p>
  */
-public abstract class AbstractKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
+public abstract class FlinkKafkaConsumer08Base<T> extends FlinkKafkaComsumerWithWMBase<T> {
 	
 	// ------------------------------------------------------------------------
 	
 	private static final long serialVersionUID = -6272159445203409112L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractKafkaConsumer08.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer08Base.class);
 
 	/** Magic number to define an unset offset. Negative offsets are not used by Kafka (invalid),
 	 * and we pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else. */
@@ -155,7 +155,7 @@ public abstract class AbstractKafkaConsumer08<T> extends FlinkKafkaConsumerBase<
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
-	public AbstractKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer08Base(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
 		super(deserializer, props);
 
 		requireNonNull(topics, "topics");
@@ -180,8 +180,6 @@ public abstract class AbstractKafkaConsumer08<T> extends FlinkKafkaConsumerBase<
 	// ------------------------------------------------------------------------
 	//  Source life cycle
 	// ------------------------------------------------------------------------
-
-	public abstract void processElement(SourceContext<T> sourceContext, String topic, int partition, T value);
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
@@ -214,7 +212,7 @@ public abstract class AbstractKafkaConsumer08<T> extends FlinkKafkaConsumerBase<
 		Map<KafkaTopicPartition, Long> subscribedPartitionsWithOffsets = new HashMap<>(subscribedPartitions.size());
 		// initially load the map with "offset not set"
 		for(KafkaTopicPartition ktp: subscribedPartitions) {
-			subscribedPartitionsWithOffsets.put(ktp, AbstractKafkaConsumer08.OFFSET_NOT_SET);
+			subscribedPartitionsWithOffsets.put(ktp, FlinkKafkaConsumer08Base.OFFSET_NOT_SET);
 		}
 
 		// seek to last known pos, from restore request
@@ -388,10 +386,10 @@ public abstract class AbstractKafkaConsumer08<T> extends FlinkKafkaConsumerBase<
 	 */
 	private static class PeriodicOffsetCommitter<T> extends Thread {
 		private final long commitInterval;
-		private final AbstractKafkaConsumer08<T> consumer;
+		private final FlinkKafkaConsumer08Base<T> consumer;
 		private volatile boolean running = true;
 
-		public PeriodicOffsetCommitter(long commitInterval, AbstractKafkaConsumer08<T> consumer) {
+		public PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer08Base<T> consumer) {
 			this.commitInterval = commitInterval;
 			this.consumer = consumer;
 		}

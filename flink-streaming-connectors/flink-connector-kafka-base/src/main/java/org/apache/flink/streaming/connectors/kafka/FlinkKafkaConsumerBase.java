@@ -74,7 +74,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
 	 *
 	 * <p>To determine which kink of fetcher and offset handler to use, please refer to the docs
-	 * at the beginnign of this class.</p>
+	 * at the beginning of this class.</p>
 	 *
 	 * @param deserializer
 	 *           The deserializer to turn raw byte messages into Java/Scala objects.
@@ -84,6 +84,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase(KeyedDeserializationSchema<T> deserializer, Properties props) {
 		this.deserializer = requireNonNull(deserializer, "valueDeserializer");
 	}
+
+	/**
+	 * Processes the element after having been read from Kafka and deserialized.
+	 * @param sourceContext
+	 *           The context the task operates in.
+	 * @param topic
+	 *           The Kafka topic we are reading from.
+	 * @param partition
+	 *           The partition of the topic we are reading from.
+	 * @param value
+	 *           The element to process.
+	 * */
+	public abstract void processElement(SourceContext<T> sourceContext, String topic, int partition, T value);
 
 	// ------------------------------------------------------------------------
 	//  Checkpoint and restore
