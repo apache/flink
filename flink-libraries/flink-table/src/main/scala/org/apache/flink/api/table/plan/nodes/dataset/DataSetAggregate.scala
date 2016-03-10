@@ -93,7 +93,6 @@ class DataSetAggregate(
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
     val aggString = aggregationToString
-    val rowTypeInfo = new RowTypeInfo(fieldTypes)
     val mappedInput = inputDS.map(aggregateResult._1).name(s"prepare $aggString")
     val groupReduceFunction = aggregateResult._2
 

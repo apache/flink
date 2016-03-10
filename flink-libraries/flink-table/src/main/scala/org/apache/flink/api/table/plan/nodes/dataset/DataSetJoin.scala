@@ -156,7 +156,7 @@ class DataSetJoin(
     val condString = s"where: (${getExpressionString(joinCondition, inFields, None)})"
     val outFieldString = s"join: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-    condString + ", "+outFieldString
+    condString + ", " + outFieldString
   }
 
 }
