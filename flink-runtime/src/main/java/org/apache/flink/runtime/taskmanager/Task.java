@@ -831,7 +831,13 @@ public class Task implements Runnable {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
-						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(
+								LOG,
+								invokable,
+								executingThread,
+								taskNameWithSubtask,
+								producedPartitions,
+								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.setDaemon(true);
@@ -1075,12 +1081,23 @@ public class Task implements Runnable {
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
+		private final ResultPartition[] producedPartitions;
+		private final SingleInputGate[] inputGates;
 
-		public TaskCanceler(Logger logger, AbstractInvokable invokable, Thread executer, String taskName) {
+		public TaskCanceler(
+				Logger logger,
+				AbstractInvokable invokable,
+				Thread executer,
+				String taskName,
+				ResultPartition[] producedPartitions,
+				SingleInputGate[] inputGates) {
+
 			this.logger = logger;
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
+			this.producedPartitions = producedPartitions;
+			this.inputGates = inputGates;
 		}
 
 		@Override
@@ -1093,6 +1110,28 @@ public class Task implements Runnable {
 				}
 				catch (Throwable t) {
 					logger.error("Error while canceling the task", t);
+				}
+
+				// Early release of input and output buffer pools. We do this
+				// in order to unblock async Threads, which produce/consume the
+				// intermediate streams outside of the main Task Thread.
+				//
+				// Don't do this before cancelling the invokable. Otherwise we
+				// will get misleading errors in the logs.
+				for (ResultPartition partition : producedPartitions) {
+					try {
+						partition.destroyBufferPool();
+					} catch (Throwable t) {
+						LOG.error("Failed to release result partition buffer pool.", t);
+					}
+				}
+
+				for (SingleInputGate inputGate : inputGates) {
+					try {
+						inputGate.releaseAllResources();
+					} catch (Throwable t) {
+						LOG.error("Failed to release input gate.", t);
+					}
 				}
 
 				// interrupt the running thread initially
