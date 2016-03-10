@@ -76,8 +76,10 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     // optimize the logical Flink plan
     val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
     val flinkOutputProps = RelTraitSet.createEmpty()
+      .plus(DataSetConvention.INSTANCE)
+      .plus(RelCollations.of()).simplify()
 
-    val optPlan = try {
+    val dataSetPlan = try {
       optProgram.run(planner, decorPlan, flinkOutputProps)
     }
     catch {
@@ -89,30 +91,8 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     }
 
     println("---------------")
-    println("Optimized Plan:")
-    println("---------------")
-    println(RelOptUtil.toString(optPlan))
-
-    // optimize the logical Flink plan
-    val dataSetProgram = Programs.ofRules(FlinkRuleSets.DATASET_TRANS_RULES)
-    val dataSetOutputProps = RelTraitSet.createEmpty()
-      .plus(DataSetConvention.INSTANCE)
-      .plus(RelCollations.of()).simplify()
-
-    val dataSetPlan = try {
-      dataSetProgram.run(planner, optPlan, dataSetOutputProps)
-    }
-    catch {
-      case e: CannotPlanException =>
-        throw new PlanGenException(
-          s"Cannot generate a valid execution plan for the given query: \n\n" +
-            s"${RelOptUtil.toString(lPlan)}\n" +
-            "Please consider filing a bug report.", e)
-    }
-
-    println("-------------")
     println("DataSet Plan:")
-    println("-------------")
+    println("---------------")
     println(RelOptUtil.toString(dataSetPlan))
 
     dataSetPlan match {

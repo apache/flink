@@ -22,26 +22,29 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkCalc, FlinkConvention}
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 
 class FlinkCalcRule
   extends ConverterRule(
       classOf[LogicalCalc],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
+      DataSetConvention.INSTANCE,
       "FlinkCalcRule")
   {
 
     def convert(rel: RelNode): RelNode = {
       val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(calc.getInput, FlinkConvention.INSTANCE)
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convInput: RelNode = RelOptRule.convert(calc.getInput, DataSetConvention.INSTANCE)
 
-      new FlinkCalc(
+      new DataSetCalc(
         rel.getCluster,
         traitSet,
         convInput,
-        calc.getProgram)
+        rel.getRowType,
+        calc.getProgram,
+        calc.toString,
+        description)
     }
   }
 

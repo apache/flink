@@ -21,7 +21,6 @@ package org.apache.flink.api.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSets, RuleSet}
 import org.apache.flink.api.table.plan.rules.logical._
-import org.apache.flink.api.table.plan.rules.dataset._
 
 object FlinkRuleSets {
 
@@ -100,16 +99,6 @@ object FlinkRuleSets {
     FlinkJoinRule.INSTANCE,
     FlinkScanRule.INSTANCE,
     FlinkUnionRule.INSTANCE
-  )
-
-  val DATASET_TRANS_RULES: RuleSet = RuleSets.ofList(
-  
-    // translate to DataSet nodes
-    DataSetAggregateRule.INSTANCE,
-    DataSetCalcRule.INSTANCE,
-    DataSetJoinRule.INSTANCE,
-    DataSetScanRule.INSTANCE,
-    DataSetUnionRule.INSTANCE
   )
 
 }

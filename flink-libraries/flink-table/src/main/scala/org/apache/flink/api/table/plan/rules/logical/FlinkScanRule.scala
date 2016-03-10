@@ -25,25 +25,24 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSource}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkScan, FlinkConvention}
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
 class FlinkScanRule
   extends ConverterRule(
       classOf[LogicalTableScan],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
+      DataSetConvention.INSTANCE,
       "FlinkScanRule")
   {
     def convert(rel: RelNode): RelNode = {
       val scan: TableScan = rel.asInstanceOf[TableScan]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val dataSet: DataSet[_] = scan.getTable().unwrap(classOf[DataSetTable[_]]).dataSet
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
 
-      new FlinkScan(
+      new DataSetSource(
         rel.getCluster,
         traitSet,
-        scan.getTable
+        scan.getTable,
+        rel.getRowType
       )
     }
   }
