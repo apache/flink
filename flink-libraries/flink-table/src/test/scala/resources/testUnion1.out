@@ -1,5 +1,7 @@
 == Abstract Syntax Tree ==
-Union(Root(ArraySeq((count,Integer), (word,String))), Root(ArraySeq((count,Integer), (word,String))))
+LogicalUnion(all=[true])
+  LogicalTableScan(table=[[DataSetTable_0]])
+  LogicalTableScan(table=[[DataSetTable_1]])
 
 == Physical Execution Plan ==
 Stage 3 : Data Source
@@ -24,7 +26,7 @@ Stage 3 : Data Source
 	Filter Factor : (none)
 
 	Stage 2 : Map
-		content : Map at select('count as 'count,'word as 'word)
+		content : from: (count, word)
 		ship_strategy : Forward
 		exchange_mode : PIPELINED
 		driver_strategy : Map
@@ -69,7 +71,7 @@ Stage 5 : Data Source
 	Filter Factor : (none)
 
 	Stage 4 : Map
-		content : Map at select('count as 'count,'word as 'word)
+		content : from: (count, word)
 		ship_strategy : Forward
 		exchange_mode : PIPELINED
 		driver_strategy : Map
