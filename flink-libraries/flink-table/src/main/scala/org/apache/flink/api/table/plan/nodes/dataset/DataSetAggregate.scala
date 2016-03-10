@@ -79,19 +79,12 @@ class DataSetAggregate(
     val groupingKeys = (0 until grouping.length).toArray
     // add grouping fields, position keys in the input, and input type
     val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
-      inputType, rowType, grouping)
+      inputType, rowType, grouping, config)
 
     val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
       config,
       // tell the input operator that this operator currently only supports Rows as input
       Some(TypeConverter.DEFAULT_ROW_TYPE))
-
-    val intermediateType = determineReturnType(
-      aggregateResult.intermediateDataType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
-
 
     // get the output types
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
@@ -100,13 +93,8 @@ class DataSetAggregate(
     .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
-
-    val mappedInput = inputDS.map(aggregateResult.mapFunc.apply(
-      config, inputDS.getType, intermediateType))
-
-    val groupReduceFunction =
-      aggregateResult.reduceGroupFunc.apply(
-        config, mappedInput.getType.asInstanceOf[RowTypeInfo], rowTypeInfo)
+    val mappedInput = inputDS.map(aggregateResult.mapFunc)
+    val groupReduceFunction = aggregateResult.reduceGroupFunc
 
     if (groupingKeys.length > 0) {
       mappedInput.asInstanceOf[DataSet[Row]]

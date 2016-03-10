@@ -25,12 +25,9 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex.{RexInputRef, RexCall}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetJoin, DataSetConvention}
-import scala.collection.JavaConversions._
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConversions._
 
 class FlinkJoinRule
   extends ConverterRule(
@@ -94,25 +91,7 @@ class FlinkJoinRule
       val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
       val convLeft: RelNode = RelOptRule.convert(join.getInput(0), DataSetConvention.INSTANCE)
       val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
-
-      // get the equality keys
       val joinInfo = join.analyzeCondition
-      val keyPairs = joinInfo.pairs
-
-      if (keyPairs.isEmpty) {
-        // if no equality keys => not supported
-        throw new TableException("Joins should have at least one equality condition")
-      }
-      else {
-        // at least one equality expression => generate a join function
-        val conditionType = join.getCondition.getType
-        val leftKeys = ArrayBuffer.empty[Int]
-        val rightKeys = ArrayBuffer.empty[Int]
-
-        keyPairs.foreach(pair => {
-          leftKeys.add(pair.source)
-          rightKeys.add(pair.target)}
-        )
 
         new DataSetJoin(
           rel.getCluster,
@@ -124,12 +103,10 @@ class FlinkJoinRule
           join.getCondition,
           join.getRowType,
           joinInfo,
-          leftKeys.toArray,
-          rightKeys.toArray,
+          joinInfo.pairs.toList,
           JoinType.INNER,
           null,
           description)
-      }
     }
   }
 

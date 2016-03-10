@@ -26,9 +26,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.TypeConverter._
-import org.apache.flink.api.table.plan.TypeConverter
 import org.apache.flink.api.table.runtime.FlatMapRunner
-import org.apache.flink.api.table.{TableException, Row, TableConfig}
+import org.apache.flink.api.table.TableConfig
 import org.apache.calcite.rex.RexProgram
 import scala.collection.JavaConversions._
 
@@ -42,7 +41,6 @@ class DataSetCalc(
     input: RelNode,
     rowType: RelDataType,
     calcProgram: RexProgram,
-    calcRowType: RelDataType,
     opName: String,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
@@ -57,7 +55,6 @@ class DataSetCalc(
       inputs.get(0),
       rowType,
       calcProgram,
-      calcRowType,
       opName,
       ruleDescription)
   }
@@ -71,17 +68,7 @@ class DataSetCalc(
   override def translateToPlan(config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    expectedType match {
-      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        throw new TableException("GroupReduce operations " +
-            "currently only support returning Rows.")
-      case _ => // ok
-    }
-
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
-      config,
-      // tell the input operator that this operator currently only supports Rows as input
-      Some(TypeConverter.DEFAULT_ROW_TYPE))
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config)
 
     val returnType = determineReturnType(
       getRowType,
@@ -96,7 +83,7 @@ class DataSetCalc(
        expr => calcProgram.expandLocalRef(expr))
     val projection = generator.generateResultExpression(
       returnType,
-      calcRowType.getFieldNames,
+      rowType.getFieldNames,
       expandedExpressions)
 
     val body = {
@@ -116,7 +103,7 @@ class DataSetCalc(
           if (inputDS.getType != returnType) {
             val conversion = generator.generateConverterResultExpression(
               returnType,
-              calcRowType.getFieldNames)
+              rowType.getFieldNames)
 
             s"""
               |${filterCondition.code}

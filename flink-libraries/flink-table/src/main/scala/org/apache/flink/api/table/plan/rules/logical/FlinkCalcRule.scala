@@ -43,7 +43,6 @@ class FlinkCalcRule
         convInput,
         rel.getRowType,
         calc.getProgram,
-        calc.getRowType,
         calc.toString,
         description)
     }

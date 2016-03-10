@@ -37,8 +37,6 @@ class FlinkAggregateRule
       val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
       val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
       val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
-      val grouping = agg.getGroupSet.toArray
-      val inputType = agg.getInput.getRowType
 
       new DataSetAggregate(
         rel.getCluster,
@@ -46,9 +44,9 @@ class FlinkAggregateRule
         convInput,
         agg.getNamedAggCalls,
         rel.getRowType,
-        inputType,
+        agg.getInput.getRowType,
         agg.toString,
-        grouping)
+        agg.getGroupSet.toArray)
       }
   }
 

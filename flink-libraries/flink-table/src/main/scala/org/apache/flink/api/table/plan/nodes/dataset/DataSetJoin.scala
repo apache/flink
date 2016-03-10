@@ -21,24 +21,19 @@ package org.apache.flink.api.table.plan.nodes.dataset
 import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinInfo
-import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
-import org.apache.flink.api.common.functions.JoinFunction
+import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.FlatJoinRunner
-import org.apache.flink.api.table.{TableConfig, Row}
+import org.apache.flink.api.table.{TableException, TableConfig}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.table.plan.TypeConverter._
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.java.tuple.Tuple2
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
-import org.apache.flink.api.table.plan.TypeConverter
 import org.apache.calcite.rex.RexNode
 
 /**
@@ -54,8 +49,7 @@ class DataSetJoin(
     joinCondition: RexNode,
     joinRowType: RelDataType,
     joinInfo: JoinInfo,
-    joinKeysLeft: Array[Int],
-    joinKeysRight: Array[Int],
+    keyPairs: List[IntPair],
     joinType: JoinType,
     joinHint: JoinHint,
     ruleDescription: String)
@@ -75,8 +69,7 @@ class DataSetJoin(
       joinCondition,
       joinRowType,
       joinInfo,
-      joinKeysLeft,
-      joinKeysRight,
+      keyPairs,
       joinType,
       joinHint,
       ruleDescription)
@@ -98,6 +91,21 @@ class DataSetJoin(
       expectedType,
       config.getNullCheck,
       config.getEfficientTypeUsage)
+
+    // get the equality keys
+    val leftKeys = ArrayBuffer.empty[Int]
+    val rightKeys = ArrayBuffer.empty[Int]
+    if (keyPairs.isEmpty) {
+      // if no equality keys => not supported
+      throw new TableException("Joins should have at least one equality condition")
+    }
+    else {
+      // at least one equality expression => generate a join function
+      keyPairs.foreach(pair => {
+        leftKeys.add(pair.source)
+        rightKeys.add(pair.target)
+      })
+    }
 
     val generator = new CodeGenerator(config, leftDataSet.getType, Some(rightDataSet.getType))
     val conversion = generator.generateConverterResultExpression(
@@ -134,7 +142,7 @@ class DataSetJoin(
       genFunction.code,
       genFunction.returnType)
 
-    leftDataSet.join(rightDataSet).where(joinKeysLeft: _*).equalTo(joinKeysRight: _*)
+    leftDataSet.join(rightDataSet).where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
       .`with`(joinFun).asInstanceOf[DataSet[Any]]
   }
 

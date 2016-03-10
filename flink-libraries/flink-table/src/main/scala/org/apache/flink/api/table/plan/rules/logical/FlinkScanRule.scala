@@ -37,7 +37,6 @@ class FlinkScanRule
     def convert(rel: RelNode): RelNode = {
       val scan: TableScan = rel.asInstanceOf[TableScan]
       val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val dataSet: DataSet[_] = scan.getTable().unwrap(classOf[DataSetTable[_]]).dataSet
 
       new DataSetSource(
         rel.getCluster,
