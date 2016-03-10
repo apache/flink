@@ -24,11 +24,12 @@ import java.util.Iterator;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.Either;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
@@ -84,30 +85,20 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 * @return An iterator with all edges.
 	 */
 	public final Iterable<Edge<K, EV>> getEdges() {
-		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllNeighbors()' exactly once.");
-		}
-		edgesUsed = true;
+		verifyEdgeUsage();
 		this.edgeIterator.set((Iterator<Edge<K, EV>>) edges);
 		return this.edgeIterator;
 	}
 
 	/**
-	 * Sends the given message to all vertices that are targets of an edge of the changed vertex.
+	 * Sends the given message to all vertices that adjacent to the changed vertex.
 	 * This method is mutually exclusive to the method {@link #getEdges()} and may be called only once.
 	 * 
 	 * @param m The message to send.
 	 */
 	public final void sendMessageToAllNeighbors(Message m) {
-		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllNeighbors()'"
-					+ "exactly once.");
-		}
-		
-		edgesUsed = true;
-
+		verifyEdgeUsage();
 		outMsg.setField(m, 1);
-		
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
 			outMsg.setField(next.getField(1), 0);
@@ -163,7 +154,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
 	 * 
 	 * @param name The name of the aggregator.
-	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
+	 * @return The aggregator registered under this name, or {@code null}, if no aggregator was registered.
 	 */
 	public final <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
@@ -182,7 +173,7 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link org.apache.flink.graph.spargel.VertexCentricConfiguration#addBroadcastSet(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.pregel.VertexCentricConfiguration#addBroadcastSet(String, DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
@@ -228,14 +219,22 @@ public abstract class ComputeFunction<K, VV, EV, Message> implements Serializabl
 		this.edgesUsed = false;
 		setNewVertexValueCalled = false;
 	}
-	
+
+	private void verifyEdgeUsage() throws IllegalStateException {
+		if (edgesUsed) {
+			throw new IllegalStateException(
+					"Can use either 'getEdges()' or 'sendMessageToAllNeighbors()' exactly once.");
+		}
+		edgesUsed = true;
+	}
+
 	private static final class EdgesIterator<K, EV> 
 		implements Iterator<Edge<K, EV>>, Iterable<Edge<K, EV>>
 	{
 		private Iterator<Edge<K, EV>> input;
 		
-		private Edge<K, EV> edge = new Edge<K, EV>();
-		
+		private Edge<K, EV> edge = new Edge<>();
+
 		void set(Iterator<Edge<K, EV>> input) {
 			this.input = input;
 		}

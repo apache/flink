@@ -44,7 +44,7 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	/**
 	 * Adds a data set as a broadcast set to the compute function.
 	 *
-	 * @param name The name under which the broadcast data is available in the compute function.
+	 * @param name The name under which the broadcast data set is available in the compute function.
 	 * @param data The data set to be broadcasted.
 	 */
 	public void addBroadcastSet(String name, DataSet<?> data) {
@@ -55,7 +55,7 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	 * Get the broadcast variables of the compute function.
 	 *
 	 * @return a List of Tuple2, where the first field is the broadcast variable name
-	 * and the second field is the broadcast DataSet.
+	 * and the second field is the broadcast data set.
 	 */
 	public List<Tuple2<String, DataSet<?>>> getBcastVars() {
 		return this.bcVars;

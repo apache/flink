@@ -24,7 +24,7 @@ import com.google.common.io.Files;
 import org.apache.flink.graph.examples.GSASingleSourceShortestPaths;
 import org.apache.flink.graph.examples.SingleSourceShortestPaths;
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
-import org.apache.flink.graph.example.PregelSSSP;
+import org.apache.flink.graph.examples.PregelSSSP;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.junit.After;
