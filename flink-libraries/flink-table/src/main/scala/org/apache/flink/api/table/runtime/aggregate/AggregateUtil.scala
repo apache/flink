@@ -26,7 +26,6 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.{TypeConverter, PlanGenException}
 import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
@@ -66,7 +65,7 @@ object AggregateUtil {
   def createOperatorFunctionsForAggregates(namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType, outputType: RelDataType,
       groupings: Array[Int],
-      config: TableConfig): AggregateResult = {
+      config: TableConfig): (MapFunction[Any, Row], GroupReduceFunction[Row, Row] ) = {
 
     val aggregateFunctionsAndFieldIndexes =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupings.length)
@@ -85,7 +84,7 @@ object AggregateUtil {
 
     val mapFunction = new AggregateMapFunction[Row, Row](
         aggregates, aggFieldIndexes, groupings,
-        mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Any]]
+        mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -114,7 +113,7 @@ object AggregateUtil {
           aggOffsetMapping, intermediateRowArity)
       }
 
-    new AggregateResult(mapFunction, reduceGroupFunction)
+    (mapFunction, reduceGroupFunction)
   }
 
   private def transformToAggregateFunctions(
@@ -317,7 +316,3 @@ object AggregateUtil {
   }
 }
 
-case class AggregateResult(
-    val mapFunc: MapFunction[Any, Any],
-    val reduceGroupFunc: GroupReduceFunction[Row, Row]) {
-}

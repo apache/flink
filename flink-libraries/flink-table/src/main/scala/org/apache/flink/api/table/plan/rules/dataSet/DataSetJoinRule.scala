@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -29,7 +29,7 @@ import org.apache.flink.api.table.plan.nodes.dataset.{DataSetJoin, DataSetConven
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
-class FlinkJoinRule
+class DataSetJoinRule
   extends ConverterRule(
       classOf[LogicalJoin],
       Convention.NONE,
@@ -110,6 +110,6 @@ class FlinkJoinRule
     }
   }
 
-object FlinkJoinRule {
-  val INSTANCE: RelOptRule = new FlinkJoinRule
+object DataSetJoinRule {
+  val INSTANCE: RelOptRule = new DataSetJoinRule
 }

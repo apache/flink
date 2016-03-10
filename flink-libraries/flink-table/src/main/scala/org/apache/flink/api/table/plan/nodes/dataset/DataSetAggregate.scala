@@ -24,7 +24,6 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.plan.{PlanGenException, TypeConverter}
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
@@ -76,7 +75,7 @@ class DataSetAggregate(
       case _ => // ok
     }
 
-    val groupingKeys = (0 until grouping.length).toArray
+    val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
     val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
       inputType, rowType, grouping, config)
@@ -93,8 +92,8 @@ class DataSetAggregate(
     .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes)
-    val mappedInput = inputDS.map(aggregateResult.mapFunc)
-    val groupReduceFunction = aggregateResult.reduceGroupFunc
+    val mappedInput = inputDS.map(aggregateResult._1)
+    val groupReduceFunction = aggregateResult._2
 
     if (groupingKeys.length > 0) {
       mappedInput.asInstanceOf[DataSet[Row]]
