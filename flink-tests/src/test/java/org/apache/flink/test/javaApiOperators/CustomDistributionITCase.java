@@ -52,30 +52,35 @@ public class CustomDistributionITCase {
 				new Tuple3<>(4, 8, "Comment#2"),
 				new Tuple3<>(4, 9, "Comment#3"),
 				new Tuple3<>(5, 10, "Comment#4"));
-		
-		IntValue[] keys = new IntValue[4];
-		
-		env.setParallelism(5);
 
-		for (int i = 0; i < keys.length; i++)
+		IntValue[][] keys = new IntValue[2][2];
+
+		env.setParallelism(3);
+
+		for (int i = 0; i < 2; i++)
 		{
-			keys[i] = new IntValue(i + 1);
+			for (int j = 0; j < 2; j++)
+			{
+				keys[i][j] = new IntValue(i + j);
+			}
 		}
 
 		CustomDistribution cd = new CustomDistribution(keys);
 
-		DataSet<Tuple1<IntValue>> out1 = DataSetUtils.partitionByRange(input1.mapPartition(
-				new MapPartitionFunction<Tuple3<Integer, Integer, String>, Tuple1<IntValue>>() {
-			public void mapPartition(Iterable<Tuple3<Integer, Integer, String>> values, Collector<Tuple1<IntValue>> out) {
+		DataSet<Tuple2<IntValue, IntValue>> out1 = DataSetUtils.partitionByRange(input1.mapPartition(
+				new MapPartitionFunction<Tuple3<Integer, Integer, String>, Tuple2<IntValue, IntValue>>() {
+			public void mapPartition(Iterable<Tuple3<Integer, Integer, String>> values, Collector<Tuple2<IntValue, IntValue>> out) {
 				IntValue key1;
+				IntValue key2;
 				for (Tuple3<Integer, Integer, String> s : values) {
 					key1 = new IntValue(s.f0);
-					out.collect(new Tuple1<>(key1));
+					key2 = new IntValue(s.f1);
+					out.collect(new Tuple2<>(key1, key2));
 				}
 			}
-		}), cd, 0).groupBy(0).sum(0);
+		}), cd, 0, 1).groupBy(0).sum(0);
 
-		String expected = "[(3), (4), (3), (12), (5)]";
+		String expected = "[(1,3), (4,5), (2,2), (3,6), (5,10), (12,9)]";
 		assertEquals(expected, out1.collect().toString());
 	}
 
