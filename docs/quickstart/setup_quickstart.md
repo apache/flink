@@ -61,7 +61,7 @@ Now, we are going to run the [SocketTextStreamWordCount example](https://github.
 * First of all, we use **netcat** to start local server via
 
   ~~~bash
-  $ nc -l -p 9000
+  $ nc -l 9000
   ~~~ 
 
 * Submit the Flink program:
@@ -94,7 +94,7 @@ Now, we are going to run the [SocketTextStreamWordCount example](https://github.
 * Counts are printed to `stdout`. Monitor the JobManager's output file and write some text in `nc`:
 
   ~~~bash
-  $ nc -l -p 9000
+  $ nc -l 9000
   lorem ipsum
   ipsum ipsum ipsum
   bye
