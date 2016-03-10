@@ -42,8 +42,10 @@ import org.junit.Test;
 import scala.Tuple2;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -188,6 +190,100 @@ public class SingleInputGateTest {
 
 		verify(partitionManager, never()).createSubpartitionView(
 				any(ResultPartitionID.class), anyInt(), any(BufferProvider.class));
+	}
+
+	/**
+	 * Tests that the release of the input gate is noticed while polling the
+	 * channels for available data.
+	 */
+	@Test
+	public void testReleaseWhilePollingChannel() throws Exception {
+		final AtomicReference<Exception> asyncException = new AtomicReference<>();
+
+		// Setup the input gate with a single channel that does nothing
+		final SingleInputGate inputGate = new SingleInputGate(
+				"InputGate",
+				new JobID(),
+				new ExecutionAttemptID(),
+				new IntermediateDataSetID(),
+				0,
+				1,
+				mock(PartitionStateChecker.class));
+
+		InputChannel unknown = new UnknownInputChannel(
+				inputGate,
+				0,
+				new ResultPartitionID(),
+				new ResultPartitionManager(),
+				new TaskEventDispatcher(),
+				new LocalConnectionManager(),
+				new Tuple2<>(0, 0));
+
+		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
+
+		// Start the consumer in a separate Thread
+		Thread asyncConsumer = new Thread() {
+			@Override
+			public void run() {
+				try {
+					inputGate.getNextBufferOrEvent();
+				} catch (Exception e) {
+					asyncException.set(e);
+				}
+			}
+		};
+		asyncConsumer.start();
+
+		// Wait for blocking queue poll call and release input gate
+		boolean success = false;
+		for (int i = 0; i < 50; i++) {
+			if (asyncConsumer != null && asyncConsumer.isAlive()) {
+				StackTraceElement[] stackTrace = asyncConsumer.getStackTrace();
+				success = isInBlockingQueuePoll(stackTrace);
+			}
+
+			if (success) {
+				break;
+			} else {
+				// Retry
+				Thread.sleep(500);
+			}
+		}
+
+		// Verify that async consumer is in blocking request
+		assertTrue("Did not trigger blocking buffer request.", success);
+
+		// Release the input gate
+		inputGate.releaseAllResources();
+
+		// Wait for Thread to finish and verify expected Exceptions. If the
+		// input gate status is not properly checked during requests, this
+		// call will never return.
+		asyncConsumer.join();
+
+		assertNotNull(asyncException.get());
+		assertEquals(IllegalStateException.class, asyncException.get().getClass());
+	}
+
+	/**
+	 * Returns whether the stack trace represents a Thread in a blocking queue
+	 * poll call.
+	 *
+	 * @param stackTrace Stack trace of the Thread to check
+	 *
+	 * @return Flag indicating whether the Thread is in a blocking queue poll
+	 * call.
+	 */
+	private boolean isInBlockingQueuePoll(StackTraceElement[] stackTrace) {
+		for (StackTraceElement elem : stackTrace) {
+			if (elem.getMethodName().equals("poll") &&
+					elem.getClassName().equals("java.util.concurrent.LinkedBlockingQueue")) {
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// ---------------------------------------------------------------------------------------------
