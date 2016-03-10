@@ -23,7 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.{TableConfig, Row}
+import org.apache.flink.api.table.TableConfig
 
 /**
 * Flink RelNode which matches along with UnionOperator.

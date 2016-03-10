@@ -20,7 +20,7 @@ package org.apache.flink.api.table.plan.rules
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSets, RuleSet}
-import org.apache.flink.api.table.plan.rules.logical._
+import org.apache.flink.api.table.plan.rules.dataSet._
 
 object FlinkRuleSets {
 
@@ -94,11 +94,11 @@ object FlinkRuleSets {
     CalcMergeRule.INSTANCE,
 
     // translate to logical Flink nodes
-    FlinkAggregateRule.INSTANCE,
-    FlinkCalcRule.INSTANCE,
-    FlinkJoinRule.INSTANCE,
-    FlinkScanRule.INSTANCE,
-    FlinkUnionRule.INSTANCE
+    DataSetAggregateRule.INSTANCE,
+    DataSetCalcRule.INSTANCE,
+    DataSetJoinRule.INSTANCE,
+    DataSetScanRule.INSTANCE,
+    DataSetUnionRule.INSTANCE
   )
 
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.RelOptRule.{any, operand, convert => convertTrait}
 import org.apache.calcite.plan.RelOptRule

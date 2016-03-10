@@ -16,39 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
+import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 
-class FlinkUnionRule
+class DataSetCalcRule
   extends ConverterRule(
-      classOf[LogicalUnion],
+      classOf[LogicalCalc],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "FlinkUnionRule")
+      "FlinkCalcRule")
   {
 
     def convert(rel: RelNode): RelNode = {
-
-      val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
+      val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
       val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
-      val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
+      val convInput: RelNode = RelOptRule.convert(calc.getInput, DataSetConvention.INSTANCE)
 
-      new DataSetUnion(
+      new DataSetCalc(
         rel.getCluster,
         traitSet,
-        convLeft,
-        convRight,
+        convInput,
         rel.getRowType,
-        union.toString)
+        calc.getProgram,
+        calc.toString,
+        description)
     }
   }
 
-object FlinkUnionRule {
-  val INSTANCE: RelOptRule = new FlinkUnionRule
+object DataSetCalcRule {
+  val INSTANCE: RelOptRule = new DataSetCalcRule
 }
