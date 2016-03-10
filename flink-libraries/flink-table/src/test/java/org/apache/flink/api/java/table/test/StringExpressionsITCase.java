@@ -80,9 +80,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	// Calcite does eagerly check expression types
-	@Ignore
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = CodeGenException.class)
 	public void testNonWorkingSubstring1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -97,14 +95,10 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		resultSet.collect();
 	}
 
-	// Calcite does eagerly check expression types
-	@Ignore
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = CodeGenException.class)
 	public void testNonWorkingSubstring2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -119,8 +113,6 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(b, 15)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		resultSet.collect();
 	}
 }

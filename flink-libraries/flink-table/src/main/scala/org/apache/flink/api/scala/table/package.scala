@@ -72,7 +72,7 @@ package object table extends ImplicitExpressionConversions {
   }
 
   implicit def dataSet2DataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
-    new DataSetConversions[T](set, set.getType.asInstanceOf[CompositeType[T]])
+    new DataSetConversions[T](set, set.getType)
   }
 
   implicit def table2RowDataSet(

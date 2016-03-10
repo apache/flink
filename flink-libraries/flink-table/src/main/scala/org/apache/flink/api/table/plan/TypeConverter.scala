@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
 
 object TypeConverter {
 
-  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq()).asInstanceOf[TypeInformation[Any]]
+  val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq(), Seq()).asInstanceOf[TypeInformation[Any]]
 
   def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
     case BOOLEAN_TYPE_INFO => BOOLEAN
@@ -132,17 +132,16 @@ object TypeConverter {
 
           // POJO type expected
           case pt: PojoTypeInfo[_] =>
-            logicalFieldTypes.zipWithIndex foreach {
-              case (fieldTypeInfo, i) =>
-                val fieldName = logicalFieldNames(i)
-                val index = pt.getFieldIndex(fieldName)
-                if (index < 0) {
-                  throw new TableException(s"POJO does not define field name: $fieldName")
+            logicalFieldNames.zip(logicalFieldTypes) foreach {
+              case (fName, fType) =>
+                val pojoIdx = pt.getFieldIndex(fName)
+                if (pojoIdx < 0) {
+                  throw new TableException(s"POJO does not define field name: $fName")
                 }
-                val expectedTypeInfo = pt.getTypeAt(i)
-                if (fieldTypeInfo != expectedTypeInfo) {
+                val expectedTypeInfo = pt.getTypeAt(pojoIdx)
+                if (fType != expectedTypeInfo) {
                   throw new TableException(s"Result field does not match expected type. " +
-                    s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
+                    s"Expected: $expectedTypeInfo; Actual: $fType")
                 }
             }
 
@@ -172,7 +171,7 @@ object TypeConverter {
 
       // Row is expected, create the arity for it
       case Some(typeInfo) if typeInfo.getTypeClass == classOf[Row] =>
-        new RowTypeInfo(logicalFieldTypes)
+        new RowTypeInfo(logicalFieldTypes, logicalFieldNames)
 
       // no physical type
       // determine type based on logical fields and configuration parameters
@@ -180,7 +179,7 @@ object TypeConverter {
         // no need for efficient types -> use Row
         // we cannot use efficient types if row arity > tuple arity or nullable
         if (!useEfficientTypes || logicalFieldTypes.length > Tuple.MAX_ARITY || nullable) {
-          new RowTypeInfo(logicalFieldTypes)
+          new RowTypeInfo(logicalFieldTypes, logicalFieldNames)
         }
         // use efficient type tuple or atomic type
         else {

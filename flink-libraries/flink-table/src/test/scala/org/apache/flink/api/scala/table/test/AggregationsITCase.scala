@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
+import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.{ExpressionException, Row}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
@@ -50,10 +51,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
       .select('foo.avg)
-
-    val expected = ""
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -124,17 +121,14 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
-  @Ignore // Calcite does not eagerly check types
-  @Test(expected = classOf[ExpressionException])
+  @Test(expected = classOf[PlanGenException])
   def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("Hello", 1)).toTable
       .select('_1.sum)
 
-    val expected = ""
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    t.collect()
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -143,10 +137,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("Hello", 1)).toTable
       .select('_2.sum.sum)
-
-    val expected = ""
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test

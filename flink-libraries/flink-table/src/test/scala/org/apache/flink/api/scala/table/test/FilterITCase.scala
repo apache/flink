@@ -74,20 +74,18 @@ class FilterITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO test broken does not test Table API
-  @Ignore
   @Test
   def testFilterOnStringTupleField(): Unit = {
     /*
      * Test filter on String tuple field.
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    val filterDs = ds.filter( _._3.contains("world") )
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val filterDs = ds.filter( 'c.like("%world%") )
 
-//    val expected = "(3,2,Hello world)\n" + "(4,3,Hello world, how are you?)\n"
-//    val results = filterDs.toDataSet[Row](getConfig).collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "3,2,Hello world\n" + "4,3,Hello world, how are you?\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -152,27 +150,21 @@ class FilterITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // These two not yet done, but are planned
-  // TODO test broken does not test Table API
-  @Ignore
   @Test
   def testFilterBasicType(): Unit = {
     /*
      * Test filter on basic type
      */
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
 
-    val filterDs = ds.filter( _.startsWith("H") )
+    val filterDs = ds.as('a).filter( 'a.like("H%") )
 
-//    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
-//    val results = filterDs.toDataSet[Row](getConfig).collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO test broken does not test Table API
-  @Ignore
   @Test
   def testFilterOnCustomType(): Unit = {
     /*
@@ -180,11 +172,12 @@ class FilterITCase(
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
-    val filterDs = ds.filter( _.myString.contains("a") )
+    val filterDs = ds.as('myInt as 'i, 'myLong as 'l, 'myString as 's)
+      .filter( 's.like("%a%") )
 
-//    val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
-//    val results = filterDs.toDataSet[Row](getConfig).collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }
