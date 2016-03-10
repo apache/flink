@@ -1,5 +1,6 @@
 == Abstract Syntax Tree ==
-Filter(As(Root(ArraySeq((count,Integer), (word,String))), a,b), ('a * 2) === 0)
+LogicalFilter(condition=[=(MOD($0, 2), 0)])
+  LogicalTableScan(table=[[DataSetTable_0]])
 
 == Physical Execution Plan ==
 Stage 3 : Data Source
@@ -7,14 +8,14 @@ Stage 3 : Data Source
 	Partitioning : RANDOM_PARTITIONED
 
 	Stage 2 : Map
-		content : Map at select('count as 'count,'word as 'word)
+		content : from: (a, b)
 		ship_strategy : Forward
 		exchange_mode : PIPELINED
 		driver_strategy : Map
 		Partitioning : RANDOM_PARTITIONED
 
-		Stage 1 : Filter
-			content : ('a * 2) === 0
+		Stage 1 : FlatMap
+			content : where: (=(MOD(a, 2), 0)), select: (a, b)
 			ship_strategy : Forward
 			exchange_mode : PIPELINED
 			driver_strategy : FlatMap

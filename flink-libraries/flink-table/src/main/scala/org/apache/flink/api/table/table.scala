@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table
 
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.JoinRelType
@@ -26,10 +27,15 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.util.NlsString
+import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.plan.{PlanGenException, RexNodeTranslator}
 import RexNodeTranslator.{toRexNode, extractAggCalls}
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.parser.ExpressionParser
+
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.table._
 
 import scala.collection.JavaConverters._
 
@@ -353,23 +359,21 @@ class Table(
   }
 
   /**
-   * Get the process of the sql parsing, print AST and physical execution plan.The AST
-   * show the structure of the supplied statement. The execution plan shows how the table
-   * referenced by the statement will be scanned.
-   */
-  def explain(extended: Boolean): String = {
+    * Get the process of the sql parsing, print AST and physical execution plan.The AST
+    * show the structure of the supplied statement. The execution plan shows how the table
+    * referenced by the statement will be scanned.
+    */
+  private[flink] def explain(extended: Boolean): String = {
 
-    // TODO: enable once toDataSet() is working again
-
-//    val ast = operation
-//    val dataSet = this.toDataSet[Row]
-//    val env = dataSet.getExecutionEnvironment
-//    dataSet.output(new DiscardingOutputFormat[Row])
-//    val jasonSqlPlan = env.getExecutionPlan()
-//    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
-//    val result = "== Abstract Syntax Tree ==\n" + ast + "\n\n" + "== Physical Execution Plan ==" +
-//      "\n" + sqlPlan
-//    return result
+    val ast = RelOptUtil.toString(relNode)
+    val dataSet = this.toDataSet[Row]
+    dataSet.output(new DiscardingOutputFormat[Row])
+    val env = dataSet.getExecutionEnvironment
+    val jasonSqlPlan = env.getExecutionPlan()
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
+    val result = "== Abstract Syntax Tree ==\n" + ast + "\n" + "== Physical Execution Plan ==" +
+      "\n" + sqlPlan
+    return result
 
     ""
   }
