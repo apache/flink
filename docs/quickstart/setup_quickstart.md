@@ -61,7 +61,10 @@ Now, we are going to run the [SocketTextStreamWordCount example](https://github.
 * First of all, we use **netcat** to start local server via
 
   ~~~bash
+  If you are using linux
   $ nc -l -p 9000
+  On Mac OS X
+  $ nc -l 9000
   ~~~ 
 
 * Submit the Flink program:
