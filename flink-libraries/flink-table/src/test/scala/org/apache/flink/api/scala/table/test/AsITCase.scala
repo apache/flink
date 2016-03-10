@@ -43,7 +43,9 @@ class AsITCase(
   def testAs(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c)
+      .select('a, 'b, 'c)
 
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
       "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
@@ -64,7 +66,9 @@ class AsITCase(
       SomeCaseClass("Anna", 56, 10000.00, "Engineering"),
       SomeCaseClass("Lucy", 42, 6000.00, "HR"))
 
-    val t =  env.fromCollection(data).as('a, 'b, 'c, 'd)
+    val t =  env.fromCollection(data)
+      .as('a, 'b, 'c, 'd)
+      .select('a, 'b, 'c, 'd)
 
     val expected: String =
       "Peter,28,4000.0,Sales\n" +
@@ -83,7 +87,9 @@ class AsITCase(
       SomeCaseClass("Anna", 56, 10000.00, "Engineering"),
       SomeCaseClass("Lucy", 42, 6000.00, "HR"))
 
-    val t =  env.fromCollection(data).as('a, 'b, 'c, 'd)
+    val t =  env.fromCollection(data)
+      .as('a, 'b, 'c, 'd)
+      .select('a, 'b, 'c, 'd)
 
     val expected: String =
       "SomeCaseClass(Peter,28,4000.0,Sales)\n" +
@@ -97,33 +103,24 @@ class AsITCase(
   def testAsWithToFewFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
   def testAsWithToManyFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c, 'd)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
   def testAsWithAmbiguousFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'b)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -131,11 +128,9 @@ class AsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // as can only have field references
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a + 1, 'b, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c)
+      .as('a + 1, 'b, 'c)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -143,11 +138,9 @@ class AsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // as can only have field references
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a as 'foo, 'b, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c)
+      .as('a as 'foo, 'b, 'c)
   }
 
 }

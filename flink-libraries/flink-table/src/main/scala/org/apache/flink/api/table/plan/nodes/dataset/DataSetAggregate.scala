@@ -91,7 +91,7 @@ class DataSetAggregate(
     .map(n => TypeConverter.sqlTypeToTypeInfo(n))
     .toArray
 
-    val rowTypeInfo = new RowTypeInfo(fieldTypes)
+    val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
     val mappedInput = inputDS.map(aggregateResult._1)
     val groupReduceFunction = aggregateResult._2
 
