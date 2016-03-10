@@ -102,8 +102,6 @@ public class ExecutionConfig implements Serializable {
 
 	private long autoWatermarkInterval = 0;
 
-	private boolean timestampsEnabled = false;
-
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
 	 */
@@ -659,7 +657,6 @@ public class ExecutionConfig implements Serializable {
 				printProgressDuringExecution == other.printProgressDuringExecution &&
 				Objects.equals(globalJobParameters, other.globalJobParameters) &&
 				autoWatermarkInterval == other.autoWatermarkInterval &&
-				timestampsEnabled == other.timestampsEnabled &&
 				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
 				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
@@ -685,7 +682,6 @@ public class ExecutionConfig implements Serializable {
 			printProgressDuringExecution,
 			globalJobParameters,
 			autoWatermarkInterval,
-			timestampsEnabled,
 			registeredTypesWithKryoSerializerClasses,
 			defaultKryoSerializerClasses,
 			registeredKryoTypes,
