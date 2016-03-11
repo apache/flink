@@ -428,28 +428,6 @@ abstract class FlinkMiniCluster(
   //                          Utility Methods
   // --------------------------------------------------------------------------
 
-//  /**
-//    * Waits for the leading ResourceManager to be registered at the JobManager
-//    */
-//  def waitForResourceManagerToBeRegistered(): Unit = {
-//    waitForResourceManagerToBeRegistered(timeout)
-//  }
-//
-//
-//  def waitForResourceManagerToBeRegistered(timeout: FiniteDuration): Unit = {
-//
-//    future {
-//      resourceManagerActors foreach {
-//        list => list.foreach(rm => rm ! NotifyWhenResourceManagerRegistered)
-//      }
-//
-//      rece
-//    }
-//
-//    Await.ready()
-//
-//  }
-
   /** Waits with the default timeout until all task managers have registered at the job manager
     *
     * @throws java.util.concurrent.TimeoutException
