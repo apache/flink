@@ -30,13 +30,24 @@ import org.apache.flink.api.table.Row
 /**
  * TypeInformation for [[Row]].
  */
-class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]])
+class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]], fieldNames: Seq[String])
   extends CaseClassTypeInfo[Row](
     classOf[Row],
     Array(),
     fieldTypes,
-    for (i <- fieldTypes.indices) yield "f" + i)
+    fieldNames)
 {
+
+  if (fieldTypes.length != fieldNames.length) {
+    throw new IllegalArgumentException("Number of field types and names is different.")
+  }
+  if (fieldNames.length != fieldNames.toSet.size) {
+    throw new IllegalArgumentException("Field names are not unique.")
+  }
+
+  def this(fieldTypes: Seq[TypeInformation[_]]) = {
+    this(fieldTypes, for (i <- fieldTypes.indices) yield "f" + i)
+  }
 
   /**
    * Temporary variable for directly passing orders to comparators.

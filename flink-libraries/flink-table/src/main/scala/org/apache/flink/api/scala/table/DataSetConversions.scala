@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.table
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions.{UnresolvedFieldReference, Expression}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -27,7 +28,7 @@ import org.apache.flink.api.scala._
  * Methods for converting a [[DataSet]] to a [[Table]]. A [[DataSet]] is
  * wrapped in this by the implicit conversions in [[org.apache.flink.api.scala.table]].
  */
-class DataSetConversions[T](set: DataSet[T], inputType: CompositeType[T]) {
+class DataSetConversions[T](set: DataSet[T], inputType: TypeInformation[T]) {
 
   /**
    * Converts the [[DataSet]] to a [[Table]]. The field names can be specified like this:
@@ -59,8 +60,15 @@ class DataSetConversions[T](set: DataSet[T], inputType: CompositeType[T]) {
    * of type `Int`.
    */
   def toTable: Table = {
-    val resultFields = inputType.getFieldNames.map(UnresolvedFieldReference)
-    as(resultFields: _*)
+
+    inputType match {
+      case c: CompositeType[T] =>
+        val resultFields = c.getFieldNames.map(UnresolvedFieldReference)
+        as(resultFields: _*)
+      case _ =>
+        throw new IllegalArgumentException("" +
+          "Please specify a field name with 'as' to convert an atomic type dataset to a table ")
+    }
   }
 
 }

@@ -88,11 +88,13 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
           s"Cannot generate a valid execution plan for the given query: \n\n" +
           s"${RelOptUtil.toString(lPlan)}\n" +
           "Please consider filing a bug report.", e)
+      case a: AssertionError =>
+        throw a.getCause
     }
 
-    println("---------------")
+    println("-------------")
     println("DataSet Plan:")
-    println("---------------")
+    println("-------------")
     println(RelOptUtil.toString(dataSetPlan))
 
     dataSetPlan match {

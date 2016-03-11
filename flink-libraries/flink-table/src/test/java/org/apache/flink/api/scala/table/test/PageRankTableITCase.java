@@ -74,7 +74,9 @@ public class PageRankTableITCase extends JavaProgramTestBase {
 			tConfigs.add(config);
 		}
 
-		// TODO: Disabling test until Table API is operational again
+		// TODO: Enable test again once:
+		//   1) complex types (long[]) can be shipped through Table API
+		//   2) abs function is available
 //		return toParameterList(tConfigs);
 		return new LinkedList<>();
 	}
