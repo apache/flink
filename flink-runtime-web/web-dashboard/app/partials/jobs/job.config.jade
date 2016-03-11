@@ -45,6 +45,6 @@ table.table.table-properties(ng-if="job['execution-config']['user-config']")
         | User configuration
 
   tbody
-    tr(ng-repeat="property in job['execution-config']['user-config']")
-      td {{property.name}}
-      td(table-property value="property.value")
+    tr(ng-repeat="(propertyName, propertyValue) in job['execution-config']['user-config']")
+      td {{propertyName}}
+      td(table-property value="propertyValue")
