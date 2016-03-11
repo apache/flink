@@ -20,6 +20,7 @@ package org.apache.flink.runtime.client;
 
 import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -94,7 +95,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		JobVertex blockingVertex = new JobVertex("Blocking Vertex");
 		blockingVertex.setInvokableClass(BlockingTask.class);
 		blockingVertex.setParallelism(1);
-		final JobGraph jobGraph = new JobGraph("Blocking Test Job", blockingVertex);
+		final JobGraph jobGraph = new JobGraph("Blocking Test Job", new ExecutionConfig(), blockingVertex);
 		final Promise<JobExecutionResult> promise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();

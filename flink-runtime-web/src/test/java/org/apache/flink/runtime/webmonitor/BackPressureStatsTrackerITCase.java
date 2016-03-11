@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -92,7 +93,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			final FiniteDuration deadline = new FiniteDuration(60, TimeUnit.SECONDS);
 
 			// The JobGraph
-			final JobGraph jobGraph = new JobGraph();
+			final JobGraph jobGraph = new JobGraph(new ExecutionConfig());
 			final int parallelism = 4;
 
 			final JobVertex task = new JobVertex("Task");

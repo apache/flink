@@ -23,6 +23,7 @@ import akka.testkit.JavaTestKit;
 
 import com.typesafe.config.Config;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -122,7 +123,7 @@ public class JobManagerTest {
 				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
 				sender.createAndAddResultDataSet(rid, PIPELINED);
 
-				final JobGraph jobGraph = new JobGraph("Blocking test job", sender);
+				final JobGraph jobGraph = new JobGraph("Blocking test job", new ExecutionConfig(), sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(
@@ -246,7 +247,7 @@ public class JobManagerTest {
 				sender.setParallelism(2);
 				sender.setInvokableClass(StoppableInvokable.class);
 
-				final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+				final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", new ExecutionConfig(), sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
@@ -294,7 +295,7 @@ public class JobManagerTest {
 				sender.setParallelism(1);
 				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
 
-				final JobGraph jobGraph = new JobGraph("Non-Stoppable batching test job", sender);
+				final JobGraph jobGraph = new JobGraph("Non-Stoppable batching test job", new ExecutionConfig(), sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());

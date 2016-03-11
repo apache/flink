@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -60,7 +61,6 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,6 +180,9 @@ public class ExecutionGraph implements Serializable {
 
 	// ------ Configuration of the Execution -------
 
+	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
+	private ExecutionConfig executionConfig;
+
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
 	private boolean allowQueuedScheduling = false;
@@ -234,7 +237,6 @@ public class ExecutionGraph implements Serializable {
 	private ExecutionContext executionContext;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-	private ExecutionConfig executionConfig;
 
 	private String jsonPlan;
 
@@ -250,6 +252,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
+			ExecutionConfig config,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy) {
 		this(
@@ -257,6 +260,7 @@ public class ExecutionGraph implements Serializable {
 			jobId,
 			jobName,
 			jobConfig,
+			config,
 			timeout,
 			restartStrategy,
 			new ArrayList<BlobKey>(),
@@ -270,6 +274,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
+			ExecutionConfig config,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
@@ -302,7 +307,7 @@ public class ExecutionGraph implements Serializable {
 
 		this.requiredJarFiles = requiredJarFiles;
 		this.requiredClasspaths = requiredClasspaths;
-
+		this.executionConfig = Preconditions.checkNotNull(config);
 		this.timeout = timeout;
 
 		this.restartStrategy = restartStrategy;
@@ -942,12 +947,7 @@ public class ExecutionGraph implements Serializable {
 		if (!state.isTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
-		// "unpack" execution config before we throw away the usercode classloader.
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
-		} catch (Exception e) {
-			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
-		}
+
 		// clear the non-serializable fields
 		userClassLoader = null;
 		scheduler = null;

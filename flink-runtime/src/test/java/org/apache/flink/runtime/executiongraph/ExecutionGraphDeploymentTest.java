@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -84,6 +85,7 @@ public class ExecutionGraphDeploymentTest {
 				jobId, 
 				"some job", 
 				new Configuration(), 
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 
@@ -287,6 +289,7 @@ public class ExecutionGraphDeploymentTest {
 			jobId, 
 			"some job", 
 			new Configuration(),
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		

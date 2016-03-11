@@ -25,6 +25,7 @@ import static org.mockito.Mockito.spy;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -174,6 +175,7 @@ public class ExecutionGraphTestUtils {
 			new JobID(), 
 			"test job", 
 			new Configuration(), 
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 

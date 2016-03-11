@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StoppingException;
@@ -127,6 +128,7 @@ public class ExecutionGraphSignalsTest {
 			jobId,
 			jobName,
 			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		eg.attachJobGraph(ordered);

@@ -59,9 +59,6 @@ public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	// Key for storing it in the Job Configuration
-	public static final String CONFIG_KEY = "runtime.config";
-
 	/**
 	 * The constant to use for the parallelism, if the system should use the number
 	 *  of currently available slots.
@@ -648,7 +645,8 @@ public class ExecutionConfig implements Serializable {
 				Objects.equals(executionMode, other.executionMode) &&
 				useClosureCleaner == other.useClosureCleaner &&
 				parallelism == other.parallelism &&
-				restartStrategyConfiguration.equals(other.restartStrategyConfiguration) &&
+				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
+				restartStrategyConfiguration.equals(other.restartStrategyConfiguration)) &&
 				forceKryo == other.forceKryo &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&

@@ -77,10 +77,16 @@ public class StreamingJobGraphGeneratorTest {
 		config.setParallelism(dop);
 		
 		JobGraph jobGraph = compiler.createJobGraph();
-		
+
+		final String EXEC_CONFIG_KEY = "runtime.config";
+
+		InstantiationUtil.writeObjectToConfig(jobGraph.getExecutionConfig(),
+			jobGraph.getJobConfiguration(),
+			EXEC_CONFIG_KEY);
+
 		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),
-				ExecutionConfig.CONFIG_KEY,
+				EXEC_CONFIG_KEY,
 				Thread.currentThread().getContextClassLoader());
 		
 		assertNotNull(executionConfig);
