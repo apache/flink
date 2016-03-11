@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -88,6 +89,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	private final SerializedValue<StateHandle<?>> operatorState;
 
+	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
+	private final ExecutionConfig executionConfig;
+
 	private long recoveryTimestamp;
 		
 	/**
@@ -95,9 +99,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public TaskDeploymentDescriptor(
 			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
-			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
-			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
-			List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			ExecutionConfig executionConfig, String taskName, int indexInSubtaskGroup, int numberOfSubtasks,
+			int attemptNumber, Configuration jobConfiguration, Configuration taskConfiguration,
+			String invokableClassName, List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
 			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState,
@@ -111,6 +115,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
+		this.executionConfig = checkNotNull(executionConfig);
 		this.taskName = checkNotNull(taskName);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 		this.numberOfSubtasks = numberOfSubtasks;
@@ -129,16 +134,23 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public TaskDeploymentDescriptor(
 			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
-			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
-			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
-			List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			ExecutionConfig executionConfig, String taskName, int indexInSubtaskGroup, int numberOfSubtasks,
+			int attemptNumber, Configuration jobConfiguration, Configuration taskConfiguration,
+			String invokableClassName, List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
 			int targetSlotNumber) {
 
-		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
-				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
+		this(jobID, vertexID, executionId, executionConfig, taskName, indexInSubtaskGroup,
+				numberOfSubtasks, attemptNumber, jobConfiguration, taskConfiguration, invokableClassName,
+				producedPartitions, inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
+	}
+
+	/**
+	 * Returns the execution configuration (see {@link ExecutionConfig}) related to the specific job.
+	 */
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	/**

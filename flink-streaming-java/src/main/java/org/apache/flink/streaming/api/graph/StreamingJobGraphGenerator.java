@@ -24,7 +24,6 @@ import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -52,12 +51,10 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -112,7 +109,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public JobGraph createJobGraph() {
-		jobGraph = new JobGraph(streamGraph.getJobName());
+		jobGraph = new JobGraph(streamGraph.getJobName(), streamGraph.getExecutionConfig());
 
 		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
@@ -133,12 +130,6 @@ public class StreamingJobGraphGenerator {
 
 		configureRestartStrategy();
 
-		try {
-			InstantiationUtil.writeObjectToConfig(this.streamGraph.getExecutionConfig(), this.jobGraph.getJobConfiguration(), ExecutionConfig.CONFIG_KEY);
-		} catch (IOException e) {
-			throw new RuntimeException("Config object could not be written to Job Configuration: ", e);
-		}
-		
 		return jobGraph;
 	}
 
@@ -494,7 +485,8 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void configureRestartStrategy() {
-		jobGraph.setRestartStrategyConfiguration(streamGraph.getExecutionConfig().getRestartStrategy());
+		jobGraph.getExecutionConfig().setRestartStrategy(
+			streamGraph.getExecutionConfig().getRestartStrategy());
 	}
 
 	// ------------------------------------------------------------------------

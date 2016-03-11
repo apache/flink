@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -53,6 +54,7 @@ public class ExecutionStateProgressTest {
 				jid, 
 				"test job", 
 				new Configuration(), 
+                new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 			graph.attachJobGraph(Arrays.asList(ajv));

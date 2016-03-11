@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -33,15 +35,14 @@ import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.Iterator;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 /**
  * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
  * All programs from higher level APIs are transformed into JobGraphs.
@@ -79,9 +80,7 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** Configuration which defines which restart strategy to use for the job recovery */
-	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
-	
+	private final ExecutionConfig executionConfig;
 
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */
@@ -102,60 +101,74 @@ public class JobGraph implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Constructs a new job graph with no name and a random job ID.
-	 */
-	public JobGraph() {
-		this((String) null);
-	}
-
-	/**
-	 * Constructs a new job graph with the given name, a random job ID.
+	 * Constructs a new job graph with no name, a random job ID, and the given
+	 * {@link ExecutionConfig}.
 	 *
-	 * @param jobName The name of the job
+	 * @param config The {@link ExecutionConfig} for the job.
 	 */
-	public JobGraph(String jobName) {
-		this(null, jobName);
+	public JobGraph(ExecutionConfig config) {
+		this((String) null, config);
 	}
 
 	/**
-	 * Constructs a new job graph with the given name and a random job ID if null supplied as an id.
+	 * Constructs a new job graph with the given name, the given {@link ExecutionConfig},
+	 * and a random job ID.
+	 *
+	 * @param jobName The name of the job.
+	 * @param config The execution configuration of the job.
+	 */
+	public JobGraph(String jobName, ExecutionConfig config) {
+		this(null, jobName, config);
+	}
+
+	/**
+	 * Constructs a new job graph with the given job ID (or a random ID, if {@code null} is passed),
+	 * the given name and the given execution configuration (see {@link ExecutionConfig}).
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
+	 * @param config The execution configuration of the job.
 	 */
-	public JobGraph(JobID jobId, String jobName) {
+	public JobGraph(JobID jobId, String jobName, ExecutionConfig config) {
 		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
+		this.executionConfig = Preconditions.checkNotNull(config);
 	}
 
 	/**
-	 * Constructs a new job graph with no name and a random job ID if null supplied as an id.
+	 * Constructs a new job graph with no name, a random job ID, the given {@link ExecutionConfig}, and
+	 * the given job vertices.
 	 *
+	 * @param config The execution configuration of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobVertex... vertices) {
-		this(null, vertices);
+	public JobGraph(ExecutionConfig config, JobVertex... vertices) {
+		this(null, config, vertices);
 	}
 
 	/**
-	 * Constructs a new job graph with the given name and a random job ID.
+	 * Constructs a new job graph with the given name, the given {@link ExecutionConfig}, a random job ID,
+	 * and the given job vertices.
 	 *
 	 * @param jobName The name of the job.
+	 * @param config The execution configuration of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(String jobName, JobVertex... vertices) {
-		this(null, jobName, vertices);
+	public JobGraph(String jobName, ExecutionConfig config, JobVertex... vertices) {
+		this(null, jobName, config, vertices);
 	}
 
 	/**
-	 * Constructs a new job graph with the given name and a random job ID if null supplied as an id.
+	 * Constructs a new job graph with the given name, the given {@link ExecutionConfig},
+	 * the given jobId or a random one if null supplied, and the given job vertices.
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
+	 * @param config The execution configuration of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
-		this(jobId, jobName);
+	public JobGraph(JobID jobId, String jobName, ExecutionConfig config, JobVertex... vertices) {
+		this(jobId, jobName, config);
 
 		for (JobVertex vertex : vertices) {
 			addVertex(vertex);
@@ -192,23 +205,8 @@ public class JobGraph implements Serializable {
 		return this.jobConfiguration;
 	}
 
-	/**
-	 * Sets the restart strategy configuration. This configuration specifies the restart strategy
-	 * to be used by the ExecutionGraph in case of a restart.
-	 *
-	 * @param restartStrategyConfiguration Restart strategy configuration to be set
-	 */
-	public void setRestartStrategyConfiguration(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-		this.restartStrategyConfiguration = restartStrategyConfiguration;
-	}
-
-	/**
-	 * Gets the restart strategy configuration
-	 *
-	 * @return Restart strategy configuration to be used
-	 */
-	public RestartStrategies.RestartStrategyConfiguration getRestartStrategyConfiguration() {
-		return restartStrategyConfiguration;
+	public ExecutionConfig getExecutionConfig() {
+		return this.executionConfig;
 	}
 
 	/**
