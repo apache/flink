@@ -928,13 +928,11 @@ public class SavepointITCase extends TestLogger {
 
 		@Override
 		public byte[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			LOG.info("snapshotState (" + checkpointId + "): " + Arrays.toString(data));
 			return data;
 		}
 
 		@Override
 		public void restoreState(byte[] data) throws Exception {
-			LOG.info("restoreState: " + Arrays.toString(data));
 			this.data = data;
 		}
 	}
