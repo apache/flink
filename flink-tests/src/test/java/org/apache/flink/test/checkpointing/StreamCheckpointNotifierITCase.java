@@ -37,9 +37,12 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -70,7 +73,9 @@ import static org.junit.Assert.fail;
  * successfully completed checkpoint.
  */
 @SuppressWarnings("serial")
-public class StreamCheckpointNotifierITCase {
+public class StreamCheckpointNotifierITCase extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamCheckpointNotifierITCase.class);
 	
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int NUM_TASK_SLOTS = 3;
@@ -393,28 +398,23 @@ public class StreamCheckpointNotifierITCase {
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 		
-		private final long numElements;
-
-		private long failurePos;
-		private long count;
+		private final long failurePos;
+		
+		private volatile long count;
 
 		private volatile boolean notificationAlready;
 		
 		OnceFailingReducer(long numElements) {
-			this.numElements = numElements;
-		}
-
-		@Override
-		public void open(Configuration parameters) {
-			long failurePosMin = (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
-			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
-
-			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
+			this.failurePos = (long) (0.5 * numElements / PARALLELISM);
 		}
 
 		@Override
 		public Tuple1<Long> reduce(Tuple1<Long> value1, Tuple1<Long> value2) {
 			count++;
+			if (count >= failurePos && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+				LOG.info(">>>>>>>>>>>>>>>>> Reached failing position <<<<<<<<<<<<<<<<<<<<<");
+			}
+			
 			value1.f0 += value2.f0;
 			return value1;
 		}
@@ -422,6 +422,7 @@ public class StreamCheckpointNotifierITCase {
 		@Override
 		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 			if (!hasFailed && count >= failurePos && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+				LOG.info(">>>>>>>>>>>>>>>>> Throwing Exception <<<<<<<<<<<<<<<<<<<<<");
 				hasFailed = true;
 				failureCheckpointID = checkpointId;
 				throw new Exception("Test Failure");
