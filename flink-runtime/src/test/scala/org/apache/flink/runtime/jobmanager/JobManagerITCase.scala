@@ -22,7 +22,7 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import org.apache.flink.api.common.JobID
+import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, SavepointCoordinator}
 import org.apache.flink.runtime.client.JobExecutionException
@@ -68,7 +68,7 @@ class JobManagerITCase(_system: ActorSystem)
       vertex.setParallelism(2)
       vertex.setInvokableClass(classOf[BlockingNoOpInvokable])
 
-      val jobGraph = new JobGraph("Test Job", vertex)
+      val jobGraph = new JobGraph("Test Job", new ExecutionConfig(), vertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -110,7 +110,7 @@ class JobManagerITCase(_system: ActorSystem)
       vertex.setParallelism(num_tasks)
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph = new JobGraph("Test Job", vertex)
+      val jobGraph = new JobGraph("Test Job", new ExecutionConfig(), vertex)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -145,7 +145,7 @@ class JobManagerITCase(_system: ActorSystem)
       vertex.setParallelism(num_tasks)
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph = new JobGraph("Test job", vertex)
+      val jobGraph = new JobGraph("Test job", new ExecutionConfig(), vertex)
       jobGraph.setAllowQueuedScheduling(true)
 
       val cluster = TestingUtils.startTestingCluster(10)
@@ -181,7 +181,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -216,7 +216,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
+      val jobGraph = new JobGraph("Bipartite Job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -253,7 +253,8 @@ class JobManagerITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+      val jobGraph = new JobGraph("Bipartite Job", new ExecutionConfig(),
+        sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -298,7 +299,8 @@ class JobManagerITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+      val jobGraph = new JobGraph("Bipartite Job", new ExecutionConfig(),
+        sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -340,7 +342,8 @@ class JobManagerITCase(_system: ActorSystem)
       forwarder.connectNewDataSetAsInput(sender, DistributionPattern.ALL_TO_ALL)
       receiver.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
+      val jobGraph = new JobGraph("Forwarding Job", new ExecutionConfig(),
+        sender, forwarder, receiver)
 
       jobGraph.setScheduleMode(ScheduleMode.ALL)
 
@@ -376,7 +379,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -424,7 +427,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -469,7 +472,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -509,7 +512,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -557,7 +560,7 @@ class JobManagerITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -600,7 +603,8 @@ class JobManagerITCase(_system: ActorSystem)
       source.setParallelism(num_tasks)
       sink.setParallelism(num_tasks)
 
-      val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source, sink)
+      val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition",
+        new ExecutionConfig(), source, sink)
 
       val cluster = TestingUtils.startTestingCluster(2*num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -626,12 +630,12 @@ class JobManagerITCase(_system: ActorSystem)
       val vertex = new JobVertex("Test Vertex")
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph1 = new JobGraph("Test Job", vertex)
+      val jobGraph1 = new JobGraph("Test Job", new ExecutionConfig(), vertex)
 
       val slowVertex = new WaitingOnFinalizeJobVertex("Long running Vertex", 2000)
       slowVertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph2 = new JobGraph("Long running Job", slowVertex)
+      val jobGraph2 = new JobGraph("Long running Job", new ExecutionConfig(), slowVertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
       val jm = cluster.getLeaderGateway(1 seconds)
@@ -680,7 +684,7 @@ class JobManagerITCase(_system: ActorSystem)
       vertex.setParallelism(1)
       vertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph = new JobGraph("Test Job", vertex)
+      val jobGraph = new JobGraph("Test Job", new ExecutionConfig(), vertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
       val jm = cluster.getLeaderGateway(1 seconds)
@@ -778,7 +782,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(new ExecutionConfig(), jobVertex)
 
           // Submit job w/o checkpointing configured
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -811,7 +815,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(new ExecutionConfig(), jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -864,7 +868,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(new ExecutionConfig(), jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -922,7 +926,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(new ExecutionConfig(), jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),

@@ -68,6 +68,39 @@ public class MapITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expected);
 	}
 
+	@Test
+	public void testRuntimeContextAndExecutionConfigParams() throws Exception {
+		/*
+		 * Test identity map with basic type
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setNumberOfExecutionRetries(1000);
+
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+		DataSet<String> identityMapDs = ds.
+			map(new RichMapFunction<String, String>() {
+				@Override
+				public String map(String value) throws Exception {
+					Assert.assertTrue(1000 == getRuntimeContext().getExecutionConfig().getNumberOfExecutionRetries());
+					return value;
+				}
+			});
+
+		List<String> result = identityMapDs.collect();
+
+		String expected = "Hi\n" +
+			"Hello\n" +
+			"Hello world\n" +
+			"Hello world, how are you?\n" +
+			"I am fine.\n" +
+			"Luke Skywalker\n" +
+			"Random comment\n" +
+			"LOL\n";
+
+		compareResultAsText(result, expected);
+	}
+
 	public static class Mapper1 implements MapFunction<String, String> {
 		private static final long serialVersionUID = 1L;
 

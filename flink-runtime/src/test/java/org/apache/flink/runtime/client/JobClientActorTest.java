@@ -25,6 +25,7 @@ import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
@@ -47,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 public class JobClientActorTest extends TestLogger {
 
 	private static ActorSystem system;
-	private static JobGraph testJobGraph = new JobGraph("Test Job");
+	private static JobGraph testJobGraph = new JobGraph("Test Job", new ExecutionConfig());
 
 	@BeforeClass
 	public static void setup() {

@@ -20,7 +20,6 @@ package org.apache.flink.optimizer.plantranslate;
 
 import com.fasterxml.jackson.core.JsonFactory;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
@@ -81,11 +80,9 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -217,9 +214,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 		
 		// create the job graph object
-		JobGraph graph = new JobGraph(jobId, program.getJobName());
-
-		graph.setRestartStrategyConfiguration(program.getOriginalPlan().getRestartStrategyConfiguration());
+		JobGraph graph = new JobGraph(jobId, program.getJobName(), program.getOriginalPlan().getExecutionConfig());
 		graph.setAllowQueuedScheduling(false);
 		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 
@@ -236,15 +231,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// add registered cache file into job configuration
 		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPlan().getCachedFiles()) {
 			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
-		}
-
-		try {
-			InstantiationUtil.writeObjectToConfig(
-					program.getOriginalPlan().getExecutionConfig(),
-					graph.getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY);
-		} catch (IOException e) {
-			throw new RuntimeException("Config object could not be written to Job Configuration: " + e);
 		}
 
 		// release all references again
