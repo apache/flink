@@ -32,6 +32,7 @@ import org.apache.flink.api.table.plan.TypeConverter.determineReturnType
 import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.MapRunner
 
+import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
 /**
@@ -112,7 +113,9 @@ class DataSetSource(
             genFunction.code,
             genFunction.returnType)
 
-          inputDataSet.map(mapFunc)
+          val opName = s"from: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+
+          inputDataSet.map(mapFunc).name(opName)
         }
         // no conversion necessary, forward
         else {
