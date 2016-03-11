@@ -741,19 +741,19 @@ public final class ConfigConstants {
 	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
 	 * heap size. We came up with these values experimentally.
 	 */
-	public static final int DEFAULT_CONTAINERED_MIN_HEAP_CUTOFF = 600;
+	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
 
 	/**
 	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
 	 * heap size
 	 */
-	public static final float DEFAULT_CONTAINERED_HEAP_CUTOFF_RATIO = 0.25f;
+	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 
 	/**
 	 * Default port for the application master is 0, which means
 	 * the operating system assigns an ephemeral port
 	 */
-	public static final String DEFAULT_CONTAINERED_JOB_MANAGER_PORT = "0";
+	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
 
 	// ------------------------ File System Behavior ------------------------
 

@@ -114,11 +114,11 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		final float memoryCutoffRatio = config.getFloat(
 			ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO,
-			ConfigConstants.DEFAULT_CONTAINERED_HEAP_CUTOFF_RATIO);
+			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
 
 		final int minCutoff = config.getInteger(
 			ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN,
-			ConfigConstants.DEFAULT_CONTAINERED_MIN_HEAP_CUTOFF);
+			ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
 			throw new IllegalArgumentException("The configuration value '"

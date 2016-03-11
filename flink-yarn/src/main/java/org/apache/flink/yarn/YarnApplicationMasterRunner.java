@@ -240,7 +240,7 @@ public class YarnApplicationMasterRunner {
 			// using the port range definition from the config.
 			final String amPortRange = config.getString(
 					ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-					ConfigConstants.DEFAULT_CONTAINERED_JOB_MANAGER_PORT);
+					ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
 			
 			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG);
 			
