@@ -92,14 +92,21 @@ class DataSetAggregate(
     .toArray
 
     val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
-    val mappedInput = inputDS.map(aggregateResult._1)
+    val aggString = aggregationToString
+    val rowTypeInfo = new RowTypeInfo(fieldTypes)
+    val mappedInput = inputDS.map(aggregateResult._1).name(s"prepare $aggString")
     val groupReduceFunction = aggregateResult._2
 
     if (groupingKeys.length > 0) {
+
+      val inFields = inputType.getFieldNames.asScala.toList
+      val groupByString = s"groupBy: (${grouping.map( inFields(_) ).mkString(", ")})"
+
       mappedInput.asInstanceOf[DataSet[Row]]
         .groupBy(groupingKeys: _*)
         .reduceGroup(groupReduceFunction)
         .returns(rowTypeInfo)
+          .name(groupByString + ", " + aggString)
         .asInstanceOf[DataSet[Any]]
     }
     else {
@@ -110,4 +117,25 @@ class DataSetAggregate(
         .asInstanceOf[DataSet[Any]]
     }
   }
+
+  private def aggregationToString: String = {
+
+    val inFields = inputType.getFieldNames.asScala.toList
+    val outFields = rowType.getFieldNames.asScala.toList
+    val aggs = namedAggregates.map(_.getKey)
+
+    val groupFieldsString = grouping.map( inFields(_) )
+    val aggsString = aggs.map( a => s"${a.getAggregation}(${inFields(a.getArgList.get(0))})")
+
+    val outFieldsString = (groupFieldsString ++ aggsString).zip(outFields).map {
+      case (f, o) => if (f == o) {
+        f
+      } else {
+        s"$f AS $o"
+      }
+    }
+
+    s"select: (${outFieldsString.mkString(", ")})"
+  }
+
 }

@@ -28,8 +28,10 @@ import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.api.table.runtime.FlatMapRunner
 import org.apache.flink.api.table.TableConfig
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rex._
+
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with LogicalCalc.
@@ -147,6 +149,40 @@ class DataSetCalc(
       genFunction.code,
       genFunction.returnType)
 
-    inputDS.flatMap(mapFunc)
+    val calcDesc = calcProgramToString()
+
+    inputDS.flatMap(mapFunc).name(calcDesc)
   }
+
+  private def calcProgramToString(): String = {
+
+    val cond = calcProgram.getCondition
+    val proj = calcProgram.getProjectList.asScala.toList
+    val localExprs = calcProgram.getExprList.asScala.toList
+    val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
+    val outFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
+
+    val projString = s"select: (${
+      proj
+        .map(getExpressionString(_, inFields, Some(localExprs)))
+        .zip(outFields).map { case (e, o) => {
+            if (e != o) {
+              e + " AS " + o
+            } else {
+              e
+            }
+          }
+        }
+        .mkString(", ")
+    })"
+    if (cond != null) {
+      val condString = s"where: (${getExpressionString(cond, inFields, Some(localExprs))})"
+
+      condString + ", " + projString
+    } else {
+      projString
+    }
+
+  }
+
 }
