@@ -393,26 +393,29 @@ class JobManager(
 
     case RecoverJob(jobId) =>
       future {
-        // The ActorRef, which is part of the submitted job graph can only be de-serialized in the
-        // scope of an actor system.
-        akka.serialization.JavaSerializer.currentSystem.withValue(
-          context.system.asInstanceOf[ExtendedActorSystem]) {
+        try {
+          // The ActorRef, which is part of the submitted job graph can only be
+          // de-serialized in the scope of an actor system.
+          akka.serialization.JavaSerializer.currentSystem.withValue(
+            context.system.asInstanceOf[ExtendedActorSystem]) {
 
-          log.info(s"Attempting to recover job $jobId.")
+            log.info(s"Attempting to recover job $jobId.")
+            val submittedJobGraphOption = submittedJobGraphs.recoverJobGraph(jobId)
 
-          val submittedJobGraphOption = submittedJobGraphs.recoverJobGraph(jobId)
+            submittedJobGraphOption match {
+              case Some(submittedJobGraph) =>
+                if (!leaderElectionService.hasLeadership()) {
+                  // we've lost leadership. mission: abort.
+                  log.warn(s"Lost leadership during recovery. Aborting recovery of $jobId.")
+                } else {
+                  self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+                }
 
-          submittedJobGraphOption match {
-            case Some(submittedJobGraph) =>
-              if (!leaderElectionService.hasLeadership()) {
-                // we've lost leadership. mission: abort.
-                log.warn(s"Lost leadership during recovery. Aborting recovery of $jobId.")
-              }
-              else {
-                self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
-              }
-            case None => log.warn(s"Failed to recover job graph $jobId.")
+              case None => log.info(s"Attempted to recover job $jobId, but no job graph found.")
+            }
           }
+        } catch {
+          case t: Throwable => log.error(s"Failed to recover job $jobId.", t)
         }
       }(context.dispatcher)
 
@@ -432,8 +435,7 @@ class JobManager(
               // we've lost leadership. mission: abort.
               log.warn(s"Lost leadership during recovery. Aborting recovery of ${jobGraphs.size} " +
                 s"jobs.")
-            }
-            else {
+            } else {
               log.info(s"Re-submitting ${jobGraphs.size} job graphs.")
 
               jobGraphs.foreach{
@@ -443,7 +445,7 @@ class JobManager(
             }
           }
         } catch {
-          case e: Exception => log.error("Fatal error: Failed to recover jobs.", e)
+          case t: Throwable => log.error("Fatal error: Failed to recover jobs.", t)
         }
       }(context.dispatcher)
 
