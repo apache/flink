@@ -33,8 +33,10 @@ import org.apache.flink.api.table.{TableException, TableConfig}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.table.plan.TypeConverter._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConversions._
 import org.apache.calcite.rex.RexNode
+
+import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -142,8 +144,19 @@ class DataSetJoin(
       genFunction.code,
       genFunction.returnType)
 
+    val joinOpName = joinConditionToString()
+
     leftDataSet.join(rightDataSet).where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
-      .`with`(joinFun).asInstanceOf[DataSet[Any]]
+      .`with`(joinFun).name(joinOpName).asInstanceOf[DataSet[Any]]
+  }
+
+  private def joinConditionToString(): String = {
+
+    val inFields = joinRowType.getFieldNames.asScala.toList
+    val condString = s"where: (${getExpressionString(joinCondition, inFields, None)})"
+    val outFieldString = s"join: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+
+    condString + ", "+outFieldString
   }
 
 }
