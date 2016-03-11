@@ -22,7 +22,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.table.Table;
-import org.junit.Ignore;
+import org.apache.flink.api.table.plan.TranslationContext;
+import org.junit.After;
 import org.junit.Test;
 
 import java.io.File;
@@ -30,9 +31,9 @@ import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
 
-public class SqlExplainITCase {
+public class SqlExplainTest {
 
-	private static String testFilePath = SqlExplainITCase.class.getResource("/").getFile();
+	private static String testFilePath = SqlExplainTest.class.getResource("/").getFile();
 
 	public static class WC {
 		public String word;
@@ -47,9 +48,13 @@ public class SqlExplainITCase {
 		}
 	}
 
-	@Ignore
+	@After
+	public void resetContext() {
+		TranslationContext.reset();
+	}
+
 	@Test
-	public void testGroupByWithoutExtended() throws Exception {
+	public void testFilterWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -58,7 +63,7 @@ public class SqlExplainITCase {
 				new WC(2,"d"),
 				new WC(3,"d"));
 
-		Table table = tableEnv.fromDataSet(input).as("a, b");
+		Table table = tableEnv.fromDataSet(input, "count as a, word as b");
 
 		String result = table
 				.filter("a % 2 = 0")
@@ -66,12 +71,11 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testFilter0.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 
-	@Ignore
 	@Test
-	public void testGroupByWithExtended() throws Exception {
+	public void testFilterWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -80,7 +84,7 @@ public class SqlExplainITCase {
 				new WC(2, "d"),
 				new WC(3, "d"));
 
-		Table table = tableEnv.fromDataSet(input).as("a, b");
+		Table table = tableEnv.fromDataSet(input, "count as a, word as b");
 
 		String result = table
 				.filter("a % 2 = 0")
@@ -88,10 +92,9 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testFilter1.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 
-	@Ignore
 	@Test
 	public void testJoinWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -102,14 +105,14 @@ public class SqlExplainITCase {
 				new WC(1, "d"),
 				new WC(1, "d"));
 
-		Table table1 = tableEnv.fromDataSet(input1).as("a, b");
+		Table table1 = tableEnv.fromDataSet(input1, "count as a, word as b");
 
 		DataSet<WC> input2 = env.fromElements(
 				new WC(1,"d"),
 				new WC(1,"d"),
 				new WC(1,"d"));
 
-		Table table2 = tableEnv.fromDataSet(input2).as("c, d");
+		Table table2 = tableEnv.fromDataSet(input2, "count as c, word as d");
 
 		String result = table1
 				.join(table2)
@@ -119,10 +122,9 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testJoin0.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 
-	@Ignore
 	@Test
 	public void testJoinWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -133,14 +135,14 @@ public class SqlExplainITCase {
 				new WC(1, "d"),
 				new WC(1, "d"));
 
-		Table table1 = tableEnv.fromDataSet(input1).as("a, b");
+		Table table1 = tableEnv.fromDataSet(input1, "count as a, word as b");
 
 		DataSet<WC> input2 = env.fromElements(
 				new WC(1, "d"),
 				new WC(1, "d"),
 				new WC(1, "d"));
 
-		Table table2 = tableEnv.fromDataSet(input2).as("c, d");
+		Table table2 = tableEnv.fromDataSet(input2, "count as c, word as d");
 
 		String result = table1
 				.join(table2)
@@ -150,10 +152,9 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testJoin1.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 
-	@Ignore
 	@Test
 	public void testUnionWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -179,10 +180,9 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testUnion0.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 
-	@Ignore
 	@Test
 	public void testUnionWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -208,6 +208,6 @@ public class SqlExplainITCase {
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testUnion1.out"))
 				.useDelimiter("\\A").next();
-		assertEquals(result, source);
+		assertEquals(source, result);
 	}
 }

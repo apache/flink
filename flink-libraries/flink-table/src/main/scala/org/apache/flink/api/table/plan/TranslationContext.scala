@@ -61,6 +61,8 @@ object TranslationContext {
 
     relBuilder = RelBuilder.create(frameworkConfig)
 
+    nameCntr.set(0)
+
   }
 
   def addDataSet(newTable: DataSetTable[_]): String = {
