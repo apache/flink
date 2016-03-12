@@ -25,7 +25,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.expressions.BuiltInMethods
 
 import scala.collection.mutable
 
@@ -182,6 +181,7 @@ object ScalarFunctions {
 
     sqlFunctions.get((call, operandTypes))
       .orElse(sqlFunctions.find(entry => entry._1._1 == call
+        && entry._1._2.length == operandTypes.length
         && entry._1._2.zip(operandTypes).forall {
         case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
         case _ => false

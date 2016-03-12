@@ -70,32 +70,32 @@ trait ImplicitExpressionOperations {
   /**
     * Calculates the remainder of division the given number by another one.
     */
-  def mod (other: Expression) = Mod(expr, other)
+  def mod(other: Expression) = Mod(expr, other)
 
   /**
     * Calculates the Euler's number raised to the given power.
     */
-  def exp () = Call(BuiltInFunctionNames.EXP, expr)
+  def exp() = Call(BuiltInFunctionNames.EXP, expr)
 
   /**
     * Calculates the base 10 logarithm of given value.
     */
-  def log10 () = Call(BuiltInFunctionNames.LOG10, expr)
+  def log10() = Call(BuiltInFunctionNames.LOG10, expr)
 
   /**
     * Calculates the natural logarithm of given value.
     */
-  def ln () = Call(BuiltInFunctionNames.LN, expr)
+  def ln() = Call(BuiltInFunctionNames.LN, expr)
 
   /**
     * Calculates the given number raised to the power of the other value.
     */
-  def power (other: Expression) = Call(BuiltInFunctionNames.POWER, expr, other)
+  def power(other: Expression) = Call(BuiltInFunctionNames.POWER, expr, other)
 
   /**
     * Calculates the absolute value of given one.
     */
-  def abs () = Call(BuiltInFunctionNames.ABS, expr)
+  def abs() = Call(BuiltInFunctionNames.ABS, expr)
 
   /**
     * Creates a substring of the given string between the given indices.

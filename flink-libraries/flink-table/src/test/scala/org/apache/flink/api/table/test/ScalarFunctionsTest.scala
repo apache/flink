@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.table.test
 
-import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
@@ -349,31 +348,61 @@ class ScalarFunctionsTest {
       'f2.abs(),
       "f2.abs()",
       "ABS(f2)",
-      SqlFunctions.abs(42.toByte).toString)
+      "42")
 
     testFunction(
       'f3.abs(),
       "f3.abs()",
       "ABS(f3)",
-      SqlFunctions.abs(43.toShort).toString)
+      "43")
 
     testFunction(
       'f4.abs(),
       "f4.abs()",
       "ABS(f4)",
-      SqlFunctions.abs(44.toLong).toString)
+      "44")
 
     testFunction(
       'f5.abs(),
       "f5.abs()",
       "ABS(f5)",
-      SqlFunctions.abs(4.5.toFloat).toString)
+      "4.5")
 
     testFunction(
       'f6.abs(),
       "f6.abs()",
       "ABS(f6)",
-      SqlFunctions.abs(4.6).toString)
+      "4.6")
+
+    testFunction(
+      'f9.abs(),
+      "f9.abs()",
+      "ABS(f9)",
+      "42")
+
+    testFunction(
+      'f10.abs(),
+      "f10.abs()",
+      "ABS(f10)",
+      "43")
+
+    testFunction(
+      'f11.abs(),
+      "f11.abs()",
+      "ABS(f11)",
+      "44")
+
+    testFunction(
+      'f12.abs(),
+      "f12.abs()",
+      "ABS(f12)",
+      "4.5")
+
+    testFunction(
+      'f13.abs(),
+      "f13.abs()",
+      "ABS(f13)",
+      "4.6")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -383,7 +412,7 @@ class ScalarFunctionsTest {
       exprString: String,
       sqlExpr: String,
       expected: String): Unit = {
-    val testData = new Row(9)
+    val testData = new Row(15)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -393,6 +422,12 @@ class ScalarFunctionsTest {
     testData.setField(6, 4.6)
     testData.setField(7, 3)
     testData.setField(8, " This is a test String. ")
+    testData.setField(9, -42.toByte)
+    testData.setField(10, -43.toShort)
+    testData.setField(11, -44.toLong)
+    testData.setField(12, -4.5.toFloat)
+    testData.setField(13, -4.6)
+    testData.setField(14, -3)
 
     val typeInfo = new RowTypeInfo(Seq(
       STRING_TYPE_INFO,
@@ -403,7 +438,13 @@ class ScalarFunctionsTest {
       FLOAT_TYPE_INFO,
       DOUBLE_TYPE_INFO,
       INT_TYPE_INFO,
-      STRING_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
+      STRING_TYPE_INFO,
+      BYTE_TYPE_INFO,
+      SHORT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      FLOAT_TYPE_INFO,
+      DOUBLE_TYPE_INFO,
+      INT_TYPE_INFO)).asInstanceOf[TypeInformation[Any]]
 
     val exprResult = ExpressionEvaluator.evaluate(testData, typeInfo, expr)
     assertEquals(expected, exprResult)
