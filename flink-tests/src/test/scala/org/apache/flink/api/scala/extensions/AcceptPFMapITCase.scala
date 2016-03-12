@@ -17,158 +17,97 @@
  */
 package org.apache.flink.api.scala.extensions
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
+import org.apache.flink.api.scala.{ExecutionEnvironment, createTypeInformation}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.optimizer.Optimizer
+import org.apache.flink.optimizer.dag.{MapNode, OptimizerNode}
+import org.apache.flink.optimizer.plan.{PlanNode, SinkPlanNode, SourcePlanNode}
+import org.apache.flink.util.TestLogger
+import org.junit.Assert.assertTrue
 import org.junit._
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(classOf[Parameterized])
-class AcceptPFMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = null
-  private val _tempFolder = new TemporaryFolder()
+import scala.collection.JavaConversions._
 
-  @Rule
-  def tempFolder = _tempFolder
+class AcceptPFMapITCase extends TestLogger {
 
-  @Before
-  def before(): Unit = {
-    resultPath = tempFolder.newFile().toURI.toString
-  }
+  private val optimizer = new Optimizer(new Configuration)
+  private val unusedResultPath = "UNUSED"
 
-  @After
-  def after(): Unit = {
-    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
-  }
+  def isTransformation(n: PlanNode): Boolean =
+    !n.isInstanceOf[SourcePlanNode] && !n.isInstanceOf[SinkPlanNode]
+
+  private def getOptimizerTransformationNodes(env: ExecutionEnvironment): Iterable[OptimizerNode] =
+    for {
+      node <- optimizer.compile(env.createProgramPlan("UNUSED")).getAllNodes
+      transformation = node.getOptimizerNode if isTransformation(node)
+    } yield transformation
 
   @Test
   def testIdentityMapperWithBasicType(): Unit = {
-    /*
-     * Test identity map with basic type
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
-    val identityMapDs = ds.mapWith( t => t)
-    identityMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n" + "I am fine" +
-      ".\n" + "Luke Skywalker\n" + "Random comment\n" + "LOL\n"
+    val identityMapDs = ds.mapWith(identity)
+    identityMapDs.writeAsText(unusedResultPath, WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
   @Test
   def testIdentityMapperWithTuple(): Unit = {
-    /*
-     * Test identity map with a tuple
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val identityMapDs = ds.mapWith( t => t )
-    identityMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
-      "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
-      "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
-      "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
-      "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
-      "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val identityMapDs = ds.mapWith(identity)
+    identityMapDs.writeAsCsv(unusedResultPath, writeMode = WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
   @Test
   def testTypeConversionMapperCustomToTuple(): Unit = {
-    /*
-     * Test type conversion mapper (Custom -> Tuple)
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
     val typeConversionMapDs = ds.mapWith( c => (c.myInt, c.myLong, c.myString) )
-    typeConversionMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,0,Hi\n" + "2,1,Hello\n" + "2,2,Hello world\n" + "3,3,Hello world, " +
-      "how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n" + "4,6," +
-      "Comment#1\n" + "4,7,Comment#2\n" + "4,8,Comment#3\n" + "4,9,Comment#4\n" + "5,10," +
-      "Comment#5\n" + "5,11,Comment#6\n" + "5,12,Comment#7\n" + "5,13,Comment#8\n" + "5,14," +
-      "Comment#9\n" + "6,15,Comment#10\n" + "6,16,Comment#11\n" + "6,17,Comment#12\n" + "6," +
-      "18,Comment#13\n" + "6,19,Comment#14\n" + "6,20,Comment#15\n"
+    typeConversionMapDs.writeAsCsv(unusedResultPath, writeMode = WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
   @Test
   def testTypeConversionMapperTupleToBasic(): Unit = {
-    /*
-     * Test type conversion mapper (Tuple -> Basic)
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val typeConversionMapDs = ds.mapWith(_._3)
-    typeConversionMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n" + "I am fine" +
-      ".\n" + "Luke Skywalker\n" + "Comment#1\n" + "Comment#2\n" + "Comment#3\n" +
-      "Comment#4\n" + "Comment#5\n" + "Comment#6\n" + "Comment#7\n" + "Comment#8\n" +
-      "Comment#9\n" + "Comment#10\n" + "Comment#11\n" + "Comment#12\n" + "Comment#13\n" +
-      "Comment#14\n" + "Comment#15\n"
+    val typeConversionMapDs = ds.mapWith { case (_, _, a) => a }
+    typeConversionMapDs.writeAsText(unusedResultPath, WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
   @Test
   def testMapperOnTupleIncrementFieldReorderSecondAndThirdFields(): Unit = {
-    /*
-     * Test mapper on tuple - Increment Integer field, reorder second and third fields
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val tupleMapDs = ds.mapWith( t => (t._1 + 1, t._3, t._2) )
-    tupleMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "2,Hi,1\n" + "3,Hello,2\n" + "4,Hello world,2\n" + "5,Hello world, how are you?," +
-      "3\n" + "6,I am fine.,3\n" + "7,Luke Skywalker,3\n" + "8,Comment#1,4\n" + "9,Comment#2," +
-      "4\n" + "10,Comment#3,4\n" + "11,Comment#4,4\n" + "12,Comment#5,5\n" + "13,Comment#6," +
-      "5\n" + "14,Comment#7,5\n" + "15,Comment#8,5\n" + "16,Comment#9,5\n" + "17,Comment#10," +
-      "6\n" + "18,Comment#11,6\n" + "19,Comment#12,6\n" + "20,Comment#13,6\n" + "21," +
-      "Comment#14,6\n" + "22,Comment#15,6\n"
+    val tupleMapDs = ds.mapWith { case (a, b, c) => (a + 1, c, b) }
+    tupleMapDs.writeAsCsv(unusedResultPath, writeMode = WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
   @Test
   def testMapperOnCustomLowercaseString(): Unit = {
-    /*
-     * Test mapper on Custom - lowercase myString
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
     val customMapDs = ds.mapWith { c => c.myString = c.myString.toLowerCase; c }
-    customMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,0,hi\n" + "2,1,hello\n" + "2,2,hello world\n" + "3,3,hello world, " +
-      "how are you?\n" + "3,4,i am fine.\n" + "3,5,luke skywalker\n" + "4,6," +
-      "comment#1\n" + "4,7,comment#2\n" + "4,8,comment#3\n" + "4,9,comment#4\n" + "5,10," +
-      "comment#5\n" + "5,11,comment#6\n" + "5,12,comment#7\n" + "5,13,comment#8\n" + "5,14," +
-      "comment#9\n" + "6,15,comment#10\n" + "6,16,comment#11\n" + "6,17,comment#12\n" + "6," +
-      "18,comment#13\n" + "6,19,comment#14\n" + "6,20,comment#15\n"
-  }
-
-  @Test
-  def testMapperIfUDFReturnsInputObjectIncrementFirstFieldOfTuple(): Unit = {
-    /*
-     * Test mapper if UDF returns input object - increment first field of a tuple
-     */
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).mapWith {
-      t => MutableTuple3(t._1, t._2, t._3)
-    }
-    val inputObjMapDs = ds.mapWith { t => t._1 = t._1 + 1; t }
-    inputObjMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "2,1,Hi\n" + "3,2,Hello\n" + "4,2,Hello world\n" + "5,3,Hello world, " +
-      "how are you?\n" + "6,3,I am fine.\n" + "7,3,Luke Skywalker\n" + "8,4," +
-      "Comment#1\n" + "9,4,Comment#2\n" + "10,4,Comment#3\n" + "11,4,Comment#4\n" + "12,5," +
-      "Comment#5\n" + "13,5,Comment#6\n" + "14,5,Comment#7\n" + "15,5,Comment#8\n" + "16,5," +
-      "Comment#9\n" + "17,6,Comment#10\n" + "18,6,Comment#11\n" + "19,6,Comment#12\n" + "20," +
-      "6,Comment#13\n" + "21,6,Comment#14\n" + "22,6,Comment#15\n"
+    customMapDs.writeAsText(unusedResultPath, WriteMode.OVERWRITE)
+    val nodes = getOptimizerTransformationNodes(env)
+    assertTrue("The plan should contain 1 transformation", nodes.size == 1)
+    assertTrue("The transformation should be a map", nodes.forall(_.isInstanceOf[MapNode]))
   }
 
 }
