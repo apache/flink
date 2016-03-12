@@ -23,7 +23,7 @@ import java.io.IOException;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Value;
+import org.apache.flink.types.Key;
 import org.apache.flink.util.InstantiationUtil;
 
 @PublicEvolving
@@ -31,16 +31,16 @@ public class SimpleDistribution implements DataDistribution {
 	
 	private static final long serialVersionUID = 1L;
 
-	protected Value[][] boundaries;
+	protected Key<?>[][] boundaries; 
 	
 	protected int dim;
 	
 	
 	public SimpleDistribution() {
-		boundaries = new Value[0][];
+		boundaries = new Key[0][];
 	}
 	
-	public SimpleDistribution(Value[] bucketBoundaries) {
+	public SimpleDistribution(Key<?>[] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -52,21 +52,21 @@ public class SimpleDistribution implements DataDistribution {
 		dim = 1;
 		
 		@SuppressWarnings("unchecked")
-		Class<? extends Value> clazz = bucketBoundaries[0].getClass();
+		Class<? extends Key<?>> clazz = (Class<? extends Key<?>>) bucketBoundaries[0].getClass();
 		
 		// make the array 2-dimensional
-		boundaries = new Value[bucketBoundaries.length][];
+		boundaries = new Key[bucketBoundaries.length][];
 		for (int i = 0; i < bucketBoundaries.length; i++) {
 			if (bucketBoundaries[i].getClass() != clazz) {
 				throw new IllegalArgumentException("The bucket boundaries are of different class types.");
 			}
 			
-			boundaries[i] = new Value[] { bucketBoundaries[i] };
+			boundaries[i] = new Key[] { bucketBoundaries[i] };
 		}
 	}
 	
 	@SuppressWarnings("unchecked")
-	public SimpleDistribution(Value[][] bucketBoundaries) {
+	public SimpleDistribution(Key<?>[][] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -77,9 +77,9 @@ public class SimpleDistribution implements DataDistribution {
 		// dimensionality is one in this case
 		dim = bucketBoundaries[0].length;
 		
-		Class<? extends Value>[] types = new Class[dim];
+		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
-			types[i] = bucketBoundaries[0][i].getClass();
+			types[i] = (Class<? extends Key<?>>) bucketBoundaries[0][i].getClass();
 		}
 		
 		// check the array
@@ -103,7 +103,7 @@ public class SimpleDistribution implements DataDistribution {
 	}
 
 	@Override
-	public Value[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		// check validity of arguments
 		if(bucketNum < 0) {
 			throw new IllegalArgumentException("Requested bucket must be greater than or equal to 0.");
@@ -153,14 +153,14 @@ public class SimpleDistribution implements DataDistribution {
 		this.dim = in.readInt();
 		final int len = in.readInt();
 		
-		boundaries = new Value[len][];
+		boundaries = new Key[len][];
 		
 		// read types
-		Class<? extends Value>[] types = new Class[dim];
+		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
 			String className = in.readUTF();
 			try {
-				types[i] = Class.forName(className, true, getClass().getClassLoader()).asSubclass(Value.class);
+				types[i] = (Class<? extends Key<?>>) Class.forName(className, true, getClass().getClassLoader()).asSubclass(Key.class);
 			} catch (ClassNotFoundException e) {
 				throw new IOException("Could not load type class '" + className + "'.");
 			} catch (Throwable t) {
@@ -169,9 +169,9 @@ public class SimpleDistribution implements DataDistribution {
 		}
 		
 		for (int i = 0; i < len; i++) {
-			Value[] bucket = new Value[dim];
+			Key<?>[] bucket = new Key[dim]; 
 			for (int d = 0; d < dim; d++) {
-				Value val = InstantiationUtil.instantiate(types[d], Value.class);
+				Key<?> val = InstantiationUtil.instantiate(types[d], Key.class);
 				val.read(in);
 				bucket[d] = val;
 			}
