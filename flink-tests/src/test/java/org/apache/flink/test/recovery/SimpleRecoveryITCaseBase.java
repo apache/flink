@@ -25,12 +25,9 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -43,23 +40,9 @@ import static org.junit.Assert.*;
  * and the recovery should restart them to verify job completion.
  */
 @SuppressWarnings("serial")
-public class SimpleRecoveryITCase {
+public abstract class SimpleRecoveryITCaseBase {
 
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void setupCluster() {
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		config.setString(ConfigConstants.RESTART_STRATEGY, "fixed-delay");
-		config.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
-		config.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "100 ms");
-
-		cluster = new ForkableFlinkMiniCluster(config, false);
-
-		cluster.start();
-	}
+	protected static ForkableFlinkMiniCluster cluster;
 
 	@AfterClass
 	public static void teardownCluster() {
@@ -129,15 +112,7 @@ public class SimpleRecoveryITCase {
 						})
 						.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-				try {
-					JobExecutionResult result = env.execute();
-					assertTrue(result.getNetRuntime() >= 0);
-					assertNotNull(result.getAllAccumulatorResults());
-					assertTrue(result.getAllAccumulatorResults().isEmpty());
-				}
-				catch (JobExecutionException e) {
-					fail("The program should have succeeded on the second run");
-				}
+				executeAndRunAssertions(env);
 
 				long sum = 0;
 				for (long l : resultCollection) {
@@ -151,6 +126,18 @@ public class SimpleRecoveryITCase {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	private void executeAndRunAssertions(ExecutionEnvironment env) throws Exception {
+		try {
+            JobExecutionResult result = env.execute();
+            assertTrue(result.getNetRuntime() >= 0);
+            assertNotNull(result.getAllAccumulatorResults());
+            assertTrue(result.getAllAccumulatorResults().isEmpty());
+        }
+        catch (JobExecutionException e) {
+            fail("The program should have succeeded on the second run");
+        }
 	}
 
 	@Test
@@ -176,15 +163,7 @@ public class SimpleRecoveryITCase {
 					})
 					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-			try {
-				JobExecutionResult result = env.execute();
-				assertTrue(result.getNetRuntime() >= 0);
-				assertNotNull(result.getAllAccumulatorResults());
-				assertTrue(result.getAllAccumulatorResults().isEmpty());
-			}
-			catch (JobExecutionException e) {
-				fail("The program should have succeeded on the second run");
-			}
+			executeAndRunAssertions(env);
 
 			long sum = 0;
 			for (long l : resultCollection) {
@@ -221,15 +200,7 @@ public class SimpleRecoveryITCase {
 					})
 					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
 
-			try {
-				JobExecutionResult result = env.execute();
-				assertTrue(result.getNetRuntime() >= 0);
-				assertNotNull(result.getAllAccumulatorResults());
-				assertTrue(result.getAllAccumulatorResults().isEmpty());
-			}
-			catch (JobExecutionException e) {
-				fail("The program should have succeeded on the second run");
-			}
+			executeAndRunAssertions(env);
 
 			long sum = 0;
 			for (long l : resultCollection) {

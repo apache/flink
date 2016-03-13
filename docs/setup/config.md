@@ -132,8 +132,9 @@ If you are on YARN, then it is sufficient to authenticate the client with Kerber
 - `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
 - `restart-strategy`: Default restart strategy to use in case that no restart strategy has been specified for the submitted job.
-Currently, it can be chosen between using a fixed delay restart strategy and to turn it off.
+Currently, it can be chosen from fixed delay restart strategy, failure rate restart strategy or no restart strategy.
 To use the fixed delay strategy you have to specify "fixed-delay".
+To use the failure rate strategy you have to specify "failure-rate".
 To turn the restart behaviour off you have to specify "none".
 Default value "none".
 
@@ -141,6 +142,15 @@ Default value "none".
 Default value is 1.
 
 - `restart-strategy.fixed-delay.delay`: Delay between restart attempts, used if the default restart strategy is set to "fixed-delay".
+Default value is the `akka.ask.timeout`.
+
+- `restart-strategy.failure-rate.max-failures-per-interval`: Maximum number of restarts in given time interval before failing a job in "failure-rate" strategy. 
+Default value is 1.
+
+- `restart-strategy.failure-rate.failure-rate-interval`: Time interval for measuring failure rate in "failure-rate" strategy.
+Default value is `1 minute`.
+
+- `restart-strategy.failure-rate.delay`: Delay between restart attempts, used if the default restart strategy is set to "failure-rate".
 Default value is the `akka.ask.timeout`.
 
 ## Full Reference
