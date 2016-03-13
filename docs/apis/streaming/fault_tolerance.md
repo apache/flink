@@ -224,6 +224,10 @@ The description of each restart strategy contains more information about the res
         <td>fixed-delay</td>
     </tr>
     <tr>
+        <td>Failure rate</td>
+        <td>failure-rate</td>
+    </tr>
+    <tr>
         <td>No restart</td>
         <td>none</td>
     </tr>
@@ -335,6 +339,77 @@ Execution retries can be configured to be delayed. Delaying the retry means that
 Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.
 
 The default value is the value of *akka.ask.timeout*.
+
+{% top %}
+
+### Failure Rate Restart Strategy
+
+The failure rate restart strategy restarts job after failure, but when `failure rate` (failures per time unit) is exceeded, the job eventually fails.
+In-between two consecutive restart attempts, the restart strategy waits a fixed amount of time.
+
+This strategy is enabled as default by setting the following configuration parameter in `flink-conf.yaml`.
+
+~~~
+restart-strategy: failure-rate
+~~~
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Configuration Parameter</th>
+      <th class="text-left" style="width: 40%">Description</th>
+      <th class="text-left">Default Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td><it>restart-strategy.failure-rate.max-failures-per-unit</it></td>
+        <td>Maximum number of restarts in given time unit before failing a job</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td><it>restart-strategy.failure-rate.failure-rate-unit</it></td>
+        <td>Time unit for measuring failure rate. One of java.util.concurrent.TimeUnit values</td>
+        <td>MINUTES</td>
+    </tr>
+    <tr>
+        <td><it>restart-strategy.failure-rate.delay</it></td>
+        <td>Delay between two consecutive restart attempts</td>
+        <td><it>akka.ask.timeout</it></td>
+    </tr>
+  </tbody>
+</table>
+
+~~~
+restart-strategy.failure-rate.max-failures-per-unit: 3
+restart-strategy.failure-rate.failure-rate-unit: MINUTES
+restart-strategy.failure-rate.delay: 10 s
+~~~
+
+The failure rate restart strategy can also be set programmatically:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+env.setRestartStrategy(RestartStrategies.failureRateRestart(
+  3, // max failures per unit
+  java.util.concurrent.TimeUnit.MINUTES, //time unit for measuring failure rate
+  10000 // delay in milliseconds
+));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment()
+env.setRestartStrategy(RestartStrategies.failureRateRestart(
+  3, // max failures per unit
+  java.util.concurrent.TimeUnit.MINUTES, //time unit for measuring failure rate
+  10000 // delay in milliseconds
+))
+{% endhighlight %}
+</div>
+</div>
 
 {% top %}
 
