@@ -56,7 +56,7 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				new InitMapperCC(), env);
 
         List<Vertex<Long, Long>> result = inputGraph.run(
-        		new GSAConnectedComponents<Long, NullValue>(16)).collect();
+        		new GSAConnectedComponents<Long, Long, NullValue>(16)).collect();
 
 		expectedResult = "1,1\n" +
 				"2,1\n" +
