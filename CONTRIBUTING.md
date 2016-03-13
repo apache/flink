@@ -7,5 +7,5 @@ To make the process smooth for the project *committers* (those who review and ac
 ## Contribution Guidelines
 
 Please check out the [How to Contribute guide](http://flink.apache.org/how-to-contribute.html) to understand how contributions are made.
-There is also a list of [Coding Guidelines](http://flink.apache.org/coding-guidelines.html) that you should follow.
+There is also a list of [Coding Guidelines](http://flink.apache.org/contribute-code.html#coding-guidelines) that you should follow.
 
