@@ -18,7 +18,10 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -31,20 +34,22 @@ import org.apache.flink.types.NullValue;
 /**
  * A scatter-gather implementation of the Weakly Connected Components algorithm.
  *
- * This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
- * The vertices propagate their current component ID in iterations.
- * Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if its value
- * is lower than its current component ID.
+ * This implementation uses a comparable vertex value as initial component
+ * identifier (ID). Vertices propagate their current value in each iteration.
+ * Upon receiving component IDs from its neighbors, a vertex adopts a new
+ * component ID if its value is lower than its current component ID.
  *
- * The algorithm converges when vertices no longer update their component ID value
- * or when the maximum number of iterations has been reached.
+ * The algorithm converges when vertices no longer update their component ID
+ * value or when the maximum number of iterations has been reached.
  * 
- * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
+ * The result is a DataSet of vertices, where the vertex value corresponds to
+ * the assigned component ID.
  * 
  * @see GSAConnectedComponents
  */
 @SuppressWarnings("serial")
-public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
+public class ConnectedComponents<K, VV extends Comparable<VV>, EV>
+	implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, VV>>> {
 
 	private Integer maxIterations;
 
@@ -61,46 +66,66 @@ public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, D
 	}
 
 	@Override
-	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> graph) throws Exception {
+	public DataSet<Vertex<K, VV>> run(Graph<K, VV, EV> graph) throws Exception {
 
-		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
-				.getUndirected();
+		// get type information for vertex value
+		TypeInformation<VV> valueTypeInfo = ((TupleTypeInfo<?>) graph.getVertices().getType()).getTypeAt(1);
 
-		// initialize vertex values and run the Scatter-Gather Iteration
+		Graph<K, VV, NullValue> undirectedGraph = graph
+			.mapEdges(new NullValueEdgeMapper<K, EV>())
+			.getUndirected();
+
 		return undirectedGraph.runScatterGatherIteration(
-				new CCUpdater<K>(), new CCMessenger<K>(), maxIterations)
-				.getVertices();
+			new CCUpdater<K, VV>(),
+			new CCMessenger<K, VV>(valueTypeInfo),
+			maxIterations).getVertices();
 	}
 
 	/**
-	 * Updates the value of a vertex by picking the minimum neighbor ID out of all the incoming messages.
+	 * Updates the value of a vertex by picking the minimum neighbor value out of all the incoming messages.
 	 */
-	public static final class CCUpdater<K> extends VertexUpdateFunction<K, Long, Long> {
+	public static final class CCUpdater<K, VV extends Comparable<VV>>
+		extends VertexUpdateFunction<K, VV, VV> {
 
 		@Override
-		public void updateVertex(Vertex<K, Long> vertex, MessageIterator<Long> messages) throws Exception {
-			long min = Long.MAX_VALUE;
+		public void updateVertex(Vertex<K, VV> vertex, MessageIterator<VV> messages) throws Exception {
+			VV current = vertex.getValue();
+			VV min = current;
 
-			for (long msg : messages) {
-				min = Math.min(min, msg);
+			for (VV msg : messages) {
+				if (msg.compareTo(min) < 0) {
+					min = msg;
+				}
 			}
 
-			// update vertex value, if new minimum
-			if (min < vertex.getValue()) {
+			if (!min.equals(current)) {
 				setNewVertexValue(min);
 			}
 		}
 	}
 
 	/**
-	 * Distributes the minimum ID associated with a given vertex among all the target vertices.
+	 * Sends the current vertex value to all adjacent vertices.
 	 */
-	public static final class CCMessenger<K> extends MessagingFunction<K, Long, Long, NullValue> {
+	public static final class CCMessenger<K, VV extends Comparable<VV>>
+		extends MessagingFunction<K, VV, VV, NullValue>
+		implements ResultTypeQueryable<VV> {
+
+		private final TypeInformation<VV> typeInformation;
+
+		public CCMessenger(TypeInformation<VV> typeInformation) {
+			this.typeInformation = typeInformation;
+		}
 
 		@Override
-		public void sendMessages(Vertex<K, Long> vertex) throws Exception {
+		public void sendMessages(Vertex<K, VV> vertex) throws Exception {
 			// send current minimum to neighbors
 			sendMessageToAllNeighbors(vertex.getValue());
+		}
+
+		@Override
+		public TypeInformation<VV> getProducedType() {
+			return typeInformation;
 		}
 	}
 }

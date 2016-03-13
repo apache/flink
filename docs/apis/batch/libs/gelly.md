@@ -1595,14 +1595,15 @@ The constructor takes one parameter:
 ### Connected Components
 
 #### Overview
-This is an implementation of the Weakly Connected Components algorithm. Upon convergence, two vertices belong to the same component, if there is a path from one to the other,
-without taking edge direction into account.
+This is an implementation of the Weakly Connected Components algorithm. Upon convergence, two vertices belong to the 
+same component, if there is a path from one to the other, without taking edge direction into account.
 
 #### Details
 The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
-This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
-The vertices propagate their current component ID in iterations. Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if its value
-is lower than its current component ID. The algorithm converges when vertices no longer update their component ID value or when the maximum number of iterations has been reached.
+This implementation uses a comparable vertex value as initial component identifier (ID). Vertices propagate their 
+current value in each iteration. Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if 
+its value is lower than its current component ID. The algorithm converges when vertices no longer update their component 
+ID value or when the maximum number of iterations has been reached.
 
 #### Usage
 The result is a `DataSet` of vertices, where the vertex value corresponds to the assigned component.
@@ -1612,9 +1613,23 @@ The constructor takes one parameter:
 
 ### GSA Connected Components
 
-The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+#### Overview
+This is an implementation of the Weakly Connected Components algorithm. Upon convergence, two vertices belong to the 
+same component, if there is a path from one to the other, without taking edge direction into account.
 
-See the [Connected Components](#connected-components) library method for implementation details and usage information.
+#### Details
+The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+This implementation uses a comparable vertex value as initial component identifier (ID). In the gather phase, each 
+vertex collects the vertex value of their adjacent vertices. In the sum phase, the minimum among those values is 
+selected. In the apply phase, the algorithm sets the minimum value as the new vertex value if it is smaller than 
+the current value. The algorithm converges when vertices no longer update their component ID value or when the
+maximum number of iterations has been reached.
+
+#### Usage
+The result is a `DataSet` of vertices, where the vertex value corresponds to the assigned component.
+The constructor takes one parameter:
+
+* `maxIterations`: the maximum number of iterations to run.
 
 ### PageRank
 

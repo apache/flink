@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.util.CompilerTestBase;
@@ -72,10 +73,10 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				});
 
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
-				
+
 				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-						new ConnectedComponents.CCUpdater<Long>(),
-						new ConnectedComponents.CCMessenger<Long>(), 100)
+						new ConnectedComponents.CCUpdater<Long, Long>(),
+						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO), 100)
 						.getVertices();
 				
 				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
@@ -160,8 +161,8 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				parameters.addBroadcastSetForUpdateFunction(BC_VAR_NAME, bcVar);
 
 				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
-						new ConnectedComponents.CCUpdater<Long>(),
-						new ConnectedComponents.CCMessenger<Long>(), 100)
+						new ConnectedComponents.CCUpdater<Long, Long>(),
+						new ConnectedComponents.CCMessenger<Long, Long>(BasicTypeInfo.LONG_TYPE_INFO), 100)
 						.getVertices();
 					
 				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());

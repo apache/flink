@@ -18,7 +18,10 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -30,13 +33,24 @@ import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
- * This is an implementation of the Connected Components algorithm, using a gather-sum-apply iteration.
- * This implementation assumes that the vertices of the input Graph are initialized with unique, Long component IDs.
- * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
+ * A gather-sum-apply implementation of the Weakly Connected Components algorithm.
+ *
+ * This implementation uses a comparable vertex value as initial component
+ * identifier (ID). In the gather phase, each vertex collects the vertex value
+ * of their adjacent vertices. In the sum phase, the minimum among those values
+ * is selected. In the apply phase, the algorithm sets the minimum value as the
+ * new vertex value if it is smaller than the current value.
+ *
+ * The algorithm converges when vertices no longer update their component ID
+ * value or when the maximum number of iterations has been reached.
+ *
+ * The result is a DataSet of vertices, where the vertex value corresponds to
+ * the assigned component ID.
  * 
  * @see ConnectedComponents
  */
-public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
+public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
+	implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, VV>>> {
 
 	private Integer maxIterations;
 
@@ -53,15 +67,20 @@ public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV
 	}
 
 	@Override
-	public DataSet<Vertex<K, Long>> run(Graph<K, Long, EV> graph) throws Exception {
+	public DataSet<Vertex<K, VV>> run(Graph<K, VV, EV> graph) throws Exception {
 
-		Graph<K, Long, NullValue> undirectedGraph = graph.mapEdges(new NullValueEdgeMapper<K, EV>())
-				.getUndirected();
+		// get type information for vertex value
+		TypeInformation<VV> valueTypeInfo = ((TupleTypeInfo<?>) graph.getVertices().getType()).getTypeAt(1);
 
-		// initialize vertex values and run the Vertex Centric Iteration
+		Graph<K, VV, NullValue> undirectedGraph = graph
+			.mapEdges(new NullValueEdgeMapper<K, EV>())
+			.getUndirected();
+
 		return undirectedGraph.runGatherSumApplyIteration(
-				new GatherNeighborIds(), new SelectMinId(), new UpdateComponentId<K>(),
-				maxIterations).getVertices();
+			new GatherNeighborIds<>(valueTypeInfo),
+			new SelectMinId<>(valueTypeInfo),
+			new UpdateComponentId<K, VV>(valueTypeInfo),
+			maxIterations).getVertices();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -69,28 +88,67 @@ public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
-	private static final class GatherNeighborIds extends GatherFunction<Long, NullValue, Long> {
+	private static final class GatherNeighborIds<VV extends Comparable<VV>>
+		extends GatherFunction<VV, NullValue, VV>
+		implements ResultTypeQueryable<VV> {
 
-		public Long gather(Neighbor<Long, NullValue> neighbor) {
+		private final TypeInformation<VV> typeInformation;
+
+		private GatherNeighborIds(TypeInformation<VV> typeInformation) {
+			this.typeInformation = typeInformation;
+		}
+
+		public VV gather(Neighbor<VV, NullValue> neighbor) {
 			return neighbor.getNeighborValue();
 		}
-	};
 
-	@SuppressWarnings("serial")
-	private static final class SelectMinId extends SumFunction<Long, NullValue, Long> {
-
-		public Long sum(Long newValue, Long currentValue) {
-			return Math.min(newValue, currentValue);
+		@Override
+		public TypeInformation<VV> getProducedType() {
+			return typeInformation;
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
-	private static final class UpdateComponentId<K> extends ApplyFunction<K, Long, Long> {
+	private static final class SelectMinId<VV extends Comparable<VV>>
+		extends SumFunction<VV, NullValue, VV>
+		implements ResultTypeQueryable<VV> {
 
-		public void apply(Long summedValue, Long origValue) {
-			if (summedValue < origValue) {
+		private final TypeInformation<VV> typeInformation;
+
+		private SelectMinId(TypeInformation<VV> typeInformation) {
+			this.typeInformation = typeInformation;
+		}
+
+		public VV sum(VV newValue, VV currentValue) {
+			return newValue.compareTo(currentValue) < 0 ? newValue : currentValue;
+		}
+
+		@Override
+		public TypeInformation<VV> getProducedType() {
+			return typeInformation;
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class UpdateComponentId<K, VV extends Comparable<VV>>
+		extends ApplyFunction<K, VV, VV>
+		implements ResultTypeQueryable<VV> {
+
+		private final TypeInformation<VV> typeInformation;
+
+		private UpdateComponentId(TypeInformation<VV> typeInformation) {
+			this.typeInformation = typeInformation;
+		}
+
+		public void apply(VV summedValue, VV origValue) {
+			if (summedValue.compareTo(origValue) < 0) {
 				setResult(summedValue);
 			}
+		}
+
+		@Override
+		public TypeInformation<VV> getProducedType() {
+			return typeInformation;
 		}
 	}
 }

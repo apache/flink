@@ -57,7 +57,7 @@ object ConnectedComponents {
     val edges: DataSet[Edge[Long, NullValue]] = getEdgesDataSet(env)
     val graph = Graph.fromDataSet[Long, Long, NullValue](edges, new InitVertices, env)
 
-    val components = graph.run(new GSAConnectedComponents[Long, NullValue](maxIterations))
+    val components = graph.run(new GSAConnectedComponents[Long, Long, NullValue](maxIterations))
 
 
     // emit result

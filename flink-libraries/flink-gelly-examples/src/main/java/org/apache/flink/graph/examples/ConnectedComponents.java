@@ -69,7 +69,7 @@ public class ConnectedComponents implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
-				.run(new GSAConnectedComponents<Long, NullValue>(maxIterations));
+				.run(new GSAConnectedComponents<Long, Long, NullValue>(maxIterations));
 
 		// emit result
 		if (fileOutput) {
@@ -131,7 +131,7 @@ public class ConnectedComponents implements ProgramDescription {
 					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 						@Override
 						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
-							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
+							return new Edge<>(value.f0, value.f1, NullValue.getInstance());
 						}
 					});
 		} else {
