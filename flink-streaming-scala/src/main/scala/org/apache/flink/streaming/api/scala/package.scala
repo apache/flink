@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
+import org.apache.flink.streaming.api.datastream.{ DataStreamSink => JavaStreamSink }
 import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedStreams => ConnectedJavaStreams }
 import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream }
@@ -62,7 +63,14 @@ package object scala {
   private[flink] def asScalaStream[IN1, IN2](stream: ConnectedJavaStreams[IN1, IN2])
                                              = new ConnectedStreams[IN1, IN2](stream)
 
-  
+
+  /**
+    * Converts an [[org.apache.flink.streaming.api.datastream.DataStreamSink]] to a
+    * [[org.apache.flink.streaming.api.scala.DataStreamSink]].
+    */
+  private[flink] def asScalaStream[R](stream: JavaStreamSink[R])
+                                      = new DataStreamSink[R](stream)
+
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],
       fields: Array[String]): Array[Int] = {

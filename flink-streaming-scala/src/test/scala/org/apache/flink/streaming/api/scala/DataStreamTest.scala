@@ -255,7 +255,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
     assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(10 ==
+      env.getStreamGraph.getStreamNode(sink.javaStream.getTransformation.getId).getParallelism)
 
     try {
       src.setParallelism(3)
@@ -272,7 +273,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
     assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(10 ==
+      env.getStreamGraph.getStreamNode(sink.javaStream.getTransformation.getId).getParallelism)
 
     val parallelSource = env.generateSequence(0, 0)
     parallelSource.print()
@@ -286,7 +288,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(2 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
 
     sink.setParallelism(4)
-    assert(4 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(4 ==
+      env.getStreamGraph.getStreamNode(sink.javaStream.getTransformation.getId).getParallelism)
   }
 
   @Test
@@ -394,7 +397,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val select = split.select("a")
     val sink = select.print()
     val splitEdge =
-      env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.getTransformation.getId)
+      env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.javaStream.getTransformation.getId)
     assert("a" == splitEdge.get(0).getSelectedNames.get(0))
 
     val foldFunction = new FoldFunction[Int, String] {
@@ -445,31 +448,36 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val broadcast = src.broadcast
     val broadcastSink = broadcast.print()
     val broadcastPartitioner = env.getStreamGraph
-      .getStreamEdges(src.getId, broadcastSink.getTransformation.getId).get(0).getPartitioner
+      .getStreamEdges(src.getId, broadcastSink.javaStream.getTransformation.getId)
+      .get(0).getPartitioner
     assert(broadcastPartitioner.isInstanceOf[BroadcastPartitioner[_]])
 
     val shuffle: DataStream[Long] = src.shuffle
     val shuffleSink = shuffle.print()
     val shufflePartitioner = env.getStreamGraph
-      .getStreamEdges(src.getId, shuffleSink.getTransformation.getId).get(0).getPartitioner
+      .getStreamEdges(src.getId, shuffleSink.javaStream.getTransformation.getId)
+      .get(0).getPartitioner
     assert(shufflePartitioner.isInstanceOf[ShufflePartitioner[_]])
 
     val forward: DataStream[Long] = src.forward
     val forwardSink = forward.print()
     val forwardPartitioner = env.getStreamGraph
-      .getStreamEdges(src.getId, forwardSink.getTransformation.getId).get(0).getPartitioner
+      .getStreamEdges(src.getId, forwardSink.javaStream.getTransformation.getId)
+      .get(0).getPartitioner
     assert(forwardPartitioner.isInstanceOf[ForwardPartitioner[_]])
 
     val rebalance: DataStream[Long] = src.rebalance
     val rebalanceSink = rebalance.print()
     val rebalancePartitioner = env.getStreamGraph
-      .getStreamEdges(src.getId, rebalanceSink.getTransformation.getId).get(0).getPartitioner
+      .getStreamEdges(src.getId, rebalanceSink.javaStream.getTransformation.getId)
+      .get(0).getPartitioner
     assert(rebalancePartitioner.isInstanceOf[RebalancePartitioner[_]])
 
     val global: DataStream[Long] = src.global
     val globalSink = global.print()
     val globalPartitioner = env.getStreamGraph
-      .getStreamEdges(src.getId, globalSink.getTransformation.getId).get(0).getPartitioner
+      .getStreamEdges(src.getId, globalSink.javaStream.getTransformation.getId)
+      .get(0).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
   }
 
@@ -521,7 +529,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   }
 
   private def createDownStreamId(dataStream: DataStream[_]): Integer = {
-    dataStream.print().getTransformation.getId
+    dataStream.print().javaStream.getTransformation.getId
   }
 
   private def createDownStreamId(dataStream: ConnectedStreams[_, _]): Integer = {

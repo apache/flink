@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
@@ -29,9 +29,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
+import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, AssignerWithPeriodicWatermarks, AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -797,7 +797,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   @PublicEvolving
-  def print(): DataStreamSink[T] = stream.print()
+  def print(): DataStreamSink[T] = asScalaStream(stream.print())
 
   /**
    * Writes a DataStream to the standard output stream (stderr).
@@ -819,7 +819,7 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def writeAsText(path: String): DataStreamSink[T] =
-    stream.writeAsText(path)
+    asScalaStream(stream.writeAsText(path))
 
 
 
@@ -835,9 +835,9 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def writeAsText(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
     if (writeMode != null) {
-      stream.writeAsText(path, writeMode)
+      asScalaStream(stream.writeAsText(path, writeMode))
     } else {
-      stream.writeAsText(path)
+      asScalaStream(stream.writeAsText(path))
     }
   }
 
@@ -896,7 +896,7 @@ class DataStream[T](stream: JavaStream[T]) {
     if (writeMode != null) {
       of.setWriteMode(writeMode)
     }
-    stream.writeUsingOutputFormat(of.asInstanceOf[OutputFormat[T]])
+    asScalaStream(stream.writeUsingOutputFormat(of.asInstanceOf[OutputFormat[T]]))
   }
 
   /**
@@ -904,7 +904,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def writeUsingOutputFormat(format: OutputFormat[T]): DataStreamSink[T] = {
-    stream.writeUsingOutputFormat(format)
+    asScalaStream(stream.writeUsingOutputFormat(format))
   }
 
   /**
@@ -916,7 +916,7 @@ class DataStream[T](stream: JavaStream[T]) {
       hostname: String,
       port: Integer,
       schema: SerializationSchema[T]): DataStreamSink[T] = {
-    stream.writeToSocket(hostname, port, schema)
+    asScalaStream(stream.writeToSocket(hostname, port, schema))
   }
 
   /**
@@ -926,7 +926,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    */
   def addSink(sinkFunction: SinkFunction[T]): DataStreamSink[T] =
-    stream.addSink(sinkFunction)
+    asScalaStream(stream.addSink(sinkFunction))
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
