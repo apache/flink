@@ -1322,11 +1322,22 @@ public class TypeExtractor {
 	private <OUT,IN1,IN2> TypeInformation<OUT> privateGetForClass(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		Preconditions.checkNotNull(clazz);
-		
+
+		// Object is handled as generic type info
 		if (clazz.equals(Object.class)) {
+			return new GenericTypeInfo<>(clazz);
+		}
+
+		// Class is handled as generic type info
+		if (clazz.equals(Class.class)) {
 			return new GenericTypeInfo<OUT>(clazz);
 		}
-		
+
+		// recursive types are handled as generic type info
+		if (countTypeInHierarchy(typeHierarchy, clazz) > 1) {
+			return new GenericTypeInfo<>(clazz);
+		}
+
 		// check for arrays
 		if (clazz.isArray()) {
 
@@ -1394,17 +1405,8 @@ public class TypeExtractor {
 			return new AvroTypeInfo(clazz);
 		}
 
-		if (countTypeInHierarchy(typeHierarchy, clazz) > 1) {
-			return new GenericTypeInfo<OUT>(clazz);
-		}
-
 		if (Modifier.isInterface(clazz.getModifiers())) {
 			// Interface has no members and is therefore not handled as POJO
-			return new GenericTypeInfo<OUT>(clazz);
-		}
-
-		if (clazz.equals(Class.class)) {
-			// special case handling for Class, this should not be handled by the POJO logic
 			return new GenericTypeInfo<OUT>(clazz);
 		}
 
