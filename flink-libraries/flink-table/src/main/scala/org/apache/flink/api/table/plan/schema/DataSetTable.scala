@@ -76,9 +76,9 @@ class DataSetTable[T](
     builder.build
   }
 
-//  override def getStatistic: Statistic = {
-//    new DefaultDataSetStatistic
-//  }
+  override def getStatistic: Statistic = {
+    new DefaultDataSetStatistic
+  }
 
 }
 

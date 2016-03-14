@@ -26,6 +26,7 @@ import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
+import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
 object TranslationContext {
@@ -54,6 +55,7 @@ object TranslationContext {
       .newConfigBuilder
       .defaultSchema(tables)
       .parserConfig(parserConfig)
+      .costFactory(new DataSetCostFactory)
       .traitDefs(ConventionTraitDef.INSTANCE)
       .build
 

@@ -18,12 +18,15 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.TableConfig
+
+import scala.collection.JavaConversions._
 
 /**
 * Flink RelNode which matches along with UnionOperator.
@@ -54,6 +57,16 @@ class DataSetUnion(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("name", opName)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+
+    val children = this.getInputs
+    val rowCnt = children.foldLeft(0D) { (rows, child) =>
+      rows + RelMetadataQuery.getRowCount(child)
+    }
+
+    planner.getCostFactory.makeCost(rowCnt, 0, 0)
   }
 
   override def translateToPlan(
