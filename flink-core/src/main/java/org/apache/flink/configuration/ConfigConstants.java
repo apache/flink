@@ -660,6 +660,11 @@ public final class ConfigConstants {
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
 
+	/**
+	 * The default interval (in milliseconds) to wait between consecutive task cancellation attempts (= 30000 msec).
+	 * */
+	public static final long DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS = 30000;
+
 	// ------------------------ Runtime Algorithms ------------------------
 	
 	/**
