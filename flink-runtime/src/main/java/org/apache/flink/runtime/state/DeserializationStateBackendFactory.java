@@ -19,24 +19,22 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.InstantiationUtil;
 
-import java.io.Serializable;
+public class DeserializationStateBackendFactory implements StateBackendFactory<AbstractStateBackend> {
+	private static final long serialVersionUID = 2878184566610730150L;
 
-/**
- * A factory to create a specific state backend. The state backend creation gets a Configuration
- * object that can be used to read further config values.
- * 
- * @param <T> The type of the state backend created.
- */
-public interface StateBackendFactory<T extends AbstractStateBackend> extends Serializable {
+	private final byte[] serializedStateBackend;
 
-	/**
-	 * Creates the state backend, optionally using the given configuration.
-	 * 
-	 * @param config The Flink configuration (loaded by the TaskManager).
-	 * @return The created state backend. 
-	 * 
-	 * @throws Exception Exceptions during instantiation can be forwarded.
-	 */
-	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
+	private transient ClassLoader classLoader;
+
+	public DeserializationStateBackendFactory(byte[] serializedStateBackend, ClassLoader classLoader) {
+		this.serializedStateBackend = serializedStateBackend;
+		this.classLoader = classLoader;
+	}
+
+	@Override
+	public AbstractStateBackend createFromConfig(Configuration config) throws Exception {
+		return InstantiationUtil.deserializeObject(serializedStateBackend, classLoader);
+	}
 }

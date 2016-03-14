@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
@@ -73,6 +74,7 @@ public class StreamConfig implements Serializable {
 	
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String STATE_PARTITIONER = "statePartitioner";
+	private static final String KEY_GROUP_ASSIGNER = "keyGroupAssigner";
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 	
 	private static final String TIME_CHARACTERISTIC = "timechar";
@@ -393,10 +395,12 @@ public class StreamConfig implements Serializable {
 	// ------------------------------------------------------------------------
 	
 	public void setStateBackend(AbstractStateBackend backend) {
-		try {
-			InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not serialize stateHandle provider.", e);
+		if (backend != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize stateHandle provider.", e);
+			}
 		}
 	}
 	
@@ -406,6 +410,10 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
 		}
+	}
+
+	public byte[] getSerializedStateBackend() {
+		return this.config.getBytes(STATE_BACKEND, null);
 	}
 	
 	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
@@ -421,6 +429,22 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate state partitioner.", e);
+		}
+	}
+
+	public void setKeyGroupAssigner(KeyGroupAssigner<?> keyGroupAssigner) {
+		try {
+			InstantiationUtil.writeObjectToConfig(keyGroupAssigner, this.config, KEY_GROUP_ASSIGNER);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not serialize virtual state partitioner.", e);
+		}
+	}
+
+	public KeyGroupAssigner<?> getKeyGroupAssigner(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, KEY_GROUP_ASSIGNER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate virtual state partitioner.", e);
 		}
 	}
 	
@@ -439,6 +463,8 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate state key serializer from task config.", e);
 		}
 	}
+
+
 	
 	// ------------------------------------------------------------------------
 	//  Miscellansous

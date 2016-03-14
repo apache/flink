@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -326,7 +327,7 @@ public class StreamingJobGraphGenerator {
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 		
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
-		
+
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
@@ -340,6 +341,10 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(0, vertex.getStatePartitioner1());
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
+
+		config.setKeyGroupAssigner(
+			new HashKeyGroupAssigner<Object>(
+				streamGraph.getExecutionConfig().getMaxParallelism()));
 		
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 

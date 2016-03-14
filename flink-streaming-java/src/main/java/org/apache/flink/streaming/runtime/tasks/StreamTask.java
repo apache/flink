@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -30,9 +31,10 @@ import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
+import org.apache.flink.runtime.state.DeserializationStateBackendFactory;
 import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateBackendFactory;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.KeyGroupStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -607,12 +609,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	//  State backend
 	// ------------------------------------------------------------------------
 
-	public AbstractStateBackend createStateBackend(String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
-		AbstractStateBackend stateBackend = configuration.getStateBackend(userClassLoader);
+	private StateBackendFactory<?> createStateBackendFactory() {
+		byte[] serializedStateBackend = configuration.getSerializedStateBackend();
 
-		if (stateBackend != null) {
-			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: " + stateBackend);
+		if (serializedStateBackend != null) {
+			LOG.info("Using user-defined state backend.");
+			return new DeserializationStateBackendFactory(serializedStateBackend, userClassLoader);
 		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
@@ -627,15 +629,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			switch (backendName) {
 				case "jobmanager":
 					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					stateBackend = MemoryStateBackend.create();
-					break;
+					return new MemoryStateBackendFactory();
 
 				case "filesystem":
-					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-						+ backend.getBasePath() + "\")");
-					stateBackend = backend;
-					break;
+					LOG.info("State backend is set to file system.");
+					return new FsStateBackendFactory();
 
 				default:
 					try {
@@ -643,7 +641,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						Class<? extends StateBackendFactory> clazz =
 							Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
 
-						stateBackend = ((StateBackendFactory<?>) clazz.newInstance()).createFromConfig(flinkConfig);
+						return (StateBackendFactory<?>) clazz.newInstance();
 					} catch (ClassNotFoundException e) {
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
 					} catch (ClassCastException e) {
@@ -655,9 +653,22 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					}
 			}
 		}
-		stateBackend.initializeForJob(getEnvironment(), operatorIdentifier, keySerializer);
-		return stateBackend;
+	}
 
+	public AbstractStateBackend createStateBackend(String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
+		KeyGroupAssigner<?> keyGroupAssigner = configuration.getKeyGroupAssigner(userClassLoader);
+		Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
+
+		StateBackendFactory<?> stateBackendFactory = createStateBackendFactory();
+
+		KeyGroupStateBackend backend = new KeyGroupStateBackend(
+			keyGroupAssigner,
+			stateBackendFactory,
+			flinkConfig);
+
+		backend.initializeForJob(getEnvironment(), operatorIdentifier, keySerializer);
+
+		return backend;
 	}
 
 	/**

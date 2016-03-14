@@ -120,6 +120,17 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		keyValueStates = null;
 		keyValueStatesByName = null;
 	}
+
+	/**
+	 * Disposes only the state associated with the respective state descriptor.
+	 *
+	 * @param stateDescriptor StateDescriptor defining the state to be disposed
+	 */
+	public void dispose(StateDescriptor<?, ?> stateDescriptor) {
+		if (keyValueStatesByName.containsKey(stateDescriptor.getName())) {
+			keyValueStatesByName.get(stateDescriptor.getName()).dispose();
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  key/value state

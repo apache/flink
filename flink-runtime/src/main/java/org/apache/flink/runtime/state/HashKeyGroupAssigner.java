@@ -18,25 +18,35 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.configuration.Configuration;
-
-import java.io.Serializable;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
+import org.apache.flink.runtime.util.MathUtils;
 
 /**
- * A factory to create a specific state backend. The state backend creation gets a Configuration
- * object that can be used to read further config values.
- * 
- * @param <T> The type of the state backend created.
+ * Hash based key group assigner
+ *
+ * The assigner assigns each key to a key group using the hash value of the key
+ *
+ * @param <K> Type of the key
  */
-public interface StateBackendFactory<T extends AbstractStateBackend> extends Serializable {
+public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
+	private static final long serialVersionUID = -6319826921798945448L;
 
-	/**
-	 * Creates the state backend, optionally using the given configuration.
-	 * 
-	 * @param config The Flink configuration (loaded by the TaskManager).
-	 * @return The created state backend. 
-	 * 
-	 * @throws Exception Exceptions during instantiation can be forwarded.
-	 */
-	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
+	private final int numberKeyGroups;
+
+	public HashKeyGroupAssigner(int numberKeyGroups) {
+		this.numberKeyGroups = numberKeyGroups;
+	}
+
+	@Override
+	public int getKeyGroupID(K key) {
+		if (key == null) {
+			return 0;
+		} else {
+			if (numberKeyGroups > 0) {
+				return MathUtils.murmurHash(key.hashCode()) % numberKeyGroups;
+			} else {
+				return MathUtils.murmurHash(key.hashCode());
+			}
+		}
+	}
 }

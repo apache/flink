@@ -16,27 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import org.apache.flink.configuration.Configuration;
+package org.apache.flink.api.common.state;
 
 import java.io.Serializable;
 
-/**
- * A factory to create a specific state backend. The state backend creation gets a Configuration
- * object that can be used to read further config values.
- * 
- * @param <T> The type of the state backend created.
- */
-public interface StateBackendFactory<T extends AbstractStateBackend> extends Serializable {
-
-	/**
-	 * Creates the state backend, optionally using the given configuration.
-	 * 
-	 * @param config The Flink configuration (loaded by the TaskManager).
-	 * @return The created state backend. 
-	 * 
-	 * @throws Exception Exceptions during instantiation can be forwarded.
-	 */
-	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
+public interface KeyGroupAssigner<K> extends Serializable {
+	int getKeyGroupID(K key);
 }

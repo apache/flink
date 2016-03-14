@@ -28,6 +28,8 @@ import org.apache.flink.runtime.state.StateBackendFactory;
  * from a configuration.
  */
 public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend> {
+
+	private static final long serialVersionUID = -7888602233336545685L;
 	
 	/** The key under which the config stores the directory where checkpoints should be stored */
 	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
@@ -35,8 +37,8 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 	/** The key under which the config stores the threshold for state to be store in memory,
 	 * rather than in files */
 	public static final String MEMORY_THRESHOLD_CONF_KEY = "state.backend.fs.memory-threshold";
-	
-	
+
+
 	@Override
 	public FsStateBackend createFromConfig(Configuration config) throws Exception {
 		String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);

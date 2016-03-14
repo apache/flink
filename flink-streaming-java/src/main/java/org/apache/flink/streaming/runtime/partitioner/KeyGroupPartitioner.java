@@ -18,38 +18,42 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner selects the target channel based on the hash value of a key from a
- * {@link KeySelector}.
+ * Partitioner selects the target channel based on the virtual partition ID. The virtual parititon
+ * ID is derived from the key of the elements using the virtual state partitioner.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class HashPartitioner<T> extends StreamPartitioner<T> {
+public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[1];
-	KeySelector<T, ?> keySelector;
+	private final int[] returnArray = new int[1];
 
-	public HashPartitioner(KeySelector<T, ?> keySelector) {
+	private final KeySelector<T, K> keySelector;
+
+	private final KeyGroupAssigner<K> keyGroupAssigner;
+
+	public KeyGroupPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
 		this.keySelector = keySelector;
+		this.keyGroupAssigner = keyGroupAssigner;
 	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		Object key;
+		K key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = MathUtils.murmurHash(key.hashCode()) % numberOfOutputChannels;
+		returnArray[0] = keyGroupAssigner.getKeyGroupID(key) % numberOfOutputChannels;
 
 		return returnArray;
 	}
