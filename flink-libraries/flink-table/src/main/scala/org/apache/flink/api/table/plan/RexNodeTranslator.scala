@@ -24,6 +24,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.typeutils.TypeConverter
 
 import scala.collection.JavaConversions._
 
@@ -76,7 +77,7 @@ object RexNodeTranslator {
       // Basic operators
       case Literal(value, tpe) =>
         relBuilder.literal(value)
-      case ResolvedFieldReference(name, tpe) =>
+      case ResolvedFieldReference(name) =>
         relBuilder.field(name)
       case UnresolvedFieldReference(name) =>
         relBuilder.field(name)

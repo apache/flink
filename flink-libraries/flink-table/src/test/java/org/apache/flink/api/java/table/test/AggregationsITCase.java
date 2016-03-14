@@ -36,7 +36,7 @@ package org.apache.flink.api.java.table.test;
  */
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.table.ExpressionException;
+import org.apache.flink.api.table.ExpressionParserException;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -177,7 +177,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ExpressionException.class)
+	@Test(expected = ExpressionParserException.class)
 	public void testNoNestedAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

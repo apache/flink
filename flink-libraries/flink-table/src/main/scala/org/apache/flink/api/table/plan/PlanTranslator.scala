@@ -22,8 +22,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.parser.ExpressionParser
-import org.apache.flink.api.table.expressions.{Naming, Expression, UnresolvedFieldReference}
+import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.Table
 
 import scala.language.reflectiveCalls

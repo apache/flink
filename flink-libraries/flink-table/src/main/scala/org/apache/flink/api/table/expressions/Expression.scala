@@ -18,16 +18,10 @@
 package org.apache.flink.api.table.expressions
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.language.postfixOps
-
-import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
-import org.apache.flink.api.table.trees.TreeNode
-
 
 abstract class Expression extends TreeNode[Expression] { self: Product =>
   def name: String = Expression.freshName("expression")
-  def typeInfo: TypeInformation[_]
 }
 
 abstract class BinaryExpression() extends Expression { self: Product =>
@@ -46,7 +40,6 @@ abstract class LeafExpression() extends Expression { self: Product =>
 }
 
 case class NopExpression() extends LeafExpression {
-  val typeInfo = new NothingTypeInfo()
   override val name = Expression.freshName("nop")
 
 }
