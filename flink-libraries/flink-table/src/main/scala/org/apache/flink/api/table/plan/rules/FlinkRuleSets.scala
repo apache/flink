@@ -29,49 +29,44 @@ object FlinkRuleSets {
     */
   val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
 
-    // filter rules
+    // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,
+    // push filter into the children of a join
     FilterJoinRule.JOIN,
-    FilterMergeRule.INSTANCE,
-    FilterAggregateTransposeRule.INSTANCE,
+    // push filter through an aggregation
+    FlinkFilterAggregateTransposeRule.INSTANCE,
 
-    // push and merge projection rules
+    // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
-    ProjectMergeRule.INSTANCE,
+    AggregateProjectPullUpConstantsRule.INSTANCE,
+    // push a projection past a filter or vice versa
     ProjectFilterTransposeRule.INSTANCE,
     FilterProjectTransposeRule.INSTANCE,
-    AggregateProjectPullUpConstantsRule.INSTANCE,
-    JoinPushExpressionsRule.INSTANCE,
+    // push a projection to the children of a join
     ProjectJoinTransposeRule.INSTANCE,
+    // remove identity project
     ProjectRemoveRule.INSTANCE,
+    // reorder sort and projection
     SortProjectTransposeRule.INSTANCE,
     ProjectSortTransposeRule.INSTANCE,
 
-    // merge and push unions rules
-    // TODO: Add a rule to enforce binary unions
+    // join rules
+    JoinPushExpressionsRule.INSTANCE,
+
+    // remove union with only a single child
     UnionEliminatorRule.INSTANCE,
-    FlinkJoinUnionTransposeRule.LEFT_UNION,
-    FlinkJoinUnionTransposeRule.RIGHT_UNION,
-    // non-all Union to all-union + distinct
+    // convert non-all union into all-union + distinct
     UnionToDistinctRule.INSTANCE,
 
-    // aggregation rules
+    // remove aggregation if it does not aggregate and input is already distinct
     AggregateRemoveRule.INSTANCE,
+    // push aggregate through join
     AggregateJoinTransposeRule.EXTENDED,
+    // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
-    // deactivate this rule temporarily
-    // AggregateReduceFunctionsRule.INSTANCE,
-    AggregateExpandDistinctAggregatesRule.INSTANCE,
 
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
-
-    // join reordering rules
-    JoinPushThroughJoinRule.LEFT,
-    JoinPushThroughJoinRule.RIGHT,
-    JoinAssociateRule.INSTANCE,
-    JoinCommuteRule.INSTANCE,
-    JoinCommuteRule.SWAP_OUTER,
 
     // simplify expressions rules
     ReduceExpressionsRule.CALC_INSTANCE,
@@ -93,7 +88,7 @@ object FlinkRuleSets {
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
 
-    // translate to logical Flink nodes
+    // translate to Flink DataSet nodes
     DataSetAggregateRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
