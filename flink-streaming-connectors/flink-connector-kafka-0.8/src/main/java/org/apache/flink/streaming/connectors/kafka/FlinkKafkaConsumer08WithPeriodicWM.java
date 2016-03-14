@@ -16,7 +16,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -29,6 +28,8 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaW
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+
+import static java.util.Objects.requireNonNull;
 
 public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08Base<T> implements Triggerable {
 
@@ -133,7 +134,7 @@ public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08B
 												Properties props,
 												AssignerWithPeriodicWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
-		this.periodicWatermarkAssigner = Preconditions.checkNotNull(timestampAssigner);
+		this.periodicWatermarkAssigner = requireNonNull(timestampAssigner);
 	}
 
 	@Override

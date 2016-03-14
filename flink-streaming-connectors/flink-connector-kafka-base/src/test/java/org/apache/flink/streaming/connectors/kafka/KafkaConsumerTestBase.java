@@ -444,7 +444,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void cancel() {
 				running = false;
 			}
-		});
+		}).setParallelism(1);
 
 		// add the data to the first topic
 		stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
@@ -453,8 +453,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
 				return value;
 			}
-		}).addSink(kafkaServer.getProducer(topic1,
-			new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
+		}).setParallelism(1).addSink(kafkaServer.getProducer(topic1,
+			new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null)).setParallelism(1);
 
 		// add the data to the second topic
 		if(!emptyPartition) {
@@ -465,7 +465,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					long timestamp = (value.f0 == -1) ? -1L : 1000 + value.f0;
 					return new Tuple2<Long, Integer>(timestamp, 1);
 				}
-			}).addSink(kafkaServer.getProducer(topic2, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
+			}).setParallelism(1).addSink(kafkaServer.getProducer(topic2, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null)).setParallelism(1);
 		}
 
 		// ----------- add consumer dataflow ----------

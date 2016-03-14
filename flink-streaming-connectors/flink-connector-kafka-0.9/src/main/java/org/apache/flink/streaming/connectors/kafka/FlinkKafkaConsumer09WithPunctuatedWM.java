@@ -16,7 +16,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -26,6 +25,8 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaW
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+
+import static java.util.Objects.requireNonNull;
 
 public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends FlinkKafkaConsumer09Base<T> {
 
@@ -112,7 +113,7 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends FlinkKafkaConsumer0
 	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
-		this.punctuatedWatermarkAssigner = Preconditions.checkNotNull(timestampAssigner);
+		this.punctuatedWatermarkAssigner = requireNonNull(timestampAssigner);
 	}
 
 	@Override
