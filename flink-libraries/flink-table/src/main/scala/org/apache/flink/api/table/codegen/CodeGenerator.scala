@@ -712,6 +712,10 @@ class CodeGenerator(
         val operand = operands.head
         generateCast(nullCheck, operand, resultType)
 
+      // as / renaming
+      case AS =>
+        operands.head
+
       // string arithmetic
       case CONCAT =>
         val left = operands.head
