@@ -58,6 +58,8 @@ public class AvroInputFormatTypeExtractionTest {
 
 		public String theString;
 
+		public MyAvroType recursive;
+
 		private double aDouble;
 
 		public double getaDouble() {
