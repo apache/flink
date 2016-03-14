@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -65,6 +66,15 @@ class DataSetAggregate(
     super.explainTerms(pw)
       .itemIf("groupBy",groupingToString, !grouping.isEmpty)
       .item("select", aggregationToString)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+
+    val child = this.getInput
+    val rowCnt = RelMetadataQuery.getRowCount(child)
+    val rowSize = this.estimateRowSize(child.getRowType)
+    val aggCnt = this.namedAggregates.size
+    planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
   override def translateToPlan(

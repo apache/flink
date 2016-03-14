@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelTraitSet, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
@@ -80,6 +81,17 @@ class DataSetJoin(
     super.explainTerms(pw)
       .item("where", joinConditionToString)
       .item("join", joinSelectionToString)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+
+    val children = this.getInputs
+
+    children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
+      val rowCnt = RelMetadataQuery.getRowCount(child)
+      val rowSize = this.estimateRowSize(child.getRowType)
+      cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
+    }
   }
 
   override def translateToPlan(

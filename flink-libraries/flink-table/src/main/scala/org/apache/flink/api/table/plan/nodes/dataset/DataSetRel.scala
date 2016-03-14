@@ -19,7 +19,9 @@
 package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.TableConfig
@@ -64,6 +66,25 @@ trait DataSetRel extends RelNode {
       }
       case _ => throw new IllegalArgumentException("Unknown expression type: " + expr)
     }
+  }
+
+  private[flink] def estimateRowSize(rowType: RelDataType): Double = {
+
+    rowType.getFieldList.map(_.getType.getSqlTypeName).foldLeft(0) { (s, t) =>
+      t match {
+        case SqlTypeName.TINYINT => s + 1
+        case SqlTypeName.SMALLINT => s + 2
+        case SqlTypeName.INTEGER => s + 4
+        case SqlTypeName.BIGINT => s + 8
+        case SqlTypeName.BOOLEAN => s + 1
+        case SqlTypeName.FLOAT => s + 4
+        case SqlTypeName.DOUBLE => s + 8
+        case SqlTypeName.VARCHAR => s + 12
+        case SqlTypeName.CHAR => s + 1
+        case _ => throw new IllegalArgumentException("Unsupported data type encountered")
+      }
+    }
+
   }
 
 }

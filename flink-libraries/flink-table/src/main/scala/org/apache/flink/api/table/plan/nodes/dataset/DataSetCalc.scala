@@ -18,8 +18,9 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptPlanner, RelOptCost, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -64,6 +65,26 @@ class DataSetCalc(
     super.explainTerms(pw)
       .item("select", selectionToString)
       .itemIf("where", conditionToString, calcProgram.getCondition != null)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+
+    val child = this.getInput
+    val rowCnt = RelMetadataQuery.getRowCount(child)
+    val exprCnt = calcProgram.getExprCount
+    planner.getCostFactory.makeCost(rowCnt, rowCnt * exprCnt, 0)
+  }
+
+  override def getRows: Double = {
+    val child = this.getInput
+    val rowCnt = RelMetadataQuery.getRowCount(child)
+
+    if (calcProgram.getCondition != null) {
+      // we reduce the result card to push filters down
+      (rowCnt * 0.75).min(1.0)
+    } else {
+      rowCnt
+    }
   }
 
   override def translateToPlan(config: TableConfig,
