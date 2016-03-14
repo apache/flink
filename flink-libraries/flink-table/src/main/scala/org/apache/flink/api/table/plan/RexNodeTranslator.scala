@@ -77,7 +77,7 @@ object RexNodeTranslator {
       // Basic operators
       case Literal(value, tpe) =>
         relBuilder.literal(value)
-      case ResolvedFieldReference(name, tpe) =>
+      case ResolvedFieldReference(name) =>
         relBuilder.field(name)
       case UnresolvedFieldReference(name) =>
         relBuilder.field(name)
