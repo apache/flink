@@ -51,6 +51,22 @@ class UnionITCase(
   }
 
   @Test
+  def testTernaryUnion(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds3 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+
+    val unionDs = ds1.unionAll(ds2).unionAll(ds3).select('c)
+
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n" +
+      "Hi\n" + "Hello\n" + "Hello world\n" +
+      "Hi\n" + "Hello\n" + "Hello world\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testUnionWithFilter(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
