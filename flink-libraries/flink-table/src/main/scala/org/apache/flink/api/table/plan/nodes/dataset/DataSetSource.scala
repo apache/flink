@@ -28,7 +28,8 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.plan.TypeConverter.determineReturnType
+import org.apache.flink.api.table.typeutils.TypeConverter
+import TypeConverter.determineReturnType
 import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.MapRunner
 

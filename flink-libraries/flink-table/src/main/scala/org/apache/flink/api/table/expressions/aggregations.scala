@@ -17,26 +17,7 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.ExpressionException
-
-
 abstract sealed class Aggregation extends UnaryExpression { self: Product =>
-  def typeInfo = {
-    child.typeInfo match {
-      case BasicTypeInfo.LONG_TYPE_INFO => // ok
-      case BasicTypeInfo.INT_TYPE_INFO =>
-      case BasicTypeInfo.DOUBLE_TYPE_INFO =>
-      case BasicTypeInfo.FLOAT_TYPE_INFO =>
-      case BasicTypeInfo.BYTE_TYPE_INFO =>
-      case BasicTypeInfo.SHORT_TYPE_INFO =>
-      case _ =>
-      throw new ExpressionException(s"Unsupported type ${child.typeInfo} for " +
-        s"aggregation $this. Only numeric data types supported.")
-    }
-    child.typeInfo
-  }
-
   override def toString = s"Aggregate($child)"
 }
 

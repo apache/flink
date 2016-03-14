@@ -26,9 +26,10 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
-import org.apache.flink.api.table.plan.{TypeConverter, PlanGenException}
-import org.apache.flink.api.table.plan.TypeConverter._
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.table.plan.PlanGenException
+import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
+import TypeConverter._
+import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableConfig}
 
 import scala.collection.JavaConversions._

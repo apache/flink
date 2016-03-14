@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.typeinfo
+package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.{ComparatorTestBase, TypeComparator
 import org.apache.flink.api.java.tuple
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.typeinfo.RowComparatorTest.MyPojo
+import org.apache.flink.api.table.typeutils.RowComparatorTest.MyPojo
 import org.junit.Assert._
 
 class RowComparatorTest extends ComparatorTestBase[Row] {

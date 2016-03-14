@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan
+package org.apache.flink.api.table.typeutils
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
@@ -30,7 +30,6 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableException}
 
 import scala.collection.JavaConversions._
@@ -61,11 +60,6 @@ object TypeConverter {
     case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
       throw new TableException("Character type is not supported.")
 
-//    case t: TupleTypeInfo[_] => ROW
-//    case c: CaseClassTypeInfo[_] => ROW
-//    case p: PojoTypeInfo[_] => STRUCTURED
-//    case g: GenericTypeInfo[_] => OTHER
-
     case t@_ =>
       throw new TableException(s"Type is not supported: $t")
   }
@@ -86,8 +80,7 @@ object TypeConverter {
     case SYMBOL => INT_TYPE_INFO
 
     case _ =>
-      println(sqlType)
-      ??? // TODO more types
+      throw new TableException("Type " + sqlType.toString + "is not supported")
   }
 
   /**

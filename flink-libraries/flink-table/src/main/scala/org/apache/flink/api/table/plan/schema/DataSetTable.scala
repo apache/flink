@@ -31,7 +31,7 @@ import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.AtomicType
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.TypeConverter
+import org.apache.flink.api.table.typeutils.TypeConverter
 
 class DataSetTable[T](
     val dataSet: DataSet[T],

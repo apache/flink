@@ -17,56 +17,13 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo}
-import org.apache.flink.api.table.ExpressionException
-
-abstract class BinaryArithmetic extends BinaryExpression { self: Product =>
-  def typeInfo = {
-    if (!left.typeInfo.isInstanceOf[NumericTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-numeric operand ${left} of type ${left.typeInfo} in $this""")
-    }
-    if (!right.typeInfo.isInstanceOf[NumericTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-numeric operand "${right}" of type ${right.typeInfo} in $this""")
-    }
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    left.typeInfo
-  }
-}
+abstract class BinaryArithmetic extends BinaryExpression { self: Product => }
 
 case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
-  override def typeInfo = {
-    if (!left.typeInfo.isInstanceOf[NumericTypeInfo[_]] &&
-      !(left.typeInfo == BasicTypeInfo.STRING_TYPE_INFO)) {
-      throw new ExpressionException(s"Non-numeric operand type ${left.typeInfo} in $this")
-    }
-    if (!right.typeInfo.isInstanceOf[NumericTypeInfo[_]] &&
-      !(right.typeInfo == BasicTypeInfo.STRING_TYPE_INFO)) {
-      throw new ExpressionException(s"Non-numeric operand type ${right.typeInfo} in $this")
-    }
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    left.typeInfo
-  }
-
   override def toString = s"($left + $right)"
 }
 
 case class UnaryMinus(child: Expression) extends UnaryExpression {
-  def typeInfo = {
-    if (!child.typeInfo.isInstanceOf[NumericTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-numeric operand ${child} of type ${child.typeInfo} in $this""")
-    }
-    child.typeInfo
-  }
-
   override def toString = s"-($child)"
 }
 

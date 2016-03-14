@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.parser
+package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.ExpressionParserException
 
-import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
+import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
  * Parser for expressions inside a String. This parses exactly the same expressions that
@@ -264,9 +263,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     parseAll(expressionList, expression) match {
       case Success(lst, _) => lst
 
-      case Failure(msg, _) => throw new ExpressionException("Could not parse expression: " + msg)
+      case Failure(msg, _) => throw new ExpressionParserException(
+        "Could not parse expression: " + msg)
 
-      case Error(msg, _) => throw new ExpressionException("Could not parse expression: " + msg)
+      case Error(msg, _) => throw new ExpressionParserException(
+        "Could not parse expression: " + msg)
     }
   }
 
@@ -275,7 +276,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case Success(lst, _) => lst
 
       case fail =>
-        throw new ExpressionException("Could not parse expression: " + fail.toString)
+        throw new ExpressionParserException("Could not parse expression: " + fail.toString)
     }
   }
 }

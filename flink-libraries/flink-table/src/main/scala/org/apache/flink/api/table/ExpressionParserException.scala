@@ -20,4 +20,4 @@ package org.apache.flink.api.table
 /**
  * Exception for all errors occurring during expression evaluation.
  */
-class ExpressionException(msg: String) extends RuntimeException(msg)
+class ExpressionParserException(msg: String) extends RuntimeException(msg)

@@ -23,8 +23,6 @@ package org.apache.flink.api.table.expressions
   */
 case class Call(functionName: String, args: Expression*) extends Expression {
 
-  def typeInfo = ???
-
   override def children: Seq[Expression] = args
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
