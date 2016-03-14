@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.typeinfo
+package org.apache.flink.api.table.typeutils
 
 import java.util
 
 import org.apache.flink.api.common.typeutils.{CompositeTypeComparator, TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.TupleComparatorBase
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.typeinfo.NullMaskUtils.readIntoNullMask
-import org.apache.flink.api.table.typeinfo.RowComparator.{createAuxiliaryFields, makeNullAware}
+import org.apache.flink.api.table.typeutils.NullMaskUtils.readIntoNullMask
+import org.apache.flink.api.table.typeutils.RowComparator.{createAuxiliaryFields, makeNullAware}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView, MemorySegment}
 import org.apache.flink.types.KeyFieldOutOfBoundsException
 

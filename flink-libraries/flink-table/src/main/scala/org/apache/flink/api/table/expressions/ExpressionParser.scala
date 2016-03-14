@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.parser
+package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.expressions._
 
-import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
+import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
  * Parser for expressions inside a String. This parses exactly the same expressions that

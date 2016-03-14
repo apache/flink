@@ -25,7 +25,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.plan.TypeConverter._
+import org.apache.flink.api.table.typeutils.TypeConverter
+import TypeConverter._
 import org.apache.flink.api.table.runtime.FlatMapRunner
 import org.apache.flink.api.table.TableConfig
 import org.apache.calcite.rex._

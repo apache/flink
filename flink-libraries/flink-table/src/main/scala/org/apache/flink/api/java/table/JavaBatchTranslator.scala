@@ -64,12 +64,6 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     // get the planner for the plan
     val planner = lPlan.getCluster.getPlanner
 
-
-    println("-----------")
-    println("Input Plan:")
-    println("-----------")
-    println(RelOptUtil.toString(lPlan))
-
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(lPlan)
 
@@ -91,11 +85,6 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
       case a: AssertionError =>
         throw a.getCause
     }
-
-    println("-------------")
-    println("DataSet Plan:")
-    println("-------------")
-    println(RelOptUtil.toString(dataSetPlan))
 
     dataSetPlan match {
       case node: DataSetRel =>

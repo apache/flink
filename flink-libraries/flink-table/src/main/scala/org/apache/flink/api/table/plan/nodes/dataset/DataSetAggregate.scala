@@ -24,10 +24,10 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.{PlanGenException, TypeConverter}
+import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
 import org.apache.flink.api.table.{Row, TableConfig}
 
 import scala.collection.JavaConverters._

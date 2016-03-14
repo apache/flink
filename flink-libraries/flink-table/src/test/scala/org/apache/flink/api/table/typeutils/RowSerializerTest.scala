@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.typeinfo
+package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerial
 import org.apache.flink.api.java.tuple
 import org.apache.flink.api.java.typeutils.{TypeExtractor, TupleTypeInfo}
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.typeinfo.RowSerializerTest.MyPojo
+import org.apache.flink.api.table.typeutils.RowSerializerTest.MyPojo
 import org.junit.Assert._
 import org.junit.Test
 

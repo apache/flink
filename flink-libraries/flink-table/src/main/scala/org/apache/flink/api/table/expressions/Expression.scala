@@ -18,11 +18,8 @@
 package org.apache.flink.api.table.expressions
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.language.postfixOps
-
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
-import org.apache.flink.api.table.trees.TreeNode
 
 
 abstract class Expression extends TreeNode[Expression] { self: Product =>

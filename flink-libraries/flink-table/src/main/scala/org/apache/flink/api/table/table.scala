@@ -31,8 +31,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.plan.{PlanGenException, RexNodeTranslator}
 import RexNodeTranslator.{toRexNode, extractAggCalls}
-import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
-import org.apache.flink.api.table.parser.ExpressionParser
+import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, UnresolvedFieldReference, Expression}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._

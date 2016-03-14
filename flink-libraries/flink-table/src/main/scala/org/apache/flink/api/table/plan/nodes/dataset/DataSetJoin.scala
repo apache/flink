@@ -29,9 +29,10 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.FlatJoinRunner
+import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.{TableException, TableConfig}
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.api.table.plan.TypeConverter._
+import TypeConverter.determineReturnType
 import scala.collection.mutable.ArrayBuffer
 import org.apache.calcite.rex.RexNode
 

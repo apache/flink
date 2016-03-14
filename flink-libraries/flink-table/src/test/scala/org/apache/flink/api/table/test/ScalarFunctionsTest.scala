@@ -22,10 +22,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.parser.ExpressionParser
+import org.apache.flink.api.table.expressions.{ExpressionParser, Expression}
 import org.apache.flink.api.table.test.utils.ExpressionEvaluator
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
