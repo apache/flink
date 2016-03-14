@@ -79,7 +79,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		Preconditions.checkNotNull(pMethod);
 		Preconditions.checkArgument(pKeys != null || pMethod == PartitionMethod.REBALANCE, "Partitioning requires keys");
 		Preconditions.checkArgument(pMethod != PartitionMethod.CUSTOM || customPartitioner != null, "Custom partioning requires a partitioner.");
-
+		Preconditions.checkArgument(distribution == null || pMethod == PartitionMethod.RANGE, "Customized data distribution is only neccessary for range partition.");
 		if (customPartitioner != null) {
 			pKeys.validateCustomPartitioner(customPartitioner, partitionerTypeInfo);
 		}

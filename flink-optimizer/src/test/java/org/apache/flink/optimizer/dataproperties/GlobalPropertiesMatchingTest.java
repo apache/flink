@@ -78,19 +78,19 @@ public class GlobalPropertiesMatchingTest {
 			// match range partitioning
 			{
 				GlobalProperties gp1 = new GlobalProperties();
-				gp1.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+				gp1.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING), null);
 				assertTrue(req.isMetBy(gp1));
 				
 				GlobalProperties gp2 = new GlobalProperties();
-				gp2.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING));
+				gp2.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING), null);
 				assertTrue(req.isMetBy(gp2));
 
 				GlobalProperties gp3 = new GlobalProperties();
-				gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING));
+				gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING), null);
 				assertFalse(req.isMetBy(gp3));
 				
 				GlobalProperties gp4 = new GlobalProperties();
-				gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING));
+				gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING), null);
 				assertTrue(req.isMetBy(gp4));
 			}
 			
@@ -149,7 +149,7 @@ public class GlobalPropertiesMatchingTest {
 				assertFalse(req.isMetBy(gp2));
 				
 				GlobalProperties gp3 = new GlobalProperties();
-				gp3.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+				gp3.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING), null);
 				assertFalse(req.isMetBy(gp3));
 			}
 		}
@@ -206,19 +206,19 @@ public class GlobalPropertiesMatchingTest {
 		// match range partitioning
 		{
 			GlobalProperties gp1 = new GlobalProperties();
-			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING));
+			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING), null);
 			assertTrue(req.isMetBy(gp1));
 
 			GlobalProperties gp2 = new GlobalProperties();
-			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING), null);
 			assertFalse(req.isMetBy(gp2));
 
 			GlobalProperties gp3 = new GlobalProperties();
-			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING));
+			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING), null);
 			assertFalse(req.isMetBy(gp3));
 
 			GlobalProperties gp4 = new GlobalProperties();
-			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING));
+			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING), null);
 			assertFalse(req.isMetBy(gp4));
 		}
 
@@ -271,19 +271,19 @@ public class GlobalPropertiesMatchingTest {
 		// match range partitioning
 		{
 			GlobalProperties gp1 = new GlobalProperties();
-			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING));
+			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING), null);
 			assertFalse(req.isMetBy(gp1));
 
 			GlobalProperties gp2 = new GlobalProperties();
-			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING), null);
 			assertFalse(req.isMetBy(gp2));
 
 			GlobalProperties gp3 = new GlobalProperties();
-			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING));
+			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING), null);
 			assertFalse(req.isMetBy(gp3));
 
 			GlobalProperties gp4 = new GlobalProperties();
-			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING));
+			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING), null);
 			assertFalse(req.isMetBy(gp4));
 		}
 

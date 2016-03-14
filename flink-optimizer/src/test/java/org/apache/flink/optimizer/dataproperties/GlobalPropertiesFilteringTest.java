@@ -258,7 +258,7 @@ public class GlobalPropertiesFilteringTest {
 		o.appendOrdering(5, LongValue.class, Order.DESCENDING);
 		o.appendOrdering(2, StringValue.class, Order.ASCENDING);
 		GlobalProperties gprops = new GlobalProperties();
-		gprops.setRangePartitioned(o);
+		gprops.setRangePartitioned(o, null);
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
@@ -292,7 +292,7 @@ public class GlobalPropertiesFilteringTest {
 		o.appendOrdering(5, LongValue.class, Order.DESCENDING);
 		o.appendOrdering(2, StringValue.class, Order.ASCENDING);
 		GlobalProperties gprops = new GlobalProperties();
-		gprops.setRangePartitioned(o);
+		gprops.setRangePartitioned(o, null);
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
@@ -326,7 +326,7 @@ public class GlobalPropertiesFilteringTest {
 		o.appendOrdering(5, LongValue.class, Order.DESCENDING);
 		o.appendOrdering(2, StringValue.class, Order.ASCENDING);
 		GlobalProperties gprops = new GlobalProperties();
-		gprops.setRangePartitioned(o);
+		gprops.setRangePartitioned(o, null);
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 

@@ -83,9 +83,15 @@ public class GlobalProperties implements Cloneable {
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
 	}
-	
 
-	public void setRangePartitioned(Ordering ordering) {
+	/**
+	 * Set the parameters for range partition.
+	 * 
+	 * @param ordering Order of the partitioned fields
+	 * @param distribution The data distribution for range partition. User can supply a customized data distribution,
+	 *                     also the data distribution can be null.  
+	 */
+	public void setRangePartitioned(Ordering ordering, DataDistribution distribution) {
 		if (ordering == null) {
 			throw new NullPointerException();
 		}
@@ -93,9 +99,6 @@ public class GlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = ordering.getInvolvedIndexes();
-	}
-	
-	public void setDataDistribution(DataDistribution distribution) {
 		this.distribution = distribution;
 	}
 	
@@ -174,7 +177,9 @@ public class GlobalProperties implements Cloneable {
 		return this.customPartitioner;
 	}
 	
-	public DataDistribution getDataDistribution() {return this.distribution;}
+	public DataDistribution getDataDistribution() {
+		return this.distribution;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

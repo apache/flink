@@ -109,11 +109,11 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 			// Make sure we only optimize the DAG for range partition, and do not optimize multi times.
 			if (shipStrategy == ShipStrategyType.PARTITION_RANGE) {
 
-				if(node.isOnDynamicPath()) {
-					throw new InvalidProgramException("Range Partitioning not supported within iterations.");
-				}
+				if(channel.getDataDistribution() == null) {
+					if (node.isOnDynamicPath()) {
+						throw new InvalidProgramException("Range Partitioning not supported within iterations if users do not supply the data distribution.");
+					}
 
-				if (channel.getDataDistribution() == null) {
 					PlanNode channelSource = channel.getSource();
 					List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
 					channelSource.getOutgoingChannels().remove(channel);
@@ -223,7 +223,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		prRemoverNode.setParallelism(targetParallelism);
 		prPlanNode.setParallelism(targetParallelism);
 		GlobalProperties globalProperties = new GlobalProperties();
-		globalProperties.setRangePartitioned(new Ordering(0, null, Order.ASCENDING));
+		globalProperties.setRangePartitioned(new Ordering(0, null, Order.ASCENDING), channel.getDataDistribution());
 		prPlanNode.initProperties(globalProperties, new LocalProperties());
 		prPlanNode.setCosts(defaultZeroCosts);
 		this.plan.getAllNodes().add(prPlanNode);
