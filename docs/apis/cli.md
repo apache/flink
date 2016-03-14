@@ -31,9 +31,10 @@ and connects by default to the running Flink master (JobManager) that was
 started from the same installation directory.
 
 A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via `<flink-home>/bin/start-
-local.sh` or `<flink-home>/bin/start-cluster.sh`) or that a YARN
-environment is available.
+master (JobManager) has been started (via 
+`<flink-home>/bin/start-local.sh` or 
+`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is 
+available.
 
 The command line can be used to
 
