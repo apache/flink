@@ -50,13 +50,15 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 
 	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 		PojoTypeExtractor pte = new PojoTypeExtractor();
-		TypeInformation ti = pte.analyzePojo(typeClass, new ArrayList<Type>(), null, null, null);
+		ArrayList<Type> typeHierarchy = new ArrayList<>();
+		typeHierarchy.add(typeClass);
+		TypeInformation ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
 
 		if(!(ti instanceof PojoTypeInfo)) {
 			throw new IllegalStateException("Expecting type to be a PojoTypeInfo");
 		}
 		PojoTypeInfo pti =  (PojoTypeInfo) ti;
-		List<PojoField> newFields = new ArrayList<PojoField>(pti.getTotalFields());
+		List<PojoField> newFields = new ArrayList<>(pti.getTotalFields());
 
 		for(int i = 0; i < pti.getArity(); i++) {
 			PojoField f = pti.getPojoFieldAt(i);
