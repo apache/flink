@@ -31,10 +31,12 @@ import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.NumericTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -47,6 +49,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -57,6 +60,9 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
@@ -68,6 +74,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidating
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -340,7 +347,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					int nc;
 					if ((nc = validator.nextClearBit(0)) != totalElements) {
 						fail("The bitset was not set to 1 on all elements. Next clear:"
-								+ nc + " Set: " + validator);
+							+ nc + " Set: " + validator);
 					}
 					throw new SuccessException();
 				}
@@ -373,6 +380,201 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
+	@RetryOnException(times=0, exception=kafka.common.NotLeaderForPartitionException.class)
+	public void runExplicitWMgeneratorConsumerTest(boolean emptyPartition) throws Exception {
+
+		final String topic1 = "wmExtractorTopic1_" + UUID.randomUUID().toString();
+		final String topic2 = "wmExtractorTopic2_" + UUID.randomUUID().toString();
+
+		final List<String> topics = new ArrayList<>();
+		topics.add(topic1);
+		topics.add(topic2);
+
+		final int noOfTopcis = topics.size();
+		final int partitionsPerTopic = 1;
+		final int elementsPerPartition = 100 + 1;
+
+		final int totalElements = emptyPartition ?
+			partitionsPerTopic * elementsPerPartition :
+			noOfTopcis * partitionsPerTopic * elementsPerPartition;
+
+		createTestTopic(topic1, partitionsPerTopic, 1);
+		createTestTopic(topic2, partitionsPerTopic, 1);
+
+		final StreamExecutionEnvironment env =
+			StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(partitionsPerTopic);
+		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
+		env.getConfig().disableSysoutLogging();
+
+		TypeInformation<Tuple2<Long, Integer>> longIntType = TypeInfoParser.parse("Tuple2<Long, Integer>");
+
+		TypeInformationSerializationSchema<Tuple2<Long, Integer>> sourceSchema =
+			new TypeInformationSerializationSchema<>(longIntType, env.getConfig());
+
+		TypeInformationSerializationSchema<Tuple2<Long, Integer>> sinkSchema =
+			new TypeInformationSerializationSchema<>(longIntType, env.getConfig());
+
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "0");
+
+		// ----------- add producer dataflow ----------
+
+		DataStream<Tuple2<Long, Integer>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Long, Integer>>() {
+
+			private boolean running = true;
+
+			@Override
+			public void run(SourceContext<Tuple2<Long, Integer>> ctx) throws InterruptedException {
+				int topic = 0;
+				int currentTs = 0;
+
+				while (running && currentTs < elementsPerPartition) {
+					long timestamp = (currentTs % 10 == 0) ? -1L : currentTs;
+					ctx.collect(new Tuple2<Long, Integer>(timestamp, topic));
+					currentTs++;
+				}
+
+				Tuple2<Long, Integer> toWrite2 = new Tuple2<Long, Integer>(-1L, topic);
+				ctx.collect(toWrite2);
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		});
+
+		// add the data to the first topic
+		stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
+
+			@Override
+			public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
+				return value;
+			}
+		}).addSink(kafkaServer.getProducer(topic1,
+			new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
+
+		// add the data to the second topic
+		if(!emptyPartition) {
+			stream.map(new MapFunction<Tuple2<Long,Integer>, Tuple2<Long,Integer>>() {
+
+				@Override
+				public Tuple2<Long, Integer> map(Tuple2<Long, Integer> value) throws Exception {
+					long timestamp = (value.f0 == -1) ? -1L : 1000 + value.f0;
+					return new Tuple2<Long, Integer>(timestamp, 1);
+				}
+			}).addSink(kafkaServer.getProducer(topic2, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null));
+		}
+
+		// ----------- add consumer dataflow ----------
+
+		FlinkKafkaConsumerBase<Tuple2<Long, Integer>> source = kafkaServer.getConsumer(topics, sourceSchema, standardProps, new TestPunctuatedTSExtractor());
+
+		// set parallelism to 1 to see the watermark timestamps
+		DataStreamSource<Tuple2<Long, Integer>> consuming = env.addSource(source).setParallelism(1);
+		consuming
+			.transform("testingWatermarkOperator", longIntType, new WMTestingOperator()).setParallelism(1)
+			.addSink(new RichSinkFunction<Tuple2<Long, Integer>>() {
+
+			private int elCnt = 0;
+
+			@Override
+			public void invoke(Tuple2<Long, Integer> value) throws Exception {
+				elCnt++;
+
+				if (elCnt == totalElements) {
+					// check if everything in the bitset is set to true
+					throw new SuccessException();
+				}
+			}
+
+			@Override
+			public void close() throws Exception {
+				super.close();
+			}
+		}).setParallelism(1);
+
+		try {
+			tryExecutePropagateExceptions(env, "runSimpleConcurrentProducerConsumerTopology");
+		}
+		catch (ProgramInvocationException | JobExecutionException e) {
+			// look for NotLeaderForPartitionException
+			Throwable cause = e.getCause();
+
+			// search for nested SuccessExceptions
+			int depth = 0;
+			while (cause != null && depth++ < 20) {
+				if (cause instanceof kafka.common.NotLeaderForPartitionException) {
+					throw (Exception) cause;
+				}
+				cause = cause.getCause();
+			}
+			throw e;
+		}
+
+		deleteTestTopic(topic1);
+		deleteTestTopic(topic2);
+	}
+
+	/** An extractor that emits a Watermark whenever the timestamp <b>in the record</b> is equal to {@code -1}. */
+	private static class TestPunctuatedTSExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<Long, Integer>> {
+
+		@Override
+		public Watermark checkAndGetNextWatermark(Tuple2<Long, Integer> lastElement, long extractedTimestamp) {
+			return (lastElement.f0 == -1 || extractedTimestamp == -1L) ? new Watermark(1) : null;
+		}
+
+		@Override
+		public long extractTimestamp(Tuple2<Long, Integer> element, long previousElementTimestamp) {
+			return element.f0;
+		}
+	}
+
+	public static class WMTestingOperator extends AbstractStreamOperator<Tuple2<Long, Integer>> implements OneInputStreamOperator<Tuple2<Long, Integer>, Tuple2<Long, Integer>> {
+
+		private static final Map<Integer, Boolean> isEligible = new HashMap<>();
+		private static final Map<Integer, Long> perPartitionMaxTs = new HashMap<>();
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<Long, Integer>> element) throws Exception {
+			int partition = element.getValue().f1;
+			Long ts = perPartitionMaxTs.get(partition);
+			if(ts == null || ts < element.getValue().f0) {
+				perPartitionMaxTs.put(partition, element.getValue().f0);
+				isEligible.put(partition, true);
+			}
+			output.collect(element);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			int partition = -1;
+			long minTS = Long.MAX_VALUE;
+			for (Integer part : perPartitionMaxTs.keySet()) {
+				Long ts = perPartitionMaxTs.get(part);
+				if (isEligible.get(part) && ts < minTS) {
+					partition = part;
+					minTS = ts;
+				}
+			}
+			isEligible.put(partition, false);
+			assertEquals(mark.getTimestamp(), minTS);
+			System.out.println("Task: " + getRuntimeContext().getIndexOfThisSubtask() + " READ WATERMARK: " + mark.getTimestamp() +" expected: "+ minTS);
+			output.emitWatermark(mark);
+		}
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+		}
+	}
 
 	/**
 	 * Tests the proper consumption when having a 1:1 correspondence between kafka partitions and
@@ -748,30 +950,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			final String topic = "topic-" + i;
 			deleteTestTopic(topic);
 		}
-	}
-
-	/** An extractor that emits a Watermark whenever the timestamp <b>in the record</b> is equal to {@code -1}. */
-	private class TestPunctuatedTSExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<Integer, Integer>> {
-
-		@Override
-		public Watermark checkAndGetNextWatermark(Tuple2<Integer, Integer> lastElement, long extractedTimestamp) {
-			return (lastElement.f1 == -1) ? new Watermark(1) : null;
-		}
-
-		@Override
-		public long extractTimestamp(Tuple2<Integer, Integer> element, long previousElementTimestamp) {
-			return element.f1;
-		}
-	}
-
-	public void runWithPunctuatedTimestampExtractor() throws Exception {
-		// TODO: 3/9/16 IMPLEMENT THIS
-		// it has to be a producer comsumer where the producer writes in two different partitions
-		// and the consumer reads and creates the watermarks accordingly.
-	}
-
-	public void runWithPeriodicTimestampExtractor() throws Exception {
-		// TODO: 3/9/16 IMPLEMENT THIS
 	}
 
 	private static class Tuple2WithTopicDeserializationSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> {

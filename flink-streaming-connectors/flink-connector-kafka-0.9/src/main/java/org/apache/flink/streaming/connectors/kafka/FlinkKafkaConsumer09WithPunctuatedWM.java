@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -111,7 +112,7 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends FlinkKafkaConsumer0
 	public FlinkKafkaConsumer09WithPunctuatedWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
 												AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
-		this.punctuatedWatermarkAssigner = timestampAssigner;
+		this.punctuatedWatermarkAssigner = Preconditions.checkNotNull(timestampAssigner);
 	}
 
 	@Override
@@ -123,19 +124,16 @@ public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends FlinkKafkaConsumer0
 		// if it is time to emit a watermark (based on the user-specified function, it sends a watermark
 		// containing the minimum timestamp seen so far, across all local partitions for a given topic
 
-		// todo when it terminates and there are partitions with no more elements???
-
 		long extractedTimestamp = punctuatedWatermarkAssigner.extractTimestamp(value, Long.MIN_VALUE);
 		sourceContext.collectWithTimestamp(value, extractedTimestamp);
 
-		updateMinimumTimestampForPartition(topic, partition, extractedTimestamp);
-		long minTimestamp = getMinimumTimestampAcrossAllTopics();
+		updateMaximumTimestampForPartition(topic, partition, extractedTimestamp);
 
 		final Watermark nextWatermark = punctuatedWatermarkAssigner
 			.checkAndGetNextWatermark(value, extractedTimestamp);
 
-		if (nextWatermark != null) {
-			emitWatermarkIfMarkingProgress(sourceContext, minTimestamp);
+		if(nextWatermark != null) {
+			emitWatermarkIfMarkingProgress(sourceContext);
 		}
 	}
 }

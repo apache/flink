@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -124,7 +125,7 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09B
 	public FlinkKafkaConsumer09WithPeriodicWM(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props,
 											AssignerWithPeriodicWatermarks<T> timestampAssigner) {
 		super(topics, deserializer, props);
-		this.periodicWatermarkAssigner = timestampAssigner;
+		this.periodicWatermarkAssigner = Preconditions.checkNotNull(timestampAssigner);
 	}
 
 	@Override
@@ -152,7 +153,7 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09B
 
 		long extractedTimestamp = periodicWatermarkAssigner.extractTimestamp(value, Long.MIN_VALUE);
 		sourceContext.collectWithTimestamp(value, extractedTimestamp);
-		updateMinimumTimestampForPartition(topic, partition, extractedTimestamp);
+		updateMaximumTimestampForPartition(topic, partition, extractedTimestamp);
 	}
 
 	@Override
@@ -163,10 +164,7 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09B
 
 		// get the minimum seen timestamp across ALL topics AND partitions
 		// and send it in the stream.
-		long minTimestamp = getMinimumTimestampAcrossAllTopics();
-		synchronized (srcContext.getCheckpointLock()) {
-			emitWatermarkIfMarkingProgress(srcContext, minTimestamp);
-		}
+		emitWatermarkIfMarkingProgress(srcContext);
 		setNextWatermarkTimer(runtime);
 	}
 

@@ -61,6 +61,16 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
+	public void testExplicitWMConsumer() throws Exception {
+		runExplicitWMgeneratorConsumerTest(false);
+	}
+
+	@Test(timeout = 60000)
+	public void testExplicitWMConsumerWithEmptyTopic() throws Exception {
+		runExplicitWMgeneratorConsumerTest(true);
+	}
+
+	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
 		runKeyValueTest();
 	}
