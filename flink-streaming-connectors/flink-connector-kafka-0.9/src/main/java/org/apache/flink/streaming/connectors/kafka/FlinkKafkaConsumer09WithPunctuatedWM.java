@@ -28,6 +28,10 @@ import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * An implementation of a {@link FlinkKafkaComsumerWithWMBase} for Apache Kafka 0.9.x, that decides when to
+ * emit a watermark based on a user provided {@link AssignerWithPunctuatedWatermarks}.
+ * */
 public class FlinkKafkaConsumer09WithPunctuatedWM<T> extends FlinkKafkaConsumer09Base<T> {
 
 	/**

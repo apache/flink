@@ -31,6 +31,10 @@ import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * An implementation of a {@link FlinkKafkaComsumerWithWMBase} for Apache Kafka 0.9.x, that emits
+ * watermarks periodically. The user has to provide a {@link AssignerWithPeriodicWatermarks}.
+ * */
 public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09Base<T> implements Triggerable {
 
 	/**
