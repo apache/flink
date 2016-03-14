@@ -523,7 +523,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public Watermark checkAndGetNextWatermark(Tuple2<Long, Integer> lastElement, long extractedTimestamp) {
-			return (lastElement.f0 == -1 || extractedTimestamp == -1L) ? new Watermark(1) : null;
+			return (lastElement.f0 == -1 || extractedTimestamp == -1L) ? new Watermark(extractedTimestamp) : null;
 		}
 
 		@Override
@@ -534,8 +534,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	public static class WMTestingOperator extends AbstractStreamOperator<Tuple2<Long, Integer>> implements OneInputStreamOperator<Tuple2<Long, Integer>, Tuple2<Long, Integer>> {
 
-		private static final Map<Integer, Boolean> isEligible = new HashMap<>();
-		private static final Map<Integer, Long> perPartitionMaxTs = new HashMap<>();
+		private static Map<Integer, Boolean> isEligible = new HashMap<>();
+		private static Map<Integer, Long> perPartitionMaxTs = new HashMap<>();
+
+		public WMTestingOperator() {
+			isEligible = new HashMap<>();
+			perPartitionMaxTs = new HashMap<>();
+		}
 
 		@Override
 		public void processElement(StreamRecord<Tuple2<Long, Integer>> element) throws Exception {
@@ -559,9 +564,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					minTS = ts;
 				}
 			}
+			System.out.println(mark);
 			isEligible.put(partition, false);
-			assertEquals(mark.getTimestamp(), minTS);
-			System.out.println("Task: " + getRuntimeContext().getIndexOfThisSubtask() + " READ WATERMARK: " + mark.getTimestamp() +" expected: "+ minTS);
+
+			assertEquals(minTS, mark.getTimestamp());
 			output.emitWatermark(mark);
 		}
 
@@ -573,6 +579,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		@Override
 		public void close() throws Exception {
 			super.close();
+			perPartitionMaxTs.clear();
+			isEligible.clear();
 		}
 	}
 
