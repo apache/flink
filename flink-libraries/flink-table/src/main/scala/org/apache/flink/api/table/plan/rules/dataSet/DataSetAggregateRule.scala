@@ -45,7 +45,6 @@ class DataSetAggregateRule
         agg.getNamedAggCalls,
         rel.getRowType,
         agg.getInput.getRowType,
-        agg.toString,
         agg.getGroupSet.toArray)
       }
   }

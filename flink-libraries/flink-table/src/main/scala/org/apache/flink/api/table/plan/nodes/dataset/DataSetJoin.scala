@@ -48,7 +48,6 @@ class DataSetJoin(
     left: RelNode,
     right: RelNode,
     rowType: RelDataType,
-    opName: String,
     joinCondition: RexNode,
     joinRowType: RelDataType,
     joinInfo: JoinInfo,
@@ -68,7 +67,6 @@ class DataSetJoin(
       inputs.get(0),
       inputs.get(1),
       rowType,
-      opName,
       joinCondition,
       joinRowType,
       joinInfo,
@@ -79,7 +77,9 @@ class DataSetJoin(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
+    super.explainTerms(pw)
+      .item("where", joinConditionToString)
+      .item("join", joinSelectionToString)
   }
 
   override def translateToPlan(
@@ -145,19 +145,20 @@ class DataSetJoin(
       genFunction.code,
       genFunction.returnType)
 
-    val joinOpName = joinConditionToString()
+    val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
 
     leftDataSet.join(rightDataSet).where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
       .`with`(joinFun).name(joinOpName).asInstanceOf[DataSet[Any]]
   }
 
-  private def joinConditionToString(): String = {
+  private def joinSelectionToString: String = {
+    rowType.getFieldNames.asScala.toList.mkString(", ")
+  }
+
+  private def joinConditionToString: String = {
 
     val inFields = joinRowType.getFieldNames.asScala.toList
-    val condString = s"where: (${getExpressionString(joinCondition, inFields, None)})"
-    val outFieldString = s"join: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-    condString + ", " + outFieldString
+    getExpressionString(joinCondition, inFields, None)
   }
 
 }

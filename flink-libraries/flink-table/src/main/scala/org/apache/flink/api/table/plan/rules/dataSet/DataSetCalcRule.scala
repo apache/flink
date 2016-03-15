@@ -43,7 +43,6 @@ class DataSetCalcRule
         convInput,
         rel.getRowType,
         calc.getProgram,
-        calc.toString,
         description)
     }
   }
