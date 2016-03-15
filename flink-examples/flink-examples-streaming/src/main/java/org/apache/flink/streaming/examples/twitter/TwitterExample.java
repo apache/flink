@@ -17,28 +17,31 @@
 
 package org.apache.flink.streaming.examples.twitter;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
 import org.apache.flink.streaming.connectors.twitter.TwitterSource;
-import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
+import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.util.Collector;
-import org.apache.sling.commons.json.JSONException;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.util.StringTokenizer;
 
 /**
  * Implements the "TwitterStream" program that computes a most used word
- * occurrence over JSON files in a streaming fashion.
+ * occurrence over JSON objects in a streaming fashion.
  * <p>
- * The input is a JSON text file with lines separated by newline characters.
+ * The input is a Tweet stream from a TwitterSource.
  * </p>
  * <p>
- * Usage: <code>TwitterStream [--output &lt;path&gt;] [--props &lt;path&gt;]</code><br>
+ * Usage: <code>Usage: TwitterExample [--output <path>]
+ * [--twitter-source.consumerKey <key> --twitter-source.consumerSecret <secret> --twitter-source.token <token> --twitter-source.tokenSecret <tokenSecret>]</code><br>
+ *
  * If no parameters are provided, the program is run with default data from
- * {@link TwitterStreamData}.
+ * {@link TwitterExampleData}.
  * </p>
  * <p>
  * This example shows how to:
@@ -48,7 +51,7 @@ import java.util.StringTokenizer;
  * <li>handle flattened stream inputs.
  * </ul>
  */
-public class TwitterStream {
+public class TwitterExample {
 
 	// *************************************************************************
 	// PROGRAM
@@ -58,7 +61,8 @@ public class TwitterStream {
 
 		// Checking input parameters
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		System.out.println("Usage: TwitterStream --output <path> --props <path>");
+		System.out.println("Usage: TwitterExample [--output <path>] " +
+				"[--twitter-source.consumerKey <key> --twitter-source.consumerSecret <secret> --twitter-source.token <token> --twitter-source.tokenSecret <tokenSecret>]");
 
 		// set up the execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -66,16 +70,22 @@ public class TwitterStream {
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
+		env.setParallelism(params.getInt("parallelism", 1));
+
 		// get input data
 		DataStream<String> streamSource;
-		if (params.has("props")) {
-			// read the text file from given input path
-			streamSource = env.addSource(new TwitterSource(params.get("props")));
+		if (params.has(TwitterSource.CONSUMER_KEY) &&
+				params.has(TwitterSource.CONSUMER_SECRET) &&
+				params.has(TwitterSource.TOKEN) &&
+				params.has(TwitterSource.TOKEN_SECRET)
+				) {
+			streamSource = env.addSource(new TwitterSource(params.getProperties()));
 		} else {
 			System.out.println("Executing TwitterStream example with default props.");
-			System.out.println("Use --props to specify the path to the authentication info.");
+			System.out.println("Use --twitter-source.consumerKey <key> --twitter-source.consumerSecret <secret> " +
+					"--twitter-source.token <token> --twitter-source.tokenSecret <tokenSecret> specify the authentication info.");
 			// get default test text data
-			streamSource = env.fromElements(TwitterStreamData.TEXTS);
+			streamSource = env.fromElements(TwitterExampleData.TEXTS);
 		}
 
 		DataStream<Tuple2<String, Integer>> tweets = streamSource
@@ -101,37 +111,39 @@ public class TwitterStream {
 	// *************************************************************************
 
 	/**
-	 * Makes sentences from English tweets.
+	 * Deserialize JSON from twitter source
+	 *
 	 * <p>
 	 * Implements a string tokenizer that splits sentences into words as a
 	 * user-defined FlatMapFunction. The function takes a line (String) and
 	 * splits it into multiple pairs in the form of "(word,1)" ({@code Tuple2<String,
 	 * Integer>}).
 	 */
-	public static class SelectEnglishAndTokenizeFlatMap extends JSONParseFlatMap<String, Tuple2<String, Integer>> {
+	public static class SelectEnglishAndTokenizeFlatMap implements FlatMapFunction<String, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
+		private transient ObjectMapper jsonParser;
 		/**
 		 * Select the language from the incoming JSON text
 		 */
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
-			try {
-				if (getString(value, "user.lang").equals("en")) {
-					// message of tweet
-					StringTokenizer tokenizer = new StringTokenizer(getString(value, "text"));
+			if(jsonParser == null) {
+				jsonParser = new ObjectMapper();
+			}
+			JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);
+			if (jsonNode.has("user") && jsonNode.get("user").get("lang").asText().equals("en")) {
+				// message of tweet
+				StringTokenizer tokenizer = new StringTokenizer(jsonNode.get("text").asText());
 
-					// split the message
-					while (tokenizer.hasMoreTokens()) {
-						String result = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase();
+				// split the message
+				while (tokenizer.hasMoreTokens()) {
+					String result = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase();
 
-						if (!result.equals("")) {
-							out.collect(new Tuple2<>(result, 1));
-						}
+					if (!result.equals("")) {
+						out.collect(new Tuple2<>(result, 1));
 					}
 				}
-			} catch (JSONException e) {
-				// the JSON was not parsed correctly
 			}
 		}
 	}
