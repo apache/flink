@@ -44,8 +44,7 @@ class DataSetUnionRule
         traitSet,
         convLeft,
         convRight,
-        rel.getRowType,
-        union.toString)
+        rel.getRowType)
     }
   }
 

@@ -44,7 +44,6 @@ class DataSetCalc(
     input: RelNode,
     rowType: RelDataType,
     calcProgram: RexProgram,
-    opName: String,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
@@ -58,15 +57,14 @@ class DataSetCalc(
       inputs.get(0),
       rowType,
       calcProgram,
-      opName,
       ruleDescription)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
+    super.explainTerms(pw)
+      .item("select", selectionToString)
+      .itemIf("where", conditionToString, calcProgram.getCondition != null)
   }
-
-  override def toString = opName
 
   override def translateToPlan(config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
@@ -150,40 +148,45 @@ class DataSetCalc(
       genFunction.code,
       genFunction.returnType)
 
-    val calcDesc = calcProgramToString()
+    val calcOpName =
+      s"${if (condition != null) {
+          s"where: ($conditionToString), "
+      } else {
+        ""
+      }}select: ($selectionToString)"
 
-    inputDS.flatMap(mapFunc).name(calcDesc)
+    inputDS.flatMap(mapFunc).name(calcOpName)
   }
 
-  private def calcProgramToString(): String = {
-
-    val cond = calcProgram.getCondition
+  private def selectionToString: String = {
     val proj = calcProgram.getProjectList.asScala.toList
-    val localExprs = calcProgram.getExprList.asScala.toList
     val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
+    val localExprs = calcProgram.getExprList.asScala.toList
     val outFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
 
-    val projString = s"select: (${
-      proj
-        .map(getExpressionString(_, inFields, Some(localExprs)))
-        .zip(outFields).map { case (e, o) => {
-            if (e != o) {
-              e + " AS " + o
-            } else {
-              e
-            }
+    proj
+      .map(getExpressionString(_, inFields, Some(localExprs)))
+      .zip(outFields).map { case (e, o) => {
+          if (e != o) {
+            e + " AS " + o
+          } else {
+            e
           }
         }
-        .mkString(", ")
-    })"
+      }.mkString(", ")
+  }
+
+  private def conditionToString: String = {
+
+    val cond = calcProgram.getCondition
+    val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
+    val localExprs = calcProgram.getExprList.asScala.toList
+
     if (cond != null) {
-      val condString = s"where: (${getExpressionString(cond, inFields, Some(localExprs))})"
-
-      condString + ", " + projString
+      getExpressionString(cond, inFields, Some(localExprs))
     } else {
-      projString
+      ""
     }
-
   }
 
 }
