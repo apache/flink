@@ -119,6 +119,27 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		String expected = "ABCD42\nABCD42";
 		compareResultAsText(results, expected);
 	}
+
+
+	@Test
+	public void testCastFloat() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a + 42f.cast(INT)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "ABCD42\nABCD42";
+		compareResultAsText(results, expected);
+	}
 	// Calcite does eagerly check expression types
 	@Ignore
 	@Test(expected = CodeGenException.class)
