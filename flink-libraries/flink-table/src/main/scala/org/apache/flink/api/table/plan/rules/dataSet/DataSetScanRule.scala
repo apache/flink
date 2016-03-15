@@ -16,38 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkAggregate, FlinkConvention}
+import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.logical.LogicalTableScan
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSource}
 
-class FlinkAggregateRule
+class DataSetScanRule
   extends ConverterRule(
-      classOf[LogicalAggregate],
+      classOf[LogicalTableScan],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
-      "FlinkAggregateRule")
+      DataSetConvention.INSTANCE,
+      "FlinkScanRule")
   {
-
     def convert(rel: RelNode): RelNode = {
-      val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConvention.INSTANCE)
+      val scan: TableScan = rel.asInstanceOf[TableScan]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
 
-      new FlinkAggregate(
+      new DataSetSource(
         rel.getCluster,
         traitSet,
-        convInput,
-        agg.indicator,
-        agg.getGroupSet,
-        agg.getGroupSets,
-        agg.getAggCallList)
+        scan.getTable,
+        rel.getRowType
+      )
     }
   }
 
-object FlinkAggregateRule {
-  val INSTANCE: RelOptRule = new FlinkAggregateRule
+object DataSetScanRule {
+  val INSTANCE: RelOptRule = new DataSetScanRule
 }

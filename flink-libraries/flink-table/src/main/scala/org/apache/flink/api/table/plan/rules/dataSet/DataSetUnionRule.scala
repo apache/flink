@@ -16,37 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.dataset
+package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkUnion, FlinkConvention}
 
 class DataSetUnionRule
   extends ConverterRule(
-    classOf[FlinkUnion],
-    FlinkConvention.INSTANCE,
-    DataSetConvention.INSTANCE,
-    "DataSetUnionRule")
-{
+      classOf[LogicalUnion],
+      Convention.NONE,
+      DataSetConvention.INSTANCE,
+      "FlinkUnionRule")
+  {
 
-  def convert(rel: RelNode): RelNode = {
-    val union: FlinkUnion = rel.asInstanceOf[FlinkUnion]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
+    def convert(rel: RelNode): RelNode = {
 
-    new DataSetUnion(
-      rel.getCluster,
-      traitSet,
-      convLeft,
-      convRight,
-      rel.getRowType,
-      union.toString)
+      val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
+      val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
+
+      new DataSetUnion(
+        rel.getCluster,
+        traitSet,
+        convLeft,
+        convRight,
+        rel.getRowType,
+        union.toString)
+    }
   }
-}
 
 object DataSetUnionRule {
   val INSTANCE: RelOptRule = new DataSetUnionRule

@@ -15,17 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.table.codegen.calls
 
-package org.apache.flink.api.table.plan.nodes.logical
+import org.apache.calcite.linq4j.tree.Types
+import org.apache.calcite.runtime.SqlFunctions
 
-import org.apache.calcite.plan.{RelOptTable, RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.core.TableScan
-
-class FlinkScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
-  with FlinkRel {
-
+object BuiltInMethods {
+  val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
+  val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
+  val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
+  val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
+  val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
 }

@@ -16,38 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSource}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkScan, FlinkConvention}
-import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
 
-class FlinkScanRule
+class DataSetCalcRule
   extends ConverterRule(
-      classOf[LogicalTableScan],
+      classOf[LogicalCalc],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
-      "FlinkScanRule")
+      DataSetConvention.INSTANCE,
+      "FlinkCalcRule")
   {
-    def convert(rel: RelNode): RelNode = {
-      val scan: TableScan = rel.asInstanceOf[TableScan]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val dataSet: DataSet[_] = scan.getTable().unwrap(classOf[DataSetTable[_]]).dataSet
 
-      new FlinkScan(
+    def convert(rel: RelNode): RelNode = {
+      val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convInput: RelNode = RelOptRule.convert(calc.getInput, DataSetConvention.INSTANCE)
+
+      new DataSetCalc(
         rel.getCluster,
         traitSet,
-        scan.getTable
-      )
+        convInput,
+        rel.getRowType,
+        calc.getProgram,
+        calc.toString,
+        description)
     }
   }
 
-object FlinkScanRule {
-  val INSTANCE: RelOptRule = new FlinkScanRule
+object DataSetCalcRule {
+  val INSTANCE: RelOptRule = new DataSetCalcRule
 }

@@ -66,9 +66,8 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO support advanced String operations
 
-  @Ignore
+  @Ignore // TODO support advanced String operations
   @Test
   def testAutoCastToString(): Unit = {
 

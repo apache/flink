@@ -16,39 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.logical
+package org.apache.flink.api.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkUnion, FlinkConvention}
-
+import org.apache.calcite.rel.logical.LogicalAggregate
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
 import scala.collection.JavaConversions._
 
-class FlinkUnionRule
+class DataSetAggregateRule
   extends ConverterRule(
-      classOf[LogicalUnion],
+      classOf[LogicalAggregate],
       Convention.NONE,
-      FlinkConvention.INSTANCE,
-      "FlinkUnionRule")
+      DataSetConvention.INSTANCE,
+      "FlinkAggregateRule")
   {
 
     def convert(rel: RelNode): RelNode = {
-      val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConvention.INSTANCE)
-      val convInputs = union.getInputs.toList.map(
-        RelOptRule.convert(_, FlinkConvention.INSTANCE)
-      )
+      val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+      val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
 
-      new FlinkUnion(
+      new DataSetAggregate(
         rel.getCluster,
         traitSet,
-        convInputs,
-        union.all)
-    }
+        convInput,
+        agg.getNamedAggCalls,
+        rel.getRowType,
+        agg.getInput.getRowType,
+        agg.toString,
+        agg.getGroupSet.toArray)
+      }
   }
 
-object FlinkUnionRule {
-  val INSTANCE: RelOptRule = new FlinkUnionRule
+object DataSetAggregateRule {
+  val INSTANCE: RelOptRule = new DataSetAggregateRule
 }
