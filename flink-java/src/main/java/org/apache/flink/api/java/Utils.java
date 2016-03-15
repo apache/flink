@@ -209,7 +209,7 @@ public final class Utils {
 
 		@Override
 		public String toString() {
-			return "ChecksumHashCode " + this.checksum + ", count " + this.count;
+			return String.format("ChecksumHashCode 0x%016x, count %d", this.checksum, this.count);
 		}
 	}
 
