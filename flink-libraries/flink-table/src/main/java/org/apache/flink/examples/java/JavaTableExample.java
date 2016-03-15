@@ -18,6 +18,7 @@
 package org.apache.flink.examples.java;
 
 
+import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -64,7 +65,7 @@ public class JavaTableExample {
 				.select("word.count as count, word")
 				.filter("count = 2");
 
-		DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
+		DataSet<Row> result = tableEnv.toDataSet(filtered, Row.class);
 
 		result.print();
 	}
