@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.TableConfig
 
+import scala.collection.JavaConverters._
+
 /**
 * Flink RelNode which matches along with UnionOperator.
 *
@@ -34,8 +36,7 @@ class DataSetUnion(
     traitSet: RelTraitSet,
     left: RelNode,
     right: RelNode,
-    rowType: RelDataType,
-    opName: String)
+    rowType: RelDataType)
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -47,13 +48,12 @@ class DataSetUnion(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType,
-      opName
+      rowType
     )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
+    super.explainTerms(pw).item("union", unionSelectionToString)
   }
 
   override def translateToPlan(
@@ -63,6 +63,10 @@ class DataSetUnion(
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
     leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
+  }
+
+  private def unionSelectionToString: String = {
+    rowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
 }
