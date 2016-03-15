@@ -91,7 +91,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * @return The operator with set parallelism.
 	 */
 	public O setParallelism(int parallelism) {
-		if(parallelism < 1) {
+		if(parallelism < 1 && parallelism != -1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
 		this.parallelism = parallelism;
