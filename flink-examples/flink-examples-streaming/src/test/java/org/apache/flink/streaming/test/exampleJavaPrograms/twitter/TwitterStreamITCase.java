@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.test.exampleJavaPrograms.twitter;
 
-import org.apache.flink.streaming.examples.twitter.TwitterStream;
-import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
+import org.apache.flink.streaming.examples.twitter.TwitterExample;
+import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 public class TwitterStreamITCase extends StreamingProgramTestBase {
@@ -31,12 +31,12 @@ public class TwitterStreamITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TwitterStreamData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+		compareResultsByLinesInMemory(TwitterExampleData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		TwitterStream.main(new String[]{"--output", resultPath});
+		TwitterExample.main(new String[]{"--output", resultPath});
 	}
 
 }
