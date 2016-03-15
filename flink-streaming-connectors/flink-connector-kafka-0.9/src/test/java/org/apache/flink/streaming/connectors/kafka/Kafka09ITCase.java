@@ -36,20 +36,19 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runFailOnNoBrokerTest();
 	}
 
-
 	@Test(timeout = 60000)
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
 	@Test(timeout = 60000)
-	public void testExplicitWMConsumer() throws Exception {
-		runExplicitWMgeneratorConsumerTest(false);
+	public void testPunctuatedExplicitWMConsumer() throws Exception {
+		runExplicitPunctuatedWMgeneratingConsumerTest(false);
 	}
 
 	@Test(timeout = 60000)
-	public void testExplicitWMConsumerWithEmptyTopic() throws Exception {
-		runExplicitWMgeneratorConsumerTest(true);
+	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
+		runExplicitPunctuatedWMgeneratingConsumerTest(true);
 	}
 
 	@Test(timeout = 60000)

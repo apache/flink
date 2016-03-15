@@ -17,9 +17,11 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -38,6 +40,12 @@ import static java.util.Objects.requireNonNull;
 public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08Base<T> implements Triggerable {
 
 	/**
+	 * The user-specified methods to extract the timestamps from the records in Kafka, and
+	 * to decide when to emit watermarks.
+	 */
+	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
+
+	/**
 	 * The interval between periodic watermark emissions, as configured via the
 	 * {@link ExecutionConfig#getAutoWatermarkInterval()}.
 	 */
@@ -46,12 +54,6 @@ public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08B
 	private StreamingRuntimeContext runtime = null;
 
 	private SourceContext<T> srcContext = null;
-
-	/**
-	 * The user-specified methods to extract the timestamps from the records in Kafka, and
-	 * to decide when to emit watermarks.
-	 */
-	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
 
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.8.x
@@ -142,6 +144,19 @@ public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08B
 	}
 
 	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		if(runtime == null) {
+			runtime = (StreamingRuntimeContext) getRuntimeContext();
+		}
+
+		watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
+		if (watermarkInterval > 0) {
+			runtime.registerTimer(System.currentTimeMillis() + watermarkInterval, this);
+		}
+	}
+
+	@Override
 	public void processElement(SourceFunction.SourceContext<T> sourceContext, String topic, int partition, T value) {
 		if(srcContext == null) {
 			srcContext = sourceContext;
@@ -159,21 +174,27 @@ public class FlinkKafkaConsumer08WithPeriodicWM<T> extends FlinkKafkaConsumer08B
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		if(srcContext == null) {
-			throw new RuntimeException("The source context has not been initialized.");
+			// if the trigger is called before any elements, then we
+			// just set the next timer to fire when it should and we
+			// ignore the triggering as this would produce no results.
+
+			setNextWatermarkTimer();
+			return;
 		}
 
-		// get the minimum seen timestamp across ALL topics AND partitions
-		// and send it in the stream.
-		emitWatermarkIfMarkingProgress(srcContext);
-		setNextWatermarkTimer(runtime);
+		final Watermark nextWatermark = periodicWatermarkAssigner.getCurrentWatermark();
+		if(nextWatermark != null) {
+			emitWatermarkIfMarkingProgress(srcContext);
+		}
+		setNextWatermarkTimer();
 	}
 
-	private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
-		long timeToNextWatermark = getTimeToNextWaternark();
+	private void setNextWatermarkTimer() {
+		long timeToNextWatermark = getTimeToNextWatermark();
 		runtime.registerTimer(timeToNextWatermark, this);
 	}
 
-	private long getTimeToNextWaternark() {
+	private long getTimeToNextWatermark() {
 		return System.currentTimeMillis() + watermarkInterval;
 	}
 

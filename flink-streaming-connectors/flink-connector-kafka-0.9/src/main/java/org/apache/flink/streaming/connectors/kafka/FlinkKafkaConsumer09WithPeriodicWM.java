@@ -20,6 +20,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -163,22 +164,28 @@ public class FlinkKafkaConsumer09WithPeriodicWM<T> extends FlinkKafkaConsumer09B
 
 	@Override
 	public void trigger(long timestamp) throws Exception {
-		if(srcContext == null) {
-			throw new RuntimeException("The source context has not been initialized.");
+		if(this.srcContext == null) {
+			// if the trigger is called before any elements, then we
+			// just set the next timer to fire when it should and we
+			// ignore the triggering as this would produce no results.
+
+			setNextWatermarkTimer();
+			return;
 		}
 
-		// get the minimum seen timestamp across ALL topics AND partitions
-		// and send it in the stream.
-		emitWatermarkIfMarkingProgress(srcContext);
-		setNextWatermarkTimer(runtime);
+		final Watermark nextWatermark = periodicWatermarkAssigner.getCurrentWatermark();
+		if(nextWatermark != null) {
+			emitWatermarkIfMarkingProgress(srcContext);
+		}
+		setNextWatermarkTimer();
 	}
 
-	private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
-		long timeToNextWatermark = getTimeToNextWaternark();
+	private void setNextWatermarkTimer() {
+		long timeToNextWatermark = getTimeToNextWatermark();
 		runtime.registerTimer(timeToNextWatermark, this);
 	}
 
-	private long getTimeToNextWaternark() {
+	private long getTimeToNextWatermark() {
 		return System.currentTimeMillis() + watermarkInterval;
 	}
 }
