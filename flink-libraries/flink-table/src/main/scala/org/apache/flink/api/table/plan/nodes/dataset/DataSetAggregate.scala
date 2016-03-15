@@ -44,7 +44,6 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowType: RelDataType,
     inputType: RelDataType,
-    opName: String,
     grouping: Array[Int])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
@@ -59,12 +58,13 @@ class DataSetAggregate(
       namedAggregates,
       rowType,
       inputType,
-      opName,
       grouping)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
+    super.explainTerms(pw)
+      .itemIf("groupBy",groupingToString, !grouping.isEmpty)
+      .item("select", aggregationToString)
   }
 
   override def translateToPlan(
@@ -87,28 +87,34 @@ class DataSetAggregate(
     .map(n => TypeConverter.sqlTypeToTypeInfo(n))
     .toArray
 
-    val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
     val aggString = aggregationToString
-    val mappedInput = inputDS.map(aggregateResult._1).name(s"prepare $aggString")
+    val prepareOpName = s"prepare select: ($aggString)"
+    val mappedInput = inputDS
+      .map(aggregateResult._1)
+      .name(prepareOpName)
+
     val groupReduceFunction = aggregateResult._2
+    val rowTypeInfo = new RowTypeInfo(fieldTypes, rowType.getFieldNames.asScala)
 
     val result = {
       if (groupingKeys.length > 0) {
-        val inFields = inputType.getFieldNames.asScala.toList
-        val groupByString = s"groupBy: (${grouping.map(inFields(_)).mkString(", ")})"
+        // grouped aggregation
+        val aggOpName = s"groupBy: ($groupingToString), select:($aggString)"
 
         mappedInput.asInstanceOf[DataSet[Row]]
           .groupBy(groupingKeys: _*)
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
-          .name(groupByString + ", " + aggString)
+          .name(aggOpName)
           .asInstanceOf[DataSet[Any]]
       }
       else {
         // global aggregation
+        val aggOpName = s"select:($aggString)"
         mappedInput.asInstanceOf[DataSet[Row]]
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
+          .name(aggOpName)
           .asInstanceOf[DataSet[Any]]
       }
     }
@@ -123,24 +129,35 @@ class DataSetAggregate(
     }
   }
 
+  private def groupingToString: String = {
+
+    val inFields = inputType.getFieldNames.asScala
+    grouping.map( inFields(_) ).mkString(", ")
+  }
+
   private def aggregationToString: String = {
 
-    val inFields = inputType.getFieldNames.asScala.toList
-    val outFields = rowType.getFieldNames.asScala.toList
+    val inFields = inputType.getFieldNames.asScala
+    val outFields = rowType.getFieldNames.asScala
+
+    val groupStrings = grouping.map( inFields(_) )
+
     val aggs = namedAggregates.map(_.getKey)
+    val aggStrings = aggs.map( a => s"${a.getAggregation}(${
+      if (a.getArgList.size() > 0) {
+        inFields(a.getArgList.get(0))
+      } else {
+        "*"
+      }
+    })")
 
-    val groupFieldsString = grouping.map( inFields(_) )
-    val aggsString = aggs.map( a => s"${a.getAggregation}(${inFields(a.getArgList.get(0))})")
-
-    val outFieldsString = (groupFieldsString ++ aggsString).zip(outFields).map {
+    (groupStrings ++ aggStrings).zip(outFields).map {
       case (f, o) => if (f == o) {
         f
       } else {
         s"$f AS $o"
       }
-    }
-
-    s"select: (${outFieldsString.mkString(", ")})"
+    }.mkString(", ")
   }
 
   private def typeConversion(

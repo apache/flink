@@ -99,7 +99,6 @@ class DataSetJoinRule
           convLeft,
           convRight,
           rel.getRowType,
-          join.toString,
           join.getCondition,
           join.getRowType,
           joinInfo,
