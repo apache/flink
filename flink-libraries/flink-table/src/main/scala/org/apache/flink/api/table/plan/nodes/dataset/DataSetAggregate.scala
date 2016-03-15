@@ -22,9 +22,11 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.plan.PlanGenException
+import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.runtime.MapRunner
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
@@ -69,12 +71,6 @@ class DataSetAggregate(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    expectedType match {
-      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        throw new PlanGenException("Aggregate operations currently only support returning Rows.")
-      case _ => // ok
-    }
-
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
     val aggregateResult = AggregateUtil.createOperatorFunctionsForAggregates(namedAggregates,
@@ -96,24 +92,34 @@ class DataSetAggregate(
     val mappedInput = inputDS.map(aggregateResult._1).name(s"prepare $aggString")
     val groupReduceFunction = aggregateResult._2
 
-    if (groupingKeys.length > 0) {
+    val result = {
+      if (groupingKeys.length > 0) {
+        val inFields = inputType.getFieldNames.asScala.toList
+        val groupByString = s"groupBy: (${grouping.map(inFields(_)).mkString(", ")})"
 
-      val inFields = inputType.getFieldNames.asScala.toList
-      val groupByString = s"groupBy: (${grouping.map( inFields(_) ).mkString(", ")})"
-
-      mappedInput.asInstanceOf[DataSet[Row]]
-        .groupBy(groupingKeys: _*)
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
+        mappedInput.asInstanceOf[DataSet[Row]]
+          .groupBy(groupingKeys: _*)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
           .name(groupByString + ", " + aggString)
-        .asInstanceOf[DataSet[Any]]
+          .asInstanceOf[DataSet[Any]]
+      }
+      else {
+        // global aggregation
+        mappedInput.asInstanceOf[DataSet[Row]]
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .asInstanceOf[DataSet[Any]]
+      }
     }
-    else {
-      // global aggregation
-      mappedInput.asInstanceOf[DataSet[Row]]
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
-        .asInstanceOf[DataSet[Any]]
+
+    // if the expected type is not a Row, inject a mapper to convert to the expected type
+    expectedType match {
+      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
+        val mapName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+        result.map(typeConversion(config, rowTypeInfo, expectedType.get))
+        .name(mapName)
+      case _ => result
     }
   }
 
@@ -135,6 +141,34 @@ class DataSetAggregate(
     }
 
     s"select: (${outFieldsString.mkString(", ")})"
+  }
+
+  private def typeConversion(
+      config: TableConfig,
+      rowTypeInfo: RowTypeInfo,
+      expectedType: TypeInformation[Any]): MapFunction[Any, Any] = {
+
+    val generator = new CodeGenerator(config, rowTypeInfo.asInstanceOf[TypeInformation[Any]])
+    val conversion = generator.generateConverterResultExpression(
+      expectedType, rowType.getFieldNames.asScala)
+
+    val body =
+      s"""
+          |${conversion.code}
+          |return ${conversion.resultTerm};
+          |""".stripMargin
+
+    val genFunction = generator.generateFunction(
+      "AggregateOutputConversion",
+      classOf[MapFunction[Any, Any]],
+      body,
+      expectedType)
+
+    new MapRunner[Any, Any](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
+
   }
 
 }

@@ -29,6 +29,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
+import org.apache.flink.examples.scala.WordCountTable.{WC => MyWC}
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -160,4 +161,28 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testPojoAggregation(): Unit = {
+
+    // test aggregations with a custom WordCount class
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val input = env.fromElements(
+      MyWC("hello", 1),
+      MyWC("hello", 1),
+      MyWC("ciao", 1),
+      MyWC("hola", 1),
+      MyWC("hola", 1))
+    val expr = input.toTable
+    val result = expr
+      .groupBy('word)
+      .select('word, 'count.sum as 'count)
+      .filter('count === 2)
+      .toDataSet[MyWC]
+
+    val mappedResult = result.map(w => (w.word, w.count * 10)).collect()
+    val expected = "(hello,20)\n" + "(hola,20)"
+    TestBaseUtils.compareResultAsText(mappedResult.asJava, expected)
+  }
+
 }
+
