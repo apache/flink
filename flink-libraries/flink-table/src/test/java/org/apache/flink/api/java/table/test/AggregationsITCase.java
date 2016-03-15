@@ -35,6 +35,7 @@ package org.apache.flink.api.java.table.test;
  * limitations under the License.
  */
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.ExpressionParserException;
 import org.apache.flink.api.table.Row;
@@ -45,11 +46,13 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.table.plan.PlanGenException;
+import org.apache.flink.examples.java.JavaTableExample;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.apache.flink.examples.java.JavaTableExample.WC;
 
 import java.util.List;
 
@@ -194,6 +197,34 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 		String expected = "";
 		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testPojoAggregation() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<WC> input = env.fromElements(
+				new WC("Hello", 1),
+				new WC("Ciao", 1),
+				new WC("Hello", 1),
+				new WC("Hola", 1),
+				new WC("Hola", 1));
+
+		Table table = tableEnv.fromDataSet(input);
+
+		Table filtered = table
+				.groupBy("word")
+				.select("word.count as count, word")
+				.filter("count = 2");
+
+		List<String> result = tableEnv.toDataSet(filtered, WC.class)
+				.map(new MapFunction<WC, String>() {
+					public String map(WC value) throws Exception {
+						return value.word;
+					}
+				}).collect();
+		String expected = "Hello\n" + "Hola";
+		compareResultAsText(result, expected);
 	}
 }
 

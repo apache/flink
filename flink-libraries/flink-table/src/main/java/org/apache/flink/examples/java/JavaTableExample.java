@@ -17,8 +17,6 @@
  */
 package org.apache.flink.examples.java;
 
-
-import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -31,14 +29,14 @@ public class JavaTableExample {
 
 	public static class WC {
 		public String word;
-		public int count;
+		public long count;
 
 		// Public constructor to make it a Flink POJO
 		public WC() {
 
 		}
 
-		public WC(String word, int count) {
+		public WC(String word, long count) {
 			this.word = word;
 			this.count = count;
 		}
@@ -65,7 +63,7 @@ public class JavaTableExample {
 				.select("word.count as count, word")
 				.filter("count = 2");
 
-		DataSet<Row> result = tableEnv.toDataSet(filtered, Row.class);
+		DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
 
 		result.print();
 	}

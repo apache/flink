@@ -20,7 +20,6 @@ package org.apache.flink.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
 
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count.
@@ -39,7 +38,7 @@ object WordCountTable {
     val result = expr
       .groupBy('word)
       .select('word, 'count.sum as 'count)
-      .toDataSet[Row]
+      .toDataSet[WC]
 
     result.print()
   }
