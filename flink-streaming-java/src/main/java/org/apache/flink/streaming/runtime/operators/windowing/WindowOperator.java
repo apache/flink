@@ -45,7 +45,6 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
@@ -76,10 +75,6 @@ import static java.util.Objects.requireNonNull;
  * the contents of the pane should be processed to emit results. When a trigger fires,
  * the given {@link InternalWindowFunction} is invoked to produce the results that are emitted for
  * the pane to which the {@code Trigger} belongs.
- *
- * <p>
- * This operator also needs a {@link WindowBufferFactory} to create a buffer for storing the
- * elements of each pane.
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <IN> The type of the incoming elements.

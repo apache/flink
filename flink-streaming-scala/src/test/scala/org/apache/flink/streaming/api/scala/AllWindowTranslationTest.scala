@@ -22,7 +22,7 @@ package org.apache.flink.streaming.api.scala
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.common.state.ReducingStateDescriptor
+import org.apache.flink.api.common.state.{ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.function.{WindowFunction, AllWindowFunction}
@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.windowing.evictors.{CountEvictor, TimeEvic
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.{ProcessingTimeTrigger, CountTrigger}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.{ListWindowBuffer, ReducingWindowBuffer}
 import org.apache.flink.streaming.runtime.operators.windowing._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
@@ -111,12 +110,12 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val operator1 = transform1.getOperator
 
-    assertTrue(operator1.isInstanceOf[NonKeyedWindowOperator[_, _, _, _]])
-    val winOperator1 = operator1.asInstanceOf[NonKeyedWindowOperator[_, _, _, _]]
+    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
+    val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
     assertTrue(winOperator1.getTrigger.isInstanceOf[CountTrigger[_]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(
-      winOperator1.getWindowBufferFactory.isInstanceOf[ReducingWindowBuffer.Factory[_]])
+      winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
 
     val window2 = source
@@ -134,11 +133,11 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val operator2 = transform2.getOperator
 
-    assertTrue(operator2.isInstanceOf[NonKeyedWindowOperator[_, _, _, _]])
-    val winOperator2 = operator2.asInstanceOf[NonKeyedWindowOperator[_, _, _, _]]
+    assertTrue(operator2.isInstanceOf[WindowOperator[_, _, _, _, _]])
+    val winOperator2 = operator2.asInstanceOf[WindowOperator[_, _, _, _, _]]
     assertTrue(winOperator2.getTrigger.isInstanceOf[CountTrigger[_]])
     assertTrue(winOperator2.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator2.getWindowBufferFactory.isInstanceOf[ListWindowBuffer.Factory[_]])
+    assertTrue(winOperator2.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
   }
 
   @Test
@@ -161,12 +160,12 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val operator1 = transform1.getOperator
 
-    assertTrue(operator1.isInstanceOf[EvictingNonKeyedWindowOperator[_, _, _, _]])
-    val winOperator1 = operator1.asInstanceOf[EvictingNonKeyedWindowOperator[_, _, _, _]]
+    assertTrue(operator1.isInstanceOf[EvictingWindowOperator[_, _, _, _]])
+    val winOperator1 = operator1.asInstanceOf[EvictingWindowOperator[_, _, _, _]]
     assertTrue(winOperator1.getTrigger.isInstanceOf[ProcessingTimeTrigger])
     assertTrue(winOperator1.getEvictor.isInstanceOf[TimeEvictor[_]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingProcessingTimeWindows])
-    assertTrue(winOperator1.getWindowBufferFactory.isInstanceOf[ListWindowBuffer.Factory[_]])
+    assertTrue(winOperator1.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
 
     val window2 = source
@@ -185,12 +184,12 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val operator2 = transform2.getOperator
 
-    assertTrue(operator2.isInstanceOf[EvictingNonKeyedWindowOperator[_, _, _, _]])
-    val winOperator2 = operator2.asInstanceOf[EvictingNonKeyedWindowOperator[_, _, _, _]]
+    assertTrue(operator2.isInstanceOf[EvictingWindowOperator[_, _, _, _]])
+    val winOperator2 = operator2.asInstanceOf[EvictingWindowOperator[_, _, _, _]]
     assertTrue(winOperator2.getTrigger.isInstanceOf[CountTrigger[_]])
     assertTrue(winOperator2.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator2.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator2.getWindowBufferFactory.isInstanceOf[ListWindowBuffer.Factory[_]])
+    assertTrue(winOperator2.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
   }
 
   @Test
