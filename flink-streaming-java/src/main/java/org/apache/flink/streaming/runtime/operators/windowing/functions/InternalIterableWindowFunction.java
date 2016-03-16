@@ -30,7 +30,10 @@ import org.apache.flink.util.Collector;
  * Internal window function for wrapping a {@link WindowFunction} that takes an {@code Iterable}
  * when the window state also is an {@code Iterable}.
  */
-public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window> extends InternalWindowFunction<Iterable<IN>, OUT, KEY, W> implements RichFunction {
+public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window>
+		extends InternalWindowFunction<Iterable<IN>, OUT, KEY, W>
+		implements RichFunction {
+
 	private static final long serialVersionUID = 1L;
 
 	protected final WindowFunction<IN, OUT, KEY, W> wrappedFunction;
