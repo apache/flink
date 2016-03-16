@@ -22,13 +22,7 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.flink.api.table.runtime.FlatMapRunner
-import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.common.functions.FlatMapFunction
-import scala.collection.JavaConversions._
-import org.apache.flink.api.table.plan.nodes.datastream.DataStreamFlatMap
+import org.apache.flink.api.table.plan.nodes.datastream.DataStreamCalc
 import org.apache.flink.api.table.plan.nodes.datastream.DataStreamConvention
 
 class DataStreamCalcRule
@@ -44,90 +38,14 @@ class DataStreamCalcRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(calc.getInput, DataStreamConvention.INSTANCE)
 
-    val calcFunc = (
-        config: TableConfig,
-        inputType: TypeInformation[Any],
-        returnType: TypeInformation[Any]) => {
-      val generator = new CodeGenerator(config, inputType)
-
-      val calcProgram = calc.getProgram
-      val condition = calcProgram.getCondition
-      val expandedExpressions = calcProgram.getProjectList.map(
-          expr => calcProgram.expandLocalRef(expr))
-      val projection = generator.generateResultExpression(
-        returnType,
-        calc.getRowType.getFieldNames,
-        expandedExpressions)
-      
-      val body = {
-        // only projection
-        if (condition == null) {
-          s"""
-            |${projection.code}
-            |${generator.collectorTerm}.collect(${projection.resultTerm});
-            |""".stripMargin
-        }
-        else {
-          val filterCondition = generator.generateExpression(
-              calcProgram.expandLocalRef(calcProgram.getCondition))
-          // only filter
-          if (projection == null) {
-            // conversion
-            if (inputType != returnType) {
-              val conversion = generator.generateConverterResultExpression(
-                  returnType,
-                  calc.getRowType.getFieldNames)
-
-                  s"""
-                    |${filterCondition.code}
-                    |if (${filterCondition.resultTerm}) {
-                    |  ${conversion.code}
-                    |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-                    |}
-                    |""".stripMargin
-            }
-            // no conversion
-            else {
-              s"""
-                |${filterCondition.code}
-                |if (${filterCondition.resultTerm}) {
-                |  ${generator.collectorTerm}.collect(${generator.input1Term});
-                |}
-                |""".stripMargin
-            }
-          }
-          // both filter and projection
-          else {
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${projection.code}
-              |  ${generator.collectorTerm}.collect(${projection.resultTerm});
-              |}
-              |""".stripMargin
-          }
-        }
-      }
-
-      val genFunction = generator.generateFunction(
-        description,
-        classOf[FlatMapFunction[Any, Any]],
-        body,
-        returnType)
-
-      new FlatMapRunner[Any, Any](
-        genFunction.name,
-        genFunction.code,
-        genFunction.returnType)
-    }
-
-    new DataStreamFlatMap(
+    new DataStreamCalc(
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
+      calc.getProgram,
       calc.toString,
-      calcFunc)
+      description)
   }
 }
 

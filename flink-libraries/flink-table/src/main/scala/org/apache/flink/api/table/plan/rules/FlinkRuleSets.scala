@@ -127,11 +127,7 @@ object FlinkRuleSets {
     // simplify expressions rules
     ReduceExpressionsRule.CALC_INSTANCE,
 
-    // filter rules
-    FilterMergeRule.INSTANCE,
-
     // push and merge projection rules
-    ProjectMergeRule.INSTANCE,
     ProjectFilterTransposeRule.INSTANCE,
     FilterProjectTransposeRule.INSTANCE,
     ProjectRemoveRule.INSTANCE,
