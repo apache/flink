@@ -37,7 +37,7 @@ public class WriteIntoKafka {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		if(parameterTool.getNumberOfParameters() < 2) {
+		if(parameterTool.getNumberOfParameters() < 3) {
 			System.out.println("Missing parameters!");
 			System.out.println("Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers> --zookeeper.connect <zk quorum>");
 			System.exit(1);
