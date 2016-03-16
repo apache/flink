@@ -38,12 +38,12 @@ import java.util.TreeMap;
  * In the meantime, whenever a watermark is to be emitted, its timestamp will be the maximum seen (event-time)
  * timestamp - the previously computed lateness.
  * */
-public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implements AssignerWithPeriodicWatermarks<T> {
+public abstract class HistogramBasedWatermarkEmitter<T> implements AssignerWithPeriodicWatermarks<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	/** The time this operator started sampling for the first time. */
-	long startTime = -1L;
+	private long startTime = -1L;
 
 	/**
 	 * A map holding the histogram. Currently we assume
@@ -58,7 +58,7 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 	private long allowedLateness = 0;
 
 	/** The maximum timestamp seen so far (in event-time). */
-	private long currentMaxSeenTimestamp = 0;
+	private long currentMaxSeenTimestamp = Long.MIN_VALUE;
 
 	private long samplingRound = 0;
 	private final long roundDuration;
@@ -72,12 +72,12 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 	// User-defined parameters.
 
 	private final double percentile;
-	private final long interSamplingInterval;
+	private final long nonSamplingInterval;
 	private final long samplingPeriod;
 
-	public TimestampsAndHistogramBasedWatermarksOperator(Time nonSamplingPeriod,
-														Time samplingPeriod,
-														double percent) {
+	public HistogramBasedWatermarkEmitter(Time nonSamplingPeriod,
+										Time samplingPeriod,
+										double percent) {
 
 		if(samplingPeriod == null || nonSamplingPeriod == null) {
 			throw new RuntimeException("Tried to set: " +
@@ -91,10 +91,23 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 		}
 
 		this.samplingPeriod = samplingPeriod.toMilliseconds();
-		this.interSamplingInterval = nonSamplingPeriod.toMilliseconds();
-		this.roundDuration = this.samplingPeriod + this.interSamplingInterval;
+		this.nonSamplingInterval = nonSamplingPeriod.toMilliseconds();
+
+		this.roundDuration = this.samplingPeriod + this.nonSamplingInterval;
 		this.percentile = percent;
 		restoreToInit();
+	}
+
+	public long getSamplingPeriodDurationInMillis() {
+		return samplingPeriod;
+	}
+
+	public long getNonSamplingIntervalDurationInMillis() {
+		return nonSamplingInterval;
+	}
+
+	public double getCoveragePercentile() {
+		return this.percentile;
 	}
 
 	/**
@@ -105,6 +118,11 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 
 	@Override
 	public Watermark getCurrentWatermark() {
+		checkPeriod();
+
+		// we do not risk overflow because we always subtract from the currentMaxSeenTimestamp
+		// we do not risk underflow because the allowed lateness will always be smaller than the
+		// currentMaxSeenTimestamp and bigger than Long.MIN_VALUE
 		long nextWmTimestamp = currentMaxSeenTimestamp - allowedLateness;
 		return new Watermark(nextWmTimestamp);
 	}
@@ -115,7 +133,7 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 		long newTimestamp = extractTimestamp(element);
 		long lateness = currentMaxSeenTimestamp - newTimestamp;
 
-		if(lateness <= 0) {
+		if(currentMaxSeenTimestamp == Long.MIN_VALUE || lateness <= 0) {
 			lateness = 0;
 			currentMaxSeenTimestamp = newTimestamp;
 		}
@@ -141,18 +159,19 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 	private void checkPeriod() {
 		if(startTime == -1L) {
 			// this is when the operator is executed for the first time.
-			startTime = System.currentTimeMillis();
+			startTime = getCurrentSystemTime();
 			inSampling = true;
 		} else {
 			boolean beforeSamplingFlag = inSampling;
 			long beforeSamplingRound = samplingRound;
-			long runningTime = System.currentTimeMillis() - startTime;
+			long runningTime = getCurrentSystemTime() - startTime;
 
-			this.samplingRound = runningTime / samplingPeriod;
-			this.inSampling = (System.currentTimeMillis() - startTime) %
-				(samplingPeriod + interSamplingInterval) <= samplingPeriod;
+			this.samplingRound = runningTime / roundDuration;
+			this.inSampling = runningTime % roundDuration <= samplingPeriod;
 
-			if(beforeSamplingFlag && !inSampling || beforeSamplingRound != samplingRound) {
+			if(beforeSamplingFlag && !inSampling ||
+				(beforeSamplingFlag && inSampling && beforeSamplingRound != samplingRound)) {
+
 				// we transitioned from sampling to a non-sampling period
 				// so update the allowed lateness to reflect the new data,
 				// and set everything else its initial state for the next
@@ -199,5 +218,25 @@ public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implement
 	private void restoreToInit() {
 		noOfEvents = 0;
 		histBuckets.clear();
+	}
+
+	////////////			Testing code				///////////////
+
+	private boolean testing = false;
+
+	private long currentSystemTime = 0;
+
+	public void setCurrentSystemTime(long millis) {
+		if(!testing) {
+			throw new RuntimeException("Only allowed to set your own time when testing.");
+		} else if(millis < 0 || millis < currentSystemTime) {
+			throw new RuntimeException("Time cannot be negative and should be ascending. " +
+				"Prev=" + currentSystemTime + " Attempted=" + millis);
+		}
+		this.currentSystemTime = millis;
+	}
+
+	public long getCurrentSystemTime() {
+		return testing ? currentSystemTime : System.currentTimeMillis();
 	}
 }
