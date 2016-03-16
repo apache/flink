@@ -18,21 +18,13 @@
 
 package org.apache.flink.api.table.plan.schema
 
-import java.lang.Double
-import java.util
-import java.util.Collections
-import org.apache.calcite.rel.{RelCollation, RelDistribution}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.AtomicType
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.plan.TypeConverter
+import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.calcite.schema.StreamableTable
-import org.apache.calcite.schema.Table
 
 class DataStreamTable[T](
     val dataStream: DataStream[T],

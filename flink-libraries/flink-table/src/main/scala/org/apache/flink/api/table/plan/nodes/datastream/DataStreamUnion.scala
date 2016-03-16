@@ -23,7 +23,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, BiRel}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.table.plan.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
@@ -64,6 +63,6 @@ class DataStreamUnion(
 
     val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(config)
     val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(config)
-    leftDataSet.union(rightDataSet).asInstanceOf[DataStream[Any]]
+    leftDataSet.union(rightDataSet)
   }
 }

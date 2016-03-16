@@ -65,12 +65,6 @@ class JavaStreamTranslator(config: TableConfig) extends PlanTranslator {
     // get the planner for the plan
     val planner = lPlan.getCluster.getPlanner
 
-
-    println("-----------")
-    println("Input Plan:")
-    println("-----------")
-    println(RelOptUtil.toString(lPlan))
-
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(lPlan)
 
@@ -90,11 +84,6 @@ class JavaStreamTranslator(config: TableConfig) extends PlanTranslator {
             s"${RelOptUtil.toString(lPlan)}\n" +
             "Please consider filing a bug report.", e)
     }
-
-    println("---------------")
-    println("DataStream Plan:")
-    println("---------------")
-    println(RelOptUtil.toString(dataStreamPlan))
 
     dataStreamPlan match {
       case node: DataStreamRel =>

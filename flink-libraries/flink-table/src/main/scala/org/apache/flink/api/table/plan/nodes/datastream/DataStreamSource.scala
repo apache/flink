@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.plan.TypeConverter.determineReturnType
+import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.table.plan.schema.DataStreamTable
 import org.apache.flink.api.table.runtime.MapRunner
 import scala.collection.JavaConversions._
