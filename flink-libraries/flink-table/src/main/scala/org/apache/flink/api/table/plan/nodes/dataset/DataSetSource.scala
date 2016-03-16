@@ -22,6 +22,7 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
@@ -60,6 +61,12 @@ class DataSetSource(
       table,
       rowType
     )
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+
+    val rowCnt = RelMetadataQuery.getRowCount(this)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
   }
 
   override def translateToPlan(
