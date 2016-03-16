@@ -169,9 +169,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 	@Override
 	public void preStart() {
-		// we start our leader retrieval service to make sure we get informed
-		// about JobManager leader changes
 		try {
+			// we start our leader retrieval service to make sure we get informed
+			// about JobManager leader changes
 			leaderRetriever.start(new LeaderRetrievalListener() {
 
 				@Override
@@ -188,19 +188,14 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 						ActorRef.noSender());
 				}
 			});
-		}
-		catch (Throwable t) {
-			self().tell(
-				new FatalErrorOccurred("Could not start leader retrieval service", t),
-				ActorRef.noSender());
-		}
-		// framework specific initialization
-		try {
+
+			// framework specific initialization
 			initialize();
+
 		}
 		catch (Throwable t) {
 			self().tell(
-				new FatalErrorOccurred("Error while initializing the resource manager", t),
+				new FatalErrorOccurred("Error during startup of ResourceManager actor", t),
 				ActorRef.noSender());
 		}
 	}
