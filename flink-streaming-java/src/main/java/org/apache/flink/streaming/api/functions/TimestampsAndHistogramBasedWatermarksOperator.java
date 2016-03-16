@@ -16,15 +16,10 @@
  */
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -43,16 +38,12 @@ import java.util.TreeMap;
  * In the meantime, whenever a watermark is to be emitted, its timestamp will be the maximum seen (event-time)
  * timestamp - the previously computed lateness.
  * */
-public class TimestampsAndHistogramBasedWatermarksOperator<T> extends AbstractStreamOperator<T>
-	implements Triggerable, OneInputStreamOperator<T, T> {
+public abstract class TimestampsAndHistogramBasedWatermarksOperator<T> implements AssignerWithPeriodicWatermarks<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The set of pending sampling timers. */
-	private Set<Long> samplingTimers = new HashSet<>();
-
-	/** The set of pending watermark timers. */
-	private Set<Long> watermarkTimers = new HashSet<>();
+	/** The time this operator started sampling for the first time. */
+	long startTime = -1L;
 
 	/**
 	 * A map holding the histogram. Currently we assume
@@ -60,12 +51,22 @@ public class TimestampsAndHistogramBasedWatermarksOperator<T> extends AbstractSt
 	 */
 	private final Map<Integer, Integer> histBuckets = new TreeMap<>();
 
-	private long lastEmittedWatermark = Long.MIN_VALUE;
+	/**
+	 * The allowed lateness, i.e. the amount of time the emitted watermark
+	 * will lag behind the maximum timestamp seen so far.
+	 * */
 	private long allowedLateness = 0;
+
+	/** The maximum timestamp seen so far (in event-time). */
 	private long currentMaxSeenTimestamp = 0;
 
+	private long samplingRound = 0;
+	private final long roundDuration;
+
+	/** A flag indicating if we are in a sampling period or not. */
 	private boolean inSampling = false;
-	private long watermarkInterval = -1L;
+
+	/** The total number of events seen in the present sampling period. */
 	private int noOfEvents = 0;
 
 	// User-defined parameters.
@@ -73,60 +74,48 @@ public class TimestampsAndHistogramBasedWatermarksOperator<T> extends AbstractSt
 	private final double percentile;
 	private final long interSamplingInterval;
 	private final long samplingPeriod;
-	private final AssignerWithPeriodicWatermarks<T> assigner;
 
-	public TimestampsAndHistogramBasedWatermarksOperator(long nonSamplingPeriod,
-														long samplingPeriod,
-														double percent,
-														AssignerWithPeriodicWatermarks<T> assigner) {
+	public TimestampsAndHistogramBasedWatermarksOperator(Time nonSamplingPeriod,
+														Time samplingPeriod,
+														double percent) {
 
-		if(nonSamplingPeriod < 0 || samplingPeriod < 0 || percent < 0) {
+		if(samplingPeriod == null || nonSamplingPeriod == null) {
 			throw new RuntimeException("Tried to set: " +
 				"samplingPeriod=" + samplingPeriod + ", " +
-				"interSamplingInterval=" + nonSamplingPeriod + ", and " +
-				"coveragePercentila=" + percent + ".\n" +
-				"These parameters cannot be negative numbers.");
+				"interSamplingInterval=" + nonSamplingPeriod + ".\n" +
+				"These parameters cannot be null.");
 		}
 
-		if(assigner == null) {
-			throw new RuntimeException("The timestampAssigner cannot be null");
+		if(percent < 0) {
+			throw new RuntimeException("The percentage of data covered cannot be negative.");
 		}
 
-		this.samplingPeriod = samplingPeriod;
-		this.interSamplingInterval = nonSamplingPeriod;
+		this.samplingPeriod = samplingPeriod.toMilliseconds();
+		this.interSamplingInterval = nonSamplingPeriod.toMilliseconds();
+		this.roundDuration = this.samplingPeriod + this.interSamplingInterval;
 		this.percentile = percent;
-		this.assigner = assigner;
-
 		restoreToInit();
 	}
 
+	/**
+	 * Extracts the timestamp from a record in the stream.
+	 * @param element The element from which to extract the timestamp.
+	 */
+	public abstract long extractTimestamp(T element);
+
 	@Override
-	public void open() throws Exception {
-		super.open();
-		setNextSamplingTimer(inSampling);
-		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
-		if (watermarkInterval > 0) {
-			setNextWatermarkTimer();
-		}
+	public Watermark getCurrentWatermark() {
+		long nextWmTimestamp = currentMaxSeenTimestamp - allowedLateness;
+		return new Watermark(nextWmTimestamp);
 	}
 
 	@Override
-	public void trigger(long timestamp) throws Exception {
-		if(samplingTimers.contains(timestamp)) {
-			processSamplingTimer(timestamp);
-		}
-		if(watermarkTimers.contains(timestamp)) {
-			processWatermarkTimer(timestamp);
-		}
-	}
-
-	@Override
-	public void processElement(StreamRecord<T> element) throws Exception {
-		final long newTimestamp = assigner.extractTimestamp(element.getValue(),
-			element.hasTimestamp() ? element.getTimestamp() : Long.MIN_VALUE);
-
+	public long extractTimestamp(T element, long previousElementTimestamp) {
+		checkPeriod();
+		long newTimestamp = extractTimestamp(element);
 		long lateness = currentMaxSeenTimestamp - newTimestamp;
-		if(lateness < 0) {
+
+		if(lateness <= 0) {
 			lateness = 0;
 			currentMaxSeenTimestamp = newTimestamp;
 		}
@@ -140,88 +129,45 @@ public class TimestampsAndHistogramBasedWatermarksOperator<T> extends AbstractSt
 			histBuckets.put(bucket, counter + 1);
 			noOfEvents++;
 		}
-
-		output.collect(element.replace(element.getValue(), newTimestamp));
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// We generally ignore watermarks, as we emit our own.
-		// The only exception is if we receive a Long.MAX_VALUE watermark.
-		// In this case we forward it, as it signals the end of input.
-		if (mark.getTimestamp() == Long.MAX_VALUE && lastEmittedWatermark != Long.MAX_VALUE) {
-			lastEmittedWatermark = Long.MAX_VALUE;
-			output.emitWatermark(mark);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-
-		// emit a final watermark
-		Watermark newWatermark = getCurrentWatermark();
-		if (newWatermark != null && newWatermark.getTimestamp() > lastEmittedWatermark) {
-			lastEmittedWatermark = newWatermark.getTimestamp();
-			// emit watermark
-			output.emitWatermark(newWatermark);
-		}
-		this.samplingTimers.clear();
-		this.watermarkTimers.clear();
-		this.histBuckets.clear();
-		this.allowedLateness = 0;
-		restoreToInit();
+		return newTimestamp;
 	}
 
 	/**
-	 * Registers a timer related to the start or the end of a sampling period.
-	 * The timer can be either to start or to stop a sampling period. This is specified
-	 * with the {@code timerToStartSampling} flag. Based on this flag, this {@code inSampling}
-	 * flag is set to {@code true} or {@code false}, and a timer for the beginning or end of a
-	 * sampling period is added. The time for the next trigger to fire adjusts accordingly.
-	 * @param timerToStartSampling A flag indicating if the timer to register is to signal the
-	 *                      start of the next sampling period, or the end of the current one.
+	 * Checks if we are currently in a sampling or non-sampling period and sets the
+	 * {@code inSampling} flag. In the transition from a sampling to a non-sampling
+	 * period, it updates the {@code allowedLateness} and resets all the remaining
+	 * book-keeping data structures to their initial values.
 	 */
-	private void setNextSamplingTimer(boolean timerToStartSampling) {
-		this.inSampling = !timerToStartSampling;
-		long timeToNextSamplingTimer = System.currentTimeMillis() +
-			(timerToStartSampling ? interSamplingInterval : samplingPeriod);
-		samplingTimers.add(timeToNextSamplingTimer);
-		registerTimer(timeToNextSamplingTimer, this);
-	}
+	private void checkPeriod() {
+		if(startTime == -1L) {
+			// this is when the operator is executed for the first time.
+			startTime = System.currentTimeMillis();
+			inSampling = true;
+		} else {
+			boolean beforeSamplingFlag = inSampling;
+			long beforeSamplingRound = samplingRound;
+			long runningTime = System.currentTimeMillis() - startTime;
 
-	/**
-	 * Sets the next watermark timer.
-	 */
-	private void setNextWatermarkTimer() {
-		long timeToNextWatermark = System.currentTimeMillis() + watermarkInterval;
-		this.watermarkTimers.add(timeToNextWatermark);
-		registerTimer(timeToNextWatermark, this);
-	}
+			this.samplingRound = runningTime / samplingPeriod;
+			this.inSampling = (System.currentTimeMillis() - startTime) %
+				(samplingPeriod + interSamplingInterval) <= samplingPeriod;
 
-	/**
-	 * Removes the timestamp from the list of pending sampling timers, adds the next one (to stop
-	 * the new or start the next sampling period), and if we transitioned from a sampling period
-	 * to a non-sampling one, then it updates the {@link this#allowedLateness} and resets all the
-	 * remaining book-keeping data structures to their initial values.
-	 *
-	 * @param timestamp the timestamp of the timer that fired.
-	 * */
-	private void processSamplingTimer(long timestamp) {
-		samplingTimers.remove(timestamp);
-		setNextSamplingTimer(inSampling);
-		if(!inSampling) {
-			// we transitioned from sampling to a non-sampling period
-			// so update the allowed lateness to reflect the new data,
-			// and set everything else its initial state
-			updateAllowedLateness();
-			restoreToInit();
+			if(beforeSamplingFlag && !inSampling || beforeSamplingRound != samplingRound) {
+				// we transitioned from sampling to a non-sampling period
+				// so update the allowed lateness to reflect the new data,
+				// and set everything else its initial state for the next
+				// sampling period.
+				updateAllowedLateness();
+				restoreToInit();
+			}
 		}
 	}
 
 	/**
-	 * Computes the {@link this#allowedLateness} for the next {@code non-sampling + sampling}
-	 * period of time, based on the currently existing histogram.
+	 * Computes the {@code allowedLateness} based on the
+	 * previously collected histogram. This is updated <i>after</i>
+	 * the end of a sampling period, and stays fixed for the next
+	 * {@code non-sampling + sampling} units of time.
 	 */
 	private void updateAllowedLateness() {
 		int toFind = (int) (percentile * noOfEvents);
@@ -241,34 +187,13 @@ public class TimestampsAndHistogramBasedWatermarksOperator<T> extends AbstractSt
 	 * In other case it is added to the bucket that corresponds to its seconds of
 	 * latency.
 	 * @param lateness how late the element was, in milliseconds.
-	 * @return the bucket it should be registered in.
+	 * @return the bucket it should be registered to.
 	 */
 	private int computeBucket(long lateness) {
 		if(lateness < 0) {
 			throw new RuntimeException("Lateness cannot be a negative number.");
 		}
 		return (int) (lateness >>> 10);
-	}
-
-	/**
-	 * Removes the timestamp from the list of pending watermark timers, emits the
-	 * new watermark, and sets the timer for the next one.
-	 */
-	private void processWatermarkTimer(long timestamp) {
-		watermarkTimers.remove(timestamp);
-
-		Watermark newWatermark = getCurrentWatermark();
-		if (newWatermark != null && newWatermark.getTimestamp() > lastEmittedWatermark) {
-			lastEmittedWatermark = newWatermark.getTimestamp();
-			output.emitWatermark(newWatermark);
-		}
-		setNextWatermarkTimer();
-	}
-
-	private Watermark getCurrentWatermark() {
-		Watermark wm = assigner.getCurrentWatermark();
-		long nextWmTimestamp = currentMaxSeenTimestamp - allowedLateness;
-		return wm == null ? null : new Watermark(nextWmTimestamp);
 	}
 
 	private void restoreToInit() {
