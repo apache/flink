@@ -37,54 +37,6 @@ class DataSetJoinRule
       "FlinkJoinRule")
   {
 
-    override def matches(call: RelOptRuleCall): Boolean = {
-
-      val join = call.rel(0).asInstanceOf[LogicalJoin]
-      val children = join.getInputs
-      val rexBuilder = call.builder().getRexBuilder
-
-      val joinInfo = join.analyzeCondition()
-      val joinCondition = join.getCondition
-      val equiCondition =
-        joinInfo.getEquiCondition(children.get(0), children.get(1), rexBuilder)
-
-      // joins require at least one equi-condition
-      if (equiCondition.isAlwaysTrue) {
-        false
-      }
-      else {
-        // check that all equality predicates refer to field refs only (not computed expressions)
-        //   Note: Calcite treats equality predicates on expressions as non-equi predicates
-        joinCondition match {
-
-          // conjunction of join predicates
-          case c: RexCall if c.getOperator.equals(SqlStdOperatorTable.AND) =>
-
-            c.getOperands.asScala
-              // look at equality predicates only
-              .filter { o =>
-                o.isInstanceOf[RexCall] &&
-                o.asInstanceOf[RexCall].getOperator.equals(SqlStdOperatorTable.EQUALS)
-              }
-              // check that both children are field references
-              .map { o =>
-                o.asInstanceOf[RexCall].getOperands.get(0).isInstanceOf[RexInputRef] &&
-                o.asInstanceOf[RexCall].getOperands.get(1).isInstanceOf[RexInputRef]
-              }
-              // any equality predicate that does not refer to a field reference?
-              .reduce( (a, b) => a && b)
-
-          // single equi-join predicate
-          case c: RexCall if c.getOperator.equals(SqlStdOperatorTable.EQUALS) =>
-            c.getOperands.get(0).isInstanceOf[RexInputRef] &&
-              c.getOperands.get(1).isInstanceOf[RexInputRef]
-          case _ =>
-            false
-        }
-      }
-
-    }
-
     def convert(rel: RelNode): RelNode = {
 
       val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]

@@ -62,6 +62,14 @@ class DataSetAggregate(
       grouping)
   }
 
+  override def toString: String = {
+    s"Aggregate(${ if (!grouping.isEmpty) {
+      s"groupBy: ($groupingToString), "
+    } else {
+      ""
+    }}}select:($aggregationToString))"
+  }
+
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .itemIf("groupBy",groupingToString, !grouping.isEmpty)

@@ -54,6 +54,10 @@ class DataSetUnion(
     )
   }
 
+  override def toString: String = {
+    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+  }
+
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("union", unionSelectionToString)
   }

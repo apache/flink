@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableException, Row}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -101,7 +101,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       .select('c, 'g)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[TableException])
   def testJoinWithNonMatchingKeyTypes(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -122,6 +122,30 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     ds1.join(ds2)
       // must fail. Both inputs share the same field 'c
       .where('a === 'd)
+      .select('c, 'g)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testNoEqualityJoinPredicate1(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'c)
+
+    ds1.join(ds2)
+      // must fail. No equality join predicate
+      .where('d === 'f)
+      .select('c, 'g)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testNoEqualityJoinPredicate2(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'c)
+
+    ds1.join(ds2)
+      // must fail. No equality join predicate
+      .where('a < 'd)
       .select('c, 'g)
   }
 

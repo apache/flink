@@ -61,6 +61,14 @@ class DataSetCalc(
       ruleDescription)
   }
 
+  override def toString: String = {
+    s"Calc(${if (calcProgram.getCondition != null) {
+      s"where: ($conditionToString), "
+    } else {
+      ""
+    }}select: ($selectionToString))"
+  }
+
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("select", selectionToString)

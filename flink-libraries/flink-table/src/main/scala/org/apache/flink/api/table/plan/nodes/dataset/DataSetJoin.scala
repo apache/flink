@@ -18,24 +18,27 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.runtime.FlatJoinRunner
 import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.{TableException, TableConfig}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import TypeConverter.determineReturnType
 import scala.collection.mutable.ArrayBuffer
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexInputRef, RexCall, RexNode}
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -59,6 +62,8 @@ class DataSetJoin(
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
+  val translatable = canBeTranslated
+
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -77,6 +82,10 @@ class DataSetJoin(
       ruleDescription)
   }
 
+  override def toString: String = {
+    s"Join(where: ($joinConditionToString), join: ($joinSelectionToString))"
+  }
+
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("where", joinConditionToString)
@@ -85,21 +94,24 @@ class DataSetJoin(
 
   override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
 
-    val children = this.getInputs
-
-    children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
-      val rowCnt = RelMetadataQuery.getRowCount(child)
-      val rowSize = this.estimateRowSize(child.getRowType)
-      cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
+    if (!translatable) {
+      // join cannot be translated. Make huge costs
+      planner.getCostFactory.makeHugeCost()
+    } else {
+      // join can be translated. Compute cost estimate
+      val children = this.getInputs
+      children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
+        val rowCnt = RelMetadataQuery.getRowCount(child)
+        val rowSize = this.estimateRowSize(child.getRowType)
+        cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
+      }
     }
+
   }
 
   override def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
 
     val returnType = determineReturnType(
       getRowType,
@@ -112,15 +124,40 @@ class DataSetJoin(
     val rightKeys = ArrayBuffer.empty[Int]
     if (keyPairs.isEmpty) {
       // if no equality keys => not supported
-      throw new TableException("Joins should have at least one equality condition")
+      throw new TableException(
+        "Joins should have at least one equality condition.\n" +
+          s"\tLeft: ${left.toString},\n" +
+          s"\tRight: ${right.toString},\n" +
+          s"\tCondition: ($joinConditionToString)"
+      )
     }
     else {
-      // at least one equality expression => generate a join function
+      // at least one equality expression
+      val leftFields = left.getRowType.getFieldList
+      val rightFields = right.getRowType.getFieldList
+
       keyPairs.foreach(pair => {
-        leftKeys.add(pair.source)
-        rightKeys.add(pair.target)
+        val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
+        val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
+
+        // check if keys are compatible
+        if (leftKeyType == rightKeyType) {
+          // add key pair
+          leftKeys.add(pair.source)
+          rightKeys.add(pair.target)
+        } else {
+          throw new TableException(
+            "Equality join predicate on incompatible types.\n" +
+              s"\tLeft: ${left.toString},\n" +
+              s"\tRight: ${right.toString},\n" +
+              s"\tCondition: ($joinConditionToString)"
+          )
+        }
       })
     }
+
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
 
     val generator = new CodeGenerator(config, leftDataSet.getType, Some(rightDataSet.getType))
     val conversion = generator.generateConverterResultExpression(
@@ -161,6 +198,48 @@ class DataSetJoin(
 
     leftDataSet.join(rightDataSet).where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
       .`with`(joinFun).name(joinOpName).asInstanceOf[DataSet[Any]]
+  }
+
+  private def canBeTranslated: Boolean = {
+
+    val equiCondition =
+      joinInfo.getEquiCondition(left, right, cluster.getRexBuilder)
+
+    // joins require at least one equi-condition
+    if (equiCondition.isAlwaysTrue) {
+      false
+    }
+    else {
+      // check that all equality predicates refer to field refs only (not computed expressions)
+      //   Note: Calcite treats equality predicates on expressions as non-equi predicates
+      joinCondition match {
+
+        // conjunction of join predicates
+        case c: RexCall if c.getOperator.equals(SqlStdOperatorTable.AND) =>
+
+          c.getOperands.asScala
+            // look at equality predicates only
+            .filter { o =>
+            o.isInstanceOf[RexCall] &&
+              o.asInstanceOf[RexCall].getOperator.equals(SqlStdOperatorTable.EQUALS)
+          }
+            // check that both children are field references
+            .map { o =>
+            o.asInstanceOf[RexCall].getOperands.get(0).isInstanceOf[RexInputRef] &&
+              o.asInstanceOf[RexCall].getOperands.get(1).isInstanceOf[RexInputRef]
+          }
+            // any equality predicate that does not refer to a field reference?
+            .reduce( (a, b) => a && b)
+
+        // single equi-join predicate
+        case c: RexCall if c.getOperator.equals(SqlStdOperatorTable.EQUALS) =>
+          c.getOperands.get(0).isInstanceOf[RexInputRef] &&
+            c.getOperands.get(1).isInstanceOf[RexInputRef]
+        case _ =>
+          false
+      }
+    }
+
   }
 
   private def joinSelectionToString: String = {

@@ -63,6 +63,10 @@ class DataSetSource(
     )
   }
 
+  override def toString: String = {
+    s"Source(from: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
+  }
+
   override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
 
     val rowCnt = RelMetadataQuery.getRowCount(this)
