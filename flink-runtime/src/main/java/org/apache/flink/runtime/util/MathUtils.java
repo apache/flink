@@ -147,7 +147,7 @@ public final class MathUtils {
 		code *= 0x1b873593;
 
 		code = Integer.rotateLeft(code, 13);
-		code *= 0xe6546b64;
+		code = code * 5 + 0xe6546b64;
 
 		code ^= 4;
 		code ^= code >>> 16;

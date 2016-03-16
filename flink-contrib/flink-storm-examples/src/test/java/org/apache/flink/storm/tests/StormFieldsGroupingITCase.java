@@ -49,9 +49,9 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory("3> -1155484576\n" + "3> 1033096058\n" + "3> -1930858313\n" +
-			"3> 1431162155\n" + "4> -1557280266\n" + "4> -1728529858\n" + "4> 1654374947\n" +
-			"4> -65105105\n" + "4> -518907128\n" + "4> -252332814\n", this.resultPath);
+		compareResultsByLinesInMemory("4> -1155484576\n" + "3> 1033096058\n" + "3> -1930858313\n" +
+			"4> 1431162155\n" + "3> -1557280266\n" + "4> -1728529858\n" + "3> 1654374947\n" +
+			"3> -65105105\n" + "3> -518907128\n" + "4> -252332814\n", this.resultPath);
 	}
 
 	@Override
