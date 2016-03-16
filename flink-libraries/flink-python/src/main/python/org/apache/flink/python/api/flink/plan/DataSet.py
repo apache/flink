@@ -572,6 +572,25 @@ class DataSet(object):
         self._info.parallelism.value = parallelism
         return self
 
+    def count_elements_per_partition(self):
+        class CountElementsPerPartitionMapper(MapPartitionFunction):
+            def map_partition(self, iterator, collector):
+                counter = 0
+                for x in iterator:
+                    counter += 1
+
+                collector.collect((self.context.get_index_of_this_subtask(), counter))
+        return self.map_partition(CountElementsPerPartitionMapper())
+
+    def zip_with_index(self):
+        element_count = self.count_elements_per_partition()
+        class ZipWithIndexMapper(MapPartitionFunction):
+            def map_partition(self, iterator, collector):
+                for x in iterator:
+                    collector.collect(())
+        mapped = self.map_partition()
+        return self
+
 
 class OperatorSet(DataSet):
     def __init__(self, env, info):

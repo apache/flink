@@ -130,6 +130,7 @@ public class PythonStreamer implements Serializable {
 		processOutput.write("operator\n".getBytes());
 		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
 		processOutput.write((id + "\n").getBytes());
+		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n").getBytes());
 		processOutput.write((inputFilePath + "\n").getBytes());
 		processOutput.write((outputFilePath + "\n").getBytes());
 		processOutput.flush();
