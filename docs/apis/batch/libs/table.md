@@ -30,13 +30,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-**The Table API an experimental feature**
+**The Table API: an experimental feature**
 
 Flink provides an API that allows specifying operations using SQL-like expressions. Instead of
-manipulating `DataSet` or `DataStream` you work with `Table` on which relational operations can
+manipulating a `DataSet` you can work with a `Table` on which relational operations can
 be performed.
 
-The following dependency must be added to your project when using the Table API:
+The following dependency must be added to your project in order to use the Table API:
 
 {% highlight xml %}
 <dependency>
@@ -50,9 +50,9 @@ Note that the Table API is currently not part of the binary distribution. See li
 
 ## Scala Table API
 
-The Table API can be enabled by importing `org.apache.flink.api.scala.table._`.  This enables
+The Table API can be enabled by importing `org.apache.flink.api.scala.table._`. This enables
 implicit conversions that allow
-converting a DataSet or DataStream to a Table. This example shows how a DataSet can
+converting a DataSet to a Table. This example shows how a DataSet can
 be converted, how relational queries can be specified and how a Table can be
 converted back to a DataSet:
 
@@ -66,21 +66,21 @@ val expr = input.toTable
 val result = expr.groupBy('word).select('word, 'count.sum as 'count).toDataSet[WC]
 {% endhighlight %}
 
-The expression DSL uses Scala symbols to refer to field names and we use code generation to
+The expression DSL uses Scala symbols to refer to field names and code generation to
 transform expressions to efficient runtime code. Please note that the conversion to and from
 Tables only works when using Scala case classes or Flink POJOs. Please check out
-the [programming guide]({{ site.baseurl }}/apis/index.html) to learn the requirements for a class to be
-considered a POJO.
+the [Type Extraction and Serialization]({{ site.baseurl }}/internals/types_serialization.html) section
+to learn the requirements for a class to be considered a POJO.
 
 This is another example that shows how you
-can join to Tables:
+can join two Tables:
 
 {% highlight scala %}
 case class MyResult(a: String, d: Int)
 
-val input1 = env.fromElements(...).toTable('a, 'b)
-val input2 = env.fromElements(...).toTable('c, 'd)
-val joined = input1.join(input2).where("b = a && d > 42").select("a, d").toDataSet[MyResult]
+val input1 = env.fromElements(...).toTable.as('a, 'b)
+val input2 = env.fromElements(...).toTable.as('c, 'd)
+val joined = input1.join(input2).where("a = c && d > 42").select("a, d").toDataSet[MyResult]
 {% endhighlight %}
 
 Notice, how a DataSet can be converted to a Table by using `as` and specifying new
@@ -92,7 +92,7 @@ description of the expression syntax.
 
 ## Java Table API
 
-When using Java, Tables can be converted to and from DataSet and DataStream using `TableEnvironment`.
+When using Java, Tables can be converted to and from DataSet using `TableEnvironment`.
 This example is equivalent to the above Scala Example:
 
 {% highlight java %}
@@ -121,25 +121,24 @@ DataSet<WC> input = env.fromElements(
 
 Table table = tableEnv.fromDataSet(input);
 
-Table filtered = table
+Table wordCounts = table
         .groupBy("word")
-        .select("word.count as count, word")
-        .filter("count = 2");
+        .select("word, count.sum as count");
 
-DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
+DataSet<WC> result = tableEnv.toDataSet(wordCounts, WC.class);
 {% endhighlight %}
 
 When using Java, the embedded DSL for specifying expressions cannot be used. Only String expressions
 are supported. They support exactly the same feature set as the expression DSL.
 
 ## Table API Operators
-Table API provide a domain-spcific language to execute language-integrated queries on structured data in Scala and Java.
+The Table API provides a domain-spcific language to execute language-integrated queries on structured data in Scala and Java.
 This section gives a brief overview of all available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/api/table/Table.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-<br />
+<br/>
 
 <table class="table table-bordered">
   <thead>
@@ -233,7 +232,7 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
-Table result = left.union(right);
+Table result = left.unionAll(right);
 {% endhighlight %}
       </td>
     </tr>
@@ -347,7 +346,7 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 {% highlight scala %}
 val left = ds1.as('a, 'b, 'c);
 val right = ds2.as('a, 'b, 'c);
-val result = left.union(right);
+val result = left.unionAll(right);
 {% endhighlight %}
       </td>
     </tr>
@@ -389,13 +388,9 @@ comparison = term , [ ( "=" | "!=" | ">" | ">=" | "<" | "<=" ) , term ] ;
 
 term = product , [ ( "+" | "-" ) , product ] ;
 
-product = binary bitwise , [ ( "*" | "/" | "%" ) , binary bitwise ] ;
+unary = [ "!" | "-" ] , suffix ;
 
-binary bitwise = unary , [ ( "&" | "!" | "^" ) , unary ] ;
-
-unary = [ "!" | "-" | "~" ] , suffix ;
-
-suffix = atom | aggregation | cast | as | substring ;
+suffix = atom | aggregation | cast | as ;
 
 aggregation = atom , [ ".sum" | ".min" | ".max" | ".count" | ".avg" ] ;
 
@@ -404,12 +399,6 @@ cast = atom , ".cast(" , data type , ")" ;
 data type = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOL" | "BOOLEAN" | "STRING" | "DATE" ;
 
 as = atom , ".as(" , field reference , ")" ;
-
-substring = atom , ".substring(" , substring start , ["," substring end] , ")" ;
-
-substring start = single expression ;
-
-substring end = single expression ;
 
 atom = ( "(" , single expression , ")" ) | literal | field reference ;
 
