@@ -42,9 +42,16 @@ if __name__ == "__main__":
 
     d6 = env.from_elements(1, 1, 12)
 
+    d7 = env.generate_sequence(0, 999)
+
     #Generate Sequence Source
-    d7 = env.generate_sequence(1, 5)\
-         .map(Id()).map_partition(Verify([1,2,3,4,5], "Sequence")).output()
+    d7.map(Id()).map_partition(Verify(range(1000), "Sequence")).output()
+
+    #Zip with Index
+    #check that IDs (first field of each element) are consecutive
+    d7.zip_with_index()\
+        .map(lambda x: x[0])\
+        .map_partition(Verify(range(1000), "ZipWithIndex")).output()
 
     #CSV Source/Sink
     csv_data = env.read_csv("src/test/python/org/apache/flink/python/api/data_csv", (INT, INT, STRING))

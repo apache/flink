@@ -312,6 +312,16 @@ data.union(data2)
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>ZipWithIndex</strong></td>
+      <td>
+        <p>Assigns consecutive indexes to each element. For more information, please refer to
+        the [Zip Elements Guide](zip_elements_guide.html#zip-with-a-dense-index).</p>
+{% highlight python %}
+data.zip_with_index()
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 

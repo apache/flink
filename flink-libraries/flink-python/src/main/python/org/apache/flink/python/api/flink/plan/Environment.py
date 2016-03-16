@@ -184,6 +184,7 @@ class Environment(object):
                 port = int(sys.stdin.readline().rstrip('\n'))
 
                 id = int(sys.stdin.readline().rstrip('\n'))
+                subtask_index = int(sys.stdin.readline().rstrip('\n'))
                 input_path = sys.stdin.readline().rstrip('\n')
                 output_path = sys.stdin.readline().rstrip('\n')
 
@@ -193,7 +194,7 @@ class Environment(object):
                     if set.id == id:
                         used_set = set
                         operator = set.operator
-                operator._configure(input_path, output_path, port, self, used_set)
+                operator._configure(input_path, output_path, port, self, used_set, subtask_index)
                 operator._go()
                 operator._close()
                 sys.stdout.flush()
