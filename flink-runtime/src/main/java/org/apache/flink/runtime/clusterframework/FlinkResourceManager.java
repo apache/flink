@@ -456,7 +456,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				}
 				else {
 					// no success
-					LOG.error("Resource manager could not register at JobManager");
+					LOG.error("Resource manager could not register at JobManager", failure);
 					self().tell(retryMessage, ActorRef.noSender());
 				}
 			}
