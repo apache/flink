@@ -53,7 +53,7 @@ public class RegisterInfoMessageListener implements RequiresLeaderSessionID, jav
 
 	@Override
 	public int hashCode() {
-		return 2018741654;
+		return 2018741655;
 	}
 
 	@Override

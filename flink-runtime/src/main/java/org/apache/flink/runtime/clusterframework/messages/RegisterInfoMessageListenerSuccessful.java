@@ -52,7 +52,7 @@ public class RegisterInfoMessageListenerSuccessful implements RequiresLeaderSess
 
 	@Override
 	public int hashCode() {
-		return 2018741654;
+		return 2018741656;
 	}
 
 	@Override
