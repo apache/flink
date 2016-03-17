@@ -19,6 +19,7 @@
 package org.apache.flink.test.javaApiOperators;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,8 +30,6 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-
-import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
@@ -46,30 +45,31 @@ public class CustomDistributionITCase {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
-
 		final TestDataDist dist = new TestDataDist(1);
 
 		env.setParallelism(dist.getParallelism());
 
-		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1, dist, 0).mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Long, String>, Boolean>() {
+		DataSet<Boolean> result = DataSetUtils.partitionByRange(input1, dist, 0).mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Long, String>, Boolean>() {
 			@Override
 			public void mapPartition(Iterable<Tuple3<Integer, Long, String>> values, Collector<Boolean> out) throws Exception {
-				boolean boo = true;
 				int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
+				boolean checkPartition = true;
 
 				for (Tuple3<Integer, Long, String> s : values) {
 					if (s.f0 > (partitionIndex + 1) * 7 || s.f0 < (partitionIndex) * 7) {
-						boo = false;
+						checkPartition = false;
 					}
 				}
-				out.collect(boo);
+				out.collect(checkPartition);
+			}                        
+		}).reduce(new ReduceFunction<Boolean>() {
+			@Override
+			public Boolean reduce(Boolean value1, Boolean value2) throws Exception {
+				return value1 && value2;
 			}
 		});
 
-		List<Boolean> result = out1.collect();
-		for (int i = 0; i < result.size(); i++) {
-			assertTrue("The record is not emitted to the right partition", result.get(i));
-		}
+		assertTrue("The record is not emitted to the right partition", result.collect().get(0));
 	}
 
 	@Test
@@ -81,12 +81,11 @@ public class CustomDistributionITCase {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
-
 		final TestDataDist dist = new TestDataDist(2);
 
 		env.setParallelism(dist.getParallelism());
 
-		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Integer, String>>() {
+		DataSet<Boolean> result = DataSetUtils.partitionByRange(input1.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Integer, String>>() {
 			@Override
 			public Tuple3<Integer, Integer, String> map(Tuple3<Integer, Long, String> value) throws Exception {
 				return new Tuple3<>(value.f0, value.f1.intValue(), value.f2);
@@ -94,22 +93,24 @@ public class CustomDistributionITCase {
 		}), dist, 0, 1).mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Integer, String>, Boolean>() {
 			@Override
 			public void mapPartition(Iterable<Tuple3<Integer, Integer, String>> values, Collector<Boolean> out) throws Exception {
-				boolean boo = true;
 				int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
+				boolean checkPartition = true;
 
 				for (Tuple3<Integer, Integer, String> s : values) {
 					if (s.f0 > (partitionIndex + 1) * 7 || s.f0 < partitionIndex * 7 ||
 							s.f1 > (partitionIndex * 2 + 3) || s.f1 < (partitionIndex * 2 + 1)) {
-						boo = false;
+						checkPartition = false;
 					}
 				}
-				out.collect(boo);
+				out.collect(checkPartition);
+			}
+		}).reduce(new ReduceFunction<Boolean>() {
+			@Override
+			public Boolean reduce(Boolean value1, Boolean value2) throws Exception {
+				return value1 && value2;
 			}
 		});
-
-		List<Boolean> result = out1.collect();
-		for (int i = 0; i < result.size(); i++) {
-			assertTrue("The record is not emitted to the right partition", result.get(i));
-		}
+		
+		assertTrue("The record is not emitted to the right partition", result.collect().get(0));
 	}
 }
