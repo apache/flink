@@ -747,10 +747,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	//  Startup
 	// ------------------------------------------------------------------------
 
-	public static void startResourceManager() {
-
-	}
-
 	/**
 	 * Starts the resource manager actors.
 	 * @param configuration The configuration for the resource manager

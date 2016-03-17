@@ -44,10 +44,10 @@ public class SetWorkerPoolSize implements RequiresLeaderSessionID, java.io.Seria
 	}
 	
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
-		return 31 + numberOfWorkers;
+		return numberOfWorkers;
 	}
 
 	@Override
