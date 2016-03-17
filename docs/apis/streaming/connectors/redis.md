@@ -4,7 +4,7 @@ title: "Redis Connector"
 # Sub-level navigation
 sub-nav-group: streaming
 sub-nav-parent: connectors
-sub-nav-pos: 4
+sub-nav-pos: 6
 sub-nav-title: Redis
 ---
 <!--
@@ -26,8 +26,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This connector provides access to data streams from [Redis PubSub](http://redis.io/topics/pubsub). To use this connector, add the following dependency to your project:
-
+This connector provides a Sink that can write to
+[Redis](http://redis.io/) and also can publish data to [Redis PubSub](http://redis.io/topics/pubsub). To use this connector, add the
+following dependency to your project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -42,29 +43,130 @@ Note that the streaming connectors are currently not part of the binary distribu
 Follow the instructions from the [Redis download page](http://redis.io/download).
 
 #### Redis Sink
-A class providing an interface for sending data to Redis. It internally sends data to redis
-channel using Redis PUBLISH command
+A class providing an interface for sending data to Redis. 
+The sink can use three different methods for communicating with different type of Redis environments:
+1. Single Redis Server
+2. Redis Cluster
+3. Redis Sentinel
 
-The followings have to be provided for the `RedisSink(…)` constructor in order:
-
-1. The hostname
-2. The port number
-3. The channel name
-4. Serialization schema
-
-Example:
+This code shows how to create a sink that communicate to a single redis server:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new RedisSink<String>("localhost", 6379, "hello", new SimpleStringSchema()));
+public static class RedisExampleMapper implements RedisMapper<Tuple2<String, String>>{
+
+    @Override
+    public RedisDataTypeDescription getDataTypeDescription() {
+        return new RedisDataTypeDescription(RedisDataType.HASH, "HASH_NAME");
+    }
+
+    @Override
+    public String getKeyFromData(Tuple2<String, String> data) {
+        return data.f0;
+    }
+
+    @Override
+    public String getValueFromData(Tuple2<String, String> data) {
+        return data.f1;
+    }
+}
+JedisPoolConfig conf = new JedisPoolConfig.Builder().setHost("127.0.0.1").build();
+
+DataStream<String> stream = ...;
+stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMapper());
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new RedisSink[String]("localhost", 6379, "hello", new SimpleStringSchema))
+class RedisExampleMapper extends RedisMapper[(String, String)]{
+  override def getDataTypeDescription: RedisDataTypeDescription = {
+    new RedisDataTypeDescription(RedisDataType.HASH, "HASH_NAME")
+  }
+
+  override def getKeyFromData(data: (String, String)): String = data._1
+
+  override def getValueFromData(data: (String, String)): String = data._2
+}
+val conf = new JedisPoolConfig.Builder().setHost("127.0.0.1").build()
+stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 {% endhighlight %}
 </div>
 </div>
 
+This example code does the same, but for Redis Cluster:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+JedisPoolConfig conf = new JedisClusterConfig.Builder()
+    .setNodes(new HashSet<InetSocketAddress>(Arrays.asList(new InetSocketAddress(5601)))).build();
+
+DataStream<String> stream = ...;
+stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMapper());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val conf = new JedisClusterConfig.Builder().setNodes(...).build()
+stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
+{% endhighlight %}
+</div>
+</div>
+
+This example shows when the Redis environment is with Sentinels:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+JedisSentinelConfig conf = new JedisSentinelConfig.Builder().setMasterName("master").setSentinels(...).build();
+
+DataStream<String> stream = ...;
+stream.addSink(new RedisSink<Tuple2<String, String>>(conf, new RedisExampleMapper());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val conf = new JedisSentinelConfig.Builder().setMasterName("master").setSentinels(...).build()
+stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
+{% endhighlight %}
+</div>
+</div>
+
+This section gives a description of all the available Data types and what redis command used for that.
+
+<table class="table table-bordered" style="width: 75%">
+    <thead>
+        <tr>
+          <th class="text-center" style="width: 20%">Data Type</th>
+          <th class="text-center" style="width: 25%">Redis Command [Sink]</th>
+          <th class="text-center" style="width: 25%">Redis Command [Source]</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+            <td>HASH</td><td><a href="http://redis.io/commands/hset"> HSET</a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>LIST</td><td><a href="http://redis.io/commands/rpush"> RPUSH </a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>SET</td><td><a href="http://redis.io/commands/rpush"> SADD</a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>PUBSUB</td><td><a href="http://redis.io/commands/publish">PUBLISH</a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>STRING</td><td><a href="http://redis.io/commands/set">SET</a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>HYPER_LOG_LOG</td><td><a href="http://redis.io/commands/pfadd">PFADD</a></td><td>--NA--</td>
+        </tr>
+        <tr>
+            <td>SORTED_SET</td><td><a href="http://redis.io/commands/zadd">ZADD</a></td><td>--NA--</td>
+        </tr>                
+      </tbody>
+</table>
 More about Redis can be found [here](http://redis.io/).
