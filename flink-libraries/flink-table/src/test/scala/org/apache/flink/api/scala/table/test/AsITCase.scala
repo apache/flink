@@ -103,7 +103,8 @@ class AsITCase(
   def testAsWithToFewFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env)
+    CollectionDataSets.get3TupleDataSet(env)
+      // Must fail. Number of fields does not match.
       .as('a, 'b)
   }
 
@@ -111,7 +112,8 @@ class AsITCase(
   def testAsWithToManyFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env)
+    CollectionDataSets.get3TupleDataSet(env)
+      // Must fail. Number of fields does not match.
       .as('a, 'b, 'c, 'd)
   }
 
@@ -119,7 +121,8 @@ class AsITCase(
   def testAsWithAmbiguousFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env)
+    CollectionDataSets.get3TupleDataSet(env)
+      // Must fail. Field names not unique.
       .as('a, 'b, 'b)
   }
 
@@ -127,9 +130,8 @@ class AsITCase(
   def testAsWithNonFieldReference1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    // as can only have field references
-    val t = CollectionDataSets.get3TupleDataSet(env)
-      .as('a, 'b, 'c)
+    // Must fail. as() can only have field references
+    CollectionDataSets.get3TupleDataSet(env)
       .as('a + 1, 'b, 'c)
   }
 
@@ -137,15 +139,13 @@ class AsITCase(
   def testAsWithNonFieldReference2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    // as can only have field references
-    val t = CollectionDataSets.get3TupleDataSet(env)
-      .as('a, 'b, 'c)
+    // Must fail. as() can only have field references
+    CollectionDataSets.get3TupleDataSet(env)
       .as('a as 'foo, 'b, 'c)
   }
 
 }
 
 case class SomeCaseClass(name: String, age: Int, salary: Double, department: String) {
-
   def this() { this("", 0, 0.0, "") }
 }

@@ -73,9 +73,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.groupBy("b").select("b, a.sum");
@@ -88,17 +86,11 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testGroupingKeyForwardIfNotUsed() throws Exception {
-
-		// the grouping key needs to be forwarded to the intermediate DataSet, even
-		// if we don't want the key in the output
-
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.groupBy("b").select("a.sum");
@@ -116,9 +108,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-			tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 			.groupBy("b").select("a.sum as d, b").groupBy("b, d").select("b");

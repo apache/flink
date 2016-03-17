@@ -45,7 +45,6 @@ public class SelectITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-
 		Table in = tableEnv.fromDataSet(ds, "a,b,c");
 
 		Table result = in
@@ -61,7 +60,6 @@ public class SelectITCase extends TableProgramsTestBase {
 			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
 			"20,6,Comment#14\n" + "21,6,Comment#15\n";
 		compareResultAsText(results, expected);
-
 	}
 
 	@Test
@@ -70,7 +68,6 @@ public class SelectITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-
 		Table in = tableEnv.fromDataSet(ds);
 
 		Table result = in
@@ -91,7 +88,6 @@ public class SelectITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-
 		Table in = tableEnv.fromDataSet(ds);
 
 		Table result = in
@@ -107,62 +103,26 @@ public class SelectITCase extends TableProgramsTestBase {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testAsWithToFewFields() throws Exception {
+	public void testSelectInvalidField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.fromDataSet(ds, "a, b");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = " sorry dude ";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(ds, "a, b, c")
+			// Must fail. Field foo does not exist
+			.select("a + 1, foo + 2");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testAsWithToManyFields() throws Exception {
+	public void testSelectAmbiguousFieldNames() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table in = tableEnv.fromDataSet(ds, "a, b, c, d");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = " sorry dude ";
-		compareResultAsText(results, expected);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testAsWithAmbiguousFields() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-
-		Table in = tableEnv.fromDataSet(ds, "a, b, c, b");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = " today's not your day ";
-		compareResultAsText(results, expected);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testOnlyFieldRefInAs() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-
-		Table in = tableEnv.fromDataSet(ds, "a, b as c, d");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(in, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "sorry bro";
-		compareResultAsText(results, expected);
+		tableEnv.fromDataSet(ds, "a, b, c")
+			// Must fail. Field foo does not exist
+			.select("a + 1 as foo, b + 2 as foo");
 	}
 }

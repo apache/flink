@@ -26,8 +26,6 @@ import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.junit._
 import org.junit.Assert.assertEquals
 
-case class WC(count: Int, word: String)
-
 class SqlExplainTest
   extends MultipleProgramsTestBase(MultipleProgramsTestBase.TestExecutionMode.CLUSTER) {
 
@@ -41,9 +39,9 @@ class SqlExplainTest
   @Test
   def testFilterWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr = env.fromElements(WC(1, "hello"), WC(2, "hello"), WC(3, "ciao"))
-      .as('count as 'a, 'word as 'b)
-    val result = expr.filter("a % 2 = 0").explain()
+    val table = env.fromElements((1, "hello")).as('a, 'b)
+
+    val result = table.filter("a % 2 = 0").explain()
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilter0.out").mkString
     assertEquals(result, source)
@@ -52,9 +50,9 @@ class SqlExplainTest
   @Test
   def testFilterWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr = env.fromElements(WC(1, "hello"), WC(2, "hello"), WC(3, "ciao"))
-      .as('count as 'a, 'word as 'b)
-    val result = expr.filter("a % 2 = 0").explain(true)
+    val table = env.fromElements((1, "hello")).as('a, 'b)
+
+    val result = table.filter("a % 2 = 0").explain(true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilter1.out").mkString
     assertEquals(result, source)
@@ -63,11 +61,10 @@ class SqlExplainTest
   @Test
   def testJoinWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr1 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "ciao"))
-      .as('count as 'a, 'word as 'b)
-    val expr2 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "java"))
-      .as('count as 'c, 'word as 'd)
-    val result = expr1.join(expr2).where("b = d").select("a, c").explain()
+    val table1 = env.fromElements((1, "hello")).as('a, 'b)
+    val table2 = env.fromElements((1, "hello")).as('c, 'd)
+
+    val result = table1.join(table2).where("b = d").select("a, c").explain()
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testJoin0.out").mkString
     assertEquals(result, source)
@@ -76,11 +73,10 @@ class SqlExplainTest
   @Test
   def testJoinWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr1 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "ciao"))
-      .as('count as 'a, 'word as 'b)
-    val expr2 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "java"))
-      .as('count as 'c, 'word as 'd)
-    val result = expr1.join(expr2).where("b = d").select("a, c").explain(true)
+    val table1 = env.fromElements((1, "hello")).as('a, 'b)
+    val table2 = env.fromElements((1, "hello")).as('c, 'd)
+
+    val result = table1.join(table2).where("b = d").select("a, c").explain(true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testJoin1.out").mkString
     assertEquals(result, source)
@@ -89,9 +85,10 @@ class SqlExplainTest
   @Test
   def testUnionWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr1 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "ciao")).toTable
-    val expr2 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "java")).toTable
-    val result = expr1.unionAll(expr2).explain()
+    val table1 = env.fromElements((1, "hello")).as('count, 'word)
+    val table2 = env.fromElements((1, "hello")).as('count, 'word)
+
+    val result = table1.unionAll(table2).explain()
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion0.out").mkString
     assertEquals(result, source)
@@ -100,9 +97,10 @@ class SqlExplainTest
   @Test
   def testUnionWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val expr1 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "ciao")).toTable
-    val expr2 = env.fromElements(WC(1, "hello"), WC(1, "hello"), WC(1, "java")).toTable
-    val result = expr1.unionAll(expr2).explain(true)
+    val table1 = env.fromElements((1, "hello")).as('count, 'word)
+    val table2 = env.fromElements((1, "hello")).as('count, 'word)
+
+    val result = table1.unionAll(table2).explain(true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion1.out").mkString
     assertEquals(result, source)

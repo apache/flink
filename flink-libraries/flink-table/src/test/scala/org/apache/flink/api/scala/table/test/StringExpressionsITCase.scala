@@ -60,9 +60,10 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
+      // must fail, second argument of substring must be Integer not Double.
       .select('a.substring(0, 'b))
 
-    val results = t.toDataSet[Row].collect()
+    t.toDataSet[Row].collect()
   }
 
   @Test(expected = classOf[CodeGenException])
@@ -70,9 +71,10 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
+      // must fail, first argument of substring must be Integer not String.
       .select('a.substring('b, 15))
 
-    val results = t.toDataSet[Row].collect()
+    t.toDataSet[Row].collect()
   }
 
 

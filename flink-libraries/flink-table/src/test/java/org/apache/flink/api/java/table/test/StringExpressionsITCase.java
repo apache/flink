@@ -92,7 +92,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
-				.select("a.substring(0, b)");
+			// Must fail. Second parameter of substring must be an Integer not a Double.
+			.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.collect();
@@ -110,7 +111,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
-				.select("a.substring(b, 15)");
+			// Must fail. First parameter of substring must be an Integer not a String.
+			.select("a.substring(b, 15)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.collect();

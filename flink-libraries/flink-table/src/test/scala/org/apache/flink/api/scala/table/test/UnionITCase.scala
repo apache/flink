@@ -80,29 +80,23 @@ class UnionITCase(
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testUnionFieldsNameNotOverlap1(): Unit = {
+  def testUnionDifferentFieldNames(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'd, 'c, 'e)
 
-    val unionDs = ds1.unionAll(ds2)
-
-    val results = unionDs.toDataSet[Row].collect()
-    val expected = ""
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    // must fail. Union inputs have different field names.
+    ds1.unionAll(ds2)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testUnionFieldsNameNotOverlap2(): Unit = {
+  def testUnionDifferentFieldTypes(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'c, 'd, 'e).select('a, 'b, 'c)
 
-    val unionDs = ds1.unionAll(ds2)
-
-    val results = unionDs.toDataSet[Row].collect()
-    val expected = ""
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    // must fail. Union inputs have different field types.
+    ds1.unionAll(ds2)
   }
 
   @Test

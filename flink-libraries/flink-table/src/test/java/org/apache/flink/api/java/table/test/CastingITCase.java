@@ -32,6 +32,7 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -138,7 +139,8 @@ public class CastingITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Ignore // Date type not supported yet
+	@Test
 	public void testCastDateFromString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -160,7 +162,8 @@ public class CastingITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Ignore // Date type not supported yet
+	@Test
 	public void testCastDateToStringAndLong() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

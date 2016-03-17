@@ -36,6 +36,7 @@ import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, Unresol
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 
+import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 case class BaseTable(
@@ -83,6 +84,8 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
+
+    checkUniqueNames(fields)
 
     relBuilder.push(relNode)
 
@@ -394,8 +397,29 @@ class Table(
       }
 
     }
-
     LogicalProject.create(relNode, exprs.toList.asJava, names.toList.asJava)
+  }
+
+  private def checkUniqueNames(exprs: Seq[Expression]): Unit = {
+    val names: mutable.Set[String] = mutable.Set()
+
+    exprs.foreach {
+      case n: Naming =>
+        // explicit name
+        if (names.contains(n.name)) {
+          throw new IllegalArgumentException(s"Duplicate field name $n.name.")
+        } else {
+          names.add(n.name)
+        }
+      case u: UnresolvedFieldReference =>
+        // simple field forwarding
+        if (names.contains(u.name)) {
+          throw new IllegalArgumentException(s"Duplicate field name $u.name.")
+        } else {
+          names.add(u.name)
+        }
+      case _ => // Do nothing
+    }
   }
 
 }

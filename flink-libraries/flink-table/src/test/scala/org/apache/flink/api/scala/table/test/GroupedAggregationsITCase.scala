@@ -57,9 +57,6 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   @Test
   def testGroupedAggregate(): Unit = {
 
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       .groupBy('b)
@@ -72,9 +69,6 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
 
   @Test
   def testGroupingKeyForwardIfNotUsed(): Unit = {
-
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -129,8 +123,6 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   @Test
   def testGroupedAggregateWithConstant1(): Unit = {
 
-    // verify AggregateProjectPullUpConstantsRule
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       .select('a, 4 as 'four, 'b)
@@ -147,8 +139,6 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
 
   @Test
   def testGroupedAggregateWithConstant2(): Unit = {
-
-    // verify AggregateProjectPullUpConstantsRule
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -177,9 +167,6 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
 
   @Test
   def testGroupedAggregateWithFilter(): Unit = {
-
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)

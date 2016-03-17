@@ -51,6 +51,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
+      // Must fail. Field 'foo does not exist.
       .select('foo.avg)
   }
 
@@ -109,7 +110,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   @Test
   def testAggregationAfterProjection(): Unit = {
 
-    // verify AggregateProjectMergeRule.
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
@@ -127,6 +127,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("Hello", 1)).toTable
+      // Must fail. Field '_1 is not a numeric type.
       .select('_1.sum)
 
     t.collect()
@@ -137,14 +138,12 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("Hello", 1)).toTable
+      // Must fail. Sum aggregation can not be chained.
       .select('_2.sum.sum)
   }
 
   @Test
   def testSQLStyleAggregations(): Unit = {
-
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -164,7 +163,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   @Test
   def testPojoAggregation(): Unit = {
 
-    // test aggregations with a custom WordCount class
     val env = ExecutionEnvironment.getExecutionEnvironment
     val input = env.fromElements(
       MyWC("hello", 1),

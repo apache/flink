@@ -131,12 +131,8 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
-		Table result = in1.join(in2).where("foo === e").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Field foo does not exist.
+		in1.join(in2).where("foo === e").select("c, g");
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -150,13 +146,11 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
-		Table result = in1
-				.join(in2).where("a === g").select("c, g");
+		Table result = in1.join(in2)
+			// Must fail. Types of join fields are not compatible (Integer and String)
+			.where("a === g").select("c, g");
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -170,13 +164,8 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, c");
 
-		Table result = in1
-				.join(in2).where("a === d").select("c, g");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Join input have overlapping field names.
+		in1.join(in2).where("a === d").select("c, g");
 	}
 
 	@Test

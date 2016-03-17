@@ -67,7 +67,6 @@ class TableProgramsTestBase(
       case _ => // keep default
     }
   }
-
 }
 
 object TableProgramsTestBase {

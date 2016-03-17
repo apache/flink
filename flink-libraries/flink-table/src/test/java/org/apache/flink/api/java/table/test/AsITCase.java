@@ -224,6 +224,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
+		// Must fail. Not enough field names specified.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
 	}
 
@@ -232,6 +233,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
+		// Must fail. Too many field names specified.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 	}
 
@@ -240,6 +242,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
+		// Must fail. Specified field names are not unique.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 	}
 
@@ -248,6 +251,7 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
+		// Must fail. as() does only allow field name expressions
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 	}
 
@@ -256,11 +260,13 @@ public class AsITCase extends TableProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
+		// Must fail. as() does only allow field name expressions
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b,  c");
 	}
 
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("unused")
 	public static class SmallPojo {
 
 		public SmallPojo() { }
@@ -278,6 +284,7 @@ public class AsITCase extends TableProgramsTestBase {
 		public String department;
 	}
 
+	@SuppressWarnings("unused")
 	public static class PrivateSmallPojo {
 
 		public PrivateSmallPojo() { }
@@ -327,6 +334,7 @@ public class AsITCase extends TableProgramsTestBase {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	public static class SmallPojo2 {
 
 		public SmallPojo2() { }
@@ -349,6 +357,7 @@ public class AsITCase extends TableProgramsTestBase {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	public static class PrivateSmallPojo2 {
 
 		public PrivateSmallPojo2() { }

@@ -74,7 +74,6 @@ class SelectITCase(
   @Test
   def testSimpleSelectWithNaming(): Unit = {
 
-    // verify ProjectMergeRule.
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
@@ -103,47 +102,30 @@ class SelectITCase(
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testAsWithToFewFields(): Unit = {
+  def testSelectInvalidFieldFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      // must fail. Field 'foo does not exist
+      .select('a, 'foo)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testAsWithToManyFields(): Unit = {
+  def testSelectAmbiguousRenaming(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      // must fail. 'a and 'b are both renamed to 'foo
+      .select('a + 1 as 'foo, 'b + 2 as 'foo).print()
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testAsWithAmbiguousFields(): Unit = {
+  def testSelectAmbiguousRenaming2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      // must fail. 'a and 'b are both renamed to 'foo
+      .select('a, 'b as 'a).print()
   }
 
-
-  @Test(expected = classOf[IllegalArgumentException])
-  def testOnlyFieldRefInAs(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b as 'c, 'd)
-
-    val expected = "no"
-    val results = t.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
 }

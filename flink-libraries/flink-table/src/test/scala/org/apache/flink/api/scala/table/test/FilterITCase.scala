@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import TableProgramsTestBase.TableConfigMode
@@ -42,9 +43,6 @@ class FilterITCase(
 
   @Test
   def testAllRejectingFilter(): Unit = {
-    /*
-     * Test all-rejecting filter.
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -57,9 +55,6 @@ class FilterITCase(
 
   @Test
   def testAllPassingFilter(): Unit = {
-    /*
-     * Test all-passing filter.
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -76,9 +71,6 @@ class FilterITCase(
 
   @Test
   def testFilterOnStringTupleField(): Unit = {
-    /*
-     * Test filter on String tuple field.
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
     val filterDs = ds.filter( 'c.like("%world%") )
@@ -90,9 +82,6 @@ class FilterITCase(
 
   @Test
   def testFilterOnIntegerTupleField(): Unit = {
-    /*
-     * Test filter on Integer tuple field.
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -108,9 +97,6 @@ class FilterITCase(
 
   @Test
   def testNotEquals(): Unit = {
-    /*
-     * Test filter on Integer tuple field.
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -124,8 +110,7 @@ class FilterITCase(
   }
 
   @Test
-  def testDisjunctivePreds(): Unit = {
-
+  def testDisjunctivePredicate(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -136,9 +121,7 @@ class FilterITCase(
   }
 
   @Test
-  def testFilterMerge(): Unit = {
-    // verify FilterMergeRule.
-
+  def testConsecutiveFilters(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
@@ -152,9 +135,6 @@ class FilterITCase(
 
   @Test
   def testFilterBasicType(): Unit = {
-    /*
-     * Test filter on basic type
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
 
@@ -167,9 +147,6 @@ class FilterITCase(
 
   @Test
   def testFilterOnCustomType(): Unit = {
-    /*
-     * Test filter on custom type
-     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
     val filterDs = ds.as('myInt as 'i, 'myLong as 'l, 'myString as 's)
@@ -178,6 +155,15 @@ class FilterITCase(
     val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
     val results = filterDs.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testFilterInvalidFieldName(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+
+    // must fail. Field 'foo does not exist
+    ds.filter( 'foo === 2 )
   }
 
 }

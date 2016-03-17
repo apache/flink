@@ -138,7 +138,8 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Ignore // Date types not supported yet
+  @Test
   def testCastDateFromString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -156,7 +157,8 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Ignore // Date types not supported yet
+  @Test
   def testCastDateToStringAndLong(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))

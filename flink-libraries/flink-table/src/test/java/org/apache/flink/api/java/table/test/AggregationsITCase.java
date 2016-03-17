@@ -132,7 +132,6 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 				table.select("(f0 + 2).avg + 2, f1.count + 5");
 
-
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
 		String expected = "5.5,7";
@@ -172,6 +171,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(input);
 
 		Table result =
+				// Must fail. Cannot compute SUM aggregate on String field.
 				table.select("f1.sum");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
@@ -191,6 +191,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(input);
 
 		Table result =
+				// Must fail. Aggregation on aggregation not allowed.
 				table.select("f0.sum.sum");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);

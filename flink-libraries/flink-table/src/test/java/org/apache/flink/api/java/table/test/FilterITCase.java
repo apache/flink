@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
@@ -45,9 +46,7 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("false");
@@ -64,9 +63,7 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("true");
@@ -89,9 +86,7 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter(" a % 2 = 0 ");
@@ -110,9 +105,7 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.filter("!( a % 2 <> 0 ) ");
@@ -131,9 +124,10 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
-		Table result = table.filter("a < 2 || a > 20");
+
+		Table result = table
+			.filter("a < 2 || a > 20");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
@@ -147,15 +141,29 @@ public class FilterITCase extends TableProgramsTestBase {
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<>(300, 1L, "Hello"));
-
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
-		Table result = table.filter("a = 300 ");
+		Table result = table
+			.filter("a = 300 ");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
 		String expected = "300,1,Hello\n";
 		compareResultAsText(results, expected);
 	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testFilterInvalidField() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
+
+		table
+			// Must fail. Field foo does not exist.
+			.filter("foo = 17");
+	}
+
 }
 

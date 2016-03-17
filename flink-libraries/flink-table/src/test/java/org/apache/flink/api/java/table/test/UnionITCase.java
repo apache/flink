@@ -79,7 +79,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testUnionFieldsNameNotOverlap1() throws Exception {
+	public void testUnionIncompatibleNumberOfFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -89,16 +89,27 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
-		Table selected = in1.unionAll(in2);
-
-		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Number of fields of union inputs do not match
+		in1.unionAll(in2);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testUnionFieldsNameNotOverlap2() throws Exception {
+	public void testUnionIncompatibleFieldsName() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+
+		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
+		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d");
+
+		// Must fail. Field names of union inputs do not match
+		in1.unionAll(in2);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testUnionIncompatibleFieldTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -108,12 +119,8 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e").select("a, b, c");
 
-		Table selected = in1.unionAll(in2);
-
-		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Field types of union inputs do not match
+		in1.unionAll(in2);
 	}
 
 	@Test
