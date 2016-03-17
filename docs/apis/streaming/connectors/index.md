@@ -39,6 +39,7 @@ Currently these systems are supported:
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
  * [Apache NiFi](https://nifi.apache.org) (sink/source)
  * [Apache Cassandra](https://cassandra.apache.org/) (sink)
+ * [Redis](http://redis.io/) (sink)
 
 To run an application using one of these connectors, additional third party
 components are usually required to be installed and launched, e.g. the servers
