@@ -115,4 +115,64 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.collect();
 	}
+
+	@Test
+	public void testStringConcat() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a + b + 42");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "ABCD342\nABCD242";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testCastIntegers() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a + 42.cast(STRING)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "ABCD42\nABCD42";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testCastFloat() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a + 42f.cast(INT)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "ABCD42\nABCD42";
+		compareResultAsText(results, expected);
+	}
 }
