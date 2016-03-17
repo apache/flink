@@ -23,9 +23,14 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 /**
  * The {@code AssignerWithPunctuatedWatermarks} assigns event time timestamps to elements,
  * and generates low watermarks that signal event time progress within the stream.
- * 
- * <p>Use these class if certain special elements act as markers that signify event time
+ * These timestamps and watermarks are used by functions and operators that operate
+ * on event time, for example event time windows.
+ *
+ * <p>Use this class if certain special elements act as markers that signify event time
  * progress, and when you want to emit watermarks specifically at certain events.
+ * The system will generate a new watermark, if the probed value is non-null
+ * and has a timestamp larger than that of the previous watermark (to preserve
+ * the contract of ascending watermarks).
  * 
  * <p>For use cases that should periodically emit watermarks based on element timestamps,
  * use the {@link AssignerWithPeriodicWatermarks} instead.
@@ -33,7 +38,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * <p>The following example illustrates how to use this timestamp extractor and watermark
  * generator. It assumes elements carry a timestamp that describes when they were created,
  * and that some elements carry a flag, marking them as the end of a sequence such that no
- * elements with smaller timestamps can come any more.
+ * elements with smaller timestamps can come anymore.
  * 
  * <pre>{@code
  * public class WatermarkOnFlagAssigner implements AssignerWithPunctuatedWatermarks<MyElement> {
@@ -61,14 +66,14 @@ public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T
 	
 	/**
 	 * Asks this implementation if it wants to emit a watermark. This method is called right after
-	 * the {@link #extractTimestamp(Object, long)} method. If the method returns a positive
-	 * value, a new watermark should be emitted. If a negative value is emitted, no new watermark
-	 * will be generated.
-	 * 
-	 * <p>Note that whenever this method returns a positive value that is larger than the previous
-	 * value, a new watermark is generated. Hence, the implementation has full control how often
-	 * watermarks are generated.
-	 * 
+	 * the {@link #extractTimestamp(Object, long)} method.
+	 *
+	 * <p>The returned watermark will be emitted only if it is non-null and its timestamp
+	 * is larger than that of the previously emitted watermark (to preserve the contract of
+	 * ascending watermarks). If a null value is returned, or the timestamp of the returned
+	 * watermark is smaller than that of the last emitted one, then no new watermark will
+	 * be generated.
+	 *
 	 * <p>For an example how to use this method, see the documentation of
 	 * {@link AssignerWithPunctuatedWatermarks this class}.
 	 *
