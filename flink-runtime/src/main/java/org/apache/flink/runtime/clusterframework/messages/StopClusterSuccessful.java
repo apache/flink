@@ -27,7 +27,7 @@ public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.S
 
 	private static final long serialVersionUID = 42L;
 
-	private static StopClusterSuccessful INSTANCE;
+	private static StopClusterSuccessful INSTANCE = new StopClusterSuccessful();
 
 	/**
 	 * Private constructor. Initial singleton in get() method.
@@ -35,9 +35,6 @@ public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.S
 	private StopClusterSuccessful() {}
 
 	public static StopClusterSuccessful get() {
-		if (INSTANCE == null) {
-			INSTANCE = new StopClusterSuccessful();
-		}
 		return INSTANCE;
 	}
 
