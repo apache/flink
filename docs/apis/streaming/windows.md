@@ -57,7 +57,7 @@ to defining your own windows.
           <p>
           Defines a window of 5 seconds, that "tumbles". This means that elements are
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
-	  The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+	  The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
     {% highlight java %}
 keyedStream.timeWindow(Time.seconds(5));
     {% endhighlight %}
@@ -71,7 +71,7 @@ keyedStream.timeWindow(Time.seconds(5));
              Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
-             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
       {% highlight java %}
 keyedStream.timeWindow(Time.seconds(5), Time.seconds(1));
       {% endhighlight %}
@@ -127,7 +127,7 @@ keyedStream.countWindow(1000, 100)
           <p>
           Defines a window of 5 seconds, that "tumbles". This means that elements are
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
-          The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+          The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
     {% highlight scala %}
 keyedStream.timeWindow(Time.seconds(5))
     {% endhighlight %}
@@ -141,7 +141,7 @@ keyedStream.timeWindow(Time.seconds(5))
              Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
-             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
       {% highlight scala %}
 keyedStream.timeWindow(Time.seconds(5), Time.seconds(1))
       {% endhighlight %}
