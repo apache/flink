@@ -504,10 +504,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 						"Trying to consolidate.");
 
 				// keep track of which TaskManagers are not handled
-				List<ResourceID> toHandle = new ArrayList<>(workers.size());
-				for (ResourceID resourceID : workers) {
-					toHandle.add(resourceID);
-				}
+				Set<ResourceID> toHandle = new HashSet<>(workers.size());
+				toHandle.addAll(workers);
 
 				try {
 					// ask the framework to tell us which ones we should keep for now
