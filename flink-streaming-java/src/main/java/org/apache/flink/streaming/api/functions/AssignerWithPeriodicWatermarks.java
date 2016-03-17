@@ -27,15 +27,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * These timestamps and watermarks are used by functions and operators that operate
  * on event time, for example event time windows.
  * 
- * <p>This class is used to generate watermarks in a periodical interval.
+ * <p>Use this class to generate watermarks in a periodical interval.
  * At most every {@code i} milliseconds (configured via
  * {@link ExecutionConfig#getAutoWatermarkInterval()}, the system will call the
  * {@link #getCurrentWatermark()} method to probe for the next watermark value.
- * The system will generate a new watermark, if the probed value is larger than
- * zero and larger than the previous watermark.
- * 
+ * The system will generate a new watermark, if the probed value is non-null
+ * and has a timestamp larger than that of the previous watermark (to preserve
+ * the contract of ascending watermarks).
+ *
  * <p>The system may call the {@link #getCurrentWatermark()} method less often than every
- * {@code i} milliseconds, of no new elements arrived since the last call to the
+ * {@code i} milliseconds, if no new elements arrived since the last call to the
  * method.
  *
  * <p>Timestamps and watermarks are defined as {@code longs} that represent the
@@ -51,24 +52,24 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
 
 	/**
 	 * Returns the current watermark. This method is periodically called by the
-	 * system to retrieve the current watermark. The method may return null to
+	 * system to retrieve the current watermark. The method may return {@code null} to
 	 * indicate that no new Watermark is available.
 	 * 
-	 * <p>The returned watermark will be emitted only if it is non-null and larger
-	 * than the previously emitted watermark. If the current watermark is still
+	 * <p>The returned watermark will be emitted only if it is non-null and its timestamp
+	 * is larger than that of the previously emitted watermark (to preserve the contract of
+	 * ascending watermarks). If the current watermark is still
 	 * identical to the previous one, no progress in event time has happened since
-	 * the previous call to this method.
-	 * 
-	 * <p>If this method returns a value that is smaller than the previously returned watermark,
-	 * then the implementation does not properly handle the event stream timestamps.
-	 * In that case, the returned watermark will not be emitted (to preserve the contract of
-	 * ascending watermarks), and the violation will be logged and registered in the metrics.
-	 *     
+	 * the previous call to this method. If a null value is returned, or the timestamp
+	 * of the returned watermark is smaller than that of the last emitted one, then no
+	 * new watermark will be generated.
+	 *
 	 * <p>The interval in which this method is called and Watermarks are generated
 	 * depends on {@link ExecutionConfig#getAutoWatermarkInterval()}.
 	 *
 	 * @see org.apache.flink.streaming.api.watermark.Watermark
 	 * @see ExecutionConfig#getAutoWatermarkInterval()
+	 *
+	 * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
 	 */
 	Watermark getCurrentWatermark();
 }
