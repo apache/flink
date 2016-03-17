@@ -19,7 +19,6 @@
 package org.apache.flink.api.table.plan
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.calcite.schema.impl.AbstractTable
@@ -28,6 +27,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.plan.schema.DataStreamTable
 
 object TranslationContext {
 
@@ -77,6 +77,23 @@ object TranslationContext {
         name
       case None =>
         val tabName = "DataSetTable_" + nameCntr.getAndIncrement()
+        tabNames += (newTable -> tabName)
+        tables.add(tabName, newTable)
+        tabName
+    }
+
+  }
+
+  def addDataStream(newTable: DataStreamTable[_]): String = {
+
+    // look up name
+    val tabName = tabNames.get(newTable)
+
+    tabName match {
+      case Some(name) =>
+        name
+      case None =>
+        val tabName = "DataStreamTable_" + nameCntr.getAndIncrement()
         tabNames += (newTable -> tabName)
         tables.add(tabName, newTable)
         tabName
