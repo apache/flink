@@ -20,9 +20,9 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -239,14 +239,14 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.warn("Failing test", e);
 			Assert.fail("Error while deploying YARN cluster: "+e.getMessage());
 		}
-		FlinkYarnClusterStatus expectedStatus = new FlinkYarnClusterStatus(1, 1);
+		GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
 		for(int second = 0; second < WAIT_TIME * 2; second++) { // run "forever"
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				LOG.warn("Interrupted", e);
 			}
-			FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
+			GetClusterStatusResponse status = yarnCluster.getClusterStatus();
 			if(status != null && status.equals(expectedStatus)) {
 				LOG.info("Cluster reached status " + status);
 				break; // all good, cluster started

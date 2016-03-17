@@ -21,10 +21,11 @@ package org.apache.flink.runtime.clusterframework.messages;
 import java.io.Serializable;
 
 public class GetClusterStatusResponse implements Serializable {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private final int numRegisteredTaskManagers;
-	
+
 	private final int totalNumberOfSlots;
 
 	public GetClusterStatusResponse(int numRegisteredTaskManagers, int totalNumberOfSlots) {

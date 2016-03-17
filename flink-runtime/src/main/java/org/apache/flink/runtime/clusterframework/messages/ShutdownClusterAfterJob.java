@@ -27,10 +27,9 @@ import org.apache.flink.api.common.JobID;
 public class ShutdownClusterAfterJob implements java.io.Serializable {
 
 	private static final long serialVersionUID = -2723662264779569704L;
-	
+
 	private final JobID jobId;
 
-	
 	public ShutdownClusterAfterJob(JobID jobId) {
 		this.jobId = jobId;
 	}

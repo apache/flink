@@ -27,17 +27,15 @@ import org.apache.flink.configuration.{Configuration => FlinkConfiguration, Conf
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
-import org.apache.flink.runtime.clusterframework.messages.{UnRegisterInfoMessageListener, StopCluster, RegisterInfoMessageListener}
+import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus, JobNotFound}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-import org.apache.flink.yarn.YarnMessages._
 
 
 import scala.concurrent.duration._
@@ -113,7 +111,8 @@ class YarnJobManager(
           // client has to try again
       }
 
-    case StopAMAfterJob(jobId) =>
+    case msg: ShutdownClusterAfterJob =>
+      val jobId = msg.jobId()
       log.info(s"ApplicatonMaster will shut down YARN session when job $jobId has finished.")
       stopWhenJobFinished = jobId
       // trigger regular job status messages (if this is a per-job yarn cluster)
@@ -130,9 +129,9 @@ class YarnJobManager(
 
       sender() ! decorateMessage(Acknowledge)
 
-    case PollYarnClusterStatus =>
+    case msg: GetClusterStatus =>
       sender() ! decorateMessage(
-        new FlinkYarnClusterStatus(
+        new GetClusterStatusResponse(
           instanceManager.getNumberOfRegisteredTaskManagers,
           instanceManager.getTotalNumberOfSlots)
       )

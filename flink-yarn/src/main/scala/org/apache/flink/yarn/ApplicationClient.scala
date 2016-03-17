@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.YarnMessages._
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import scala.collection.mutable
@@ -63,7 +62,7 @@ class ApplicationClient(
   var pollingTimer: Option[Cancellable] = None
   var running = false
   var messagesQueue : mutable.Queue[InfoMessage] = mutable.Queue[InfoMessage]()
-  var latestClusterStatus : Option[FlinkYarnClusterStatus] = None
+  var latestClusterStatus : Option[GetClusterStatusResponse] = None
   var stopMessageReceiver : Option[ActorRef] = None
 
   var leaderSessionID: Option[UUID] = None
@@ -149,7 +148,7 @@ class ApplicationClient(
           INITIAL_POLLING_DELAY,
           WAIT_FOR_YARN_INTERVAL,
           yarnJobManager.get,
-          decorateMessage(PollYarnClusterStatus))
+          decorateMessage(GetClusterStatus.get()))
       )
 
     case JobManagerLeaderAddress(jobManagerAkkaURL, newLeaderSessionID) =>
@@ -203,9 +202,8 @@ class ApplicationClient(
       self ! decorateMessage(PoisonPill)
 
     // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
-    case status: FlinkYarnClusterStatus =>
+    case status: GetClusterStatusResponse =>
       latestClusterStatus = Some(status)
-
 
     // locally get cluster status
     case LocalGetYarnClusterStatus =>
@@ -214,7 +212,7 @@ class ApplicationClient(
     // Forward message to Application Master
     case LocalStopAMAfterJob(jobID) =>
       yarnJobManager foreach {
-        _ forward decorateMessage(StopAMAfterJob(jobID))
+        _ forward decorateMessage(new ShutdownClusterAfterJob(jobID))
       }
 
     // -----------------  handle messages from the cluster -------------------

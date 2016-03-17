@@ -30,12 +30,12 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -293,7 +293,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	 * This method is only available if the cluster hasn't been started in detached mode.
 	 */
 	@Override
-	public FlinkYarnClusterStatus getClusterStatus() {
+	public GetClusterStatusResponse getClusterStatus() {
 		if(!isConnected) {
 			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
 		}
@@ -310,7 +310,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(clusterStatus instanceof None$) {
 			return null;
 		} else if(clusterStatus instanceof Some) {
-			return (FlinkYarnClusterStatus) (((Some) clusterStatus).get());
+			return (GetClusterStatusResponse) (((Some) clusterStatus).get());
 		} else {
 			throw new RuntimeException("Unexpected type: " + clusterStatus.getClass().getCanonicalName());
 		}

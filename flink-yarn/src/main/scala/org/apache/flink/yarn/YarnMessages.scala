@@ -83,12 +83,9 @@ object YarnMessages {
   case class JobManagerLeaderAddress(jobManagerAkkaURL: String, leaderSessionID: UUID)
 
   case object HeartbeatWithYarn
-  case object PollYarnClusterStatus // see org.apache.flink.runtime.yarn.FlinkYarnClusterStatus for
-                                    // the response
   case object CheckForUserCommand
 
   // tell the AM to monitor the job and stop once it has finished
-  case class StopAMAfterJob(jobId:JobID) extends RequiresLeaderSessionID
   case class LocalStopAMAfterJob(jobId:JobID)
 
   case object LocalGetYarnMessage // request new message
