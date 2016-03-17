@@ -42,7 +42,6 @@ public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionI
 	/** The list of registered TaskManagers that the JobManager currently knows */
 	private final Collection<ResourceID> currentlyRegisteredTaskManagers;
 
-
 	/**
 	 * Creates a new message with a list of existing known TaskManagers.
 	 * 
@@ -55,7 +54,7 @@ public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionI
 		this.jobManager = jobManager;
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 

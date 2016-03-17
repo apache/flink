@@ -32,7 +32,7 @@ public class SetWorkerPoolSize implements RequiresLeaderSessionID, java.io.Seria
 
 	public SetWorkerPoolSize(int numberOfWorkers) {
 		if (numberOfWorkers < 0) {
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Number of workers must not be negative.");
 		}
 		this.numberOfWorkers = numberOfWorkers;
 	}
