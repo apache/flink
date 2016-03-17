@@ -86,6 +86,21 @@ public class GlobalProperties implements Cloneable {
 
 	/**
 	 * Set the parameters for range partition.
+	 *
+	 * @param ordering Order of the partitioned fields
+	 */
+	public void setRangePartitioned(Ordering ordering) {
+		if (ordering == null) {
+			throw new NullPointerException();
+		}
+
+		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
+		this.ordering = ordering;
+		this.partitioningFields = ordering.getInvolvedIndexes();
+	}
+
+	/**
+	 * Set the parameters for range partition.
 	 * 
 	 * @param ordering Order of the partitioned fields
 	 * @param distribution The data distribution for range partition. User can supply a customized data distribution,

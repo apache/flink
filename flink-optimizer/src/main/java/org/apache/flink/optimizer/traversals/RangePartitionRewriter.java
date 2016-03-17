@@ -223,7 +223,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		prRemoverNode.setParallelism(targetParallelism);
 		prPlanNode.setParallelism(targetParallelism);
 		GlobalProperties globalProperties = new GlobalProperties();
-		globalProperties.setRangePartitioned(new Ordering(0, null, Order.ASCENDING), channel.getDataDistribution());
+		globalProperties.setRangePartitioned(new Ordering(0, null, Order.ASCENDING));
 		prPlanNode.initProperties(globalProperties, new LocalProperties());
 		prPlanNode.setCosts(defaultZeroCosts);
 		this.plan.getAllNodes().add(prPlanNode);

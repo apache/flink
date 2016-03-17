@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.dataproperties;
+package org.apache.flink.test.distribution;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,19 +26,40 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-@SuppressWarnings("serial")
-public class MockDistribution implements DataDistribution {
+/**
+ * The class is used to do the tests of range partition with customed data distribution.
+ */
+public class TestDataDist implements DataDistribution {
+
+	private int dim;
+
+	public TestDataDist() {}
+
+	/**
+	 * Constructor of the customized distribution for range partition.
+	 * @param dim the number of the fields.
+	 */
+	public TestDataDist(int dim) {
+		this.dim = dim;
+	}
+
+	public int getParallelism() {
+		return 3;
+	}
 
 	@Override
 	public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Object[0];
+		if (dim == 1) {
+			return new Integer[]{(bucketNum + 1) * 7};
+		}
+		return new Integer[]{(bucketNum + 1) * 7, (bucketNum) * 2 + 3};
 	}
 
 	@Override
 	public int getNumberOfFields() {
-		return 0;
+		return this.dim;
 	}
-
+	
 	@Override
 	public TypeInformation[] getKeyTypes() {
 		return new TypeInformation[]{TypeExtractor.getForClass(Integer.class)};
@@ -46,11 +67,11 @@ public class MockDistribution implements DataDistribution {
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
+		out.writeInt(this.dim);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
+		this.dim = in.readInt();
 	}
 }

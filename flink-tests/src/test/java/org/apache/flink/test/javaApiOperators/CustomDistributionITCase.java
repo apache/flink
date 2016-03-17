@@ -20,13 +20,12 @@ package org.apache.flink.test.javaApiOperators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.test.distribution.CustomDistribution;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.types.IntValue;
+import org.apache.flink.test.distribution.TestDataDist;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -46,44 +45,20 @@ public class CustomDistributionITCase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-		DataSet<Tuple3<Integer, Integer, String>> input1 = env.fromElements(
-				new Tuple3<>(1, 1, "Hi"),
-				new Tuple3<>(1, 2, "Hello"),
-				new Tuple3<>(1, 3, "Hello world"),
-				new Tuple3<>(2, 4, "how are you?"),
-				new Tuple3<>(2, 5, "I am fine."),
-				new Tuple3<>(3, 6, "Luke Skywalker"),
-				new Tuple3<>(4, 7, "Comment#1"),
-				new Tuple3<>(4, 8, "Comment#2"),
-				new Tuple3<>(4, 9, "Comment#3"),
-				new Tuple3<>(5, 10, "Comment#4"));
+		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
 
-		final IntValue[] keys = new IntValue[3];
+		final TestDataDist dist = new TestDataDist(1);
 
-		for (int i = 0; i < 3; i++) {
-			keys[i] = new IntValue((i + 1) * 2);
-		}
+		env.setParallelism(dist.getParallelism());
 
-		final CustomDistribution cd = new CustomDistribution(keys);
-
-		env.setParallelism(3);
-
-		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1.map(new MapFunction<Tuple3<Integer, Integer, String>, Tuple2<IntValue, IntValue>>() {
+		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1, dist, 0).mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Long, String>, Boolean>() {
 			@Override
-			public Tuple2<IntValue, IntValue> map(Tuple3<Integer, Integer, String> value) throws Exception {
-				IntValue key1;
-				IntValue key2;
-				key1 = new IntValue(value.f0);
-				key2 = new IntValue(value.f1);
-				return new Tuple2<>(key1, key2);
-			}
-		}), cd, 0).mapPartition(new RichMapPartitionFunction<Tuple2<IntValue, IntValue>, Boolean>() {
-			@Override
-			public void mapPartition(Iterable<Tuple2<IntValue, IntValue>> values, Collector<Boolean> out) throws Exception {
+			public void mapPartition(Iterable<Tuple3<Integer, Long, String>> values, Collector<Boolean> out) throws Exception {
 				boolean boo = true;
-				for (Tuple2<IntValue, IntValue> s : values) {
-					IntValue intValues= (IntValue)cd.getBucketBoundary(getRuntimeContext().getIndexOfThisSubtask(), 3)[0];
-					if (s.f0.getValue() > intValues.getValue()) {
+				int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
+
+				for (Tuple3<Integer, Long, String> s : values) {
+					if (s.f0 > (partitionIndex + 1) * 7 || s.f0 < (partitionIndex) * 7) {
 						boo = false;
 					}
 				}
@@ -105,47 +80,26 @@ public class CustomDistributionITCase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> input1 = env.fromElements(
-				new Tuple2<>(new Tuple2<>(1, 1), "Hi"),
-				new Tuple2<>(new Tuple2<>(1, 2), "Hello"),
-				new Tuple2<>(new Tuple2<>(1, 3), "Hello world"),
-				new Tuple2<>(new Tuple2<>(2, 4), "how are you?"),
-				new Tuple2<>(new Tuple2<>(2, 5), "I am fine."),
-				new Tuple2<>(new Tuple2<>(3, 6), "Luke Skywalker"),
-				new Tuple2<>(new Tuple2<>(4, 7), "Comment#1"),
-				new Tuple2<>(new Tuple2<>(4, 8), "Comment#2"),
-				new Tuple2<>(new Tuple2<>(4, 9), "Comment#3"),
-				new Tuple2<>(new Tuple2<>(5, 10), "Comment#4"));
+		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
 
-		IntValue[][] keys = new IntValue[2][2];
-		env.setParallelism(2);
+		final TestDataDist dist = new TestDataDist(2);
 
-		for (int i = 0; i < 2; i++) {
-			keys[i][0] = new IntValue((i + 1) * 3);
-		}
+		env.setParallelism(dist.getParallelism());
 
-		for (int i = 0; i < 2; i++) {
-			keys[i][1] = new IntValue((i + 1) * 5);
-		}
-
-		final CustomDistribution cd = new CustomDistribution(keys);
-
-		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1.map(new MapFunction<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<IntValue, IntValue>>() {
+		DataSet<Boolean> out1 = DataSetUtils.partitionByRange(input1.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Integer, String>>() {
 			@Override
-			public Tuple2<IntValue, IntValue> map(Tuple2<Tuple2<Integer, Integer>, String> value) throws Exception {
-				IntValue key1;
-				IntValue key2;
-				key1 = new IntValue(value.f0.f0);
-				key2 = new IntValue(value.f0.f1);
-				return new Tuple2<>(key1, key2);
+			public Tuple3<Integer, Integer, String> map(Tuple3<Integer, Long, String> value) throws Exception {
+				return new Tuple3<>(value.f0, value.f1.intValue(), value.f2);
 			}
-		}), cd, 0, 1).mapPartition(new RichMapPartitionFunction<Tuple2<IntValue, IntValue>, Boolean>() {
+		}), dist, 0, 1).mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Integer, String>, Boolean>() {
 			@Override
-			public void mapPartition(Iterable<Tuple2<IntValue, IntValue>> values, Collector<Boolean> out) throws Exception {
+			public void mapPartition(Iterable<Tuple3<Integer, Integer, String>> values, Collector<Boolean> out) throws Exception {
 				boolean boo = true;
-				for (Tuple2<IntValue, IntValue> s : values) {
-					IntValue[] intValues= (IntValue[])cd.getBucketBoundary(getRuntimeContext().getIndexOfThisSubtask(), 3);
-					if (s.f0.getValue() > intValues[0].getValue() || s.f1.getValue() > intValues[1].getValue()) {
+				int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
+
+				for (Tuple3<Integer, Integer, String> s : values) {
+					if (s.f0 > (partitionIndex + 1) * 7 || s.f0 < partitionIndex * 7 ||
+							s.f1 > (partitionIndex * 2 + 3) || s.f1 < (partitionIndex * 2 + 1)) {
 						boo = false;
 					}
 				}
