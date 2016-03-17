@@ -183,7 +183,7 @@ DataStream<Tuple2<String, Long>> result = keyedEdits
     });
 {% endhighlight %}
 
-The first call, `.window()`, specifies that we want to have tumbling (non-overlapping) windows
+The first call, `.timeWindow()`, specifies that we want to have tumbling (non-overlapping) windows
 of five seconds. The second call specifies a *Fold transformation* on each window slice for
 each unique key. In our case we start from an initial value of `("", 0L)` and add to it the byte
 difference of every edit in that time window for a user. The resulting Stream now contains
