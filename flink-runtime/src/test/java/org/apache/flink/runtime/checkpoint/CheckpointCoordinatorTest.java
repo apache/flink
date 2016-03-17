@@ -1027,6 +1027,76 @@ public class CheckpointCoordinatorTest {
 		}
 	}
 
+	/**
+	 * This test verified that after a completed checkpoint a certain time has passed before
+	 * another is triggered.
+	 */
+	@Test
+	public void testMinInterval() {
+		try {
+			final JobID jid = new JobID();
+
+			// create some mock execution vertices and trigger some checkpoint
+			final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+			final AtomicInteger numCalls = new AtomicInteger();
+
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					if (invocation.getArguments()[0] instanceof TriggerCheckpoint) {
+						numCalls.incrementAndGet();
+					}
+					return null;
+				}
+			}).when(vertex1).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
+
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				10,		// periodic interval is 10 ms
+				200000,	// timeout is very long (200 s)
+				500,	// 2 second delay between checkpoints
+				3,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 }, cl, new StandaloneCheckpointIDCounter
+				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
+				new DisabledCheckpointStatsTracker());
+
+			coord.startCheckpointScheduler();
+
+			//trigger first checkpoint
+			Thread.sleep(100);
+
+			assertEquals(1, numCalls.get());
+
+			//no new checkpoint has been triggered
+			Thread.sleep(100);
+			assertEquals(1, numCalls.get());
+
+			//no new checkpoint has been triggered
+			Thread.sleep(100);
+			assertEquals(1, numCalls.get());
+
+			//new checkpoint has been triggered
+			Thread.sleep(300);
+			assertEquals(2, numCalls.get());
+
+			//new checkpoint has been triggered
+			Thread.sleep(500);
+			assertEquals(3, numCalls.get());
+
+			coord.stopCheckpointScheduler();
+
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}		
+	}
+
 	@Test
 	public void testMaxConcurrentAttempts1() {
 		testMaxConcurrentAttemps(1);
