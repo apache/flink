@@ -29,7 +29,6 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
-import org.apache.flink.api.common.InvalidProgramException
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -125,28 +124,28 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       .select('c, 'g)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testNoEqualityJoinPredicate1(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
       // must fail. No equality join predicate
       .where('d === 'f)
-      .select('c, 'g)
+      .select('c, 'g).collect()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testNoEqualityJoinPredicate2(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
       // must fail. No equality join predicate
       .where('a < 'd)
-      .select('c, 'g)
+      .select('c, 'g).collect()
   }
 
   @Test

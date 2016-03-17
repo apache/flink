@@ -124,7 +124,7 @@ class SelectITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
-      // must fail. 'a and 'b are both renamed to 'foo
+      // must fail. 'a and 'b are both renamed to 'a
       .select('a, 'b as 'a).print()
   }
 
