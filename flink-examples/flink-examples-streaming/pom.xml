@@ -211,6 +211,7 @@ under the License.
 
 							<includes>
 								<include>org/apache/flink/streaming/examples/join/*.class</include>
+								<include>org/apache/flink/streaming/examples/utils/ThrottledIterator.class</include>
 							</includes>
 						</configuration>
 					</execution>
