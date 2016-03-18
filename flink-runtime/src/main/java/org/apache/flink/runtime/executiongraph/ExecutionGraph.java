@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -237,7 +236,6 @@ public class ExecutionGraph implements Serializable {
 	private ExecutionContext executionContext;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-
 	private String jsonPlan;
 
 	// --------------------------------------------------------------------------------------------
@@ -307,7 +305,9 @@ public class ExecutionGraph implements Serializable {
 
 		this.requiredJarFiles = requiredJarFiles;
 		this.requiredClasspaths = requiredClasspaths;
-		this.executionConfig = Preconditions.checkNotNull(config);
+
+		this.executionConfig = checkNotNull(config);
+
 		this.timeout = timeout;
 
 		this.restartStrategy = restartStrategy;
@@ -967,8 +967,13 @@ public class ExecutionGraph implements Serializable {
 		isArchived = true;
 	}
 
+	/**
+	 * Returns the {@link ExecutionConfig}.
+	 *
+	 * @return ExecutionConfig
+	 */
 	public ExecutionConfig getExecutionConfig() {
-		return this.executionConfig;
+		return executionConfig;
 	}
 
 	/**

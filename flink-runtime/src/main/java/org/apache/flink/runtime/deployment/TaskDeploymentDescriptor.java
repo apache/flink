@@ -98,13 +98,23 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
-			ExecutionConfig executionConfig, String taskName, int indexInSubtaskGroup, int numberOfSubtasks,
-			int attemptNumber, Configuration jobConfiguration, Configuration taskConfiguration,
-			String invokableClassName, List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			JobID jobID,
+			JobVertexID vertexID,
+			ExecutionAttemptID executionId,
+			ExecutionConfig executionConfig,
+			String taskName,
+			int indexInSubtaskGroup,
+			int numberOfSubtasks,
+			int attemptNumber,
+			Configuration jobConfiguration,
+			Configuration taskConfiguration,
+			String invokableClassName,
+			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState,
+			List<BlobKey> requiredJarFiles,
+			List<URL> requiredClasspaths,
+			int targetSlotNumber,
+			SerializedValue<StateHandle<?>> operatorState,
 			long recoveryTimestamp) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
@@ -133,13 +143,22 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	public TaskDeploymentDescriptor(
-			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
-			ExecutionConfig executionConfig, String taskName, int indexInSubtaskGroup, int numberOfSubtasks,
-			int attemptNumber, Configuration jobConfiguration, Configuration taskConfiguration,
-			String invokableClassName, List<ResultPartitionDeploymentDescriptor> producedPartitions,
-			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber) {
+		JobID jobID,
+		JobVertexID vertexID,
+		ExecutionAttemptID executionId,
+		ExecutionConfig executionConfig,
+		String taskName,
+		int indexInSubtaskGroup,
+		int numberOfSubtasks,
+		int attemptNumber,
+		Configuration jobConfiguration,
+		Configuration taskConfiguration,
+		String invokableClassName,
+		List<ResultPartitionDeploymentDescriptor> producedPartitions,
+		List<InputGateDeploymentDescriptor> inputGates,
+		List<BlobKey> requiredJarFiles,
+		List<URL> requiredClasspaths,
+		int targetSlotNumber) {
 
 		this(jobID, vertexID, executionId, executionConfig, taskName, indexInSubtaskGroup,
 				numberOfSubtasks, attemptNumber, jobConfiguration, taskConfiguration, invokableClassName,
@@ -147,7 +166,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	}
 
 	/**
-	 * Returns the execution configuration (see {@link ExecutionConfig}) related to the specific job.
+	 * Returns the execution configuration (see {@link ExecutionConfig}) related to the
+	 * specific job.
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -35,13 +34,13 @@ import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 import java.util.Set;
-import java.util.LinkedHashSet;
-import java.util.Iterator;
 
 /**
  * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
@@ -80,8 +79,6 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	private final ExecutionConfig executionConfig;
-
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */
 	private long sessionTimeout = 0;
@@ -96,7 +93,10 @@ public class JobGraph implements Serializable {
 	private JobSnapshottingSettings snapshotSettings;
 
 	/** List of classpaths required to run this job. */
-	private List<URL> classpaths = Collections.<URL>emptyList();
+	private List<URL> classpaths = Collections.emptyList();
+
+	/** Job specific execution config */
+	private ExecutionConfig executionConfig;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -107,7 +107,7 @@ public class JobGraph implements Serializable {
 	 * @param config The {@link ExecutionConfig} for the job.
 	 */
 	public JobGraph(ExecutionConfig config) {
-		this((String) null, config);
+		this(null, config);
 	}
 
 	/**
@@ -132,7 +132,7 @@ public class JobGraph implements Serializable {
 	public JobGraph(JobID jobId, String jobName, ExecutionConfig config) {
 		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
-		this.executionConfig = Preconditions.checkNotNull(config);
+		this.executionConfig = config == null ? new ExecutionConfig() : config;
 	}
 
 	/**
@@ -205,8 +205,13 @@ public class JobGraph implements Serializable {
 		return this.jobConfiguration;
 	}
 
+	/**
+	 * Returns the {@link ExecutionConfig}
+	 *
+	 * @return ExecutionConfig
+	 */
 	public ExecutionConfig getExecutionConfig() {
-		return this.executionConfig;
+		return executionConfig;
 	}
 
 	/**

@@ -1071,7 +1071,7 @@ class JobManager(
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
-        val restartStrategy = Option(jobGraph.getExecutionConfig.getRestartStrategy())
+        val restartStrategy = Option(jobGraph.getExecutionConfig().getRestartStrategy())
           .map(RestartStrategyFactory.createRestartStrategy(_)) match {
             case Some(strategy) => strategy
             case None => defaultRestartStrategy

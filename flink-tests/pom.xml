@@ -371,6 +371,25 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>create-usercodetype-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.UserCodeType</mainClass>
+								</manifest>
+							</archive>
+							<finalName>usercodetype</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-usercodetype-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
 						<id>create-custominputsplit-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>
