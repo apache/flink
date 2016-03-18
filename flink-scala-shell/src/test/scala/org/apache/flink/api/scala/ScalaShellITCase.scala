@@ -150,7 +150,7 @@ class ScalaShellITCase extends TestLogger {
     val input =
       """
         import org.apache.flink.ml.math._
-        val denseVectors = env.fromElements(DenseVector(1.0, 2.0, 3.0))
+        val denseVectors = env.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
         denseVectors.print()
       """.stripMargin
 

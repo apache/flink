@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -221,6 +222,9 @@ public class Task implements Runnable {
 	/** The job specific execution configuration (see {@link ExecutionConfig}). */
 	private final ExecutionConfig executionConfig;
 
+	/** Interval between two successive task cancellation attempts */
+	private final long taskCancellationInterval;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
@@ -266,6 +270,15 @@ public class Task implements Runnable {
 		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+
+		if (executionConfig.getTaskCancellationInterval() < 0) {
+			taskCancellationInterval = jobConfiguration.getLong(
+				ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
+				ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
+		} else {
+			taskCancellationInterval = executionConfig.getTaskCancellationInterval();
+		}
+
 
 		// create the reader and writer structures
 
@@ -455,6 +468,8 @@ public class Task implements Runnable {
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
 			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
+
+			executionConfig.deserializeUserCode(userCodeClassLoader);
 
 			// now load the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass);
@@ -836,7 +851,6 @@ public class Task implements Runnable {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
-						long taskCancellationInterval = this.executionConfig.getTaskCancellationInterval();
 						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask,
 							taskCancellationInterval);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,

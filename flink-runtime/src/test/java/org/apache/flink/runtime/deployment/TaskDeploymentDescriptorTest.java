@@ -78,6 +78,8 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
+			// load serialized values in ExecutionConfig
+			copy.getExecutionConfig().deserializeUserCode(getClass().getClassLoader());
 			assertEquals(orig.getExecutionConfig(), copy.getExecutionConfig());
 
 			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());

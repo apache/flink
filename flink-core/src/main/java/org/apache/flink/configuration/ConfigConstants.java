@@ -220,7 +220,13 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
-	// ------------------------ Runtime Algorithms ----------------------------
+	/**
+	 * Time interval between two successive task cancellation attempts in milliseconds.
+	 */
+	@PublicEvolving
+	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
+
+	// --------------------------- Runtime Algorithms -------------------------------
 	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.

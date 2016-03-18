@@ -55,6 +55,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -128,7 +129,12 @@ public class StreamingJobGraphGenerator {
 		
 		configureCheckpointing();
 
-		configureRestartStrategy();
+		try {
+			// make sure that we can send the ExecutionConfig without user code object problems
+			jobGraph.getExecutionConfig().serializeUserCode();
+		} catch (IOException e) {
+			throw new IllegalStateException("Could not serialize ExecutionConfig.", e);
+		}
 
 		return jobGraph;
 	}
@@ -477,16 +483,11 @@ public class StreamingJobGraphGenerator {
 
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
 			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
-				// if the user enabled checkpointing, the default number of exec retries is infinitive.
+				// if the user enabled checkpointing, the default number of exec retries is infinite.
 				streamGraph.getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		}
-	}
-
-	private void configureRestartStrategy() {
-		jobGraph.getExecutionConfig().setRestartStrategy(
-			streamGraph.getExecutionConfig().getRestartStrategy());
 	}
 
 	// ------------------------------------------------------------------------
