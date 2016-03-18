@@ -740,7 +740,11 @@ public class DataStream<T> {
 	 * <p>Use this method for the common cases, where some characteristic over all elements
 	 * should generate the watermarks, or where watermarks are simply trailing behind the
 	 * wall clock time by a certain amount.
-	 * 
+	 *
+	 * <p>For the case where the watermark should follow the lateness observed in the stream, so
+	 * that less elements are dropped due to lateness, use the
+	 * {@link org.apache.flink.streaming.api.functions.HistogramBasedWatermarkEmitter}
+	 *
 	 * <p>For cases where watermarks should be created in an irregular fashion, for example
 	 * based on certain markers that some element carry, use the
 	 * {@link AssignerWithPunctuatedWatermarks}.

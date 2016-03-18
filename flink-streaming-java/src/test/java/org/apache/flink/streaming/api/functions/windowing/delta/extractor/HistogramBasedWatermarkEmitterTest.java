@@ -30,7 +30,7 @@ public class HistogramBasedWatermarkEmitterTest {
 	@Test
 	public void testInitializationAndBehavior() throws Exception {
 		HistogramBasedWatermarkEmitter<Long> extractor =
-			new LongExtractor(Time.seconds(10), Time.seconds(2), 0.9);
+			new LongExtractor(Time.seconds(2), Time.seconds(10), 0.9);
 
 		// setting the testing flag to true through reflection.
 		Field testingFlag = HistogramBasedWatermarkEmitter.class.getDeclaredField("testing");
@@ -59,10 +59,10 @@ public class HistogramBasedWatermarkEmitterTest {
 
 	// ------------------------------------------------------------------------
 
-	private void testStateTransitions(HistogramBasedWatermarkEmitter<Long> extractor, long initTs) {
+	private void testStateTransitions(HistogramBasedWatermarkEmitter<Long> extractor, long initTs) throws Exception {
 		assertEquals(new Watermark(Long.MIN_VALUE), extractor.getCurrentWatermark());
 
-		extractor.setCurrentSystemTime(0);
+		extractor.open(null);										// INITIALIZE
 
 		assertEquals(10000L, extractor.extractTimestamp(10000L, 0L));	//10s
 		assertEquals(10000L, extractor.extractTimestamp(10000L, 0L));	//10s
@@ -70,26 +70,25 @@ public class HistogramBasedWatermarkEmitterTest {
 		assertEquals(10000L, extractor.extractTimestamp(10000L, 0L));	//10s
 		assertEquals(10000L, extractor.extractTimestamp(10000L, 0L));	//10s
 		assertEquals(10000L, extractor.extractTimestamp(10000L, 0L));	//10s
-		assertEquals(1000L, extractor.extractTimestamp(1000L, 0L));		//0s
-		assertEquals(1000L, extractor.extractTimestamp(1000L, 0L));		//0s
-		assertEquals(30L, extractor.extractTimestamp(30L, 0L));			//0s
+		assertEquals(1000L, extractor.extractTimestamp(1000L, 0L));		//0s late
+		assertEquals(1000L, extractor.extractTimestamp(1000L, 0L));		//0s late
+		assertEquals(30L, extractor.extractTimestamp(30L, 0L));			//0s late
 		assertEquals(11000L, extractor.extractTimestamp(11000L, 0L));	//11s
 		assertEquals(11000L, extractor.extractTimestamp(11000L, 0L));	//11s
 
 		// watermark before the end of the sampling (so latency = 0)
 		assertEquals(new Watermark(11000L), extractor.getCurrentWatermark());
 
-		extractor.setCurrentSystemTime(3000);
-		assertEquals(3000L, extractor.getCurrentSystemTime());
+		extractor.trigger(2000);										// TRIGGER
 
-		assertEquals(11000L, extractor.extractTimestamp(11000L, 0L));	//16s
+		assertEquals(12000L, extractor.extractTimestamp(12000L, 0L));	//16s
 
-		// watermark after the end of the  sampling period, in the non-sampling one
+		// watermark after the end of the  sampling period
 		long expectedLatency = ((10000 - 1000) >>> 10) << 10;
-		assertEquals(new Watermark(11000 - expectedLatency), extractor.getCurrentWatermark());
+		assertEquals(new Watermark(12000 - expectedLatency), extractor.getCurrentWatermark());
 
 		// watermark in the next sampling period
-		extractor.setCurrentSystemTime(12100L);
+		extractor.trigger(12000L);										// TRIGGER
 
 		assertEquals(14000L, extractor.extractTimestamp(14000L, 0L));	//14s
 		assertEquals(14000L, extractor.extractTimestamp(14000L, 0L));	//14s
@@ -102,16 +101,17 @@ public class HistogramBasedWatermarkEmitterTest {
 		assertEquals(14000L, extractor.extractTimestamp(14000L, 0L));	//14s
 		assertEquals(14000L, extractor.extractTimestamp(14000L, 0L));	//14s
 
+		// we are still before the end of the sampling so the allowed lateness is
+		// not updated yet.
 		assertEquals(new Watermark(14000 - expectedLatency), extractor.getCurrentWatermark());
 
 		// watermark after the end of the second sampling
-		extractor.setCurrentSystemTime(14100L);
+		extractor.trigger(14000L);										// TRIGGER
 
-		// no elements were late so now expected latency = 0
-		assertEquals(16000L, extractor.extractTimestamp(16000L, 0L));	//16s
-		assertEquals(new Watermark(16000), extractor.getCurrentWatermark());
+		// no elements were late so now the allowed lateness is updated to 0
+		assertEquals(new Watermark(14000), extractor.getCurrentWatermark());
 
-		extractor.setCurrentSystemTime(24100);
+		extractor.trigger(24000);										// TRIGGER
 
 		assertEquals(35000L, extractor.extractTimestamp(35000L, 0L));	//35s
 		assertEquals(35000L, extractor.extractTimestamp(35000L, 0L));	//35s
@@ -122,32 +122,35 @@ public class HistogramBasedWatermarkEmitterTest {
 		assertEquals(32000L, extractor.extractTimestamp(32000L, 0L));	//32s late
 		assertEquals(32000L, extractor.extractTimestamp(32000L, 0L));	//32s late
 		assertEquals(32000L, extractor.extractTimestamp(32000L, 0L));	//32s late
-		assertEquals(35000L, extractor.extractTimestamp(35000L, 0L));	//35s
+		assertEquals(40000L, extractor.extractTimestamp(40000L, 0L));	//35s
 
-		extractor.setCurrentSystemTime(26100);
+		extractor.trigger(26000);										// TRIGGER
 
-		// this would be the latency if it were to recompute now.
+		// this is the new latness after the new sampling period
 		expectedLatency = ((35000 - 32000) >>> 10) << 10;
-		assertEquals(new Watermark(35000 - expectedLatency), extractor.getCurrentWatermark());
+		assertEquals(new Watermark(40000 - expectedLatency), extractor.getCurrentWatermark());
 
 		// now it reinitializes and forgets the previous sampling as we jumped from
 		// sampling to sampling period.
 
-		extractor.setCurrentSystemTime(36100);
+		extractor.trigger(36000);										// TRIGGER
 
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
-		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
+		assertEquals(38000L, extractor.extractTimestamp(38000L, 0L));	//38s late
 
-		extractor.setCurrentSystemTime(38100);
-		assertEquals(new Watermark(38000), extractor.getCurrentWatermark());
+		extractor.trigger(38000);										// TRIGGER
+
+		// because the maximum seen timestamp is not forgotten between sampling periods
+		expectedLatency = ((40000 - 38000) >>> 10) << 10;
+		assertEquals(new Watermark(40000 - expectedLatency), extractor.getCurrentWatermark());
 	}
 
 	// ------------------------------------------------------------------------
