@@ -32,15 +32,17 @@ This document shows how {% gh_link /flink-java/src/main/java/org/apache/flink/ap
 {:toc}
 
 ### Zip with a Dense Index
-For assigning consecutive labels to the elements, the `zipWithIndex` method should be called. It receives a data set as input and returns a new data set of unique id, initial value tuples.
+`zipWithIndex` assigns consecutive labels to the elements, receiving a data set as input and returning a new data set of `(unique id, initial value)` 2-tuples.
+This process requires two passes, first counting then labeling elements, and cannot be pipelined due to the synchronization of counts.
+The alternative `zipWIthUniqueId` works in a pipelined fashion and is preferred when a unique labeling is sufficient.
 For example, the following code:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setParallelism(1);
-DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+env.setParallelism(2);
+DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H");
 
 DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithIndex(in);
 
@@ -54,8 +56,8 @@ env.execute();
 import org.apache.flink.api.scala._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(1)
-val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+env.setParallelism(2)
+val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H")
 
 val result: DataSet[(Long, String)] = input.zipWithIndex
 
@@ -66,21 +68,21 @@ env.execute()
 
 </div>
 
-will yield the tuples: (0,A), (1,B), (2,C), (3,D), (4,E), (5,F)
+may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)
 
 [Back to top](#top)
 
-### Zip with an Unique Identifier
-In many cases, one may not need to assign consecutive labels.
-`zipWIthUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of unique id, initial value tuples.
+### Zip with a Unique Identifier
+In many cases one may not need to assign consecutive labels.
+`zipWIthUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of `(unique id, initial value)` 2-tuples.
 For example, the following code:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setParallelism(1);
-DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+env.setParallelism(2);
+DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H");
 
 DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithUniqueId(in);
 
@@ -94,8 +96,8 @@ env.execute();
 import org.apache.flink.api.scala._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(1)
-val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+env.setParallelism(2)
+val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H")
 
 val result: DataSet[(Long, String)] = input.zipWithUniqueId
 
@@ -106,6 +108,6 @@ env.execute()
 
 </div>
 
-will yield the tuples: (0,A), (2,B), (4,C), (6,D), (8,E), (10,F)
+may yield the tuples: (0,G), (1,A), (2,H), (3,B), (5,C), (7,D), (9,E), (11,F)
 
 [Back to top](#top)
