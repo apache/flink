@@ -39,8 +39,8 @@ For example, the following code:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setParallelism(1);
-DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+env.setParallelism(2);
+DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H");
 
 DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithIndex(in);
 
@@ -54,8 +54,8 @@ env.execute();
 import org.apache.flink.api.scala._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(1)
-val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+env.setParallelism(2)
+val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H")
 
 val result: DataSet[(Long, String)] = input.zipWithIndex
 
@@ -66,7 +66,7 @@ env.execute()
 
 </div>
 
-will yield the tuples: (0,A), (1,B), (2,C), (3,D), (4,E), (5,F)
+may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)
 
 [Back to top](#top)
 
@@ -79,8 +79,8 @@ For example, the following code:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setParallelism(1);
-DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F");
+env.setParallelism(2);
+DataSet<String> in = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H");
 
 DataSet<Tuple2<Long, String>> result = DataSetUtils.zipWithUniqueId(in);
 
@@ -94,8 +94,8 @@ env.execute();
 import org.apache.flink.api.scala._
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-env.setParallelism(1)
-val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F")
+env.setParallelism(2)
+val input: DataSet[String] = env.fromElements("A", "B", "C", "D", "E", "F", "G", "H")
 
 val result: DataSet[(Long, String)] = input.zipWithUniqueId
 
@@ -106,6 +106,6 @@ env.execute()
 
 </div>
 
-will yield the tuples: (0,A), (2,B), (4,C), (6,D), (8,E), (10,F)
+may yield the tuples: (0,G), (1,A), (2,H), (3,B), (5,C), (7,D), (9,E), (11,F)
 
 [Back to top](#top)
