@@ -19,8 +19,8 @@
 package org.apache.flink.optimizer.dataproperties;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -41,7 +41,7 @@ public class MockDistribution implements DataDistribution {
 
 	@Override
 	public TypeInformation[] getKeyTypes() {
-		return new TypeInformation[]{TypeExtractor.getForClass(Integer.class)};
+		return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
 	}
 
 	@Override

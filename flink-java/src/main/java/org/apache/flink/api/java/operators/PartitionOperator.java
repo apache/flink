@@ -34,6 +34,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import java.util.Arrays;
+
 /**
  * This operator represents a partitioning.
  *
@@ -80,6 +82,12 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		Preconditions.checkArgument(pKeys != null || pMethod == PartitionMethod.REBALANCE, "Partitioning requires keys");
 		Preconditions.checkArgument(pMethod != PartitionMethod.CUSTOM || customPartitioner != null, "Custom partioning requires a partitioner.");
 		Preconditions.checkArgument(distribution == null || pMethod == PartitionMethod.RANGE, "Customized data distribution is only neccessary for range partition.");
+		
+		if (distribution != null) {
+			Preconditions.checkArgument(distribution.getNumberOfFields() == pKeys.getNumberOfKeyFields(), "The number of key fields in the distribution and range partitioner should be the same.");
+			Preconditions.checkArgument(Arrays.equals(distribution.getKeyTypes(), pKeys.getKeyFieldTypes()), "The types of key from the distribution and range partitioner are not equal.");
+		}
+		
 		if (customPartitioner != null) {
 			pKeys.validateCustomPartitioner(customPartitioner, partitionerTypeInfo);
 		}
