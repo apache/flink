@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.GroupReduceNode;
+import org.apache.flink.optimizer.dag.PartitionNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
@@ -39,8 +40,11 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class GroupReduceWithCombineProperties extends OperatorDescriptorSingle {
+	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceWithCombineProperties.class);
 	
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 	
@@ -90,6 +94,9 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
+			if(in.getSource().getOptimizerNode() instanceof PartitionNode) {
+				LOG.warn("Cannot automatically inject combiner for GroupReduceFunction. Please add an explicit combiner with combineGroup() in front of the partition operator.");
+			}
 			// adjust a sort (changes grouping, so it must be for this driver to combining sort
 			if (in.getLocalStrategy() == LocalStrategy.SORT) {
 				if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
