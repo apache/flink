@@ -171,7 +171,7 @@ public class CassandraSink<IN> {
 	}
 
 	public enum ConsistencyLevel {
-		At_LEAST_ONCE,
+		AT_LEAST_ONCE,
 		EXACTLY_ONCE
 	}
 
@@ -179,7 +179,7 @@ public class CassandraSink<IN> {
 		protected final DataStream<IN> input;
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
-		protected ConsistencyLevel consistency = ConsistencyLevel.At_LEAST_ONCE;
+		protected ConsistencyLevel consistency = ConsistencyLevel.AT_LEAST_ONCE;
 		protected ClusterBuilder builder;
 		protected String query;
 		protected CheckpointCommitter committer;
@@ -290,7 +290,7 @@ public class CassandraSink<IN> {
 			if (consistency == ConsistencyLevel.EXACTLY_ONCE) {
 				throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
 			}
-			if (consistency == ConsistencyLevel.At_LEAST_ONCE) {
+			if (consistency == ConsistencyLevel.AT_LEAST_ONCE) {
 				return new CassandraSink<>(input.addSink(new CassandraPojoAtLeastOnceSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
 			}
 			throw new IllegalArgumentException("No consistency level was specified.");
