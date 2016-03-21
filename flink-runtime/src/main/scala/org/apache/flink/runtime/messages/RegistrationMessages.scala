@@ -51,7 +51,7 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Registers a task manager at the job manager. A successful registration is acknowledged by
+   * Registers a task manager at the JobManager. A successful registration is acknowledged by
    * [[AcknowledgeRegistration]].
    *
    * @param connectionInfo The TaskManagers connection information.
@@ -66,12 +66,12 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Denotes the successful registration of a task manager at the job manager. This is the
-   * response triggered by the [[RegisterTaskManager]] message when the job manager has registered
+   * Denotes the successful registration of a task manager at the JobManager. This is the
+   * response triggered by the [[RegisterTaskManager]] message when the JobManager has registered
    * the task manager with the resource manager.
    *
    * @param instanceID The instance ID under which the TaskManager is registered at the
-   *                   job manager.
+   *                   JobManager.
    * @param blobPort The server port where the JobManager's BLOB service runs.
    */
   case class AcknowledgeRegistration(
