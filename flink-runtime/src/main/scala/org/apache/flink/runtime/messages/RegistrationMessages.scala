@@ -38,7 +38,7 @@ object RegistrationMessages {
   /**
    * Triggers the TaskManager to attempt a registration at the JobManager.
    *
-   * @param jobManagerURL Akka URL to the JobManager to ask for the JobManager
+   * @param jobManagerURL Akka URL to the JobManager
    * @param timeout The timeout for the message. The next retry will double this timeout.
    * @param deadline Optional deadline until when the registration must be completed.
    * @param attempt The attempt number, for logging.
