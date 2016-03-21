@@ -227,9 +227,9 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * 
-	 * @param cfg
-	 * @param file
+	 * Writes a Flink YAML config file from a Flink Configuration object.
+	 * @param cfg The Flink config
+	 * @param file The File to write to
 	 * @throws IOException
 	 */
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
