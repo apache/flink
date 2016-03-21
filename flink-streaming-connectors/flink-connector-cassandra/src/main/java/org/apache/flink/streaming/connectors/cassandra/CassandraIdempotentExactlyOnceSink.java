@@ -69,6 +69,9 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 
 	public void open() throws Exception {
 		super.open();
+		if (!getRuntimeContext().isCheckpointingEnabled()) {
+			throw new IllegalStateException("Exactly-once guarantees can only be provided if checkpointing is enabled.");
+		}
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
 			public void onSuccess(ResultSet resultSet) {
