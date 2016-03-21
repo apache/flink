@@ -34,7 +34,7 @@ public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.S
 	 */
 	private StopClusterSuccessful() {}
 
-	public static StopClusterSuccessful get() {
+	public static StopClusterSuccessful getInstance() {
 		return INSTANCE;
 	}
 

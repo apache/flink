@@ -981,7 +981,7 @@ class JobManager(
           // inform rm
           rm ! decorateMessage(msg)
 
-          respondTo ! decorateMessage(StopClusterSuccessful.get())
+          respondTo ! decorateMessage(StopClusterSuccessful.getInstance())
 
           // trigger shutdown
           shutdown()
