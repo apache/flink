@@ -59,11 +59,13 @@ The following configuration methods can be used:
 setQuery() sets the query that is executed for every value the sink receives.
 setConsistencyLevel() sets the desired consistency level (AT_LEAST_ONCE / EXACTLY_ONCE).
 setClusterBuilder() sets the cluster builder that is used to configure the connection to cassandra.
-setCheckpointCommitter() is an optional method for EXACTLY_ONCE processing.
+setCheckpointCommitter() is a mandatory method for EXACTLY_ONCE processing.
 
 A checkpoint committer stores additional information about completed checkpoints
-in some resource. You can use a `CassandraCommitter` to store these in a separate
-table in cassandra. Note that this table will NOT be cleaned up by Flink.
+in some resource. This information is used to prevent a full replay of the last
+completed checkpoint in case of a failure.
+You can use a `CassandraCommitter` to store these in a separate table in cassandra.
+Note that this table will NOT be cleaned up by Flink.
 
 build() finalizes the configuration and returns the CassandraSink.
 
