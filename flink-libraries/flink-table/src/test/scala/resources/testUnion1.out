@@ -1,7 +1,7 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[DataSetTable_0]])
-  LogicalTableScan(table=[[DataSetTable_1]])
+  LogicalTableScan(table=[[_DataSetTable_0]])
+  LogicalTableScan(table=[[_DataSetTable_1]])
 
 == Physical Execution Plan ==
 Stage 3 : Data Source

@@ -18,11 +18,8 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, Expression, UnresolvedFieldReference}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.expressions.{ExpressionParser, Expression}
 import org.apache.flink.api.table.Table
 
 import scala.language.reflectiveCalls
@@ -53,15 +50,7 @@ abstract class PlanTranslator {
    */
   def createTable[A](repr: Representation[A]): Table = {
 
-    val fieldNames: Array[String] = repr.getType() match {
-      case t: TupleTypeInfo[A] => t.getFieldNames
-      case c: CaseClassTypeInfo[A] => c.getFieldNames
-      case p: PojoTypeInfo[A] => p.getFieldNames
-      case tpe =>
-        throw new IllegalArgumentException(
-          s"Type $tpe requires explicit field naming with AS.")
-    }
-    val fieldIndexes = fieldNames.indices.toArray
+    val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo(repr.getType())
     createTable(repr, fieldIndexes, fieldNames)
   }
 
@@ -86,57 +75,7 @@ abstract class PlanTranslator {
 
     val inputType = repr.getType()
 
-    val indexedNames: Array[(Int, String)] = inputType match {
-      case a: AtomicType[A] =>
-        if (exprs.length != 1) {
-          throw new IllegalArgumentException("Atomic type may can only have a single field.")
-        }
-        exprs.map {
-          case UnresolvedFieldReference(name) => (0, name)
-          case _ => throw new IllegalArgumentException(
-            "Field reference expression expected.")
-        }
-      case t: TupleTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
-          case (Naming(UnresolvedFieldReference(origName), name), _) =>
-            val idx = t.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new IllegalArgumentException(s"$origName is not a field of type $t")
-            }
-            (idx, name)
-          case _ => throw new IllegalArgumentException(
-            "Field reference expression or naming expression expected.")
-        }
-      case c: CaseClassTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
-          case (Naming(UnresolvedFieldReference(origName), name), _) =>
-            val idx = c.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new IllegalArgumentException(s"$origName is not a field of type $c")
-            }
-            (idx, name)
-          case _ => throw new IllegalArgumentException(
-            "Field reference expression or naming expression expected.")
-        }
-      case p: PojoTypeInfo[A] =>
-        exprs.map {
-          case Naming(UnresolvedFieldReference(origName), name) =>
-            val idx = p.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new IllegalArgumentException(s"$origName is not a field of type $p")
-            }
-            (idx, name)
-          case _ => throw new IllegalArgumentException(
-            "Field naming expression expected.")
-        }
-      case tpe => throw new IllegalArgumentException(
-        s"Type $tpe cannot be converted into Table.")
-    }
-
-    val (fieldIndexes, fieldNames) = indexedNames.unzip
-
+    val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo(repr.getType(), exprs)
     createTable(repr, fieldIndexes.toArray, fieldNames.toArray)
   }
 

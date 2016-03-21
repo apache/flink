@@ -20,7 +20,8 @@ package org.apache.flink.api.java.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.expressions.ExpressionParser
+import org.apache.flink.api.table.{AbstractTableEnvironment, Table}
 
 /**
  * Environment for working with the Table API.
@@ -28,14 +29,7 @@ import org.apache.flink.api.table.{TableConfig, Table}
  * This can be used to convert a [[DataSet]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
-class TableEnvironment {
-
-  private val config = new TableConfig()
-
-  /**
-   * Returns the table config to define the runtime behavior of the Table API.
-   */
-  def getConfig = config
+class TableEnvironment extends AbstractTableEnvironment {
 
   /**
    * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
@@ -87,5 +81,29 @@ class TableEnvironment {
     new JavaBatchTranslator(config).translate[T](table.relNode)(typeInfo)
   }
 
-}
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are used to name the Table fields.
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
+    registerDataSetInternal(name, dataset)
+  }
 
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are renamed to the given set of fields.
+   *
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   * @param fields the Table field names
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T], fields: String): Unit = {
+    val exprs = ExpressionParser
+      .parseExpressionList(fields)
+      .toArray
+    registerDataSetInternal(name, dataset, exprs)
+  }
+
+}

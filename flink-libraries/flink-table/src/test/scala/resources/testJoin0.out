@@ -2,8 +2,8 @@
 LogicalProject(a=[$0], c=[$2])
   LogicalFilter(condition=[=($1, $3)])
     LogicalJoin(condition=[true], joinType=[inner])
-      LogicalTableScan(table=[[DataSetTable_0]])
-      LogicalTableScan(table=[[DataSetTable_1]])
+      LogicalTableScan(table=[[_DataSetTable_0]])
+      LogicalTableScan(table=[[_DataSetTable_1]])
 
 == Physical Execution Plan ==
 Stage 4 : Data Source

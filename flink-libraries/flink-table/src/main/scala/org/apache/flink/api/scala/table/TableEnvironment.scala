@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.{AbstractTableEnvironment, Table}
 
 /**
  * Environment for working with the Table API.
@@ -28,14 +28,7 @@ import org.apache.flink.api.table.{TableConfig, Table}
  * This can be used to convert a [[DataSet]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
-class TableEnvironment {
-
-  private val config = new TableConfig()
-
-  /**
-   * Returns the table config to define the runtime behavior of the Table API.
-   */
-  def getConfig = config
+class TableEnvironment extends AbstractTableEnvironment {
 
   /**
    * Converts the [[DataSet]] to a [[Table]]. The field names can be specified like this:
@@ -72,5 +65,26 @@ class TableEnvironment {
      new ScalaBatchTranslator(config).translate[T](table.relNode)
   }
 
-}
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are used to name the Table fields.
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
+    registerDataSetInternal(name, dataset.javaSet)
+  }
 
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are renamed to the given set of fields.
+   *
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   * @param fields the field names expression
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T], fields: Expression*): Unit = {
+    registerDataSetInternal(name, dataset.javaSet, fields.toArray)
+  }
+
+}
