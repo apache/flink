@@ -652,31 +652,37 @@ class CodeGenerator(
       case EQUALS =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateEquals(nullCheck, left, right)
 
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateNotEquals(nullCheck, left, right)
 
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateComparison(">", nullCheck, left, right)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateComparison(">=", nullCheck, left, right)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateComparison("<", nullCheck, left, right)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
+        checkNumericOrString(left, right)
         generateComparison("<=", nullCheck, left, right)
 
       case IS_NULL =>
@@ -733,6 +739,14 @@ class CodeGenerator(
       // unknown or invalid
       case call@_ =>
         throw new CodeGenException(s"Unsupported call: $call")
+    }
+  }
+
+  def checkNumericOrString(left: GeneratedExpression, right: GeneratedExpression): Unit = {
+    if (isNumeric(left)) {
+      requireNumeric(right)
+    } else if (isString(left)) {
+      requireString(right)
     }
   }
 
