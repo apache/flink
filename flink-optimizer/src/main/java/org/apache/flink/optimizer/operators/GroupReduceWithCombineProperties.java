@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.GroupReduceNode;
+import org.apache.flink.optimizer.dag.PartitionNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
@@ -34,6 +35,7 @@ import org.apache.flink.optimizer.dataproperties.PartitioningProperty;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
+import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -91,15 +93,10 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
 			// adjust a sort (changes grouping, so it must be for this driver to combining sort
-			if (in.getLocalStrategy() == LocalStrategy.SORT) {
-				if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
-					throw new RuntimeException("Bug: Inconsistent sort for group strategy.");
-				}
-				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
-									in.getLocalStrategySortOrder());
+			if(in.getSource().getOptimizerNode() instanceof PartitionNode) {
+				return injectCombinerBeforPartitioner(in, node);
 			}
-			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", in,
-											DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
+			return getReducerSingleInputPlanNode(in, node);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
@@ -110,14 +107,8 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 			combinerNode.setParallelism(in.getSource().getParallelism());
 
 			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getOperator()
-					.getName()+")", toCombiner, DriverStrategy.SORTED_GROUP_COMBINE);
-			combiner.setCosts(new Costs(0, 0));
-			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
-			// set sorting comparator key info
-			combiner.setDriverKeyInfo(in.getLocalStrategyKeys(), in.getLocalStrategySortOrder(), 0);
-			// set grouping comparator key info
-			combiner.setDriverKeyInfo(this.keyList, 1);
-			
+				.getName()+")", toCombiner, DriverStrategy.SORTED_GROUP_COMBINE);
+			setCombinerProperties(in, toCombiner, combiner);
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
 									in.getShipStrategySortOrder(), in.getDataExchangeMode());
@@ -126,10 +117,64 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 			}
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
 										in.getLocalStrategySortOrder());
-
 			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")",
 											toReducer, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		}
+	}
+
+	private SingleInputPlanNode injectCombinerBeforPartitioner(Channel in, SingleInputNode node) {
+		// Inject a combiner before the partition node
+		Channel channelWithPartitionSrc = new Channel(in.getSource());
+		GroupReduceNode combinerNode = ((GroupReduceNode) node).getCombinerUtilityNode();
+		combinerNode.setParallelism(in.getSource().getParallelism());
+		if(in.getSource().getInputs().iterator().hasNext()) {
+			Channel oldChannelToPartitioner = channelWithPartitionSrc.getSource().getInputs().iterator().next();
+			Channel toCombiner = new Channel(oldChannelToPartitioner.getSource());
+            // A combiner plan node is created with the channel as input that has the partitioner as the target
+			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
+            SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getOperator()
+                .getName()+")", toCombiner, DriverStrategy.SORTED_GROUP_COMBINE);
+            setCombinerProperties(in, oldChannelToPartitioner, combiner);
+
+			Channel toPartitioner = new Channel(combiner);
+			// Set the actual partitioner node's strategy key and strategy order
+			toPartitioner.setShipStrategy(oldChannelToPartitioner.getShipStrategy(), oldChannelToPartitioner.getShipStrategyKeys(),
+				oldChannelToPartitioner.getShipStrategySortOrder(), oldChannelToPartitioner.getDataExchangeMode());
+            // Create the partition single input plan node from the existing partition node
+            PlanNode partitionplanNode = in.getSource().getPlanNode();
+            SingleInputPlanNode partition = new SingleInputPlanNode(in.getSource().getOptimizerNode(), partitionplanNode.getNodeName(),
+                toPartitioner, partitionplanNode.getDriverStrategy());
+            partition.setCosts(partitionplanNode.getNodeCosts());
+            partition.initProperties(partitionplanNode.getGlobalProperties(), partitionplanNode.getLocalProperties());
+            // Create a reducer such that the input of the reducer is the partition node
+            Channel toReducer = new Channel(partition);
+            toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
+                in.getShipStrategySortOrder(), in.getDataExchangeMode());
+            return getReducerSingleInputPlanNode(toReducer, node);
+        } else {
+            return getReducerSingleInputPlanNode(in, node);
+        }
+	}
+
+	private void setCombinerProperties(Channel in, Channel oldChannelToPartitioner, SingleInputPlanNode combiner) {
+		combiner.setCosts(new Costs(0, 0));
+		combiner.initProperties(oldChannelToPartitioner.getGlobalProperties(), oldChannelToPartitioner.getLocalProperties());
+		// set sorting comparator key info
+		combiner.setDriverKeyInfo(in.getLocalStrategyKeys(), in.getLocalStrategySortOrder(), 0);
+		// set grouping comparator key info
+		combiner.setDriverKeyInfo(this.keyList, 1);
+	}
+
+	private SingleInputPlanNode getReducerSingleInputPlanNode(Channel in, SingleInputNode node) {
+		if (in.getLocalStrategy() == LocalStrategy.SORT) {
+            if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
+                throw new RuntimeException("Bug: Inconsistent sort for group strategy.");
+            }
+            in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
+                                in.getLocalStrategySortOrder());
+        }
+		return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", in,
+                                        DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 	}
 
 	@Override

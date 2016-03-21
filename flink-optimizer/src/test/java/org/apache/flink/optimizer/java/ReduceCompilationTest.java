@@ -259,4 +259,46 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
 	}
+
+	@Test
+	public void testGroupReduceWithPartition() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(8);
+
+			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+				.name("source").setParallelism(6);
+
+			data.partitionByHash(1)
+				.groupBy(1)
+				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
+					@Override
+					public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
+						return null;
+					}
+				}).name("reducer")
+				.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+			// get the original nodes
+			SourcePlanNode sourceNode = resolver.getNode("source");
+			SinkPlanNode sinkNode = resolver.getNode("sink");
+			SingleInputPlanNode reduceNode = (SingleInputPlanNode) sinkNode.getInput().getSource();
+			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+			SingleInputPlanNode partitionNode = (SingleInputPlanNode) reduceNode.getInput().getSource();
+
+			SingleInputPlanNode combinerNode = (SingleInputPlanNode) partitionNode.getInput().getSource();
+			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combinerNode.getDriverStrategy());
+			assertEquals(sourceNode, combinerNode.getInput().getSource());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+		}
+	}
 }
