@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.table.test;
 
+
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.codegen.CodeGenException;
@@ -116,5 +119,35 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		resultSet.collect();
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForStringComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		Table res = in.filter("a = 'Fred'" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForIntegerEqualsComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		Table res = in.filter("c = 10" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForIntegerGreaterComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		Table res = in.filter("c > 10" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 }
