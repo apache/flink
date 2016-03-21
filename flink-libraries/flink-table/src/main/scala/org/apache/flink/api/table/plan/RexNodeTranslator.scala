@@ -20,9 +20,11 @@ package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeutils.TypeConverter
 
@@ -134,7 +136,17 @@ object RexNodeTranslator {
       case Plus(left, right) =>
         val l = toRexNode(left, relBuilder)
         val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
+        if(SqlTypeName.STRING_TYPES.contains(l.getType.getSqlTypeName)) {
+          val cast: RexNode = relBuilder.cast(r,
+            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+          relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
+        } else if(SqlTypeName.STRING_TYPES.contains(r.getType.getSqlTypeName)) {
+          val cast: RexNode = relBuilder.cast(l,
+            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+          relBuilder.call(SqlStdOperatorTable.PLUS, cast, r)
+        } else {
+          relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
+        }
       case Minus(left, right) =>
         val l = toRexNode(left, relBuilder)
         val r = toRexNode(right, relBuilder)
