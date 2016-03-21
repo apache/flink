@@ -957,7 +957,7 @@ class JobManager(
       if (instanceManager.isRegistered(taskManager)) {
         log.info(s"Task manager ${taskManager.path} wants to disconnect, because $msg.")
 
-          instanceManager.unregisterTaskManager(taskManager, false)
+        instanceManager.unregisterTaskManager(taskManager, false)
         context.unwatch(taskManager)
       }
 
