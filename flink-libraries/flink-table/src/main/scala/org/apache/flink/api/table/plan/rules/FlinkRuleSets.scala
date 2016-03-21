@@ -93,7 +93,10 @@ object FlinkRuleSets {
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
-    DataSetUnionRule.INSTANCE
+    DataSetUnionRule.INSTANCE,
+
+    // convert a logical table scan to a relational expression
+    TableScanRule.INSTANCE
   )
 
 }

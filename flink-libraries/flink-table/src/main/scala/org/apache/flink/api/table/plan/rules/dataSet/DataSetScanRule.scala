@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSource}
+import org.apache.flink.api.table.plan.schema.DataSetTable
 
 class DataSetScanRule
   extends ConverterRule(
@@ -32,6 +33,21 @@ class DataSetScanRule
       DataSetConvention.INSTANCE,
       "FlinkScanRule")
   {
+
+  /**
+   * If the input is not a DataSetTable, we want the TableScanRule to match instead
+   */
+    override def matches(call: RelOptRuleCall): Boolean = {
+      val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
+      val dataSetTable = scan.getTable.unwrap(classOf[DataSetTable[Any]])
+      dataSetTable match {
+        case _: DataSetTable[Any] =>
+          true
+        case _ =>
+          false
+      }
+    }
+
     def convert(rel: RelNode): RelNode = {
       val scan: TableScan = rel.asInstanceOf[TableScan]
       val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)

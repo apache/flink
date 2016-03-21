@@ -73,6 +73,8 @@ class Table(
   extends BaseTable(relNode, relBuilder)
 {
 
+  def getRelNode(): RelNode = relNode
+
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
     * can contain complex expressions and aggregations.
