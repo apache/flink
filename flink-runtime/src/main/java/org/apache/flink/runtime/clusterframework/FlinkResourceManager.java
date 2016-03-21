@@ -749,11 +749,11 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @return ActorRef of the resource manager
 	 */
 	public static ActorRef startResourceManagerActors(
-		Configuration configuration,
-		ActorSystem actorSystem,
-		LeaderRetrievalService leaderRetriever,
-		Class<? extends FlinkResourceManager<?>> resourceManagerClass
-	) {
+			Configuration configuration,
+			ActorSystem actorSystem,
+			LeaderRetrievalService leaderRetriever,
+			Class<? extends FlinkResourceManager<?>> resourceManagerClass) {
+
 		return startResourceManagerActors(
 			configuration, actorSystem, leaderRetriever, resourceManagerClass,
 			RESOURCE_MANAGER_NAME + "-" + UUID.randomUUID());
@@ -769,12 +769,11 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @return ActorRef of the resource manager
 	 */
 	public static ActorRef startResourceManagerActors(
-		Configuration configuration,
-		ActorSystem actorSystem,
-		LeaderRetrievalService leaderRetriever,
-		Class<? extends FlinkResourceManager<?>> resourceManagerClass,
-		String resourceManagerActorName
-	) {
+			Configuration configuration,
+			ActorSystem actorSystem,
+			LeaderRetrievalService leaderRetriever,
+			Class<? extends FlinkResourceManager<?>> resourceManagerClass,
+			String resourceManagerActorName) {
 
 		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
 

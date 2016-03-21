@@ -59,10 +59,11 @@ public class BootstrapTools {
 	 * @return The ActorSystem which has been started
 	 * @throws Exception
 	 */
-	public static ActorSystem startActorSystem(Configuration configuration,
-										String listeningAddress,
-										String portRangeDefinition,
-										Logger logger) throws Exception {
+	public static ActorSystem startActorSystem(
+				Configuration configuration,
+				String listeningAddress,
+				String portRangeDefinition,
+				Logger logger) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -122,10 +123,10 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
-						Configuration configuration,
-						String listeningAddress,
-						int listeningPort,
-						Logger logger) throws Exception {
+				Configuration configuration,
+				String listeningAddress,
+				int listeningPort,
+				Logger logger) throws Exception {
 
 		String hostPortUrl = NetUtils.hostAndPortToUrlString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
@@ -267,9 +268,11 @@ public class BootstrapTools {
 	* @param deprecatedPrefix Old prefix of key
 	* @param designatedPrefix New prefix of key
 	*/
-	public static void substituteDeprecatedConfigPrefix(Configuration config,
-			String deprecatedPrefix, String designatedPrefix)
-	{
+	public static void substituteDeprecatedConfigPrefix(
+			Configuration config,
+			String deprecatedPrefix,
+			String designatedPrefix) {
+
 		// set the designated key only if it is not set already
 		final int prefixLen = deprecatedPrefix.length();
 
@@ -299,14 +302,14 @@ public class BootstrapTools {
 	 * @return A String containing the task manager startup command.
 	 */
 	public static String getTaskManagerShellCommand(
-		Configuration flinkConfig,
-		ContaineredTaskManagerParameters tmParams,
-		String configDirectory,
-		String logDirectory,
-		boolean hasLogback,
-		boolean hasLog4j,
-		Class<?> mainClass)
-	{
+			Configuration flinkConfig,
+			ContaineredTaskManagerParameters tmParams,
+			String configDirectory,
+			String logDirectory,
+			boolean hasLogback,
+			boolean hasLog4j,
+			Class<?> mainClass) {
+
 		StringBuilder tmCommand = new StringBuilder("$JAVA_HOME/bin/java");
 		tmCommand.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
 		tmCommand.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");

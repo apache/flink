@@ -48,11 +48,12 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 	
 	public ContaineredTaskManagerParameters(
-		long totalContainerMemoryMB, long taskManagerHeapSizeMB,
-		long taskManagerDirectMemoryLimitMB,
-		int numSlots,
-		HashMap<String, String> taskManagerEnv)
-	{
+			long totalContainerMemoryMB,
+			long taskManagerHeapSizeMB,
+			long taskManagerDirectMemoryLimitMB,
+			int numSlots,
+			HashMap<String, String> taskManagerEnv) {
+
 		this.totalContainerMemoryMB = totalContainerMemoryMB;
 		this.taskManagerHeapSizeMB = taskManagerHeapSizeMB;
 		this.taskManagerDirectMemoryLimitMB = taskManagerDirectMemoryLimitMB;
