@@ -64,8 +64,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 
 	@Override
 	protected void fatalError(String message, Throwable error) {
-		log.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
-		LOG.error("Shutting down process");
+		LOG.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
 
 		// kill this process
 		System.exit(EXIT_CODE_FATAL_ERROR);

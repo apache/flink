@@ -55,8 +55,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.util.ExceptionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -104,9 +102,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
 	// ------------------------------------------------------------------------
-
-	/** The logger, named for the actual implementing class */
-	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** The Flink configuration object */
 	protected final Configuration config;
@@ -406,7 +401,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param leaderSessionID The unique session ID marking the leadership session.
 	 */
 	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
-		log.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
+		LOG.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
 
 		// disconnect from the current leader (no-op if no leader yet)
 		jobManagerLostLeadership();
@@ -508,7 +503,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				try {
 					// ask the framework to tell us which ones we should keep for now
 					Collection<WorkerType> consolidated = reacceptRegisteredWorkers(workers);
-					log.info("Consolidated {} TaskManagers", consolidated.size());
+					LOG.info("Consolidated {} TaskManagers", consolidated.size());
 
 					// put the consolidated TaskManagers into our bookkeeping
 					for (WorkerType worker : consolidated) {
@@ -588,11 +583,11 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 */
 	private void adjustDesignatedNumberOfWorkers(int num) {
 		if (num >= 0) {
-			log.info("Adjusting designated worker pool size to {}", num);
+			LOG.info("Adjusting designated worker pool size to {}", num);
 			designatedPoolSize = num;
 			checkWorkersPool();
 		} else {
-			log.warn("Ignoring invalid designated worker pool size: " + num);
+			LOG.warn("Ignoring invalid designated worker pool size: " + num);
 		}
 	}
 
