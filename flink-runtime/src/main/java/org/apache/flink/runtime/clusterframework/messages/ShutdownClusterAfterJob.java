@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 
 /**
  * Message sent to the cluster framework master to signal it that the cluster
- * should be shut down upon completion of a certain job.
+ * should be shut down upon completion of a certain job identified by a job id.
  */
 public class ShutdownClusterAfterJob implements java.io.Serializable {
 

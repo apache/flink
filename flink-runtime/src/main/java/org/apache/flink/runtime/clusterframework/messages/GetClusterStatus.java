@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 /**
- * This message signals the resource master to check how many TaskManagers are 
- * desired, how many are available, and to trigger adjustments if needed.
+ * Message sent to the resource manager to request a {@code GetClusterStatusResponse} which contains
+ * the current number of task managers and the total number of task slots.
  */
 public class GetClusterStatus implements java.io.Serializable {
 
@@ -36,9 +36,9 @@ public class GetClusterStatus implements java.io.Serializable {
 	public static GetClusterStatus get() {
 		return INSTANCE;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/** Private constructor to prevent instantiation */
 	private GetClusterStatus() {}
 
