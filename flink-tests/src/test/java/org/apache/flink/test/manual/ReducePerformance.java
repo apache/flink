@@ -35,13 +35,17 @@ public class ReducePerformance {
 	
 	public static void main(String[] args) throws Exception {
 
-		final int numElements = 40 * 1000 * 1000;
-		final int keyRange    =  4 * 1000 * 1000;
+		final int numElements = 40_000_000;
+		final int keyRange    =  4_000_000;
 
 		// warm up JIT
 		testReducePerformance(new TupleIntIntIterator(1000),
 			TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class),
 			CombineHint.SORT, 10000, false);
+
+		testReducePerformance(new TupleIntIntIterator(1000),
+			TupleTypeInfo.<Tuple2<Integer, Integer>>getBasicTupleTypeInfo(Integer.class, Integer.class),
+			CombineHint.HASH, 10000, false);
 
 		// TupleIntIntIterator
 		testReducePerformance(new TupleIntIntIterator(keyRange),
@@ -139,11 +143,19 @@ public class ReducePerformance {
 		private final int keyRange;
 		private Tuple2<Integer, Integer> reuse = new Tuple2<Integer, Integer>();
 
+		private int rndSeed = 11;
+		private Random rnd;
+
 		public TupleIntIntIterator(int keyRange) {
 			this.keyRange = keyRange;
+			this.rnd = new Random(this.rndSeed);
 		}
 
-		private final Random rnd = new Random(11);
+		public TupleIntIntIterator(int keyRange, int rndSeed) {
+			this.keyRange = keyRange;
+			this.rndSeed = rndSeed;
+			this.rnd = new Random(rndSeed);
+		}
 
 		@Override
 		public boolean hasNext() {
@@ -164,7 +176,7 @@ public class ReducePerformance {
 
 		@Override
 		public CopyableIterator<Tuple2<Integer, Integer>> copy() {
-			return new TupleIntIntIterator(keyRange);
+			return new TupleIntIntIterator(keyRange, rndSeed + rnd.nextInt(10000));
 		}
 	}
 
@@ -174,11 +186,19 @@ public class ReducePerformance {
 		private final int keyRange;
 		private Tuple2<String, Integer> reuse = new Tuple2<>();
 
+		private int rndSeed = 11;
+		private Random rnd;
+
 		public TupleStringIntIterator(int keyRange) {
 			this.keyRange = keyRange;
+			this.rnd = new Random(this.rndSeed);
 		}
 
-		private final Random rnd = new Random(11);
+		public TupleStringIntIterator(int keyRange, int rndSeed) {
+			this.keyRange = keyRange;
+			this.rndSeed = rndSeed;
+			this.rnd = new Random(rndSeed);
+		}
 
 		@Override
 		public boolean hasNext() {
@@ -199,7 +219,7 @@ public class ReducePerformance {
 
 		@Override
 		public CopyableIterator<Tuple2<String, Integer>> copy() {
-			return new TupleStringIntIterator(keyRange);
+			return new TupleStringIntIterator(keyRange, rndSeed + rnd.nextInt(10000));
 		}
 	}
 
