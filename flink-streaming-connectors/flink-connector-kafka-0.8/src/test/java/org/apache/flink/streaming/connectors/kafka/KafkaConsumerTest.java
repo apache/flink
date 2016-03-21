@@ -43,7 +43,7 @@ public class KafkaConsumerTest {
 			// empty
 			Properties emptyProperties = new Properties();
 			try {
-				FlinkKafkaConsumer08.validateZooKeeperConfig(emptyProperties);
+				FlinkKafkaConsumer08Base.validateZooKeeperConfig(emptyProperties);
 				fail("should fail with an exception");
 			}
 			catch (IllegalArgumentException e) {
@@ -54,7 +54,7 @@ public class KafkaConsumerTest {
 			Properties noConnect = new Properties();
 			noConnect.put(ConsumerConfig.GROUP_ID_CONFIG, "flink-test-group");
 			try {
-				FlinkKafkaConsumer08.validateZooKeeperConfig(noConnect);
+				FlinkKafkaConsumer08Base.validateZooKeeperConfig(noConnect);
 				fail("should fail with an exception");
 			}
 			catch (IllegalArgumentException e) {
@@ -65,7 +65,7 @@ public class KafkaConsumerTest {
 			Properties noGroup = new Properties();
 			noGroup.put("zookeeper.connect", "localhost:47574");
 			try {
-				FlinkKafkaConsumer08.validateZooKeeperConfig(noGroup);
+				FlinkKafkaConsumer08Base.validateZooKeeperConfig(noGroup);
 				fail("should fail with an exception");
 			}
 			catch (IllegalArgumentException e) {
@@ -89,7 +89,7 @@ public class KafkaConsumerTest {
 			runningField.setAccessible(true);
 			mapField.setAccessible(true);
 
-			FlinkKafkaConsumer08<?> consumer = mock(FlinkKafkaConsumer08.class);
+			FlinkKafkaConsumer08Base<?> consumer = mock(FlinkKafkaConsumer08Base.class);
 			when(consumer.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
 
 
@@ -124,7 +124,7 @@ public class KafkaConsumerTest {
 				assertEquals(checkpointCopy, checkpoint);
 
 				assertTrue(map.size() > 0);
-				assertTrue(map.size() <= FlinkKafkaConsumer08.MAX_NUM_PENDING_CHECKPOINTS);
+				assertTrue(map.size() <= FlinkKafkaConsumer08Base.MAX_NUM_PENDING_CHECKPOINTS);
 			}
 		}
 		catch (Exception e) {

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
@@ -59,6 +58,16 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	@Test(timeout = 60000)
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
+	}
+
+	@Test(timeout = 60000)
+	public void testPunctuatedExplicitWMConsumer() throws Exception {
+		runExplicitPunctuatedWMgeneratingConsumerTest(false);
+	}
+
+	@Test(timeout = 60000)
+	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
+		runExplicitPunctuatedWMgeneratingConsumerTest(true);
 	}
 
 	@Test(timeout = 60000)
@@ -199,9 +208,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
-		assertTrue(o1 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
-		assertTrue(o2 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
-		assertTrue(o3 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
+		assertTrue(o1 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
+		assertTrue(o2 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
+		assertTrue(o3 == FlinkKafkaConsumer08Base.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
 
 		LOG.info("Manipulating offsets");
 

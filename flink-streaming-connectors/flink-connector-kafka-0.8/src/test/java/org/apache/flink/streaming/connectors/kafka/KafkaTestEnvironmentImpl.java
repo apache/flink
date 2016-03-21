@@ -31,6 +31,8 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
@@ -91,8 +93,18 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer08<>(topics, readSchema, props);
+	}
+
+	@Override
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props, AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
+		return new FlinkKafkaConsumer08WithPunctuatedWM<T>(topics, readSchema, props, timestampAssigner);
+	}
+
+	@Override
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props, AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		return new FlinkKafkaConsumer08WithPeriodicWM<T>(topics, readSchema, props, timestampAssigner);
 	}
 
 	@Override

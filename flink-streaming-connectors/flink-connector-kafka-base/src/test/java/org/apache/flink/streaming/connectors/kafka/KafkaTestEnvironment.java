@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.server.KafkaServer;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -61,22 +63,65 @@ public abstract class KafkaTestEnvironment {
 	public abstract List<KafkaServer> getBrokers();
 
 	// -- consumer / producer instances:
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props);
 	}
 
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic, KeyedDeserializationSchema<T> readSchema, Properties props) {
 		return getConsumer(Collections.singletonList(topic), readSchema, props);
 	}
 
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(Collections.singletonList(topic), deserializationSchema, props);
 	}
 
-	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics,
+														DeserializationSchema<T> deserializationSchema,
+														Properties props,
+														AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
+		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props, timestampAssigner);
+	}
+
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic,
+														KeyedDeserializationSchema<T> readSchema,
+														Properties props,
+														AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
+		return getConsumer(Collections.singletonList(topic), readSchema, props, timestampAssigner);
+	}
+
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic,
+														DeserializationSchema<T> deserializationSchema,
+														Properties props,
+														AssignerWithPunctuatedWatermarks<T> timestampAssigner) {
+		return getConsumer(Collections.singletonList(topic), deserializationSchema, props, timestampAssigner);
+	}
+
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics,
+														DeserializationSchema<T> deserializationSchema,
+														Properties props,
+														AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props, timestampAssigner);
+	}
+
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic,
+														KeyedDeserializationSchema<T> readSchema,
+														Properties props,
+														AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		return getConsumer(Collections.singletonList(topic), readSchema, props, timestampAssigner);
+	}
+
+	public <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props,
+														AssignerWithPeriodicWatermarks<T> timestampAssigner) {
+		return getConsumer(Collections.singletonList(topic), deserializationSchema, props, timestampAssigner);
+	}
+
+	public abstract <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
+
+	public abstract <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props, AssignerWithPunctuatedWatermarks<T> timestampAssigner);
+
+	public abstract <T> FlinkKafkaComsumerWithWMBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props, AssignerWithPeriodicWatermarks<T> timestampAssigner);
 
 	public abstract <T> FlinkKafkaProducerBase<T> getProducer(String topic, KeyedSerializationSchema<T> serSchema, Properties props, KafkaPartitioner<T> partitioner);
-
 
 	// -- leader failure simulation
 
