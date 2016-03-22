@@ -36,6 +36,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-connector-cassandra</module>
 		<module>flink-connector-flume</module>
 		<module>flink-connector-kafka-base</module>
 		<module>flink-connector-kafka-0.8</module>
