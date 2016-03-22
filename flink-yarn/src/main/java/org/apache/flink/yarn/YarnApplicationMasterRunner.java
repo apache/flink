@@ -357,7 +357,9 @@ public class YarnApplicationMasterRunner {
 		if (webMonitor != null) {
 			try {
 				webMonitor.stop();
-			} catch (Throwable ignored) {}
+			} catch (Throwable t) {
+				LOG.error("Failed to stop the web frontend", t);
+			}
 		}
 		return 0;
 	}
