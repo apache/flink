@@ -1841,8 +1841,8 @@ object TaskManager {
    * @param taskManagerUrl The akka URL of the JobManager.
    * @param system The local actor system that should perform the lookup.
    * @param timeout The maximum time to wait until the lookup fails.
-    * @throws java.io.IOException Thrown, if the lookup fails.
-    * @return The ActorRef to the TaskManager
+   * @throws java.io.IOException Thrown, if the lookup fails.
+   * @return The ActorRef to the TaskManager
    */
   @throws(classOf[IOException])
   def getTaskManagerRemoteReference(
@@ -2084,7 +2084,7 @@ object TaskManager {
    * @param parameter The parameter value. Will be shown in the exception message.
    * @param name The name of the config parameter. Will be shown in the exception message.
    * @param errorMessage The optional custom error message to append to the exception message.
-    * @throws IllegalConfigurationException Thrown if the condition is violated.
+   * @throws IllegalConfigurationException Thrown if the condition is violated.
    */
   @throws(classOf[IllegalConfigurationException])
   private def checkConfigParameter(
