@@ -158,42 +158,43 @@ public class ResourceManagerITCase extends TestLogger {
 	 */
 	@Test
 	public void testClusterShutdown() {
+
 		new JavaTestKit(system){{
-			new Within(duration("30 seconds")) {
-				@Override
-				protected void run() {
+		new Within(duration("30 seconds")) {
+		@Override
+		protected void run() {
 
-					ActorGateway me =
-						TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			ActorGateway me =
+				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 
-					ActorGateway jobManager = TestingUtils.createJobManager(system, config);
+			ActorGateway jobManager = TestingUtils.createJobManager(system, config);
 
-					ActorGateway resourceManager =
-						TestingUtils.createResourceManager(system, jobManager.actor(), config);
+			ActorGateway resourceManager =
+				TestingUtils.createResourceManager(system, jobManager.actor(), config);
 
-					// notify about a resource manager registration at the job manager
-					resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
+			// notify about a resource manager registration at the job manager
+			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
-					// Wait for resource manager
-					expectMsgEquals(Messages.getAcknowledge());
+			// Wait for resource manager
+			expectMsgEquals(Messages.getAcknowledge());
 
-					jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);
+			jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);
 
-					expectMsgClass(StopClusterSuccessful.class);
+			expectMsgClass(StopClusterSuccessful.class);
 
-					boolean isTerminated = false;
-					for (int i=0; i < 10 && !isTerminated; i++) {
-						isTerminated = system.isTerminated();
-						try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							// try again
-						}
-					}
+			boolean isTerminated = false;
+			for (int i=0; i < 10 && !isTerminated; i++) {
+				isTerminated = system.isTerminated();
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// try again
+				}
+			}
 
-					assertTrue(isTerminated);
+			assertTrue(isTerminated);
 
-				}};
+		}};
 		}};
 	}
 
