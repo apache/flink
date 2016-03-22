@@ -18,44 +18,33 @@
 
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet, Convention}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
+import org.apache.calcite.rel.logical.LogicalValues
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetValues, DataSetConvention}
 
-class DataSetUnionRule
+class DataSetValuesRule
   extends ConverterRule(
-      classOf[LogicalUnion],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetUnionRule")
-  {
-
-  /**
-   * Only translate UNION ALL
-   */
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val union: LogicalUnion = call.rel(0).asInstanceOf[LogicalUnion]
-    union.all
-  }
+    classOf[LogicalValues],
+    Convention.NONE,
+    DataSetConvention.INSTANCE,
+    "DataSetValuesRule")
+{
 
   def convert(rel: RelNode): RelNode = {
 
-    val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
+    val values: LogicalValues = rel.asInstanceOf[LogicalValues]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
 
-    new DataSetUnion(
+    new DataSetValues(
       rel.getCluster,
       traitSet,
-      convLeft,
-      convRight,
-      rel.getRowType)
+      rel.getRowType,
+      values.getTuples)
   }
 }
 
-object DataSetUnionRule {
-  val INSTANCE: RelOptRule = new DataSetUnionRule
+object DataSetValuesRule {
+  val INSTANCE: RelOptRule = new DataSetValuesRule
 }

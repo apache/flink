@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
@@ -185,12 +186,23 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     dataStreamPlan match {
       case node: DataStreamRel =>
         node.translateToPlan(
-          config,
+          this,
           Some(tpe.asInstanceOf[TypeInformation[Any]])
         ).asInstanceOf[DataStream[A]]
       case _ => ???
     }
 
   }
+
+  /**
+    * Creates a [[Row]] [[DataStream]] from an [[InputFormat]].
+    *
+    * @param inputFormat [[InputFormat]] from which the [[DataStream]] is created.
+    * @param typeInfo [[TypeInformation]] of the type of the [[DataStream]].
+    * @return A [[Row]] [[DataStream]] created from the [[InputFormat]].
+    */
+  private[flink] def createDataStreamSource(
+      inputFormat: InputFormat[Row, _],
+      typeInfo: TypeInformation[Row]): DataStream[Row]
 
 }

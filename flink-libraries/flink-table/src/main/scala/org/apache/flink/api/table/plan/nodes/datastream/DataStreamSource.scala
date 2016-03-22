@@ -25,7 +25,7 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.StreamTableEnvironment
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.table.plan.schema.DataStreamTable
@@ -60,9 +60,11 @@ class DataStreamSource(
   }
 
   override def translateToPlan(
-      config: TableConfig,
+      tableEnv: StreamTableEnvironment,
       expectedType: Option[TypeInformation[Any]])
     : DataStream[Any] = {
+
+    val config = tableEnv.getConfig
 
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
     val inputType = inputDataStream.getType

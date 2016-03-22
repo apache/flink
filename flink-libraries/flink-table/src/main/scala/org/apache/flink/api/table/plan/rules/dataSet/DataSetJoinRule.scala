@@ -32,7 +32,7 @@ class DataSetJoinRule
       classOf[LogicalJoin],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "FlinkJoinRule")
+      "DataSetJoinRule")
   {
 
   /**

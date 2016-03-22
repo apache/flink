@@ -17,9 +17,12 @@
  */
 package org.apache.flink.api.scala.table
 
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.{Row, TableConfig, Table}
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, DataStream}
 
 import org.apache.flink.streaming.api.scala.asScalaStream
@@ -97,6 +100,20 @@ class StreamTableEnvironment(
     */
   def toDataStream[T: TypeInformation](table: Table): DataStream[T] = {
     asScalaStream(translate(table))
+  }
+
+  /**
+    * Creates a [[Row]] [[JavaStream]] from an [[InputFormat]].
+    *
+    * @param inputFormat [[InputFormat]] from which the [[JavaStream]] is created.
+    * @param typeInfo [[TypeInformation]] of the type of the [[JavaStream]].
+    * @return A [[Row]] [[JavaStream]] created from the [[InputFormat]].
+    */
+  override private[flink] def createDataStreamSource(
+      inputFormat: InputFormat[Row, _],
+      typeInfo: TypeInformation[Row]): JavaStream[Row] = {
+
+    execEnv.createInput(inputFormat)(typeInfo).javaStream
   }
 
 }

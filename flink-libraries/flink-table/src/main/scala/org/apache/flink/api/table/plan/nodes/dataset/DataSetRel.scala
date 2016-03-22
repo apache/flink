@@ -23,7 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.{BatchTableEnvironment, TableEnvironment, TableConfig}
 import org.apache.flink.api.table.plan.nodes.FlinkRel
 
 import scala.collection.JavaConversions._
@@ -31,9 +31,9 @@ import scala.collection.JavaConversions._
 trait DataSetRel extends RelNode with FlinkRel {
 
   /**
-    * Translates the FlinkRelNode into a Flink operator.
+    * Translates the [[DataSetRel]] node into a [[DataSet]] operator.
     *
-    * @param config runtime configuration
+    * @param tableEnv [[org.apache.flink.api.table.BatchTableEnvironment]] of the translated Table.
     * @param expectedType specifies the type the Flink operator should return. The type must
     *                     have the same arity as the result. For instance, if the
     *                     expected type is a RowTypeInfo this method will return a DataSet of
@@ -42,9 +42,8 @@ trait DataSetRel extends RelNode with FlinkRel {
     * @return DataSet of type expectedType or RowTypeInfo
     */
   def translateToPlan(
-      config: TableConfig,
-      expectedType: Option[TypeInformation[Any]] = None)
-    : DataSet[Any]
+     tableEnv: BatchTableEnvironment,
+     expectedType: Option[TypeInformation[Any]] = None) : DataSet[Any]
 
   private[flink] def estimateRowSize(rowType: RelDataType): Double = {
 

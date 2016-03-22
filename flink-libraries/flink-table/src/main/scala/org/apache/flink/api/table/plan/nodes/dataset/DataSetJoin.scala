@@ -21,7 +21,6 @@ package org.apache.flink.api.table.plan.nodes.dataset
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinInfo
-import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -31,10 +30,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.runtime.FlatJoinRunner
 import org.apache.flink.api.table.typeutils.TypeConverter
-import org.apache.flink.api.table.{TableException, TableConfig}
+import org.apache.flink.api.table.{BatchTableEnvironment, TableException}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import TypeConverter.determineReturnType
 import scala.collection.mutable.ArrayBuffer
@@ -92,7 +90,7 @@ class DataSetJoin(
       .item("join", joinSelectionToString)
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     if (!translatable) {
       // join cannot be translated. Make huge costs
@@ -101,7 +99,7 @@ class DataSetJoin(
       // join can be translated. Compute cost estimate
       val children = this.getInputs
       children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
-        val rowCnt = RelMetadataQuery.getRowCount(child)
+        val rowCnt = metadata.getRowCount(child)
         val rowSize = this.estimateRowSize(child.getRowType)
         cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
       }
@@ -110,8 +108,10 @@ class DataSetJoin(
   }
 
   override def translateToPlan(
-      config: TableConfig,
+      tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+
+    val config = tableEnv.getConfig
 
     val returnType = determineReturnType(
       getRowType,
@@ -156,8 +156,8 @@ class DataSetJoin(
       })
     }
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val generator = new CodeGenerator(config, leftDataSet.getType, Some(rightDataSet.getType))
     val conversion = generator.generateConverterResultExpression(

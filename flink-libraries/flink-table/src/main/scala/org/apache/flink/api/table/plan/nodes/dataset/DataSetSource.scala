@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.typeutils.TypeConverter
 import TypeConverter.determineReturnType
@@ -67,16 +67,17 @@ class DataSetSource(
     s"Source(from: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
-    val rowCnt = RelMetadataQuery.getRowCount(this)
+    val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
   }
 
   override def translateToPlan(
-      config: TableConfig,
-      expectedType: Option[TypeInformation[Any]])
-    : DataSet[Any] = {
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+
+    val config = tableEnv.getConfig
 
     val inputDataSet: DataSet[Any] = dataSetTable.dataSet
     val inputType = inputDataSet.getType

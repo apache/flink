@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.io.DiscardingOutputFormat
@@ -34,6 +35,7 @@ import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetRel, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
   * The abstract base class for batch TableEnvironments.
@@ -226,11 +228,22 @@ abstract class BatchTableEnvironment(config: TableConfig) extends TableEnvironme
     dataSetPlan match {
       case node: DataSetRel =>
         node.translateToPlan(
-          config,
+          this,
           Some(tpe.asInstanceOf[TypeInformation[Any]])
         ).asInstanceOf[DataSet[A]]
       case _ => ???
     }
   }
+
+  /**
+    * Creates a [[Row]] [[DataSet]] from an [[InputFormat]].
+    *
+    * @param inputFormat [[InputFormat]] from which the [[DataSet]] is created.
+    * @param typeInfo [[TypeInformation]] of the type of the [[DataSet]].
+    * @return A [[Row]] [[DataSet]] created from the [[InputFormat]].
+    */
+  private[flink] def createDataSetSource(
+      inputFormat: InputFormat[Row, _],
+      typeInfo: TypeInformation[Row]): DataSet[Row]
 
 }

@@ -16,39 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.rules.dataSet
+package org.apache.flink.api.table.plan.rules.datastream
 
 import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
-import scala.collection.JavaConversions._
+import org.apache.calcite.rel.logical.LogicalValues
+import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamValues, DataStreamConvention}
 
-class DataSetAggregateRule
+class DataStreamValuesRule
   extends ConverterRule(
-      classOf[LogicalAggregate],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetAggregateRule")
-  {
+    classOf[LogicalValues],
+    Convention.NONE,
+    DataStreamConvention.INSTANCE,
+    "DataStreamValuesRule")
+{
 
-    def convert(rel: RelNode): RelNode = {
-      val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+  def convert(rel: RelNode): RelNode = {
 
-      new DataSetAggregate(
-        rel.getCluster,
-        traitSet,
-        convInput,
-        agg.getNamedAggCalls,
-        rel.getRowType,
-        agg.getInput.getRowType,
-        agg.getGroupSet.toArray)
-      }
+    val values: LogicalValues = rel.asInstanceOf[LogicalValues]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
+
+    new DataStreamValues(
+      rel.getCluster,
+      traitSet,
+      rel.getRowType,
+      values.getTuples)
   }
+}
 
-object DataSetAggregateRule {
-  val INSTANCE: RelOptRule = new DataSetAggregateRule
+object DataStreamValuesRule {
+  val INSTANCE: RelOptRule = new DataStreamValuesRule
 }

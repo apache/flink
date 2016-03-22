@@ -20,7 +20,7 @@ package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.{StreamTableEnvironment, TableConfig}
 import org.apache.flink.api.table.plan.nodes.FlinkRel
 import org.apache.flink.streaming.api.datastream.DataStream
 
@@ -29,7 +29,7 @@ trait DataStreamRel extends RelNode with FlinkRel {
   /**
     * Translates the FlinkRelNode into a Flink operator.
     *
-    * @param config runtime configuration
+    * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
     * @param expectedType specifies the type the Flink operator should return. The type must
     *                     have the same arity as the result. For instance, if the
     *                     expected type is a RowTypeInfo this method will return a DataSet of
@@ -38,9 +38,8 @@ trait DataStreamRel extends RelNode with FlinkRel {
     * @return DataStream of type expectedType or RowTypeInfo
     */
   def translateToPlan(
-      config: TableConfig,
-      expectedType: Option[TypeInformation[Any]] = None)
-    : DataStream[Any]
+    tableEnv: StreamTableEnvironment,
+    expectedType: Option[TypeInformation[Any]] = None) : DataStream[Any]
 
 }
 
