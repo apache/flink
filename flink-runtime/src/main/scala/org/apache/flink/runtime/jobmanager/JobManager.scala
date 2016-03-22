@@ -23,7 +23,7 @@ import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress,
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, ExecutorService}
 
-import akka.actor.Status.{Success, Failure}
+import akka.actor.Status.Failure
 import akka.actor._
 import akka.pattern.ask
 
@@ -46,8 +46,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
-import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo,
-AkkaActorGateway, InstanceManager}
+import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
@@ -73,7 +72,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
+import org.apache.flink.util.{InstantiationUtil, NetUtils}
 
 import org.jboss.netty.channel.ChannelException
 
