@@ -934,6 +934,11 @@ class TaskManager(
       jm => context.unwatch(jm)
     }
 
+    // de-register from the JobManager (faster detection of disconnect)
+    currentJobManager foreach {
+      _ ! decorateMessage(Disconnect(s"TaskManager ${self.path} is disassociating"))
+    }
+
     currentJobManager = None
     instanceID = null
 
