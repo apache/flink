@@ -33,7 +33,7 @@ public class GetClusterStatus implements java.io.Serializable {
 	 * Gets the singleton instance.
 	 * @return The singleton instance.
 	 */
-	public static GetClusterStatus get() {
+	public static GetClusterStatus getInstance() {
 		return INSTANCE;
 	}
 

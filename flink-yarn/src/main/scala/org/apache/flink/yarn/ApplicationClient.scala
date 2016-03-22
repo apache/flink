@@ -115,7 +115,7 @@ class ApplicationClient(
           val jobManager = context.actorSelection(jobManagerAkkaURL)
 
           jobManager ! decorateMessage(
-            RegisterInfoMessageListener.get()
+            RegisterInfoMessageListener.getInstance()
           )
 
           val nextTimeout = (currentTimeout * 2).min(ApplicationClient.MAX_REGISTRATION_TIMEOUT)
@@ -148,7 +148,7 @@ class ApplicationClient(
           INITIAL_POLLING_DELAY,
           WAIT_FOR_YARN_INTERVAL,
           yarnJobManager.get,
-          decorateMessage(GetClusterStatus.get()))
+          decorateMessage(GetClusterStatus.getInstance()))
       )
 
     case JobManagerLeaderAddress(jobManagerAkkaURL, newLeaderSessionID) =>

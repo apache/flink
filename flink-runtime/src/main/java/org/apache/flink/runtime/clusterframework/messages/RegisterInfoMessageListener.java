@@ -35,7 +35,7 @@ public class RegisterInfoMessageListener implements RequiresLeaderSessionID, jav
 	 * Gets the singleton instance.
 	 * @return The singleton instance.
 	 */
-	public static RegisterInfoMessageListener get() {
+	public static RegisterInfoMessageListener getInstance() {
 		return INSTANCE;
 	}
 	
