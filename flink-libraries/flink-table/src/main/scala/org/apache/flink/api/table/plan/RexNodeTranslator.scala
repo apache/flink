@@ -137,7 +137,8 @@ object RexNodeTranslator {
         val l = toRexNode(left, relBuilder)
         val r = toRexNode(right, relBuilder)
         if(SqlTypeName.STRING_TYPES.contains(l.getType.getSqlTypeName)) {
-          val cast: RexNode = relBuilder.cast(r, TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+          val cast: RexNode = relBuilder.cast(r,
+            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
           relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
         } else {
           relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
