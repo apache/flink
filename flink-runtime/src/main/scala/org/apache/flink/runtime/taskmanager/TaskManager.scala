@@ -612,11 +612,11 @@ class TaskManager(
           } catch {
             case t: Throwable =>
               killTaskManagerFatal(
-                "Unable to start TaskManager components and associate with the JobManager ", t)
+                "Unable to start TaskManager components and associate with the JobManager", t)
           }
         }
 
-      // we are already registered at this ResourceManager - duplicate answer, rare cases
+      // we are already registered at that specific JobManager - duplicate answer, rare cases
       case AlreadyRegistered(id, blobPort) =>
         val jobManager = sender()
 
@@ -625,7 +625,7 @@ class TaskManager(
             log.debug("Ignoring duplicate registration acknowledgement.")
           } else {
             log.warn(s"Received 'AlreadyRegistered' message from " +
-              s"ResourceManager ${jobManager.path}, even through TaskManager is currently " +
+              s"JobManager ${jobManager.path}, even through TaskManager is currently " +
               s"registered at ${currentJobManager.orNull}")
           }
         } else {
@@ -643,7 +643,7 @@ class TaskManager(
 
       case RefuseRegistration(reason) =>
         if (currentJobManager.isEmpty) {
-          log.error(s"The registration at ResourceManager $jobManagerAkkaURL was refused, " +
+          log.error(s"The registration at JobManager $jobManagerAkkaURL was refused, " +
             s"because: $reason. Retrying later...")
 
           if(jobManagerAkkaURL.isDefined) {
