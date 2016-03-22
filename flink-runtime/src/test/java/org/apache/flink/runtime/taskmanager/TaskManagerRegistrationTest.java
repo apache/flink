@@ -307,7 +307,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 						// we decline the registration
 						taskManagerGateway.tell(
-								new RefuseRegistration("test reason"),
+								new RefuseRegistration(new Exception("test reason")),
 								jmGateway);
 					}
 				};

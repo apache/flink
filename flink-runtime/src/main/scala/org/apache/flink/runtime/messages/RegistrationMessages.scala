@@ -96,6 +96,6 @@ object RegistrationMessages {
    *
    * @param reason Reason why the task manager registration was refused
    */
-  case class RefuseRegistration(reason: String)
-    extends RegistrationMessage
+  case class RefuseRegistration(reason: Throwable) extends RegistrationMessage
+
 }

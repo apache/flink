@@ -415,8 +415,7 @@ class JobManager(
             log.error("Failed to register TaskManager at instance manager", e)
 
             taskManager ! decorateMessage(
-              RefuseRegistration(
-                ExceptionUtils.stringifyException(e)))
+              RefuseRegistration(e))
         }
       }
 
@@ -428,11 +427,8 @@ class JobManager(
         s"Refusing registration.")
 
       taskManager ! decorateMessage(
-        RefuseRegistration(
-          ExceptionUtils.stringifyException(new IllegalStateException(
-            "Resource $resourceId not registered " +
-              s"with resource manager."))))
-
+        RefuseRegistration(new IllegalStateException(
+            s"Resource $resourceId not registered with resource manager.")))
 
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable
