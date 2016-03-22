@@ -40,7 +40,6 @@ import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, Input
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 
-import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
