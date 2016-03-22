@@ -76,9 +76,9 @@ public class BootstrapToolsTest {
 		String depr2 = deprecatedPrefix2 + "env";
 		String depr3 = deprecatedPrefix2 + "x";
 
-		String desig1 = deprecatedPrefix1 + "var";
-		String desig2 = deprecatedPrefix2 + "env";
-		String desig3 = deprecatedPrefix2 + "x";
+		String desig1 = designatedPrefix1 + "var";
+		String desig2 = designatedPrefix2 + "env";
+		String desig3 = designatedPrefix2 + "x";
 
 		String val1 = "1";
 		String val2 = "2";
