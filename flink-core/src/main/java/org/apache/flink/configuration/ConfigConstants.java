@@ -100,7 +100,7 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
-	 * The config parameter defining the flink web directory to be used by the web monitor.
+	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
 	public static final String WEB_MONITOR_DIRECTORY_KEY = "web.monitor.tmpdir";
 
