@@ -82,10 +82,10 @@ public class YarnApplicationMasterRunner {
 	/** The maximum time that TaskManagers may be waiting to register at the JobManager,
 	 * before they quit */
 	private static final FiniteDuration TASKMANAGER_REGISTRATION_TIMEOUT = new FiniteDuration(5, TimeUnit.MINUTES);
-	
+
 	/** The process environment variables */
 	private static final Map<String, String> ENV = System.getenv();
-	
+
 	/** The exit code returned if the initialization of the application master failed */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
 
@@ -110,7 +110,7 @@ public class YarnApplicationMasterRunner {
 		int returnCode = new YarnApplicationMasterRunner().run(args);
 		System.exit(returnCode);
 	}
-	
+
 	/**
 	 * The instance entry point for the YARN application master. Obtains user group
 	 * information and calls the main work method {@link #runApplicationMaster()} as a
@@ -122,28 +122,28 @@ public class YarnApplicationMasterRunner {
 	protected int run(String[] args) {
 		try {
 			LOG.debug("All environment variables: {}", ENV);
-			
+
 			final String yarnClientUsername = ENV.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 			require(yarnClientUsername != null, "YARN client user name environment variable {} not set",
 				YarnConfigKeys.ENV_CLIENT_USERNAME);
-		
+
 			final UserGroupInformation currentUser;
 			try {
 				currentUser = UserGroupInformation.getCurrentUser();
 			} catch (Throwable t) {
 				throw new Exception("Cannot access UserGroupInformation information for current user", t);
 			}
-		
+
 			LOG.info("YARN daemon runs as user {}. Running Flink Application Master/JobManager as user {}",
 				currentUser.getShortUserName(), yarnClientUsername);
-	
+
 			UserGroupInformation ugi = UserGroupInformation.createRemoteUser(yarnClientUsername);
-			
+
 			// transfer all security tokens, for example for authenticated HDFS and HBase access
 			for (Token<?> token : currentUser.getTokens()) {
 				ugi.addToken(token);
 			}
-	
+
 			// run the actual work in a secured privileged action
 			return ugi.doAs(new PrivilegedAction<Integer>() {
 				@Override
@@ -171,35 +171,35 @@ public class YarnApplicationMasterRunner {
 	protected int runApplicationMaster() {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
-		
+
 		try {
 			// ------- (1) load and parse / validate all configurations -------
-			
+
 			// loading all config values here has the advantage that the program fails fast, if any
 			// configuration problem occurs
-			
+
 			final String currDir = ENV.get(Environment.PWD.key());
 			require(currDir != null, "Current working directory variable (%s) not set", Environment.PWD.key());
-	
+
 			// Note that we use the "appMasterHostname" given by YARN here, to make sure
 			// we use the hostnames given by YARN consistently throughout akka.
 			// for akka "localhost" and "localhost.localdomain" are different actors.
 			final String appMasterHostname = ENV.get(Environment.NM_HOST.key());
 			require(appMasterHostname != null,
 				"ApplicationMaster hostname variable %s not set", Environment.NM_HOST.key());
-	
+
 			LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
-			
+
 			// Flink configuration
 			final Map<String, String> dynamicProperties =
 				CliFrontend.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
-			
+
 			final Configuration config = createConfiguration(currDir, dynamicProperties);
-			
+
 			// Hadoop/Yarn configuration (loads config data automatically from classpath files)
 			final YarnConfiguration yarnConfig = new YarnConfiguration();
-			
+
 			final int taskManagerContainerMemory;
 			final int numInitialTaskManagers;
 			final int slotsPerTaskManager;
@@ -222,7 +222,7 @@ public class YarnApplicationMasterRunner {
 				throw new RuntimeException("Invalid value for " + YarnConfigKeys.ENV_SLOTS + " : "
 					+ e.getMessage());
 			}
-			
+
 			final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(config, taskManagerContainerMemory, slotsPerTaskManager);
 
@@ -232,44 +232,44 @@ public class YarnApplicationMasterRunner {
 				taskManagerParameters.taskManagerTotalMemoryMB(),
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
-			
-			
+
+
 			// ----------------- (2) start the actor system -------------------
-			
+
 			// try to start the actor system, JobManager and JobManager actor system
 			// using the port range definition from the config.
 			final String amPortRange = config.getString(
 					ConfigConstants.YARN_APPLICATION_MASTER_PORT,
 					ConfigConstants.DEFAULT_YARN_JOB_MANAGER_PORT);
-			
+
 			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG);
-			
+
 			final String akkaHostname = AkkaUtils.getAddress(actorSystem).host().get();
 			final int akkaPort = (Integer) AkkaUtils.getAddress(actorSystem).port().get();
 
 			LOG.info("Actor system bound to hostname {}.", akkaHostname);
-			
-			
+
+
 			// ---- (3) Generate the configuration for the TaskManagers
-			
+
 			final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
 					config, akkaHostname, akkaPort, slotsPerTaskManager, TASKMANAGER_REGISTRATION_TIMEOUT);
 			LOG.debug("TaskManager configuration: {}", taskManagerConfig);
-			
+
 			final ContainerLaunchContext taskManagerContext = createTaskManagerContext(
 				config, yarnConfig, ENV,
 				taskManagerParameters, taskManagerConfig,
 				currDir, getTaskManagerClass(), LOG);
-			
-			
+
+
 			// ---- (4) start the actors and components in this order:
-			
+
 			// 1) JobManager & Archive (in non-HA case, the leader service takes this)
 			// 2) Web Monitor (we need its port to register)
 			// 3) Resource Master for YARN
 			// 4) Process reapers for the JobManager and Resource Master
 
-			
+
 			// 1: the JobManager
 			LOG.debug("Starting JobManager actor");
 
@@ -296,7 +296,7 @@ public class YarnApplicationMasterRunner {
 			// leader session IDs, even though there can be only one leader ever
 			LeaderRetrievalService leaderRetriever = 
 				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
-			
+
 			Props resourceMasterProps = YarnFlinkResourceManager.createActorProps(
 				getResourceManagerClass(),
 				config,
@@ -308,20 +308,20 @@ public class YarnApplicationMasterRunner {
 				taskManagerContext,
 				numInitialTaskManagers, 
 				LOG);
-			
+
 			ActorRef resourceMaster = actorSystem.actorOf(resourceMasterProps);
-			
-			
+
+
 			// 4: Process reapers
 			// The process reapers ensure that upon unexpected actor death, the process exits
 			// and does not stay lingering around unresponsive
-			
+
 			LOG.debug("Starting process reapers for JobManager and YARN Application Master");
 
 			actorSystem.actorOf(
 				Props.create(ProcessReaper.class, resourceMaster, LOG, ACTOR_DIED_EXIT_CODE),
 				"YARN_Resource_Master_Process_Reaper");
-			
+
 			actorSystem.actorOf(
 				Props.create(ProcessReaper.class, jobManager, LOG, ACTOR_DIED_EXIT_CODE),
 				"JobManager_Process_Reaper");
@@ -329,7 +329,7 @@ public class YarnApplicationMasterRunner {
 		catch (Throwable t) {
 			// make sure that everything whatever ends up in the log
 			LOG.error("YARN Application Master initialization failed", t);
-			
+
 			if (actorSystem != null) {
 				try {
 					actorSystem.shutdown();
@@ -343,13 +343,13 @@ public class YarnApplicationMasterRunner {
 					webMonitor.stop();
 				} catch (Throwable ignored) {}
 			}
-			
+
 			return INIT_ERROR_EXIT_CODE;
 		}
-		
+
 		// everything started, we can wait until all is done or the process is killed
 		LOG.info("YARN Application Master started");
-		
+
 		// wait until everything is done
 		actorSystem.awaitTermination();
 
@@ -362,16 +362,16 @@ public class YarnApplicationMasterRunner {
 		return 0;
 	}
 
-	
+
 	// ------------------------------------------------------------------------
 	//  For testing, this allows to override the actor classes used for
 	//  JobManager and the archive of completed jobs
 	// ------------------------------------------------------------------------
-	
+
 	protected Class<? extends YarnFlinkResourceManager> getResourceManagerClass() {
 		return YarnFlinkResourceManager.class;
 	}
-	
+
 	protected Class<? extends JobManager> getJobManagerClass() {
 		return YarnJobManager.class;
 	}
@@ -379,11 +379,11 @@ public class YarnApplicationMasterRunner {
 	protected Class<? extends MemoryArchivist> getArchivistClass() {
 		return MemoryArchivist.class;
 	}
-	
+
 	protected Class<? extends TaskManager> getTaskManagerClass() {
 		return YarnTaskManager.class;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -427,11 +427,11 @@ public class YarnApplicationMasterRunner {
 		if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
 			configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 		}
-		
+
 		// if the user has set the deprecated YARN-specific config keys, we add the 
 		// corresponding generic config keys instead. that way, later code needs not
 		// deal with deprecated config keys
-		
+
 		BootstrapTools.substituteDeprecatedConfigKey(configuration,
 			ConfigConstants.YARN_HEAP_CUTOFF_RATIO,
 			ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO);
@@ -447,7 +447,7 @@ public class YarnApplicationMasterRunner {
 		BootstrapTools.substituteDeprecatedConfigPrefix(configuration,
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ConfigConstants.CONTAINERED_TASK_MANAGER_ENV_PREFIX);
-		
+
 		return configuration;
 	}
 
@@ -494,26 +494,26 @@ public class YarnApplicationMasterRunner {
 			String workingDirectory,
 			Class<?> taskManagerMainClass,
 			Logger log) throws Exception {
-		
+
 		log.info("Setting up resources for TaskManagers");
 
 		// get and validate all relevant variables
-		
+
 		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_JAR_PATH);
 		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_JAR_PATH);
-		
+
 		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
 		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
-		
+
 		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
 		require(clientHomeDir != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-		
+
 		String shipListString = env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
 		require(shipListString != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-		
+
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_USERNAME);
-		
+
 		// obtain a handle to the file system used by YARN
 		final org.apache.hadoop.fs.FileSystem yarnFileSystem;
 		try {
@@ -521,7 +521,7 @@ public class YarnApplicationMasterRunner {
 		} catch (IOException e) {
 			throw new Exception("Could not access YARN's default file system", e);
 		}
-		
+
 		// register Flink Jar with remote HDFS
 		LocalResource flinkJar = Records.newRecord(LocalResource.class);
 		{
@@ -537,7 +537,7 @@ public class YarnApplicationMasterRunner {
 				new File(workingDirectory, UUID.randomUUID() + "-taskmanager-conf.yaml");
 			LOG.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
 			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
-			
+
 			Utils.setupLocalResource(yarnFileSystem, appId, 
 				new Path(taskManagerConfigFile.toURI()), flinkConf, new Path(clientHomeDir));
 
@@ -547,7 +547,7 @@ public class YarnApplicationMasterRunner {
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 		taskManagerLocalResources.put("flink.jar", flinkJar);
 		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
-		
+
 		// prepare additional files to be shipped
 		for (String pathStr : shipListString.split(",")) {
 			if (!pathStr.isEmpty()) {
@@ -557,11 +557,11 @@ public class YarnApplicationMasterRunner {
 				taskManagerLocalResources.put(path.getName(), resource);
 			}
 		}
-		
+
 		// now that all resources are prepared, we can create the launch context
 
 		log.info("Creating container launch context for TaskManagers");
-		
+
 		boolean hasLogback = new File(workingDirectory, "logback.xml").exists();
 		boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
 
@@ -570,20 +570,20 @@ public class YarnApplicationMasterRunner {
 			hasLogback, hasLog4j, taskManagerMainClass);
 
 		log.info("Starting TaskManagers with command: " + launchCommand);
-		
+
 		ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 		ctx.setCommands(Collections.singletonList(launchCommand));
 		ctx.setLocalResources(taskManagerLocalResources);
-		
+
 		Map<String, String> containerEnv = new HashMap<>();
 		containerEnv.putAll(tmParams.taskManagerEnv());
-		
+
 		// add YARN classpath, etc to the container environment
 		Utils.setupEnv(yarnConfig, containerEnv);
 		containerEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, yarnClientUsername);
-		
+
 		ctx.setEnvironment(containerEnv);
-		
+
 		try {
 			UserGroupInformation user = UserGroupInformation.getCurrentUser();
 			Credentials credentials = user.getCredentials();
