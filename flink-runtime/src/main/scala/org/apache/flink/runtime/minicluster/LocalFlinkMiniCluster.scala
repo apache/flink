@@ -238,6 +238,7 @@ class LocalFlinkMiniCluster(
       JobManager.JOB_MANAGER_NAME
     }
   }
+
   protected def getResourceManagerName(index: Int): String = {
     if(singleActorSystem) {
       FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
@@ -245,6 +246,7 @@ class LocalFlinkMiniCluster(
       FlinkResourceManager.RESOURCE_MANAGER_NAME
     }
   }
+
   protected def getArchiveName(index: Int): String = {
     if(singleActorSystem) {
       JobManager.ARCHIVE_NAME + "_" + (index + 1)
