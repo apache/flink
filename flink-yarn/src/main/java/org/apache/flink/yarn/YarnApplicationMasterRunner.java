@@ -341,7 +341,9 @@ public class YarnApplicationMasterRunner {
 			if (webMonitor != null) {
 				try {
 					webMonitor.stop();
-				} catch (Throwable ignored) {}
+				} catch (Throwable ignored) {
+					LOG.warn("Failed to stop the web frontend", t);
+				}
 			}
 
 			return INIT_ERROR_EXIT_CODE;
