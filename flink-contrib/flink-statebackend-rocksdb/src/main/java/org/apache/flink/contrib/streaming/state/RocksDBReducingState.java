@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KvState;
 
 import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -58,6 +59,12 @@ public class RocksDBReducingState<K, N, V>
 	private final ReduceFunction<V> reduceFunction;
 
 	/**
+	 * We disable writes to the write-ahead-log here. We can't have these in the base class
+	 * because JNI segfaults for some reason if they are.
+	 */
+	protected final WriteOptions writeOptions;
+
+	/**
 	 * Creates a new {@code RocksDBReducingState}.
 	 *
 	 * @param keySerializer The serializer for the keys.
@@ -78,6 +85,9 @@ public class RocksDBReducingState<K, N, V>
 		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	/**
@@ -103,6 +113,9 @@ public class RocksDBReducingState<K, N, V>
 		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	@Override
@@ -134,13 +147,13 @@ public class RocksDBReducingState<K, N, V>
 			if (valueBytes == null) {
 				baos.reset();
 				valueSerializer.serialize(value, out);
-				db.put(key, baos.toByteArray());
+				db.put(writeOptions, key, baos.toByteArray());
 			} else {
 				V oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 				V newValue = reduceFunction.reduce(oldValue, value);
 				baos.reset();
 				valueSerializer.serialize(newValue, out);
-				db.put(key, baos.toByteArray());
+				db.put(writeOptions, key, baos.toByteArray());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);

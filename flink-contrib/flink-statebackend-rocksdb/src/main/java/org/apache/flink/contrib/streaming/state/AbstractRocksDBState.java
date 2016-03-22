@@ -37,6 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.Env;
+import org.rocksdb.FlushOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
@@ -143,6 +144,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error while opening RocksDB instance.", e);
 		}
+
 	}
 
 	/**
@@ -253,7 +255,15 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		}
 
 		long startTime = System.currentTimeMillis();
-		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(localBackupPath.getAbsolutePath()))) {
+		BackupableDBOptions backupOptions = new BackupableDBOptions(localBackupPath.getAbsolutePath());
+		// we disabled the WAL
+		backupOptions.setBackupLogFiles(false);
+		// no need to sync since we use the backup only as intermediate data before writing to FileSystem snapshot
+		backupOptions.setSync(false);
+		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(),
+				backupOptions)) {
+			// make sure to flush because we don't write to the write-ahead-log
+			db.flush(new FlushOptions().setWaitForFlush(true));
 			backupEngine.createNewBackup(db);
 		}
 		long endTime = System.currentTimeMillis();
