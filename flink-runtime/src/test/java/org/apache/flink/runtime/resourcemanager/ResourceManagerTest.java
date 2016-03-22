@@ -52,6 +52,9 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
+/**
+ * General tests for the resource manager component.
+ */
 public class ResourceManagerTest {
 
 	private static ActorSystem system;

@@ -304,8 +304,8 @@ object TestingUtils {
 
   /** Creates a testing JobManager using the default recovery mode (standalone)
     *
-    * @param actorSystem
-    * @param configuration
+    * @param actorSystem The ActorSystem to use
+    * @param configuration The Flink configuration
     * @return
     */
   def createJobManager(
@@ -315,7 +315,29 @@ object TestingUtils {
     createJobManager(
       actorSystem,
       configuration,
-      classOf[TestingJobManager]
+      classOf[TestingJobManager],
+      ""
+    )
+  }
+
+  /** Creates a testing JobManager using the default recovery mode (standalone).
+    * Additional prefix can be supplied for the Actor system names
+    *
+    * @param actorSystem The ActorSystem to use
+    * @param configuration The Flink configuration
+    * @param prefix The prefix for the actor names
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      prefix: String)
+    : ActorGateway = {
+    createJobManager(
+      actorSystem,
+      configuration,
+      classOf[TestingJobManager],
+      prefix
     )
   }
 
@@ -365,7 +387,6 @@ object TestingUtils {
     new AkkaActorGateway(jobManager, null)
   }
 
-
   /**
     * Creates a JobManager of the given class using the default recovery mode (standalone)
     *
@@ -380,13 +401,34 @@ object TestingUtils {
       jobManagerClass: Class[_ <: JobManager])
     : ActorGateway = {
 
+    createJobManager(actorSystem, configuration, jobManagerClass, "")
+  }
+
+  /**
+    * Creates a JobManager of the given class using the default recovery mode (standalone).
+    * Additional prefix for the Actor names can be added.
+    *
+    * @param actorSystem ActorSystem to use
+    * @param configuration Configuration to use
+    * @param jobManagerClass JobManager class to instantiate
+    * @param prefix The prefix to use for the Actor names
+    *
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      jobManagerClass: Class[_ <: JobManager],
+      prefix: String)
+    : ActorGateway = {
+
     configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
 
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
         actorSystem,
-        Some(JobManager.JOB_MANAGER_NAME),
-        Some(JobManager.ARCHIVE_NAME),
+        Some(prefix + JobManager.JOB_MANAGER_NAME),
+        Some(prefix + JobManager.ARCHIVE_NAME),
         jobManagerClass,
         classOf[MemoryArchivist])
 
