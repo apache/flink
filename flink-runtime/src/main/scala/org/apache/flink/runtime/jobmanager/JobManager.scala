@@ -367,6 +367,7 @@ class JobManager(
               // the resource manager is available and answered
               self ! response
             case scala.util.Failure(t) =>
+              log.error("Failure while asking ResourceManager for RegisterResource", t)
               // slow or unreachable resource manager, register anyway and let the rm reconnect
               self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
               self ! decorateMessage(new DisconnectResourceManager(rm))
