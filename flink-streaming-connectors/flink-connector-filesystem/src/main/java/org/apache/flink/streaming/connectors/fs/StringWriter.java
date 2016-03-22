@@ -17,8 +17,9 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
-
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -31,10 +32,8 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * @param <T> The type of the elements that are being written by the sink.
  */
-public class StringWriter<T> implements Writer<T> {
+public class StringWriter<T> extends StreamWriterBase<T> {
 	private static final long serialVersionUID = 1L;
-
-	private transient FSDataOutputStream outputStream;
 
 	private String charsetName;
 
@@ -59,11 +58,8 @@ public class StringWriter<T> implements Writer<T> {
 	}
 
 	@Override
-	public void open(FSDataOutputStream outStream) throws IOException {
-		if (outputStream != null) {
-			throw new IllegalStateException("StringWriter has already been opened.");
-		}
-		this.outputStream = outStream;
+	public void open(FileSystem fs, Path path) throws IOException {
+		super.open(fs, path);
 
 		try {
 			this.charset = Charset.forName(charsetName);
@@ -77,23 +73,10 @@ public class StringWriter<T> implements Writer<T> {
 	}
 
 	@Override
-	public void flush() throws IOException {
-
-	}
-
-	@Override
-	public void close() throws IOException {
-		outputStream = null;
-	}
-
-	@Override
 	public void write(T element) throws IOException {
-		if (outputStream == null) {
-			throw new IllegalStateException("StringWriter has not been opened.");
-		}
+		FSDataOutputStream outputStream = getStream();
 		outputStream.write(element.toString().getBytes(charset));
 		outputStream.write('\n');
-
 	}
 
 	@Override
