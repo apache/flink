@@ -25,13 +25,10 @@ import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.runtime.FlatMapRunner
+import org.apache.flink.api.table.plan.nodes.FlinkCalc
 import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.streaming.api.datastream.DataStream
-
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with FlatMapOperator.
@@ -46,6 +43,7 @@ class DataStreamCalc(
     opName: String,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
+  with FlinkCalc
   with DataStreamRel {
 
   override def deriveRowType() = rowType
@@ -62,11 +60,15 @@ class DataStreamCalc(
     )
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
-  }
+  override def toString: String = calcToString(calcProgram, getExpressionString(_, _, _))
 
-  override def toString = opName
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .item("select", selectionToString(calcProgram, getExpressionString(_, _, _)))
+      .itemIf("where",
+        conditionToString(calcProgram, getExpressionString(_, _, _)),
+        calcProgram.getCondition != null)
+  }
 
   override def translateToPlan(config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
@@ -81,63 +83,13 @@ class DataStreamCalc(
 
     val generator = new CodeGenerator(config, inputDataStream.getType)
 
-    val condition = calcProgram.getCondition
-    val expandedExpressions = calcProgram.getProjectList.map(
-        expr => calcProgram.expandLocalRef(expr))
-    val projection = generator.generateResultExpression(
-        returnType,
-        rowType.getFieldNames,
-        expandedExpressions)
-
-    val body = {
-      // only projection
-      if (condition == null) {
-        s"""
-          |${projection.code}
-          |${generator.collectorTerm}.collect(${projection.resultTerm});
-          |""".stripMargin
-      }
-      else {
-        val filterCondition = generator.generateExpression(
-          calcProgram.expandLocalRef(calcProgram.getCondition))
-        // only filter
-        if (projection == null) {
-          // conversion
-          if (inputDataStream.getType != returnType) {
-            val conversion = generator.generateConverterResultExpression(
-              returnType,
-              rowType.getFieldNames)
-
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${conversion.code}
-              |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-              |}
-              |""".stripMargin
-          }
-          // no conversion
-          else {
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${generator.collectorTerm}.collect(${generator.input1Term});
-              |}
-              |""".stripMargin
-          }
-        }
-        // both filter and projection
-        else {
-          s"""
-            |${filterCondition.code}
-            |if (${filterCondition.resultTerm}) {
-            |  ${projection.code}
-            |  ${generator.collectorTerm}.collect(${projection.resultTerm});
-            |}
-            |""".stripMargin
-        }
-      }
-    }
+    val body = functionBody(
+      generator,
+      inputDataStream.getType,
+      getRowType,
+      calcProgram,
+      config,
+      expectedType)
 
     val genFunction = generator.generateFunction(
       ruleDescription,
@@ -145,44 +97,7 @@ class DataStreamCalc(
       body,
       returnType)
 
-    val mapFunc = new FlatMapRunner[Any, Any](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
-
-    val calcDesc = calcProgramToString()
-
-    inputDataStream.flatMap(mapFunc).name(calcDesc)
-  }
-
-  private def calcProgramToString(): String = {
-
-    val cond = calcProgram.getCondition
-    val proj = calcProgram.getProjectList.asScala.toList
-    val localExprs = calcProgram.getExprList.asScala.toList
-    val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
-    val outFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
-
-    val projString = s"select: (${
-      proj
-        .map(getExpressionString(_, inFields, Some(localExprs)))
-        .zip(outFields).map { case (e, o) => {
-        if (e != o) {
-          e + " AS " + o
-        } else {
-          e
-        }
-      }
-      }
-        .mkString(", ")
-    })"
-    if (cond != null) {
-      val condString = s"where: (${getExpressionString(cond, inFields, Some(localExprs))})"
-
-      condString + ", " + projString
-    } else {
-      projString
-    }
-
+    val mapFunc = calcMapFunction(genFunction)
+    inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
   }
 }

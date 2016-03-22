@@ -26,14 +26,11 @@ import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.plan.nodes.FlinkCalc
 import org.apache.flink.api.table.typeutils.TypeConverter
 import TypeConverter._
-import org.apache.flink.api.table.runtime.FlatMapRunner
 import org.apache.flink.api.table.TableConfig
 import org.apache.calcite.rex._
-
-import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with LogicalCalc.
@@ -47,6 +44,7 @@ class DataSetCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
+  with FlinkCalc
   with DataSetRel {
 
   override def deriveRowType() = rowType
@@ -61,18 +59,14 @@ class DataSetCalc(
       ruleDescription)
   }
 
-  override def toString: String = {
-    s"Calc(${if (calcProgram.getCondition != null) {
-      s"where: ($conditionToString), "
-    } else {
-      ""
-    }}select: ($selectionToString))"
-  }
+  override def toString: String = calcToString(calcProgram, getExpressionString(_, _, _))
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("select", selectionToString)
-      .itemIf("where", conditionToString, calcProgram.getCondition != null)
+      .item("select", selectionToString(calcProgram, getExpressionString(_, _, _)))
+      .itemIf("where",
+        conditionToString(calcProgram, getExpressionString(_, _, _)),
+        calcProgram.getCondition != null)
   }
 
   override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
@@ -108,63 +102,13 @@ class DataSetCalc(
 
     val generator = new CodeGenerator(config, inputDS.getType)
 
-    val condition = calcProgram.getCondition
-    val expandedExpressions = calcProgram.getProjectList.map(
-       expr => calcProgram.expandLocalRef(expr))
-    val projection = generator.generateResultExpression(
-      returnType,
-      rowType.getFieldNames,
-      expandedExpressions)
-
-    val body = {
-      // only projection
-      if (condition == null) {
-        s"""
-          |${projection.code}
-          |${generator.collectorTerm}.collect(${projection.resultTerm});
-          |""".stripMargin
-      }
-      else {
-        val filterCondition = generator.generateExpression(
-          calcProgram.expandLocalRef(calcProgram.getCondition))
-        // only filter
-        if (projection == null) {
-          // conversion
-          if (inputDS.getType != returnType) {
-            val conversion = generator.generateConverterResultExpression(
-              returnType,
-              rowType.getFieldNames)
-
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${conversion.code}
-              |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-              |}
-              |""".stripMargin
-          }
-          // no conversion
-          else {
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${generator.collectorTerm}.collect(${generator.input1Term});
-              |}
-              |""".stripMargin
-          }
-        }
-        // both filter and projection
-        else {
-          s"""
-            |${filterCondition.code}
-            |if (${filterCondition.resultTerm}) {
-            |  ${projection.code}
-            |  ${generator.collectorTerm}.collect(${projection.resultTerm});
-            |}
-            |""".stripMargin
-        }
-      }
-    }
+    val body = functionBody(
+      generator,
+      inputDS.getType,
+      getRowType,
+      calcProgram,
+      config,
+      expectedType)
 
     val genFunction = generator.generateFunction(
       ruleDescription,
@@ -172,50 +116,8 @@ class DataSetCalc(
       body,
       returnType)
 
-    val mapFunc = new FlatMapRunner[Any, Any](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
-
-    val calcOpName =
-      s"${if (condition != null) {
-          s"where: ($conditionToString), "
-      } else {
-        ""
-      }}select: ($selectionToString)"
-
-    inputDS.flatMap(mapFunc).name(calcOpName)
-  }
-
-  private def selectionToString: String = {
-    val proj = calcProgram.getProjectList.asScala.toList
-    val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
-    val localExprs = calcProgram.getExprList.asScala.toList
-    val outFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
-
-    proj
-      .map(getExpressionString(_, inFields, Some(localExprs)))
-      .zip(outFields).map { case (e, o) => {
-          if (e != o) {
-            e + " AS " + o
-          } else {
-            e
-          }
-        }
-      }.mkString(", ")
-  }
-
-  private def conditionToString: String = {
-
-    val cond = calcProgram.getCondition
-    val inFields = calcProgram.getInputRowType.getFieldNames.asScala.toList
-    val localExprs = calcProgram.getExprList.asScala.toList
-
-    if (cond != null) {
-      getExpressionString(cond, inFields, Some(localExprs))
-    } else {
-      ""
-    }
+    val mapFunc = calcMapFunction(genFunction)
+    inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString(_, _, _)))
   }
 
 }

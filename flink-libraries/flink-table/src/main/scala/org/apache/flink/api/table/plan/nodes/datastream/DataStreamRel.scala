@@ -19,13 +19,12 @@
 package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.plan.nodes.FlinkRel
 import org.apache.flink.streaming.api.datastream.DataStream
-import scala.collection.JavaConversions._
 
-trait DataStreamRel extends RelNode {
+trait DataStreamRel extends RelNode with FlinkRel {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
@@ -43,26 +42,5 @@ trait DataStreamRel extends RelNode {
       expectedType: Option[TypeInformation[Any]] = None)
     : DataStream[Any]
 
-  private[flink] def getExpressionString(
-    expr: RexNode,
-    inFields: List[String],
-    localExprsTable: Option[List[RexNode]]): String = {
-
-    expr match {
-      case i: RexInputRef => inFields.get(i.getIndex)
-      case l: RexLiteral => l.toString
-      case l: RexLocalRef if localExprsTable.isEmpty =>
-        throw new IllegalArgumentException("Encountered RexLocalRef without local expression table")
-      case l: RexLocalRef =>
-        val lExpr = localExprsTable.get(l.getIndex)
-        getExpressionString(lExpr, inFields, localExprsTable)
-      case c: RexCall => {
-        val op = c.getOperator.toString
-        val ops = c.getOperands.map(getExpressionString(_, inFields, localExprsTable))
-        s"$op(${ops.mkString(", ")})"
-      }
-      case _ => throw new IllegalArgumentException("Unknown expression type: " + expr)
-    }
-  }
 }
 

@@ -19,48 +19,13 @@
 package org.apache.flink.api.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.typeinfo.AtomicType
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.streaming.api.datastream.DataStream
 
 class DataStreamTable[T](
     val dataStream: DataStream[T],
-    val fieldIndexes: Array[Int],
-    val fieldNames: Array[String])
-  extends AbstractTable {
-
-  if (fieldIndexes.length != fieldNames.length) {
-    throw new IllegalArgumentException(
-      "Number of field indexes and field names must be equal.")
-  }
-
-  // check uniqueness of field names
-  if (fieldNames.length != fieldNames.toSet.size) {
-    throw new IllegalArgumentException(
-      "Table field names must be unique.")
-  }
-
-  val fieldTypes: Array[SqlTypeName] =
-    dataStream.getType match {
-      case cType: CompositeType[T] =>
-        if (fieldNames.length != cType.getArity) {
-          throw new IllegalArgumentException(
-          s"Arity of DataStream type (" + cType.getFieldNames.deep + ") " +
-            "not equal to number of field names " + fieldNames.deep + ".")
-        }
-        fieldIndexes
-          .map(cType.getTypeAt(_))
-          .map(TypeConverter.typeInfoToSqlType(_))
-      case aType: AtomicType[T] =>
-        if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
-          throw new IllegalArgumentException(
-            "Non-composite input type may have only a single field and its index must be 0.")
-        }
-        Array(TypeConverter.typeInfoToSqlType(aType))
-    }
+    override val fieldIndexes: Array[Int],
+    override val fieldNames: Array[String])
+  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames) {
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val builder = typeFactory.builder
