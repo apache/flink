@@ -127,6 +127,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
 		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between Integer(column 'a') and (String 'Fred')
 		Table res = in.filter("a = 'Fred'" );
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
@@ -137,6 +138,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
 		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between String(column 'c') and (Integer 10)
 		Table res = in.filter("c = 10" );
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
@@ -147,6 +149,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
 		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between String(column 'c') and (Integer 10)
 		Table res = in.filter("c > 10" );
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
