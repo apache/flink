@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.KvState;
 
 import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -54,6 +55,12 @@ public class RocksDBValueState<K, N, V>
 	protected final ValueStateDescriptor<V> stateDesc;
 
 	/**
+	 * We disable writes to the write-ahead-log here. We can't have these in the base class
+	 * because JNI segfaults for some reason if they are.
+	 */
+	protected final WriteOptions writeOptions;
+
+	/**
 	 * Creates a new {@code RocksDBValueState}.
 	 *
 	 * @param keySerializer The serializer for the keys.
@@ -73,6 +80,9 @@ public class RocksDBValueState<K, N, V>
 		super(keySerializer, namespaceSerializer, dbPath, backupPath, options);
 		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	/**
@@ -97,6 +107,9 @@ public class RocksDBValueState<K, N, V>
 		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath, options);
 		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	@Override
@@ -129,7 +142,7 @@ public class RocksDBValueState<K, N, V>
 			byte[] key = baos.toByteArray();
 			baos.reset();
 			valueSerializer.serialize(value, out);
-			db.put(key, baos.toByteArray());
+			db.put(writeOptions, key, baos.toByteArray());
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
