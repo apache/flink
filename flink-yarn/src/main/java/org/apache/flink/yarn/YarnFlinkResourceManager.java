@@ -66,7 +66,7 @@ import static java.util.Objects.requireNonNull;
  * monitoring.
  */
 public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
-	
+
 	/** The heartbeat interval while the resource master is waiting for containers */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
 
@@ -115,6 +115,10 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 	/** The number of failed containers since the master became active */
 	private int failedContainersSoFar;
+
+	/** A reference to the reflector to look up previous session containers. */
+	private RegisterApplicationMasterResponseReflector applicationMasterResponseReflector =
+		new RegisterApplicationMasterResponseReflector(LOG);
 
 
 	public YarnFlinkResourceManager(
@@ -198,7 +202,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 		// if this application master starts as part of an ApplicationMaster/JobManager recovery,
 		// then some worker containers are most likely still alive and we can re-obtain them
-		List<Container> containersFromPreviousAttempts = getContainersFromPreviousAttempts(response);
+		List<Container> containersFromPreviousAttempts =
+			applicationMasterResponseReflector.getContainersFromPreviousAttempts(response);
 
 		if (!containersFromPreviousAttempts.isEmpty()) {
 			LOG.info("Retrieved {} TaskManagers from previous attempt", containersFromPreviousAttempts.size());
@@ -302,7 +307,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	protected void releaseRegisteredWorker(RegisteredYarnWorkerNode worker) {
 		releaseYarnContainer(worker.yarnContainer());
 	}
-	
+
 	private void releaseYarnContainer(Container container) {
 		LOG.info("Releasing YARN container {}", container.getId());
 
@@ -316,7 +321,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			// notification, the container should be eventually cleaned up
 			LOG.error("Error while calling YARN Node Manager to release container", t);
 		}
-		
+
 		// tell the master that the container is no longer needed
 		resourceManagerClient.releaseAssignedContainer(container.getId());
 	}
@@ -364,35 +369,35 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	// ------------------------------------------------------------------------
 	//  Callbacks from the YARN Resource Manager 
 	// ------------------------------------------------------------------------
-	
+
 	private void containersAllocated(List<Container> containers) {
 		final int numRequired = getDesignatedWorkerPoolSize();
 		final int numRegistered = getNumberOfRegisteredTaskManagers();
-		
+
 		for (Container container : containers) {
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
 			LOG.info("Received new container: {} - Remaining pending container requests: {}",
 				container.getId(), numPendingContainerRequests);
-			
+
 			// decide whether to return the container, or whether to start a TaskManager
 			if (numRegistered + containersInLaunch.size() < numRequired) {
 				// start a TaskManager
 				final ResourceID containerIdString = new ResourceID(container.getId().toString());
 				final long now = System.currentTimeMillis();
 				containersInLaunch.put(containerIdString, new YarnContainerInLaunch(container, now));
-				
+
 				String message = "Launching TaskManager in container " + containerIdString
 					+ " on host " + container.getNodeId().getHost();
 				LOG.info(message);
 				sendInfoMessage(message);
-				
+
 				try {
 					nodeManagerClient.startContainer(container, taskManagerLaunchContext);
 				}
 				catch (Throwable t) {
 					// failed to launch the container
 					containersInLaunch.remove(containerIdString);
-					
+
 					// return container, a new one will be requested eventually
 					LOG.error("Could not start TaskManager in container " + containerIdString, t);
 					containersBeingReturned.put(container.getId(), container);
@@ -407,13 +412,13 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		}
 
 		updateProgress();
-		
+
 		// if we are waiting for no further containers, we can go to the
 		// regular heartbeat interval
 		if (numPendingContainerRequests <= 0) {
 			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 		}
-		
+
 		// make sure we re-check the status of workers / containers one more time at least,
 		// in case some containers did not come up properly
 		triggerCheckWorkers();
@@ -538,35 +543,53 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	/**
-	 * Checks if a YARN application still has registered containers. If the application master
-	 * registered at the resource manager for the first time, this list will be empty. If the
-	 * application master registered a repeated time (after a failure and recovery), this list
-	 * will contain the containers that were previously allocated.
-	 * 
-	 * @param response The response object from the registration at the ResourceManager.
-	 * @return A list with containers from previous application attempt.
+	 * Looks up the getContainersFromPreviousAttempts method on RegisterApplicationMasterResponse
+	 * once and saves the method. This saves computation time on the sequent calls.
 	 */
-	private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
-		try {
-			Method m = RegisterApplicationMasterResponse.class
-				.getMethod("getContainersFromPreviousAttempts");
+	private static class RegisterApplicationMasterResponseReflector {
 
-			@SuppressWarnings("unchecked")
-			List<Container> list = (List<Container>) m.invoke(response);
-			if (list != null && !list.isEmpty()) {
-				return list;
+		private Logger logger;
+		private Method method;
+
+		public RegisterApplicationMasterResponseReflector(Logger LOG) {
+			this.logger = LOG;
+
+			try {
+				method = RegisterApplicationMasterResponse.class
+					.getMethod("getContainersFromPreviousAttempts");
+
+			} catch (NoSuchMethodException e) {
+				// that happens in earlier Hadoop versions
+				logger.info("Cannot reconnect to previously allocated containers. " +
+					"This YARN version does not support 'getContainersFromPreviousAttempts()'");
 			}
 		}
-		catch (NoSuchMethodException e) {
-			// that happens in earlier Hadoop versions
-			LOG.info("Cannot reconnect to previously allocated containers. " +
-				"This YARN version does not support 'getContainersFromPreviousAttempts()'");
+
+		/**
+		 * Checks if a YARN application still has registered containers. If the application master
+		 * registered at the resource manager for the first time, this list will be empty. If the
+		 * application master registered a repeated time (after a failure and recovery), this list
+		 * will contain the containers that were previously allocated.
+		 *
+		 * @param response The response object from the registration at the ResourceManager.
+		 * @return A list with containers from previous application attempt.
+		 */
+		private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
+			if (method != null) {
+				try {
+					@SuppressWarnings("unchecked")
+					List<Container> list = (List<Container>) method.invoke(response);
+					if (list != null && !list.isEmpty()) {
+						return list;
+					}
+				} catch (Throwable t) {
+					logger.error("Error invoking 'getContainersFromPreviousAttempts()'", t);
+				}
+			}
+
+			return Collections.emptyList();
 		}
-		catch (Throwable t) {
-			LOG.error("Error invoking 'getContainersFromPreviousAttempts()'", t);
-		}
-		
-		return Collections.emptyList();
+
 	}
 
 	// ------------------------------------------------------------------------
