@@ -381,7 +381,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 				// 2) Request file outside of web root
 				// Create a test file in the web base dir (parent of web root)
-				File illegalFile = new File(webMonitor.getBaseDir(), "test-file-" + UUID.randomUUID());
+				File illegalFile = new File(webMonitor.getBaseDir(new Configuration()), "test-file-" + UUID.randomUUID());
 				illegalFile.deleteOnExit();
 
 				assertTrue("Failed to create test file", illegalFile.createNewFile());
@@ -467,7 +467,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 						response.getStatus());
 
 				assertFalse("Did not respond with the file, but still copied it from the JAR.",
-						new File(webMonitor.getBaseDir(), "log4j-test.properties").exists());
+						new File(webMonitor.getBaseDir(new Configuration()), "log4j-test.properties").exists());
 
 				// 3) Request non-existing file
 				client.sendGetRequest("not-existing-resource", deadline.timeLeft());
