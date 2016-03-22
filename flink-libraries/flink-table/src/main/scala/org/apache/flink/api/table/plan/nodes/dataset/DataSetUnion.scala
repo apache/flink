@@ -24,7 +24,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -62,22 +62,22 @@ class DataSetUnion(
     super.explainTerms(pw).item("union", unionSelectionToString)
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val children = this.getInputs
     val rowCnt = children.foldLeft(0D) { (rows, child) =>
-      rows + RelMetadataQuery.getRowCount(child)
+      rows + metadata.getRowCount(child)
     }
 
     planner.getCostFactory.makeCost(rowCnt, 0, 0)
   }
 
   override def translateToPlan(
-      config: TableConfig,
+      tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(config)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(config)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
   }
 

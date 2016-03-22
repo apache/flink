@@ -17,10 +17,12 @@
  */
 package org.apache.flink.api.scala.table
 
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.api.java.{DataSet => JavaSet}
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.{Row, TableConfig, Table}
 
 import scala.reflect.ClassTag
 
@@ -137,6 +139,20 @@ class BatchTableEnvironment(
     */
   def toDataSet[T: TypeInformation](table: Table): DataSet[T] = {
     wrap[T](translate(table))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
+  }
+
+  /**
+    * Creates a [[Row]] [[JavaSet]] from an [[InputFormat]].
+    *
+    * @param inputFormat [[InputFormat]] from which the [[JavaSet]] is created.
+    * @param typeInfo [[TypeInformation]] of the type of the [[JavaSet]].
+    * @return A [[Row]] [[JavaSet]] created from the [[InputFormat]].
+    */
+  override private[flink] def createDataSetSource(
+      inputFormat: InputFormat[Row, _],
+      typeInfo: TypeInformation[Row]): JavaSet[Row] = {
+
+    execEnv.createInput(inputFormat).javaSet
   }
 
 }

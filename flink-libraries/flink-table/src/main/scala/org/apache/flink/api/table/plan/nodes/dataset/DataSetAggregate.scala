@@ -31,7 +31,7 @@ import org.apache.flink.api.table.runtime.MapRunner
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
-import org.apache.flink.api.table.{Row, TableConfig}
+import org.apache.flink.api.table.{BatchTableEnvironment, Row, TableConfig}
 
 import scala.collection.JavaConverters._
 
@@ -76,18 +76,20 @@ class DataSetAggregate(
       .item("select", aggregationToString)
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val child = this.getInput
-    val rowCnt = RelMetadataQuery.getRowCount(child)
+    val rowCnt = metadata.getRowCount(child)
     val rowSize = this.estimateRowSize(child.getRowType)
     val aggCnt = this.namedAggregates.size
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
   override def translateToPlan(
-      config: TableConfig,
+      tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+
+    val config = tableEnv.getConfig
 
     val groupingKeys = grouping.indices.toArray
     // add grouping fields, position keys in the input, and input type
@@ -95,7 +97,7 @@ class DataSetAggregate(
       inputType, rowType, grouping, config)
 
     val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(
-      config,
+      tableEnv,
       // tell the input operator that this operator currently only supports Rows as input
       Some(TypeConverter.DEFAULT_ROW_TYPE))
 

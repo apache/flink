@@ -17,11 +17,12 @@
  */
 package org.apache.flink.api.java.table
 
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.expressions.ExpressionParser
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.{Row, TableConfig, Table}
 
 /**
   * The [[org.apache.flink.api.table.TableEnvironment]] for a Java batch [[DataSet]]
@@ -160,6 +161,20 @@ class BatchTableEnvironment(
     */
   def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
     translate[T](table)(typeInfo)
+  }
+
+  /**
+    * Creates a [[Row]] [[DataSet]] from an [[InputFormat]].
+    *
+    * @param inputFormat [[InputFormat]] from which the [[DataSet]] is created.
+    * @param typeInfo [[TypeInformation]] of the type of the [[DataSet]].
+    * @return A [[Row]] [[DataSet]] created from the [[InputFormat]].
+    */
+  override private[flink] def createDataSetSource(
+      inputFormat: InputFormat[Row, _],
+      typeInfo: TypeInformation[Row]): DataSet[Row] = {
+
+    execEnv.createInput(inputFormat, typeInfo)
   }
 
 }

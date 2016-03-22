@@ -31,7 +31,7 @@ class DataSetScanRule
       classOf[LogicalTableScan],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "FlinkScanRule")
+      "DataSetScanRule")
   {
 
   /**

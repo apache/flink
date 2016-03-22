@@ -18,58 +18,58 @@
 
 package org.apache.flink.api.table.plan.nodes.datastream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelNode, RelWriter, BiRel}
+import org.apache.calcite.rel.core.Values
+import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.StreamTableEnvironment
+import org.apache.flink.api.table.plan.nodes.dataset.ValuesInputFormat
+import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
 
-import scala.collection.JavaConverters._
 
 /**
-  * Flink RelNode which matches along with Union.
-  *
+  * DataStream RelNode for LogicalValues.
   */
-class DataStreamUnion(
+class DataStreamValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    left: RelNode,
-    right: RelNode,
-    rowType: RelDataType)
-  extends BiRel(cluster, traitSet, left, right)
+    rowType: RelDataType,
+    tuples: ImmutableList[ImmutableList[RexLiteral]])
+  extends Values(cluster, rowType, tuples, traitSet)
   with DataStreamRel {
 
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamUnion(
+    new DataStreamValues(
       cluster,
       traitSet,
-      inputs.get(0),
-      inputs.get(1),
-      rowType
+      rowType,
+      tuples
     )
-  }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("union", unionSelectionToString)
-  }
-
-  override def toString = {
-    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
   }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
+      expectedType: Option[TypeInformation[Any]]) : DataStream[Any] = {
 
-    val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
-    val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
-    leftDataSet.union(rightDataSet)
+    val config = tableEnv.getConfig
+
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
+
+    val inputFormat = new ValuesInputFormat(tuples)
+
+    tableEnv.createDataStreamSource(inputFormat, returnType).asInstanceOf[DataStream[Any]]
+
   }
 
-  private def unionSelectionToString: String = {
-    rowType.getFieldNames.asScala.toList.mkString(", ")
-  }
 }

@@ -580,7 +580,14 @@ class CodeGenerator(
       case VARCHAR | CHAR =>
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
       case SYMBOL =>
-        val symbolOrdinal = value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
+
+        val symbolOrdinal =
+        if (classOf[Enum[_]].isAssignableFrom(value.getClass) ) {
+          value.asInstanceOf[Enum[_]].ordinal()
+        } else {
+          value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
+        }
+
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
       case _ => ??? // TODO more types
     }
@@ -746,6 +753,8 @@ class CodeGenerator(
   }
 
   override def visitOver(over: RexOver): GeneratedExpression = ???
+
+  override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression = ???
 
   // ----------------------------------------------------------------------------------------------
   // generator helping methods

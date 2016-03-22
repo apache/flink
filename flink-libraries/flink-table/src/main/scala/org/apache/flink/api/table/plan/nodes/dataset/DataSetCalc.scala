@@ -29,7 +29,7 @@ import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.FlinkCalc
 import org.apache.flink.api.table.typeutils.TypeConverter
 import TypeConverter._
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.calcite.rex._
 
 /**
@@ -69,17 +69,17 @@ class DataSetCalc(
         calcProgram.getCondition != null)
   }
 
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val child = this.getInput
-    val rowCnt = RelMetadataQuery.getRowCount(child)
+    val rowCnt = metadata.getRowCount(child)
     val exprCnt = calcProgram.getExprCount
     planner.getCostFactory.makeCost(rowCnt, rowCnt * exprCnt, 0)
   }
 
-  override def getRows: Double = {
+  override def estimateRowCount(metadata: RelMetadataQuery): Double = {
     val child = this.getInput
-    val rowCnt = RelMetadataQuery.getRowCount(child)
+    val rowCnt = metadata.getRowCount(child)
 
     if (calcProgram.getCondition != null) {
       // we reduce the result card to push filters down
@@ -89,10 +89,13 @@ class DataSetCalc(
     }
   }
 
-  override def translateToPlan(config: TableConfig,
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config)
+    val config = tableEnv.getConfig
+
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val returnType = determineReturnType(
       getRowType,

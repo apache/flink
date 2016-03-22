@@ -21,9 +21,7 @@ package org.apache.flink.api.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSets, RuleSet}
 import org.apache.flink.api.table.plan.rules.dataSet._
-import org.apache.flink.api.table.plan.rules.datastream.DataStreamCalcRule
-import org.apache.flink.api.table.plan.rules.datastream.DataStreamScanRule
-import org.apache.flink.api.table.plan.rules.datastream.DataStreamUnionRule
+import org.apache.flink.api.table.plan.rules.datastream._
 
 object FlinkRuleSets {
 
@@ -41,7 +39,7 @@ object FlinkRuleSets {
     // push filter into the children of a join
     FilterJoinRule.JOIN,
     // push filter through an aggregation
-    FlinkFilterAggregateTransposeRule.INSTANCE,
+    FilterAggregateTransposeRule.INSTANCE,
 
     // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
@@ -100,18 +98,14 @@ object FlinkRuleSets {
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
-    DataSetUnionRule.INSTANCE
+    DataSetUnionRule.INSTANCE,
+    DataSetValuesRule.INSTANCE
   )
 
   /**
   * RuleSet to optimize plans for batch / DataSet execution
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
-
-    // translate to DataStream nodes
-    DataStreamCalcRule.INSTANCE,
-    DataStreamScanRule.INSTANCE,
-    DataStreamUnionRule.INSTANCE,
 
     // calc rules
     FilterToCalcRule.INSTANCE,
@@ -134,7 +128,13 @@ object FlinkRuleSets {
     ProjectRemoveRule.INSTANCE,
 
     // merge and push unions rules
-    UnionEliminatorRule.INSTANCE
+    UnionEliminatorRule.INSTANCE,
+
+    // translate to DataStream nodes
+    DataStreamCalcRule.INSTANCE,
+    DataStreamScanRule.INSTANCE,
+    DataStreamUnionRule.INSTANCE,
+    DataStreamValuesRule.INSTANCE
   )
 
 }

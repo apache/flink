@@ -29,7 +29,7 @@ class DataSetCalcRule
       classOf[LogicalCalc],
       Convention.NONE,
       DataSetConvention.INSTANCE,
-      "FlinkCalcRule")
+      "DataSetCalcRule")
   {
 
     def convert(rel: RelNode): RelNode = {

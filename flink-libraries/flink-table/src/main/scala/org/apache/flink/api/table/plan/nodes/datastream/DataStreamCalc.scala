@@ -23,7 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.StreamTableEnvironment
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.FlinkCalc
 import org.apache.flink.api.table.typeutils.TypeConverter._
@@ -68,10 +68,13 @@ class DataStreamCalc(
         calcProgram.getCondition != null)
   }
 
-  override def translateToPlan(config: TableConfig,
+  override def translateToPlan(
+      tableEnv: StreamTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
 
-    val inputDataStream = input.asInstanceOf[DataStreamRel].translateToPlan(config)
+    val config = tableEnv.getConfig
+
+    val inputDataStream = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val returnType = determineReturnType(
       getRowType,
