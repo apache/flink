@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -101,6 +102,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				dataStream.getTransformation(), new HashPartitioner<>(keySelector)));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
+
+		if (!environment.getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(keyType, environment.getConfig(), deduplicator);
+		}
 	}
 	
 	// ------------------------------------------------------------------------

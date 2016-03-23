@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -86,6 +87,10 @@ public class JoinedStreams<T1, T2> {
 	 */
 	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
 		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+
+		if (!input1.getExecutionEnvironment().getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(keyType, input1.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+		}
 		return new Where<>(input1.clean(keySelector), keyType);
 	}
 
@@ -112,6 +117,10 @@ public class JoinedStreams<T1, T2> {
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
 			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+
+			if (!input2.getExecutionEnvironment().getConfig().isAutoTypeRegistrationDisabled()) {
+				Serializers.recursivelyRegisterType(keyType, input2.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+			}
 			if (!otherKey.equals(this.keyType)) {
 				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
 						"first key = " + this.keyType + " , second key = " + otherKey);

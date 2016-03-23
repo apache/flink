@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -94,6 +95,7 @@ public class CoGroupedStreams<T1, T2> {
 	 */
 	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
 		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		Serializers.recursivelyRegisterType(keyType, input1.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
 		return new Where<>(input1.clean(keySelector), keyType);
 	}
 
@@ -120,6 +122,9 @@ public class CoGroupedStreams<T1, T2> {
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
 			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+			if (!input2.getExecutionEnvironment().getConfig().isAutoTypeRegistrationDisabled()) {
+				Serializers.recursivelyRegisterType(keyType, input2.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+			}
 			if (!otherKey.equals(this.keyType)) {
 				throw new IllegalArgumentException("The keys for the two inputs are not equal: " + 
 						"first key = " + this.keyType + " , second key = " + otherKey);
@@ -247,6 +252,10 @@ public class CoGroupedStreams<T1, T2> {
 		public <T> DataStream<T> apply(CoGroupFunction<T1, T2, T> function, TypeInformation<T> resultType) {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
+
+			if (!input2.getExecutionEnvironment().getConfig().isAutoTypeRegistrationDisabled()) {
+				Serializers.recursivelyRegisterType(resultType, input1.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+			}
 
 			UnionTypeInfo<T1, T2> unionType = new UnionTypeInfo<>(input1.getType(), input2.getType());
 			UnionKeySelector<T1, T2, KEY> unionKeySelector = new UnionKeySelector<>(keySelector1, keySelector2);

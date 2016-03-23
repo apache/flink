@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -37,6 +38,10 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
 			boolean isParallel, String sourceName) {
 		super(environment, new SourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+
+		if (!environment.getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(outTypeInfo, environment.getConfig(), deduplicator);
+		}
 
 		this.isParallel = isParallel;
 		if (!isParallel) {
