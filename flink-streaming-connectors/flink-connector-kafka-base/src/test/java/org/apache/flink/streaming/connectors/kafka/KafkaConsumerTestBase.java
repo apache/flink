@@ -28,6 +28,7 @@ import kafka.server.KafkaServer;
 
 import org.apache.commons.collections.map.LinkedMap;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -44,10 +45,11 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.runtime.taskmanager.RuntimeEnvironment;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -691,11 +693,15 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	public void runConsumeMultipleTopics() throws java.lang.Exception {
+	/**
+	 * Test producing and consuming into multiple topics
+	 * @throws java.lang.Exception
+	 */
+	public void runProduceConsumeMultipleTopics() throws java.lang.Exception {
 		final int NUM_TOPICS = 5;
 		final int NUM_ELEMENTS = 20;
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 
 		// create topics with content
 		final List<String> topics = new ArrayList<>();
@@ -704,13 +710,35 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			topics.add(topic);
 			// create topic
 			createTestTopic(topic, i + 1 /*partitions*/, 1);
-
-			// write something
-			writeSequence(env, topic, NUM_ELEMENTS, i + 1);
 		}
+		// run first job, producing into all topics
+		DataStream<Tuple3<Integer, Integer, String>> stream = env.addSource(new RichParallelSourceFunction<Tuple3<Integer, Integer, String>>() {
 
-		KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> readSchema = new Tuple2WithTopicDeserializationSchema(env.getConfig());
-		DataStreamSource<Tuple3<Integer, Integer, String>> stream = env.addSource(kafkaServer.getConsumer(topics, readSchema, standardProps));
+			@Override
+			public void run(SourceContext<Tuple3<Integer, Integer, String>> ctx) throws Exception {
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
+
+				for (int topicId = 0; topicId < NUM_TOPICS; topicId++) {
+					for (int i = 0; i < NUM_ELEMENTS; i++) {
+						ctx.collect(new Tuple3<>(partition, i, "topic-" + topicId));
+					}
+				}
+			}
+
+			@Override
+			public void cancel() {
+			}
+		});
+
+		Tuple2WithTopicSchema schema = new Tuple2WithTopicSchema(env.getConfig());
+
+		stream.addSink(kafkaServer.getProducer("dummy", schema, standardProps, null));
+
+		env.execute("Write to topics");
+
+		// run second job consuming from multiple topics
+		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		stream = env.addSource(kafkaServer.getConsumer(topics, schema, standardProps));
 
 		stream.flatMap(new FlatMapFunction<Tuple3<Integer, Integer, String>, Integer>() {
 			Map<String, Integer> countPerTopic = new HashMap<>(NUM_TOPICS);
@@ -749,11 +777,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static class Tuple2WithTopicDeserializationSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> {
+	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
+			KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
 		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
 		
-		public Tuple2WithTopicDeserializationSchema(ExecutionConfig ec) {
+		public Tuple2WithTopicSchema(ExecutionConfig ec) {
 			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
 		}
 
@@ -772,6 +801,28 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		@Override
 		public TypeInformation<Tuple3<Integer, Integer, String>> getProducedType() {
 			return TypeInfoParser.parse("Tuple3<Integer, Integer, String>");
+		}
+
+		@Override
+		public byte[] serializeKey(Tuple3<Integer, Integer, String> element) {
+			return null;
+		}
+
+		@Override
+		public byte[] serializeValue(Tuple3<Integer, Integer, String> element) {
+			ByteArrayOutputStream by = new ByteArrayOutputStream();
+			DataOutputView out = new DataOutputViewStreamWrapper(by);
+			try {
+				ts.serialize(new Tuple2<>(element.f0, element.f1), out);
+			} catch (IOException e) {
+				throw new RuntimeException("Error" ,e);
+			}
+			return by.toByteArray();
+		}
+
+		@Override
+		public String getTargetTopic(Tuple3<Integer, Integer, String> element) {
+			return element.f2;
 		}
 	}
 

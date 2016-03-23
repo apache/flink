@@ -142,6 +142,7 @@ stream = env
 The `FlinkKafkaConsumer08` needs to know how to turn the data in Kafka into Java objects. The 
 `DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
 method gets called for each Kafka message, passing the value from Kafka.
+
 For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
 the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
 
@@ -203,6 +204,13 @@ stream.addSink(new FlinkKafkaProducer08[String]("localhost:9092", "my-topic", ne
 You can also define a custom Kafka producer configuration for the KafkaSink with the constructor. Please refer to
 the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for details on how to configure
 Kafka Producers.
+
+Similar to the consumer, the producer also allows using an advanced serialization schema which allows
+serializing the key and value separately. It also allows to override the target topic id, so that
+one producer instance can send data to multiple topics.
+
+The interface of the serialization schema is called `KeyedSerializationSchema`.
+
 
 **Note**: By default, the number of retries is set to "0". This means that the producer fails immediately on errors,
 including leader changes. The value is set to "0" by default to avoid duplicate messages in the target topic.
