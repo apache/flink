@@ -991,16 +991,14 @@ class JobManager(
           // inform rm
           rm ! decorateMessage(msg)
 
-          respondTo ! decorateMessage(StopClusterSuccessful.getInstance())
+          sender() ! decorateMessage(StopClusterSuccessful.getInstance())
 
           // trigger shutdown
           shutdown()
 
         case None =>
-          // retry
-          context.system.scheduler.scheduleOnce(
-            2 seconds, self, decorateMessage(msg)
-          )(context.dispatcher)
+          // ResourceManager not available
+          // we choose not to wait here beacuse it might block the shutdown forever
       }
 
     case RequestLeaderSessionID =>
