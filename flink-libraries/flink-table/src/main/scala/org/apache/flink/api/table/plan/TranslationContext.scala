@@ -20,19 +20,20 @@ package org.apache.flink.api.table.plan
 
 import java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.config.Lex
-import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
+import org.apache.calcite.tools.{Programs, FrameworkConfig, Frameworks, RelBuilder}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.plan.schema.DataStreamTable
+import org.apache.flink.api.table.plan.rules.FlinkRuleSets
+import org.apache.flink.api.table.plan.schema.DataSetTable
 
 object TranslationContext {
 
@@ -41,6 +42,7 @@ object TranslationContext {
   private var tables: SchemaPlus = null
   private var tablesRegistry: Map[String, AbstractTable] = null
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
+  private var relOptPlanner: RelOptPlanner = null
 
   reset()
 
@@ -53,7 +55,10 @@ object TranslationContext {
     // configure sql parser
     // we use Java lex because back ticks are easier than double quotes in programming
     // and cases are preserved
-    val parserConfig = SqlParser.configBuilder().setLex(Lex.JAVA).build()
+    val parserConfig = SqlParser
+      .configBuilder()
+      .setLex(Lex.JAVA)
+      .build()
 
     // initialize RelBuilder
     frameworkConfig = Frameworks
@@ -61,13 +66,14 @@ object TranslationContext {
       .defaultSchema(tables)
       .parserConfig(parserConfig)
       .costFactory(new DataSetCostFactory)
-      .traitDefs(ConventionTraitDef.INSTANCE)
       .build
 
     tablesRegistry = Map[String, AbstractTable]()
     relBuilder = RelBuilder.create(frameworkConfig)
+    // create a dummy RelNode, in order to retrieve the planner
+    val dummyRelNode = relBuilder.values(Array("dummy"), new Integer(1)).build()
+    relOptPlanner = dummyRelNode.getCluster.getPlanner
     nameCntr.set(0)
-
   }
 
   /**
@@ -131,6 +137,10 @@ object TranslationContext {
 
   def getRelBuilder: RelBuilder = {
     relBuilder
+  }
+
+  def getPlanner: RelOptPlanner = {
+    relOptPlanner
   }
 
   def getFrameworkConfig: FrameworkConfig = {
@@ -207,5 +217,3 @@ object TranslationContext {
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 }
-
-

@@ -19,14 +19,14 @@
 package org.apache.flink.api.java.table
 
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
-import org.apache.calcite.plan.{RelTraitSet, RelOptUtil}
-import org.apache.calcite.rel.{RelCollations, RelNode}
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.{FlinkPlannerImpl, TableConfig, Table}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
@@ -56,7 +56,8 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
 
     // create table scan operator
     relBuilder.scan(tabName)
-    new Table(relBuilder.build(), relBuilder)
+    val relNode = relBuilder.build()
+    new Table(relNode, relBuilder)
   }
 
   override def translate[A](lPlan: RelNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
@@ -69,9 +70,7 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
 
     // optimize the logical Flink plan
     val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
-    val flinkOutputProps = RelTraitSet.createEmpty()
-      .plus(DataSetConvention.INSTANCE)
-      .plus(RelCollations.of()).simplify()
+    val flinkOutputProps = lPlan.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
 
     val dataSetPlan = try {
       optProgram.run(planner, decorPlan, flinkOutputProps)
@@ -95,6 +94,23 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
       case _ => ???
     }
 
+  }
+
+  /**
+   * Parse, validate, and translate a SQL query into a relNode Table
+   */
+  def translateSQL(query: String): Table = {
+
+    val frameworkConfig = TranslationContext.getFrameworkConfig
+    val planner = new FlinkPlannerImpl(frameworkConfig, TranslationContext.getPlanner)
+    // parse the sql query
+    val parsed = planner.parse(query)
+    // validate the sql query
+    val validated = planner.validate(parsed)
+    // transform to a relational tree
+    val relational = planner.rel(validated)
+
+    new Table(relational.rel, TranslationContext.getRelBuilder)
   }
 
 }
