@@ -12,15 +12,17 @@
  */
 package org.apache.flink.python.api;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_2;
 import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_3;
-import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class PythonPlanBinderTest extends JavaProgramTestBase {
 	@Override

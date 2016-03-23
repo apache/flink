@@ -34,7 +34,7 @@ class DataSetUtilsITCase (
   @Test
   @throws(classOf[Exception])
   def testZipWithIndex(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val expectedSize = 100L
 
@@ -52,7 +52,7 @@ class DataSetUtilsITCase (
   @Test
   @throws(classOf[Exception])
   def testZipWithUniqueId(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val expectedSize = 100L
 
@@ -72,5 +72,20 @@ class DataSetUtilsITCase (
     val checksum: ChecksumHashCode = ds.checksumHashCode()
     Assert.assertEquals(checksum.getCount, 15)
     Assert.assertEquals(checksum.getChecksum, 55)
+  }
+
+  @Test
+  @throws(classOf[Exception])
+  def testCountElementsPerPartition(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val expectedSize = 100L
+
+    val numbers = env.generateSequence(0, expectedSize - 1)
+
+    val ds = numbers.countElementsPerPartition
+
+    Assert.assertEquals(env.getParallelism, ds.collect().size)
+    Assert.assertEquals(expectedSize, ds.sum(1).collect().head._2)
   }
 }
