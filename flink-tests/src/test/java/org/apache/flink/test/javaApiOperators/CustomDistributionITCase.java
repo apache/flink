@@ -51,7 +51,7 @@ public class CustomDistributionITCase {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
-		final TestDataDist dist = new TestDataDist(1);
+		final TestDataDist1 dist = new TestDataDist1();
 
 		env.setParallelism(dist.getParallelism());
 
@@ -80,8 +80,18 @@ public class CustomDistributionITCase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
-		final TestDataDist dist = new TestDataDist(2);
+		DataSet<Tuple3<Integer, Long, String>> input1 = env.fromElements(
+						new Tuple3<>(1, 5L, "Hi"),
+						new Tuple3<>(1, 11L, "Hello"),
+						new Tuple3<>(2, 3L, "World"),
+						new Tuple3<>(2, 13L, "Hello World"),
+						new Tuple3<>(3, 8L, "Say"),
+						new Tuple3<>(4, 0L, "Why"),
+						new Tuple3<>(4, 2L, "Java"),
+						new Tuple3<>(4, 11L, "Say Hello"),
+						new Tuple3<>(5, 2L, "Hi Java"));
+
+		final TestDataDist2 dist = new TestDataDist2();
 
 		env.setParallelism(dist.getParallelism());
 
@@ -94,11 +104,28 @@ public class CustomDistributionITCase {
 			@Override
 			public void mapPartition(Iterable<Tuple3<Integer, Integer, String>> values, Collector<Boolean> out) throws Exception {
 				int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
-
+				boolean checkPartiton = true;
+				
 				for (Tuple3<Integer, Integer, String> s : values) {
-					if (s.f0 <= partitionIndex * (partitionIndex + 1) / 2 ||
-							s.f0 > (partitionIndex + 1) * (partitionIndex + 2) / 2 ||
-							s.f1 - 1 != partitionIndex) {
+					
+					if (partitionIndex == 0) {
+						if (s.f0 > partitionIndex + 1 || (s.f0 == partitionIndex + 1 && s.f1 > dist.rightBoundary[partitionIndex])) {
+							checkPartiton = false;
+						}
+					}
+					else if (partitionIndex > 0 || partitionIndex < dist.getParallelism() - 1) {
+						if (s.f0 > partitionIndex + 1 || (s.f0 == partitionIndex + 1 && s.f1 > dist.rightBoundary[partitionIndex]) ||
+								s.f0 < partitionIndex || (s.f0 == partitionIndex && s.f1 < dist.rightBoundary[partitionIndex - 1])) {
+							checkPartiton = false;
+						}
+					}
+					else {
+						if (s.f0 < partitionIndex || (s.f0 == partitionIndex && s.f1 < dist.rightBoundary[partitionIndex - 1])) {
+							checkPartiton = false;
+						}
+					}
+
+					if (!checkPartiton) {
 						fail("Record was not correctly partitioned: " + s.toString());
 					}
 				}
@@ -110,75 +137,100 @@ public class CustomDistributionITCase {
 	}
 
 	/**
-	 * The class is used to do the tests of range partition with customed data distribution.
+	 * The class is used to do the tests of range partition with one key.
 	 */
-	public static class TestDataDist implements DataDistribution {
-
-		private int dim;
-
-		public TestDataDist() {}
+	public static class TestDataDist1 implements DataDistribution {
 
 		/**
 		 * Constructor of the customized distribution for range partition.
-		 * @param dim the number of the fields.
 		 */
-		public TestDataDist(int dim) {
-			this.dim = dim;
-		}
+		public TestDataDist1() {}
 
 		public int getParallelism() {
-			if (dim == 1) {
-				return 3;
-			}
-			return 6;
+			return 3;
 		}
 
 		@Override
 		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-			if (dim == 1) {
-				/*
-				for the first test, the boundary is just like : 
-				(0, 7]
-				(7, 14]
-				(14, 21]
-				 */
 
-				return new Integer[]{(bucketNum + 1) * 7};
-			}
 			/*
-			for the second test, the boundary is just like : 
-			(0, 1], (0, 1]
-			(1, 3], (1, 2]
-			(3, 6], (2, 3]
-			(6, 10], (3, 4]
-			(10, 15], (4, 5]
-			(15, 21], (5, 6]
+			for the first test, the boundary is just like : 
+			(0, 7]
+			(7, 14]
+			(14, 21]
 			 */
-
-			return new Integer[]{(bucketNum + 1) * (bucketNum + 2) / 2, bucketNum + 1};
+			return new Integer[]{(bucketNum + 1) * 7};
 		}
 
 		@Override
 		public int getNumberOfFields() {
-			return this.dim;
+			return 1;
 		}
 
 		@Override
 		public TypeInformation[] getKeyTypes() {
-			if (dim == 1) {
-				return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
-			}
+			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+			
+		}
+	}
+
+	/**
+	 * The class is used to do the tests of range partition with two keys.
+	 */
+	public static class TestDataDist2 implements DataDistribution {
+
+		public int rightBoundary[] = new int[]{6, 4, 9, 1, 2};
+
+		/**
+		 * Constructor of the customized distribution for range partition.
+		 */
+		public TestDataDist2() {}
+
+		public int getParallelism() {
+			return 5;
+		}
+		
+		@Override
+		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+
+			/*
+			for the second test, the boundary is just like : 
+			((0, 0), (1, 6)]
+			((1, 6), (2, 4)]
+			((2, 4), (3, 9)]
+			((3, 9), (4, 1)]
+			((4, 1), (5, 2)]
+			 */
+			return new Integer[]{bucketNum + 1, rightBoundary[bucketNum]};
+		}
+
+		@Override
+		public int getNumberOfFields() {
+			return 2;
+		}
+
+		@Override
+		public TypeInformation[] getKeyTypes() {
 			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
-			out.writeInt(this.dim);
+			
 		}
 
 		@Override
 		public void read(DataInputView in) throws IOException {
-			this.dim = in.readInt();
+			
 		}
 	}
 }
