@@ -102,7 +102,7 @@ class YarnJobManager(
   def handleYarnMessage: Receive = {
 
     case msg @ (_: RegisterInfoMessageListener | _: UnRegisterInfoMessageListener) =>
-      // forward to resource manager
+      // forward to ResourceManager
       currentResourceManager match {
         case Some(rm) =>
           // we forward the message

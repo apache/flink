@@ -289,7 +289,7 @@ public class YarnApplicationMasterRunner {
 			final String webMonitorURL = webMonitor == null ? null :
 				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();
 
-			// 3: Flink's Yarn resource manager
+			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");
 
 			// we need the leader retrieval service here to be informed of new
@@ -464,7 +464,7 @@ public class YarnApplicationMasterRunner {
 	 * container launch context. The launch context then ensures that those resources will be
 	 * copied into the containers transient working directory. 
 	 * 
-	 * <p>We do this work before we start the resource manager actor in order to fail early if
+	 * <p>We do this work before we start the ResourceManager actor in order to fail early if
 	 * any of the operations here fail.
 	 * 
 	 * @param flinkConfig

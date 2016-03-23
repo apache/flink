@@ -41,13 +41,13 @@ object YarnMessages {
   case class StartYarnSession(config: Configuration, webServerPort: Int)
 
   /**
-    * Callback from the async resource manager client when containers were allocated.
+    * Callback from the async ResourceManager client when containers were allocated.
     * @param containers List of containers which were allocated.
     */
   case class YarnContainersAllocated(containers: JavaList[Container])
 
   /**
-    * Callback from the async resource manager client when containers were completed.
+    * Callback from the async ResourceManager client when containers were completed.
     * @param statuses List of the completed containers' status.
     */
   case class YarnContainersCompleted(statuses: JavaList[ContainerStatus])

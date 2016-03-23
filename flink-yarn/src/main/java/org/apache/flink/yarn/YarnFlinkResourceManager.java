@@ -95,7 +95,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** Web interface URL, may be null */
 	private final String webInterfaceURL;
 
-	/** Default heartbeat interval between this actor and the YARN resource manager */
+	/** Default heartbeat interval between this actor and the YARN ResourceManager */
 	private final int yarnHeartbeatIntervalMillis;
 
 	/** Number of failed TaskManager containers before stopping the application. -1 means infinite. */ 
@@ -176,7 +176,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	protected void initialize() throws Exception {
 		LOG.info("Initializing YARN resource master");
 
-		// create the client to communicate with the resource manager
+		// create the client to communicate with the ResourceManager
 		ActorGateway selfGateway = new AkkaActorGateway(self(), getLeaderSessionID());
 		resourceManagerCallbackHandler = new YarnResourceManagerCallbackHandler(selfGateway);
 
@@ -317,7 +317,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		try {
 			nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
 		} catch (Throwable t) {
-			// we only log this error. since the resource manager also gets the release
+			// we only log this error. since the ResourceManager also gets the release
 			// notification, the container should be eventually cleaned up
 			LOG.error("Error while calling YARN Node Manager to release container", t);
 		}
@@ -425,8 +425,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	}
 
 	/**
-	 * Invoked when the resource manager informs of completed containers.
-	 * Called via an actor message by the callback from the resource manager client.
+	 * Invoked when the ResourceManager informs of completed containers.
+	 * Called via an actor message by the callback from the ResourceManager client.
 	 * 
 	 * @param containers The containers that have completed.
 	 */
@@ -567,7 +567,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 		/**
 		 * Checks if a YARN application still has registered containers. If the application master
-		 * registered at the resource manager for the first time, this list will be empty. If the
+		 * registered at the ResourceManager for the first time, this list will be empty. If the
 		 * application master registered a repeated time (after a failure and recovery), this list
 		 * will contain the containers that were previously allocated.
 		 *
