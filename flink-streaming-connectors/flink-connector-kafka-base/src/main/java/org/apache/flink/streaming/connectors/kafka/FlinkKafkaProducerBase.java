@@ -66,7 +66,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/**
-	 * Array with the partition ids of the given topicId
+	 * Array with the partition ids of the given defaultTopicId
 	 * The size of this array is the number of partitions
 	 */
 	protected final int[] partitions;
@@ -77,9 +77,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	protected final Properties producerConfig;
 
 	/**
-	 * The name of the topic this producer is writing data to
+	 * The name of the default topic this producer is writing data to
 	 */
-	protected final String topicId;
+	protected final String defaultTopicId;
 
 	/**
 	 * (Serializable) SerializationSchema for turning objects used with Flink into
@@ -117,19 +117,19 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	/**
 	 * The main constructor for creating a FlinkKafkaProducer.
 	 *
-	 * @param topicId The topic to write data to
+	 * @param defaultTopicId The default topic to write data to
 	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
 	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner
 	 */
-	public FlinkKafkaProducerBase(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
-		requireNonNull(topicId, "TopicID not set");
+	public FlinkKafkaProducerBase(String defaultTopicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner<IN> customPartitioner) {
+		requireNonNull(defaultTopicId, "TopicID not set");
 		requireNonNull(serializationSchema, "serializationSchema not set");
 		requireNonNull(producerConfig, "producerConfig not set");
 		ClosureCleaner.ensureSerializable(customPartitioner);
 		ClosureCleaner.ensureSerializable(serializationSchema);
 
-		this.topicId = topicId;
+		this.defaultTopicId = defaultTopicId;
 		this.schema = serializationSchema;
 		this.producerConfig = producerConfig;
 
@@ -151,7 +151,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		// create a local KafkaProducer to get the list of partitions.
 		// this will also ensure locally that all required ProducerConfig values are set.
 		try (KafkaProducer<Void, IN> getPartitionsProd = new KafkaProducer<>(this.producerConfig)) {
-			List<PartitionInfo> partitionsList = getPartitionsProd.partitionsFor(topicId);
+			List<PartitionInfo> partitionsList = getPartitionsProd.partitionsFor(defaultTopicId);
 
 			this.partitions = new int[partitionsList.size()];
 			for (int i = 0; i < partitions.length; i++) {
@@ -193,7 +193,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		}
 
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
-				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), topicId);
+				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
 		if(!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
@@ -250,11 +250,16 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 
 		byte[] serializedKey = schema.serializeKey(next);
 		byte[] serializedValue = schema.serializeValue(next);
+		String targetTopic = schema.getTargetTopic(next);
+		if(targetTopic == null) {
+			targetTopic = defaultTopicId;
+		}
+
 		ProducerRecord<byte[], byte[]> record;
 		if(partitioner == null) {
-			record = new ProducerRecord<>(topicId, serializedKey, serializedValue);
+			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
 		} else {
-			record = new ProducerRecord<>(topicId, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
+			record = new ProducerRecord<>(targetTopic, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
 		}
 
 		producer.send(record, callback);

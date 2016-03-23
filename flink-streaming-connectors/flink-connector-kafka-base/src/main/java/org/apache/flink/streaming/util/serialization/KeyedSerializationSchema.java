@@ -45,4 +45,11 @@ public interface KeyedSerializationSchema<T> extends Serializable {
 	 */
 	byte[] serializeValue(T element);
 
+	/**
+	 * Optional method to determine the target topic for the element
+	 *
+	 * @param element Incoming element to determine the target topic from
+	 * @return null or the target topic
+	 */
+	String getTargetTopic(T element);
 }

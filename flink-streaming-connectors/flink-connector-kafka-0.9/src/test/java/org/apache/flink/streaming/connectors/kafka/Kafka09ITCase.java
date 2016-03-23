@@ -98,7 +98,7 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 	@Test(timeout = 60000)
 	public void testMultipleTopics() throws Exception {
-		runConsumeMultipleTopics();
+		runProduceConsumeMultipleTopics();
 	}
 
 	@Test(timeout = 60000)
