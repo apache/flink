@@ -150,7 +150,10 @@ Project setup
 
 Apart from setting up Flink, no additional work is required. The python package can be found in the /resource folder of your Flink distribution. The flink package, along with the plan and optional packages are automatically distributed among the cluster via HDFS when running a job.
 
-The Python API was tested on Linux systems that have Python 2.7 or 3.4 installed.
+The Python API was tested on Linux/Windows systems that have Python 2.7 or 3.4 installed.
+
+By default Flink will start python processes by calling "python" or "python3", depending on which start-script
+was used. By setting the "python.binary.python[2/3]" key in the flink-conf.yaml you can modify this behaviour to use a binary of your choice.
 
 {% top %}
 
@@ -216,7 +219,7 @@ data.flat_map(
       <td>
         <p>Transforms a parallel partition in a single function call. The function get the partition
         as an `Iterator` and can produce an arbitrary number of result values. The number of
-        elements in each partition depends on the degree-of-parallelism and previous operations.</p>
+        elements in each partition depends on the parallelism and previous operations.</p>
 {% highlight python %}
 data.map_partition(lambda x,c: [value * 2 for value in x])
 {% endhighlight %}
@@ -566,13 +569,13 @@ it executes. Execution environment parallelism can be overwritten by explicitly 
 parallelism of an operator.
 
 The default parallelism of an execution environment can be specified by calling the
-`set_degree_of_parallelism()` method. To execute all operators, data sources, and data sinks of the
+`set_parallelism()` method. To execute all operators, data sources, and data sinks of the
 [WordCount](#example-program) example program with a parallelism of `3`, set the default parallelism of the
 execution environment as follows:
 
 {% highlight python %}
 env = get_environment()
-env.set_degree_of_parallelism(3)
+env.set_parallelism(3)
 
 text.flat_map(lambda x,c: x.lower().split()) \
     .group_by(1) \

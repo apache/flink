@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.table.test;
 
+
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.codegen.CodeGenException;
@@ -26,7 +29,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -176,5 +178,38 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		List<Row> results = resultSet.collect();
 		String expected = "ABCD42\nABCD42";
 		compareResultAsText(results, expected);
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForStringComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between Integer(column 'a') and (String 'Fred')
+		Table res = in.filter("a = 'Fred'" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForIntegerEqualsComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between String(column 'c') and (Integer 10)
+		Table res = in.filter("c = 10" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
+	}
+
+	@Test(expected = CodeGenException.class)
+	public void testGeneratedCodeForIntegerGreaterComparison() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> tupleDataSet = CollectionDataSets.get3TupleDataSet(env);
+		Table in = tableEnv.fromDataSet(tupleDataSet, "a, b, c");
+		// Must fail because the comparison here is between String(column 'c') and (Integer 10)
+		Table res = in.filter("c > 10" );
+		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 }

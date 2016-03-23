@@ -58,14 +58,14 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 			long start = currentTime - (currentTime % interval);
 			fireState.update(start + interval);
 
-			ctx.registerProcessingTimeTimer(nextFireTimestamp);
+			ctx.registerProcessingTimeTimer((start + interval));
 			return TriggerResult.CONTINUE;
 		}
 		if (currentTime > nextFireTimestamp) {
 			long start = currentTime - (currentTime % interval);
 			fireState.update(start + interval);
 
-			ctx.registerProcessingTimeTimer(nextFireTimestamp);
+			ctx.registerProcessingTimeTimer((start + interval));
 
 			return TriggerResult.FIRE;
 		}

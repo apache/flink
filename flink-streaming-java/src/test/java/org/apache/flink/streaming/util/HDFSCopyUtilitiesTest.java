@@ -62,7 +62,7 @@ public class HDFSCopyUtilitiesTest {
 
 		HDFSCopyFromLocal.copyFromLocal(
 				originalFile,
-				new Path(copyFile.getAbsolutePath()).toUri());
+				new Path("file://" + copyFile.getAbsolutePath()).toUri());
 
 		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {
 			assertTrue(in.readUTF().equals("Hello there, 42!"));
@@ -87,7 +87,7 @@ public class HDFSCopyUtilitiesTest {
 		}
 
 		HDFSCopyToLocal.copyToLocal(
-				new Path(originalFile.getAbsolutePath()).toUri(),
+				new Path("file://" + originalFile.getAbsolutePath()).toUri(),
 				copyFile);
 
 		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {

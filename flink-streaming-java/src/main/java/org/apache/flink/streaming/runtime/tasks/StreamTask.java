@@ -671,8 +671,16 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				delay,
 				TimeUnit.MILLISECONDS);
 	}
-	
-	public void checkTimerException() throws TimerException {
+
+	/**
+	 * Check whether an exception was thrown in a Thread other than the main Thread. (For example
+	 * in the processing-time trigger Thread). This will rethrow that exception in case on
+	 * occured.
+	 *
+	 * <p>This must be called in the main loop of {@code StreamTask} subclasses to ensure
+	 * that we propagate failures.
+	 */
+	public void checkTimerException() throws AsynchronousException {
 		if (asyncException != null) {
 			throw asyncException;
 		}

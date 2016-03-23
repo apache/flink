@@ -72,7 +72,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	private EdgeDirection direction;
 
 	/**
-	 * Retrieves the edge direction in which messages are propagated in the vertex-centric iteration.
+	 * Retrieves the edge direction in which messages are propagated in the scatter-gather iteration.
 	 * @return the messaging {@link EdgeDirection}
 	 */
 	public EdgeDirection getDirection() {
@@ -98,14 +98,14 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	public abstract void sendMessages(Vertex<K, VV> vertex) throws Exception;
 	
 	/**
-	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
+	 * This method is executed once per superstep before the vertex update function is invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() throws Exception {}
 	
 	/**
-	 * This method is executed one per superstep after the vertex update function has been invoked for each vertex.
+	 * This method is executed once per superstep after the vertex update function has been invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
@@ -125,7 +125,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	@SuppressWarnings("unchecked")
 	public Iterable<Edge<K, EV>> getEdges() {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllTargets()' exactly once.");
+			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllNeighbors()' exactly once.");
 		}
 		edgesUsed = true;
 		this.edgeIterator.set((Iterator<Edge<K, EV>>) edges);
