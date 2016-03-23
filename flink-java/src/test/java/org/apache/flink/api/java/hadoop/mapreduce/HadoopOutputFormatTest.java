@@ -21,14 +21,25 @@ package org.apache.flink.api.java.hadoop.mapreduce;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.hadoop.mapreduce.RecordWriter;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 public class HadoopOutputFormatTest {
@@ -36,8 +47,8 @@ public class HadoopOutputFormatTest {
 	private static final String MAPRED_OUTPUT_PATH = "an/ignored/file/";
 	private static final String MAPRED_OUTPUT_DIR_KEY = "mapred.output.dir";
 
-    @Test
-    public void testWriteRecord() throws Exception {
+	@Test
+	public void testWriteRecord() throws Exception {
 
 		RecordWriter<String, Long> recordWriter = mock(DummyRecordWriter.class);
 		HadoopOutputFormat<String, Long> hadoopOutputFormat = setupHadoopOutputFormat(new DummyOutputFormat(),
@@ -46,10 +57,10 @@ public class HadoopOutputFormatTest {
 		hadoopOutputFormat.writeRecord(new Tuple2<String, Long>());
 
 		verify(recordWriter, times(1)).write(anyString(), anyLong());
-    }
+	}
 
-    @Test
-    public void testOpen() throws Exception {
+	@Test
+	public void testOpen() throws Exception {
 
 
 		OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
@@ -63,10 +74,10 @@ public class HadoopOutputFormatTest {
 
 		verify(hadoopOutputFormat.outputCommitter, times(1)).setupJob(any(JobContext.class));
 		verify(hadoopOutputFormat.mapreduceOutputFormat, times(1)).getRecordWriter(any(TaskAttemptContext.class));
-    }
+	}
 
-    @Test
-    public void testCloseWithNeedsTaskCommitTrue() throws Exception {
+	@Test
+	public void testCloseWithNeedsTaskCommitTrue() throws Exception {
 
 		RecordWriter<String, Long> recordWriter = Mockito.mock(DummyRecordWriter.class);
 		OutputCommitter outputCommitter = setupOutputCommitter(true);
@@ -78,7 +89,7 @@ public class HadoopOutputFormatTest {
 
 		verify(outputCommitter, times(1)).commitTask(any(TaskAttemptContext.class));
 		verify(recordWriter, times(1)).close(any(TaskAttemptContext.class));
-    }
+	}
 
 	@Test
 	public void testCloseWithNeedsTaskCommitFalse() throws Exception {
@@ -128,10 +139,10 @@ public class HadoopOutputFormatTest {
 	}
 
 	private HadoopOutputFormat<String, Long> setupHadoopOutputFormat(OutputFormat<String, Long> outputFormat,
-																     Job job,
-																     RecordWriter<String, Long> recordWriter,
-																     OutputCommitter outputCommitter,
-																     Configuration configuration) {
+																	 Job job,
+																	 RecordWriter<String, Long> recordWriter,
+																	 OutputCommitter outputCommitter,
+																	 Configuration configuration) {
 
 		HadoopOutputFormat<String, Long> hadoopOutputFormat = new HadoopOutputFormat<>(outputFormat, job);
 		hadoopOutputFormat.recordWriter = recordWriter;
@@ -142,36 +153,36 @@ public class HadoopOutputFormatTest {
 		return hadoopOutputFormat;
 	}
 
-    class DummyRecordWriter extends RecordWriter<String, Long> {
-        @Override
-        public void write(String key, Long value) throws IOException, InterruptedException {
-        }
+	class DummyRecordWriter extends RecordWriter<String, Long> {
+		@Override
+		public void write(String key, Long value) throws IOException, InterruptedException {
+		}
 
-        @Override
-        public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+		@Override
+		public void close(TaskAttemptContext context) throws IOException, InterruptedException {
 
-        }
-    }
+		}
+	}
 
-    class DummyOutputFormat extends OutputFormat<String, Long> {
-        @Override
-        public RecordWriter<String, Long> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
-            return null;
-        }
+	class DummyOutputFormat extends OutputFormat<String, Long> {
+		@Override
+		public RecordWriter<String, Long> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
+			return null;
+		}
 
-        @Override
-        public void checkOutputSpecs(JobContext context) throws IOException, InterruptedException {
+		@Override
+		public void checkOutputSpecs(JobContext context) throws IOException, InterruptedException {
 
-        }
+		}
 
-        @Override
-        public OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException, InterruptedException {
-            final OutputCommitter outputCommitter = Mockito.mock(OutputCommitter.class);
-            doNothing().when(outputCommitter).setupJob(any(JobContext.class));
+		@Override
+		public OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException, InterruptedException {
+			final OutputCommitter outputCommitter = Mockito.mock(OutputCommitter.class);
+			doNothing().when(outputCommitter).setupJob(any(JobContext.class));
 
-            return outputCommitter;
-        }
-    }
+			return outputCommitter;
+		}
+	}
 
 	class ConfigurableDummyOutputFormat extends DummyOutputFormat implements Configurable {
 
