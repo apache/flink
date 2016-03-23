@@ -22,7 +22,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import TableProgramsTestBase.TableConfigMode

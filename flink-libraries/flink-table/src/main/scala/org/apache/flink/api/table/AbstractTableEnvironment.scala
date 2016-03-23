@@ -19,6 +19,7 @@
 package org.apache.flink.api.table
 
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.table.JavaBatchTranslator
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.TranslationContext
 import org.apache.flink.api.table.plan.schema.{DataSetTable, TableTable}
@@ -82,5 +83,18 @@ class AbstractTableEnvironment {
       fieldNames.toArray
     )
     TranslationContext.registerTable(dataSetTable, name)
+  }
+
+  /**
+   * Execute a SQL query on a batch [[Table]].
+   * The [[Table]] has to be registered in the tables registry
+   * with a unique name, using [[registerTable()]] or
+   * [[org.apache.flink.api.java.table.TableEnvironment.registerDataSet()]]
+   *
+   * @param query the SQL query
+   * @return the result of the SQL query as a [[Table]]
+   */
+  def sql(query: String): Table = {
+    new JavaBatchTranslator(config).translateSQL(query)
   }
 }

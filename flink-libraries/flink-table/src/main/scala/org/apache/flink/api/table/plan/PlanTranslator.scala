@@ -73,8 +73,6 @@ abstract class PlanTranslator {
     */
   def createTable[A](repr: Representation[A], exprs: Array[Expression]): Table = {
 
-    val inputType = repr.getType()
-
     val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo(repr.getType(), exprs)
     createTable(repr, fieldIndexes.toArray, fieldNames.toArray)
   }
