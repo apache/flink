@@ -42,7 +42,7 @@ public abstract class Keys<T> {
 
 	public abstract int[] computeLogicalKeyPositions();
 
-	protected abstract TypeInformation<?>[] getKeyFieldTypes();
+	public abstract TypeInformation<?>[] getKeyFieldTypes();
 
 	public abstract <E> void validateCustomPartitioner(Partitioner<E> partitioner, TypeInformation<E> typeInfo);
 
@@ -134,7 +134,7 @@ public abstract class Keys<T> {
 		}
 
 		@Override
-		protected TypeInformation<?>[] getKeyFieldTypes() {
+		public TypeInformation<?>[] getKeyFieldTypes() {
 			TypeInformation<?>[] fieldTypes = new TypeInformation[keyFields.size()];
 			for (int i = 0; i < keyFields.size(); i++) {
 				fieldTypes[i] = keyFields.get(i).getType();
@@ -337,7 +337,7 @@ public abstract class Keys<T> {
 		}
 
 		@Override
-		protected TypeInformation<?>[] getKeyFieldTypes() {
+		public TypeInformation<?>[] getKeyFieldTypes() {
 			TypeInformation<?>[] fieldTypes = new TypeInformation[keyFields.size()];
 			for (int i = 0; i < keyFields.size(); i++) {
 				fieldTypes[i] = keyFields.get(i).getType();

@@ -109,14 +109,16 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 			// Make sure we only optimize the DAG for range partition, and do not optimize multi times.
 			if (shipStrategy == ShipStrategyType.PARTITION_RANGE) {
 
-				if(node.isOnDynamicPath()) {
-					throw new InvalidProgramException("Range Partitioning not supported within iterations.");
-				}
+				if(channel.getDataDistribution() == null) {
+					if (node.isOnDynamicPath()) {
+						throw new InvalidProgramException("Range Partitioning not supported within iterations if users do not supply the data distribution.");
+					}
 
-				PlanNode channelSource = channel.getSource();
-				List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
-				channelSource.getOutgoingChannels().remove(channel);
-				channelSource.getOutgoingChannels().addAll(newSourceOutputChannels);
+					PlanNode channelSource = channel.getSource();
+					List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
+					channelSource.getOutgoingChannels().remove(channel);
+					channelSource.getOutgoingChannels().addAll(newSourceOutputChannels);
+				}
 			}
 		}
 	}

@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -55,6 +56,8 @@ public class GlobalProperties implements Cloneable {
 	
 	private Partitioner<?> customPartitioner;
 	
+	private DataDistribution distribution;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -80,9 +83,30 @@ public class GlobalProperties implements Cloneable {
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
 	}
-	
 
+	/**
+	 * Set the parameters for range partition.
+	 *
+	 * @param ordering Order of the partitioned fields
+	 */
 	public void setRangePartitioned(Ordering ordering) {
+		if (ordering == null) {
+			throw new NullPointerException();
+		}
+
+		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
+		this.ordering = ordering;
+		this.partitioningFields = ordering.getInvolvedIndexes();
+	}
+
+	/**
+	 * Set the parameters for range partition.
+	 * 
+	 * @param ordering Order of the partitioned fields
+	 * @param distribution The data distribution for range partition. User can supply a customized data distribution,
+	 *                     also the data distribution can be null.  
+	 */
+	public void setRangePartitioned(Ordering ordering, DataDistribution distribution) {
 		if (ordering == null) {
 			throw new NullPointerException();
 		}
@@ -90,6 +114,7 @@ public class GlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = ordering.getInvolvedIndexes();
+		this.distribution = distribution;
 	}
 	
 	public void setAnyPartitioning(FieldList partitionedFields) {
@@ -165,6 +190,10 @@ public class GlobalProperties implements Cloneable {
 	
 	public Partitioner<?> getCustomPartitioner() {
 		return this.customPartitioner;
+	}
+	
+	public DataDistribution getDataDistribution() {
+		return this.distribution;
 	}
 	
 	// --------------------------------------------------------------------------------------------

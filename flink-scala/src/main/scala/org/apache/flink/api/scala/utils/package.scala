@@ -19,9 +19,16 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.annotation.PublicEvolving
+import org.apache.flink.api.common.distributions.DataDistribution
+import org.apache.flink.api.common.operators.Keys
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
 import org.apache.flink.api.java.Utils.ChecksumHashCode
+import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.operators.PartitionOperator
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
 import org.apache.flink.util.AbstractID
 
@@ -107,6 +114,59 @@ package object utils {
         seed: Long = Utils.RNG.nextLong())
       : DataSet[T] = {
       wrap(jutils.sampleWithSize(self.javaSet, withReplacement, numSamples, seed))
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Partitioning
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Range-partitions a DataSet on the specified tuple field positions.
+     */
+    def partitionByRange(distribution: DataDistribution, fields: Int*): DataSet[T] = {
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.ExpressionKeys[T](fields.toArray, self.javaSet.getType),
+        distribution,
+        getCallLocationName())
+      wrap(op)
+    }
+
+    /**
+     * Range-partitions a DataSet on the specified fields.
+     */
+    def partitionByRange(distribution: DataDistribution,
+                         firstField: String,
+                         otherFields: String*): DataSet[T] = {
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, self.javaSet.getType),
+        distribution,
+        getCallLocationName())
+      wrap(op)
+    }
+
+    /**
+     * Range-partitions a DataSet using the specified key selector function.
+     */
+    def partitionByRange[K: TypeInformation](distribution: DataDistribution,
+                                             fun: T => K): DataSet[T] = {
+      val keyExtractor = new KeySelector[T, K] {
+        val cleanFun = self.javaSet.clean(fun)
+        def getKey(in: T) = cleanFun(in)
+      }
+      val op = new PartitionOperator[T](
+        self.javaSet,
+        PartitionMethod.RANGE,
+        new Keys.SelectorFunctionKeys[T, K](
+          keyExtractor,
+          self.javaSet.getType,
+          implicitly[TypeInformation[K]]),
+        distribution,
+        getCallLocationName())
+      wrap(op)
     }
 
     // --------------------------------------------------------------------------------------------
