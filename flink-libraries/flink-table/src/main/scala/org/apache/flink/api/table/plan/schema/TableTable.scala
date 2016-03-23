@@ -18,22 +18,23 @@
 
 package org.apache.flink.api.table.plan.schema
 
-import java.lang.Double
-import java.util
-import java.util.Collections
-
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.RelOptTable.ToRelContext
-import org.apache.calcite.rel.{RelDistribution, RelCollation, RelNode}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.schema.{TranslatableTable, Statistic}
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.schema.TranslatableTable
 
+/**
+ * A [[org.apache.calcite.schema.Table]] implementation for registering
+ * Table API Tables in the Calcite schema to be used by Flink SQL.
+ * It implements [[TranslatableTable]] so that its logical scan
+ * can be converted to a relational expression.
+ *
+ * @see [[DataSetTable]]
+ */
 class TableTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
-
-  override def getStatistic: Statistic = new DefaultTableStatistic
 
   override def getJdbcTableType: TableType = ???
 
@@ -42,14 +43,4 @@ class TableTable(relNode: RelNode) extends AbstractTable with TranslatableTable 
   override def toRel(context: ToRelContext, relOptTable: RelOptTable): RelNode = {
     relNode
   }
-}
-
-class DefaultTableStatistic extends Statistic {
-  override def getRowCount: Double = 1000d
-
-  override def getCollations: util.List[RelCollation] = Collections.emptyList()
-
-  override def isKey(columns: ImmutableBitSet): Boolean = false
-
-  override def getDistribution: RelDistribution = null
 }

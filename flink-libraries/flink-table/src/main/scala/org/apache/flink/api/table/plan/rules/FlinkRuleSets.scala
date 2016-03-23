@@ -29,6 +29,9 @@ object FlinkRuleSets {
     */
   val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
 
+    // convert a logical table scan to a relational expression
+    TableScanRule.INSTANCE,
+
     // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,
     // push filter into the children of a join
@@ -93,10 +96,7 @@ object FlinkRuleSets {
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
-    DataSetUnionRule.INSTANCE,
-
-    // convert a logical table scan to a relational expression
-    TableScanRule.INSTANCE
+    DataSetUnionRule.INSTANCE
   )
 
 }

@@ -70,35 +70,28 @@ object TranslationContext {
 
   }
 
+  /**
+   * Adds a table to the Calcite schema so it can be used by the Table API
+   */
   def addDataSet(newTable: DataSetTable[_]): String = {
     val tabName = "DataSetTable_" + nameCntr.getAndIncrement()
     tables.add(tabName, newTable)
     tabName
   }
 
+  /**
+   * Adds a table to the Calcite schema and the tables registry,
+   * so it can be used by both Table API and SQL statements.
+   */
   @throws[TableException]
-  def addAndRegisterDataSet(table: DataSetTable[_], name: String): Unit = {
+  def registerTable(table: AbstractTable, name: String): Unit = {
 
     val existingTable = tablesRegistry.get(name)
 
     existingTable match {
       case Some(_) =>
-        throw new TableException("Table \"" + name + "\" already exists. "
-        + "Please, choose a different name.")
-      case None =>
-        tablesRegistry += (name -> table)
-        tables.add(name, table)
-    }
-  }
-
-  @throws[TableException]
-  def registerTable(table: TableTable, name: String): Unit = {
-    val existingTable = tablesRegistry.get(name)
-
-    existingTable match {
-      case Some(_) =>
-        throw new TableException("Table \"" + name + "\" already exists. "
-          + "Please, choose a different name.")
+        throw new TableException(s"Table \'$name\' already exists. " +
+        "Please, choose a different name.")
       case None =>
         tablesRegistry += (name -> table)
         tables.add(name, table)

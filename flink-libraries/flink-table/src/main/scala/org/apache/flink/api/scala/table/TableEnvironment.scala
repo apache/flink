@@ -20,9 +20,7 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.TranslationContext
-import org.apache.flink.api.table.plan.schema.{TableTable, DataSetTable}
-import org.apache.flink.api.table.{TableException, TableConfig, Table}
+import org.apache.flink.api.table.{AbstractTableEnvironment, Table}
 
 /**
  * Environment for working with the Table API.
@@ -30,14 +28,7 @@ import org.apache.flink.api.table.{TableException, TableConfig, Table}
  * This can be used to convert a [[DataSet]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
-class TableEnvironment {
-
-  private val config = new TableConfig()
-
-  /**
-   * Returns the table config to define the runtime behavior of the Table API.
-   */
-  def getConfig = config
+class TableEnvironment extends AbstractTableEnvironment {
 
   /**
    * Converts the [[DataSet]] to a [[Table]]. The field names can be specified like this:
@@ -81,14 +72,7 @@ class TableEnvironment {
    * @param dataset the DataSet to register
    */
   def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
-
-    val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo[T](dataset.getType)
-    val dataSetTable = new DataSetTable[T](
-      dataset.javaSet,
-      fieldIndexes,
-      fieldNames
-    )
-    TranslationContext.addAndRegisterDataSet(dataSetTable, name)
+    registerUniqueNameDataSet(name, dataset.javaSet)
   }
 
   /**
@@ -100,42 +84,7 @@ class TableEnvironment {
    * @param fields the field names expression
    */
   def registerDataSet[T](name: String, dataset: DataSet[T], fields: Expression*): Unit = {
-
-    val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo[T](
-      dataset.getType, fields.toArray)
-
-    val dataSetTable = new DataSetTable[T](
-      dataset.javaSet,
-      fieldIndexes.toArray,
-      fieldNames.toArray
-    )
-    TranslationContext.addAndRegisterDataSet(dataSetTable, name)
+    registerDataSetWithFields(name, dataset.javaSet, fields.toArray)
   }
 
-  /**
-   * Registers a Table under a unique name, so that it can be used in SQL queries.
-   * @param name the Table name
-   * @param table the Table to register
-   */
-  def registerTable[T](name: String, table: Table): Unit = {
-    val tableTable = new TableTable(table.getRelNode())
-    TranslationContext.registerTable(tableTable, name)
-  }
-
-  /**
-   * Retrieve a registered Table.
-   * @param tableName the name under which the Table has been registered
-   * @return the Table object
-   */
-  @throws[TableException]
-  def scan(tableName: String): Table = {
-    if (TranslationContext.isRegistered(tableName)) {
-      val relBuilder = TranslationContext.getRelBuilder
-      relBuilder.scan(tableName)
-      new Table(relBuilder.build(), relBuilder)
-    }
-    else {
-      throw new TableException("Table \"" + tableName + "\" was not found in the registry.")
-    }
-  }
 }
