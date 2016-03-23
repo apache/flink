@@ -23,14 +23,17 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * This message signals that the resource manager should be disconnected.
+ * This message signals that the ResourceManager should reconnect to the JobManager. It is processed
+ * by the JobManager if it fails to register resources with the ResourceManager. The JobManager wants
+ * the ResourceManager to go through the reconciliation phase to sync up with the JobManager bookkeeping.
+ * This is done by forcing the ResourceManager to reconnect.
  */
-public class DisconnectResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
+public class ReconnectResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private final ActorRef resourceManager;
 
-	public DisconnectResourceManager(ActorRef resourceManager) {
+	public ReconnectResourceManager(ActorRef resourceManager) {
 		this.resourceManager = Preconditions.checkNotNull(resourceManager);
 	}
 	
@@ -40,6 +43,6 @@ public class DisconnectResourceManager implements RequiresLeaderSessionID, java.
 
 	@Override
 	public String toString() {
-		return "DisconnectResourceManager " + resourceManager.path();
+		return "ReconnectResourceManager " + resourceManager.path();
 	}
 }

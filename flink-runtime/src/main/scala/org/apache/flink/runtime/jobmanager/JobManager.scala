@@ -334,19 +334,35 @@ class JobManager(
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
 
-    case msg: DisconnectResourceManager =>
-      log.debug(s"Resource manager disconnect: $msg")
+    case msg: ReconnectResourceManager =>
+      log.debug(s"Resource manager reconnect: $msg")
+
+      /**
+        * In most cases, the ResourceManager handles the reconnect itself (due to leader change)
+        * but in case it doesn't we're sending a TriggerRegistrationAtJobManager message until we
+        * receive a registration of this or another ResourceManager.
+        */
+      def reconnectRepeatedly(): Unit = {
+        msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
+        // try again after some delay
+        context.system.scheduler.scheduleOnce(2 seconds) {
+          self ! decorateMessage(msg)
+        }(context.dispatcher)
+      }
 
       currentResourceManager match {
         case Some(rm) if rm.equals(msg.resourceManager()) =>
           // we should ditch the current resource manager
-          log.debug(s"Disconnecting resource manager $rm.")
-          // send the old one a disconnect message
-          rm ! decorateMessage(new TriggerRegistrationAtJobManager(self))
+          log.debug(s"Disconnecting resource manager $rm and forcing a reconnect.")
           currentResourceManager = None
+          reconnectRepeatedly()
+        case Some(rm) =>
+          // we have registered with another ResourceManager in the meantime, stop sending
+          // TriggerRegistrationAtJobManager messages to the old ResourceManager
         case None =>
-          // not connected, thus ignoring this message
-          log.warn(s"No resource manager ${msg.resourceManager()} connected. Can't disconnect.")
+          log.warn(s"No resource manager ${msg.resourceManager()} connected. " +
+            s"Telling old ResourceManager to register again.")
+          reconnectRepeatedly()
       }
 
     case msg @ RegisterTaskManager(
@@ -370,7 +386,7 @@ class JobManager(
               log.error("Failure while asking ResourceManager for RegisterResource", t)
               // slow or unreachable resource manager, register anyway and let the rm reconnect
               self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
-              self ! decorateMessage(new DisconnectResourceManager(rm))
+              self ! decorateMessage(new ReconnectResourceManager(rm))
           }(context.dispatcher)
 
         case None =>
@@ -961,8 +977,6 @@ class JobManager(
 
       log.info(s"Stopping JobManager with final application status ${msg.finalStatus()} " +
         s"and diagnostics: ${msg.message()}")
-
-      val respondTo = sender()
 
       // stop all task managers
       instanceManager.getAllRegisteredInstances.asScala foreach {

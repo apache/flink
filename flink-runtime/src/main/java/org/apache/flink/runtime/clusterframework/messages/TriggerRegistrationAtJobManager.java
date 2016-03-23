@@ -39,7 +39,6 @@ public class TriggerRegistrationAtJobManager implements RequiresLeaderSessionID,
 		this.jobManagerAddress = jobManagerAddress;
 	}
 
-
 	public String jobManagerAddress() {
 		return jobManagerAddress;
 	}
