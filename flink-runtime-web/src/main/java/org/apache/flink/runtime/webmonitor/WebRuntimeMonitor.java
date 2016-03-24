@@ -306,7 +306,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 				ch.pipeline()
 						.addLast(new HttpServerCodec())
-						.addLast(new HttpRequestHandler())
+						.addLast(new HttpRequestHandler(uploadDir))
 						.addLast(handler.name(), handler)
 						.addLast(new PipelineErrorHandler(LOG));
 			}
