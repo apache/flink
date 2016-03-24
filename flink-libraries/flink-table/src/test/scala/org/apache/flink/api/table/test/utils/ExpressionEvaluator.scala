@@ -49,7 +49,7 @@ object ExpressionEvaluator {
     // create DataSetTable
     val dataSetMock = mock(classOf[DataSet[Any]])
     when(dataSetMock.getType).thenReturn(typeInfo)
-    val tableName = TranslationContext.addDataSet(new DataSetTable[Any](
+    val tableName = TranslationContext.registerDataSetTable(new DataSetTable[Any](
       dataSetMock,
       (0 until typeInfo.getArity).toArray,
       (0 until typeInfo.getArity).map("f" + _).toArray))

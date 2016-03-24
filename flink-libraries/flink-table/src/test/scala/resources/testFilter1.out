@@ -1,6 +1,6 @@
 == Abstract Syntax Tree ==
 LogicalFilter(condition=[=(MOD($0, 2), 0)])
-  LogicalTableScan(table=[[DataSetTable_0]])
+  LogicalTableScan(table=[[_DataSetTable_0]])
 
 == Physical Execution Plan ==
 Stage 3 : Data Source

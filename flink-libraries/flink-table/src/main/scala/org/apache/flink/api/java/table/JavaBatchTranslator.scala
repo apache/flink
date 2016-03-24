@@ -51,7 +51,7 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
       fieldNames
     )
 
-    val tabName = TranslationContext.addDataSet(dataSetTable)
+    val tabName = TranslationContext.registerDataSetTable(dataSetTable)
     val relBuilder = TranslationContext.getRelBuilder
 
     // create table scan operator

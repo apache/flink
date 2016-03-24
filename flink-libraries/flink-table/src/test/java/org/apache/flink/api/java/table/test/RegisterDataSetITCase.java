@@ -130,18 +130,13 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	}
 
 	@Test(expected = TableException.class)
-	public void testRegisterExistingTable() throws Exception {
-		final String tableName = "MyTable";
+	public void testIllegalName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = getJavaTableEnvironment();
 		TranslationContext.reset();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
-		tableEnv.registerTable(tableName, t);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 =
-				CollectionDataSets.getSmall5TupleDataSet(env);
-		Table t2 = tableEnv.fromDataSet(ds2);
-		tableEnv.registerTable(tableName, t2);
+		tableEnv.registerTable("_DataSetTable_42", t);
 	}
 }

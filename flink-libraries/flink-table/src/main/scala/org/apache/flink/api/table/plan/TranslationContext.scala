@@ -73,8 +73,8 @@ object TranslationContext {
   /**
    * Adds a table to the Calcite schema so it can be used by the Table API
    */
-  def addDataSet(newTable: DataSetTable[_]): String = {
-    val tabName = "DataSetTable_" + nameCntr.getAndIncrement()
+  def registerDataSetTable(newTable: DataSetTable[_]): String = {
+    val tabName = "_DataSetTable_" + nameCntr.getAndIncrement()
     tables.add(tabName, newTable)
     tabName
   }
@@ -85,16 +85,23 @@ object TranslationContext {
    */
   @throws[TableException]
   def registerTable(table: AbstractTable, name: String): Unit = {
-
-    val existingTable = tablesRegistry.get(name)
-
-    existingTable match {
+    val illegalPattern = "^_DataSetTable_[0-9]+$".r
+    val m = illegalPattern.findFirstIn(name)
+    m match {
       case Some(_) =>
-        throw new TableException(s"Table \'$name\' already exists. " +
-        "Please, choose a different name.")
-      case None =>
-        tablesRegistry += (name -> table)
-        tables.add(name, table)
+        throw new TableException(s"Illegal Table name. " +
+          s"Please choose a name that does not contain the pattern $illegalPattern")
+      case None => {
+        val existingTable = tablesRegistry.get(name)
+        existingTable match {
+          case Some(_) =>
+            throw new TableException(s"Table \'$name\' already exists. " +
+              s"Please, choose a different name.")
+          case None =>
+            tablesRegistry += (name -> table)
+            tables.add(name, table)
+        }
+      }
     }
   }
 

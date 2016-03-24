@@ -59,7 +59,7 @@ class AbstractTableEnvironment {
     }
   }
 
-  def registerUniqueNameDataSet[T](name: String, dataset: DataSet[T]): Unit = {
+  private[flink] def registerDataSetInternal[T](name: String, dataset: DataSet[T]): Unit = {
 
     val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo[T](dataset.getType)
     val dataSetTable = new DataSetTable[T](
@@ -70,7 +70,7 @@ class AbstractTableEnvironment {
     TranslationContext.registerTable(dataSetTable, name)
   }
 
-  def registerDataSetWithFields[T](
+  private[flink] def registerDataSetInternal[T](
       name: String, dataset: DataSet[T], fields: Array[Expression]): Unit = {
 
     val (fieldNames, fieldIndexes) = TranslationContext.getFieldInfo[T](

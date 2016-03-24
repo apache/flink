@@ -88,7 +88,7 @@ class TableEnvironment extends AbstractTableEnvironment {
    * @param dataset the DataSet to register
    */
   def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
-    registerUniqueNameDataSet(name, dataset)
+    registerDataSetInternal(name, dataset)
   }
 
   /**
@@ -103,7 +103,7 @@ class TableEnvironment extends AbstractTableEnvironment {
     val exprs = ExpressionParser
       .parseExpressionList(fields)
       .toArray
-    registerDataSetWithFields(name, dataset, exprs)
+    registerDataSetInternal(name, dataset, exprs)
   }
 
 }

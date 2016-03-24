@@ -72,7 +72,7 @@ class TableEnvironment extends AbstractTableEnvironment {
    * @param dataset the DataSet to register
    */
   def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
-    registerUniqueNameDataSet(name, dataset.javaSet)
+    registerDataSetInternal(name, dataset.javaSet)
   }
 
   /**
@@ -84,7 +84,7 @@ class TableEnvironment extends AbstractTableEnvironment {
    * @param fields the field names expression
    */
   def registerDataSet[T](name: String, dataset: DataSet[T], fields: Expression*): Unit = {
-    registerDataSetWithFields(name, dataset.javaSet, fields.toArray)
+    registerDataSetInternal(name, dataset.javaSet, fields.toArray)
   }
 
 }
