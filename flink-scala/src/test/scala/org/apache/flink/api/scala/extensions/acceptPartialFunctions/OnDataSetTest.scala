@@ -21,15 +21,9 @@ package org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctionsOnDataSet
-import org.apache.flink.util.TestLogger
 import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
 
-class OnDataSetTest extends TestLogger with JUnitSuiteLike {
-
-  private val env = ExecutionEnvironment.getExecutionEnvironment
-  private val tuples = env.fromElements(1 -> "hello", 2 -> "world")
-  private val caseObjects = env.fromElements(KeyValuePair(1, "hello"), KeyValuePair(2, "world"))
+class OnDataSetTest extends AcceptPartialFunctionsTestBase {
 
   @Test
   def testMapWithOnTuple(): Unit = {
