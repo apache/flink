@@ -17,30 +17,38 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.JoinedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.SplittableIterator;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTestBase {
 
@@ -112,6 +120,109 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 		assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
 	}
 
+	@Test
+	public void testAutomaticTypeRegistration() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		//we have to disable this option so that getRegisteredKryoTypes() does not return a copy of the currently
+		//registered types
+		env.getConfig().disableForceKryo();
+
+		DeduplicatorAccessor stream = new DeduplicatorAccessor(env);
+
+		//verify registration for sources
+		DataStreamSource<DummyCustomClass> input = env.addSource(new SourceFunction<DummyCustomClass>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void run(SourceContext<DummyCustomClass> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyCustomClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//verify registration for transform calls with typeinfo present
+		input.map(new MapFunction<DummyCustomClass, DummyCustomClass>() {
+			@Override
+			public DummyCustomClass map(DummyCustomClass value) throws Exception {
+				return new DummyCustomClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyCustomClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//verify registration for transform calls without typeinfo passed via returns()
+		input.map(new MapFunctionWithTypeErased()).returns(DummyCustomClass.class);
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyCustomClass.class));
+
+		//verify that classes are not added multiple times
+		input.map(new MapFunctionWithTypeErased()).returns(DummyCustomClass.class);
+		assertEquals(1, env.getConfig().getRegisteredKryoTypes().size());
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//verify registartion for KeySelector within KeyedStreams
+		input.keyBy(new KeySelector<DummyCustomClass, DummyKeyClass>() {
+			@Override
+			public DummyKeyClass getKey(DummyCustomClass value) throws Exception {
+				return new DummyKeyClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyKeyClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//verify registration for KeySelector within JoinedStreams
+		JoinedStreams<DummyCustomClass, DummyCustomClass>.Where<DummyKeyClass> where = input.join(input).where(new KeySelector<DummyCustomClass, DummyKeyClass>() {
+			@Override
+			public DummyKeyClass getKey(DummyCustomClass value) throws Exception {
+				return new DummyKeyClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyKeyClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		JoinedStreams<DummyCustomClass, DummyCustomClass>.Where<DummyKeyClass>.EqualTo equalTo = where.equalTo(new KeySelector<DummyCustomClass, DummyKeyClass>() {
+			@Override
+			public DummyKeyClass getKey(DummyCustomClass value) throws Exception {
+				return new DummyKeyClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyKeyClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//verify registration for KeySelector within CoGroupedStreams
+		CoGroupedStreams<DummyCustomClass, DummyCustomClass>.Where<DummyKeyClass> whereCG = input.coGroup(input).where(new KeySelector<DummyCustomClass, DummyKeyClass>() {
+			@Override
+			public DummyKeyClass getKey(DummyCustomClass value) throws Exception {
+				return new DummyKeyClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyKeyClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		CoGroupedStreams<DummyCustomClass, DummyCustomClass>.Where<DummyKeyClass>.EqualTo equalToCG = whereCG.equalTo(new KeySelector<DummyCustomClass, DummyKeyClass>() {
+			@Override
+			public DummyKeyClass getKey(DummyCustomClass value) throws Exception {
+				return new DummyKeyClass(0);
+			}
+		});
+		assertTrue(env.getConfig().getRegisteredKryoTypes().contains(DummyKeyClass.class));
+		env.getConfig().getRegisteredKryoTypes().clear();
+		stream.clearDuplicates();
+
+		//sanity check to make sure registered type were removed properly
+		assertEquals(0, env.getConfig().getRegisteredKryoTypes().size());
+	}
+
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////
@@ -157,6 +268,58 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+	}
+
+	/////////////////////////////////////////////////////////////
+	// Type Registration Check Utilities
+	/////////////////////////////////////////////////////////////
+
+	public static class DeduplicatorAccessor extends DataStream<Object> {
+		public DeduplicatorAccessor(StreamExecutionEnvironment environment) {
+			super(environment, new DummyTransformation());
+		}
+
+		public void clearDuplicates() {
+			deduplicator.clear();
+		}
+	}
+
+	public static class DummyTransformation extends StreamTransformation<Object> {
+		public DummyTransformation() {
+			super("dummy", getForClass(Object.class), 1);
+		}
+
+		@Override
+		public void setChainingStrategy(ChainingStrategy strategy) {
+		}
+
+		@Override
+		public Collection<StreamTransformation<?>> getTransitivePredecessors() {
+			return null;
+		}
+	}
+
+	public static class DummyCustomClass {
+		private final int index;
+
+		public DummyCustomClass(int index) {
+			this.index = index;
+		}
+	}
+
+	public static class DummyKeyClass {
+		private final int index;
+
+		public DummyKeyClass(int index) {
+			this.index = index;
+		}
+	}
+
+	public static class MapFunctionWithTypeErased<IN, OUT> implements MapFunction<IN, OUT> {
+		@Override
+		public OUT map(IN value) throws Exception {
+			return (OUT) new DummyCustomClass(0);
 		}
 	}
 }
