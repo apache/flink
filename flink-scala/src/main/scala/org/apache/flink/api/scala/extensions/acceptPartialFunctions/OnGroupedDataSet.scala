@@ -52,10 +52,10 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @tparam R The type of the items in the resulting data set
     * @return A data set of Rs reduced group-wise
     */
-  def reduceGroupWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
+  def reduceGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.reduceGroup {
       (it, out) =>
-        out.collect(fun(it.to[Seq]))
+        out.collect(fun(it.toStream))
     }
 
   /**
@@ -66,10 +66,10 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @tparam R The type of the items in the resulting data set
     * @return A data set of Rs reduced group-wise
     */
-  def combineGroupWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
+  def combineGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.combineGroup {
       (it, out) =>
-        out.collect(fun(it.to[Seq]))
+        out.collect(fun(it.toStream))
     }
 
 }

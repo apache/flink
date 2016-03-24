@@ -32,10 +32,10 @@ class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](dataset: CoGroupD
     * @tparam O The return type of the projection, for which type information must be known
     * @return A fully co-grouped data set of Os
     */
-  def projecting[O: TypeInformation: ClassTag](fun: (Seq[L], Seq[R]) => O): DataSet[O] =
+  def projecting[O: TypeInformation: ClassTag](fun: (Stream[L], Stream[R]) => O): DataSet[O] =
     dataset {
       (left, right) =>
-        fun(left.to[Seq], right.to[Seq])
+        fun(left.toStream, right.toStream)
     }
 
 }

@@ -41,10 +41,10 @@ class OnDataSet[T: TypeInformation](ds: DataSet[T]) {
     * @tparam R The type of the items in the returned data set
     * @return A dataset of R
     */
-  def mapPartitionWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
+  def mapPartitionWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.mapPartition {
       (it, out) =>
-        out.collect(fun(it.to[Seq]))
+        out.collect(fun(it.toStream))
     }
 
   /**
@@ -85,10 +85,10 @@ class OnDataSet[T: TypeInformation](ds: DataSet[T]) {
     * @tparam R The type of the items in the returned data set
     * @return A dataset of Rs
     */
-  def reduceGroupWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
+  def reduceGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.reduceGroup {
       (it, out) =>
-        out.collect(fun(it.to[Seq]))
+        out.collect(fun(it.toStream))
     }
 
   /**
