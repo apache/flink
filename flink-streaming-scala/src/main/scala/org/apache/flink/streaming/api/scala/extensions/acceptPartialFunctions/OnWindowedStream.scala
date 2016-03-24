@@ -64,10 +64,11 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def applyWith[R: TypeInformation](initialValue: R)
-                                   (foldFunction: (R, T) => R,
-                                    windowFunction: (K, W, Stream[R]) => TraversableOnce[R]):
-      DataStream[R] =
+  def applyWith[R: TypeInformation](
+      initialValue: R)(
+      foldFunction: (R, T) => R,
+      windowFunction: (K, W, Stream[R]) => TraversableOnce[R])
+    : DataStream[R] =
     ds.apply(initialValue, foldFunction, {
       (key, window, items, out) =>
         windowFunction(key, window, items.toStream).foreach(out.collect)
