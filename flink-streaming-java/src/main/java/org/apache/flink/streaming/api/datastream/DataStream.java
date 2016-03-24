@@ -1027,7 +1027,7 @@ public class DataStream<T> {
 		transformation.getOutputType();
 
 		if (!environment.getConfig().isAutoTypeRegistrationDisabled()) {
-			Serializers.recursivelyRegisterType(transformation.getOutputType(), environment.getConfig(), deduplicator);
+			Serializers.recursivelyRegisterType(outTypeInfo, environment.getConfig(), deduplicator);
 		}
 
 		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
