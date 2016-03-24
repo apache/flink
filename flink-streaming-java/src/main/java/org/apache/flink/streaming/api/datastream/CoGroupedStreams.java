@@ -95,7 +95,9 @@ public class CoGroupedStreams<T1, T2> {
 	 */
 	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
 		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
-		Serializers.recursivelyRegisterType(keyType, input1.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+		if (!input1.getExecutionEnvironment().getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(keyType, input1.getExecutionEnvironment().getConfig(), DataStream.deduplicator);
+		}
 		return new Where<>(input1.clean(keySelector), keyType);
 	}
 
