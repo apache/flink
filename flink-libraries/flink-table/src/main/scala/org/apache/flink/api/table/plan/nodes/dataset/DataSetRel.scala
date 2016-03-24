@@ -28,7 +28,7 @@ import org.apache.flink.api.table.plan.nodes.FlinkRel
 
 import scala.collection.JavaConversions._
 
-trait DataSetRel extends RelNode with FlinkRel{
+trait DataSetRel extends RelNode with FlinkRel {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
@@ -66,4 +66,3 @@ trait DataSetRel extends RelNode with FlinkRel{
   }
 
 }
-

@@ -40,7 +40,6 @@ class DataStreamCalc(
     input: RelNode,
     rowType: RelDataType,
     calcProgram: RexProgram,
-    opName: String,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with FlinkCalc
@@ -55,7 +54,6 @@ class DataStreamCalc(
       inputs.get(0),
       rowType,
       calcProgram,
-      opName,
       ruleDescription
     )
   }

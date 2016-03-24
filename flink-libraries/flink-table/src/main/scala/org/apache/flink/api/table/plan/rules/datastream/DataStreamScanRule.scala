@@ -37,7 +37,6 @@ class DataStreamScanRule
     val scan: LogicalTableScan = rel.asInstanceOf[LogicalTableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
 
-
     new DataStreamSource(
       rel.getCluster,
       traitSet,

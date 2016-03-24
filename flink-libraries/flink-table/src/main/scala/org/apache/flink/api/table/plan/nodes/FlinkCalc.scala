@@ -32,7 +32,7 @@ import scala.collection.JavaConverters._
 
 trait FlinkCalc {
 
-  def functionBody(
+  private[flink] def functionBody(
     generator: CodeGenerator,
     inputType: TypeInformation[Any],
     rowType: RelDataType,
@@ -166,14 +166,7 @@ trait FlinkCalc {
       calcProgram: RexProgram,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String) = {
 
-    val conditionStr = conditionToString(calcProgram, expression)
-    val selectionStr = selectionToString(calcProgram, expression)
-
-    s"Calc(${if (calcProgram.getCondition != null) {
-      s"where: ($conditionStr), "
-    } else {
-      ""
-    }}select: ($selectionStr))"
+    val name = calcOpName(calcProgram, expression)
+    s"Calc($name)"
   }
-
 }

@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.streaming.api.datastream.DataStream
 
+import scala.collection.JavaConverters._
+
 /**
   * Flink RelNode which matches along with Union.
   *
@@ -34,8 +36,7 @@ class DataStreamUnion(
     traitSet: RelTraitSet,
     left: RelNode,
     right: RelNode,
-    rowType: RelDataType,
-    opName: String)
+    rowType: RelDataType)
   extends BiRel(cluster, traitSet, left, right)
   with DataStreamRel {
 
@@ -47,16 +48,17 @@ class DataStreamUnion(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType,
-      opName
+      rowType
     )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("name", opName)
+    super.explainTerms(pw).item("union", unionSelectionToString)
   }
 
-  override def toString = opName
+  override def toString = {
+    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+  }
 
   override def translateToPlan(config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
@@ -64,5 +66,9 @@ class DataStreamUnion(
     val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(config)
     val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(config)
     leftDataSet.union(rightDataSet)
+  }
+
+  private def unionSelectionToString: String = {
+    rowType.getFieldNames.asScala.toList.mkString(", ")
   }
 }
