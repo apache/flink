@@ -42,7 +42,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for inner join on case objects should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for inner join on case objects " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -52,7 +53,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case (id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for right outer join on tuples should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for right outer join on tuples " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -62,7 +64,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for right outer join on case objects should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for right outer join on case objects " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -72,7 +75,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case (id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for left outer join on tuples should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for left outer join on tuples " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -82,7 +86,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for left outer join on case objects should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for left outer join on case objects " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -92,7 +97,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case (id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for full outer join on tuples should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for full outer join on tuples " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -102,7 +108,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for full outer join on case objects should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for full outer join on case objects " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -112,7 +119,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case (id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for co-group on tuples should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for co-group on tuples " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
   @Test
@@ -122,7 +130,8 @@ class OnUnfinishedKeyPairOperationTest extends AcceptPFTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[HalfUnfinishedKeyPairOperation[_, _, _]],
-      "whereClause for co-group on case objects should produce a HalfUnfinishedKeyPairOperation")
+      "whereClause for co-group on case objects " +
+        "should produce a HalfUnfinishedKeyPairOperation")
   }
 
 }
