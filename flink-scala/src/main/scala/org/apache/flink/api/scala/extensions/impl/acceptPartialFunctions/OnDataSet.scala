@@ -22,6 +22,13 @@ import org.apache.flink.api.scala.{DataSet, GroupedDataSet}
 
 import scala.reflect.ClassTag
 
+/**
+  * Wraps a data set, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param ds The wrapped data set
+  * @tparam T The type of the data set items, for which the type information must be known
+  */
 class OnDataSet[T: TypeInformation](ds: DataSet[T]) {
 
   /**

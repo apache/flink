@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.extensions.test.acceptPartialFunctions.base
+package org.apache.flink.api.scala.extensions.base
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.util.TestLogger
 import org.scalatest.junit.JUnitSuiteLike
 
-abstract class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
+private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
 
   private val env = ExecutionEnvironment.getExecutionEnvironment
 

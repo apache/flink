@@ -22,7 +22,15 @@ import org.apache.flink.api.scala.{CoGroupDataSet, DataSet}
 
 import scala.reflect.ClassTag
 
-class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](dataset: CoGroupDataSet[L, R]) {
+/**
+  * Wraps a co-group data set, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param ds The wrapped co-group data set
+  * @tparam L The type of the left data set items, for which the type information must be known
+  * @tparam R The type of the right data set items, for which the type information must be known
+  */
+class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](ds: CoGroupDataSet[L, R]) {
 
   /**
     * Co-groups the data sets using the function `fun` to project elements from both in
@@ -33,7 +41,7 @@ class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](dataset: CoGroupD
     * @return A fully co-grouped data set of Os
     */
   def projecting[O: TypeInformation: ClassTag](fun: (Stream[L], Stream[R]) => O): DataSet[O] =
-    dataset {
+    ds {
       (left, right) =>
         fun(left.toStream, right.toStream)
     }

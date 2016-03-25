@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
-import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
-import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.data.KeyValuePair
+import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
+import org.apache.flink.api.scala.extensions.data.KeyValuePair
 import org.junit.Test
 
-class OnDataSetTest extends AcceptPartialFunctionsTestBase {
+class OnDataSetTest extends AcceptPFTestBase {
 
   @Test
   def testMapWithOnTuple(): Unit = {

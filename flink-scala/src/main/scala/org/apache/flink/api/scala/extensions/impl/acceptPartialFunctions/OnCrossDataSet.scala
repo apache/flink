@@ -22,6 +22,14 @@ import org.apache.flink.api.scala.{CrossDataSet, DataSet}
 
 import scala.reflect.ClassTag
 
+/**
+  * Wraps a cross data set, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param ds The wrapped cross data set
+  * @tparam L The type of the left data set items, for which the type information must be known
+  * @tparam R The type of the right data set items, for which the type information must be known
+  */
 class OnCrossDataSet[L: TypeInformation, R: TypeInformation](ds: CrossDataSet[L, R]) {
 
   /**

@@ -22,7 +22,16 @@ import org.apache.flink.api.scala.{DataSet, JoinFunctionAssigner}
 
 import scala.reflect.ClassTag
 
-class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](dataset: JoinFunctionAssigner[L, R]) {
+/**
+  * Wraps a join function assigner, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param ds The wrapped join function assigner data set
+  * @tparam L The type of the left data set items, for which the type information must be known
+  * @tparam R The type of the right data set items, for which the type information must be known
+  */
+class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](
+    ds: JoinFunctionAssigner[L, R]) {
 
   /**
     * Joins the data sets using the function `fun` to project elements from both in the
@@ -33,6 +42,6 @@ class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](dataset: Jo
     * @return A fully joined data set of Os
     */
   def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
-    dataset(fun)
+    ds(fun)
 
 }

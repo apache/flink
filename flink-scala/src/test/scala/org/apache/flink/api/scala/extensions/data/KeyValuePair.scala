@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.extensions.test.acceptPartialFunctions.data
+package org.apache.flink.api.scala.extensions.data
 
 /**
   * Simple case class to test the `acceptPartialFunctions` extension
@@ -23,4 +23,4 @@ package org.apache.flink.api.scala.extensions.test.acceptPartialFunctions.data
   * @param id A numerical identifier
   * @param value A textual value
   */
-private[acceptPartialFunctions] case class KeyValuePair(id: Int, value: String)
+private [extensions] case class KeyValuePair(id: Int, value: String)
