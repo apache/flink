@@ -1,6 +1,7 @@
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.acceptPartialFunctions.base
 
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions.data.KeyValuePair
 import org.apache.flink.util.TestLogger
 import org.scalatest.junit.JUnitSuiteLike
 

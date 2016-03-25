@@ -1,4 +1,4 @@
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.acceptPartialFunctions.data
 
 /**
   * Simple case class to test the `acceptPartialFunctions` extension

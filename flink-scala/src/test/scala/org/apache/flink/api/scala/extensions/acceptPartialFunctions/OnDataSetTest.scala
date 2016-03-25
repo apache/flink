@@ -20,6 +20,8 @@ package org.apache.flink.api.scala.extensions.acceptPartialFunctions
 
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions.data.KeyValuePair
 import org.apache.flink.api.scala.extensions.acceptPartialFunctionsOnDataSet
 import org.junit.Test
 
