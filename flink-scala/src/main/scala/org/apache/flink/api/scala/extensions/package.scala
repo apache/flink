@@ -29,7 +29,9 @@ import scala.reflect.ClassTag
   * functions as well. This enables the possibility to directly apply pattern matching
   * to decompose inputs such as tuples, case classes and collections.
   *
-  * e.g.
+  * The following is a small example that showcases how this extensions would work on
+  * a Flink data set:
+  *
   * {{{
   *   object Main {
   *     import org.apache.flink.api.scala.extensions._
@@ -51,6 +53,12 @@ import scala.reflect.ClassTag
   *     }
   *   }
   * }}}
+  *
+  * The extension consists of several implicit conversions over all the data set representations
+  * that could gain from this feature. To use this set of extensions methods the user has to
+  * explicitly opt-in by importing `org.apache.flink.api.scala.extensions.acceptPartialFunctions`.
+  *
+  * For more information and usage examples please consult the Apache Flink official documentation.
   *
   */
 package object extensions {
