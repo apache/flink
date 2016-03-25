@@ -1,4 +1,4 @@
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{HalfUnfinishedKeyPairOperation, UnfinishedKeyPairOperation}

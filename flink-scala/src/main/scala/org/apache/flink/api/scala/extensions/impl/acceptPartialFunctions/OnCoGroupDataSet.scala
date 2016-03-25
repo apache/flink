@@ -15,24 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.{DataSet, JoinFunctionAssigner}
+import org.apache.flink.api.scala.{CoGroupDataSet, DataSet}
 
 import scala.reflect.ClassTag
 
-class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](dataset: JoinFunctionAssigner[L, R]) {
+class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](dataset: CoGroupDataSet[L, R]) {
 
   /**
-    * Joins the data sets using the function `fun` to project elements from both in the
-    * resulting data set
+    * Co-groups the data sets using the function `fun` to project elements from both in
+    * the resulting data set
     *
-    * @param fun The function that defines the projection of the join
+    * @param fun The function that defines the projection of the co-group operation
     * @tparam O The return type of the projection, for which type information must be known
-    * @return A fully joined data set of Os
+    * @return A fully co-grouped data set of Os
     */
-  def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
-    dataset(fun)
+  def projecting[O: TypeInformation: ClassTag](fun: (Stream[L], Stream[R]) => O): DataSet[O] =
+    dataset {
+      (left, right) =>
+        fun(left.toStream, right.toStream)
+    }
 
 }

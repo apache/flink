@@ -1,11 +1,11 @@
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.operators.{GroupCombineOperator, GroupReduceOperator, ReduceOperator}
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.extensions.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
-import org.apache.flink.api.scala.extensions.acceptPartialFunctions.data.KeyValuePair
-import org.apache.flink.api.scala.extensions.acceptPartialFunctionsOnGroupedDataSet
+import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
+import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.data.KeyValuePair
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.junit.Test
 
 class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {

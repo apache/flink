@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.{GroupedDataSet, DataSet}
+import org.apache.flink.api.scala.{DataSet, GroupedDataSet}
 
 import scala.reflect.ClassTag
 

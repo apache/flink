@@ -1,10 +1,10 @@
-package org.apache.flink.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.extensions._
-import org.apache.flink.api.scala.extensions.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
-import org.apache.flink.api.scala.extensions.acceptPartialFunctions.data.KeyValuePair
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions
+import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.base.AcceptPartialFunctionsTestBase
+import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions.data.KeyValuePair
 import org.junit.Test
 
 class OnJoinFunctionAssignerTest extends AcceptPartialFunctionsTestBase {
