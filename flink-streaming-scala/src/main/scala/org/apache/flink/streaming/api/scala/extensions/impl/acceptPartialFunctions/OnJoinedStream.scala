@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
+package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, JoinedStreams}
