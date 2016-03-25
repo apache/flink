@@ -10,7 +10,7 @@ import org.junit.Test
 class OnCoGroupDataSetTest extends AcceptPartialFunctionsTestBase {
 
   @Test
-  def testProjectingOnTuple(): Unit = {
+  def testCoGroupProjectingOnTuple(): Unit = {
     val test =
       tuples.coGroup(tuples).whereClause {
         case (id, _) => id
@@ -24,7 +24,7 @@ class OnCoGroupDataSetTest extends AcceptPartialFunctionsTestBase {
   }
 
   @Test
-  def testProjectingOnCaseClass(): Unit = {
+  def testCoGroupProjectingOnCaseClass(): Unit = {
     val test =
       caseObjects.coGroup(caseObjects).whereClause {
         case KeyValuePair(id, _) => id

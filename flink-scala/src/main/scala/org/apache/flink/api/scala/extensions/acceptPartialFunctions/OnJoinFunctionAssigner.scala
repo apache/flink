@@ -18,11 +18,11 @@
 package org.apache.flink.api.scala.extensions.acceptPartialFunctions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.{DataSet, JoinDataSet}
+import org.apache.flink.api.scala.{DataSet, JoinFunctionAssigner}
 
 import scala.reflect.ClassTag
 
-class OnJoinDataSet[L: TypeInformation, R: TypeInformation](dataset: JoinDataSet[L, R]) {
+class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](dataset: JoinFunctionAssigner[L, R]) {
 
   /**
     * Joins the data sets using the function `fun` to project elements from both in the

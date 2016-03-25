@@ -27,9 +27,9 @@ package object extensions {
   implicit def acceptPartialFunctionsOnDataSet[T: TypeInformation](ds: DataSet[T]): OnDataSet[T] =
     new OnDataSet[T](ds)
 
-  implicit def acceptPartialFunctionsOnJoinDataSet[L: TypeInformation, R: TypeInformation](
-      ds: JoinDataSet[L, R]): OnJoinDataSet[L, R] =
-    new OnJoinDataSet[L, R](ds)
+  implicit def acceptPartialFunctionsOnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](
+      ds: JoinFunctionAssigner[L, R]): OnJoinFunctionAssigner[L, R] =
+    new OnJoinFunctionAssigner[L, R](ds)
 
   implicit def acceptPartialFunctionsOnCrossDataSet[L: TypeInformation, R: TypeInformation](
       ds: CrossDataSet[L, R]): OnCrossDataSet[L, R] =
