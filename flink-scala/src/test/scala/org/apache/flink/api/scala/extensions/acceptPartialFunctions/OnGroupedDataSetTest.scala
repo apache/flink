@@ -17,7 +17,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
         case (id, _) => id
       }
     assert(test.isInstanceOf[GroupedDataSet[_]],
-      "sortGroupWith should produce a GroupedDataSet")
+      "sortGroupWith on tuples should produce a GroupedDataSet")
   }
 
   @Test
@@ -27,7 +27,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
         case KeyValuePair(id, _) => id
       }
     assert(test.isInstanceOf[GroupedDataSet[_]],
-      "sortGroupWith should produce a GroupedDataSet")
+      "sortGroupWith on case objects should produce a GroupedDataSet")
   }
 
   @Test
@@ -38,7 +38,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
-      "reduceWith should produce a ReduceOperator")
+      "reduceWith on tuples should produce a ReduceOperator")
   }
 
   @Test
@@ -49,7 +49,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[ReduceOperator[_]],
-      "reduceWith should produce a ReduceOperator")
+      "reduceWith on case objects should produce a ReduceOperator")
   }
 
   @Test
@@ -61,7 +61,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
-      "reduceGroupWith should produce a GroupReduceOperator")
+      "reduceGroupWith on tuples should produce a GroupReduceOperator")
   }
 
   @Test
@@ -73,7 +73,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[GroupReduceOperator[_, _]],
-      "reduceGroupWith should produce a GroupReduceOperator")
+      "reduceGroupWith on case objects should produce a GroupReduceOperator")
   }
 
   @Test
@@ -85,7 +85,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
-      "combineGroupWith should produce a GroupCombineOperator")
+      "combineGroupWith on tuples should produce a GroupCombineOperator")
   }
 
   @Test
@@ -97,7 +97,7 @@ class OnGroupedDataSetTest extends AcceptPartialFunctionsTestBase {
       }
 
     assert(test.javaSet.isInstanceOf[GroupCombineOperator[_, _]],
-      "combineGroupWith should produce a GroupCombineOperator")
+      "combineGroupWith on case objects should produce a GroupCombineOperator")
   }
 
 }
