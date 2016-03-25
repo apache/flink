@@ -17,7 +17,7 @@ class OnCoGroupDataSetTest extends AcceptPartialFunctionsTestBase {
       }.isEqualTo {
         case (id, _) => id
       }.projecting {
-        case ((id1, val1) #:: _, (id2, val2) #:: _) => s"$val1 $val2"
+        case ((_, v1) #:: _, (_, v2) #:: _) => s"$v1 $v2"
       }
     assert(test.javaSet.isInstanceOf[CoGroupOperator[_, _, _]],
       "projecting on tuples should produce a CoGroupOperator")
@@ -31,7 +31,7 @@ class OnCoGroupDataSetTest extends AcceptPartialFunctionsTestBase {
       }.isEqualTo {
         case KeyValuePair(id, _) => id
       }.projecting {
-        case (KeyValuePair(id1, val1) #:: _, KeyValuePair(id2, val2) #:: _) => s"$val1 $val2"
+        case (KeyValuePair(_, v1) #:: _, KeyValuePair(_, v2) #:: _) => s"$v1 $v2"
       }
     assert(test.javaSet.isInstanceOf[CoGroupOperator[_, _, _]],
       "projecting on case objects should produce a CoGroupOperator")
