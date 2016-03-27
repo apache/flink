@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions._
+import org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions._
 import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
@@ -63,24 +63,23 @@ import org.apache.flink.streaming.api.windowing.windows.Window
   */
 package object extensions {
 
-  implicit def acceptPartialFunctionsOnDataStream[T: TypeInformation](ds: DataStream[T]):
+  implicit def acceptPartialFunctions[T: TypeInformation](ds: DataStream[T]):
       OnDataStream[T] =
     new OnDataStream[T](ds)
 
-  implicit def acceptPartialFunctionsOnKeyedStream[T: TypeInformation, K](ds: KeyedStream[T, K]):
+  implicit def acceptPartialFunctions[T: TypeInformation, K](ds: KeyedStream[T, K]):
       OnKeyedStream[T, K] =
     new OnKeyedStream[T, K](ds)
 
-  implicit def acceptPartialFunctionsOnJoinedStream
-      [L: TypeInformation, R: TypeInformation, K, W <: Window](
+  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, K, W <: Window](
       ds: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]): OnJoinedStream[L, R, K, W] =
     new OnJoinedStream[L, R, K, W](ds)
 
-  implicit def acceptPartialFunctionsOnConnectedStream[IN1: TypeInformation, IN2: TypeInformation](
+  implicit def acceptPartialFunctions[IN1: TypeInformation, IN2: TypeInformation](
       ds: ConnectedStreams[IN1, IN2]): OnConnectedStream[IN1, IN2] =
     new OnConnectedStream[IN1, IN2](ds)
 
-  implicit def acceptPartialFunctionsOnWindowedStream[T, K, W <: Window](
+  implicit def acceptPartialFunctions[T, K, W <: Window](
       ds: WindowedStream[T, K, W]): OnWindowedStream[T, K, W] =
     new OnWindowedStream[T, K, W](ds)
 
