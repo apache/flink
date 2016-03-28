@@ -119,13 +119,18 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
     this
   }
 
+  def setWarmStart(warmStart: Boolean): MultipleLinearRegression = {
+    parameters.add(WarmStart, warmStart)
+    this
+  }
+
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
       case Some(weights) => {
         input.mapWithBcVariable(weights){
           (dataPoint, weights) => lossFunction.loss(dataPoint, weights)
         }.reduce {
-          _ + _
+          (_ + _)
         }
       }
 
@@ -162,6 +167,10 @@ object MultipleLinearRegression {
     val defaultValue = None
   }
 
+  case object WarmStart extends Parameter[Boolean] {
+    val defaultValue = Some(false)
+  }
+
   // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
@@ -187,13 +196,14 @@ object MultipleLinearRegression {
       val stepsize = map(Stepsize)
       val convergenceThreshold = map.get(ConvergenceThreshold)
       val learningRateMethod = map.get(LearningRateMethodValue)
-
+      val warmStart = map.get(WarmStart).get
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
       val optimizer = SimpleGradientDescent()
         .setIterations(numberOfIterations)
         .setStepsize(stepsize)
         .setLossFunction(lossFunction)
+        .setWarmStart(warmStart)
 
       convergenceThreshold match {
         case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
@@ -205,7 +215,7 @@ object MultipleLinearRegression {
         case None =>
       }
 
-      instance.weightsOption = Some(optimizer.optimize(input, None))
+      instance.weightsOption = Some(optimizer.optimize(input, instance.weightsOption))
     }
   }
 

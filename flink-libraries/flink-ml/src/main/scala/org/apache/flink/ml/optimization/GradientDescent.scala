@@ -55,6 +55,7 @@ abstract class GradientDescent extends IterativeSolver {
     * @param initialWeights The initial weights that will be optimized
     * @return The weights, optimized for the provided data.
     */
+
   override def optimize(
     data: DataSet[LabeledVector],
     initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
@@ -65,9 +66,14 @@ abstract class GradientDescent extends IterativeSolver {
     val learningRate = parameters(LearningRate)
     val regularizationConstant = parameters(RegularizationConstant)
     val learningRateMethod = parameters(LearningRateMethodValue)
+    val warmStart = parameters(WarmStart)
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
+    val startingIter = warmStart match {
+      case true => CURRENT_ITER
+      case false => 0
+    }
     // Perform the iterations
     convergenceThresholdOption match {
       // No convergence criterion
@@ -79,7 +85,8 @@ abstract class GradientDescent extends IterativeSolver {
           regularizationConstant,
           learningRate,
           lossFunction,
-          learningRateMethod)
+          learningRateMethod,
+          startingIter)
       case Some(convergence) =>
         optimizeWithConvergenceCriterion(
           data,
@@ -89,7 +96,8 @@ abstract class GradientDescent extends IterativeSolver {
           learningRate,
           convergence,
           lossFunction,
-          learningRateMethod)
+          learningRateMethod,
+          startingIter)
     }
   }
 
@@ -101,7 +109,8 @@ abstract class GradientDescent extends IterativeSolver {
       learningRate: Double,
       convergenceThreshold: Double,
       lossFunction: LossFunction,
-      learningRateMethod: LearningRateMethodTrait)
+      learningRateMethod: LearningRateMethodTrait,
+      startingIter: Int)
     : DataSet[WeightVector] = {
     // We have to calculate for each weight vector the sum of squared residuals,
     // and then sum them and apply regularization
@@ -114,7 +123,7 @@ abstract class GradientDescent extends IterativeSolver {
 
     val resultWithLoss = initialWeightsWithLossSum.iterateWithTermination(numberOfIterations) {
       weightsWithPreviousLossSum =>
-
+        CURRENT_ITER = CURRENT_ITER + numberOfIterations
         // Extract weight vector and loss
         val previousWeightsDS = weightsWithPreviousLossSum.map{_._1}
         val previousLossSumDS = weightsWithPreviousLossSum.map{_._2}
@@ -125,7 +134,8 @@ abstract class GradientDescent extends IterativeSolver {
           lossFunction,
           regularizationConstant,
           learningRate,
-          learningRateMethod)
+          learningRateMethod,
+          startingIter)
 
         val currentLossSumDS = calculateLoss(dataPoints, currentWeightsDS, lossFunction)
 
@@ -155,8 +165,10 @@ abstract class GradientDescent extends IterativeSolver {
       regularizationConstant: Double,
       learningRate: Double,
       lossFunction: LossFunction,
-      optimizationMethod: LearningRateMethodTrait)
+      optimizationMethod: LearningRateMethodTrait,
+      startingIter: Int)
     : DataSet[WeightVector] = {
+    CURRENT_ITER = CURRENT_ITER + numberOfIterations
     initialWeightsDS.iterate(numberOfIterations) {
       weightVectorDS => {
         SGDStep(data,
@@ -164,7 +176,8 @@ abstract class GradientDescent extends IterativeSolver {
                 lossFunction,
                 regularizationConstant,
                 learningRate,
-                optimizationMethod)
+                optimizationMethod,
+                startingIter)
       }
     }
   }
@@ -181,7 +194,8 @@ abstract class GradientDescent extends IterativeSolver {
     lossFunction: LossFunction,
     regularizationConstant: Double,
     learningRate: Double,
-    learningRateMethod: LearningRateMethodTrait)
+    learningRateMethod: LearningRateMethodTrait,
+    startingIter: Int)
   : DataSet[WeightVector] = {
 
     data.mapWithBcVariable(currentWeights){
@@ -214,7 +228,7 @@ abstract class GradientDescent extends IterativeSolver {
         val gradient = WeightVector(weights, intercept/count)
         val effectiveLearningRate = learningRateMethod.calculateLearningRate(
           learningRate,
-          iteration,
+          iteration + startingIter,
           regularizationConstant)
 
         val newWeights = takeStep(
