@@ -210,6 +210,24 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		enableResize = buildSideSerializer.getLength() == -1;
 	}
 
+	/**
+	 * Gets the total capacity of this hash table, in bytes.
+	 *
+	 * @return The hash table's total capacity.
+	 */
+	public long getCapacity() {
+		return numAllMemorySegments * segmentSize;
+	}
+
+	/**
+	 * Gets the number of bytes currently occupied in this hash table.
+	 *
+	 * @return The number of bytes occupied.
+	 */
+	public long getOccupancy() {
+		return numAllMemorySegments * segmentSize - freeMemorySegments.size() * segmentSize;
+	}
+
 	private void open(int numBucketSegments) {
 		synchronized (stateLock) {
 			if (!closed) {
