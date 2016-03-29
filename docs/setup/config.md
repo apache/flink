@@ -275,6 +275,10 @@ For example when running Flink on YARN on an environment with a restrictive fire
 
 - `recovery.job.delay`: (Default 'akka.ask.timeout') Defines the delay before persisted jobs are recovered in case of a recovery situation. 
 
+## Environment
+
+- `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
+
 ## Background
 
 ### Configuring the Network Buffers
