@@ -281,7 +281,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			Priority priority = Priority.newInstance(0);
 
 			// Resource requirements for worker containers
-			int taskManagerSlots = Integer.valueOf(System.getenv(FlinkYarnClientBase.ENV_SLOTS));
+			int taskManagerSlots = Integer.valueOf(System.getenv(YarnConfigKeys.ENV_SLOTS));
 			int vcores = config.getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1));
 			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
 

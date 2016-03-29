@@ -40,8 +40,8 @@ public class YarnConfigKeys {
 
 
 	// ------------------------------------------------------------------------
-	
+
 	/** Private constructor to prevent instantiation */
 	private YarnConfigKeys() {}
-	
+
 }

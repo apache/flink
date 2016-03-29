@@ -61,7 +61,7 @@ public class YarnTaskManagerRunner {
 
 		// read the environment variables for YARN
 		final Map<String, String> envs = System.getenv();
-		final String yarnClientUsername = envs.get(FlinkYarnClient.ENV_CLIENT_USERNAME);
+		final String yarnClientUsername = envs.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
 
 		// configure local directory
