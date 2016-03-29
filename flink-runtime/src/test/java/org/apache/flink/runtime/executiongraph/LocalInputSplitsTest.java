@@ -31,6 +31,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -387,6 +388,7 @@ public class LocalInputSplitsTest {
 				new ExecutionGraphTestUtils.SimpleActorGateway(
 						TestingUtils.defaultExecutionContext()),
 				connection,
+				ResourceID.generate(),
 				new InstanceID(),
 				hardwareDescription,
 				slots);

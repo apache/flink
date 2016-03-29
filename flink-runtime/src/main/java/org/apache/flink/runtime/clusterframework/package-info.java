@@ -16,24 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
-
-public interface ExecutionObserver {
-
-	/**
-	 * Called when the execution state of the associated task has changed.
-	 * 
-	 * @param newExecutionState
-	 *        the execution state the task has just switched to
-	 * @param optionalMessage
-	 *        an optional message providing further information on the state change
-	 */
-	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
-
-	/**
-	 * Returns whether the task has been canceled.
-	 * 
-	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
-	 */
-	boolean isCanceled();
-}
+/**
+ * This package contains the cluster resource management functionality. It contains
+ * abstract classes for the master and worker resource manager actors, as well as for
+ * starting JobManager and TaskManager processes.
+ * 
+ * <p>The classes in this package are extended by the YARN and Mesos implementations
+ * to realize cluster bootstrapping and resource management with those frameworks.
+ */
+package org.apache.flink.runtime.clusterframework;

@@ -27,6 +27,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -125,7 +127,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			jmConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "10 s");
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
-			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
+			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
@@ -380,7 +382,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 				cfg.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg,
+					ResourceID.generate(), TaskManager.class);
 
 				// wait forever
 				Object lock = new Object();

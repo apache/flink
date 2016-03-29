@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -204,7 +204,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 			// test logfile access
 			String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");
-			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
+			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
+			Assert.assertTrue(logs.contains("Starting JobManager"));
+			Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
 		} catch(Throwable e) {
 			LOG.warn("Error while running test",e);
 			Assert.fail(e.getMessage());
@@ -228,7 +230,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
 			for(Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
 				String command = Joiner.on(" ").join(entry.getValue().getLaunchContext().getCommands());
-				if(command.contains(YarnTaskManagerRunner.class.getSimpleName())) {
+				if(command.contains(YarnTaskManager.class.getSimpleName())) {
 					taskManagerContainer = entry.getKey();
 					nodeManager = nm;
 					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "",0);
@@ -279,7 +281,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			int killedOff = o.indexOf("Container killed by the ApplicationMaster");
 			if (killedOff != -1) {
 				o = o.substring(killedOff);
-				ok = o.indexOf("Launching container") > 0;
+				ok = o.indexOf("Launching TaskManager") > 0;
 			}
 			sleep(1000);
 		} while(!ok);
@@ -304,9 +306,14 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Sending stderr content through logger: \n\n{}\n\n", eC);
 
 		// ------ Check if everything happened correctly
-		Assert.assertTrue("Expect to see failed container", eC.contains("New messages from the YARN cluster"));
-		Assert.assertTrue("Expect to see failed container", eC.contains("Container killed by the ApplicationMaster"));
-		Assert.assertTrue("Expect to see new container started", eC.contains("Launching container") && eC.contains("on host"));
+		Assert.assertTrue("Expect to see failed container",
+			eC.contains("New messages from the YARN cluster"));
+
+		Assert.assertTrue("Expect to see failed container",
+			eC.contains("Container killed by the ApplicationMaster"));
+
+		Assert.assertTrue("Expect to see new container started",
+			eC.contains("Launching TaskManager") && eC.contains("on host"));
 
 		// cleanup auth for the subsequent tests.
 		remoteUgi.getTokenIdentifiers().remove(nmIdent);
@@ -502,7 +509,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// TM was started with 1024 but we cut off 50% (NOT THE DEFAULT VALUE)
-			String expected = "Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m";
+			String expected = "Starting TaskManagers with command: $JAVA_HOME/bin/java -Xms424m -Xmx424m";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '"+jobmanagerLog+"'",
 				content.contains(expected));
 			expected = " (2/2) (attempt #0) to ";

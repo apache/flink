@@ -16,10 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.scheduler;
+package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-public class ResourceId extends AbstractID {
-	private static final long serialVersionUID = 1L;
+/**
+ * Generic message to signal the cluster listener that the cluster has been shut down.
+ */
+public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.Serializable {
+
+	private static final long serialVersionUID = 42L;
+
+	private static StopClusterSuccessful INSTANCE = new StopClusterSuccessful();
+
+	/**
+	 * Private constructor. Initial singleton in get() method.
+	 */
+	private StopClusterSuccessful() {}
+
+	public static StopClusterSuccessful getInstance() {
+		return INSTANCE;
+	}
+
+	@Override
+	public String toString() {
+		return "StopClusterSuccessful{}";
+	}
 }

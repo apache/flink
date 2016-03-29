@@ -24,6 +24,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.junit.Test;
 
 import java.io.File;
@@ -55,6 +56,7 @@ public class TaskManagerStartupTest {
 			try {
 				TaskManager.runTaskManager(
 					localHostName,
+					ResourceID.generate(),
 					port,
 					new Configuration(),
 					TaskManager.class);
@@ -105,7 +107,7 @@ public class TaskManagerStartupTest {
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
 
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IOException e) {
@@ -143,7 +145,7 @@ public class TaskManagerStartupTest {
 			// something invalid
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -42);
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -155,7 +157,7 @@ public class TaskManagerStartupTest {
 									ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
 			cfg.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memSize);
 			try {
-				TaskManager.runTaskManager("localhost", 0, cfg);
+				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (Exception e) {

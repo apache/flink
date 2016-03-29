@@ -100,6 +100,12 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
+	 * The config parameter defining the network port to connect to
+	 * for communication with the resource manager.
+	 */
+	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
+
+	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
@@ -214,7 +220,7 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
-	// --------------------------- Runtime Algorithms -------------------------------
+	// ------------------------ Runtime Algorithms ----------------------------
 	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
@@ -240,6 +246,37 @@ public final class ConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
+	
+	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
+
+	/**
+	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final String CONTAINERED_HEAP_CUTOFF_RATIO = "containered.heap-cutoff-ratio";
+
+	/**
+	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 */
+	public static final String CONTAINERED_HEAP_CUTOFF_MIN = "containered.heap-cutoff-min";
+
+	/**
+	 * Prefix for passing custom environment variables to Flink's master process.
+	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
+	 * yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+	 * in the flink-conf.yaml.
+	 */
+	public static final String CONTAINERED_MASTER_ENV_PREFIX = "containered.application-master.env.";
+
+	/**
+	 * Similar to the {@see CONTAINERED_MASTER_ENV_PREFIX}, this configuration prefix allows
+	 * setting custom environment variables for the workers (TaskManagers)
+	 */
+	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
+
+	// --------------------------Standalone Setup -----------------------------
+	
+	
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
@@ -250,16 +287,19 @@ public final class ConfigConstants {
 	/**
 	 * Percentage of heap space to remove from containers started by YARN.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
 
 	/**
 	 * Reallocate failed YARN containers.
 	 */
+	@Deprecated
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
 
 	/**
@@ -300,14 +340,16 @@ public final class ConfigConstants {
 	 * 	yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
 
 	/**
 	 * Similar to the {@see YARN_APPLICATION_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables.
 	 */
+	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
-
+	
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
@@ -583,6 +625,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
+	 * The default network port of the resource manager.
+	 */
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
+
+	/**
 	 * Default number of retries for failed BLOB fetches.
 	 */
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
@@ -687,17 +734,18 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 
-	// ------------------------ YARN Configuration ------------------------
+
+	// ------ Common Resource Framework Configuration (YARN & Mesos) ------
 
 	/**
-	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
-	 * We came up with these values experimentally.
-	 * Flink fails when the cutoff is set only to 500 mb.
+	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
+	 * heap size. We came up with these values experimentally.
 	 */
-	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 600;
+	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
 
 	/**
-	 * Relative amount of memory to subtract from the requested memory.
+	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
+	 * heap size
 	 */
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
 
@@ -705,9 +753,8 @@ public final class ConfigConstants {
 	 * Default port for the application master is 0, which means
 	 * the operating system assigns an ephemeral port
 	 */
-	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "0";
-	
-	
+	public static final String DEFAULT_YARN_JOB_MANAGER_PORT = "0";
+
 	// ------------------------ File System Behavior ------------------------
 
 	/**
@@ -813,6 +860,10 @@ public final class ConfigConstants {
 	public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
 
 	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
+
+	public static final String LOCAL_NUMBER_RESOURCE_MANAGER = "local.number-resourcemanager";
+
+	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 

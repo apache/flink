@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.runtime.util;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
@@ -35,7 +35,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * running Flink on GCE ("Debian GNU/Linux 7.9 (wheezy)"), YARN containers will
  * not properly shut down when we don't call <code>System.exit()</code>.
  */
-class YarnProcessShutDownThread extends Thread {
+public class ProcessShutDownThread extends Thread {
 
 	/** Log of the corresponding YARN process. */
 	private final Logger log;
@@ -54,7 +54,7 @@ class YarnProcessShutDownThread extends Thread {
 	 * @param terminationTimeout Actor system termination timeout before
 	 *                           shutting down the JVM.
 	 */
-	public YarnProcessShutDownThread(
+	public ProcessShutDownThread(
 			Logger log,
 			ActorSystem actorSystem,
 			Duration terminationTimeout) {

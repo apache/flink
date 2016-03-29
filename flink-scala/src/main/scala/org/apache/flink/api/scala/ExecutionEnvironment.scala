@@ -561,7 +561,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
-  def fromElements[T: ClassTag : TypeInformation](data: T*): DataSet[T] = {
+  def fromElements[T: ClassTag : TypeInformation](data: T*) : DataSet[T] = {
     require(data != null, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
     fromCollection(data)(implicitly[ClassTag[T]], typeInfo)

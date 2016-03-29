@@ -15,24 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.yarn
 
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
-/** Default implementation of the [[ApplicationMasterBase]] which starts a [[YarnJobManager]] and a
-  * [[MemoryArchivist]].
-  */
-class ApplicationMaster extends ApplicationMasterBase {
-  override def getJobManagerClass: Class[_ <: JobManager] = classOf[YarnJobManager]
-  override def getArchivistClass: Class[_ <: MemoryArchivist] = classOf[MemoryArchivist]
-}
+import org.apache.hadoop.yarn.api.records.Container;
 
-object ApplicationMaster {
-  def main(args: Array[String]): Unit = {
+import static java.util.Objects.requireNonNull;
 
-    val applicationMaster = new ApplicationMaster
+public class RegisteredYarnWorkerNode extends ResourceID {
+	
+	/** The container on which the worker runs */
+	private final Container yarnContainer;
 
-    applicationMaster.run(args)
-  }
+	public RegisteredYarnWorkerNode(
+		ResourceID resourceId, Container yarnContainer)
+	{
+		super(resourceId.getResourceId());
+		this.yarnContainer = requireNonNull(yarnContainer);
+	}
+
+	public Container yarnContainer() {
+		return yarnContainer;
+	}
+	
+	// ------------------------------------------------------------------------
+
+	@Override
+	public String toString() {
+		return "RegisteredYarnWorkerNode{" +
+			"yarnContainer=" + yarnContainer +
+			'}';
+	}
 }

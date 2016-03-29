@@ -39,6 +39,10 @@ import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.SuppressRestartsException
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.messages._
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
@@ -48,15 +52,18 @@ import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
+
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
 import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, AbstractCheckpointMessage, AcknowledgeCheckpoint}
+
+import org.apache.flink.runtime.messages.webmonitor.InfoMessage
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
@@ -65,7 +72,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
+import org.apache.flink.util.{InstantiationUtil, NetUtils}
 
 import org.jboss.netty.channel.ChannelException
 
@@ -153,6 +160,9 @@ class JobManager(
    */
   val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+
+  /** The resource manager actor responsible for allocating and managing task manager resources. */
+  var currentResourceManager: Option[ActorRef] = None
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -312,58 +322,137 @@ class JobManager(
 
       leaderSessionID = None
 
-    case RegisterTaskManager(
-      connectionInfo,
-      hardwareInformation,
-      numberOfSlots) =>
+    case msg: RegisterResourceManager =>
+      log.debug(s"Resource manager registration: $msg")
+
+      // ditch current resource manager (if any)
+      currentResourceManager = Option(msg.resourceManager())
+
+      val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
+        instance => instance.getResourceId).toList.asJava
+
+      // confirm registration and send known task managers with their resource ids
+      sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
+
+    case msg: ReconnectResourceManager =>
+      log.debug(s"Resource manager reconnect: $msg")
+
+      /**
+        * In most cases, the ResourceManager handles the reconnect itself (due to leader change)
+        * but in case it doesn't we're sending a TriggerRegistrationAtJobManager message until we
+        * receive a registration of this or another ResourceManager.
+        */
+      def reconnectRepeatedly(): Unit = {
+        msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
+        // try again after some delay
+        context.system.scheduler.scheduleOnce(2 seconds) {
+          self ! decorateMessage(msg)
+        }(context.dispatcher)
+      }
+
+      currentResourceManager match {
+        case Some(rm) if rm.equals(msg.resourceManager()) =>
+          // we should ditch the current resource manager
+          log.debug(s"Disconnecting resource manager $rm and forcing a reconnect.")
+          currentResourceManager = None
+          reconnectRepeatedly()
+        case Some(rm) =>
+          // we have registered with another ResourceManager in the meantime, stop sending
+          // TriggerRegistrationAtJobManager messages to the old ResourceManager
+        case None =>
+          log.warn(s"No resource manager ${msg.resourceManager()} connected. " +
+            s"Telling old ResourceManager to register again.")
+          reconnectRepeatedly()
+      }
+
+    case msg @ RegisterTaskManager(
+          resourceId,
+          connectionInfo,
+          hardwareInformation,
+          numberOfSlots) =>
+      // we are being informed by the ResourceManager that a new task manager is available
+      log.debug(s"RegisterTaskManager: $msg")
 
       val taskManager = sender()
 
+      currentResourceManager match {
+        case Some(rm) =>
+          val future = (rm ? decorateMessage(new RegisterResource(taskManager, msg)))(timeout)
+          future.onComplete {
+            case scala.util.Success(response) =>
+              // the resource manager is available and answered
+              self ! response
+            case scala.util.Failure(t) =>
+              log.error("Failure while asking ResourceManager for RegisterResource", t)
+              // slow or unreachable resource manager, register anyway and let the rm reconnect
+              self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
+              self ! decorateMessage(new ReconnectResourceManager(rm))
+          }(context.dispatcher)
+
+        case None =>
+          log.info("Task Manager Registration but not connected to ResourceManager")
+          // ResourceManager not yet available
+          // sending task manager information later upon ResourceManager registration
+          self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
+      }
+
+    case msg: RegisterResourceSuccessful =>
+
+      val originalMsg = msg.getRegistrationMessage
+      val taskManager = msg.getTaskManager
+
+      // ResourceManager knows about the resource, now let's try to register TaskManager
       if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
 
-        // IMPORTANT: Send the response to the "sender", which is not the
-        //            TaskManager actor, but the ask future!
-        sender() ! decorateMessage(
+        taskManager ! decorateMessage(
           AlreadyRegistered(
             instanceID,
-            libraryCacheManager.getBlobServerPort)
-        )
-      }
-      else {
+            libraryCacheManager.getBlobServerPort))
+      } else {
         try {
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
-            connectionInfo,
-            hardwareInformation,
-            numberOfSlots,
+            originalMsg.resourceId,
+            originalMsg.connectionInfo,
+            originalMsg.resources,
+            originalMsg.numberOfSlots,
             leaderSessionID.orNull)
 
-          // IMPORTANT: Send the response to the "sender", which is not the
-          //            TaskManager actor, but the ask future!
-          sender() ! decorateMessage(
-            AcknowledgeRegistration(
-              instanceID,
-              libraryCacheManager.getBlobServerPort)
-          )
+          taskManager ! decorateMessage(
+            AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort))
 
           // to be notified when the taskManager is no longer reachable
           context.watch(taskManager)
-        }
-        catch {
+        } catch {
           // registerTaskManager throws an IllegalStateException if it is already shut down
           // let the actor crash and restart itself in this case
           case e: Exception =>
             log.error("Failed to register TaskManager at instance manager", e)
 
-            // IMPORTANT: Send the response to the "sender", which is not the
-            //            TaskManager actor, but the ask future!
-            sender() ! decorateMessage(
-              RefuseRegistration(
-                ExceptionUtils.stringifyException(e))
-            )
+            taskManager ! decorateMessage(
+              RefuseRegistration(e))
         }
       }
+
+    case msg: RegisterResourceFailed =>
+
+      val taskManager = msg.getTaskManager
+      val resourceId = msg.getResourceID
+      log.warn(s"TaskManager's resource id $resourceId is not registered with ResourceManager. " +
+        s"Refusing registration.")
+
+      taskManager ! decorateMessage(
+        RefuseRegistration(new IllegalStateException(
+            s"Resource $resourceId not registered with resource manager.")))
+
+    case msg: ResourceRemoved =>
+      // we're being informed by the resource manager that a resource has become unavailable
+      val resourceID = msg.resourceId()
+      log.debug(s"Resource has been removed: $resourceID")
+      val instance = instanceManager.getRegisteredInstance(resourceID)
+      // trigger removal of task manager
+      handleTaskManagerTerminated(instance.getActorGateway.actor())
 
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
@@ -815,7 +904,6 @@ class JobManager(
       sender ! decorateMessage(ResponseArchive(archive))
 
     case RequestRegisteredTaskManagers =>
-      import scala.collection.JavaConverters._
       sender ! decorateMessage(
         RegisteredTaskManagers(
           instanceManager.getAllRegisteredInstances.asScala
@@ -842,13 +930,8 @@ class JobManager(
       val gateway = instanceManager.getRegisteredInstanceById(instanceID).getActorGateway
       gateway.forward(SendStackTrace, new AkkaActorGateway(sender, leaderSessionID.orNull))
 
-    case Terminated(taskManager) =>
-      if (instanceManager.isRegistered(taskManager)) {
-        log.info(s"Task manager ${taskManager.path} terminated.")
-
-        instanceManager.unregisterTaskManager(taskManager, true)
-        context.unwatch(taskManager)
-      }
+    case Terminated(taskManagerActorRef) =>
+      handleTaskManagerTerminated(taskManagerActorRef)
 
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
@@ -890,11 +973,54 @@ class JobManager(
         context.unwatch(taskManager)
       }
 
+    case msg: StopCluster =>
+
+      log.info(s"Stopping JobManager with final application status ${msg.finalStatus()} " +
+        s"and diagnostics: ${msg.message()}")
+
+      // stop all task managers
+      instanceManager.getAllRegisteredInstances.asScala foreach {
+        instance =>
+          instance.getActorGateway.tell(msg)
+      }
+
+      // send resource manager the ok
+      currentResourceManager match {
+        case Some(rm) =>
+
+          // inform rm
+          rm ! decorateMessage(msg)
+
+          sender() ! decorateMessage(StopClusterSuccessful.getInstance())
+
+          // trigger shutdown
+          shutdown()
+
+        case None =>
+          // ResourceManager not available
+          // we choose not to wait here beacuse it might block the shutdown forever
+      }
+
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
 
     case RequestWebMonitorPort =>
       sender() ! ResponseWebMonitorPort(webMonitorPort)
+  }
+
+  /**
+    * Handler to be executed when a task manager terminates.
+    * (Akka Deathwatch or notifiction from ResourceManager)
+    *
+    * @param taskManager The ActorRef of the taskManager
+    */
+  private def handleTaskManagerTerminated(taskManager: ActorRef): Unit = {
+    if (instanceManager.isRegistered(taskManager)) {
+      log.info(s"Task manager ${taskManager.path} terminated.")
+
+      instanceManager.unregisterTaskManager(taskManager, true)
+      context.unwatch(taskManager)
+    }
   }
 
   /**
@@ -1554,8 +1680,8 @@ class JobManager(
   
   /**
    * Updates the accumulators reported from a task manager via the Heartbeat message.
-    *
-    * @param accumulators list of accumulator snapshots
+   *
+   * @param accumulators list of accumulator snapshots
    */
   private def updateAccumulators(accumulators : Seq[AccumulatorSnapshot]) = {
     accumulators foreach {
@@ -1569,6 +1695,20 @@ class JobManager(
           // ignore accumulator values for old job
         }
     }
+  }
+
+  /**
+    * Shutdown method which may be overridden for testing.
+    */
+  protected def shutdown() : Unit = {
+    // Await actor system termination and shut down JVM
+    new ProcessShutDownThread(
+      log.logger,
+      context.system,
+      FiniteDuration(10, SECONDS)).start()
+
+    // Shutdown and discard all queued messages
+    context.system.shutdown()
   }
 }
 
@@ -1689,14 +1829,15 @@ object JobManager {
       listeningAddress: String,
       listeningPort: Int)
     : Unit = {
-    
-    val (jobManagerSystem, _, _, _) = startActorSystemAndJobManagerActors(
+
+    val (jobManagerSystem, _, _, _, _) = startActorSystemAndJobManagerActors(
       configuration,
       executionMode,
       listeningAddress,
       listeningPort,
       classOf[JobManager],
-      classOf[MemoryArchivist]
+      classOf[MemoryArchivist],
+      Option(classOf[StandaloneResourceManager])
     )
 
     // block until everything is shut down
@@ -1810,6 +1951,7 @@ object JobManager {
     * @param listeningPort The port where the JobManager should listen for messages
     * @param jobManagerClass The class of the JobManager to be started
     * @param archiveClass The class of the Archivist to be started
+    * @param resourceManagerClass Optional class of resource manager if one should be started
     * @return A tuple containing the started ActorSystem, ActorRefs to the JobManager and the
     *         Archivist and an Option containing a possibly started WebMonitor
     */
@@ -1819,8 +1961,9 @@ object JobManager {
       listeningAddress: String,
       listeningPort: Int,
       jobManagerClass: Class[_ <: JobManager],
-      archiveClass: Class[_ <: MemoryArchivist])
-    : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+      archiveClass: Class[_ <: MemoryArchivist],
+      resourceManagerClass: Option[Class[_ <: FlinkResourceManager[_]]])
+    : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
 
     LOG.info("Starting JobManager")
 
@@ -1905,6 +2048,7 @@ object JobManager {
 
         val taskManagerActor = TaskManager.startTaskManagerComponentsAndActor(
           configuration,
+          ResourceID.generate(),
           jobManagerSystem,
           listeningAddress,
           Some(TaskManager.TASK_MANAGER_NAME),
@@ -1922,13 +2066,29 @@ object JobManager {
           "TaskManager_Process_Reaper")
       }
 
+      // start web monitor
       webMonitor.foreach {
         monitor =>
           val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(configuration)
           monitor.start(jobManagerAkkaUrl)
       }
 
-      (jobManagerSystem, jobManager, archive, webMonitor)
+      val resourceManager =
+        resourceManagerClass match {
+          case Some(rmClass) =>
+            LOG.debug("Starting Resource manager actor")
+            Option(
+              FlinkResourceManager.startResourceManagerActors(
+                configuration,
+                jobManagerSystem,
+                LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
+                rmClass))
+          case None =>
+            LOG.info("Resource Manager class not provided. No resource manager will be started.")
+            None
+        }
+
+      (jobManagerSystem, jobManager, archive, webMonitor, resourceManager)
     }
     catch {
       case t: Throwable =>
@@ -2197,8 +2357,8 @@ object JobManager {
   }
 
   /**
-   * Starts the JobManager and job archiver based on the given configuration, in the
-   * given actor system.
+   * Starts the JobManager and job archiver based on the given configuration, in
+   * the given actor system.
    *
    * @param configuration The configuration for the JobManager
    * @param actorSystem The actor system running the JobManager
@@ -2290,10 +2450,6 @@ object JobManager {
     }
 
     (jobManager, archive)
-  }
-
-  def startActor(props: Props, actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(props, JOB_MANAGER_NAME)
   }
 
   // --------------------------------------------------------------------------

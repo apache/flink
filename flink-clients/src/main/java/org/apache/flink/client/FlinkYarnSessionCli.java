@@ -26,9 +26,9 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -303,11 +303,12 @@ public class FlinkYarnSessionCli {
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
-				FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
-				if (status != null && numTaskmanagers != status.getNumberOfTaskManagers()) {
+				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
 					System.err.println("Number of connected TaskManagers changed to " +
-							status.getNumberOfTaskManagers() + ". Slots available: " + status.getNumberOfSlots());
-					numTaskmanagers = status.getNumberOfTaskManagers();
+							status.numRegisteredTaskManagers() + ". " +
+						"Slots available: " + status.totalNumberOfSlots());
+					numTaskmanagers = status.numRegisteredTaskManagers();
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();

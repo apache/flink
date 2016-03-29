@@ -53,6 +53,7 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -69,7 +70,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -1050,10 +1050,11 @@ public class CliFrontend {
 			logAndSysout("Waiting until all TaskManagers have connected");
 
 			while(true) {
-				FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
+				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
 				if (status != null) {
-					if (status.getNumberOfTaskManagers() < flinkYarnClient.getTaskManagerCount()) {
-						logAndSysout("TaskManager status (" + status.getNumberOfTaskManagers() + "/" + flinkYarnClient.getTaskManagerCount() + ")");
+					if (status.numRegisteredTaskManagers() < flinkYarnClient.getTaskManagerCount()) {
+						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
+							+ flinkYarnClient.getTaskManagerCount() + ")");
 					} else {
 						logAndSysout("All TaskManagers are connected");
 						break;

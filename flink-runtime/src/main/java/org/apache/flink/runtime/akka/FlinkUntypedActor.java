@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.akka;
 
 import akka.actor.UntypedActor;
+
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,7 +131,7 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 	 * @return The deocrated message
 	 */
 	protected Object decorateMessage(Object message) {
-		if(message instanceof  RequiresLeaderSessionID) {
+		if (message instanceof RequiresLeaderSessionID) {
 			return new LeaderSessionMessage(getLeaderSessionID(), message);
 		} else {
 			return message;

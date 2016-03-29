@@ -77,8 +77,8 @@ object TestingJobManagerMessages {
     userAccumulators: Map[String, Accumulator[_,_]])
 
   /** Notifies the sender when the [[TestingJobManager]] has been elected as the leader
-    *
-    */
+   *
+   */
   case object NotifyWhenLeader
 
   /**
