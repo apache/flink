@@ -95,6 +95,7 @@ KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
 KEY_ENV_PID_DIR="env.pid.dir"
+KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
@@ -136,7 +137,7 @@ FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
 FLINK_ROOT_DIR_MANGLED=`manglePath "$FLINK_ROOT_DIR"`
 if [ -z "$FLINK_CONF_DIR" ]; then FLINK_CONF_DIR=$FLINK_ROOT_DIR_MANGLED/conf; fi
 FLINK_BIN_DIR=$FLINK_ROOT_DIR_MANGLED/bin
-FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
+DEFAULT_FLINK_LOG_DIR=$FLINK_ROOT_DIR_MANGLED/log
 FLINK_CONF_FILE="flink-conf.yaml"
 YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 
@@ -209,6 +210,10 @@ fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
+fi
+
+if [ -z "${FLINK_LOG_DIR}" ]; then
+    FLINK_LOG_DIR=$(readFromConfig ${KEY_ENV_LOG_DIR} "${DEFAULT_FLINK_LOG_DIR}" "${YAML_CONF}")
 fi
 
 if [ -z "${FLINK_PID_DIR}" ]; then
