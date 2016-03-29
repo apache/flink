@@ -18,11 +18,15 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,7 +34,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
@@ -87,8 +94,8 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple2<String, String>> joinDs =
 				ds1.join(ds2)
-				.where(0,1)
-				.equalTo(0,4)
+				.where(0, 1)
+				.equalTo(0, 4)
 				.with(new T3T5FlatJoin());
 
 		List<Tuple2<String, String>> result = joinDs.collect();
@@ -680,6 +687,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	@Test
 	public void testJoinWithAtomicType2() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -692,6 +700,38 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		String expected = "1,(1,1,Hi)\n" +
 				"2,(2,2,Hello)";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testJoinWithRangePartitioning() throws Exception {
+		/*
+		 * Test Join on tuples with multiple key field positions and same customized distribution
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+
+		env.setParallelism(4);
+		TestDistribution testDis = new TestDistribution();
+		DataSet<Tuple2<String, String>> joinDs =
+				DataSetUtils.partitionByRange(ds1, testDis, 0, 1)
+						.join(DataSetUtils.partitionByRange(ds2, testDis, 0, 4))
+						.where(0, 1)
+						.equalTo(0, 4)
+						.with(new T3T5FlatJoin());
+
+		List<Tuple2<String, String>> result = joinDs.collect();
+
+		String expected = "Hi,Hallo\n" +
+				"Hello,Hallo Welt\n" +
+				"Hello world,Hallo Welt wie gehts?\n" +
+				"Hello world,ABC\n" +
+				"I am fine.,HIJ\n" +
+				"I am fine.,IJK\n";
 
 		compareResultAsTuples(result, expected);
 	}
@@ -776,6 +816,47 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		public Tuple2<String, String> join(CustomType first, Tuple3<Integer, Long, String> second) {
 
 			return new Tuple2<String, String>(first.myString, second.f2);
+		}
+	}
+	
+	public static class TestDistribution implements DataDistribution {
+		public Object boundaries[][] = new Object[][]{
+				new Object[]{2, 2L},
+				new Object[]{5, 4L},
+				new Object[]{10, 12L},
+				new Object[]{21, 6L}
+		};
+
+		public TestDistribution() {}
+
+		@Override
+		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+			return boundaries[bucketNum];
+		}
+
+		@Override
+		public int getNumberOfFields() {
+			return 2;
+		}
+
+		@Override
+		public TypeInformation[] getKeyTypes() {
+			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO};
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestDistribution;
 		}
 	}
 }

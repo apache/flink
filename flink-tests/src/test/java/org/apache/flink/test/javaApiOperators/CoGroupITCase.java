@@ -18,8 +18,11 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -28,7 +31,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
@@ -40,6 +46,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -286,7 +293,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
 
 		DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
-				where(0,4).equalTo(0,1).with(new Tuple5Tuple3CoGroup());
+				where(0, 4).equalTo(0, 1).with(new Tuple5Tuple3CoGroup());
 
 		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
 		
@@ -516,6 +523,37 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expected);
 	}
 
+	@Test
+	public void testCoGroupWithRangePartitioning() throws Exception {
+		/*
+		 * Test coGroup on tuples with multiple key field positions and same customized distribution
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+
+		env.setParallelism(4);
+		TestDistribution testDis = new TestDistribution();
+		DataSet<Tuple3<Integer, Long, String>> coGrouped =
+				DataSetUtils.partitionByRange(ds1, testDis, 0, 4)
+						.coGroup(DataSetUtils.partitionByRange(ds2, testDis, 0, 1))
+						.where(0, 4)
+						.equalTo(0, 1)
+						.with(new Tuple5Tuple3CoGroup());
+
+		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
+
+		String expected = "1,1,Hallo\n" +
+				"2,2,Hallo Welt\n" +
+				"3,2,Hallo Welt wie gehts?\n" +
+				"3,2,ABC\n" +
+				"5,3,HIJ\n" +
+				"5,3,IJK\n";
+
+		compareResultAsTuples(result, expected);
+	}
 
 
 	// --------------------------------------------------------------------------------------------
@@ -795,6 +833,47 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 					}
 				}
 			}
+		}
+	}
+
+	public static class TestDistribution implements DataDistribution {
+		public Object[][] boundaries = new Object[][]{
+				new Object[]{2, 2L},
+				new Object[]{5, 4L},
+				new Object[]{10, 12L},
+				new Object[]{21, 6L}
+		};
+
+		public TestDistribution() {}
+
+		@Override
+		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+			return boundaries[bucketNum];
+		}
+
+		@Override
+		public int getNumberOfFields() {
+			return 2;
+		}
+
+		@Override
+		public TypeInformation[] getKeyTypes() {
+			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO};
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestDistribution; 
 		}
 	}
 }

@@ -311,6 +311,7 @@ public class GlobalProperties implements Cloneable {
 					gp.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 					gp.ordering = newOrdering;
 					gp.partitioningFields = newOrdering.getInvolvedIndexes();
+					gp.distribution = this.distribution;
 				}
 				break;
 			case HASH_PARTITIONED:
@@ -436,6 +437,7 @@ public class GlobalProperties implements Cloneable {
 				throw new CompilerException("Unsupported partitioning strategy");
 		}
 
+		channel.setDataDistribution(this.distribution);
 		DataExchangeMode exMode = DataExchangeMode.select(exchangeMode, shipType, breakPipeline);
 		channel.setShipStrategy(shipType, partitionKeys, sortDirection, partitioner, exMode);
 	}
@@ -490,6 +492,7 @@ public class GlobalProperties implements Cloneable {
 		newProps.partitioning = this.partitioning;
 		newProps.partitioningFields = this.partitioningFields;
 		newProps.ordering = this.ordering;
+		newProps.distribution = this.distribution;
 		newProps.customPartitioner = this.customPartitioner;
 		newProps.uniqueFieldCombinations = this.uniqueFieldCombinations == null ? null : new HashSet<FieldSet>(this.uniqueFieldCombinations);
 		return newProps;

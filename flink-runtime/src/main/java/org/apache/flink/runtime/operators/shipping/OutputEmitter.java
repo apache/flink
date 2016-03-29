@@ -258,11 +258,11 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private final int compareRecordAndBoundary(T record, Object[] boundary) {
 		this.comparator.extractKeys(record, keys, 0);
 
-		if (flatComparators.length != keys.length || flatComparators.length != boundary.length) {
+		if (flatComparators.length != keys.length || flatComparators.length > boundary.length) {
 			throw new RuntimeException("Can not compare keys with boundary due to mismatched length.");
 		}
 
-		for (int i=0; i<flatComparators.length; i++) {
+		for (int i = 0; i < flatComparators.length; i++) {
 			int result = flatComparators[i].compare(keys[i], boundary[i]);
 			if (result != 0) {
 				return result;

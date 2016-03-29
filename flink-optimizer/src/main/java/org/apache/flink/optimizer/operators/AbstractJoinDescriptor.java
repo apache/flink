@@ -140,11 +140,12 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 
 			}
 			else if(produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
-					produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
+					produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+					produced1.getDataDistribution() != null && produced2.getDataDistribution() != null) {
 
-				// Return false anyway now, we need both the partition key and data distribution
-				// information to make sure whether the range partitions are equivalent.
-				return false;
+				return produced1.getPartitioningFields().size() == produced2.getPartitioningFields().size() &&
+						checkSameOrdering(produced1, produced2, produced1.getPartitioningFields().size()) &&
+						produced1.getDataDistribution().equals(produced2.getDataDistribution());
 
 			}
 			else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&

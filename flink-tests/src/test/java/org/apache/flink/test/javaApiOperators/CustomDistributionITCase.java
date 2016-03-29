@@ -49,13 +49,13 @@ public class CustomDistributionITCase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> input1 = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		final TestDataDist1 dist = new TestDataDist1();
 
 		env.setParallelism(dist.getParallelism());
 
 		DataSet<Boolean> result = DataSetUtils
-			.partitionByRange(input1, dist, 0)
+			.partitionByRange(input, dist, 0)
 			.mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Long, String>, Boolean>() {
 
 				@Override
@@ -104,7 +104,7 @@ public class CustomDistributionITCase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-		DataSet<Tuple3<Integer, Integer, String>> input1 = env.fromElements(
+		DataSet<Tuple3<Integer, Integer, String>> input = env.fromElements(
 						new Tuple3<>(1, 5, "Hi"),
 						new Tuple3<>(1, 6, "Hi"),
 						new Tuple3<>(1, 7, "Hi"),
@@ -127,7 +127,7 @@ public class CustomDistributionITCase {
 		env.setParallelism(dist.getParallelism());
 
 		DataSet<Boolean> result = DataSetUtils
-			.partitionByRange(input1, dist, 0, 1)
+			.partitionByRange(input, dist, 0, 1)
 			.mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Integer, String>, Boolean>() {
 
 				@Override
@@ -175,6 +175,75 @@ public class CustomDistributionITCase {
 		env.execute();
 	}
 
+	@Test
+	public void testPartitionKeyLessDistribution() throws Exception{
+		/*
+		 * Test the number of partition keys less than the number of distribution fields
+		 */
+		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+		final TestDataDist2 dist = new TestDataDist2();
+
+		env.setParallelism(dist.getParallelism());
+
+		DataSet<Boolean> result = DataSetUtils
+			.partitionByRange(input, dist, 0)
+			.mapPartition(new RichMapPartitionFunction<Tuple3<Integer, Long, String>, Boolean>() {
+
+				@Override
+				public void mapPartition(Iterable<Tuple3<Integer, Long, String>> values, Collector<Boolean> out) throws Exception {
+					int pIdx = getRuntimeContext().getIndexOfThisSubtask();
+
+					for (Tuple3<Integer, Long, String> s : values) {
+						boolean correctlyPartitioned = true;
+						if (pIdx == 0) {
+							Integer[] upper = dist.boundaries[0];
+							if (s.f0.compareTo(upper[0]) > 0) {
+								correctlyPartitioned = false;
+							}
+						}
+						else if (pIdx > 0 && pIdx < dist.getParallelism() - 1) {
+							Integer[] lower = dist.boundaries[pIdx - 1];
+							Integer[] upper = dist.boundaries[pIdx];
+							if (s.f0.compareTo(upper[0]) > 0 || (s.f0.compareTo(lower[0]) <= 0)) {
+								correctlyPartitioned = false;
+							}
+						}
+						else {
+							Integer[] lower = dist.boundaries[pIdx - 1];
+							if ((s.f0.compareTo(lower[0]) <= 0)) {
+								correctlyPartitioned = false;
+							}
+						}
+
+						if (!correctlyPartitioned) {
+							fail("Record was not correctly partitioned: " + s.toString());
+						}
+					}
+				}
+			}
+			);
+
+		result.output(new DiscardingOutputFormat<Boolean>());
+		env.execute();
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testPartitionMoreThanDistribution() throws Exception{
+		/*
+		 * Test the number of partition keys larger than the number of distribution fields
+		 */
+
+		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+		final TestDataDist2 dist = new TestDataDist2();
+
+		DataSet<Tuple3<Integer, Long, String>> result = DataSetUtils
+				.partitionByRange(input, dist, 0, 1, 2);
+	}
+	
 	/**
 	 * The class is used to do the tests of range partition with one key.
 	 */
