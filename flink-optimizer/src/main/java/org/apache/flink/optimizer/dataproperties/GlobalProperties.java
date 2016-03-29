@@ -83,6 +83,10 @@ public class GlobalProperties implements Cloneable {
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
 	}
+	
+	public void setDistribution(DataDistribution distribution) {
+		this.distribution = distribution;
+	}
 
 	/**
 	 * Set the parameters for range partition.

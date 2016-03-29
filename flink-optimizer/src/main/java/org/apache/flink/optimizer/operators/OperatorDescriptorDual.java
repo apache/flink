@@ -125,6 +125,29 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 		return true;
 	}
 
+	protected boolean checkSameOrdering(GlobalProperties produced1, GlobalProperties produced2, int numRelevantFields) {
+		Ordering prod1 = produced1.getPartitioningOrdering();
+		Ordering prod2 = produced2.getPartitioningOrdering();
+
+		if (prod1 == null || prod2 == null) {
+			throw new CompilerException("The given properties do not meet this operators requirements.");
+		}
+
+		// check that order of fields is equivalent
+		if (!checkEquivalentFieldPositionsInKeyFields(
+				prod1.getInvolvedIndexes(), prod2.getInvolvedIndexes(), numRelevantFields)) {
+			return false;
+		}
+
+		// check that both inputs have the same directions of order
+		for (int i = 0; i < numRelevantFields; i++) {
+			if (prod1.getOrder(i) != prod2.getOrder(i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	protected boolean checkSameOrdering(LocalProperties produced1, LocalProperties produced2, int numRelevantFields) {
 		Ordering prod1 = produced1.getOrdering();
 		Ordering prod2 = produced2.getOrdering();
