@@ -34,4 +34,3 @@ env.java.home: /usr/java/default
 #==============================================================================
 
 jobmanager.web.port: 8080
-webclient.port: 8081

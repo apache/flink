@@ -1348,11 +1348,12 @@ After these steps, a detailed execution plan will be visualized.
 
 __Web Interface__
 
-Flink offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.
+Flink offers a web interface for submitting and executing jobs. The interface is part of the JobManager's
+web interface for monitoring, per default running on port 8081. Job submission via this interfaces requires
+that you have set `jobmanager.web.submit.enable: true` in `flink-conf.yaml`.
 
-The script to start the webinterface is located under ```bin/start-webclient.sh```. After starting the webclient (per default on **port 8080**), your program can be uploaded and will be added to the list of available programs on the left side of the interface.
-
-You are able to specify program arguments in the textbox at the bottom of the page. Checking the plan visualization checkbox shows the execution plan before executing the actual program.
+You may specify program arguments before the job is executed. The plan visualization enables you to show
+the execution plan before executing the Flink job.
 
 {% top %}
 
