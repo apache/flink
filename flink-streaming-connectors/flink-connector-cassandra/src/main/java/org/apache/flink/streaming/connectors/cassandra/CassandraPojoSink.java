@@ -17,43 +17,45 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.mapping.Mapper;
+import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * Flink Sink to save data into a Cassandra cluster.
+ * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
+ * it uses annotations from {@link com.datastax.driver.mapping}.
  *
- * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
+ * @param <IN> Type of the elements emitted by this sink
  */
-public class CassandraTupleAtLeastOnceSink<IN extends Tuple> extends CassandraAtLeastOnceSink<IN, ResultSet> {
-	private final String insertQuery;
-	private transient PreparedStatement ps;
+public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, Void> {
+	protected Class<IN> clazz;
+	protected transient Mapper<IN> mapper;
+	protected transient MappingManager mappingManager;
 
-	public CassandraTupleAtLeastOnceSink(String insertQuery, ClusterBuilder builder) {
+	/**
+	 * The main constructor for creating CassandraPojoSink
+	 *
+	 * @param clazz Class<IN> instance
+	 */
+	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder) {
 		super(builder);
-		this.insertQuery = insertQuery;
+		this.clazz = clazz;
 	}
 
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
-		this.ps = session.prepare(insertQuery);
+		try {
+			this.mappingManager = new MappingManager(session);
+			this.mapper = mappingManager.mapper(clazz);
+		} catch (Exception e) {
+			throw new RuntimeException("Cannot create CassandraPojoSink with input: " + clazz.getSimpleName(), e);
+		}
 	}
 
 	@Override
-	public ListenableFuture<ResultSet> send(IN value) {
-		Object[] fields = extract(value);
-		return session.executeAsync(ps.bind(fields));
-	}
-
-	private Object[] extract(IN record) {
-		Object[] al = new Object[record.getArity()];
-		for (int i = 0; i < record.getArity(); i++) {
-			al[i] = record.getField(i);
-		}
-		return al;
+	public ListenableFuture<Void> send(IN value) {
+		return mapper.saveAsync(value);
 	}
 }

@@ -35,15 +35,13 @@ import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Sink that emits its input elements into a Cassandra database. This sink is integrated with the checkpointing
- * mechanism and provides exactly-once guarantees for idempotent updates.
- * <p/>
- * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
- * checkpoint is completed.
+ * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a 
+ * {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only commits them to cassandra
+ * if a checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
+public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 
@@ -60,7 +58,7 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 
 	private transient Object[] fields;
 
-	protected CassandraIdempotentExactlyOnceSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
+	protected CassandraTupleWriteAheadSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
 		super(committer, serializer, jobID);
 		this.insertQuery = insertQuery;
 		this.builder = builder;
@@ -70,7 +68,7 @@ public class CassandraIdempotentExactlyOnceSink<IN extends Tuple> extends Generi
 	public void open() throws Exception {
 		super.open();
 		if (!getRuntimeContext().isCheckpointingEnabled()) {
-			throw new IllegalStateException("Exactly-once guarantees can only be provided if checkpointing is enabled.");
+			throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
 		}
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override

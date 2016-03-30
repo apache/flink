@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.connectors.cassandra.example;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
@@ -26,24 +26,26 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.ArrayList;
 
-public class CassandraPojoAtLeastOnceSinkExample {
-	private static final ArrayList<Message> messages = new ArrayList<>(20);
+public class CassandraTupleSinkExample {
+	private static final String INSERT = "INSERT INTO test.writetuple (element1, element2) VALUES (?, ?)";
+	private static final ArrayList<Tuple2<String, Integer>> collection = new ArrayList<>(20);
 
 	static {
-		for (long i = 0; i < 20; i++) {
-			messages.add(new Message("cassandra-" + i));
+		for (int i = 0; i < 20; i++) {
+			collection.add(new Tuple2<>("cassandra-" + i, i));
 		}
 	}
 
 	/*
-	 *	create table: "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);"
+	 * table script: "CREATE TABLE IF NOT EXISTS test.writetuple(element1 text PRIMARY KEY, element2 int)"
 	 */
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<Message> source = env.fromCollection(messages);
+		DataStreamSource<Tuple2<String, Integer>> source = env.fromCollection(collection);
 
 		CassandraSink.addSink(source)
+			.setQuery(INSERT)
 			.setClusterBuilder(new ClusterBuilder() {
 				@Override
 				protected Cluster buildCluster(Builder builder) {
@@ -52,6 +54,6 @@ public class CassandraPojoAtLeastOnceSinkExample {
 			})
 			.build();
 
-		env.execute("Cassandra Sink example");
+		env.execute("WriteTupleIntoCassandra");
 	}
 }

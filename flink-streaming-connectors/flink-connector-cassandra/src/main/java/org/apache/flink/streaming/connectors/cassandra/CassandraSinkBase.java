@@ -31,12 +31,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * CassandraAtLeastOnceSink is the common abstract class of {@link CassandraPojoAtLeastOnceSink} and {@link CassandraTupleAtLeastOnceSink}.
+ * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraAtLeastOnceSink<IN, V> extends RichSinkFunction<IN> {
-	protected static final Logger LOG = LoggerFactory.getLogger(CassandraAtLeastOnceSink.class);
+public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(CassandraSinkBase.class);
 	protected transient Cluster cluster;
 	protected transient Session session;
 
@@ -45,7 +45,7 @@ public abstract class CassandraAtLeastOnceSink<IN, V> extends RichSinkFunction<I
 
 	private final ClusterBuilder builder;
 
-	protected CassandraAtLeastOnceSink(ClusterBuilder builder) {
+	protected CassandraSinkBase(ClusterBuilder builder) {
 		this.builder = builder;
 		ClosureCleaner.clean(builder, true);
 	}

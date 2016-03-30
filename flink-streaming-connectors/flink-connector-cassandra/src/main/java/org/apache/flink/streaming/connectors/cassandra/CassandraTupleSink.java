@@ -17,45 +17,43 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.mapping.Mapper;
-import com.datastax.driver.mapping.MappingManager;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
 import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
- * it uses annotations from {@link com.datastax.driver.mapping}.
+ * Flink Sink to save data into a Cassandra cluster.
  *
- * @param <IN> Type of the elements emitted by this sink
+ * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
  */
-public class CassandraPojoAtLeastOnceSink<IN> extends CassandraAtLeastOnceSink<IN, Void> {
-	protected Class<IN> clazz;
-	protected transient Mapper<IN> mapper;
-	protected transient MappingManager mappingManager;
+public class CassandraTupleSink<IN extends Tuple> extends CassandraSinkBase<IN, ResultSet> {
+	private final String insertQuery;
+	private transient PreparedStatement ps;
 
-	/**
-	 * The main constructor for creating CassandraPojoAtLeastOnceSink
-	 *
-	 * @param clazz Class<IN> instance
-	 */
-	public CassandraPojoAtLeastOnceSink(Class<IN> clazz, ClusterBuilder builder) {
+	public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
 		super(builder);
-		this.clazz = clazz;
+		this.insertQuery = insertQuery;
 	}
 
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
-		try {
-			this.mappingManager = new MappingManager(session);
-			this.mapper = mappingManager.mapper(clazz);
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot create CassandraPojoAtLeastOnceSink with input: " + clazz.getSimpleName(), e);
-		}
+		this.ps = session.prepare(insertQuery);
 	}
 
 	@Override
-	public ListenableFuture<Void> send(IN value) {
-		return mapper.saveAsync(value);
+	public ListenableFuture<ResultSet> send(IN value) {
+		Object[] fields = extract(value);
+		return session.executeAsync(ps.bind(fields));
+	}
+
+	private Object[] extract(IN record) {
+		Object[] al = new Object[record.getArity()];
+		for (int i = 0; i < record.getArity(); i++) {
+			al[i] = record.getField(i);
+		}
+		return al;
 	}
 }

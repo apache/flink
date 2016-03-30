@@ -29,7 +29,7 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.UUID;
 
-public class CassandraIdempotentExactlyOnceSinkExample {
+public class CassandraTupleWriteAheadSinkExample {
 	public static void main(String[] args) throws Exception {
 
 		class MySource implements SourceFunction<Tuple2<String, Integer>>, Checkpointed<Integer> {
@@ -72,7 +72,7 @@ public class CassandraIdempotentExactlyOnceSinkExample {
 
 		CassandraSink<Tuple2<String, Integer>> sink = CassandraSink.addSink(env.addSource(new MySource()))
 			.setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
-			.setConsistencyLevel(CassandraSink.ConsistencyLevel.EXACTLY_ONCE)
+			.enableWriteAheadLog()
 			.setClusterBuilder(new ClusterBuilder() {
 				@Override
 				public Cluster buildCluster(Cluster.Builder builder) {
