@@ -66,6 +66,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(createSink());
 
 		int elementCounter = 1;
@@ -117,6 +118,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(sink);
 
 		int elementCounter = 1;
@@ -164,6 +166,7 @@ public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSi
 		TypeInformation<IN> info = createTypeInfo();
 		OneInputStreamTaskTestHarness<IN, IN> testHarness = new OneInputStreamTaskTestHarness<>(task, 1, 1, info, info);
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		streamConfig.setStreamOperator(sink);
 
 		int elementCounter = 1;
