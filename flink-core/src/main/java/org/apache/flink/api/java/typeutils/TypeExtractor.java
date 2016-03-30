@@ -352,8 +352,8 @@ public class TypeExtractor {
 				if(function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
-				return new TypeExtractor().privateCreateTypeInfo((
-					outputTypeArgumentIndex >= 0)? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+				return new TypeExtractor().privateCreateTypeInfo(
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
 					inType,
 					null);
 			}
@@ -461,7 +461,7 @@ public class TypeExtractor {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				return new TypeExtractor().privateCreateTypeInfo(
-					(outputTypeArgumentIndex >= 0)? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
 					in1Type,
 					in2Type);
 			}
