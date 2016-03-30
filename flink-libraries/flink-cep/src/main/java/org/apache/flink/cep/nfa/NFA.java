@@ -252,14 +252,22 @@ public class NFA<T> implements Serializable {
 									}
 								}
 
-								sharedBuffer.put(
-									newState,
-									event,
-									timestamp,
-									previousState,
-									previousEvent,
-									previousTimestamp,
-									oldVersion);
+								if (previousState.isStart()) {
+									sharedBuffer.put(
+										newState,
+										event,
+										timestamp,
+										oldVersion);
+								} else {
+									sharedBuffer.put(
+										newState,
+										event,
+										timestamp,
+										previousState,
+										previousEvent,
+										previousTimestamp,
+										oldVersion);
+								}
 
 								// a new computation state is referring to the shared entry
 								sharedBuffer.lock(newState, event, timestamp);

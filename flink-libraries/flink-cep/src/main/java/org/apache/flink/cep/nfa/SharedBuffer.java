@@ -99,9 +99,46 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		final SharedBufferEntry<K, V> previousSharedBufferEntry = get(previousKey, previousValue, previousTimestamp);
 
+		// sanity check whether we've found the previous element
+		if (previousSharedBufferEntry == null && previousValue != null) {
+			throw new IllegalStateException("Could not find previous shared buffer entry with " +
+				"key: " + previousKey + ", value: " + previousValue + " and timestamp: " +
+				previousTimestamp + ". This can indicate that the element belonging to the previous " +
+				"relation has been already pruned, even though you expect it to be still there.");
+		}
+
 		page.add(
 			new ValueTimeWrapper<>(value, timestamp),
 			previousSharedBufferEntry,
+			version);
+	}
+
+	/**
+	 * Stores given value (value + timestamp) under the given key. It assigns no preceding element
+	 * relation to the entry.
+	 *
+	 * @param key Key of the current value
+	 * @param value Current value
+	 * @param timestamp Timestamp of the current value (a value requires always a timestamp to make it uniquely referable))
+	 * @param version Version of the previous relation
+	 */
+	public void put(
+		final K key,
+		final V value,
+		final long timestamp,
+		final DeweyNumber version) {
+		SharedBufferPage<K, V> page;
+
+		if (!pages.containsKey(key)) {
+			page = new SharedBufferPage<K, V>(key);
+			pages.put(key, page);
+		} else {
+			page = pages.get(key);
+		}
+
+		page.add(
+			new ValueTimeWrapper<>(value, timestamp),
+			null,
 			version);
 	}
 
