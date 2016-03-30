@@ -197,8 +197,11 @@ copy_data() {
   # Copy data
   echo "Copying release tarballs"
   folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
-  ssh $USER_NAME@people.apache.org mkdir -p /home/$USER_NAME/public_html/$folder
-  rsync flink-*.tgz* $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
+  sftp $USER_NAME@home.apache.org <<EOF
+mkdir public_html/$folder
+put flink-*.tgz* public_html/$folder
+bye
+EOF
   echo "copy done"
 }
 
