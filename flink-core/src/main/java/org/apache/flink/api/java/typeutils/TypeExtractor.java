@@ -60,7 +60,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.Collector;
 
 import org.apache.hadoop.io.Writable;
 
@@ -276,13 +275,70 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	//  Generic extraction methods
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Returns the unary operator's return type.
+	 *
+	 * @param function Function to extract the return type from
+	 * @param baseClass Base class of the function
+	 * @param hasIterable True if the first function parameter is an iterable, otherwise false
+	 * @param hasCollector True if the function has an additional collector parameter, otherwise false
+	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
+	 * @param functionName Function name
+	 * @param allowMissing Can the type information be missing
+	 * @param <IN> Input type
+	 * @param <OUT> Output type
+	 * @return TypeInformation of the return type of the function
+	 */
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
-	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, 
-			boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType,
-			String functionName, boolean allowMissing)
-	{
+	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(
+		Function function,
+		Class<?> baseClass,
+		boolean hasIterable,
+		boolean hasCollector,
+		TypeInformation<IN> inType,
+		String functionName,
+		boolean allowMissing) {
+
+		return getUnaryOperatorReturnType(
+			function,
+			baseClass,
+			hasIterable ? 0 : -1,
+			hasCollector ? 0 : -1,
+			inType,
+			functionName,
+			allowMissing);
+	}
+
+	/**
+	 * Returns the unary operator's return type.
+	 *
+	 * @param function Function to extract the return type from
+	 * @param baseClass Base class of the function
+	 * @param inputTypeArgumentIndex Index of the type argument of function's first parameter
+	 *                               specifying the input type if it is wrapped (Iterable, Map,
+	 *                               etc.). Otherwise -1.
+	 * @param outputTypeArgumentIndex Index of the type argument of functions second parameter
+	 *                                specifying the output type if it is wrapped in a Collector.
+	 *                                Otherwise -1.
+	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
+	 * @param functionName Function name
+	 * @param allowMissing Can the type information be missing
+	 * @param <IN> Input type
+	 * @param <OUT> Output type
+	 * @return TypeInformation of the return type of the function
+	 */
+	@SuppressWarnings("unchecked")
+	@PublicEvolving
+	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(
+		Function function,
+		Class<?> baseClass,
+		int inputTypeArgumentIndex,
+		int outputTypeArgumentIndex,
+		TypeInformation<IN> inType,
+		String functionName,
+		boolean allowMissing) {
 		try {
 			final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
 			if (m != null) {
@@ -291,12 +347,15 @@ public class TypeExtractor {
 				
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = m.getGenericParameterTypes().length - 1;
-				final Type input = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
-				validateInputType((hasIterable)?removeGenericWrapper(input) : input, inType);
+				final Type input = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input, inputTypeArgumentIndex) : input, inType);
 				if(function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
-				return new TypeExtractor().privateCreateTypeInfo((hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType(), inType, null);
+				return new TypeExtractor().privateCreateTypeInfo(
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+					inType,
+					null);
 			}
 			else {
 				validateInputType(baseClass, function.getClass(), 0, inType);
@@ -314,13 +373,78 @@ public class TypeExtractor {
 			}
 		}
 	}
-	
+
+	/**
+	 * Returns the binary operator's return type.
+	 *
+	 * @param function Function to extract the return type from
+	 * @param baseClass Base class of the function
+	 * @param hasIterables True if the first function parameter is an iterable, otherwise false
+	 * @param hasCollector True if the function has an additional collector parameter, otherwise false
+	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
+	 * @param in2Type Type of the right side input elements (In case of an iterable, it is the element type)
+	 * @param functionName Function name
+	 * @param allowMissing Can the type information be missing
+	 * @param <IN1> Left side input type
+	 * @param <IN2> Right side input type
+	 * @param <OUT> Output type
+	 * @return TypeInformation of the return type of the function
+	 */
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(Function function, Class<?> baseClass,
-			boolean hasIterables, boolean hasCollector, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type,
-			String functionName, boolean allowMissing)
-	{
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(
+		Function function,
+		Class<?> baseClass,
+		boolean hasIterables,
+		boolean hasCollector,
+		TypeInformation<IN1> in1Type,
+		TypeInformation<IN2> in2Type,
+		String functionName,
+		boolean allowMissing) {
+
+		return getBinaryOperatorReturnType(
+			function,
+			baseClass,
+			hasIterables ? 0 : -1,
+			hasCollector ? 0 : -1,
+			in1Type,
+			in2Type,
+			functionName,
+			allowMissing
+		);
+	}
+
+	/**
+	 * Returns the binary operator's return type.
+	 *
+	 * @param function Function to extract the return type from
+	 * @param baseClass Base class of the function
+	 * @param inputTypeArgumentIndex Index of the type argument of function's first parameter
+	 *                               specifying the input type if it is wrapped (Iterable, Map,
+	 *                               etc.). Otherwise -1.
+	 * @param outputTypeArgumentIndex Index of the type argument of functions second parameter
+	 *                                specifying the output type if it is wrapped in a Collector.
+	 *                                Otherwise -1.
+	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
+	 * @param in2Type Type of the right side input elements (In case of an iterable, it is the element type)
+	 * @param functionName Function name
+	 * @param allowMissing Can the type information be missing
+	 * @param <IN1> Left side input type
+	 * @param <IN2> Right side input type
+	 * @param <OUT> Output type
+	 * @return TypeInformation of the return type of the function
+	 */
+	@SuppressWarnings("unchecked")
+	@PublicEvolving
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(
+		Function function,
+		Class<?> baseClass,
+		int inputTypeArgumentIndex,
+		int outputTypeArgumentIndex,
+		TypeInformation<IN1> in1Type,
+		TypeInformation<IN2> in2Type,
+		String functionName,
+		boolean allowMissing) {
 		try {
 			final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
 			if (m != null) {
@@ -329,14 +453,17 @@ public class TypeExtractor {
 				
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = m.getGenericParameterTypes().length - 1;
-				final Type input1 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 2] : m.getGenericParameterTypes()[paramLen - 1];
-				final Type input2 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
-				validateInputType((hasIterables)? removeGenericWrapper(input1) : input1, in1Type);
-				validateInputType((hasIterables)? removeGenericWrapper(input2) : input2, in2Type);
+				final Type input1 = (outputTypeArgumentIndex >= 0) ? m.getGenericParameterTypes()[paramLen - 2] : m.getGenericParameterTypes()[paramLen - 1];
+				final Type input2 = (outputTypeArgumentIndex >= 0 ) ? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input1, inputTypeArgumentIndex) : input1, in1Type);
+				validateInputType((inputTypeArgumentIndex >= 0) ? extractTypeArgument(input2, inputTypeArgumentIndex) : input2, in2Type);
 				if(function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
-				return new TypeExtractor().privateCreateTypeInfo((hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType(), in1Type, in2Type);
+				return new TypeExtractor().privateCreateTypeInfo(
+					(outputTypeArgumentIndex >= 0) ? extractTypeArgument(m.getGenericParameterTypes()[paramLen], outputTypeArgumentIndex) : m.getGenericReturnType(),
+					in1Type,
+					in2Type);
 			}
 			else {
 				validateInputType(baseClass, function.getClass(), 0, in1Type);
@@ -1141,14 +1268,32 @@ public class TypeExtractor {
 		}
 		return fieldCount;
 	}
-	
-	private static Type removeGenericWrapper(Type t) {
-		if(t instanceof ParameterizedType 	&& 
-				(Collector.class.isAssignableFrom(typeToClass(t))
-						|| Iterable.class.isAssignableFrom(typeToClass(t)))) {
-			return ((ParameterizedType) t).getActualTypeArguments()[0];
+
+	/**
+	 * * This method extracts the n-th type argument from the given type. An InvalidTypesException
+	 * is thrown if the type does not have any type arguments or if the index exceeds the number
+	 * of type arguments.
+	 *
+	 * @param t Type to extract the type arguments from
+	 * @param index Index of the type argument to extract
+	 * @return The extracted type argument
+	 * @throws InvalidTypesException if the given type does not have any type arguments or if the
+	 * index exceeds the number of type arguments.
+	 */
+	private static Type extractTypeArgument(Type t, int index) throws InvalidTypesException {
+		if(t instanceof ParameterizedType) {
+			Type[] actualTypeArguments = ((ParameterizedType) t).getActualTypeArguments();
+
+			if (index < 0 || index >= actualTypeArguments.length) {
+				throw new InvalidTypesException("Cannot extract the type argument with index " +
+					index + " because the type has only " + actualTypeArguments.length +
+					" type arguments.");
+			} else {
+				return actualTypeArguments[index];
+			}
+		} else {
+			throw new InvalidTypesException("The given type " + t + " is not a parameterized type.");
 		}
-		return t;
 	}
 	
 	private static void validateLambdaGenericParameters(Method m) {
