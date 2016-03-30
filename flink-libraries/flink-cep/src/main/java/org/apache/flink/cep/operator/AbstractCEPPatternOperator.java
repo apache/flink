@@ -66,7 +66,7 @@ public abstract class AbstractCEPPatternOperator<IN>
 		if (isProcessingTime) {
 			// there can be no out of order elements in processing time
 			NFA<IN> nfa = getNFA();
-			processEvent(nfa, element.getValue(), element.getTimestamp());
+			processEvent(nfa, element.getValue(), System.currentTimeMillis());
 		} else {
 			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
 

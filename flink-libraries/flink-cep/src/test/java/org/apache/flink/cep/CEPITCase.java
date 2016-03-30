@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.junit.After;
@@ -395,6 +396,29 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		expected = "(0,1)";
+
+		env.execute();
+	}
+
+	@Test
+	public void testProcessingTimeWithWindow() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStream<Integer> input = env.fromElements(1, 2);
+
+		Pattern<Integer, ?> pattern = Pattern.<Integer>begin("start").followedBy("end").within(Time.days(1));
+
+		DataStream<Integer> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Integer, Integer>() {
+			@Override
+			public Integer select(Map<String, Integer> pattern) throws Exception {
+				return pattern.get("start") + pattern.get("end");
+			}
+		});
+
+		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		expected = "3";
 
 		env.execute();
 	}

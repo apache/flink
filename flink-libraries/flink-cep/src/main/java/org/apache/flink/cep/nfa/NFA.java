@@ -155,6 +155,13 @@ public class NFA<T> implements Serializable {
 			if(windowTime > 0) {
 				long pruningTimestamp = timestamp - windowTime;
 
+				// sanity check to guard against underflows
+				if (pruningTimestamp >= timestamp) {
+					throw new IllegalStateException("Detected an underflow in the pruning timestamp. This indicates that" +
+						" either the window length is too long (" + windowTime + ") or that the timestamp has not been" +
+						" set correctly (e.g. Long.MIN_VALUE).");
+				}
+
 				// remove all elements which are expired with respect to the window length
 				sharedBuffer.prune(pruningTimestamp);
 			}
