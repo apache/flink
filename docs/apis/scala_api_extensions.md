@@ -94,7 +94,7 @@ data.mapWith {
       <td>
 {% highlight scala %}
 data.mapPartitionWith {
-  case head +: _ => head
+  case head #:: _ => head
 }
 {% endhighlight %}
       </td>
@@ -138,7 +138,7 @@ data.reduceWith {
       <td>
 {% highlight scala %}
 data.reduceGroupWith {
-  case id +: value +: _ => id -> value
+  case id #:: value #:: _ => id -> value
 }
 {% endhighlight %}
       </td>
@@ -171,7 +171,7 @@ grouped.sortGroupWith(Order.ASCENDING) {
       <td>
 {% highlight scala %}
 grouped.combineGroupWith {
-  case header +: amounts => amounts.sum
+  case header #:: amounts => amounts.sum
 }
 {% endhighlight %}
       </td>
@@ -180,9 +180,12 @@ grouped.combineGroupWith {
       <td><strong>apply (JoinDataSet, CrossDataSet)</strong></td>
       <td>
 {% highlight scala %}
-data1.join(data2).where(0).equalTo(1).projecting {
-  case ((pk, tx), (products, fk)) => tx -> products
-}
+data1.join(data2).
+  whereClause(case (pk, _) => pk).
+  isEqualTo(case (_, fk) => fk).
+  projecting {
+    case ((pk, tx), (products, fk)) => tx -> products
+  }
 
 data1.cross(data2).projecting {
   case ((a, _), (_, b) => a -> b
@@ -195,8 +198,12 @@ data1.cross(data2).projecting {
       <td><strong>apply (CoGroupDataSet)</strong></td>
       <td>
 {% highlight scala %}
-data1.coGroup(data2).where(0).equalTo(1).projecting {
-  case (head1 +: _, head2 +: _) => head1 -> head2
+data1.coGroup(data2).
+  whereClause(case (pk, _) => pk).
+  isEqualTo(case (_, fk) => fk).
+  projecting {
+    case (head1 #:: _, head2 #:: _) => head1 -> head2
+  }
 }
 {% endhighlight %}
       </td>
@@ -234,7 +241,7 @@ data.mapWith {
       <td>
 {% highlight scala %}
 data.mapPartitionWith {
-  case head +: _ => head
+  case head #:: _ => head
 }
 {% endhighlight %}
       </td>
@@ -347,9 +354,12 @@ data.applyWith(0)(
       <td><strong>apply (JoinedDataStream)</strong></td>
       <td>
 {% highlight scala %}
-data1.join(data2).where(0).equalTo(1).projecting {
-  case ((pk, tx), (products, fk)) => tx -> products
-}
+data1.join(data2).
+  whereClause(case (pk, _) => pk).
+  isEqualTo(case (_, fk) => fk).
+  projecting {
+    case ((pk, tx), (products, fk)) => tx -> products
+  }
 {% endhighlight %}
       </td>
     </tr>
@@ -367,7 +377,14 @@ To use this extension exclusively, you can add the following `import`:
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 {% endhighlight %}
 
-The following snippet shows a minimal example of how to use these extension methods together:
+for the DataSet extensions and
+
+{% highlight scala %}
+import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
+{% endhighlight %}
+
+The following snippet shows a minimal example of how to use these extension
+methods together (with the DataSet API):
 
 {% highlight scala %}
 object Main {
