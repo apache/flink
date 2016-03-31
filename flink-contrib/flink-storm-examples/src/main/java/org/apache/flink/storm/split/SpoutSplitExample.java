@@ -67,9 +67,9 @@ public class SpoutSplitExample {
 		DataStream<SplitStreamType<Integer>> oddStream = splitStream.select(RandomSpout.ODD_STREAM);
 
 		evenStream.map(new SplitStreamMapper<Integer>()).returns(Integer.class).map(new Enrich("even")).print();
-		oddStream.transform("oddBolt",
+		oddStream.map(new SplitStreamMapper<Integer>()).transform("oddBolt",
 				TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
-				new BoltWrapper<SplitStreamType<Integer>, Tuple2<String, Integer>>(
+				new BoltWrapper<Integer, Tuple2<String, Integer>>(
 						new VerifyAndEnrichBolt(false)))
 						.print();
 
