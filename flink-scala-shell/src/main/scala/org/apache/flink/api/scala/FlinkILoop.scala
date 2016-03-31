@@ -20,7 +20,8 @@ package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
 
-import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment}
+import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.AbstractID
 
@@ -64,23 +65,25 @@ class FlinkILoop(
   }
 
   // remote environment
-  private val remoteEnv: ScalaShellRemoteEnvironment = {
+  private val (remoteBenv: ScalaShellRemoteEnvironment,
+  remoteSenv: ScalaShellRemoteStreamEnvironment) = {
     // allow creation of environments
     ScalaShellRemoteEnvironment.resetContextEnvironments()
     
     // create our environment that submits against the cluster (local or remote)
-    val remoteEnv = new ScalaShellRemoteEnvironment(host, port, this, clientConfig)
-    
+    val remoteBenv = new ScalaShellRemoteEnvironment(host, port, this, clientConfig)
+    val remoteSenv = new ScalaShellRemoteStreamEnvironment(host, port, this);
     // prevent further instantiation of environments
     ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
     
-    remoteEnv
+    (remoteBenv,remoteSenv)
   }
 
   // local environment
-  val scalaEnv: ExecutionEnvironment = {
-    val scalaEnv = new ExecutionEnvironment(remoteEnv)
-    scalaEnv
+  val (scalaBenv: ExecutionEnvironment, scalaSenv: StreamExecutionEnvironment) = {
+    val scalaBenv = new ExecutionEnvironment(remoteBenv)
+    val scalaSenv = new StreamExecutionEnvironment(remoteSenv)
+    (scalaBenv,scalaSenv)
   }
 
   /**
@@ -124,7 +127,9 @@ class FlinkILoop(
     "org.apache.flink.api.java.operators._",
     "org.apache.flink.api.java.sampling._",
     "org.apache.flink.api.scala._",
-    "org.apache.flink.api.scala.utils._"
+    "org.apache.flink.api.scala.utils._",
+    "org.apache.flink.streaming.api.scala._",
+    "org.apache.flink.streaming.api.windowing.time._"
   )
 
   override def createInterpreter(): Unit = {
@@ -136,7 +141,8 @@ class FlinkILoop(
         intp.interpret("import " + packageImports.mkString(", "))
 
         // set execution environment
-        intp.bind("env", this.scalaEnv)
+        intp.bind("benv", this.scalaBenv)
+        intp.bind("senv", this.scalaSenv)
       }
     }
   }
