@@ -124,15 +124,15 @@ Pattern<Event, ?> strictNext = start.next("middle");
 Non-strict contiguity means that other events are allowed to occur in-between two matching events.
 A non-strict contiguity pattern state can be created via the `followedBy` method.
 
+{% highlight java %}
+Pattern<Event, ?> nonStrictNext = start.followedBy("middle");
+{% endhighlight %}
+
 It is also possible to define a temporal constraint for the pattern to be valid.
 For example, one can define that a pattern should occur within 10 seconds via the `within` method.
 
 {% highlight java %}
 next.within(Time.seconds(10));
-{% endhighlight %}
-
-{% highlight java %}
-Pattern<Event, ?> nonStrictNext = start.followedBy("middle");
 {% endhighlight %}
 
 <br />
