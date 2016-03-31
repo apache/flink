@@ -277,7 +277,7 @@ For example when running Flink on YARN on an environment with a restrictive fire
 
 ## Environment
 
-- `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved.
+- `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
 
 ## Background
 
