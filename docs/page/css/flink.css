@@ -225,3 +225,23 @@ th {
 td {
 	padding: 5px;
 }
+
+img.offset {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 30px;
+	margin-top: 30px;
+	padding: 10px;
+}
+
+/*=============================================================================
+            AnchorJS (anchor links when hovering over headers)
+=============================================================================*/
+
+.anchorjs-link:hover {
+    text-decoration: none;
+}
+*:hover > .anchorjs-link {
+    transition: color .25s linear;
+}
