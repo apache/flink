@@ -276,7 +276,8 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	@Override
 	public void abort() {
-		// ReduceHashTable doesn't have closed loops like CompactingHashTable.buildTableWithUniqueKey.
+		LOG.debug("Aborting ReduceHashTable.");
+		close();
 	}
 
 	@Override
