@@ -171,41 +171,15 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 		// read the partitions that belong to the listed topics
 		final List<KafkaTopicPartition> partitions = new ArrayList<>();
-		KafkaConsumer<byte[], byte[]> consumer = null;
 
-		try {
-			consumer = new KafkaConsumer<>(this.properties);
+		try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties)) {
 			for (final String topic: topics) {
 				// get partitions for each topic
-				List<PartitionInfo> partitionsForTopic = null;
-				for(int tri = 0; tri < 10; tri++) {
-					LOG.info("Trying to get partitions for topic {}", topic);
-					try {
-						partitionsForTopic = consumer.partitionsFor(topic);
-						if(partitionsForTopic != null && partitionsForTopic.size() > 0) {
-							break; // it worked
-						}
-					} catch (NullPointerException npe) {
-						// workaround for KAFKA-2880: Fetcher.getTopicMetadata NullPointerException when broker cannot be reached
-						// we ignore the NPE.
-					}
-					// create a new consumer
-					consumer.close();
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException ignored) {}
-					
-					consumer = new KafkaConsumer<>(properties);
-				}
+				List<PartitionInfo> partitionsForTopic = consumer.partitionsFor(topic);
 				// for non existing topics, the list might be null.
 				if (partitionsForTopic != null) {
 					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
 				}
-			}
-		}
-		finally {
-			if(consumer != null) {
-				consumer.close();
 			}
 		}
 
