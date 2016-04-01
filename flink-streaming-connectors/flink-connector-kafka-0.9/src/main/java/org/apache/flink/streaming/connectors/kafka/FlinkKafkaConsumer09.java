@@ -36,6 +36,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
++import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -195,15 +196,15 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 						if(partitionsForTopic != null && partitionsForTopic.size() > 0) {
 							break; // it worked
 						}
-					} catch (NullPointerException npe) {
-						// workaround for KAFKA-2880: Fetcher.getTopicMetadata NullPointerException when broker cannot be reached
-						// we ignore the NPE.
+					} catch (KafkaException e) {
+						// ignore exceptions and keep trying
 					}
 					// create a new consumer
 					consumer.close();
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e) {
+						// ignore exceptions and keep trying
 					}
 					consumer = new KafkaConsumer<>(properties);
 				}
