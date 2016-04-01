@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFuncti
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
@@ -49,11 +50,11 @@ class OnJoinedDataStreamTest extends AcceptPFTestBase {
   @Test
   def testProjectingOnCaseClass(): Unit = {
     val test =
-      tuples.join(tuples).
+      caseObjects.join(caseObjects).
       where {
-        case (id, _) => id
+        case KeyValuePair(id, _) => id
       }.equalTo {
-        case (id, _) => id
+        case KeyValuePair(id, _) => id
       }.window {
         TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS))
       }.projecting {
