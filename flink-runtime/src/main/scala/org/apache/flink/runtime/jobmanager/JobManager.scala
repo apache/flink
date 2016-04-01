@@ -987,19 +987,15 @@ class JobManager(
       // send resource manager the ok
       currentResourceManager match {
         case Some(rm) =>
-
           // inform rm
           rm ! decorateMessage(msg)
-
-          sender() ! decorateMessage(StopClusterSuccessful.getInstance())
-
-          // trigger shutdown
-          shutdown()
-
         case None =>
           // ResourceManager not available
           // we choose not to wait here beacuse it might block the shutdown forever
       }
+
+      sender() ! decorateMessage(StopClusterSuccessful.getInstance())
+      shutdown()
 
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
