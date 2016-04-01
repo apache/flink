@@ -30,10 +30,25 @@ private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUni
 
   private val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-  protected val tuples = env.fromElements(1 -> "hello", 2 -> "world")
-  protected val caseObjects = env.fromElements(KeyValuePair(1, "hello"), KeyValuePair(2, "world"))
+  protected val tuples = env.fromElements(
+    1 -> "hello",
+    2 -> "world",
+    3 -> "foo",
+    4 -> "bar",
+    5 -> "baz",
+    6 -> "quux")
+  protected val caseObjects = env.fromElements(
+    KeyValuePair(1, "hello"),
+    KeyValuePair(2, "world"),
+    KeyValuePair(3, "foo"),
+    KeyValuePair(4, "bar"),
+    KeyValuePair(5, "baz"),
+    KeyValuePair(6, "quux"))
 
   protected val keyedTuples = tuples.keyBy(_._1)
   protected val keyedCaseObjects = caseObjects.keyBy(_.id)
+
+  protected val windowedTuples = keyedTuples.countWindow(2)
+  protected val windowedCaseObjects = keyedCaseObjects.countWindow(2)
 
 }

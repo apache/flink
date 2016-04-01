@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, JoinedStreams}
 import org.apache.flink.streaming.api.windowing.windows.Window
 
-class OnJoinedStream[L: TypeInformation, R: TypeInformation, K, W <: Window](
+class OnJoinedStream[L, R, K, W <: Window](
     stream: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]) {
 
   /**
