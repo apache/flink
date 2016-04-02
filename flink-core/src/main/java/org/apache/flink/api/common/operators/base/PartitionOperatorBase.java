@@ -26,6 +26,7 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -51,13 +52,15 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 	private Partitioner<?> customPartitioner;
 	
 	private DataDistribution distribution;
+
+	private Ordering ordering;
 	
 	
 	public PartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, PartitionMethod pMethod, int[] keys, String name) {
 		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, keys, name);
 		this.partitionMethod = pMethod;
 	}
-	
+
 	public PartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, PartitionMethod pMethod, String name) {
 		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, name);
 		this.partitionMethod = pMethod;
@@ -76,7 +79,15 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 	public DataDistribution getDistribution() {
 		return  this.distribution;
 	}
-	
+
+	public void setOrdering(Ordering ordering) {
+		this.ordering = ordering;
+	}
+
+	public Ordering getOrdering() {
+		return ordering;
+	}
+
 	public void setDistribution(DataDistribution distribution) {
 		this.distribution = distribution;
 	}
