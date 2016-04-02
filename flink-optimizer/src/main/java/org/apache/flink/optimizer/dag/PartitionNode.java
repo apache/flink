@@ -133,19 +133,6 @@ public class PartitionNode extends SingleInputNode {
 				rgps.setCustomPartitioned(this.keys, this.customPartitioner);
 				break;
 			case RANGE:
-				// Initiate Ordering as ascending here as no order parameter in API level,
-				// we could revisit this while order is required in future optimization.
-//				Ordering orders;
-//				if (ordering != null) {
-//					orders = ordering;
-//				} else {
-//					orders = new Ordering();
-//					for (int field : this.keys) {
-//						if (this.ordering != null) {
-//							ordering.appendOrdering(field, null, Order.ASCENDING);
-//						}
-//					}
-//				}
 				rgps.setRangePartitioned(ordering, distribution);
 				break;
 			default:
