@@ -24,7 +24,6 @@ import java.util.List;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
@@ -98,8 +97,7 @@ public class PartitionNode extends SingleInputNode {
 		}
 
 		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Ordering ordering, Partitioner<?>
-				customPartitioner,
-								   DataDistribution distribution) {
+				customPartitioner, DataDistribution distribution) {
 			super(pKeys);
 
 			this.pMethod = pMethod;

@@ -62,8 +62,7 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 		this.partitionMethod = pMethod;
 	}
 
-	public PartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, PartitionMethod pMethod, int[] keys,
-								 Order[] orders, String name) {
+	public PartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, PartitionMethod pMethod, int[] keys, Order[] orders, String name) {
 		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, keys, name);
 		this.partitionMethod = pMethod;
 	}
