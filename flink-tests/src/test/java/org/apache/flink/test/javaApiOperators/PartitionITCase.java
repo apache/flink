@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -29,6 +31,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -498,9 +501,9 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSource<Long> dataSource = env.generateSequence(0, 10000);
 		KeySelector<Long, Long> keyExtractor = new ObjectSelfKeySelector();
 
-		MapPartitionFunction<Long, Tuple2<Long, Long>> MinMaxSelector = new MinMaxSelector();
+		MapPartitionFunction<Long, Tuple2<Long, Long>> MinMaxSelector = new MinMaxSelector<>(new LongComparator(true));
 
-		Comparator<Tuple2<Long, Long>> tuple2Comparator = new Tuple2Comparator();
+		Comparator<Tuple2<Long, Long>> tuple2Comparator = new Tuple2Comparator(new LongComparator(true));
 
 		List<Tuple2<Long, Long>> collected = dataSource.partitionByRange(keyExtractor).mapPartition(MinMaxSelector).collect();
 		Collections.sort(collected, tuple2Comparator);
@@ -546,6 +549,60 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		result.collect(); // should fail
 	}
 
+	@Test
+	public void testRangePartitionerOnSequenceDataWithOrders() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Long, Long>> dataSet = env.generateSequence(0, 10000)
+				.map(new MapFunction<Long, Tuple2<Long, Long>>() {
+			@Override
+			public Tuple2<Long, Long> map(Long value) throws Exception {
+				return new Tuple2<>(value / 5000, value % 5000);
+			}
+		});
+
+		final Tuple2Comparator<Long> tuple2Comparator = new Tuple2Comparator<>(new LongComparator(true),
+																			   new LongComparator(false));
+
+		MinMaxSelector<Tuple2<Long, Long>> minMaxSelector = new MinMaxSelector<>(tuple2Comparator);
+
+		final List<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>> collected = dataSet.partitionByRange(0, 1)
+				.withOrders(Order.ASCENDING, Order.DESCENDING)
+				.mapPartition(minMaxSelector)
+				.collect();
+
+		Collections.sort(collected, new Tuple2Comparator<>(tuple2Comparator));
+
+		Tuple2<Long, Long> previousMax = null;
+		for (Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> tuple2 : collected) {
+			if (previousMax == null) {
+				assertTrue(tuple2Comparator.compare(tuple2.f0, tuple2.f1) < 0);
+				previousMax = tuple2.f1;
+			} else {
+				assertTrue(tuple2Comparator.compare(tuple2.f0, tuple2.f1) < 0);
+				if (previousMax.f0.equals(tuple2.f0.f0)) {
+					assertEquals(previousMax.f1 - 1, tuple2.f0.f1.longValue());
+				}
+				previousMax = tuple2.f1;
+			}
+		}
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testHashPartitionWithOrders() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+		ds.partitionByHash("number").withOrders(Order.ASCENDING);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testRebalanceWithOrders() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+		ds.rebalance().withOrders(Order.ASCENDING);
+	}
+
 	private static class ObjectSelfKeySelector implements KeySelector<Long, Long> {
 		@Override
 		public Long getKey(Long value) throws Exception {
@@ -553,36 +610,61 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	private static class MinMaxSelector implements MapPartitionFunction<Long, Tuple2<Long, Long>> {
+	private static class MinMaxSelector<T> implements MapPartitionFunction<T, Tuple2<T, T>> {
+
+		private final Comparator<T> comparator;
+
+		public MinMaxSelector(Comparator<T> comparator) {
+			this.comparator = comparator;
+		}
+
 		@Override
-		public void mapPartition(Iterable<Long> values, Collector<Tuple2<Long, Long>> out) throws Exception {
-			long max = Long.MIN_VALUE;
-			long min = Long.MAX_VALUE;
-			for (long value : values) {
-				if (value > max) {
+		public void mapPartition(Iterable<T> values, Collector<Tuple2<T, T>> out) throws Exception {
+			Iterator<T> itr = values.iterator();
+			T min = itr.next();
+			T max = min;
+			T value;
+			while (itr.hasNext()) {
+				value= itr.next();
+				if (comparator.compare(value, min) < 0) {
+					min = value;
+				}
+				if (comparator.compare(value, max) > 0) {
 					max = value;
 				}
 
-				if (value < min) {
-					min = value;
-				}
 			}
-			Tuple2<Long, Long> result = new Tuple2<>(min, max);
+
+			Tuple2<T, T> result = new Tuple2<>(min, max);
 			out.collect(result);
 		}
 	}
 
-	private static class Tuple2Comparator implements Comparator<Tuple2<Long, Long>> {
+	private static class Tuple2Comparator<T> implements Comparator<Tuple2<T, T>>, Serializable {
+
+		private final Comparator<T> firstComparator;
+		private final Comparator<T> secondComparator;
+
+		public Tuple2Comparator(Comparator<T> comparator) {
+			this(comparator, comparator);
+		}
+
+		public Tuple2Comparator(Comparator<T> firstComparator,
+								Comparator<T> secondComparator) {
+			this.firstComparator = firstComparator;
+			this.secondComparator = secondComparator;
+		}
+
 		@Override
-		public int compare(Tuple2<Long, Long> first, Tuple2<Long, Long> second) {
-			long result = first.f0 - second.f0;
+		public int compare(Tuple2<T, T> first, Tuple2<T, T> second) {
+			long result = firstComparator.compare(first.f0, second.f0);
 			if (result > 0) {
 				return 1;
 			} else if (result < 0) {
 				return -1;
 			}
 
-			result = first.f1 - second.f1;
+			result = secondComparator.compare(first.f1, second.f1);
 			if (result > 0) {
 				return 1;
 			} else if (result < 0) {
@@ -590,6 +672,24 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 			}
 
 			return 0;
+		}
+	}
+
+	private static class LongComparator implements Comparator<Long>, Serializable {
+
+		private final boolean ascending;
+
+		public LongComparator(boolean ascending) {
+			this.ascending = ascending;
+		}
+
+		@Override
+		public int compare(Long o1, Long o2) {
+			if (ascending) {
+				return Long.compare(o1, o2);
+			} else {
+				return (-1) * Long.compare(o1, o2);
+			}
 		}
 	}
 

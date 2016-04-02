@@ -52,7 +52,8 @@ public class PartitionNode extends SingleInputNode {
 		super(operator);
 		
 		OperatorDescriptorSingle descr = new PartitionDescriptor(
-					this.getOperator().getPartitionMethod(), this.keys, operator.getCustomPartitioner(), operator.getDistribution());
+					this.getOperator().getPartitionMethod(), this.keys, operator.getOrdering(), operator.getCustomPartitioner(),
+					operator.getDistribution());
 		this.possibleProperties = Collections.singletonList(descr);
 	}
 
@@ -90,13 +91,21 @@ public class PartitionNode extends SingleInputNode {
 		private final PartitionMethod pMethod;
 		private final Partitioner<?> customPartitioner;
 		private final DataDistribution distribution;
-		
+		private final Ordering ordering;
+
 		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Partitioner<?> customPartitioner, DataDistribution distribution) {
+			this(pMethod, pKeys, null, customPartitioner, distribution);
+		}
+
+		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Ordering ordering, Partitioner<?>
+				customPartitioner,
+								   DataDistribution distribution) {
 			super(pKeys);
-			
+
 			this.pMethod = pMethod;
 			this.customPartitioner = customPartitioner;
 			this.distribution = distribution;
+			this.ordering = ordering;
 		}
 		
 		@Override
@@ -126,10 +135,17 @@ public class PartitionNode extends SingleInputNode {
 			case RANGE:
 				// Initiate Ordering as ascending here as no order parameter in API level,
 				// we could revisit this while order is required in future optimization.
-				Ordering ordering = new Ordering();
-				for (int field : this.keys) {
-					ordering.appendOrdering(field, null, Order.ASCENDING);
-				}
+//				Ordering orders;
+//				if (ordering != null) {
+//					orders = ordering;
+//				} else {
+//					orders = new Ordering();
+//					for (int field : this.keys) {
+//						if (this.ordering != null) {
+//							ordering.appendOrdering(field, null, Order.ASCENDING);
+//						}
+//					}
+//				}
 				rgps.setRangePartitioned(ordering, distribution);
 				break;
 			default:

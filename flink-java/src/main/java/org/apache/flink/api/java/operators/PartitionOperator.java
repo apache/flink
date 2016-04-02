@@ -26,6 +26,8 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
@@ -49,6 +51,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 	private final String partitionLocationName;
 	private final Partitioner<?> customPartitioner;
 	private final DataDistribution distribution;
+	private Order[] orders;
 
 
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, String partitionLocationName) {
@@ -98,6 +101,14 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		this.customPartitioner = customPartitioner;
 		this.distribution = distribution;
 	}
+
+	public PartitionOperator<T> withOrders(Order... orders) {
+		Preconditions.checkState(pMethod == PartitionMethod.RANGE, "Orders cannot be applied for {} partition " +
+				"method", pMethod);
+		this.orders = orders;
+
+		return this;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Properties
@@ -142,6 +153,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 				partitionedInput.setParallelism(getParallelism());
 				partitionedInput.setDistribution(distribution);
 				partitionedInput.setCustomPartitioner(customPartitioner);
+				partitionedInput.setOrdering(computeOrdering(logicalKeyPositions, orders));
 				
 				return partitionedInput;
 			}
@@ -149,7 +161,8 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 				
 				@SuppressWarnings("unchecked")
 				Keys.SelectorFunctionKeys<T, ?> selectorKeys = (Keys.SelectorFunctionKeys<T, ?>) pKeys;
-				return translateSelectorFunctionPartitioner(selectorKeys, pMethod, name, input, getParallelism(), customPartitioner);
+				return translateSelectorFunctionPartitioner(selectorKeys, pMethod, name, input, getParallelism(),
+						customPartitioner, orders);
 			}
 			else {
 				throw new UnsupportedOperationException("Unrecognized key type.");
@@ -161,6 +174,21 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		}
 	}
 
+	private static Ordering computeOrdering(int[] logicalKeyPositions, Order[] orders) {
+		Ordering ordering = new Ordering();
+		if (orders != null) {
+			Preconditions.checkArgument(logicalKeyPositions.length == orders.length);
+			for (int i = 0; i < logicalKeyPositions.length; i++) {
+				ordering.appendOrdering(logicalKeyPositions[i], null, orders[i]);
+			}
+		} else {
+			for (int key : logicalKeyPositions) {
+				ordering.appendOrdering(key, null, Order.ASCENDING);
+			}
+		}
+		return ordering;
+	}
+
 	@SuppressWarnings("unchecked")
 	private static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateSelectorFunctionPartitioner(
 		SelectorFunctionKeys<T, ?> rawKeys,
@@ -168,7 +196,8 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		String name,
 		Operator<T> input,
 		int partitionDop,
-		Partitioner<?> customPartitioner)
+		Partitioner<?> customPartitioner,
+		Order[] orders)
 	{
 		final SelectorFunctionKeys<T, K> keys = (SelectorFunctionKeys<T, K>) rawKeys;
 		TypeInformation<Tuple2<K, T>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
@@ -180,6 +209,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		keyedPartitionedInput.setInput(keyedInput);
 		keyedPartitionedInput.setCustomPartitioner(customPartitioner);
 		keyedPartitionedInput.setParallelism(partitionDop);
+		keyedPartitionedInput.setOrdering(computeOrdering(keys.computeLogicalKeyPositions(), orders));
 
 		return KeyFunctions.appendKeyRemover(keyedPartitionedInput, keys);
 	}
