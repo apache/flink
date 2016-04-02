@@ -135,7 +135,7 @@ stream.addSink(new RedisSink[(String, String)](conf, new RedisExampleMapper))
 </div>
 </div>
 
-This section gives a description of all the available Data types and what redis command used for that.
+This section gives a description of all the available data types and what redis command used for that.
 
 <table class="table table-bordered" style="width: 75%">
     <thead>

@@ -17,12 +17,13 @@
 package org.apache.flink.streaming.connectors.redis.common.mapper;
 
 import org.apache.flink.streaming.connectors.redis.RedisSinkTest;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class RedisDataTypeDescriptionTest {
+public class RedisDataTypeDescriptionTest extends TestLogger {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void shouldThrowExceptionIfAdditionalKeyIsNotGivenForHashDataType(){

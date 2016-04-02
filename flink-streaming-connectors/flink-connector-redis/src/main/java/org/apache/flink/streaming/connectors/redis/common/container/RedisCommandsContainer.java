@@ -19,7 +19,10 @@ package org.apache.flink.streaming.connectors.redis.common.container;
 import java.io.IOException;
 import java.io.Serializable;
 
-public interface RedisCommandsContainer extends  Serializable {
+/**
+ * The container for all available Redis Commands.
+ */
+public interface RedisCommandsContainer extends Serializable {
 
 	/**
 	 * Sets field in the hash stored at key to value.
@@ -29,12 +32,13 @@ public interface RedisCommandsContainer extends  Serializable {
 	 * @param hashName Hash name
 	 * @param key Hash key name
 	 * @param value Hash value
-     */
+	 */
 	void hset(String hashName, String key, String value);
 
 	/**
 	 * Insert all the specified values at the tail of the list stored at key.
 	 * If key does not exist, it is created as empty list before performing the push operation.
+	 *
 	 * @param listName Name of the List
 	 * @param value  Value to be added
 	 */
@@ -44,42 +48,52 @@ public interface RedisCommandsContainer extends  Serializable {
 	 * Add the specified members to the set stored at key.
 	 * Specified members that are already a member of this set are ignored.
 	 * If key does not exist, a new set is created before adding the specified members.
+	 *
 	 * @param setName Name of the Set
 	 * @param value Value to be added
-     */
+	 */
 	void sadd(String setName, String value);
 
 	/**
-	 * Posts a message to the given channel
+	 * Posts a message to the given channel.
+	 *
 	 * @param channelName Name of the channel to which data will be published
 	 * @param message the message
-     */
+	 */
 	void  publish(String channelName, String message);
 
 	/**
 	 * Set key to hold the string value. If key already holds a value, it is overwritten,
 	 * regardless of its type. Any previous time to live associated with the key is
 	 * discarded on successful SET operation.
+	 *
 	 * @param key the key name in which value to be set
 	 * @param value the value
-     */
+	 */
 	void set(String key, String value);
 
 	/**
 	 * * Adds all the element arguments to the HyperLogLog data structure
 	 * stored at the variable name specified as first argument.
+	 *
 	 * @param key The name of the key
 	 * @param element the element
-     */
+	 */
 	void pfadd(String key, String element);
 
 	/**
-	 * Adds the specified member with the specified scores to the sorted set stored at key
+	 * Adds the specified member with the specified scores to the sorted set stored at key.
+	 *
 	 * @param setName The name of the Sorted Set
 	 * @param element  element to be added
 	 * @param score Score of the element
-     */
+	 */
 	void zadd(String setName, String element, String score);
 
+	/**
+	 * Close the Jedis container.
+	 *
+	 * @throws IOException if the instance can not be closed properly
+	 */
 	void close() throws IOException;
 }

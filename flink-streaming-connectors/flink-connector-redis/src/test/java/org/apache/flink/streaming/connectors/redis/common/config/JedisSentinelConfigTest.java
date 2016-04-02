@@ -16,12 +16,15 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.config;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class JedisSentinelConfigTest {
+public class JedisSentinelConfigTest extends TestLogger {
+
+	public static final String MASTER_NAME = "test-master";
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfMasterValueIsNull(){
@@ -34,13 +37,13 @@ public class JedisSentinelConfigTest {
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfSentinelsValueIsNull(){
 		JedisSentinelConfig.Builder builder = new JedisSentinelConfig.Builder();
-		builder.setMasterName("test-master").build();
+		builder.setMasterName(MASTER_NAME).build();
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void shouldThrowNullPointExceptionIfSentinelsValueIsEmpty(){
 		JedisSentinelConfig.Builder builder = new JedisSentinelConfig.Builder();
 		Set<String> sentinels = new HashSet<>();
-		builder.setMasterName("test-master").setSentinels(sentinels).build();
+		builder.setMasterName(MASTER_NAME).setSentinels(sentinels).build();
 	}
 }

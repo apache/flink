@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.redis;
+
+import com.google.common.base.Preconditions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -27,59 +30,57 @@ import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataType;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisDataTypeDescription;
 import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
 
-import redis.clients.jedis.exceptions.JedisException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
 
 /**
  * A sink that delivers data to a Redis channel using the Jedis client.
- *
- *  <p>
- * When creating the sink using first constructor {@link #RedisSink(JedisPoolConfig, RedisMapper)}
+ * <p>When creating the sink using first constructor {@link #RedisSink(JedisPoolConfig, RedisMapper)}
  * the sink will create connection using {@link redis.clients.jedis.JedisPool}.
- *
- * When using second constructor {@link #RedisSink(JedisSentinelConfig, RedisMapper)} the sink will create connection
- * using {@link redis.clients.jedis.JedisSentinelPool} to redis cluster. Use this if redis is
+ * <p>When using second constructor {@link #RedisSink(JedisSentinelConfig, RedisMapper)} the sink will create connection
+ * using {@link redis.clients.jedis.JedisSentinelPool} to Redis cluster. Use this if redis is
  * configured using sentinels else use the third constructor {@link #RedisSink(JedisClusterConfig, RedisMapper)}
- * which use {@link redis.clients.jedis.JedisCluster} to connect to redis cluster.
+ * which use {@link redis.clients.jedis.JedisCluster} to connect to Redis cluster.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
- * <pre>{@code
- *
- * 		public static class RedisExampleDataMapper implements RedisMapper<Tuple2<String, String>>{
- *			@Override
- *			public RedisDataTypeDescription getDataTypeDescription() {
- *				return new RedisDataTypeDescription(dataType, REDIS_ADDITIONAL_KEY);
- *			}
- *			@Override
- *			public String getKeyFromData(Tuple2 data) {
- *				return String.valueOf(data.f0);
- *			}
- *
- *			@Override
- *			public String getValueFromData(Tuple2 data) {
- *				return String.valueOf(data.f1);
- *			}
- *		}
- *		JedisPoolConfig jedisPoolConfig = new JedisPoolConfig.Builder()
- *		.setHost(REDIS_HOST)
- *		.setPort(REDIS_PORT).build();
- *      new RedisSink<String>(jedisPoolConfig, new RedisExampleDataMapper());
- * }</pre>
+ * <pre>
+ *{@code
+ *public static class RedisExampleDataMapper implements RedisMapper<Tuple2<String, String>> {
+ *    public RedisDataTypeDescription getDataTypeDescription() {
+ *        return new RedisDataTypeDescription(dataType, REDIS_ADDITIONAL_KEY);
+ *    }
+ *    public String getKeyFromData(Tuple2 data) {
+ *        return String.valueOf(data.f0);
+ *    }
+ *    public String getValueFromData(Tuple2 data) {
+ *        return String.valueOf(data.f1);
+ *    }
+ *}
+ *JedisPoolConfig jedisPoolConfig = new JedisPoolConfig.Builder()
+ *    .setHost(REDIS_HOST).setPort(REDIS_PORT).build();
+ *new RedisSink<String>(jedisPoolConfig, new RedisExampleDataMapper());
+ *}</pre>
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public class RedisSink<IN> extends RichSinkFunction<IN>{
+public class RedisSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RedisSink.class);
 
+	/**
+	 * This additional key needed for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
+	 * Other {@link RedisDataType} works only with two variable i.e. name of the list and value to be added.
+	 * But for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET} we need three variables.
+	 * <p>For {@link RedisDataType#HASH} we need hash name, hash key and element.
+	 * additionalKey used as hash name for {@link RedisDataType#HASH}
+	 * <p>For {@link RedisDataType#SORTED_SET} we need set name, the element and it's score.
+	 * additionalKey used as set name for {@link RedisDataType#SORTED_SET}
+	 */
 	private String additionalKey;
 	private RedisMapper<IN> redisSinkMapper;
 	private RedisDataType redisDataType;
@@ -91,12 +92,12 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 	private RedisCommandsContainer redisCommandsContainer;
 
 	/**
-	 *	Creates a new RedisSink that connects to the Redis Server
+	 * Creates a new RedisSink that connects to the Redis Server.
 	 *
-	 * @param jedisPoolConfig The configuration of {@link JedisPoolConfig}
+	 * @param jedisPoolConfig The configuration of {@link org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig}
 	 * @param redisSinkMapper This used for generate redis command and key value from incoming elements
-     */
-	public RedisSink(JedisPoolConfig jedisPoolConfig, RedisMapper<IN> redisSinkMapper){
+	 */
+	public RedisSink(JedisPoolConfig jedisPoolConfig, RedisMapper<IN> redisSinkMapper) {
 		Preconditions.checkNotNull(jedisPoolConfig, "Redis connection pool config should not be Null");
 		Preconditions.checkNotNull(redisSinkMapper, "Redis Mapper can not be null");
 
@@ -109,11 +110,12 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 	}
 
 	/**
-	 * Creates a new RedisSink that connects to the Redis Sentinels
-	 * @param jedisSentinelConfig The configuration of {@link JedisSentinelConfig}
+	 * Creates a new RedisSink that connects to the Redis Sentinels.
+	 *
+	 * @param jedisSentinelConfig The configuration of {@link org.apache.flink.streaming.connectors.redis.common.config.JedisSentinelConfig}
 	 * @param redisSinkMapper This used for generate redis command and key value from incoming elements
-     */
-	public RedisSink(JedisSentinelConfig jedisSentinelConfig, RedisMapper<IN> redisSinkMapper){
+	 */
+	public RedisSink(JedisSentinelConfig jedisSentinelConfig, RedisMapper<IN> redisSinkMapper) {
 		Preconditions.checkNotNull(jedisSentinelConfig, "Redis Sentinel connection pool config should not be Null");
 		Preconditions.checkNotNull(redisSinkMapper, "Redis Mapper can not be null");
 
@@ -126,11 +128,12 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 	}
 
 	/**
-	 * Creates a new RedisSink that connects to the Redis Cluster
-	 * @param jedisClusterConfig The configuration of {@link JedisClusterConfig}
+	 * Creates a new RedisSink that connects to the Redis Cluster.
+	 *
+	 * @param jedisClusterConfig The configuration of {@link org.apache.flink.streaming.connectors.redis.common.config.JedisClusterConfig}
 	 * @param redisSinkMapper This used for generate redis command and key value from incoming elements
-     */
-	public RedisSink(JedisClusterConfig jedisClusterConfig, RedisMapper<IN> redisSinkMapper){
+	 */
+	public RedisSink(JedisClusterConfig jedisClusterConfig, RedisMapper<IN> redisSinkMapper) {
 		Preconditions.checkNotNull(jedisClusterConfig, "Redis cluster config should not be Null");
 		Preconditions.checkNotNull(redisSinkMapper, "Redis Mapper can not be null");
 
@@ -144,6 +147,13 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Redis channel.
+	 * <p> If redis data type is {@link RedisDataType#HASH} Redis HSET command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#LIST} Redis RPUSH command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#SET} Redis SADD command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#PUBSUB} Redis PUBLISH command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#STRING} Redis SET command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#HYPER_LOG_LOG} Redis PFADD command will be applied.
+	 * <p> If redis data type is {@link RedisDataType#SORTED_SET} Redis ZADD command will be applied.
 	 *
 	 * @param input The incoming data
 	 */
@@ -189,7 +199,8 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 
 	/**
 	 * Initializes the connection to Redis by either cluster or sentinels or single server
-	 * @throws Exception
+	 *
+	 * @throws IllegalArgumentException if jedisPoolConfig, jedisClusterConfig and jedisSentinelConfig all are null
      */
 	@Override
 	public void open(Configuration parameters) throws Exception {
@@ -197,7 +208,7 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisPoolConfig);
 		} else if (jedisClusterConfig != null) {
 			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisClusterConfig);
-		} else if (jedisSentinelConfig != null){
+		} else if (jedisSentinelConfig != null) {
 			this.redisCommandsContainer = RedisCommandsContainerBuilder.build(jedisSentinelConfig);
 		} else {
 			throw new IllegalArgumentException("Jedis configuration not found");
@@ -206,18 +217,18 @@ public class RedisSink<IN> extends RichSinkFunction<IN>{
 
 	/**
 	 * Closes commands container
-	 * @throws Exception
+	 * @throws IOException if command container is unable to close.
 	 */
 	@Override
-	public void close() throws Exception {
-		if (redisCommandsContainer != null){
+	public void close() throws IOException {
+		if (redisCommandsContainer != null) {
 			try {
 				redisCommandsContainer.close();
-			} catch (JedisException e) {
+			} catch (IOException e) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error("failed to close Redis Commands Container");
+					LOG.error("failed to close Redis Commands Container {}", e);
 				}
-				throw new RuntimeException("Error while closing Commands Container with error message {}", e);
+				throw e;
 			}
 		}
 	}

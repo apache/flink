@@ -23,6 +23,9 @@ import redis.clients.jedis.JedisCluster;
 import java.io.Closeable;
 import java.io.IOException;
 
+/**
+ * Redis command container if we want to connect to a Redis cluster.
+ */
 public class RedisClusterContainer implements RedisCommandsContainer, Closeable {
 
 	private static final long serialVersionUID = 1L;
@@ -32,7 +35,8 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	private JedisCluster jedisCluster;
 
 	/**
-	 * Constructor
+	 * Initialize Redis command container for Redis cluster.
+	 *
 	 * @param jedisCluster JedisCluster instance
 	 */
 	public RedisClusterContainer(JedisCluster jedisCluster) {
@@ -49,10 +53,10 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param value Hash value
 	 */
 	@Override
-	public void hset(String hashName, String key, String value) {
-		try{
+	public void hset(final String hashName, final String key, final String value) {
+		try {
 			jedisCluster.hset(hashName, key, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command HSET to hash {} error message {}",
 					hashName, key, e.getMessage());
@@ -63,14 +67,15 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	/**
 	 * Insert all the specified values at the tail of the list stored at key.
 	 * If key does not exist, it is created as empty list before performing the push operation.
+	 *
 	 * @param listName Name of the List
 	 * @param value  Value to be added
 	 */
 	@Override
-	public void rpush(String listName, String value) {
-		try{
+	public void rpush(final String listName, final String value) {
+		try {
 			jedisCluster.rpush(listName, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to list {} error message: {}",
 					listName, e.getMessage());
@@ -87,10 +92,10 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param value   Value to be added
 	 */
 	@Override
-	public void sadd(String setName, String value) {
-		try{
+	public void sadd(final String setName, final String value) {
+		try {
 			jedisCluster.sadd(setName, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to set {} error message {}",
 					setName, e.getMessage());
@@ -105,10 +110,10 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param message     the message
 	 */
 	@Override
-	public void publish(String channelName, String message) {
-		try{
+	public void publish(final String channelName, final String message) {
+		try {
 			jedisCluster.publish(channelName, message);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command PUBLISH to channel {} error message {}",
 					channelName, e.getMessage());
@@ -125,10 +130,10 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param value the value
 	 */
 	@Override
-	public void set(String key, String value) {
-		try{
+	public void set(final String key, final String value) {
+		try {
 			jedisCluster.set(key, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command SET to key {} error message {}",
 					key, e.getMessage());
@@ -137,17 +142,17 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * * Adds all the element arguments to the HyperLogLog data structure
+	 * Adds all the element arguments to the HyperLogLog data structure
 	 * stored at the variable name specified as first argument.
 	 *
 	 * @param key     The name of the key
 	 * @param element the element
 	 */
 	@Override
-	public void pfadd(String key, String element) {
-		try{
+	public void pfadd(final String key, final String element) {
+		try {
 			jedisCluster.set(key, element);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command PFADD to key {} error message {}",
 					key, e.getMessage());
@@ -163,10 +168,10 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param score   Score of the element
 	 */
 	@Override
-	public void zadd(String setName, String element, String score) {
-		try{
+	public void zadd(final String setName, final String element, final String score) {
+		try {
 			jedisCluster.zadd(setName, Double.valueOf(score), element);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command ZADD to set {} error message {}",
 					setName, e.getMessage());
@@ -174,7 +179,9 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-
+	/**
+	 * Closes the {@link JedisCluster}.
+	 */
 	@Override
 	public void close() throws IOException {
 		this.jedisCluster.close();

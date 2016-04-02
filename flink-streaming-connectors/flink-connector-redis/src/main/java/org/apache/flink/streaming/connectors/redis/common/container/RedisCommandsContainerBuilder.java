@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.container;
 
+import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisClusterConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig;
@@ -24,14 +25,21 @@ import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisSentinelPool;
 
+/**
+ * The builder for {@link RedisCommandsContainer}.
+ */
 public class RedisCommandsContainerBuilder {
 
 	/**
 	 * Builds container for single Redis environment.
+	 *
 	 * @param jedisPoolConfig configuration for JedisPool
 	 * @return container for single Redis environment
+	 * @throws NullPointerException if jedisPoolConfig is null
 	 */
 	public static RedisCommandsContainer build(JedisPoolConfig jedisPoolConfig) {
+		Preconditions.checkNotNull(jedisPoolConfig, "Redis pool config should not be Null");
+
 		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
 		genericObjectPoolConfig.setMaxIdle(jedisPoolConfig.getMaxIdle());
 		genericObjectPoolConfig.setMaxTotal(jedisPoolConfig.getMaxTotal());
@@ -45,33 +53,43 @@ public class RedisCommandsContainerBuilder {
 
 	/**
 	 * Builds container for Redis Cluster environment.
-	 * @param config configuration for JedisCluster
+	 *
+	 * @param jedisClusterConfig configuration for JedisCluster
 	 * @return container for Redis Cluster environment
+	 * @throws NullPointerException if jedisClusterConfig is null
 	 */
-	public static RedisCommandsContainer build(JedisClusterConfig config) {
-		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
-		genericObjectPoolConfig.setMaxIdle(config.getMaxIdle());
-		genericObjectPoolConfig.setMaxTotal(config.getMaxTotal());
-		genericObjectPoolConfig.setMinIdle(config.getMinIdle());
+	public static RedisCommandsContainer build(JedisClusterConfig jedisClusterConfig) {
+		Preconditions.checkNotNull(jedisClusterConfig, "Redis cluster config should not be Null");
 
-		JedisCluster jedisCluster = new JedisCluster(config.getNodes(), config.getTimeout(),
-			config.getMaxRedirections(), genericObjectPoolConfig);
+		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
+		genericObjectPoolConfig.setMaxIdle(jedisClusterConfig.getMaxIdle());
+		genericObjectPoolConfig.setMaxTotal(jedisClusterConfig.getMaxTotal());
+		genericObjectPoolConfig.setMinIdle(jedisClusterConfig.getMinIdle());
+
+		JedisCluster jedisCluster = new JedisCluster(jedisClusterConfig.getNodes(), jedisClusterConfig.getTimeout(),
+			jedisClusterConfig.getMaxRedirections(), genericObjectPoolConfig);
 		return new RedisClusterContainer(jedisCluster);
 	}
 
 	/**
 	 * Builds container for Redis Sentinel environment.
-	 * @param config configuration for JedisSentinel
+	 *
+	 * @param jedisSentinelConfig configuration for JedisSentinel
 	 * @return container for Redis sentinel environment
-     */
-	public static RedisCommandsContainer build(JedisSentinelConfig config) {
-		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
-		genericObjectPoolConfig.setMaxIdle(config.getMaxIdle());
-		genericObjectPoolConfig.setMaxTotal(config.getMaxTotal());
-		genericObjectPoolConfig.setMinIdle(config.getMinIdle());
+	 * @throws NullPointerException if jedisSentinelConfig is null
+	 */
+	public static RedisCommandsContainer build(JedisSentinelConfig jedisSentinelConfig) {
+		Preconditions.checkNotNull(jedisSentinelConfig, "Redis sentinel config should not be Null");
 
-		JedisSentinelPool jedisSentinelPool =new JedisSentinelPool(config.getMasterName(), config.getSentinels(), genericObjectPoolConfig,
-			config.getConnectionTimeout(), config.getSoTimeout(), config.getPassword(), config.getDatabase());
+		GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
+		genericObjectPoolConfig.setMaxIdle(jedisSentinelConfig.getMaxIdle());
+		genericObjectPoolConfig.setMaxTotal(jedisSentinelConfig.getMaxTotal());
+		genericObjectPoolConfig.setMinIdle(jedisSentinelConfig.getMinIdle());
+
+		JedisSentinelPool jedisSentinelPool = new JedisSentinelPool(jedisSentinelConfig.getMasterName(),
+			jedisSentinelConfig.getSentinels(), genericObjectPoolConfig,
+			jedisSentinelConfig.getConnectionTimeout(), jedisSentinelConfig.getSoTimeout(),
+			jedisSentinelConfig.getPassword(), jedisSentinelConfig.getDatabase());
 		return new RedisContainer(jedisSentinelPool);
 	}
 }

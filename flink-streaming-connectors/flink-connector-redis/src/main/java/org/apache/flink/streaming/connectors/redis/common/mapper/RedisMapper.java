@@ -22,37 +22,35 @@ import java.io.Serializable;
 
 /**
  * Function that creates build the description how the input data should be mapped to redis type
- * <p></p>
+ *<p>Example:
+ *<pre>{@code
+ *private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>> {
+ *    public RedisDataTypeDescription getDataTypeDescription() {
+ *        return new RedisDataTypeDescription(RedisDataTypeDescription.RedisDataType.PUBSUB);
+ *    }
+ *    public String getKeyFromData(Tuple2 data) {
+ *        return String.valueOf(data.f0);
+ *    }
+ *    public String getValueFromData(Tuple2 data) {
+ *        return String.valueOf(data.f1);
+ *    }
+ *}
+ *}</pre>
  *
- * <pre>{@code}
- * 		private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>>{
-
-			public RedisDataTypeDescription getDataTypeDescription() {
-				return new RedisDataTypeDescription(RedisDataTypeDescription.RedisDataType.PUBSUB);
-			}
-
-			public String getKeyFromData(Tuple2 data) {
-				return String.valueOf(data.f0);
-			}
-
-			public String getValueFromData(Tuple2 data) {
-				return String.valueOf(data.f1);
-			}
-		}
- *
- * </pre>
  * @param <T> The type of the element handled by this {@code RedisMapper}
  */
 public interface RedisMapper<T> extends Function, Serializable {
 
 	/**
 	 * Returns descriptor which defines data type.
+	 *
 	 * @return data type descriptor
 	 */
 	RedisDataTypeDescription getDataTypeDescription();
 
 	/**
 	 * Extracts key from data.
+	 *
 	 * @param data source data
 	 * @return key
 	 */
@@ -60,6 +58,7 @@ public interface RedisMapper<T> extends Function, Serializable {
 
 	/**
 	 * Extracts value from data.
+	 *
 	 * @param data source data
 	 * @return value
 	 */

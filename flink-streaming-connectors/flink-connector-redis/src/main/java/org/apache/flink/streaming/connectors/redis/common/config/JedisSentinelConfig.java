@@ -18,7 +18,6 @@ package org.apache.flink.streaming.connectors.redis.common.config;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.flink.api.common.functions.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Protocol;
@@ -27,9 +26,9 @@ import java.io.Serializable;
 import java.util.Set;
 
 /**
- * Configuration for JedisSentinelPool.
+ * Configuration for Jedis Sentinel Pool.
  */
-public class JedisSentinelConfig implements Function, Serializable {
+public class JedisSentinelConfig implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JedisSentinelConfig.class);
@@ -45,6 +44,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 	private int minIdle;
 
 	/**
+	 * The master name and sentinels are mandatory, and when you didn't set these, it throws NullPointerException.
 	 *
 	 * @param masterName master name of the replica set
 	 * @param sentinels set of sentinel hosts
@@ -55,16 +55,18 @@ public class JedisSentinelConfig implements Function, Serializable {
 	 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
 	 * @param maxIdle the cap on the number of "idle" instances in the pool
 	 * @param minIdle the minimum number of idle objects to maintain in the pool
-	 * @throws NullPointerException if do not see masterName and sentinels
-	 * @throws IllegalArgumentException if sentinels is empty
+	 *
+	 * @throws NullPointerException if do not see master name or sentinels
+	 * @throws IllegalArgumentException if sentinels are empty
 	 */
 	private JedisSentinelConfig(String masterName, Set<String> sentinels,
 								int connectionTimeout, int soTimeout,
 								String password, int database,
-								int maxTotal, int maxIdle, int minIdle){
+								int maxTotal, int maxIdle, int minIdle) {
 		Preconditions.checkNotNull(masterName, "Master name should be presented");
 		Preconditions.checkNotNull(sentinels, "Sentinels information should be presented");
 		Preconditions.checkArgument(!sentinels.isEmpty(), "Sentinel hosts should not be empty");
+
 		this.masterName = masterName;
 		this.sentinels = sentinels;
 		this.connectionTimeout = connectionTimeout;
@@ -78,14 +80,16 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 	/**
 	 * Returns master name of the replica set.
+	 *
 	 * @return master name of the replica set.
-     */
+	 */
 	public String getMasterName() {
 		return masterName;
 	}
 
 	/**
 	 * Returns Sentinels host addresses.
+	 *
 	 * @return Set of Sentinels host addresses
 	 */
 	public Set<String> getSentinels() {
@@ -94,6 +98,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 	/**
 	 * Returns timeout.
+	 *
 	 * @return connection timeout
 	 */
 	public int getConnectionTimeout() {
@@ -102,6 +107,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 	/**
 	 * Returns socket timeout.
+	 *
 	 * @return socket timeout
 	 */
 	public int getSoTimeout() {
@@ -110,6 +116,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 	/**
 	 * Returns password.
+	 *
 	 * @return password
 	 */
 	public String getPassword() {
@@ -118,6 +125,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 	/**
 	 * Returns database index.
+	 *
 	 * @return database index
 	 */
 	public int getDatabase() {
@@ -130,7 +138,6 @@ public class JedisSentinelConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxTotal} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxTotal()
 	 */
 	public int getMaxTotal() {
@@ -143,7 +150,6 @@ public class JedisSentinelConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxIdle()
 	 */
 	public int getMaxIdle() {
@@ -156,7 +162,6 @@ public class JedisSentinelConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code minIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMinIdle()
 	 */
 	public int getMinIdle() {
@@ -178,7 +183,8 @@ public class JedisSentinelConfig implements Function, Serializable {
 		private int minIdle = GenericObjectPoolConfig.DEFAULT_MIN_IDLE;
 
 		/**
-		 * Sets master name of the replica set
+		 * Sets master name of the replica set.
+		 *
 		 * @param masterName  master name of the replica set
 		 * @return Builder itself
          */
@@ -188,7 +194,8 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
-		 * Sets sentinels address
+		 * Sets sentinels address.
+		 *
 		 * @param sentinels host set of the sentinels
 		 * @return Builder itself
          */
@@ -198,7 +205,8 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
-		 * Sets connection timeout
+		 * Sets connection timeout.
+		 *
 		 * @param connectionTimeout connection timeout
 		 * @return Builder itself
 		 */
@@ -208,7 +216,8 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
-		 * Sets socket timeout
+		 * Sets socket timeout.
+		 *
 		 * @param soTimeout socket timeout
          * @return Builder itself
          */
@@ -219,6 +228,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 		/**
 		 * Sets password.
+		 *
 		 * @param password password, if any
 		 * @return Builder itself
 		 */
@@ -229,6 +239,7 @@ public class JedisSentinelConfig implements Function, Serializable {
 
 		/**
 		 * Sets database index.
+		 *
 		 * @param database database index
 		 * @return Builder itself
 		 */
@@ -238,6 +249,9 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code maxTotal} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
 		 * @return Builder itself
 		 */
@@ -247,6 +261,9 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code maxIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxIdle the cap on the number of "idle" instances in the pool
 		 * @return Builder itself
 		 */
@@ -256,6 +273,9 @@ public class JedisSentinelConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code minIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param minIdle the minimum number of idle objects to maintain in the pool
 		 * @return Builder itself
 		 */
@@ -264,6 +284,11 @@ public class JedisSentinelConfig implements Function, Serializable {
 			return this;
 		}
 
+		/**
+		 * Builds JedisSentinelConfig.
+		 *
+		 * @return JedisSentinelConfig
+		 */
 		public JedisSentinelConfig build(){
 			return new JedisSentinelConfig(masterName, sentinels, connectionTimeout, soTimeout,
 				password, database, maxTotal, maxIdle, minIdle);

@@ -16,9 +16,10 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.config;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-public class JedisClusterConfigTest {
+public class JedisClusterConfigTest extends TestLogger {
 
 	@Test(expected = NullPointerException.class)
 	public void shouldThrowNullPointExceptionIfNodeValueIsNull(){

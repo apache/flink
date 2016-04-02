@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.redis;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisSentinelConfig;
 import org.apache.flink.streaming.connectors.redis.common.container.RedisCommandsContainer;
 import org.apache.flink.streaming.connectors.redis.common.container.RedisCommandsContainerBuilder;
+import org.apache.flink.util.TestLogger;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisSentinelPool;
 import redis.embedded.RedisCluster;
@@ -38,10 +39,12 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.apache.flink.util.NetUtils.getAvailablePort;
 
-public class RedisSentinelClusterTest {
+public class RedisSentinelClusterTest extends TestLogger {
 
 	private static RedisCluster cluster;
 	private static final String REDIS_MASTER = "master";
+	private static final String TEST_KEY = "testKey";
+	private static final String TEST_VALUE = "testValue";
 	private static final List<Integer> sentinels = Arrays.asList(getAvailablePort(), getAvailablePort());
 	private static final List<Integer> group1 = Arrays.asList(getAvailablePort(), getAvailablePort());
 
@@ -71,8 +74,8 @@ public class RedisSentinelClusterTest {
 		Jedis jedis = null;
 		try{
 			jedis = jedisSentinelPool.getResource();
-			redisContainer.set("testKey", "testValue");
-			assertEquals("testValue", jedis.get("testKey"));
+			redisContainer.set(TEST_KEY, TEST_VALUE);
+			assertEquals(TEST_VALUE, jedis.get(TEST_KEY));
 		}catch (Exception ignore){
 
 		}finally {

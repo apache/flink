@@ -25,7 +25,12 @@ import redis.clients.jedis.JedisSentinelPool;
 import java.io.Closeable;
 import java.io.IOException;
 
-public class RedisContainer implements RedisCommandsContainer, Closeable{
+/**
+ * Redis command container if we want to connect to a single Redis server or to Redis sentinels
+ * If want to connect to a single Redis server, plz use the first constructor {@link #RedisContainer(JedisPool)}.
+ * If want to connect to a Redis sentinels, Plz use the second constructor ${@link #RedisContainer(JedisSentinelPool)}
+ */
+public class RedisContainer implements RedisCommandsContainer, Closeable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -36,22 +41,34 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 
 
 	/**
-	 * Constructor
+	 * Use this constructor if to connect with single Redis server.
+	 *
 	 * @param jedisPool JedisPool which actually manages Jedis instances
 	 */
 	public RedisContainer(JedisPool jedisPool) {
 		this.jedisPool = jedisPool;
 	}
 
-	public RedisContainer(JedisSentinelPool sentinelPool){
+	/**
+	 * Use this constructor if Redis environment is clustered with sentinels.
+	 *
+	 * @param sentinelPool SentinelPool which actually manages Jedis instances
+	 */
+	public RedisContainer(final JedisSentinelPool sentinelPool) {
 		this.jedisSentinelPool = sentinelPool;
 	}
 
-
-
+	/**
+	 * Closes the Jedis instances.
+	 */
 	@Override
 	public void close() throws IOException {
-		this.jedisPool.close();
+		if (this.jedisPool != null) {
+			this.jedisPool.close();
+		}
+		if (this.jedisSentinelPool != null) {
+			this.jedisSentinelPool.close();
+		}
 	}
 
 	/**
@@ -64,17 +81,17 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param value Hash value
 	 */
 	@Override
-	public void hset(String hashName, String key, String value) {
+	public void hset(final String hashName, final String key, final String value) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.hset(hashName, key, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command HSET to key {} and field {} error message {}",
 					key, key, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
@@ -87,17 +104,17 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param value    Value to be added
 	 */
 	@Override
-	public void rpush(String listName, String value) {
+	public void rpush(final String listName, final String value) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.rpush(listName, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to list {} error message {}",
 					listName, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
@@ -111,17 +128,17 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param value   Value to be added
 	 */
 	@Override
-	public void sadd(String setName, String value) {
+	public void sadd(final String setName, final String value) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.sadd(setName, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command RPUSH to set {} error message {}",
 					setName, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
@@ -133,17 +150,17 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param message     the message
 	 */
 	@Override
-	public void publish(String channelName, String message) {
+	public void publish(final String channelName, final String message) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.publish(channelName, message);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command PUBLISH to channel {} error message {}",
 					channelName, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
@@ -157,40 +174,40 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param value the value
 	 */
 	@Override
-	public void set(String key, String value) {
+	public void set(final String key, final String value) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.set(key, value);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command SET to key {} error message {}",
 					key, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
 
 	/**
-	 * * Adds all the element arguments to the HyperLogLog data structure
+	 * Adds all the element arguments to the HyperLogLog data structure
 	 * stored at the variable name specified as first argument.
 	 *
 	 * @param key     The name of the key
 	 * @param element the element
 	 */
 	@Override
-	public void pfadd(String key, String element) {
+	public void pfadd(final String key, final String element) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
 			jedis.pfadd(key, element);
-		}catch (Exception e){
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command PFADD to key {} error message {}",
 					key, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
@@ -203,33 +220,42 @@ public class RedisContainer implements RedisCommandsContainer, Closeable{
 	 * @param score   Score of the element
 	 */
 	@Override
-	public void zadd(String setName, String element, String score) {
+	public void zadd(final String setName, final String element, final String score) {
 		Jedis jedis = null;
-		try{
+		try {
 			jedis = getInstance();
-			jedis.zadd(setName,Double.valueOf(score), element);
-		}catch (Exception e){
+			jedis.zadd(setName, Double.valueOf(score), element);
+		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Cannot send Redis message with command ZADD to set {} error message {}",
 					setName, e.getMessage());
 			}
-		}finally {
+		} finally {
 			returnInstance(jedis);
 		}
 	}
 
-	private Jedis getInstance(){
-		if (jedisSentinelPool != null){
+	/**
+	 * Returns Jedis instance from the pool.
+	 *
+	 * @return the Jedis instance
+     */
+	private Jedis getInstance() {
+		if (jedisSentinelPool != null) {
 			return jedisSentinelPool.getResource();
-		}
-		else if (jedisPool != null){
+		} else if (jedisPool != null) {
 			return jedisPool.getResource();
-		}else{
+		} else {
 			throw new IllegalArgumentException("Jedis Pool not found");
 		}
 	}
 
-	public void returnInstance(Jedis jedis) {
+	/**
+	 * Closes the jedis instance after finishing the command.
+	 *
+	 * @param jedis The jedis instance
+     */
+	private void returnInstance(final Jedis jedis) {
 		if (jedis == null) {
 			return;
 		}

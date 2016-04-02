@@ -18,15 +18,14 @@ package org.apache.flink.streaming.connectors.redis.common.config;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.flink.api.common.functions.Function;
 import redis.clients.jedis.Protocol;
 
 import java.io.Serializable;
 
 /**
- * Configuration for JedisPool.
+ * Configuration for Jedis Pool.
  */
-public class JedisPoolConfig implements Function, Serializable {
+public class JedisPoolConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,11 +39,8 @@ public class JedisPoolConfig implements Function, Serializable {
 	private int minIdle;
 
 	/**
-	 * Constructor
-	 * <p/>
-	 * You can use JedisPoolConfig.Builder() for leaving some fields to apply default value.
+	 * The host is mandatory, and when host is not set, it throws NullPointerException.
 	 *
-	 * Note that host is mandatory, and when you didn't set host, it throws NullPointerException.
 	 * @param host host hostname or IP
 	 * @param port port port
 	 * @param timeout timeout socket / connection timeout
@@ -74,7 +70,6 @@ public class JedisPoolConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxTotal} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxTotal()
 	 */
 	public int getMaxTotal() {
@@ -87,7 +82,6 @@ public class JedisPoolConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxIdle()
 	 */
 	public int getMaxIdle() {
@@ -100,7 +94,6 @@ public class JedisPoolConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code minIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMinIdle()
 	 */
 	public int getMinIdle() {
@@ -109,6 +102,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 	/**
 	 * Returns host.
+	 *
 	 * @return hostname or IP
 	 */
 	public String getHost() {
@@ -117,6 +111,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 	/**
 	 * Returns port.
+	 *
 	 * @return port
 	 */
 	public int getPort() {
@@ -125,6 +120,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 	/**
 	 * Returns timeout.
+	 *
 	 * @return socket / connection timeout
 	 */
 	public int getTimeout() {
@@ -133,6 +129,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 	/**
 	 * Returns database index.
+	 *
 	 * @return database index
 	 */
 	public int getDatabase() {
@@ -141,6 +138,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 	/**
 	 * Returns password.
+	 *
 	 * @return password
 	 */
 	public String getPassword() {
@@ -161,6 +159,9 @@ public class JedisPoolConfig implements Function, Serializable {
 		private int minIdle = GenericObjectPoolConfig.DEFAULT_MIN_IDLE;
 
 		/**
+		 * Sets value for the {@code maxTotal} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
          * @return Builder itself
          */
@@ -170,6 +171,9 @@ public class JedisPoolConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code maxIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxIdle the cap on the number of "idle" instances in the pool
          * @return Builder itself
          */
@@ -179,6 +183,9 @@ public class JedisPoolConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code minIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param minIdle the minimum number of idle objects to maintain in the pool
          * @return Builder itself
          */
@@ -189,6 +196,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Sets host.
+		 *
 		 * @param host host
 		 * @return Builder itself
 		 */
@@ -199,6 +207,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Sets port.
+		 *
 		 * @param port port
 		 * @return Builder itself
 		 */
@@ -209,6 +218,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Sets timeout.
+		 *
 		 * @param timeout timeout
 		 * @return Builder itself
 		 */
@@ -219,6 +229,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Sets database index.
+		 *
 		 * @param database database index
 		 * @return Builder itself
 		 */
@@ -229,6 +240,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Sets password.
+		 *
 		 * @param password password, if any
 		 * @return Builder itself
 		 */
@@ -240,6 +252,7 @@ public class JedisPoolConfig implements Function, Serializable {
 
 		/**
 		 * Builds JedisPoolConfig.
+		 *
 		 * @return JedisPoolConfig
 		 */
 		public JedisPoolConfig build() {

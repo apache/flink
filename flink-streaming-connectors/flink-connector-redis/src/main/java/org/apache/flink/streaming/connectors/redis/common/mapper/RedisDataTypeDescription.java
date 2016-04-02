@@ -16,22 +16,40 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.mapper;
 
-import org.apache.flink.api.common.functions.Function;
-
 import java.io.Serializable;
 
-public class RedisDataTypeDescription implements Function, Serializable {
+/**
+ * The description of the data type. This must be passed while creating new {@link RedisMapper}.
+ * <p>When creating descriptor for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET},
+ * plz use the first constructor {@link #RedisDataTypeDescription(RedisDataType, String)}.
+ * If the additional key is null it will throw IllegalArgumentException
+ *
+ * <p>When {@link RedisDataType} is not {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}
+ * plz use the second constructor {@link #RedisDataTypeDescription(RedisDataType)}
+ */
+public class RedisDataTypeDescription implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private RedisDataType dataType;
+
+	/**
+	 * This additional key needed for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
+	 * Other {@link RedisDataType} works only with two variable i.e. name of the list and value to be added.
+	 * But for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET} we need three variables.
+	 * <p>For {@link RedisDataType#HASH} we need hash name, hash key and element.
+	 * {@link #getAdditionalKey()} used as hash name for {@link RedisDataType#HASH}
+	 * <p>For {@link RedisDataType#SORTED_SET} we need set name, the element and it's score.
+	 * {@link #getAdditionalKey()} used as set name for {@link RedisDataType#SORTED_SET}
+	 */
 	private String additionalKey;
 
 	/**
-	 * Use this constructor when data type is HASH or SORTED_SET
+	 * Use this constructor when data type is HASH or SORTED_SET.
+	 *
 	 * @param dataType the redis data type {@link RedisDataType}
 	 * @param additionalKey additional key for Hash and Sorted set data type
-     */
+	 */
 	public RedisDataTypeDescription(RedisDataType dataType, String additionalKey) {
 		this.dataType = dataType;
 		this.additionalKey = additionalKey;
@@ -44,17 +62,28 @@ public class RedisDataTypeDescription implements Function, Serializable {
 	}
 
 	/**
-	 * Use this constructor when data type is not HASH or SORTED_SET
+	 * Use this constructor when data type is not HASH or SORTED_SET.
+	 *
 	 * @param dataType the redis data type {@link RedisDataType}
-     */
+	 */
 	public RedisDataTypeDescription(RedisDataType dataType) {
 		this(dataType, null);
 	}
 
+	/**
+	 * Returns the {@link RedisDataType}.
+	 *
+	 * @return the data type of the mapping
+	 */
 	public RedisDataType getDataType() {
 		return dataType;
 	}
 
+	/**
+	 * Returns the additional key if data type is {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
+	 *
+	 * @return the additional key
+	 */
 	public String getAdditionalKey() {
 		return additionalKey;
 	}

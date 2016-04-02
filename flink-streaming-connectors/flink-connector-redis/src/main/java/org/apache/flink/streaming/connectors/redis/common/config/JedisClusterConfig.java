@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.redis.common.config;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.flink.api.common.functions.Function;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Protocol;
 
@@ -28,11 +29,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Configuration for JedisCluster.
+ * Configuration for Jedis Cluster.
  */
-public class JedisClusterConfig implements Function, Serializable {
+public class JedisClusterConfig implements Serializable {
 	private static final long serialVersionUID = 1L;
-
 
 	private Set<InetSocketAddress> nodes;
 	private int timeout;
@@ -42,12 +42,7 @@ public class JedisClusterConfig implements Function, Serializable {
 	private int minIdle;
 
 	/**
-	 *
-	 * Constructor
-	 * <p/>
-	 * You can use JedisClusterConfig.Builder() for leaving some fields to apply default value.
-	 * <p/>
-	 * Note that list of node is mandatory, and when you didn't set nodes, it throws NullPointerException.
+	 * The list of node is mandatory, and when nodes is not set, it throws NullPointerException.
 	 *
 	 * @param nodes nodes list of node information for JedisCluster
 	 * @param timeout timeout socket / connection timeout
@@ -55,7 +50,7 @@ public class JedisClusterConfig implements Function, Serializable {
 	 * @param maxTotal the maximum number of objects that can be allocated by the pool
 	 * @param maxIdle the cap on the number of "idle" instances in the pool
      * @param minIdle the minimum number of idle objects to maintain in the pool
-	 * @throws NullPointerException when you didn't set nodes
+	 * @throws NullPointerException if nodes are null
 	 */
 	private JedisClusterConfig(Set<InetSocketAddress> nodes, int timeout, int maxRedirections,
 								int maxTotal, int maxIdle, int minIdle) {
@@ -76,7 +71,6 @@ public class JedisClusterConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxTotal} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxTotal()
 	 */
 	public int getMaxTotal() {
@@ -89,7 +83,6 @@ public class JedisClusterConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code maxIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMaxIdle()
 	 */
 	public int getMaxIdle() {
@@ -102,7 +95,6 @@ public class JedisClusterConfig implements Function, Serializable {
 	 *
 	 * @return  The current setting of {@code minIdle} for this
 	 *          configuration instance
-	 *
 	 * @see GenericObjectPoolConfig#getMinIdle()
 	 */
 	public int getMinIdle() {
@@ -111,6 +103,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 	/**
 	 * Returns nodes.
+	 *
 	 * @return list of node information
 	 */
 	public Set<HostAndPort> getNodes() {
@@ -123,6 +116,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 	/**
 	 * Returns socket / connection timeout.
+	 *
 	 * @return socket / connection timeout
 	 */
 	public int getTimeout() {
@@ -131,6 +125,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 	/**
 	 * Returns limit of redirection.
+	 *
 	 * @return limit of redirection
 	 */
 	public int getMaxRedirections() {
@@ -148,8 +143,10 @@ public class JedisClusterConfig implements Function, Serializable {
 		private int maxTotal = GenericObjectPoolConfig.DEFAULT_MAX_TOTAL;
 		private int maxIdle = GenericObjectPoolConfig.DEFAULT_MAX_IDLE;
 		private int minIdle = GenericObjectPoolConfig.DEFAULT_MIN_IDLE;
+
 		/**
 		 * Sets list of node.
+		 *
 		 * @param nodes list of node
 		 * @return Builder itself
 		 */
@@ -160,6 +157,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 		/**
 		 * Sets socket / connection timeout.
+		 *
 		 * @param timeout socket / connection timeout
 		 * @return Builder itself
 		 */
@@ -170,6 +168,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 		/**
 		 * Sets limit of redirection.
+		 *
 		 * @param maxRedirections limit of redirection
 		 * @return Builder itself
 		 */
@@ -179,6 +178,9 @@ public class JedisClusterConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code maxTotal} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
 		 * @return Builder itself
 		 */
@@ -188,6 +190,9 @@ public class JedisClusterConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code maxIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param maxIdle the cap on the number of "idle" instances in the pool
 		 * @return Builder itself
 		 */
@@ -197,6 +202,9 @@ public class JedisClusterConfig implements Function, Serializable {
 		}
 
 		/**
+		 * Sets value for the {@code minIdle} configuration attribute
+		 * for pools to be created with this configuration instance.
+		 *
 		 * @param minIdle the minimum number of idle objects to maintain in the pool
 		 * @return Builder itself
 		 */
@@ -207,6 +215,7 @@ public class JedisClusterConfig implements Function, Serializable {
 
 		/**
 		 * Builds JedisClusterConfig.
+		 *
 		 * @return JedisClusterConfig
 		 */
 		public JedisClusterConfig build() {
