@@ -341,6 +341,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	public final void processWatermark(Watermark mark) throws Exception {
+		processTriggersFor(mark);
+
+		output.emitWatermark(mark);
+
+		this.currentWatermark = mark.getTimestamp();
+	}
+
+	private void processTriggersFor(Watermark mark) throws Exception {
 		boolean fire;
 
 		do {
@@ -360,10 +368,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				fire = false;
 			}
 		} while (fire);
-
-		output.emitWatermark(mark);
-
-		this.currentWatermark = mark.getTimestamp();
 	}
 
 	@Override
@@ -391,7 +395,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// Also check any watermark timers. We might have some in here since
 		// Context.registerEventTimeTimer sets a trigger if an event-time trigger is registered
 		// that is already behind the watermark.
-		processWatermark(new Watermark(currentWatermark));
+		processTriggersFor(new Watermark(currentWatermark));
 	}
 
 	/**
