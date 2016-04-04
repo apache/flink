@@ -65,22 +65,20 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 package object extensions {
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[T: TypeInformation](ds: DataStream[T]):
-      OnDataStream[T] =
+  implicit def acceptPartialFunctions[T](ds: DataStream[T]): OnDataStream[T] =
     new OnDataStream[T](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[T: TypeInformation, K](ds: KeyedStream[T, K]):
-      OnKeyedStream[T, K] =
+  implicit def acceptPartialFunctions[T, K](ds: KeyedStream[T, K]): OnKeyedStream[T, K] =
     new OnKeyedStream[T, K](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, K, W <: Window](
+  implicit def acceptPartialFunctions[L, R, K, W <: Window](
       ds: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]): OnJoinedStream[L, R, K, W] =
     new OnJoinedStream[L, R, K, W](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[IN1: TypeInformation, IN2: TypeInformation](
+  implicit def acceptPartialFunctions[IN1, IN2](
       ds: ConnectedStreams[IN1, IN2]): OnConnectedStream[IN1, IN2] =
     new OnConnectedStream[IN1, IN2](ds)
 

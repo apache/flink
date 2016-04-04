@@ -21,7 +21,7 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream}
 
-class OnDataStream[T: TypeInformation](stream: DataStream[T]) {
+class OnDataStream[T](stream: DataStream[T]) {
 
   /**
     * Applies a function `fun` to each item of the stream

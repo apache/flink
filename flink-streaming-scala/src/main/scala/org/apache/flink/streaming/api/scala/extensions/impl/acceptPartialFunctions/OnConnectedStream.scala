@@ -21,8 +21,7 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{ConnectedStreams, DataStream}
 
-class OnConnectedStream[IN1: TypeInformation, IN2: TypeInformation](
-    ds: ConnectedStreams[IN1, IN2]) {
+class OnConnectedStream[IN1, IN2](ds: ConnectedStreams[IN1, IN2]) {
 
   /**
     * Applies a CoMap transformation on the connected streams.
