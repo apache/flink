@@ -3,7 +3,7 @@ title: "Event Time"
 
 sub-nav-id: eventtime
 sub-nav-group: streaming
-sub-nav-pos: 2
+sub-nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
