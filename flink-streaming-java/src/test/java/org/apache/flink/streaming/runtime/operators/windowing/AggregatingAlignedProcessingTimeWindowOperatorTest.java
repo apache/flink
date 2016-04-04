@@ -201,7 +201,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
-			op.setup(mockTask, createTaskConfig(mockKeySelector, StringSerializer.INSTANCE, 10), mockOut);
+			op.setup(mockTask, createTaskConfig(mockKeySelector, StringSerializer.INSTANCE, 10), mockOut, false);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -209,7 +209,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -217,7 +217,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 500 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -225,7 +225,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1200, 1100);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
+			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut, false);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 100 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1100 == 0);
@@ -257,7 +257,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out, false);
 			op.open();
 
 			final int numElements = 1000;
@@ -325,7 +325,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSize);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out, false);
 			op.open();
 
 			final int numWindows = 10;
@@ -404,7 +404,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							150, 50);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out, false);
 			op.open();
 
 			final int numElements = 1000;
@@ -484,7 +484,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							sumFunction, fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, 150, 50);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out, false);
 			op.open();
 
 			synchronized (lock) {
@@ -558,7 +558,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							hundredYears, hundredYears);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, 10), out, false);
 			op.open();
 
 			for (int i = 0; i < 100; i++) {

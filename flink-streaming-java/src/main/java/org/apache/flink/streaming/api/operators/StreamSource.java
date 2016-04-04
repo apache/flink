@@ -21,7 +21,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -53,6 +59,13 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	
 	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
+
+		LatencyMarksEmitter latencyEmitter = null;
+		if(getExecutionConfig().isLatencyTrackingEnabled()) {
+			latencyEmitter = new LatencyMarksEmitter<>(lockingObject, collector, getExecutionConfig().getLatencyTrackingInterval(),
+					getOperatorConfig().getVertexID(), getRuntimeContext().getIndexOfThisSubtask());
+		}
+		
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
 		this.ctx = StreamSourceContexts.getSourceContext(
@@ -70,6 +83,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		} finally {
 			// make sure that the context is closed in any case
 			ctx.close();
+			if(latencyEmitter != null) {
+				latencyEmitter.close();
+			}
 		}
 	}
 
@@ -102,5 +118,31 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 */
 	protected boolean isCanceledOrStopped() {
 		return canceledOrStopped;
+	}
+
+	private static class LatencyMarksEmitter<OUT> {
+		private final ScheduledExecutorService scheduleExecutor;
+		private final ScheduledFuture<?> latencyMarkTimer;
+
+		public LatencyMarksEmitter(final Object lockingObject, final Output<StreamRecord<OUT>> output, long latencyTrackingInterval, final int vertexID, final int subtaskIndex) {
+			this.scheduleExecutor = Executors.newScheduledThreadPool(1);
+			this.latencyMarkTimer = scheduleExecutor.scheduleAtFixedRate(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						synchronized (lockingObject) {
+							output.emitLatencyMarker(new LatencyMarker(System.currentTimeMillis(), vertexID, subtaskIndex));
+						}
+					} catch (Throwable t) {
+						LOG.warn("Error while emitting latency marker", t);
+					}
+				}
+			}, 0, latencyTrackingInterval, TimeUnit.MILLISECONDS);
+		}
+
+		public void close() {
+			latencyMarkTimer.cancel(true);
+			scheduleExecutor.shutdownNow();
+		}
 	}
 }

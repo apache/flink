@@ -777,6 +777,7 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {}
+
 	}
 
 	public static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {

@@ -25,8 +25,10 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.XORShiftRandom;
 
 import java.io.IOException;
+import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 
@@ -54,6 +56,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	/** {@link RecordSerializer} per outgoing channel */
 	private final RecordSerializer<T>[] serializers;
 
+	private final Random RNG = new XORShiftRandom();
+
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
 	}
@@ -78,22 +82,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	public void emit(T record) throws IOException, InterruptedException {
 		for (int targetChannel : channelSelector.selectChannels(record, numChannels)) {
-			// serialize with corresponding serializer and send full buffer
-			RecordSerializer<T> serializer = serializers[targetChannel];
-
-			synchronized (serializer) {
-				SerializationResult result = serializer.addRecord(record);
-				while (result.isFullBuffer()) {
-					Buffer buffer = serializer.getCurrentBuffer();
-
-					if (buffer != null) {
-						writeBuffer(buffer, targetChannel, serializer);
-					}
-
-					buffer = writer.getBufferProvider().requestBufferBlocking();
-					result = serializer.setNextBuffer(buffer);
-				}
-			}
+			sendToTarget(record, targetChannel);
 		}
 	}
 
@@ -103,21 +92,31 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 */
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			// serialize with corresponding serializer and send full buffer
-			RecordSerializer<T> serializer = serializers[targetChannel];
+			sendToTarget(record, targetChannel);
+		}
+	}
 
-			synchronized (serializer) {
-				SerializationResult result = serializer.addRecord(record);
-				while (result.isFullBuffer()) {
-					Buffer buffer = serializer.getCurrentBuffer();
+	/**
+	 * This is used to send LatencyMarks to a random target channel
+	 */
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		sendToTarget(record, RNG.nextInt(numChannels));
+	}
 
-					if (buffer != null) {
-						writeBuffer(buffer, targetChannel, serializer);
-					}
+	private void sendToTarget(T record, int targetChannel) throws IOException, InterruptedException {
+		RecordSerializer<T> serializer = serializers[targetChannel];
 
-					buffer = writer.getBufferProvider().requestBufferBlocking();
-					result = serializer.setNextBuffer(buffer);
+		synchronized (serializer) {
+			SerializationResult result = serializer.addRecord(record);
+			while (result.isFullBuffer()) {
+				Buffer buffer = serializer.getCurrentBuffer();
+
+				if (buffer != null) {
+					writeBuffer(buffer, targetChannel, serializer);
 				}
+
+				buffer = writer.getBufferProvider().requestBufferBlocking();
+				result = serializer.setNextBuffer(buffer);
 			}
 		}
 	}

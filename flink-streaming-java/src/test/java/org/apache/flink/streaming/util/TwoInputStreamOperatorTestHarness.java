@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
@@ -73,7 +74,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 
-		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
+		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput(), false);
 	}
 
 	/**
@@ -124,6 +125,11 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 		@SuppressWarnings("unchecked")
 		public void emitWatermark(Watermark mark) {
 			outputList.add(mark);
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+			outputList.add(latencyMarker);
 		}
 
 		@Override

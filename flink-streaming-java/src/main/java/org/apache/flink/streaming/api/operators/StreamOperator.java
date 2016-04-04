@@ -54,7 +54,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Initializes the operator. Sets access to the context and the output.
 	 */
-	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
+	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output, boolean isSink);
 
 	/**
 	 * This method is called immediately before any elements are processed, it should contain the

@@ -461,6 +461,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
 	}
 
+	/**
+	 * Check if the tasks is sending a mixed stream (of watermarks, latency marks and records)
+	 * @return true if stream contains more than just records
+	 */
+	protected boolean isSerializingMixedStream() {
+		return isSerializingTimestamps() || getExecutionConfig().isLatencyTrackingEnabled();
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Access to properties and utilities
 	// ------------------------------------------------------------------------
