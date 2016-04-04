@@ -45,7 +45,7 @@ as input, and computes one or more result streams from them.
 
 When executed, Flink programs are mapped to **streaming dataflows**, consisting of **streams** and transformation **operators**.
 Each dataflow starts with one or more **sources** and ends in one or more **sinks**. The dataflows may resemble
-arbitrary **directed acyclic graphs** *(DAGs)*. (Special forms of cycle is permitted via *iteration* constructs, we
+arbitrary **directed acyclic graphs** *(DAGs)*. (Special forms of cycles are permitted via *iteration* constructs, we
 omit this here for simplicity).
 
 In most cases, there is a one-to-one correspondence between the transformations in the programs and the operators
@@ -57,7 +57,7 @@ in the dataflow. Sometimes, however, one transformation may consist of multiple 
 
 ### Parallel Dataflows
 
-Programs in Flink are inherently parallel and distributed. *Streams* are split into **stream partitions** and 
+Programs in Flink are inherently parallel and distributed. *Streams* are split into **stream partitions** and
 *operators* are split into **operator subtasks**. The operator subtasks execute independently from each other,
 in different threads and on different machines or containers.
 
@@ -73,9 +73,9 @@ Streams can transport data between two operators in a *one-to-one* (or *forwardi
     were produced by subtask[1] of the *source* operator.
 
   - **Redistributing** streams (between *map()* and *keyBy/window*, as well as between *keyBy/window* and *sink*) change
-    the partitioning of streams. Each *stream partition* splits itself up and sends data to different target subtasks,
+    the partitioning of streams. Each *operator subtask* sends data to different target subtasks,
     depending on the selected transformation. Examples are *keyBy()* (re-partitions by hash code), *broadcast()*, or
-    *rebalance()* (random redistribution). 
+    *rebalance()* (random redistribution).
     In a *redistributing* exchange, order among elements is only preserved for each pair of sending- and receiving
     task (for example subtask[1] of *map()* and subtask[2] of *keyBy/window*).
 
@@ -83,7 +83,7 @@ Streams can transport data between two operators in a *one-to-one* (or *forwardi
 
 ### Tasks & Operator Chains
 
-For the distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
+For distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
 Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread
 handover and buffering, and increases overall throughput while decreasing latency.
 The chaining behavior can be configured in the APIs.
@@ -108,13 +108,13 @@ The Flink runtime consists of two types of processes:
 
   - The **worker** processes (also called *TaskManagers*) execute the *tasks* (or more specifically, the subtasks) of a dataflow,
     and buffer and exchange the data *streams*.
-     
+
     There must always be at least one worker process.
 
 The master and worker processes can be started in an arbitrary fashion: Directly on the machines, via containers, or via
 resource frameworks like YARN. Workers connect to masters, announcing themselves as available, and get work assigned.
 
-The **client** is not part of the runtime and program execution, but is used to prepare and send to dataflow to the master.
+The **client** is not part of the runtime and program execution, but is used to prepare and send a dataflow to the master.
 After that, the client can disconnect, or stay connected to receive progress reports. The client runs either as part of the
 Java/Scala program that triggers the execution, or in the command line process `./bin/flink run ...`.
 
@@ -127,16 +127,16 @@ Java/Scala program that triggers the execution, or in the command line process `
 Each worker (TaskManager) is a *JVM process*, and may execute one or more subtasks in separate threads.
 To control how many tasks a worker accepts, a worker has so called **task slots** (at least one).
 
-Each *task slot* is a fix subset of resources of the TaskManager. A TaskManager with three slots, for example,
+Each *task slot* represents a fixed subset of resources of the TaskManager. A TaskManager with three slots, for example,
 will dedicate 1/3 of its managed memory to each slot. Slotting the resources means that a subtask will not
-compete with subtasks from other jobs for managed memory, but that the subtask a certain amount of reserved
+compete with subtasks from other jobs for managed memory, but instead has a certain amount of reserved
 managed memory. Note that no CPU isolation happens here, slots currently only separate managed memory of tasks.
 
 Adjusting the number of task slots thus allows users to define how subtasks are isolated against each other.
 Having one slot per TaskManager means each task group runs in a separate JVM (which can be started in a
 separate container, for example). Having multiple slots
 means more subtasks share the same JVM. Tasks in the same JVM share TCP connections (via multiplexing) and
-heartbeats messages, or may shared data sets and data structures, thus reducing the per-task overhead.
+heartbeats messages. They may also share data sets and data structures, thus reducing the per-task overhead.
 
 <img src="fig/tasks_slots.svg" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" />
 
@@ -165,7 +165,7 @@ With hyper threading, each slot then takes 2 or more hardware thread contexts.
 
 ## Time and Windows
 
-Aggregating events (e.g., counts, sums) work slightly differently on streams than in batch processing.
+Aggregating events (e.g., counts, sums) works slightly differently on streams than in batch processing.
 For example, it is impossible to first count all elements in the stream and then return the count,
 because streams are in general infinite (unbounded). Instead, aggregates on streams (counts, sums, etc),
 are scoped by **windows**, such as *"count over the last 5 minutes"*, or *"sum of the last 100 elements"*.
@@ -205,7 +205,7 @@ While many operations in a dataflow simply look at one individual *event at a ti
 some operations remember information across individual events (for example window operators).
 These operations are called **stateful**.
 
-The state from stateful operation is maintained in what can be thought of as an embedded key/value store.
+The state of stateful operations is maintained in what can be thought of as an embedded key/value store.
 The state is partitioned and distributed strictly together with the streams that are read by the
 stateful operators. Hence, access the key/value state is only possible on *keyed streams*, after a *keyBy()* function,
 and is restricted to the values of the current event's key. Aligning the keys of streams and state
@@ -219,10 +219,10 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 ### Checkpoints for Fault Tolerance
 
 Flink implements fault tolerance using a combination of **stream replay** and **checkpoints**. A checkpoint
-defines a consistent point in streams and state from which an streaming dataflow can resume, and maintain consistency
-*(exactly-once processing semantics)*. The events and state update since the last checkpoint are replayed from the input streams.
+defines a consistent point in streams and state from which a streaming dataflow can resume, and maintain consistency
+*(exactly-once processing semantics)*. The events and state updates since the last checkpoint are replayed from the input streams.
 
-Checkpoints interval is a means of trading off the overhead of fault tolerance during execution, with the recovery time (the amount
+The checkpoint interval is a means of trading off the overhead of fault tolerance during execution, with the recovery time (the amount
 of events that need to be replayed).
 
 More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{ site.baseurl }}/internals/stream_checkpointing.html/).
