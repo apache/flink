@@ -19,10 +19,10 @@
 package org.apache.flink.ml.pipeline
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-
 import org.apache.flink.api.scala._
 import org.apache.flink.ml._
-import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.ml.common.{FlinkMLTools, LabeledVector, ParameterMap, WithParameters}
+import org.apache.flink.ml.math.{Vector => FlinkVector}
 
 /** Predictor trait for Flink's pipeline operators.
   *
@@ -59,7 +59,7 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     predictor.predictDataSet(this, predictParameters, testing)
   }
 
-  /** Evaluates the testing data by computing the prediction value and returning a pair of true
+  /** Computes a prediction value for each example in the testing data and returns a pair of true
     * label value and prediction value. It is important that the implementation chooses a Testing
     * type from which it can extract the true label value.
     *
@@ -72,8 +72,8 @@ trait Predictor[Self] extends Estimator[Self] with WithParameters {
     */
   def evaluate[Testing, PredictionValue](
       testing: DataSet[Testing],
-      evaluateParameters: ParameterMap = ParameterMap.Empty)(implicit
-      evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
+      evaluateParameters: ParameterMap = ParameterMap.Empty)
+      (implicit evaluator: EvaluateDataSetOperation[Self, Testing, PredictionValue])
     : DataSet[(PredictionValue, PredictionValue)] = {
     FlinkMLTools.registerFlinkMLTypes(testing.getExecutionEnvironment)
     evaluator.evaluateDataSet(this, evaluateParameters, testing)
@@ -172,6 +172,37 @@ object Predictor {
       }
     }
   }
+
+  /** [[EvaluateDataSetOperation]] which takes a [[PredictOperation]] to calculate a tuple
+    * of true label value and predicted label value, when provided with a DataSet of
+    * [[LabeledVector]].
+    *
+    * @param predictOperation An implicit PredictOperation that takes a Flink Vector and returns
+    *                         a Double
+    * @tparam Instance The [[Predictor]] instance that calls the function
+    * @tparam Model The model that the calling [[Predictor]] uses for predictions
+    * @return An EvaluateDataSetOperation for LabeledVector
+    */
+  implicit def LabeledVectorEvaluateDataSetOperation[Instance <: Predictor[Instance],Model]
+      (implicit predictOperation: PredictOperation[Instance, Model, FlinkVector, Double])
+    : EvaluateDataSetOperation[Instance, LabeledVector, Double] = {
+    new EvaluateDataSetOperation[Instance, LabeledVector, Double] {
+      override def evaluateDataSet(
+          instance: Instance,
+          evaluateParameters: ParameterMap,
+          testing: DataSet[LabeledVector])
+        : DataSet[(Double,  Double)] = {
+        val resultingParameters = instance.parameters ++ evaluateParameters
+        val model = predictOperation.getModel(instance, resultingParameters)
+
+        testing.mapWithBcVariable(model){
+          (element, model) => {
+            (element.label, predictOperation.predict(element.vector, model))
+          }
+        }
+      }
+    }
+  }
 }
 
 /** Type class for the predict operation of [[Predictor]]. This predict operation works on DataSets.
@@ -233,8 +264,7 @@ trait PredictOperation[Instance, Model, Testing, Prediction] extends Serializabl
     * @param model The model representation of the prediciton algorithm
     * @return A label for the provided example of type [[Prediction]]
     */
-  def predict(value: Testing, model: Model):
-    Prediction
+  def predict(value: Testing, model: Model): Prediction
 }
 
 /** Type class for the evaluate operation of [[Predictor]]. This evaluate operation works on

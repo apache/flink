@@ -105,4 +105,14 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     tempFile.delete()
   }
+
+  it should "correctly find the mean of a DataSet" in  {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromCollection(List(5.0, -5.0, 0.0))
+
+    val mean = ds.mean().collect().head
+
+    mean should be (0.0 +- 1e-9)
+  }
 }
