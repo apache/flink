@@ -57,8 +57,9 @@ public class SpoutSplitExample {
 		String[] rawOutputs = new String[] { RandomSpout.EVEN_STREAM, RandomSpout.ODD_STREAM };
 
 		final DataStream<SplitStreamType<Integer>> numbers = env.addSource(
-				new SpoutWrapper<SplitStreamType<Integer>>(new RandomSpout(true, 0),
-						rawOutputs), TypeExtractor.getForObject(new SplitStreamType<Integer>()));
+				new SpoutWrapper<SplitStreamType<Integer>>(new RandomSpout(true, System
+						.currentTimeMillis()), rawOutputs, 1000), TypeExtractor
+						.getForObject(new SplitStreamType<Integer>()));
 
 		SplitStream<SplitStreamType<Integer>> splitStream = numbers
 				.split(new StormStreamSelector<Integer>());
@@ -66,7 +67,8 @@ public class SpoutSplitExample {
 		DataStream<SplitStreamType<Integer>> evenStream = splitStream.select(RandomSpout.EVEN_STREAM);
 		DataStream<SplitStreamType<Integer>> oddStream = splitStream.select(RandomSpout.ODD_STREAM);
 
-		evenStream.map(new SplitStreamMapper<Integer>()).returns(Integer.class).map(new Enrich("even")).print();
+		evenStream.map(new SplitStreamMapper<Integer>()).returns(Integer.class)
+				.map(new Enrich(true)).print();
 		oddStream.map(new SplitStreamMapper<Integer>()).transform("oddBolt",
 				TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
 				new BoltWrapper<Integer, Tuple2<String, Integer>>(
@@ -84,16 +86,27 @@ public class SpoutSplitExample {
 	/**
 	 * Same as {@link VerifyAndEnrichBolt}.
 	 */
-	private final static class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
+	public final static class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 5213888269197438892L;
 		private final Tuple2<String, Integer> out;
+		private final boolean evenOrOdd; // true: even -- false: odd
 
-		public Enrich(String token) {
-			this.out = new Tuple2<String, Integer>(token, 0);
+		public static boolean errorOccured = false;
+
+		public Enrich(boolean evenOrOdd) {
+			this.evenOrOdd = evenOrOdd;
+			if (evenOrOdd) {
+				this.out = new Tuple2<String, Integer>("even", 0);
+			} else {
+				this.out = new Tuple2<String, Integer>("odd", 0);
+			}
 		}
 
 		@Override
 		public Tuple2<String, Integer> map(Integer value) throws Exception {
+			if ((value.intValue() % 2 == 0) != this.evenOrOdd) {
+				errorOccured = true;
+			}
 			this.out.setField(value, 1);
 			return this.out;
 		}
