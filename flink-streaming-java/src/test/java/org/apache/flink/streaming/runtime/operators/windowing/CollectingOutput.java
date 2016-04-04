@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
@@ -60,7 +61,12 @@ public class CollectingOutput<T> implements Output<StreamRecord<T>> {
 	
 	@Override
 	public void emitWatermark(Watermark mark) {
-		throw new UnsupportedOperationException("the output should not emit watermarks");
+		throw new UnsupportedOperationException("The output should not emit watermarks");
+	}
+
+	@Override
+	public void emitLatencyMarker(LatencyMarker latencyMarker) {
+		throw new UnsupportedOperationException("The output should not emit latency markers");
 	}
 
 	@Override

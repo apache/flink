@@ -23,6 +23,7 @@ import java.util.Collection;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class MockOutput<T> implements Output<StreamRecord<T>> {
@@ -41,6 +42,11 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 	@Override
 	public void emitWatermark(Watermark mark) {
 		throw new RuntimeException("THIS MUST BE IMPLEMENTED");
+	}
+
+	@Override
+	public void emitLatencyMarker(LatencyMarker latencyMarker) {
+		throw new RuntimeException();
 	}
 
 	@Override
