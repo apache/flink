@@ -60,6 +60,8 @@ import org.junit.Test;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -297,6 +299,14 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
 				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+
+				int numSlots = 0;
+				while (numSlots == 0) {
+					Future<?> slotsFuture = leader.ask(JobManagerMessages
+							.getRequestTotalNumberOfSlots(), deadline.timeLeft());
+
+					numSlots = (Integer) Await.result(slotsFuture, deadline.timeLeft());
+				}
 
 				// Submit the job in non-detached mode
 				leader.tell(new SubmitJob(jobGraph,
