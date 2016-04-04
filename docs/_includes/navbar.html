@@ -39,7 +39,9 @@ under the License.
         <!-- The navigation links. -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav">
-            <li class="hidden-sm {% if page.url == '/' %}active{% endif %}"><a href="{{ site.baseurl}}/">Documentation {{ site.version_short }}</a></li>
+            <li class="hidden-sm {% if page.url == '/' %}active{% endif %}"><a href="{{ site.baseurl}}/">Docs v{{ site.version_short }}</a></li>
+
+            <li class="{% if page.url == '/concepts/concepts.html' %}active{% endif %}"><a href="{{ site.baseurl}}/concepts/concepts.html">Concepts</a></li>
 
             <!-- Quickstart -->
             <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
@@ -82,7 +84,7 @@ under the License.
             </li>
 
             <!-- Libraries -->
-            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %} hidden-sm">
               <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   {% assign libs_group = (site.pages | where: "top-nav-group" , "libs" | sort: "top-nav-pos") %}
