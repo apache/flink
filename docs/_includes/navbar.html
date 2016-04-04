@@ -43,17 +43,6 @@ under the License.
 
             <li class="{% if page.url == '/concepts/concepts.html' %}active{% endif %}"><a href="{{ site.baseurl}}/concepts/concepts.html">Concepts</a></li>
 
-            <!-- Quickstart -->
-            <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
-              <a href="{{ quickstart }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Quickstart <span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-                {% assign quickstart_group = (site.pages | where: "top-nav-group" , "quickstart" | sort: "top-nav-pos") %}
-                {% for quickstart_page in quickstart_group %}
-                <li class="{% if page.url contains quickstart_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ quickstart_page.url }}">{% if quickstart_page.top-nav-title %}{{ quickstart_page.top-nav-title }}{% else %}{{ quickstart_page.title }}{% endif %}</a></li>
-                {% endfor %}
-              </ul>
-            </li>
-
             <!-- Setup -->
             <li class="dropdown{% if page.url contains '/setup/' %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
@@ -61,6 +50,15 @@ under the License.
                 {% assign setup_group = (site.pages | where: "top-nav-group" , "setup" | sort: "top-nav-pos") %}
                 {% for setup_group_page in setup_group %}
                 <li class="{% if page.url contains setup_group_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ setup_group_page.url }}">{% if setup_group_page.top-nav-title %}{{ setup_group_page.top-nav-title }}{% else %}{{ setup_group_page.title }}{% endif %}</a></li>
+                {% endfor %}
+
+                <li class="divider"></li>
+                <li role="presentation" class="dropdown-header"><strong>Quickstart</strong></li>
+
+                <!-- Quickstart -->
+                {% assign quickstart_group = (site.pages | where: "top-nav-group" , "quickstart" | sort: "top-nav-pos") %}
+                {% for quickstart_page in quickstart_group %}
+                <li class="{% if page.url contains quickstart_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ quickstart_page.url }}">{% if quickstart_page.top-nav-title %}{{ quickstart_page.top-nav-title }}{% else %}{{ quickstart_page.title }}{% endif %}</a></li>
                 {% endfor %}
 
                 <li class="divider"></li>
@@ -84,7 +82,7 @@ under the License.
             </li>
 
             <!-- Libraries -->
-            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %} hidden-sm">
+            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %}">
               <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   {% assign libs_group = (site.pages | where: "top-nav-group" , "libs" | sort: "top-nav-pos") %}
