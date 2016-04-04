@@ -30,7 +30,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
  * Note: On a cluster, DataStream.print() will print to the TaskManager's .out file!
  *
  * Please pass the following arguments to run the example:
- * 	--topic test --bootstrap.servers localhost:9092 --group.id myconsumer
+ * 	--topic test --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer
  *
  */
 public class ReadFromKafka {
@@ -39,9 +39,10 @@ public class ReadFromKafka {
 		// parse input arguments
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if(parameterTool.getNumberOfParameters() < 3) {
-			System.out.println("Missing parameters!\nUsage: Kafka --topic <topic> --bootstrap.servers <kafka brokers> --group.id <some id>");
-			System.exit(1);
+		if(parameterTool.getNumberOfParameters() < 4) {
+			System.out.println("Missing parameters!\nUsage: Kafka --topic <topic> " +
+					"--bootstrap.servers <kafka brokers> --zookeeper.connect <zk quorum> --group.id <some id>");
+			return;
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
