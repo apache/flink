@@ -98,6 +98,15 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		}
 	}
 
+	@Override
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		checkErroneous();
+		super.randomEmit(record);
+		if (flushAlways) {
+			flush();
+		}
+	}
+
 	/**
 	 * Closes the writer. This stops the flushing thread (if there is one).
 	 */

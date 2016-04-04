@@ -868,6 +868,10 @@ public final class ConfigConstants {
 	/** The scope format string that is applied to all metrics scoped to an operator. */
 	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
+	/** The number of measured latencies to maintain at each operator */
+	public static final String METRICS_LATENCY_HISTORY_SIZE = "metrics.latency.history-size";
+
+
 	// ---------------------------- Checkpoints -------------------------------
 
 	/** The default directory for savepoints. */
@@ -885,6 +889,7 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
+
 
 	// ------------------------------------------------------------------------
 	//                            Default Values
