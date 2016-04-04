@@ -1,16 +1,10 @@
 ---
-title: "Basic Concepts"
+title: "Basic API Concepts"
 
 # Top-level navigation
 top-nav-group: apis
 top-nav-pos: 1
-top-nav-title: <strong>Basic Concepts</strong>
-
-# Sub-level navigation
-#sub-nav-group: common
-#sub-nav-group-title: Basic Concepts
-#sub-nav-pos: 1
-#sub-nav-title: Basic Concepts
+top-nav-title: <strong>Basic API Concepts</strong>
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
