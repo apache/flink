@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{ConnectedStreams, DataStream}
 
@@ -34,6 +35,7 @@ class OnConnectedStream[IN1: TypeInformation, IN2: TypeInformation](
     * @param map2 Function called per element of the second input.
     * @return The resulting data stream.
     */
+  @PublicEvolving
   def mapWith[R: TypeInformation](map1: IN1 => R, map2: IN2 => R): DataStream[R] =
     ds.map(map1, map2)
 
@@ -48,6 +50,7 @@ class OnConnectedStream[IN1: TypeInformation, IN2: TypeInformation](
     * @param flatMap2 Function called per element of the second input.
     * @return The resulting data stream.
     */
+  @PublicEvolving
   def flatMapWith[R: TypeInformation](
       flatMap1: IN1 => TraversableOnce[R], flatMap2: IN2 => TraversableOnce[R]): DataStream[R] =
     ds.flatMap(flatMap1, flatMap2)
@@ -61,6 +64,7 @@ class OnConnectedStream[IN1: TypeInformation, IN2: TypeInformation](
     * @param key2 The second stream's key function
     * @return The key-grouped connected streams
     */
+  @PublicEvolving
   def keyingBy[K1: TypeInformation, K2: TypeInformation](key1: IN1 => K1, key2: IN2 => K2):
       ConnectedStreams[IN1, IN2] =
     ds.keyBy(key1, key2)

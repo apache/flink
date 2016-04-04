@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{HalfUnfinishedKeyPairOperation, UnfinishedKeyPairOperation}
 
@@ -41,6 +42,7 @@ class OnUnfinishedKeyPairOperation[L: TypeInformation, R: TypeInformation, O: Ty
     * @tparam K The type of the key, for which type information must be known
     * @return A data set of Os
     */
+  @PublicEvolving
   def whereClause[K: TypeInformation](fun: (L) => K): HalfUnfinishedKeyPairOperation[L, R, O] =
     ds.where(fun)
 

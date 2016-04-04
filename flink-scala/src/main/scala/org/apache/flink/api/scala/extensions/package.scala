@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions._
 
@@ -63,30 +64,37 @@ import scala.reflect.ClassTag
   */
 package object extensions {
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[T: TypeInformation](ds: DataSet[T]): OnDataSet[T] =
     new OnDataSet[T](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
       ds: JoinFunctionAssigner[L, R]): OnJoinFunctionAssigner[L, R] =
     new OnJoinFunctionAssigner[L, R](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
       ds: CrossDataSet[L, R]): OnCrossDataSet[L, R] =
     new OnCrossDataSet[L, R](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[T: TypeInformation: ClassTag](
       ds: GroupedDataSet[T]):
       OnGroupedDataSet[T] =
     new OnGroupedDataSet[T](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
       ds: CoGroupDataSet[L, R]): OnCoGroupDataSet[L, R] =
     new OnCoGroupDataSet[L, R](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, O: TypeInformation](
       ds: HalfUnfinishedKeyPairOperation[L, R, O]): OnHalfUnfinishedKeyPairOperation[L, R, O] =
     new OnHalfUnfinishedKeyPairOperation[L, R, O](ds)
 
+  @PublicEvolving
   implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, O: TypeInformation](
       ds: UnfinishedKeyPairOperation[L, R, O]): OnUnfinishedKeyPairOperation[L, R, O] =
     new OnUnfinishedKeyPairOperation[L, R, O](ds)

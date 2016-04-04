@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.datastream.{KeyedStream, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, GroupedDataSet}
@@ -40,6 +41,7 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @tparam K The key type
     * @return A data set sorted group-wise
     */
+  @PublicEvolving
   def sortGroupWith[K: TypeInformation](order: Order)(fun: T => K): GroupedDataSet[T] =
     ds.sortGroup(fun, order)
 
@@ -49,6 +51,7 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @param fun The reducing function
     * @return A reduced data set of Ts
     */
+  @PublicEvolving
   def reduceWith(fun: (T, T) => T): DataSet[T] =
     ds.reduce(fun)
 
@@ -59,6 +62,7 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @tparam R The type of the items in the resulting data set
     * @return A data set of Rs reduced group-wise
     */
+  @PublicEvolving
   def reduceGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.reduceGroup {
       (it, out) =>
@@ -73,6 +77,7 @@ class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
     * @tparam R The type of the items in the resulting data set
     * @return A data set of Rs reduced group-wise
     */
+  @PublicEvolving
   def combineGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.combineGroup {
       (it, out) =>

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, JoinedStreams}
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -32,6 +33,7 @@ class OnJoinedStream[L: TypeInformation, R: TypeInformation, K, W <: Window](
     * @tparam O The return type of the projection, for which type information must be known
     * @return A fully joined data set of Os
     */
+  @PublicEvolving
   def projecting[O: TypeInformation](fun: (L, R) => O): DataStream[O] =
     stream.apply(fun)
 

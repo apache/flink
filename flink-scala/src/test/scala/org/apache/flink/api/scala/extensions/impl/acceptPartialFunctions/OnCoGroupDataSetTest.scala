@@ -19,9 +19,9 @@ package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
 import org.apache.flink.api.java.operators.CoGroupOperator
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.api.scala.extensions.data.KeyValuePair
-import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 import org.junit.Test
 
 class OnCoGroupDataSetTest extends AcceptPFTestBase {

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -38,6 +39,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     * @param function The reduce function.
     * @return The data stream that is the result of applying the reduce function to the window.
     */
+  @PublicEvolving
   def reduceWith(function: (T, T) => T) =
     ds.reduce(function)
 
@@ -49,6 +51,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     * @param function The fold function.
     * @return The data stream that is the result of applying the fold function to the window.
     */
+  @PublicEvolving
   def foldWith[R: TypeInformation](initialValue: R)(function: (R, T) => R) =
     ds.fold(initialValue)(function)
 
@@ -64,6 +67,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
+  @PublicEvolving
   def applyWith[R: TypeInformation](
       initialValue: R)(
       foldFunction: (R, T) => R,

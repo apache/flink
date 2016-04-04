@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream}
 
@@ -29,6 +30,7 @@ class OnDataStream[T: TypeInformation](stream: DataStream[T]) {
     * @tparam R The type of the items in the returned stream
     * @return A dataset of R
     */
+  @PublicEvolving
   def mapWith[R: TypeInformation](fun: T => R): DataStream[R] =
     stream.map(fun)
 
@@ -40,6 +42,7 @@ class OnDataStream[T: TypeInformation](stream: DataStream[T]) {
     * @tparam R The type of the items in the returned stream
     * @return A dataset of R
     */
+  @PublicEvolving
   def flatMapWith[R: TypeInformation](fun: T => TraversableOnce[R]): DataStream[R] =
     stream.flatMap(fun)
 
@@ -50,6 +53,7 @@ class OnDataStream[T: TypeInformation](stream: DataStream[T]) {
     * @param fun The predicate to be tested on each item
     * @return A dataset of R
     */
+  @PublicEvolving
   def filterWith(fun: T => Boolean): DataStream[T] =
     stream.filter(fun)
 
@@ -60,6 +64,7 @@ class OnDataStream[T: TypeInformation](stream: DataStream[T]) {
     * @tparam K The type of the key, for which type information must be known
     * @return A stream of Ts keyed by Ks
     */
+  @PublicEvolving
   def keyingBy[K: TypeInformation](fun: T => K): KeyedStream[T, K] =
     stream.keyBy(fun)
 

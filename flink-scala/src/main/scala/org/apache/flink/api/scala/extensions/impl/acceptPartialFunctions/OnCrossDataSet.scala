@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{CrossDataSet, DataSet}
 
@@ -40,6 +41,7 @@ class OnCrossDataSet[L: TypeInformation, R: TypeInformation](ds: CrossDataSet[L,
     * @tparam O The return type of the projection, for which type information must be known
     * @return A data set of Os
     */
+  @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
     ds(fun)
 

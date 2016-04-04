@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.HalfUnfinishedKeyPairOperation
 /**
@@ -28,7 +29,6 @@ import org.apache.flink.api.scala.HalfUnfinishedKeyPairOperation
   * @tparam R The type of the right data set items, for which the type information must be known
   * @tparam O The type of the output data set items, for which the type information must be known
   */
-
 class OnHalfUnfinishedKeyPairOperation[L: TypeInformation, R: TypeInformation, O: TypeInformation](
     ds: HalfUnfinishedKeyPairOperation[L, R, O]) {
 
@@ -40,6 +40,7 @@ class OnHalfUnfinishedKeyPairOperation[L: TypeInformation, R: TypeInformation, O
     * @tparam K The type of the key, for which type information must be known
     * @return A data set of Os
     */
+  @PublicEvolving
   def isEqualTo[K: TypeInformation](fun: R => K): O =
     ds.equalTo(fun)
 

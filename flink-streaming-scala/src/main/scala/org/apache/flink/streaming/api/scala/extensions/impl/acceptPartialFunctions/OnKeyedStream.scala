@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, KeyedStream}
 
@@ -28,6 +29,7 @@ class OnKeyedStream[T: TypeInformation, K](stream: KeyedStream[T, K]) {
     * @param fun The reducing function to be applied on the keyed stream
     * @return A data set of Ts
     */
+  @PublicEvolving
   def reduceWith(fun: (T, T) => T): DataStream[T] =
     stream.reduce(fun)
 
@@ -38,6 +40,7 @@ class OnKeyedStream[T: TypeInformation, K](stream: KeyedStream[T, K]) {
     * @param fun The reducing function to be applied on the keyed stream
     * @return A data set of Rs
     */
+  @PublicEvolving
   def foldWith[R: TypeInformation](initialValue: R)(fun: (R, T) => R): DataStream[R] =
     stream.fold(initialValue)(fun)
 

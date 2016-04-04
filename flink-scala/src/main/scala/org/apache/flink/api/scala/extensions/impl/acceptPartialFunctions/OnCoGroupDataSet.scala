@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{CoGroupDataSet, DataSet}
 
@@ -40,6 +41,7 @@ class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](ds: CoGroupDataSe
     * @tparam O The return type of the projection, for which type information must be known
     * @return A fully co-grouped data set of Os
     */
+  @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (Stream[L], Stream[R]) => O): DataSet[O] =
     ds {
       (left, right) =>

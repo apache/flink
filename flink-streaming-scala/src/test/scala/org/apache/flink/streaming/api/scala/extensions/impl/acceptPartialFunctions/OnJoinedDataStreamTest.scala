@@ -19,9 +19,9 @@ package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFuncti
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, JoinFunctionAssigner}
 
@@ -41,6 +42,7 @@ class OnJoinFunctionAssigner[L: TypeInformation, R: TypeInformation](
     * @tparam O The return type of the projection, for which type information must be known
     * @return A fully joined data set of Os
     */
+  @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
     ds(fun)
 
