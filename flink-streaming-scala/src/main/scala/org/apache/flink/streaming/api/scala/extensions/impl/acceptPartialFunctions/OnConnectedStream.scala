@@ -21,7 +21,15 @@ import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{ConnectedStreams, DataStream}
 
-class OnConnectedStream[IN1, IN2](ds: ConnectedStreams[IN1, IN2]) {
+/**
+  * Wraps a connected data stream, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param stream The wrapped data stream
+  * @tparam IN1 The type of the data stream items coming from the first connection
+  * @tparam IN2 The type of the data stream items coming from the second connection
+  */
+class OnConnectedStream[IN1, IN2](stream: ConnectedStreams[IN1, IN2]) {
 
   /**
     * Applies a CoMap transformation on the connected streams.
@@ -36,7 +44,7 @@ class OnConnectedStream[IN1, IN2](ds: ConnectedStreams[IN1, IN2]) {
     */
   @PublicEvolving
   def mapWith[R: TypeInformation](map1: IN1 => R, map2: IN2 => R): DataStream[R] =
-    ds.map(map1, map2)
+    stream.map(map1, map2)
 
   /**
     * Applies a CoFlatMap transformation on the connected streams.
@@ -52,7 +60,7 @@ class OnConnectedStream[IN1, IN2](ds: ConnectedStreams[IN1, IN2]) {
   @PublicEvolving
   def flatMapWith[R: TypeInformation](
       flatMap1: IN1 => TraversableOnce[R], flatMap2: IN2 => TraversableOnce[R]): DataStream[R] =
-    ds.flatMap(flatMap1, flatMap2)
+    stream.flatMap(flatMap1, flatMap2)
 
   /**
     * Keys the two connected streams together. After this operation, all
@@ -66,6 +74,6 @@ class OnConnectedStream[IN1, IN2](ds: ConnectedStreams[IN1, IN2]) {
   @PublicEvolving
   def keyingBy[K1: TypeInformation, K2: TypeInformation](key1: IN1 => K1, key2: IN2 => K2):
       ConnectedStreams[IN1, IN2] =
-    ds.keyBy(key1, key2)
+    stream.keyBy(key1, key2)
 
 }

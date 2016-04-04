@@ -22,6 +22,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, JoinedStreams}
 import org.apache.flink.streaming.api.windowing.windows.Window
 
+/**
+  * Wraps a joined data stream, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param stream The wrapped data stream
+  * @tparam L The type of the data stream items from the left side of the join
+  * @tparam R The type of the data stream items from the right input of the join
+  * @tparam K The type of key
+  * @tparam W The type of the window
+  */
 class OnJoinedStream[L, R, K, W <: Window](
     stream: JoinedStreams[L, R]#Where[K]#EqualTo#WithWindow[W]) {
 

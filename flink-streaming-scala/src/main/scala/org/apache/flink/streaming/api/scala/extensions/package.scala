@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions._
 import org.apache.flink.streaming.api.windowing.windows.Window
 

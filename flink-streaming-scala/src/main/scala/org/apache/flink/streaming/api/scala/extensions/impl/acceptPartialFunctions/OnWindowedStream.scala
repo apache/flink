@@ -22,7 +22,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.{DataStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.windows.Window
 
-class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
+/**
+  * Wraps a joined data stream, allowing to use anonymous partial functions to
+  * perform extraction of items in a tuple, case class instance or collection
+  *
+  * @param stream The wrapped data stream
+  * @tparam T The type of the data stream items from the right input of the join
+  * @tparam K The type of key
+  * @tparam W The type of the window
+  */
+class OnWindowedStream[T, K, W <: Window](stream: WindowedStream[T, K, W]) {
 
   /**
     * Applies a reduce function to the window. The window function is called for each evaluation
@@ -41,7 +50,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     */
   @PublicEvolving
   def reduceWith(function: (T, T) => T) =
-    ds.reduce(function)
+    stream.reduce(function)
 
   /**
     * Applies the given fold function to each window. The window function is called for each
@@ -53,7 +62,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
     */
   @PublicEvolving
   def foldWith[R: TypeInformation](initialValue: R)(function: (R, T) => R) =
-    ds.fold(initialValue)(function)
+    stream.fold(initialValue)(function)
 
   /**
     * Applies the given window function to each window. The window function is called for each
@@ -73,7 +82,7 @@ class OnWindowedStream[T, K, W <: Window](ds: WindowedStream[T, K, W]) {
       foldFunction: (R, T) => R,
       windowFunction: (K, W, Stream[R]) => TraversableOnce[R])
     : DataStream[R] =
-    ds.apply(initialValue, foldFunction, {
+    stream.apply(initialValue, foldFunction, {
       (key, window, items, out) =>
         windowFunction(key, window, items.toStream).foreach(out.collect)
     })
