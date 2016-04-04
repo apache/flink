@@ -492,7 +492,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.getConfig().disableSysoutLogging();
 		env.setBufferTimeout(0);
 
