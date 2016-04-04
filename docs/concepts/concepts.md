@@ -21,21 +21,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<script type="text/javascript">
-$( document ).ready(function() {
-  // Handler for .ready() called.
-  $('.ga-track').click( function () {
-    console.log("tracking " + $(this).attr('id'))
-    // we just use the element id for tracking with google analytics
-    ga('send', 'event', 'button', 'click', $(this).attr('id'));
-  });
-
-});
-</script>
-
 * This will be replaced by the TOC
 {:toc}
-
 
 ## Programs and Dataflows
 
