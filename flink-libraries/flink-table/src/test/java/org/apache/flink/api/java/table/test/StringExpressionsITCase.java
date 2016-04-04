@@ -141,7 +141,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testCastIntegers() throws Exception {
+	public void testStringConcat1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -152,31 +152,11 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
 		Table result = in
-			.select("a + 42.cast(STRING)");
+			.select("42 + b + a");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "ABCD42\nABCD42";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testCastFloat() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
-
-		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
-			new Tuple2<>("ABCD", 3),
-			new Tuple2<>("ABCD", 2));
-
-		Table in = tableEnv.fromDataSet(ds, "a, b");
-
-		Table result = in
-			.select("a + 42f.cast(INT)");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "ABCD42\nABCD42";
+		String expected = "44ABCD\n45ABCD";
 		compareResultAsText(results, expected);
 	}
 

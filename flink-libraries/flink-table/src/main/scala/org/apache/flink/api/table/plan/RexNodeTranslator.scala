@@ -140,6 +140,10 @@ object RexNodeTranslator {
           val cast: RexNode = relBuilder.cast(r,
             TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
           relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
+        } else if(SqlTypeName.STRING_TYPES.contains(r.getType.getSqlTypeName)) {
+          val cast: RexNode = relBuilder.cast(l,
+            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+          relBuilder.call(SqlStdOperatorTable.PLUS, cast, r)
         } else {
           relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
         }
