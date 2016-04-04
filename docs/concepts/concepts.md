@@ -53,8 +53,9 @@ in the dataflow. Sometimes, however, one transformation may consist of multiple 
 
 <img src="fig/program_dataflow.svg" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
 
+{% top %}
 
-**Parallel Dataflows**
+### Parallel Dataflows
 
 Programs in Flink are inherently parallel and distributed. *Streams* are split into **stream partitions** and 
 *operators* are split into **operator subtasks**. The operator subtasks execute independently from each other,
@@ -78,8 +79,9 @@ Streams can transport data between two operators in a *one-to-one* (or *forwardi
     In a *redistributing* exchange, order among elements is only preserved for each pair of sending- and receiving
     task (for example subtask[1] of *map()* and subtask[2] of *keyBy/window*).
 
+{% top %}
 
-**Tasks & Operator Chains**
+### Tasks & Operator Chains
 
 For the distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
 Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread
@@ -90,6 +92,7 @@ The sample dataflow in the figure below is executed with five subtasks, and henc
 
 <img src="fig/tasks_chains.svg" alt="Operator chaining into Tasks" class="offset" width="80%" />
 
+{% top %}
 
 ## Distributed Execution
 
@@ -117,8 +120,9 @@ Java/Scala program that triggers the execution, or in the command line process `
 
 <img src="fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="80%" />
 
+{% top %}
 
-**Workers, Slots, Resources**
+### Workers, Slots, Resources
 
 Each worker (TaskManager) is a *JVM process*, and may execute one or more subtasks in separate threads.
 To control how many tasks a worker accepts, a worker has so called **task slots** (at least one).
@@ -157,6 +161,7 @@ With hyper threading, each slot then takes 2 or more hardware thread contexts.
 
 <img src="fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
 
+{% top %}
 
 ## Time and Windows
 
@@ -173,8 +178,9 @@ One typically distinguishes different types of windows, such as *tumbling window
 
 More window examples can be found in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html).
 
+{% top %}
 
-**Time**
+### Time
 
 When referring to time in a streaming program (for example to define windows), one can refer to different notions
 of time:
@@ -191,6 +197,7 @@ of time:
 
 More details on how to handle time are in the [event time docs]({{ site.baseurl }}/apis/streaming/event_time.html).
 
+{% top %}
 
 ## State and Fault Tolerance
 
@@ -207,7 +214,9 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 
 <img src="fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
-**Checkpoints for Fault Tolerance**
+{% top %}
+
+### Checkpoints for Fault Tolerance
 
 Flink implements fault tolerance using a combination of **stream replay** and **checkpoints**. A checkpoint
 defines a consistent point in streams and state from which an streaming dataflow can resume, and maintain consistency
@@ -220,13 +229,16 @@ More details on checkpoints and fault tolerance are in the [fault tolerance docs
 
 <img src="fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
 
-**State backends**
+{% top %}
+
+### State Backends
 
 The exact data structures in which the key/values indexes are stored depend on the chosen **state backend**. One state backend
 stores data in an in-memory hash map, another state backend uses [RocksDB](http://rocksdb.org) as the key/value index.
 In addition to defining the data structure that holds the state, the state backends also implements the logic to
 take a point-in-time snapshot of the key/value state and store that snapshot as part of a checkpoint.
 
+{% top %}
 
 ## Batch on Streaming
 
@@ -244,3 +256,4 @@ same way as well as they apply to streaming programs, with minor exceptions:
   - The DataSet API introduces special synchronized (superstep-based) iterations, which are only possible on
     bounded streams. For details, check out the [iteration docs]({{ site.baseurl }}/apis/batch/iterations.html).
 
+{% top %}
