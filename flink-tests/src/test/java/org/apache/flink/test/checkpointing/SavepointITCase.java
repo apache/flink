@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
@@ -804,9 +805,17 @@ public class SavepointITCase extends TestLogger {
 			Future<Object> savepointPathFuture = jobManager.ask(
 					new TriggerSavepoint(jobGraph.getJobID()), deadline.timeLeft());
 
-			final String savepointPath = ((TriggerSavepointSuccess) Await
-					.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
-			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+			Object resp = Await.result(savepointPathFuture, deadline.timeLeft());
+
+			String savepointPath = null;
+			if (resp instanceof TriggerSavepointSuccess) {
+				savepointPath = ((TriggerSavepointSuccess) resp).savepointPath();
+				LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+			} else if (resp instanceof TriggerSavepointFailure) {
+				fail("Received TriggerSavepointFailure: " + ((TriggerSavepointFailure) resp).cause().getMessage());
+			} else {
+				fail("Unexpected response of type  " + resp.getClass() + " " + resp);
+			}
 
 			// Completed checkpoint
 			RestoreStateCountingAndFailingSource.checkpointCompleteLatch.await();
