@@ -29,9 +29,9 @@ import scala.reflect.ClassTag
   * perform extraction of items in a tuple, case class instance or collection
   *
   * @param ds The wrapped grouped data set
-  * @tparam T The type of the grouped data set items, for which the type information must be known
+  * @tparam T The type of the grouped data set items
   */
-class OnGroupedDataSet[T: ClassTag](ds: GroupedDataSet[T]) {
+class OnGroupedDataSet[T](ds: GroupedDataSet[T]) {
 
   /**
     * Sorts a group using a sorting function `fun` and an `Order`

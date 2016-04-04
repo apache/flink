@@ -28,10 +28,10 @@ import scala.reflect.ClassTag
   * perform extraction of items in a tuple, case class instance or collection
   *
   * @param ds The wrapped co-group data set
-  * @tparam L The type of the left data set items, for which the type information must be known
-  * @tparam R The type of the right data set items, for which the type information must be known
+  * @tparam L The type of the left data set items
+  * @tparam R The type of the right data set items
   */
-class OnCoGroupDataSet[L: TypeInformation, R: TypeInformation](ds: CoGroupDataSet[L, R]) {
+class OnCoGroupDataSet[L, R](ds: CoGroupDataSet[L, R]) {
 
   /**
     * Co-groups the data sets using the function `fun` to project elements from both in

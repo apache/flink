@@ -28,10 +28,10 @@ import scala.reflect.ClassTag
   * perform extraction of items in a tuple, case class instance or collection
   *
   * @param ds The wrapped cross data set
-  * @tparam L The type of the left data set items, for which the type information must be known
-  * @tparam R The type of the right data set items, for which the type information must be known
+  * @tparam L The type of the left data set items
+  * @tparam R The type of the right data set items
   */
-class OnCrossDataSet[L: TypeInformation, R: TypeInformation](ds: CrossDataSet[L, R]) {
+class OnCrossDataSet[L, R](ds: CrossDataSet[L, R]) {
 
   /**
     * Starting from a cross data set, uses the function `fun` to project elements from

@@ -18,10 +18,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions._
-
-import scala.reflect.ClassTag
 
 /**
   * acceptPartialFunctions extends the original DataSet with methods with unique names
@@ -65,37 +62,33 @@ import scala.reflect.ClassTag
 package object extensions {
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[T: TypeInformation](ds: DataSet[T]): OnDataSet[T] =
+  implicit def acceptPartialFunctions[T](ds: DataSet[T]): OnDataSet[T] =
     new OnDataSet[T](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
+  implicit def acceptPartialFunctions[L, R](
       ds: JoinFunctionAssigner[L, R]): OnJoinFunctionAssigner[L, R] =
     new OnJoinFunctionAssigner[L, R](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
-      ds: CrossDataSet[L, R]): OnCrossDataSet[L, R] =
+  implicit def acceptPartialFunctions[L, R](ds: CrossDataSet[L, R]): OnCrossDataSet[L, R] =
     new OnCrossDataSet[L, R](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[T: TypeInformation: ClassTag](
-      ds: GroupedDataSet[T]):
-      OnGroupedDataSet[T] =
+  implicit def acceptPartialFunctions[T](ds: GroupedDataSet[T]): OnGroupedDataSet[T] =
     new OnGroupedDataSet[T](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation](
-      ds: CoGroupDataSet[L, R]): OnCoGroupDataSet[L, R] =
+  implicit def acceptPartialFunctions[L, R](ds: CoGroupDataSet[L, R]): OnCoGroupDataSet[L, R] =
     new OnCoGroupDataSet[L, R](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, O: TypeInformation](
+  implicit def acceptPartialFunctions[L, R, O](
       ds: HalfUnfinishedKeyPairOperation[L, R, O]): OnHalfUnfinishedKeyPairOperation[L, R, O] =
     new OnHalfUnfinishedKeyPairOperation[L, R, O](ds)
 
   @PublicEvolving
-  implicit def acceptPartialFunctions[L: TypeInformation, R: TypeInformation, O: TypeInformation](
+  implicit def acceptPartialFunctions[L, R, O](
       ds: UnfinishedKeyPairOperation[L, R, O]): OnUnfinishedKeyPairOperation[L, R, O] =
     new OnUnfinishedKeyPairOperation[L, R, O](ds)
 

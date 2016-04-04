@@ -25,12 +25,11 @@ import org.apache.flink.api.scala.HalfUnfinishedKeyPairOperation
   * perform extraction of items in a tuple, case class instance or collection
   *
   * @param ds The wrapped half unfinished key pair operation function assigner data set
-  * @tparam L The type of the left data set items, for which the type information must be known
-  * @tparam R The type of the right data set items, for which the type information must be known
-  * @tparam O The type of the output data set items, for which the type information must be known
+  * @tparam L The type of the left data set items
+  * @tparam R The type of the right data set items
+  * @tparam O The type of the output data set items
   */
-class OnHalfUnfinishedKeyPairOperation[L: TypeInformation, R: TypeInformation, O: TypeInformation](
-    ds: HalfUnfinishedKeyPairOperation[L, R, O]) {
+class OnHalfUnfinishedKeyPairOperation[L, R, O](ds: HalfUnfinishedKeyPairOperation[L, R, O]) {
 
   /**
     * Initiates a join or co-group operation, defining the second half of

@@ -28,9 +28,9 @@ import scala.reflect.ClassTag
   * perform extraction of items in a tuple, case class instance or collection
   *
   * @param ds The wrapped data set
-  * @tparam T The type of the data set items, for which the type information must be known
+  * @tparam T The type of the data set items
   */
-class OnDataSet[T: TypeInformation](ds: DataSet[T]) {
+class OnDataSet[T](ds: DataSet[T]) {
 
   /**
     * Applies a function `fun` to each item of the data set
@@ -84,11 +84,10 @@ class OnDataSet[T: TypeInformation](ds: DataSet[T]) {
     * Applies a reducer `fun` to the data set
     *
     * @param fun The reducing function to be applied on the whole data set
-    * @tparam R The type of the items in the returned collection
     * @return A data set of Rs
     */
   @PublicEvolving
-  def reduceWith[R: TypeInformation](fun: (T, T) => T): DataSet[T] =
+  def reduceWith(fun: (T, T) => T): DataSet[T] =
     ds.reduce(fun)
 
   /**
