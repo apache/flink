@@ -16,18 +16,48 @@
  */
 package org.apache.flink.storm.split;
 
+import java.io.File;
+import java.io.IOException;
+
 import org.apache.flink.storm.split.SpoutSplitExample.Enrich;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
-public class EmbeddedSpoutSplitITCase {
+public class SplitITCase extends StreamingMultipleProgramsTestBase {
+
+	private String output;
+
+	@Before
+	public void prepare() throws IOException {
+		output = getTempFilePath("dummy").split(":")[1];
+	}
+
+	@After
+	public void cleanUp() throws IOException {
+		deleteRecursively(new File(output));
+	}
 
 	@Test
-	public void testTopology() throws Exception {
-		SpoutSplitExample.main(new String[] { "0", "/dev/null" });
+	public void testEmbeddedSpout() throws Exception {
+		SpoutSplitExample.main(new String[] { "0", output });
 		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
 		Assert.assertFalse(Enrich.errorOccured);
+	}
+
+	@Test
+	public void testSpoutSplitTopology() throws Exception {
+		SplitStreamSpoutLocal.main(new String[] { "0", output });
+		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
+	}
+
+	@Test
+	public void testBoltSplitTopology() throws Exception {
+		SplitStreamBoltLocal.main(new String[] { "0", output });
+		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
 	}
 
 }
