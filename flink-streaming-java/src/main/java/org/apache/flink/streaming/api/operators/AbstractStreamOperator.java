@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -246,8 +247,8 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
 	 */
-	protected void registerTimer(long time, Triggerable target) {
-		container.registerTimer(time, target);
+	protected ScheduledFuture<?> registerTimer(long time, Triggerable target) {
+		return container.registerTimer(time, target);
 	}
 
 	/**

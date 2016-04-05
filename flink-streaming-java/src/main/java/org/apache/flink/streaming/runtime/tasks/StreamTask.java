@@ -17,16 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,22 +31,31 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.StateBackendFactory;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -129,7 +128,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	private ClassLoader userClassLoader;
 	
 	/** The executor service that schedules and calls the triggers of this task*/
-	private ScheduledExecutorService timerService;
+	private ScheduledThreadPoolExecutor timerService;
 	
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
@@ -191,8 +190,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				headOperator.setup(this, configuration, operatorChain.getChainEntryPoint());
 			}
 
-			timerService = Executors.newSingleThreadScheduledExecutor(
-					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
+			timerService =new ScheduledThreadPoolExecutor(1, new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
+			// allow trigger tasks to be removed if all timers for that timestamp are removed by user
+			timerService.setRemoveOnCancelPolicy(true);
 
 			// task specific initialization
 			init();
@@ -663,13 +663,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/**
 	 * Registers a timer.
 	 */
-	public void registerTimer(final long timestamp, final Triggerable target) {
+	public ScheduledFuture<?> registerTimer(final long timestamp, final Triggerable target) {
 		long delay = Math.max(timestamp - System.currentTimeMillis(), 0);
 
-		timerService.schedule(
-				new TriggerTask(this, lock, target, timestamp),
-				delay,
-				TimeUnit.MILLISECONDS);
+		return timerService.schedule(
+			new TriggerTask(this, lock, target, timestamp),
+			delay,
+			TimeUnit.MILLISECONDS);
 	}
 
 	/**
