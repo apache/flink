@@ -426,6 +426,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	File getBaseDir(Configuration configuration) {
-		return new File(configuration.getString(ConfigConstants.WEB_MONITOR_DIRECTORY_KEY, System.getProperty("java.io.tmpdir")));
+		return new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir")));
 	}
 }

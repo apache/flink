@@ -102,7 +102,7 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
-	public static final String WEB_MONITOR_DIRECTORY_KEY = "web.monitor.tmpdir";
+	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
 
 	/**
 	 * The config parameter defining the network port to connect to
