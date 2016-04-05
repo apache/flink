@@ -304,7 +304,6 @@ public final class ConfigConstants {
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
 	 */
-	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
 
 	/**
