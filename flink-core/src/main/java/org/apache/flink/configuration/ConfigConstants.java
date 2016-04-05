@@ -711,8 +711,8 @@ public final class ConfigConstants {
 	 * the operating system assigns an ephemeral port
 	 */
 	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "0";
-	
-	
+
+
 	// ------------------------ File System Behavior ------------------------
 
 	/**
