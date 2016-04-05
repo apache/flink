@@ -65,9 +65,12 @@ import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccum
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
+import org.apache.flink.runtime.webmonitor.handlers.TaskManagerLogHandler;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -75,6 +78,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -125,6 +130,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
+
+	private ExecutorService executorService;
 
 	public WebRuntimeMonitor(
 			Configuration config,
@@ -193,6 +200,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		// --------------------------------------------------------------------
 
+		executorService = new ForkJoinPool();
+
+		ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(executorService);
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
@@ -234,7 +245,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/checkpoints", handler(new JobCheckpointsHandler(currentGraphs)))
 
 			.GET("/taskmanagers", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
-			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY, handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/metrics", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/log", 
+				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout, TaskManagerLogHandler.FileMode.LOG, config))
+			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/stdout", 
+				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout, TaskManagerLogHandler.FileMode.STDOUT, config))
 
 			// log and stdout
 			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
@@ -376,6 +391,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 			stackTraceSamples.shutDown();
 
 			backPressureStatsTracker.shutDown();
+
+			executorService.shutdownNow();
 
 			cleanup();
 		}

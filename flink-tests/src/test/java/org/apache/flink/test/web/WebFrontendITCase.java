@@ -159,6 +159,34 @@ public class WebFrontendITCase {
 	}
 
 	@Test
+	public void getTaskManagerLogAndStdoutFiles() {
+		try {
+			String json = getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode parsed = mapper.readTree(json);
+			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+			JsonNode taskManager = taskManagers.get(0);
+			String id = taskManager.get("id").asText();
+			
+			WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(cluster.configuration());
+			
+			//we check for job manager log files, since no separate taskmanager logs exist
+			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+			String logs = getFromHTTP("http://localhost:" + port + "/taskmanagers/" + id + "/log");
+			assertTrue(logs.contains("job manager log"));
+
+			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+			logs = getFromHTTP("http://localhost:" + port + "/taskmanagers/" + id + "/stdout");
+			assertTrue(logs.contains("job manager out"));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
 	public void getConfiguration() {
 		try {
 			String config = getFromHTTP("http://localhost:" + port + "/jobmanager/config");

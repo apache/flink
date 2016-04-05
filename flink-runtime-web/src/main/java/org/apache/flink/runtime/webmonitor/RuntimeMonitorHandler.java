@@ -22,25 +22,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.Tuple2;
-import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -58,7 +52,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * proper codes, like OK, NOT_FOUND, or SERVER_ERROR.
  */
 @ChannelHandler.Sharable
-public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
+public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RuntimeMonitorHandler.class);
 
@@ -66,60 +60,19 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	public static final String WEB_MONITOR_ADDRESS_KEY = "web.monitor.address";
 	
-
-	private final RequestHandler handler;
-
-	private final JobManagerRetriever retriever;
-
-	private final Future<String> localJobManagerAddressFuture;
-
-	private final FiniteDuration timeout;
-
-	private String localJobManagerAddress;
-	
+	private final RequestHandler handler;	
 
 	public RuntimeMonitorHandler(
 			RequestHandler handler,
 			JobManagerRetriever retriever,
 			Future<String> localJobManagerAddressFuture,
 			FiniteDuration timeout) {
-
+		super(retriever, localJobManagerAddressFuture, timeout);
 		this.handler = checkNotNull(handler);
-		this.retriever = checkNotNull(retriever);
-		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
-		this.timeout = checkNotNull(timeout);
 	}
 
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		if (localJobManagerAddressFuture.isCompleted()) {
-			if (localJobManagerAddress == null) {
-				localJobManagerAddress = Await.result(localJobManagerAddressFuture, timeout);
-			}
-
-			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
-
-			if (jobManager.isDefined()) {
-				Tuple2<ActorGateway, Integer> gatewayPort = jobManager.get();
-				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, gatewayPort);
-
-				if (redirectAddress != null) {
-					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
-					KeepAliveWrite.flush(ctx, routed.request(), redirect);
-				}
-				else {
-					respondAsLeader(ctx, routed, gatewayPort._1());
-				}
-			} else {
-				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
-			}
-		} else {
-			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
-		}
-	}
-
-	private void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
+	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
 		DefaultFullHttpResponse response;
 
 		try {

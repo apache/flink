@@ -195,6 +195,17 @@ public final class BlobCache implements BlobService {
 		}
 	}
 
+	/**
+	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 * @param key referring to the file to be deleted
+	 */
+	public void deleteGlobal(BlobKey key) throws IOException {
+		delete(key);
+		BlobClient bc = createClient();
+		bc.delete(key);
+		bc.close();
+	}
+
 	@Override
 	public int getPort() {
 		return serverAddress.getPort();
@@ -226,6 +237,11 @@ public final class BlobCache implements BlobService {
 				}
 			}
 		}
+	}
+
+	@Override
+	public BlobClient createClient() throws IOException {
+		return new BlobClient(serverAddress);
 	}
 
 	public File getStorageDir() {

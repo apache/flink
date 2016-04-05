@@ -161,6 +161,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
+	 * The config parameter defining the taskmanager log file location
+	 */
+	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
+
+	/**
 	 * The config parameter defining the amount of memory to be allocated by the task manager's
 	 * memory manager (in megabytes). If not set, a relative fraction will be allocated, as defined
 	 * by {@link #TASK_MANAGER_MEMORY_FRACTION_KEY}.

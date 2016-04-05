@@ -15,26 +15,23 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-nav.navbar.navbar-default.navbar-fixed-top.navbar-main
-  #fold-button.btn.btn-default.navbar-btn.pull-left(ng-click='showSidebar()')
-    i.fa.fa-navicon
+table.table.table-properties
+  thead
+    tr
+      th(colspan="2")
+        .row
+          .col-xs-10
+            | Task Manager Output
+          .col-xs-1.text-right
+            a(ng-click="reloadData()" class="show-pointer")
+              i.fa.fa-refresh
+          .col-xs-1.text-left
+            a(ng-click="downloadData()" class="show-pointer")
+              i.fa.fa-download
 
-  .navbar-title
-    | Task Manager
-  .navbar-info.first.last
-    | Last Heartbeat: {{ metrics.timeSinceLastHeartbeat | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-  .navbar-info.last.first.hidden-xs.hidden-sm
-    | {{metrics.path}}
-
-nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional
-  ul.nav.nav-tabs
-    li(ui-sref-active='active')
-      a(ui-sref=".metrics") Metrics
-    li(ui-sref-active='active')
-      a(ui-sref=".log") Logs
-    li(ui-sref-active='active')
-      a(ui-sref=".stdout") Stdout
-
-#content-inner.has-navbar-main-additional
-  div(ui-view="details")
+  tbody
+    tr
+      td(colspan="2")
+        pre
+          | {{stdout}}
 
