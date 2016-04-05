@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("deprecation")
@@ -187,14 +188,14 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 	
 	@Override
-	public void registerTimer(final long time, final Triggerable target) {
+	public ScheduledFuture<?> registerTimer(final long time, final Triggerable target) {
 		if (timer == null) {
 			timer = Executors.newSingleThreadScheduledExecutor();
 		}
 		
 		final long delay = Math.max(time - System.currentTimeMillis(), 0);
 
-		timer.schedule(new Runnable() {
+		return timer.schedule(new Runnable() {
 			@Override
 			public void run() {
 				synchronized (checkpointLock) {

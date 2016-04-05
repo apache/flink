@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AppendingState;
@@ -39,6 +41,7 @@ import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -65,6 +68,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
 
 import static java.util.Objects.requireNonNull;
 
@@ -134,6 +138,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected transient TimestampedCollector<OUT> timestampedCollector;
 
+	protected transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
+
 	/**
 	 * To keep track of the current watermark so that we can immediately fire if a trigger
 	 * registers an event time callback for a timestamp that lies in the past.
@@ -149,8 +155,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Processing time timers that are currently in-flight.
 	 */
-	protected transient Set<Timer<K, W>> processingTimeTimers;
 	protected transient PriorityQueue<Timer<K, W>> processingTimeTimersQueue;
+	protected transient Set<Timer<K, W>> processingTimeTimers;
+	protected transient Multiset<Long> processingTimeTimerTimestamps;
 
 	/**
 	 * Current waiting watermark callbacks.
@@ -213,8 +220,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 		if (processingTimeTimers == null) {
 			processingTimeTimers = new HashSet<>();
+			processingTimeTimerTimestamps = HashMultiset.create();
 			processingTimeTimersQueue = new PriorityQueue<>(100);
 		}
+
+		//ScheduledFutures are not checkpointed
+		processingTimeTimerFutures = new HashMap<>();
 
 		context = new Context(null, null);
 
@@ -424,6 +435,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public final void trigger(long time) throws Exception {
 		boolean fire;
 
+		//Remove information about the triggering task
+		processingTimeTimerFutures.remove(time);
+		processingTimeTimerTimestamps.remove(time, processingTimeTimerTimestamps.count(time));
+
 		do {
 			Timer<K, W> timer = processingTimeTimersQueue.peek();
 			if (timer != null && timer.timestamp <= time) {
@@ -525,9 +540,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public void registerProcessingTimeTimer(long time) {
 			Timer<K, W> timer = new Timer<>(time, key, window);
+			// make sure we only put one timer per key into the queue
 			if (processingTimeTimers.add(timer)) {
 				processingTimeTimersQueue.add(timer);
-				getRuntimeContext().registerTimer(time, WindowOperator.this);
+				//If this is the first timer added for this timestamp register a TriggerTask
+				if (processingTimeTimerTimestamps.add(time, 1) == 0) {
+					ScheduledFuture<?> scheduledFuture= getRuntimeContext().registerTimer(time, WindowOperator.this);
+					processingTimeTimerFutures.put(time, scheduledFuture);
+				}
 			}
 		}
 
@@ -542,14 +562,24 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				// immediately schedule a trigger, so that we don't wait for the next
 				// watermark update to fire the watermark trigger
 				getRuntimeContext().registerTimer(System.currentTimeMillis(), WindowOperator.this);
+				//No need to put it in processingTimeTimerFutures as this timer is never removed
 			}
 		}
 
 		@Override
 		public void deleteProcessingTimeTimer(long time) {
 			Timer<K, W> timer = new Timer<>(time, key, window);
+
 			if (processingTimeTimers.remove(timer)) {
 				processingTimeTimersQueue.remove(timer);
+			}
+
+			//If there are no timers left for this timestamp, remove it from queue and cancel TriggerTask
+			if (processingTimeTimerTimestamps.remove(time,1) == 1) {
+				ScheduledFuture<?> triggerTaskFuture = processingTimeTimerFutures.remove(timer.timestamp);
+				if (triggerTaskFuture != null && !triggerTaskFuture.isDone()) {
+					triggerTaskFuture.cancel(false);
+				}
 			}
 		}
 
@@ -591,6 +621,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				'}';
 		}
 	}
+
 
 	/**
 	 * Internal class for keeping track of in-flight timers.
@@ -670,19 +701,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		AbstractStateBackend.CheckpointStateOutputView out =
 			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
-		out.writeInt(watermarkTimersQueue.size());
-		for (Timer<K, W> timer : watermarkTimersQueue) {
-			keySerializer.serialize(timer.key, out);
-			windowSerializer.serialize(timer.window, out);
-			out.writeLong(timer.timestamp);
-		}
-
-		out.writeInt(processingTimeTimers.size());
-		for (Timer<K, W> timer : processingTimeTimersQueue) {
-			keySerializer.serialize(timer.key, out);
-			windowSerializer.serialize(timer.window, out);
-			out.writeLong(timer.timestamp);
-		}
+		snapshotTimers(out);
 
 		taskState.setOperatorState(out.closeAndGetHandle());
 
@@ -699,6 +718,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
 		DataInputView in = inputState.getState(userClassloader);
 
+		restoreTimers(in);
+	}
+
+	private void restoreTimers(DataInputView in ) throws IOException {
 		int numWatermarkTimers = in.readInt();
 		watermarkTimers = new HashSet<>(numWatermarkTimers);
 		watermarkTimersQueue = new PriorityQueue<>(Math.max(numWatermarkTimers, 1));
@@ -712,15 +735,45 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		int numProcessingTimeTimers = in.readInt();
-		processingTimeTimers = new HashSet<>(numProcessingTimeTimers);
 		processingTimeTimersQueue = new PriorityQueue<>(Math.max(numProcessingTimeTimers, 1));
+		processingTimeTimers = new HashSet<>();
 		for (int i = 0; i < numProcessingTimeTimers; i++) {
 			K key = keySerializer.deserialize(in);
 			W window = windowSerializer.deserialize(in);
 			long timestamp = in.readLong();
 			Timer<K, W> timer = new Timer<>(timestamp, key, window);
-			processingTimeTimers.add(timer);
 			processingTimeTimersQueue.add(timer);
+			processingTimeTimers.add(timer);
+		}
+
+		int numProcessingTimeTimerTimestamp = in.readInt();
+		processingTimeTimerTimestamps = HashMultiset.create();
+		for (int i = 0; i< numProcessingTimeTimerTimestamp; i++) {
+			long timestamp = in.readLong();
+			int count = in.readInt();
+			processingTimeTimerTimestamps.add(timestamp, count);
+		}
+	}
+
+	private void snapshotTimers(DataOutputView out) throws IOException {
+		out.writeInt(watermarkTimersQueue.size());
+		for (Timer<K, W> timer : watermarkTimersQueue) {
+			keySerializer.serialize(timer.key, out);
+			windowSerializer.serialize(timer.window, out);
+			out.writeLong(timer.timestamp);
+		}
+
+		out.writeInt(processingTimeTimers.size());
+		for (Timer<K,W> timer : processingTimeTimers) {
+			keySerializer.serialize(timer.key, out);
+			windowSerializer.serialize(timer.window, out);
+			out.writeLong(timer.timestamp);
+		}
+
+		out.writeInt(processingTimeTimerTimestamps.entrySet().size());
+		for (Multiset.Entry<Long> timerTimestampCounts: processingTimeTimerTimestamps.entrySet()) {
+			out.writeLong(timerTimestampCounts.getElement());
+			out.writeInt(timerTimestampCounts.getCount());
 		}
 	}
 
