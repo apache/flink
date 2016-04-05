@@ -216,6 +216,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
 
 	/**
+	 *
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
+
+	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
 	 */
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
@@ -225,11 +230,6 @@ public final class ConfigConstants {
 	 */
 	@PublicEvolving
 	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
-
-	/**
-	 *
-	 */
-	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	// --------------------------- Runtime Algorithms -------------------------------
 	
