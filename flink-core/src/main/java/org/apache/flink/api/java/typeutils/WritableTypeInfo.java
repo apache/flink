@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -29,7 +28,11 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableComparator;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
+
 import org.apache.hadoop.io.Writable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Type information for data types that extend Hadoop's {@link Writable} interface. The Writable
@@ -46,11 +49,11 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 
 	@PublicEvolving
 	public WritableTypeInfo(Class<T> typeClass) {
-		this.typeClass = Preconditions.checkNotNull(typeClass);
+		this.typeClass = checkNotNull(typeClass);
 
-		Preconditions.checkArgument(
+		checkArgument(
 			Writable.class.isAssignableFrom(typeClass) && !typeClass.equals(Writable.class),
-			"WritableTypeInfo can only be used for subclasses of " + Writable.class.getName());
+			"WritableTypeInfo can only be used for subclasses of %s", Writable.class.getName());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

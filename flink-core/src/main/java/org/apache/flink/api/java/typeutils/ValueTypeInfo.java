@@ -18,9 +18,8 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -43,6 +42,9 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Type information for data types that extend the {@link Value} interface. The value
@@ -70,11 +72,11 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 
 	@PublicEvolving
 	public ValueTypeInfo(Class<T> type) {
-		this.type = Preconditions.checkNotNull(type);
+		this.type = checkNotNull(type);
 
-		Preconditions.checkArgument(
+		checkArgument(
 			Value.class.isAssignableFrom(type) || type.equals(Value.class),
-			"ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
+			"ValueTypeInfo can only be used for subclasses of %s", Value.class.getName());
 	}
 	
 	@Override

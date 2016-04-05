@@ -18,10 +18,7 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.google.common.base.Joiner;
+import org.apache.commons.lang3.StringUtils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -33,7 +30,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
 public abstract class Keys<T> {
@@ -232,7 +233,8 @@ public abstract class Keys<T> {
 			} else {
 				rangeCheckFields(keyPositions, type.getArity() - 1);
 			}
-			Preconditions.checkArgument(keyPositions.length > 0, "Grouping fields can not be empty at this point");
+			
+			checkArgument(keyPositions.length > 0, "Grouping fields can not be empty at this point");
 
 			// extract key field types
 			CompositeType<T> cType = (CompositeType<T>)type;
@@ -266,7 +268,7 @@ public abstract class Keys<T> {
 		 * Create String-based (nested) field expression keys on a composite type.
 		 */
 		public ExpressionKeys(String[] keyExpressions, TypeInformation<T> type) {
-			Preconditions.checkNotNull(keyExpressions, "Field expression cannot be null.");
+			checkNotNull(keyExpressions, "Field expression cannot be null.");
 
 			this.keyFields = new ArrayList<>(keyExpressions.length);
 
@@ -375,8 +377,7 @@ public abstract class Keys<T> {
 
 		@Override
 		public String toString() {
-			Joiner join = Joiner.on('.');
-			return "ExpressionKeys: " + join.join(keyFields);
+			return "ExpressionKeys: " + StringUtils.join(keyFields, '.');
 		}
 
 		public static boolean isSortKey(int fieldPos, TypeInformation<?> type) {

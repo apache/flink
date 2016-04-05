@@ -18,15 +18,16 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import com.google.common.base.Objects;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+
 import org.junit.Test;
 
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -90,7 +91,7 @@ public class SubclassFromInterfaceSerializerTest extends SerializerTestBase<Subc
 
 		@Override
 		public int hashCode() {
-			return Objects.hashCode(dumm1, dumm2);
+			return Objects.hash(dumm1, dumm2);
 		}
 
 		@Override

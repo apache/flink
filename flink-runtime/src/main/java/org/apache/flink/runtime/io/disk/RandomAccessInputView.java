@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.SeekableDataInputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
 
 
 public class RandomAccessInputView extends AbstractPagedInputView implements SeekableDataInputView {

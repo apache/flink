@@ -18,12 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
 import org.apache.flink.annotation.Public;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -33,7 +28,12 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import com.google.common.base.Charsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
 
 /**
  * Base implementation for input formats that split the input at a delimiter into records.
@@ -53,6 +53,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * The log.
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(DelimitedInputFormat.class);
+
+	/** The default charset  to convert strings to bytes */
+	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
 	
 	/**
 	 * The default read buffer size = 1MB.
@@ -185,7 +188,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setDelimiter(String delimiter) {
-		this.delimiter = delimiter.getBytes(Charsets.UTF_8);
+		this.delimiter = delimiter.getBytes(UTF_8_CHARSET);
 	}
 	
 	public int getLineLengthLimit() {

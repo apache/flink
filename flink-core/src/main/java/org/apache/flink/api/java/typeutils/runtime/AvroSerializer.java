@@ -20,11 +20,11 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import com.google.common.base.Preconditions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.util.Utf8;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,6 +34,7 @@ import org.apache.flink.util.InstantiationUtil;
 import com.esotericsoftware.kryo.Kryo;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * General purpose serialization. Currently using Apache Avro's Reflect-serializers for serialization and
@@ -66,8 +67,8 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 	
 	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
-		this.type = Preconditions.checkNotNull(type);
-		this.typeToInstantiate = Preconditions.checkNotNull(typeToInstantiate);
+		this.type = checkNotNull(type);
+		this.typeToInstantiate = checkNotNull(typeToInstantiate);
 		
 		InstantiationUtil.checkForInstantiation(typeToInstantiate);
 	}

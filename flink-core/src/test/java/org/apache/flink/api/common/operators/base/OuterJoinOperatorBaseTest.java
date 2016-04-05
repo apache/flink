@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.common.operators.base;
 
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-import com.google.common.base.Joiner;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -39,7 +37,7 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 	private final FlatJoinFunction<String, String, String> joiner = new FlatJoinFunction<String, String, String>() {
 		@Override
 		public void join(String first, String second, Collector<String> out) throws Exception {
-			out.collect(Joiner.on(',').join(String.valueOf(first), String.valueOf(second)));
+			out.collect(String.valueOf(first) + ',' + String.valueOf(second));
 		}
 	};
 

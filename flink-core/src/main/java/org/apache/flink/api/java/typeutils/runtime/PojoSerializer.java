@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,6 +39,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public final class PojoSerializer<T> extends TypeSerializer<T> {
 
@@ -75,11 +75,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			Field[] fields,
 			ExecutionConfig executionConfig) {
 
-		this.clazz = Preconditions.checkNotNull(clazz);
-		this.fieldSerializers = (TypeSerializer<Object>[]) Preconditions.checkNotNull(fieldSerializers);
-		this.fields = Preconditions.checkNotNull(fields);
+		this.clazz = checkNotNull(clazz);
+		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
+		this.fields = checkNotNull(fields);
 		this.numFields = fieldSerializers.length;
-		this.executionConfig = Preconditions.checkNotNull(executionConfig);
+		this.executionConfig = checkNotNull(executionConfig);
 
 		LinkedHashSet<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 

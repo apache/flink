@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.runtime.util.FileUtils;
+import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.io.FileWriter;

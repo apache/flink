@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
-
-import org.apache.flink.util.TraversableOnceException;
+package org.apache.flink.util;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -29,9 +27,9 @@ public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
 	
 	private Iterator<T> currentIterator;
 	
-	private ArrayList<List<T>> furtherLists = new ArrayList<>();
+	private ArrayList<Iterator<T>> furtherIterators = new ArrayList<>();
 	
-	private int nextList;
+	private int nextIterator;
 	
 	private boolean iteratorAvailable = true;
 
@@ -39,17 +37,21 @@ public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
 	
 	public void clear() {
 		currentIterator = null;
-		furtherLists.clear();
-		nextList = 0;
+		furtherIterators.clear();
+		nextIterator = 0;
 		iteratorAvailable = true;
 	}
 	
 	public void addList(List<T> list) {
+		add(list.iterator());
+	}
+
+	public void add(Iterator<T> iterator) {
 		if (currentIterator == null) {
-			currentIterator = list.iterator();
+			currentIterator = iterator;
 		}
 		else {
-			furtherLists.add(list);
+			furtherIterators.add(iterator);
 		}
 	}
 	
@@ -71,9 +73,9 @@ public class UnionIterator<T> implements Iterator<T>, Iterable<T> {
 			if (currentIterator.hasNext()) {
 				return true;
 			}
-			else if (nextList < furtherLists.size()) {
-				currentIterator = furtherLists.get(nextList).iterator();
-				nextList++;
+			else if (nextIterator < furtherIterators.size()) {
+				currentIterator = furtherIterators.get(nextIterator);
+				nextIterator++;
 			}
 			else {
 				currentIterator = null;

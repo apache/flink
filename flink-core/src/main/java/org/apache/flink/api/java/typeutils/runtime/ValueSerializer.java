@@ -20,7 +20,6 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -29,6 +28,8 @@ import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Serializer for {@link Value} types. Uses the value's serialization methods, and uses
@@ -49,7 +50,7 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	public ValueSerializer(Class<T> type) {
-		this.type = Preconditions.checkNotNull(type);
+		this.type = checkNotNull(type);
 	}
 
 	// --------------------------------------------------------------------------------------------

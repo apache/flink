@@ -22,13 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base type information class for Tuple and Pojo types
@@ -44,7 +44,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 
 	@PublicEvolving
 	public CompositeType(Class<T> typeClass) {
-		this.typeClass = Preconditions.checkNotNull(typeClass);
+		this.typeClass = checkNotNull(typeClass);
 	}
 
 	/**

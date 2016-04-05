@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -27,7 +27,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumComparator;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
-import org.apache.flink.annotation.Public;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TypeInformation} for java enumeration types. 
@@ -43,7 +44,7 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 
 	@PublicEvolving
 	public EnumTypeInfo(Class<T> typeClass) {
-		Preconditions.checkNotNull(typeClass, "Enum type class must not be null.");
+		checkNotNull(typeClass, "Enum type class must not be null.");
 
 		if (!Enum.class.isAssignableFrom(typeClass) ) {
 			throw new IllegalArgumentException("EnumTypeInfo can only be used for subclasses of " + Enum.class.getName());

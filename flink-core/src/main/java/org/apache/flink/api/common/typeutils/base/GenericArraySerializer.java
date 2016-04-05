@@ -21,11 +21,12 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.lang.reflect.Array;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializer for arrays of objects.
@@ -45,8 +46,8 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	
 	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
-		this.componentClass = Preconditions.checkNotNull(componentClass);
-		this.componentSerializer = Preconditions.checkNotNull(componentSerializer);
+		this.componentClass = checkNotNull(componentClass);
+		this.componentSerializer = checkNotNull(componentSerializer);
 	}
 
 	@Override

@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.util.MathUtils;
 import org.junit.Test;
 
 public class MathUtilTest {

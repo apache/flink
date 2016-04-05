@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
@@ -44,6 +43,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -66,11 +67,11 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 										ExecutionConfig executionConfig,
 										Map<String, Accumulator<?,?>> accumulators,
 										Map<String, Future<Path>> cpTasks) {
-		this.taskInfo = Preconditions.checkNotNull(taskInfo);
+		this.taskInfo = checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
-		this.accumulators = Preconditions.checkNotNull(accumulators);
+		this.distributedCache = new DistributedCache(checkNotNull(cpTasks));
+		this.accumulators = checkNotNull(accumulators);
 	}
 
 	@Override

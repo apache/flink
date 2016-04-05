@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.runtime.util.LongArrayList;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**

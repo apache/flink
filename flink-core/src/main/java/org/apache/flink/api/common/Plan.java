@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -43,6 +40,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * This class represents Flink programs, in the form of dataflow plans.
  *

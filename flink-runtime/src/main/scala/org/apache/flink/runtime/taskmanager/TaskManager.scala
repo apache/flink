@@ -67,7 +67,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.NetUtils
+import org.apache.flink.util.{MathUtils, NetUtils}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._

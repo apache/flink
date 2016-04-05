@@ -16,7 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 /**
  * This is a utility class to deal with temporary files.
@@ -34,11 +39,7 @@ public final class FileUtils {
 	 */
 	private static final int LENGTH = 12;
 
-	/**
-	 * Empty private constructor to avoid instantiation.
-	 */
-	private FileUtils() {
-	}
+	
 
 	/**
 	 * Constructs a random filename with the given prefix and
@@ -58,4 +59,33 @@ public final class FileUtils {
 
 		return stringBuilder.toString();
 	}
+	
+	// ------------------------------------------------------------------------
+	//  Simple reading and writing of files
+	// ------------------------------------------------------------------------
+	
+	public static String readFile(File file, String charsetName) throws IOException {
+		byte[] bytes = Files.readAllBytes(file.toPath());
+		return new String(bytes, charsetName);
+	}
+
+	public static String readFileUtf8(File file) throws IOException {
+		return readFile(file, "UTF-8");
+	}
+
+	public static void writeFile(File file, String contents, String encoding) throws IOException {
+		byte[] bytes = contents.getBytes(encoding);
+		Files.write(file.toPath(), bytes, StandardOpenOption.WRITE);
+	}
+	
+	public static void writeFileUtf8(File file, String contents) throws IOException {
+		writeFile(file, contents, "UTF-8");
+	}
+	
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Private default constructor to avoid instantiation.
+	 */
+	private FileUtils() {}
 }

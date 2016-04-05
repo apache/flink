@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -36,10 +37,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.google.common.base.Objects;
 
 /**
  * A test for the {@link PojoSerializer}.
@@ -104,7 +104,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		@Override
 		public int hashCode() {
-			return Objects.hashCode(dumm1, dumm2, dumm3, dumm4, nestedClass);
+			return Objects.hash(dumm1, dumm2, dumm3, dumm4, nestedClass);
 		}
 
 		@Override
@@ -162,7 +162,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		@Override
 		public int hashCode() {
-			return Objects.hashCode(dumm1, dumm2, dumm3, dumm4);
+			return Objects.hash(dumm1, dumm2, dumm3, dumm4);
 		}
 
 		@Override
