@@ -116,6 +116,20 @@ object TaskManagerMessages {
     */
   case class JobManagerLeaderAddress(jobManagerAddress: String, leaderSessionID: UUID)
 
+  /** Trait do differentiate which log file is requested */
+  sealed trait LogTypeRequest
+
+  /** Indicates a request for the .log file */
+  case object LogFileRequest extends LogTypeRequest
+
+  /** Indicates a request for the .out file */
+  case object StdOutFileRequest extends LogTypeRequest
+
+  /** Requests the TaskManager to upload either his log/stdout file to the Blob store 
+    * param requestType LogTypeRequest indicating which file is requested
+    */
+  case class RequestTaskManagerLog(requestType : LogTypeRequest)
+
 
   // --------------------------------------------------------------------------
   //  Utility getters for case objects to simplify access from Java
@@ -137,4 +151,19 @@ object TaskManagerMessages {
   def getRegisteredAtJobManagerMessage:
             RegisteredAtJobManager.type = RegisteredAtJobManager
 
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestTaskManagerLog case object instance.
+    */
+  def getRequestTaskManagerLog(): AnyRef = {
+    RequestTaskManagerLog(LogFileRequest)
+  }
+
+  /**
+    * Accessor for the case object instance, to simplify Java interoperability.
+    * @return The RequestTaskManagerStdout case object instance.
+    */
+  def getRequestTaskManagerStdout(): AnyRef = {
+    RequestTaskManagerLog(StdOutFileRequest)
+  }
 }

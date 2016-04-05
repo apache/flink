@@ -17,15 +17,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<nav ng-if="metrics.id" class="navbar navbar-default navbar-fixed-top navbar-main">
+<nav class="navbar navbar-default navbar-fixed-top navbar-main">
   <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
   <div class="navbar-title">Task Manager</div>
   <div class="navbar-info first last">Last Heartbeat: {{ metrics.timeSinceLastHeartbeat | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</div>
   <div class="navbar-info last first hidden-xs hidden-sm">{{metrics.path}}</div>
 </nav>
-<nav ng-if="metrics.id" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
+<nav class="navbar navbar-default navbar-fixed-top navbar-main-additional">
   <ul class="nav nav-tabs">
     <li ui-sref-active="active"><a ui-sref=".metrics">Metrics</a></li>
+    <li ui-sref-active="active"><a ui-sref=".log">Logs</a></li>
+    <li ui-sref-active="active"><a ui-sref=".stdout">Stdout</a></li>
   </ul>
 </nav>
 <div id="content-inner" class="has-navbar-main-additional">

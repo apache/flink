@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager
 
-import java.io.{File, IOException}
+import java.io.{FileInputStream, File, IOException}
 import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
 import java.lang.reflect.Method
 import java.net.{InetAddress, InetSocketAddress}
@@ -41,7 +41,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.blob.{BlobCache, BlobService}
+import org.apache.flink.runtime.blob.{BlobKey, BlobClient, BlobCache, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.execution.ExecutionState
@@ -319,6 +319,14 @@ class TaskManager(
 
     case FatalError(message, cause) =>
       killTaskManagerFatal(message, cause)
+
+    case RequestTaskManagerLog(requestType : LogTypeRequest) =>
+      blobService match {
+        case Some(_) =>
+          handleRequestTaskManagerLog(sender(), requestType, currentJobManager.get)
+        case None =>
+          sender() ! new IOException("BlobService not available. Cannot upload TaskManager logs.")
+      }
   }
 
   /**
@@ -781,6 +789,39 @@ class TaskManager(
       } else {
         Option.empty
       }
+    }
+  }
+
+  private def handleRequestTaskManagerLog(
+      sender: ActorRef,
+      requestType: LogTypeRequest,
+      jobManager: ActorRef)
+    : Unit = {
+    val logFilePathOption = Option(config.configuration.getString(
+      ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")));
+    logFilePathOption match {
+      case None => throw new IOException("TaskManager log files are unavailable. " +
+        "Log file location not found in environment variable log.file or configuration key "
+        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + ".");
+      case Some(logFilePath) =>
+        val file: File = requestType match {
+          case LogFileRequest => new File(logFilePath);
+          case StdOutFileRequest =>
+            new File(logFilePath.substring(0, logFilePath.length - 4) + ".out");
+        }
+        val fis = new FileInputStream(file);
+        Future {
+          val client: BlobClient = blobService.get.createClient()
+          client.put(fis);
+        }(context.dispatcher)
+          .onComplete {
+            case Success(value) => 
+              sender ! value
+              fis.close()
+            case Failure(e) =>
+              sender ! e
+              fis.close()
+          }(context.dispatcher)
     }
   }
 

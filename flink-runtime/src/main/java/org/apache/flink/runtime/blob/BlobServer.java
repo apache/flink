@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
@@ -321,6 +322,11 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
 			}
 		}
+	}
+
+	@Override
+	public BlobClient createClient() throws IOException {
+		return new BlobClient(new InetSocketAddress(serverSocket.getInetAddress(), getPort()));
 	}
 
 	/**

@@ -180,13 +180,27 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       views:
         main:
           templateUrl: "partials/taskmanager/taskmanager.html"
-          controller: 'SingleTaskManagerController'
 
   .state "single-manager.metrics",
     url: "/metrics"
     views:
       details:
         templateUrl: "partials/taskmanager/taskmanager.metrics.html"
+        controller: 'SingleTaskManagerController'
+
+  .state "single-manager.stdout",
+    url: "/stdout"
+    views:
+      details:
+        templateUrl: "partials/taskmanager/taskmanager.stdout.html"
+        controller: 'SingleTaskManagerStdoutController'
+
+  .state "single-manager.log",
+    url: "/log"
+    views:
+      details:
+        templateUrl: "partials/taskmanager/taskmanager.log.html"
+        controller: 'SingleTaskManagerLogsController'
 
   .state "jobmanager",
       url: "/jobmanager"
