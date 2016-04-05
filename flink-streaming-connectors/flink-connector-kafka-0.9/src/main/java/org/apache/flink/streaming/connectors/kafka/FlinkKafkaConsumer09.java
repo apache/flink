@@ -36,7 +36,6 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
-+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,27 +187,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			this.partitionInfos = new ArrayList<>();
 			for (final String topic: topics) {
 				// get partitions for each topic
-				List<PartitionInfo> partitionsForTopic = null;
-				for(int tri = 0; tri < 10; tri++) {
-					LOG.info("Trying to get partitions for topic {}", topic);
-					try {
-						partitionsForTopic = consumer.partitionsFor(topic);
-						if(partitionsForTopic != null && partitionsForTopic.size() > 0) {
-							break; // it worked
-						}
-					} catch (KafkaException e) {
-						// ignore exceptions and keep trying
-					}
-					// create a new consumer
-					consumer.close();
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						// ignore exceptions and keep trying
-					}
-					consumer = new KafkaConsumer<>(properties);
-				}
-				// for non existing topics, the list might be null.
+				List<PartitionInfo> partitionsForTopic = consumer.partitionsFor(topic);
 				if(partitionsForTopic != null) {
 					partitionInfos.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
 				}
