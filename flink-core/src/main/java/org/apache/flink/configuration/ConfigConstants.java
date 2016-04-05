@@ -100,15 +100,15 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
-	 * The config parameter defining the flink web directory to be used by the webmonitor.
-	 */
-	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
-
-	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the resource manager.
 	 */
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
+
+	/**
+	 * The config parameter defining the flink web directory to be used by the webmonitor.
+	 */
+	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
 
 	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
@@ -225,12 +225,6 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
-	/**
-	 * Time interval between two successive task cancellation attempts in milliseconds.
-	 */
-	@PublicEvolving
-	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
-
 	// --------------------------- Runtime Algorithms -------------------------------
 	
 	/**
@@ -257,7 +251,7 @@ public final class ConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
-	
+
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
@@ -286,8 +280,8 @@ public final class ConfigConstants {
 	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
 
 	// --------------------------Standalone Setup -----------------------------
-	
-	
+
+
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
@@ -304,6 +298,7 @@ public final class ConfigConstants {
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
 
 	/**
@@ -361,7 +356,7 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
-	
+
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
