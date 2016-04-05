@@ -221,6 +221,12 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
+	 * Time interval between two successive task cancellation attempts in milliseconds.
+	 */
+	@PublicEvolving
+	public static final String TASK_CANCELLATION_INTERVAL_MILLIS = "task.cancellation-interval";
+
+	/**
 	 *
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
