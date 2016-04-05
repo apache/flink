@@ -41,7 +41,7 @@ public class CompensatedSum implements java.io.Serializable {
 	private final double delta;
 
 	/**
-	 *
+	 * Used to calculate sums using the Kahan summation algorithm
 	 * @param value the sum
 	 * @param delta correction term
 	 */
@@ -50,6 +50,9 @@ public class CompensatedSum implements java.io.Serializable {
 		this.delta = delta;
 	}
 
+	/**
+	 * The value of the sum
+	 */
 	public double value() {
 		return value;
 	}
