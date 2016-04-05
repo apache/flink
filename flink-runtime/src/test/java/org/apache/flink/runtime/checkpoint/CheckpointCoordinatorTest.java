@@ -30,9 +30,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-
 import org.junit.Test;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -43,7 +41,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -1056,8 +1059,8 @@ public class CheckpointCoordinatorTest {
 				jid,
 				10,		// periodic interval is 10 ms
 				200000,	// timeout is very long (200 s)
-				500,	// 2 second delay between checkpoints
-				3,
+				500,	// 500ms delay between checkpoints
+				10,
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 }, cl, new StandaloneCheckpointIDCounter
@@ -1066,26 +1069,23 @@ public class CheckpointCoordinatorTest {
 
 			coord.startCheckpointScheduler();
 
-			//trigger first checkpoint
-			Thread.sleep(100);
+			for (int x=0; x<20; x++) {
+				Thread.sleep(100);
+				if (numCalls.get() > 0) {
+					break;
+				}
+			}
+			
+			long start = System.currentTimeMillis();
 
-			assertEquals(1, numCalls.get());
-
-			//no new checkpoint has been triggered
-			Thread.sleep(100);
-			assertEquals(1, numCalls.get());
-
-			//no new checkpoint has been triggered
-			Thread.sleep(100);
-			assertEquals(1, numCalls.get());
-
-			//new checkpoint has been triggered
-			Thread.sleep(300);
-			assertEquals(2, numCalls.get());
-
-			//new checkpoint has been triggered
-			Thread.sleep(500);
-			assertEquals(3, numCalls.get());
+			for (int x = 0; x < 20; x++) {
+				Thread.sleep(100);
+				int z = numCalls.get();
+				long curT = System.currentTimeMillis();
+				
+				long maxAllowedCheckpoints = (curT - start) / 500 + 2;
+				assertTrue(maxAllowedCheckpoints >= z);
+			}
 
 			coord.stopCheckpointScheduler();
 
