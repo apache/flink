@@ -69,17 +69,18 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 	
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
-	
-	private static final File TMP_DIR = new File(System.getProperty("java.io.tmpdir"));
-	
-		
+
+	private final File tmpDir;
+
 	private HttpRequest currentRequest;
 
 	private HttpPostRequestDecoder currentDecoder;
-	
 	private String currentRequestPath;
 
-
+	public HttpRequestHandler(File tmpDir) {
+		this.tmpDir = tmpDir;
+	}
+	
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 		if (currentDecoder != null) {
@@ -130,7 +131,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 							if (file.isCompleted()) {
 								String name = file.getFilename();
 								
-								File target = new File(TMP_DIR, UUID.randomUUID() + "_" + name);
+								File target = new File(tmpDir, UUID.randomUUID() + "_" + name);
 								file.renameTo(target);
 								
 								QueryStringEncoder encoder = new QueryStringEncoder(currentRequestPath);
