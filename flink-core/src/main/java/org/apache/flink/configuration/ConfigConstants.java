@@ -216,14 +216,14 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
 
 	/**
-	 *
-	 */
-	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
-
-	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
 	 */
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
+
+	/**
+	 *
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	/**
 	 * Time interval between two successive task cancellation attempts in milliseconds.
@@ -257,7 +257,7 @@ public final class ConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
-
+	
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
@@ -286,8 +286,8 @@ public final class ConfigConstants {
 	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
 
 	// --------------------------Standalone Setup -----------------------------
-
-
+	
+	
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
@@ -362,7 +362,7 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
-
+	
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
