@@ -27,7 +27,8 @@ import java.lang.reflect.Modifier;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.NonSerializableUserCodeException;
 
-import com.google.common.base.Preconditions;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This holds an actual object containing user defined code.
@@ -39,8 +40,8 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	private final T userCodeObject;
 	
 	public UserCodeObjectWrapper(T userCodeObject) {
-		Preconditions.checkNotNull(userCodeObject, "The user code object may not be null.");
-		Preconditions.checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass().getName());
+		checkNotNull(userCodeObject, "The user code object may not be null.");
+		checkArgument(userCodeObject instanceof Serializable, "User code object is not serializable: " + userCodeObject.getClass().getName());
 		
 		this.userCodeObject = userCodeObject;
 		

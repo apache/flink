@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.functions.{RichMapFunction, FoldFunction}
 import org.apache.flink.core.fs.FileSystem
-import org.apache.flink.runtime.util.MathUtils
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.util.MathUtils
 import org.junit.rules.TemporaryFolder
 import org.junit.{After, Before, Rule, Test}
 

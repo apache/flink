@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
-import com.google.common.base.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Mutable string data type that implements the Key interface.
@@ -147,7 +147,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param value The new string value.
 	 */
 	public void setValue(CharSequence value) {
-		Preconditions.checkNotNull(value);
+		checkNotNull(value);
 		setValue(value, 0, value.length());
 	}
 	
@@ -158,7 +158,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 */
 	@Override
 	public void setValue(StringValue value) {
-		Preconditions.checkNotNull(value);
+		checkNotNull(value);
 		setValue(value.value, 0, value.len);
 	}
 
@@ -170,7 +170,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param len The length of the substring.
 	 */
 	public void setValue(StringValue value, int offset, int len) {
-		Preconditions.checkNotNull(value);
+		checkNotNull(value);
 		setValue(value.value, offset, len);
 	}
 	
@@ -182,7 +182,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param len The length of the substring.
 	 */
 	public void setValue(CharSequence value, int offset, int len) {
-		Preconditions.checkNotNull(value);
+		checkNotNull(value);
 		if (offset < 0 || len < 0 || offset > value.length() - len) {
 			throw new IndexOutOfBoundsException("offset: " + offset + " len: " + len + " value.len: " + len);
 		}
@@ -204,7 +204,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param buffer The character buffer to read the characters from.
 	 */
 	public void setValue(CharBuffer buffer) {
-		Preconditions.checkNotNull(buffer);
+		checkNotNull(buffer);
 		final int len = buffer.length();
 		ensureSize(len);
 		buffer.get(this.value, 0, len);
@@ -220,7 +220,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param len The length of the substring.
 	 */
 	public void setValue(char[] chars, int offset, int len) {
-		Preconditions.checkNotNull(chars);
+		checkNotNull(chars);
 		if (offset < 0 || len < 0 || offset > chars.length - len) {
 			throw new IndexOutOfBoundsException();
 		}

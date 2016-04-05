@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import java.util.List;
@@ -39,7 +38,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.util.Visitor;
 
-import com.google.common.base.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Operator for nodes that act as data sinks, storing the data they receive.
@@ -66,7 +65,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	public GenericDataSinkBase(OutputFormat<IN> f, UnaryOperatorInformation<IN, Nothing> operatorInfo, String name) {
 		super(operatorInfo, name);
 
-		Preconditions.checkNotNull(f, "The OutputFormat may not be null.");
+		checkNotNull(f, "The OutputFormat may not be null.");
 		this.formatWrapper = new UserCodeObjectWrapper<OutputFormat<IN>>(f);
 	}
 
@@ -79,8 +78,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	 */
 	public GenericDataSinkBase(UserCodeWrapper<? extends OutputFormat<IN>> f, UnaryOperatorInformation<IN, Nothing> operatorInfo, String name) {
 		super(operatorInfo, name);
-		Preconditions.checkNotNull(f, "The OutputFormat class may not be null.");
-		this.formatWrapper = f;
+		this.formatWrapper = checkNotNull(f, "The OutputFormat class may not be null.");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -100,8 +98,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	 * @param input The operator to use as the input.
 	 */
 	public void setInput(Operator<IN> input) {
-		Preconditions.checkNotNull(input, "The input may not be null.");
-		this.input = input;
+		this.input = checkNotNull(input, "The input may not be null.");
 	}
 
 	/**
@@ -112,7 +109,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	 */
 	@Deprecated
 	public void setInputs(Operator<IN>... inputs) {
-		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
+		checkNotNull(inputs, "The inputs may not be null.");
 		this.input = Operator.createUnionCascade(inputs);
 	}
 
@@ -124,7 +121,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	 */
 	@Deprecated
 	public void setInputs(List<Operator<IN>> inputs) {
-		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
+		checkNotNull(inputs, "The inputs may not be null.");
 		this.input = Operator.createUnionCascade(inputs);
 	}
 
@@ -136,7 +133,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	 */
 	@Deprecated
 	public void addInput(Operator<IN>... inputs) {
-		Preconditions.checkNotNull(inputs, "The input may not be null.");
+		checkNotNull(inputs, "The input may not be null.");
 		this.input = Operator.createUnionCascade(this.input, inputs);
 	}
 
@@ -149,7 +146,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	@SuppressWarnings("unchecked")
 	@Deprecated
 	public void addInputs(List<? extends Operator<IN>> inputs) {
-		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
+		checkNotNull(inputs, "The inputs may not be null.");
 		this.input = createUnionCascade(this.input, (Operator<IN>[]) inputs.toArray(new Operator[inputs.size()]));
 	}
 
@@ -259,7 +256,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 		format.configure(this.parameters);
 
 		if(format instanceof RichOutputFormat){
-			((RichOutputFormat) format).setRuntimeContext(ctx);
+			((RichOutputFormat<?>) format).setRuntimeContext(ctx);
 		}
 		format.open(0, 1);
 		for (IN element : inputData) {

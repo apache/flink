@@ -25,9 +25,10 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Represent a field definition for {@link PojoTypeInfo} type of objects.
@@ -41,8 +42,8 @@ public class PojoField implements Serializable {
 	private final TypeInformation<?> type;
 
 	public PojoField(Field field, TypeInformation<?> type) {
-		this.field = Preconditions.checkNotNull(field);
-		this.type = Preconditions.checkNotNull(type);
+		this.field = checkNotNull(field);
+		this.type = checkNotNull(type);
 	}
 
 	public Field getField() {

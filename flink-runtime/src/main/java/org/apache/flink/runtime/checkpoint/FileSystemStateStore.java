@@ -22,7 +22,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FileSerializableStateHandle;
-import org.apache.flink.runtime.util.FileUtils;
+import org.apache.flink.util.FileUtils;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;

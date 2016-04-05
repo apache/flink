@@ -18,8 +18,7 @@
 
 package org.apache.flink.api.java.tuple;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
+import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -85,7 +84,7 @@ class TupleGenerator {
 	}
 
 	private static void insertCodeIntoFile(String code, File file) throws IOException {
-		String fileContent = Files.toString(file, Charsets.UTF_8);
+		String fileContent = FileUtils.readFileUtf8(file);
 		
 		try (Scanner s = new Scanner(fileContent)) {
 			StringBuilder sb = new StringBuilder();
@@ -126,7 +125,7 @@ class TupleGenerator {
 			while (s.hasNextLine() && (line = s.nextLine()) != null) {
 				sb.append(line).append("\n");
 			}
-			Files.write(sb.toString(), file, Charsets.UTF_8);
+			FileUtils.writeFileUtf8(file, sb.toString());
 		}
 	}
 

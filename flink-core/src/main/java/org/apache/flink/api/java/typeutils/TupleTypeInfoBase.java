@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Preconditions;
-
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 
@@ -52,7 +52,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	public TupleTypeInfoBase(Class<T> tupleType, TypeInformation<?>... types) {
 		super(tupleType);
 
-		this.types = Preconditions.checkNotNull(types);
+		this.types = checkNotNull(types);
 
 		int fieldCounter = 0;
 

@@ -18,19 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import com.google.common.base.Preconditions;
-
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -40,9 +30,19 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
-
-import com.google.common.base.Joiner;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * TypeInformation for "Java Beans"-style types. Flink refers to them as POJOs,
@@ -78,8 +78,8 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
 		super(typeClass);
 
-		Preconditions.checkArgument(Modifier.isPublic(typeClass.getModifiers()),
-				"POJO " + typeClass + " is not public");
+		checkArgument(Modifier.isPublic(typeClass.getModifiers()),
+				"POJO %s is not public", typeClass);
 
 		this.fields = fields.toArray(new PojoField[fields.size()]);
 
@@ -350,7 +350,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			fieldStrings.add(field.getField().getName() + ": " + field.getTypeInformation().toString());
 		}
 		return "PojoType<" + getTypeClass().getName()
-				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
+				+ ", fields = [" + StringUtils.join(fieldStrings, ", ") + "]"
 				+ ">";
 	}
 
@@ -381,15 +381,15 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		@Override
 		public TypeComparator<T> createTypeComparator(ExecutionConfig config) {
-			Preconditions.checkState(
+			checkState(
 				keyFields.size() > 0,
 				"No keys were defined for the PojoTypeComparatorBuilder.");
 
-			Preconditions.checkState(
+			checkState(
 				fieldComparators.size() > 0,
 				"No type comparators were defined for the PojoTypeComparatorBuilder.");
 
-			Preconditions.checkState(
+			checkState(
 				keyFields.size() == fieldComparators.size(),
 				"Number of key fields and field comparators is not equal.");
 

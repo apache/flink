@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -36,8 +37,6 @@ import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyWritable;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.google.common.collect.HashMultiset;
 
 /**
  *  Pojo Type tests
@@ -87,7 +86,7 @@ public class PojoTypeExtractionTest {
 	// all public test
 	public static class AllPublic extends ComplexNestedClass {
 		public ArrayList<String> somethingFancy; // generic type
-		public HashMultiset<Integer> fancyIds; // generic type
+		public FancyCollectionSubtype<Integer> fancyIds; // generic type
 		public String[]	fancyArray;			 // generic type
 	}
 
@@ -436,7 +435,7 @@ public class PojoTypeExtractionTest {
 				}
 				multisetSeen = true;
 				Assert.assertTrue(field.getTypeInformation() instanceof GenericTypeInfo);
-				Assert.assertEquals(HashMultiset.class, field.getTypeInformation().getTypeClass());
+				Assert.assertEquals(FancyCollectionSubtype.class, field.getTypeInformation().getTypeClass());
 			} else if(name.equals("fancyArray")) {
 				if(strArraySeen) {
 					Assert.fail("already seen");
@@ -808,5 +807,11 @@ public class PojoTypeExtractionTest {
 		TupleTypeInfo<?> tti = ((TupleTypeInfo) ti);
 		Assert.assertTrue(tti.getTypeAt(0) instanceof PojoTypeInfo);
 		Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	public static class FancyCollectionSubtype<T> extends HashSet<T> {
+		private static final long serialVersionUID = -3494469602638179921L;
 	}
 }

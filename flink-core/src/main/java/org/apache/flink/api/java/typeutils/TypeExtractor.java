@@ -66,7 +66,7 @@ import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
@@ -902,7 +902,7 @@ public class TypeExtractor {
 		if (isClassType(originalType)) {
 			originalTypeAsClass = typeToClass(originalType);
 		}
-		Preconditions.checkNotNull(originalTypeAsClass, "originalType has an unexpected type");
+		checkNotNull(originalTypeAsClass, "originalType has an unexpected type");
 		// check if the class we assumed to conform to the defining type so far is actually a pojo because the
 		// original type contains additional fields.
 		// check for additional fields.
@@ -1466,7 +1466,7 @@ public class TypeExtractor {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <OUT,IN1,IN2> TypeInformation<OUT> privateGetForClass(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		Preconditions.checkNotNull(clazz);
+		checkNotNull(clazz);
 
 		// Object is handled as generic type info
 		if (clazz.equals(Object.class)) {
@@ -1822,7 +1822,7 @@ public class TypeExtractor {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForObject(X value) {
-		Preconditions.checkNotNull(value);
+		checkNotNull(value);
 
 		// check if we can extract the types from tuples, otherwise work with the class
 		if (value instanceof Tuple) {

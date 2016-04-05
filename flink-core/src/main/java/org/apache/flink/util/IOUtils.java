@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,16 +32,12 @@ import org.slf4j.Logger;
  */
 public final class IOUtils {
 
-	/**
-	 * The block size for byte operations in byte.
-	 */
+	/** The block size for byte operations in byte. */
 	private static final int BLOCKSIZE = 4096;
-
-	/**
-	 * Private constructor to overwrite the public one.
-	 */
-	private IOUtils() {
-	}
+	
+	// ------------------------------------------------------------------------
+	//  Byte copy operations
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Copies from one stream to another.
@@ -114,6 +109,10 @@ public final class IOUtils {
 		copyBytes(in, out, BLOCKSIZE, close);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Stream input skipping
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Reads len bytes in a loop.
 	 * 
@@ -161,6 +160,10 @@ public final class IOUtils {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Silent I/O cleanup / closing
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Close the Closeable objects and <b>ignore</b> any {@link IOException} or
 	 * null pointers. Must only be used for cleanup in exception handlers.
@@ -210,4 +213,11 @@ public final class IOUtils {
 			}
 		}
 	}
+	
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private IOUtils() {}
 }

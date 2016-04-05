@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
 import org.apache.flink.util.TraversableOnceException;
+import org.apache.flink.util.UnionIterator;
 import org.junit.Test;
 
 import java.util.Arrays;

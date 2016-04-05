@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.ArrayUtils;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base operator for the combineGroup transformation. It receives the UDF GroupCombineFunction as an input.
@@ -109,7 +111,7 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
 		}
 
 		if(sortColumns.length == 0) { // => all reduce. No comparator
-			Preconditions.checkArgument(sortOrderings.length == 0);
+			checkArgument(sortOrderings.length == 0);
 		} else {
 			final TypeComparator<IN> sortComparator = getTypeComparator(inputType, sortColumns, sortOrderings, executionConfig);
 

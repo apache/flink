@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -27,6 +26,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
@@ -42,8 +42,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		this.tupleClass = Preconditions.checkNotNull(tupleClass);
-		this.fieldSerializers = (TypeSerializer<Object>[]) Preconditions.checkNotNull(fieldSerializers);
+		this.tupleClass = checkNotNull(tupleClass);
+		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
 		this.arity = fieldSerializers.length;
 	}
 	

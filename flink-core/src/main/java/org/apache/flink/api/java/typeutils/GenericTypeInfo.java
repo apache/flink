@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -29,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Public
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
@@ -39,7 +39,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@PublicEvolving
 	public GenericTypeInfo(Class<T> typeClass) {
-		this.typeClass = Preconditions.checkNotNull(typeClass);
+		this.typeClass = checkNotNull(typeClass);
 	}
 
 	@Override

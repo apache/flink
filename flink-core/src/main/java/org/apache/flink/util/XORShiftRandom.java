@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.util;
 
-import com.google.common.hash.Hashing;
 import org.apache.flink.annotation.Public;
 
 import java.util.Random;
@@ -42,7 +42,7 @@ public class XORShiftRandom extends Random {
 
 	public XORShiftRandom(long input) {
 		super(input);
-		this.seed = Hashing.murmur3_128().hashLong(input).asLong();
+		this.seed = MathUtils.murmurHash((int) input) ^ MathUtils.murmurHash((int) (input >>> 32));
 	}
 
 	/**

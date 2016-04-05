@@ -20,13 +20,13 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.InstantiationUtil;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSerializer<T> {
 
@@ -39,7 +39,7 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	
 	
 	public CopyableValueSerializer(Class<T> valueClass) {
-		this.valueClass = Preconditions.checkNotNull(valueClass);
+		this.valueClass = checkNotNull(valueClass);
 	}
 
 	@Override

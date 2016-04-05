@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -54,6 +53,7 @@ import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Type information for primitive types (int, long, double, byte, ...), String, Date, and Void.
@@ -87,9 +87,9 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	
 	
 	protected BasicTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
-		this.clazz = Preconditions.checkNotNull(clazz);
-		this.possibleCastTargetTypes = Preconditions.checkNotNull(possibleCastTargetTypes);
-		this.serializer = Preconditions.checkNotNull(serializer);
+		this.clazz = checkNotNull(clazz);
+		this.possibleCastTargetTypes = checkNotNull(possibleCastTargetTypes);
+		this.serializer = checkNotNull(serializer);
 		// comparator can be null as in VOID_TYPE_INFO
 		this.comparatorClass = comparatorClass;
 	}

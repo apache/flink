@@ -27,7 +27,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
-import com.google.common.base.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 @Public
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
@@ -38,8 +39,8 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 	private final TypeInformation<C> componentInfo;
 
 	private ObjectArrayTypeInfo(Class<T> arrayType, TypeInformation<C> componentInfo) {
-		this.arrayType = Preconditions.checkNotNull(arrayType);
-		this.componentInfo = Preconditions.checkNotNull(componentInfo);
+		this.arrayType = checkNotNull(arrayType);
+		this.componentInfo = checkNotNull(componentInfo);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -128,9 +129,9 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	@PublicEvolving
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Class<T> arrayClass, TypeInformation<C> componentInfo) {
-		Preconditions.checkNotNull(arrayClass);
-		Preconditions.checkNotNull(componentInfo);
-		Preconditions.checkArgument(arrayClass.isArray(), "Class " + arrayClass + " must be an array.");
+		checkNotNull(arrayClass);
+		checkNotNull(componentInfo);
+		checkArgument(arrayClass.isArray(), "Class " + arrayClass + " must be an array.");
 
 		return new ObjectArrayTypeInfo<T, C>(arrayClass, componentInfo);
 	}
@@ -146,7 +147,7 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(TypeInformation<C> componentInfo) {
-		Preconditions.checkNotNull(componentInfo);
+		checkNotNull(componentInfo);
 
 		return new ObjectArrayTypeInfo<T, C>(
 			(Class<T>)Array.newInstance(componentInfo.getTypeClass(), 0).getClass(),

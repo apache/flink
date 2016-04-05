@@ -22,11 +22,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
 public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
@@ -38,7 +39,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	private final Class<T> enumClass;
 
 	public EnumSerializer(Class<T> enumClass) {
-		this.enumClass = Preconditions.checkNotNull(enumClass);
+		this.enumClass = checkNotNull(enumClass);
 		this.values = createValues(enumClass);
 	}
 
