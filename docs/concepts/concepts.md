@@ -212,7 +212,7 @@ defines a consistent point in streams and state from which a streaming dataflow 
 The checkpoint interval is a means of trading off the overhead of fault tolerance during execution, with the recovery time (the amount
 of events that need to be replayed).
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{ site.baseurl }}/internals/stream_checkpointing.html/).
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{ site.baseurl }}/internals/stream_checkpointing.html).
 
 <img src="fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
 
