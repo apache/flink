@@ -158,7 +158,7 @@ public class DoubleSummaryAggregatorTest {
 	 * This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
-	private static NumericColumnSummary<Double> summarize(Double... values) {
+	protected NumericColumnSummary<Double> summarize(Double... values) {
 		return new AggregateCombineHarness<Double,NumericColumnSummary<Double>,DoubleSummaryAggregator>() {
 
 			@Override
