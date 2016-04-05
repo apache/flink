@@ -182,11 +182,14 @@ public abstract class FieldAccessor<R, F> implements Serializable {
 			@SuppressWarnings("unchecked")
 			CompositeType<R> cType = (CompositeType<R>) type;
 
+			if(field.contains(".")) {
+				throw new IllegalArgumentException("The Pojo field accessor currently doesn't support nested POJOs");
+			}
+
 			List<CompositeType.FlatFieldDescriptor> fieldDescriptors = cType.getFlatFields(field);
 
 			int logicalKeyPosition = fieldDescriptors.get(0).getPosition();
 			this.fieldType = fieldDescriptors.get(0).getType();
-			Class<?> keyClass = fieldType.getTypeClass();
 
 			if (cType instanceof PojoTypeInfo) {
 				comparator = (PojoComparator<R>) cType.createComparator(
