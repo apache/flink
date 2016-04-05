@@ -30,6 +30,7 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.file.FileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -207,6 +208,56 @@ public class AvroRecordInputFormatTest {
 	}
 
 	/**
+	 * Test if the AvroInputFormat is able to properly read data from an avro file.
+	 * @throws IOException
+	 */
+	@Test
+	public void testDeserialisationReuseAvroRecordFalse() throws IOException {
+		Configuration parameters = new Configuration();
+		
+		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		format.setReuseAvroValue(false);
+		
+		format.configure(parameters);
+		FileInputSplit[] splits = format.createInputSplits(1);
+		assertEquals(splits.length, 1);
+		format.open(splits[0]);
+		
+		User u = format.nextRecord(null);
+		assertNotNull(u);
+		
+		String name = u.getName().toString();
+		assertNotNull("empty record", name);
+		assertEquals("name not equal", TEST_NAME, name);
+		
+		// check arrays
+		List<CharSequence> sl = u.getTypeArrayString();
+		assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
+		assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+		
+		List<Boolean> bl = u.getTypeArrayBoolean();
+		assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
+		assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+		
+		// check enums
+		Colors enumValue = u.getTypeEnum();
+		assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
+		
+		// check maps
+		Map<CharSequence, Long> lm = u.getTypeMap();
+		assertEquals("map value of key 1 not equal", TEST_MAP_VALUE1, lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+		assertEquals("map value of key 2 not equal", TEST_MAP_VALUE2, lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+		
+		assertFalse("expecting second element", format.reachedEnd());
+		assertNotNull("expecting second element", format.nextRecord(u));
+		
+		assertNull(format.nextRecord(u));
+		assertTrue(format.reachedEnd());
+		
+		format.close();
+	}
+
+	/**
 	 * Test if the Flink serialization is able to properly process GenericData.Record types.
 	 * Usually users of Avro generate classes (POJOs) from Avro schemas.
 	 * However, if generated classes are not available, one can also use GenericData.Record.
@@ -254,7 +305,7 @@ public class AvroRecordInputFormatTest {
 			assertEquals(null, newRec.get("type_long_test"));
 		}
 	}
-
+		
 	/**
 	 * This test validates proper serialization with specific (generated POJO) types.
 	 */
@@ -289,6 +340,96 @@ public class AvroRecordInputFormatTest {
 		}
 	}
 
+	/**
+	 * Test if the AvroInputFormat is able to properly read data from an Avro
+	 * file as a GenericRecord.
+	 * 
+	 * @throws IOException,
+	 *             if there is an exception
+	 */
+	@Test
+	public void testDeserialisationGenericRecord() throws IOException {
+		Configuration parameters = new Configuration();
+
+		AvroInputFormat<GenericRecord> format = new AvroInputFormat<GenericRecord>(new Path(testFile.getAbsolutePath()),
+				GenericRecord.class);
+
+		doTestDeserializationGenericRecord(format, parameters);
+	}
+
+	/**
+	 * Helper method to test GenericRecord serialisation
+	 * 
+	 * @param format
+	 *            the format to test
+	 * @param parameters
+	 *            the configuration to use
+	 * @throws IOException
+	 *             thrown id there is a issue
+	 */
+	@SuppressWarnings("unchecked")
+	private void doTestDeserializationGenericRecord(final AvroInputFormat<GenericRecord> format,
+			final Configuration parameters) throws IOException {
+		try {
+			format.configure(parameters);
+			FileInputSplit[] splits = format.createInputSplits(1);
+			assertEquals(splits.length, 1);
+			format.open(splits[0]);
+
+			GenericRecord u = format.nextRecord(null);
+			assertNotNull(u);
+			assertEquals("The schemas should be equal", userSchema, u.getSchema());
+
+			String name = u.get("name").toString();
+			assertNotNull("empty record", name);
+			assertEquals("name not equal", TEST_NAME, name);
+
+			// check arrays
+			List<CharSequence> sl = (List<CharSequence>) u.get("type_array_string");
+			assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
+			assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+
+			List<Boolean> bl = (List<Boolean>) u.get("type_array_boolean");
+			assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
+			assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+
+			// check enums
+			GenericData.EnumSymbol enumValue = (GenericData.EnumSymbol) u.get("type_enum");
+			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), enumValue.toString());
+
+			// check maps
+			Map<CharSequence, Long> lm = (Map<CharSequence, Long>) u.get("type_map");
+			assertEquals("map value of key 1 not equal", TEST_MAP_VALUE1, lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+			assertEquals("map value of key 2 not equal", TEST_MAP_VALUE2, lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+
+			assertFalse("expecting second element", format.reachedEnd());
+			assertNotNull("expecting second element", format.nextRecord(u));
+
+			assertNull(format.nextRecord(u));
+			assertTrue(format.reachedEnd());
+		} finally {
+			format.close();
+		}
+	}
+
+	/**
+	 * Test if the AvroInputFormat is able to properly read data from an avro
+	 * file as a GenericRecord
+	 * 
+	 * @throws IOException,
+	 *             if there is an error
+	 */
+	@Test
+	public void testDeserialisationGenericRecordReuseAvroValueFalse() throws IOException {
+		Configuration parameters = new Configuration();
+
+		AvroInputFormat<GenericRecord> format = new AvroInputFormat<GenericRecord>(new Path(testFile.getAbsolutePath()),
+				GenericRecord.class);
+		format.configure(parameters);
+		format.setReuseAvroValue(false);
+
+		doTestDeserializationGenericRecord(format, parameters);
+	}
 
 	@After
 	public void deleteFiles() {

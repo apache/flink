@@ -24,6 +24,8 @@ import java.io.IOException;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.FileReader;
 import org.apache.avro.file.SeekableInput;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -38,6 +40,15 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
 
+/**
+ * Provides a {@link FileInputFormat} for Avro records.
+ * 
+ * @param <E>
+ *            the type of the result Avro record. If you specify
+ *            {@link GenericRecord} then the result will be returned as a
+ *            {@link GenericRecord}, so you do not have to know the schema ahead
+ *            of time.
+ */
 public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E> {
 	
 	private static final long serialVersionUID = 1L;
@@ -51,7 +62,6 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	private transient FileReader<E> dataFileReader;
 
 	private transient long end;
-
 	
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
@@ -94,17 +104,26 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		super.open(split);
 
 		DatumReader<E> datumReader;
-		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
-			datumReader = new SpecificDatumReader<E>(avroValueType);
+		
+		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
+			datumReader = new GenericDatumReader<E>();
 		} else {
-			datumReader = new ReflectDatumReader<E>(avroValueType);
+			datumReader = org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)
+					? new SpecificDatumReader<E>(avroValueType) : new ReflectDatumReader<E>(avroValueType);
 		}
-		
-		LOG.info("Opening split " + split);
-		
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Opening split {}", split);
+		}
+
 		SeekableInput in = new FSDataInputStreamWrapper(stream, split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
 
 		dataFileReader = DataFileReader.openReader(in, datumReader);
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Loaded SCHEMA: {}", dataFileReader.getSchema());
+		}
+		
 		dataFileReader.sync(split.getStart());
 		this.end = split.getStart() + split.getLength();
 	}
@@ -119,12 +138,14 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		if (reachedEnd()) {
 			return null;
 		}
-		
-		if (!reuseAvroValue) {
-			reuseValue = InstantiationUtil.instantiate(avroValueType, Object.class);
+		if (reuseAvroValue) {
+			return dataFileReader.next(reuseValue);
+		} else {
+			if (GenericRecord.class == avroValueType) {
+				return dataFileReader.next();
+			} else {
+				return dataFileReader.next(InstantiationUtil.instantiate(avroValueType, Object.class));
+			}
 		}
-		
-		reuseValue = dataFileReader.next(reuseValue);
-		return reuseValue;
 	}
 }
