@@ -70,7 +70,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 	
-	private File tmpDir;
+	private final File tmpDir;
 
 	public HttpRequestHandler(File tmpDir) {
 		this.tmpDir = tmpDir;
