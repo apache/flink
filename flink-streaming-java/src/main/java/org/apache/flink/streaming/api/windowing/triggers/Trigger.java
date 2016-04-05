@@ -83,8 +83,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 */
 	public abstract TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
-	// TODO: add supportsMerging
-
 	/**
 	 * Returns true if this trigger supports merging of trigger state and can therefore
 	 * be used with a
