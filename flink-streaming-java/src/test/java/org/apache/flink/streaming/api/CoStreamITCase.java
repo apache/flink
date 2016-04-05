@@ -69,7 +69,7 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 
 					@Override
 					public Tuple2<Integer, Integer> map(Integer value) throws Exception {
-						return new Tuple2<Integer, Integer>(value, value + 1);
+						return new Tuple2<>(value, value + 1);
 					}
 				})
 				.rebalance()
