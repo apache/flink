@@ -17,38 +17,31 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.metrics.DefaultKafkaMetricAccumulator;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.util.SerializedValue;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.common.Metric;
-import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -73,10 +66,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
-	// ------------------------------------------------------------------------
-	
 	private static final long serialVersionUID = 2324564345203409112L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer09.class);
 
 	/**  Configuration key to change the polling timeout **/
@@ -85,35 +76,18 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/** Boolean configuration key to disable metrics tracking **/
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
-	/**
-	 * From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
-	 * available. If 0, returns immediately with any records that are available now.
-	 */
+	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
+	 * available. If 0, returns immediately with any records that are available now. */
 	public static final long DEFAULT_POLL_TIMEOUT = 100L;
+
+	// ------------------------------------------------------------------------
 
 	/** User-supplied properties for Kafka **/
 	private final Properties properties;
-	/** Ordered list of all partitions available in all subscribed partitions **/
-	private final List<KafkaTopicPartition> partitionInfos;
 
-	/** Unique ID identifying the consumer */
-	private final String consumerId;
-
-	// ------  Runtime State  -------
-
-	/** The partitions actually handled by this consumer at runtime */
-	private transient List<TopicPartition> subscribedPartitions;
-	/** For performance reasons, we are keeping two representations of the subscribed partitions **/
-	private transient List<KafkaTopicPartition> subscribedPartitionsAsFlink;
-	/** The Kafka Consumer instance**/
-	private transient KafkaConsumer<byte[], byte[]> consumer;
-	/** The thread running Kafka's consumer **/
-	private transient ConsumerThread<T> consumerThread;
-	/** Exception set from the ConsumerThread */
-	private transient Throwable consumerThreadException;
-	/** If the consumer doesn't have a Kafka partition assigned at runtime, it'll block on this waitThread **/
-	private transient Thread waitThread;
-
+	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
+	 * available. If 0, returns immediately with any records that are available now */
+	private final long pollTimeout;
 
 	// ------------------------------------------------------------------------
 
@@ -177,14 +151,30 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(deserializer, props);
-		requireNonNull(topics, "topics");
-		this.properties = requireNonNull(props, "props");
+		super(deserializer);
+
+		checkNotNull(topics, "topics");
+		this.properties = checkNotNull(props, "props");
 		setDeserializer(this.properties);
+
+		// configure the polling timeout
+		try {
+			if (properties.containsKey(KEY_POLL_TIMEOUT)) {
+				this.pollTimeout = Long.parseLong(properties.getProperty(KEY_POLL_TIMEOUT));
+			} else {
+				this.pollTimeout = DEFAULT_POLL_TIMEOUT;
+			}
+		}
+		catch (Exception e) {
+			throw new IllegalArgumentException("Cannot parse poll timeout for '" + KEY_POLL_TIMEOUT + '\'', e);
+		}
+
+		// read the partitions that belong to the listed topics
+		final List<KafkaTopicPartition> partitions = new ArrayList<>();
 		KafkaConsumer<byte[], byte[]> consumer = null;
+
 		try {
 			consumer = new KafkaConsumer<>(this.properties);
-			this.partitionInfos = new ArrayList<>();
 			for (final String topic: topics) {
 				// get partitions for each topic
 				List<PartitionInfo> partitionsForTopic = null;
@@ -203,307 +193,93 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 					consumer.close();
 					try {
 						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-					}
+					} catch (InterruptedException ignored) {}
+					
 					consumer = new KafkaConsumer<>(properties);
 				}
 				// for non existing topics, the list might be null.
-				if(partitionsForTopic != null) {
-					partitionInfos.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
+				if (partitionsForTopic != null) {
+					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
 				}
 			}
-		} finally {
+		}
+		finally {
 			if(consumer != null) {
 				consumer.close();
 			}
 		}
-		if(partitionInfos.isEmpty()) {
+
+		if (partitions.isEmpty()) {
 			throw new RuntimeException("Unable to retrieve any partitions for the requested topics " + topics);
 		}
 
 		// we now have a list of partitions which is the same for all parallel consumer instances.
-		LOG.info("Got {} partitions from these topics: {}", partitionInfos.size(), topics);
+		LOG.info("Got {} partitions from these topics: {}", partitions.size(), topics);
 
 		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(partitionInfos);
+			logPartitionInfo(LOG, partitions);
 		}
 
-		this.consumerId = UUID.randomUUID().toString();
+		// register these partitions
+		setSubscribedPartitions(partitions);
 	}
 
+	@Override
+	protected AbstractFetcher<T, ?> createFetcher(
+			SourceContext<T> sourceContext,
+			List<KafkaTopicPartition> thisSubtaskPartitions,
+			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+			StreamingRuntimeContext runtimeContext) throws Exception {
+
+		boolean useMetrics = !Boolean.valueOf(properties.getProperty(KEY_DISABLE_METRICS, "false"));
+
+		return new Kafka09Fetcher<>(sourceContext, thisSubtaskPartitions,
+				watermarksPeriodic, watermarksPunctuated,
+				runtimeContext, deserializer,
+				properties, pollTimeout, useMetrics);
+		
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities 
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Converts a list of Kafka PartitionInfo's to Flink's KafkaTopicPartition (which are serializable)
+	 * 
 	 * @param partitions A list of Kafka PartitionInfos.
 	 * @return A list of KafkaTopicPartitions
 	 */
-	public static List<KafkaTopicPartition> convertToFlinkKafkaTopicPartition(List<PartitionInfo> partitions) {
-		requireNonNull(partitions, "The given list of partitions was null");
+	private static List<KafkaTopicPartition> convertToFlinkKafkaTopicPartition(List<PartitionInfo> partitions) {
+		checkNotNull(partitions);
+
 		List<KafkaTopicPartition> ret = new ArrayList<>(partitions.size());
-		for(PartitionInfo pi: partitions) {
+		for (PartitionInfo pi : partitions) {
 			ret.add(new KafkaTopicPartition(pi.topic(), pi.partition()));
 		}
 		return ret;
 	}
 
-	public static List<TopicPartition> convertToKafkaTopicPartition(List<KafkaTopicPartition> partitions) {
-		List<TopicPartition> ret = new ArrayList<>(partitions.size());
-		for(KafkaTopicPartition ktp: partitions) {
-			ret.add(new TopicPartition(ktp.getTopic(), ktp.getPartition()));
-		}
-		return ret;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Source life cycle
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-
-		final int numConsumers = getRuntimeContext().getNumberOfParallelSubtasks();
-		final int thisConsumerIndex = getRuntimeContext().getIndexOfThisSubtask();
-
-		// pick which partitions we work on
-		this.subscribedPartitionsAsFlink = assignPartitions(this.partitionInfos, numConsumers, thisConsumerIndex);
-		if(this.subscribedPartitionsAsFlink.isEmpty()) {
-			LOG.info("This consumer doesn't have any partitions assigned");
-			this.partitionState = null;
-			return;
-		} else {
-			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
-			// if checkpointing is enabled, we are not automatically committing to Kafka.
-			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.toString(!streamingRuntimeContext.isCheckpointingEnabled()));
-			this.consumer = new KafkaConsumer<>(properties);
-		}
-		subscribedPartitions = convertToKafkaTopicPartition(subscribedPartitionsAsFlink);
-
-		this.consumer.assign(this.subscribedPartitions);
-
-		// register Kafka metrics to Flink accumulators
-		if(!Boolean.valueOf(properties.getProperty(KEY_DISABLE_METRICS, "false"))) {
-			Map<MetricName, ? extends Metric> metrics = this.consumer.metrics();
-			if(metrics == null) {
-				// MapR's Kafka implementation returns null here.
-				LOG.info("Consumer implementation does not support metrics");
-			} else {
-				for (Map.Entry<MetricName, ? extends Metric> metric : metrics.entrySet()) {
-					String name = consumerId + "-consumer-" + metric.getKey().name();
-					DefaultKafkaMetricAccumulator kafkaAccumulator = DefaultKafkaMetricAccumulator.createFor(metric.getValue());
-					// best effort: we only add the accumulator if available.
-					if (kafkaAccumulator != null) {
-						getRuntimeContext().addAccumulator(name, kafkaAccumulator);
-					}
-				}
-			}
-		}
-
-		// check if we need to explicitly seek to a specific offset (restore case)
-		if(restoreToOffset != null) {
-			// we are in a recovery scenario
-			for(Map.Entry<KafkaTopicPartition, Long> info: restoreToOffset.entrySet()) {
-				// seek all offsets to the right position
-				this.consumer.seek(new TopicPartition(info.getKey().getTopic(), info.getKey().getPartition()), info.getValue() + 1);
-			}
-			this.partitionState = restoreInfoFromCheckpoint();
-		} else {
-			this.partitionState = new HashMap<>();
-		}
-	}
-
-
-
-	@Override
-	public void run(SourceContext<T> sourceContext) throws Exception {
-		if(consumer != null) {
-			consumerThread = new ConsumerThread<>(this, sourceContext);
-			consumerThread.setDaemon(true);
-			consumerThread.start();
-			// wait for the consumer to stop
-			while(consumerThread.isAlive()) {
-				if(consumerThreadException != null) {
-					throw new RuntimeException("ConsumerThread threw an exception: " + consumerThreadException.getMessage(), consumerThreadException);
-				}
-				try {
-					consumerThread.join(50);
-				} catch (InterruptedException ie) {
-					consumerThread.shutdown();
-				}
-			}
-			// check again for an exception
-			if(consumerThreadException != null) {
-				throw new RuntimeException("ConsumerThread threw an exception: " + consumerThreadException.getMessage(), consumerThreadException);
-			}
-		} else {
-			// this source never completes, so emit a Long.MAX_VALUE watermark
-			// to not block watermark forwarding
-			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
-
-			final Object waitLock = new Object();
-			this.waitThread = Thread.currentThread();
-			while (running) {
-				// wait until we are canceled
-				try {
-					//noinspection SynchronizationOnLocalVariableOrMethodParameter
-					synchronized (waitLock) {
-						waitLock.wait();
-					}
-				}
-				catch (InterruptedException e) {
-					// do nothing, check our "running" status
-				}
-			}
-		}
-		// close the context after the work was done. this can actually only
-		// happen when the fetcher decides to stop fetching
-		sourceContext.close();
-	}
-
-	@Override
-	public void cancel() {
-		// set ourselves as not running
-		running = false;
-		if(this.consumerThread != null) {
-			this.consumerThread.shutdown();
-		} else {
-			// the consumer thread is not running, so we have to interrupt our own thread
-			if(waitThread != null) {
-				waitThread.interrupt();
-			}
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		cancel();
-		super.close();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Checkpoint and restore
-	// ------------------------------------------------------------------------
-
-
-	@Override
-	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> checkpointOffsets) {
-		if(!running) {
-			LOG.warn("Unable to commit offsets on closed consumer");
-			return;
-		}
-		Map<TopicPartition, OffsetAndMetadata> kafkaCheckpointOffsets = convertToCommitMap(checkpointOffsets);
-		synchronized (this.consumer) {
-			this.consumer.commitSync(kafkaCheckpointOffsets);
-		}
-	}
-
-	public static Map<TopicPartition, OffsetAndMetadata> convertToCommitMap(HashMap<KafkaTopicPartition, Long> checkpointOffsets) {
-		Map<TopicPartition, OffsetAndMetadata> ret = new HashMap<>(checkpointOffsets.size());
-		for(Map.Entry<KafkaTopicPartition, Long> partitionOffset: checkpointOffsets.entrySet()) {
-			ret.put(new TopicPartition(partitionOffset.getKey().getTopic(), partitionOffset.getKey().getPartition()),
-					new OffsetAndMetadata(partitionOffset.getValue(), ""));
-		}
-		return ret;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Miscellaneous utilities 
-	// ------------------------------------------------------------------------
-
-
-	protected static void setDeserializer(Properties props) {
-		if (!props.contains(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)) {
-			props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getCanonicalName());
-		} else {
-			LOG.warn("Overwriting the '{}' is not recommended", ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
-		}
-
-		if (!props.contains(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)) {
-			props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getCanonicalName());
-		} else {
-			LOG.warn("Overwriting the '{}' is not recommended", ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
-		}
-	}
-
 	/**
-	 * We use a separate thread for executing the KafkaConsumer.poll(timeout) call because Kafka is not
-	 * handling interrupts properly. On an interrupt (which happens automatically by Flink if the task
-	 * doesn't react to cancel() calls), the poll() method might never return.
-	 * On cancel, we'll wakeup the .poll() call and wait for it to return
+	 * Makes sure that the ByteArrayDeserializer is registered in the Kafka properties.
+	 * 
+	 * @param props The Kafka properties to register the serializer in.
 	 */
-	private static class ConsumerThread<T> extends Thread {
-		private final FlinkKafkaConsumer09<T> flinkKafkaConsumer;
-		private final SourceContext<T> sourceContext;
-		private boolean running = true;
+	private static void setDeserializer(Properties props) {
+		final String deSerName = ByteArrayDeserializer.class.getCanonicalName();
 
-		public ConsumerThread(FlinkKafkaConsumer09<T> flinkKafkaConsumer, SourceContext<T> sourceContext) {
-			this.flinkKafkaConsumer = flinkKafkaConsumer;
-			this.sourceContext = sourceContext;
+		Object keyDeSer = props.get(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+		Object valDeSer = props.get(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+
+		if (keyDeSer != null && !keyDeSer.equals(deSerName)) {
+			LOG.warn("Ignoring configured key DeSerializer ({})", ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+		}
+		if (valDeSer != null && !valDeSer.equals(deSerName)) {
+			LOG.warn("Ignoring configured value DeSerializer ({})", ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
 		}
 
-		@Override
-		public void run() {
-			try {
-				long pollTimeout = Long.parseLong(flinkKafkaConsumer.properties.getProperty(KEY_POLL_TIMEOUT, Long.toString(DEFAULT_POLL_TIMEOUT)));
-				pollLoop: while (running) {
-					ConsumerRecords<byte[], byte[]> records;
-					//noinspection SynchronizeOnNonFinalField
-					synchronized (flinkKafkaConsumer.consumer) {
-						try {
-							records = flinkKafkaConsumer.consumer.poll(pollTimeout);
-						} catch (WakeupException we) {
-							if (running) {
-								throw we;
-							}
-							// leave loop
-							continue;
-						}
-					}
-					// get the records for each topic partition
-					for (int i = 0; i < flinkKafkaConsumer.subscribedPartitions.size(); i++) {
-						TopicPartition partition = flinkKafkaConsumer.subscribedPartitions.get(i);
-						KafkaTopicPartition flinkPartition = flinkKafkaConsumer.subscribedPartitionsAsFlink.get(i);
-						List<ConsumerRecord<byte[], byte[]>> partitionRecords = records.records(partition);
-						//noinspection ForLoopReplaceableByForEach
-						for (int j = 0; j < partitionRecords.size(); j++) {
-							ConsumerRecord<byte[], byte[]> record = partitionRecords.get(j);
-							T value = flinkKafkaConsumer.deserializer.deserialize(record.key(), record.value(), record.topic(), record.partition(),record.offset());
-							if(flinkKafkaConsumer.deserializer.isEndOfStream(value)) {
-								// end of stream signaled
-								running = false;
-								break pollLoop;
-							}
-							synchronized (sourceContext.getCheckpointLock()) {
-								flinkKafkaConsumer.processElement(sourceContext, flinkPartition, value, record.offset());
-							}
-						}
-					}
-				}
-			} catch(Throwable t) {
-				if(running) {
-					this.flinkKafkaConsumer.stopWithError(t);
-				} else {
-					LOG.debug("Stopped ConsumerThread threw exception", t);
-				}
-			} finally {
-				try {
-					flinkKafkaConsumer.consumer.close();
-				} catch(Throwable t) {
-					LOG.warn("Error while closing consumer", t);
-				}
-			}
-		}
-
-		/**
-		 * Try to shutdown the thread
-		 */
-		public void shutdown() {
-			this.running = false;
-			this.flinkKafkaConsumer.consumer.wakeup();
-		}
-	}
-
-	private void stopWithError(Throwable t) {
-		this.consumerThreadException = t;
+		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deSerName);
+		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
 	}
 }

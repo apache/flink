@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
 
+import javax.annotation.Nullable;
+
 /**
  * The {@code AssignerWithPunctuatedWatermarks} assigns event time timestamps to elements,
  * and generates low watermarks that signal event time progress within the stream.
@@ -79,5 +81,6 @@ public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T
 	 *
 	 * @return {@code Null}, if no watermark should be emitted, or the next watermark to emit.
 	 */
+	@Nullable
 	Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp);
 }

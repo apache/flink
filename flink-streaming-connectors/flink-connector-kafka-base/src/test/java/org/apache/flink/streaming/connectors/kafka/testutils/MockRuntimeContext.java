@@ -28,7 +28,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -44,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("deprecation")
 public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	private final int numberOfParallelSubtasks;
@@ -55,15 +55,6 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.indexOfThisSubtask = indexOfThisSubtask;
-	}
-
-	private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
-		private static final long serialVersionUID = -1153976702711944427L;
-
-		@Override
-		public ExecutionConfig getExecutionConfig() {
-			return new ExecutionConfig();
-		}
 	}
 
 	@Override
@@ -152,12 +143,12 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
+	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -174,5 +165,16 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException();
+	}
+	
+	// ------------------------------------------------------------------------
+
+	private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
+		private static final long serialVersionUID = -1153976702711944427L;
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return new ExecutionConfig();
+		}
 	}
 }

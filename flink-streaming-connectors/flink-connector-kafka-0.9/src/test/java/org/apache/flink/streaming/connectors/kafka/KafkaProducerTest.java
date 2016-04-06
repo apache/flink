@@ -22,19 +22,23 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
+
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -60,7 +64,7 @@ public class KafkaProducerTest extends TestLogger {
 			
 			// partition setup
 			when(kafkaProducerMock.partitionsFor(anyString())).thenReturn(
-					Arrays.asList(new PartitionInfo("mock_topic", 42, null, null, null)));
+					Collections.singletonList(new PartitionInfo("mock_topic", 42, null, null, null)));
 
 			// failure when trying to send an element
 			when(kafkaProducerMock.send(any(ProducerRecord.class), any(Callback.class)))

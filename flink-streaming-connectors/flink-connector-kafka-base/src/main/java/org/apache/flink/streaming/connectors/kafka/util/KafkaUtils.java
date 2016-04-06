@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka.util;
 
+package org.apache.flink.streaming.connectors.kafka.util;
 
 import java.util.Properties;
 
@@ -38,10 +38,9 @@ public class KafkaUtils {
 					"Entered value='" + config.getProperty(key) + "'. Default value='" + defaultValue + "'");
 		}
 	}
-
-	public static void checkArgument(boolean arg) {
-		if(!arg) {
-			throw new IllegalArgumentException();
-		}
-	}
+	
+	// ------------------------------------------------------------------------
+	
+	/** Private default constructor to prevent instantiation */
+	private KafkaUtils() {}
 }

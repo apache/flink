@@ -26,8 +26,6 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.server.KafkaServer;
 
-import org.apache.commons.collections.map.LinkedMap;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -66,12 +64,10 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
-import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
@@ -98,7 +94,6 @@ import org.junit.Rule;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -176,70 +171,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}
 	}
-	/**
-	 * Test that validates that checkpointing and checkpoint notification works properly
-	 */
-	public void runCheckpointingTest() throws Exception {
-		createTestTopic("testCheckpointing", 1, 1);
-
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer("testCheckpointing", new SimpleStringSchema(), standardProps);
-		Field pendingCheckpointsField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingCheckpoints");
-		pendingCheckpointsField.setAccessible(true);
-		LinkedMap pendingCheckpoints = (LinkedMap) pendingCheckpointsField.get(source);
-
-		Assert.assertEquals(0, pendingCheckpoints.size());
-		source.setRuntimeContext(new MockRuntimeContext(1, 0));
-
-		final HashMap<KafkaTopicPartition, Long> initialOffsets = new HashMap<>();
-		initialOffsets.put(new KafkaTopicPartition("testCheckpointing", 0), 1337L);
-
-		// first restore
-		source.restoreState(initialOffsets);
-
-		// then open
-		source.open(new Configuration());
-		HashMap<KafkaTopicPartition, Long> state1 = source.snapshotState(1, 15);
-
-		assertEquals(initialOffsets, state1);
-
-		HashMap<KafkaTopicPartition, Long> state2 = source.snapshotState(2, 30);
-		Assert.assertEquals(initialOffsets, state2);
-
-		Assert.assertEquals(2, pendingCheckpoints.size());
-
-		source.notifyCheckpointComplete(1);
-		Assert.assertEquals(1, pendingCheckpoints.size());
-
-		source.notifyCheckpointComplete(2);
-		Assert.assertEquals(0, pendingCheckpoints.size());
-
-		source.notifyCheckpointComplete(666); // invalid checkpoint
-		Assert.assertEquals(0, pendingCheckpoints.size());
-
-		// create 500 snapshots
-		for (int i = 100; i < 600; i++) {
-			source.snapshotState(i, 15 * i);
-		}
-		Assert.assertEquals(FlinkKafkaConsumerBase.MAX_NUM_PENDING_CHECKPOINTS, pendingCheckpoints.size());
-
-		// commit only the second last
-		source.notifyCheckpointComplete(598);
-		Assert.assertEquals(1, pendingCheckpoints.size());
-
-		// access invalid checkpoint
-		source.notifyCheckpointComplete(590);
-
-		// and the last
-		source.notifyCheckpointComplete(599);
-		Assert.assertEquals(0, pendingCheckpoints.size());
-
-		source.close();
-
-		deleteTestTopic("testCheckpointing");
-	}
-
-
-
+	
 	/**
 	 * Ensure Kafka is working on both producer and consumer side.
 	 * This executes a job that contains two Flink pipelines.
@@ -409,7 +341,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 		env.getConfig().disableSysoutLogging();
 
 		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
@@ -454,7 +386,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 		env.getConfig().disableSysoutLogging();
 
 		FlinkKafkaConsumerBase<Integer> kafkaSource = kafkaServer.getConsumer(topic, schema, standardProps);
@@ -499,7 +431,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 		env.getConfig().disableSysoutLogging();
 		env.setBufferTimeout(0);
 
@@ -562,7 +494,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		runnerThread.start();
 
 		// wait a bit before canceling
-		Thread.sleep(8000);
+		Thread.sleep(2000);
 
 		Throwable failueCause = jobError.get();
 		if(failueCause != null) {
@@ -634,10 +566,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		runnerThread.start();
 
 		// wait a bit before canceling
-		Thread.sleep(8000);
+		Thread.sleep(2000);
 
 		Throwable failueCause = error.get();
-		if(failueCause != null) {
+		if (failueCause != null) {
 			failueCause.printStackTrace();
 			Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
 		}
@@ -709,7 +641,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int NUM_ELEMENTS = 20;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-
+		env.getConfig().disableSysoutLogging();
+		
 		// create topics with content
 		final List<String> topics = new ArrayList<>();
 		for (int i = 0; i < NUM_TOPICS; i++) {
@@ -745,6 +678,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// run second job consuming from multiple topics
 		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		
 		stream = env.addSource(kafkaServer.getConsumer(topics, schema, standardProps));
 
 		stream.flatMap(new FlatMapFunction<Tuple3<Integer, Integer, String>, Integer>() {
@@ -1453,50 +1388,50 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	/////////////			Testing the Kafka consumer with embeded watermark generation functionality			///////////////
 
-	@RetryOnException(times=0, exception=kafka.common.NotLeaderForPartitionException.class)
-	public void runExplicitPunctuatedWMgeneratingConsumerTest(boolean emptyPartition) throws Exception {
-
-		final String topic1 = "wmExtractorTopic1_" + UUID.randomUUID().toString();
-		final String topic2 = "wmExtractorTopic2_" + UUID.randomUUID().toString();
-
-		final Map<String, Boolean> topics = new HashMap<>();
-		topics.put(topic1, false);
-		topics.put(topic2, emptyPartition);
-
-		final int noOfTopcis = topics.size();
-		final int partitionsPerTopic = 1;
-		final int elementsPerPartition = 100 + 1;
-
-		final int totalElements = emptyPartition ?
-			partitionsPerTopic * elementsPerPartition :
-			noOfTopcis * partitionsPerTopic * elementsPerPartition;
-
-		createTestTopic(topic1, partitionsPerTopic, 1);
-		createTestTopic(topic2, partitionsPerTopic, 1);
-
-		final StreamExecutionEnvironment env =
-			StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(partitionsPerTopic);
-		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
-
-		TypeInformation<Tuple2<Long, Integer>> longIntType = TypeInfoParser.parse("Tuple2<Long, Integer>");
-
-		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
-		producerProperties.setProperty("retries", "0");
-
-		putDataInTopics(env, producerProperties, elementsPerPartition, topics, longIntType);
-
-		List<String> topicTitles = new ArrayList<>(topics.keySet());
-		runPunctuatedComsumer(env, topicTitles, totalElements, longIntType);
-
-		executeAndCatchException(env, "runComsumerWithPunctuatedExplicitWMTest");
-
-		for(String topic: topicTitles) {
-			deleteTestTopic(topic);
-		}
-	}
+//	@RetryOnException(times=0, exception=kafka.common.NotLeaderForPartitionException.class)
+//	public void runExplicitPunctuatedWMgeneratingConsumerTest(boolean emptyPartition) throws Exception {
+//
+//		final String topic1 = "wmExtractorTopic1_" + UUID.randomUUID().toString();
+//		final String topic2 = "wmExtractorTopic2_" + UUID.randomUUID().toString();
+//
+//		final Map<String, Boolean> topics = new HashMap<>();
+//		topics.put(topic1, false);
+//		topics.put(topic2, emptyPartition);
+//
+//		final int noOfTopcis = topics.size();
+//		final int partitionsPerTopic = 1;
+//		final int elementsPerPartition = 100 + 1;
+//
+//		final int totalElements = emptyPartition ?
+//			partitionsPerTopic * elementsPerPartition :
+//			noOfTopcis * partitionsPerTopic * elementsPerPartition;
+//
+//		createTestTopic(topic1, partitionsPerTopic, 1);
+//		createTestTopic(topic2, partitionsPerTopic, 1);
+//
+//		final StreamExecutionEnvironment env =
+//			StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+//		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+//		env.setParallelism(partitionsPerTopic);
+//		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
+//		env.getConfig().disableSysoutLogging();
+//
+//		TypeInformation<Tuple2<Long, Integer>> longIntType = TypeInfoParser.parse("Tuple2<Long, Integer>");
+//
+//		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+//		producerProperties.setProperty("retries", "0");
+//
+//		putDataInTopics(env, producerProperties, elementsPerPartition, topics, longIntType);
+//
+//		List<String> topicTitles = new ArrayList<>(topics.keySet());
+//		runPunctuatedComsumer(env, topicTitles, totalElements, longIntType);
+//
+//		executeAndCatchException(env, "runComsumerWithPunctuatedExplicitWMTest");
+//
+//		for(String topic: topicTitles) {
+//			deleteTestTopic(topic);
+//		}
+//	}
 
 	private void executeAndCatchException(StreamExecutionEnvironment env, String execName) throws Exception {
 		try {

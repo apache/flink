@@ -167,7 +167,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 	// ------------------------------------------------------------------------
 
-	public static class CustomPartitioner extends KafkaPartitioner implements Serializable {
+	public static class CustomPartitioner extends KafkaPartitioner<Tuple2<Long, String>> implements Serializable {
 
 		private final int expectedPartitions;
 
@@ -177,12 +177,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 
 		@Override
-		public int partition(Object next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-			Tuple2<Long, String> tuple = (Tuple2<Long, String>) next;
-
+		public int partition(Tuple2<Long, String> next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
 			assertEquals(expectedPartitions, numPartitions);
 
-			return (int) (tuple.f0 % numPartitions);
+			return (int) (next.f0 % numPartitions);
 		}
 	}
 }

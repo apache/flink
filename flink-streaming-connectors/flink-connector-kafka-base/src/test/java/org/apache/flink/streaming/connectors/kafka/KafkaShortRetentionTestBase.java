@@ -26,16 +26,16 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,14 +44,18 @@ import java.io.Serializable;
 import java.util.Properties;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms.
  * This way, we can make sure our consumer is properly handling cases where we run into out of offset
  * errors
  */
+@SuppressWarnings("serial")
 public class KafkaShortRetentionTestBase implements Serializable {
+	
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaShortRetentionTestBase.class);
+	
 	private static KafkaTestEnvironment kafkaServer;
 	private static Properties standardProps;
 	private static ForkableFlinkMiniCluster flink;
@@ -108,7 +112,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final String topic = "auto-offset-reset-test";
 
 		final int parallelism = 1;
-		final int elementsPerPartition = 50000; // with a sleep time of 1 ms per element, test should run for 50 s
+		final int elementsPerPartition = 50000;
 
 		Properties tprops = new Properties();
 		tprops.setProperty("retention.ms", "250");
@@ -162,6 +166,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		kafkaServer.deleteTestTopic(topic);
 	}
 
+	
 	private class NonContinousOffsetsDeserializationSchema implements KeyedDeserializationSchema<String> {
 		private int numJumps;
 		long nextExpected = 0;
@@ -205,12 +210,8 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	 */
 	public void runFailOnAutoOffsetResetNone() throws Exception {
 		final String topic = "auto-offset-reset-none-test";
-
 		final int parallelism = 1;
-		final int elementsPerPartition = 50000; // with a sleep time of 1 ms per element, test should run for 50 s
-		final int totalElements = parallelism * elementsPerPartition;
-
-
+		
 		kafkaServer.createTestTopic(topic, parallelism, 1);
 
 		final StreamExecutionEnvironment env =
@@ -218,8 +219,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 		env.getConfig().disableSysoutLogging();
-
-
+		
 		// ----------- add consumer ----------
 
 		Properties customProps = new Properties();
@@ -245,4 +245,27 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		kafkaServer.deleteTestTopic(topic);
 	}
 
+	public void runFailOnAutoOffsetResetNoneEager() throws Exception {
+		final String topic = "auto-offset-reset-none-test";
+		final int parallelism = 1;
+
+		kafkaServer.createTestTopic(topic, parallelism, 1);
+
+		// ----------- add consumer ----------
+
+		Properties customProps = new Properties();
+		customProps.putAll(standardProps);
+		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
+		
+		try {
+			kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
+			fail("should fail with an exception");
+		}
+		catch (IllegalArgumentException e) {
+			// expected
+			assertTrue(e.getMessage().contains("none"));
+		}
+
+		kafkaServer.deleteTestTopic(topic);
+	}
 }

@@ -27,11 +27,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	// ------------------------------------------------------------------------
 
 	@Test(timeout = 60000)
-	public void testCheckpointing() throws Exception {
-		runCheckpointingTest();
-	}
-
-	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
 		runFailOnNoBrokerTest();
 	}
@@ -41,15 +36,15 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
-	@Test(timeout = 60000)
-	public void testPunctuatedExplicitWMConsumer() throws Exception {
-		runExplicitPunctuatedWMgeneratingConsumerTest(false);
-	}
+//	@Test(timeout = 60000)
+//	public void testPunctuatedExplicitWMConsumer() throws Exception {
+//		runExplicitPunctuatedWMgeneratingConsumerTest(false);
+//	}
 
-	@Test(timeout = 60000)
-	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
-		runExplicitPunctuatedWMgeneratingConsumerTest(true);
-	}
+//	@Test(timeout = 60000)
+//	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
+//		runExplicitPunctuatedWMgeneratingConsumerTest(true);
+//	}
 
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {

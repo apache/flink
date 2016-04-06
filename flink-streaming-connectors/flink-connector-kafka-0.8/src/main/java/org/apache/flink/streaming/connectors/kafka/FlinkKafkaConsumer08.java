@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import kafka.api.OffsetRequest;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
 import kafka.javaapi.PartitionMetadata;
@@ -24,40 +25,32 @@ import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.internals.Fetcher;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaPartitionState;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.Kafka08Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.LegacyFetcher;
-import org.apache.flink.streaming.connectors.kafka.internals.OffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
-import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
-import static java.util.Objects.requireNonNull;
 import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
 import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLongFromConfig;
-
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -102,12 +95,8 @@ import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLon
  * reach the Kafka brokers or ZooKeeper.</p>
  */
 public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
-	
-	// ------------------------------------------------------------------------
-	
+
 	private static final long serialVersionUID = -6272159445203409112L;
-	
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer08.class);
 
 	/** Configuration key for the number of retries for getting the partition info */
 	public static final String GET_PARTITIONS_RETRIES_KEY = "flink.get-partitions.retry";
@@ -115,30 +104,16 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/** Default number of retries for getting the partition info. One retry means going through the full list of brokers */
 	public static final int DEFAULT_GET_PARTITIONS_RETRIES = 3;
 
-	
-	// ------  Configuration of the Consumer -------
+	// ------------------------------------------------------------------------
 
-	/** Initial list of topics and partitions to consume  */
-	private final List<KafkaTopicPartition> partitionInfos;
-	
 	/** The properties to parametrize the Kafka consumer and ZooKeeper client */ 
-	private final Properties props;
+	private final Properties kafkaProperties;
 
+	/** The behavior when encountering an invalid offset (see {@link OffsetRequest}) */
+	private final long invalidOffsetBehavior;
 
-	// ------  Runtime State  -------
-	
-	/** The fetcher used to pull data from the Kafka brokers */
-	private transient Fetcher fetcher;
-	
-	/** The committer that persists the committed offsets */
-	private transient OffsetHandler offsetHandler;
-	
-	/** The partitions actually handled by this consumer at runtime */
-	private transient List<KafkaTopicPartition> subscribedPartitions;
-
-	/** The latest offsets that have been committed to Kafka or ZooKeeper. These are never
-	 * newer then the last offsets (Flink's internal view is fresher) */
-	private transient HashMap<KafkaTopicPartition, Long> committedOffsets;
+	/** The interval in which to automatically commit (-1 if deactivated) */
+	private final long autoCommitInterval;
 
 	// ------------------------------------------------------------------------
 
@@ -202,285 +177,47 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		super(deserializer, props);
+		super(deserializer);
 
-		requireNonNull(topics, "topics");
-		this.props = requireNonNull(props, "props");
+		checkNotNull(topics, "topics");
+		this.kafkaProperties = checkNotNull(props, "props");
 
 		// validate the zookeeper properties
 		validateZooKeeperConfig(props);
 
+		this.invalidOffsetBehavior = getInvalidOffsetBehavior(props);
+		this.autoCommitInterval = getLongFromConfig(props, "auto.commit.interval.ms", 60000);
+
 		// Connect to a broker to get the partitions for all topics
-		this.partitionInfos = KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, props));
+		List<KafkaTopicPartition> partitionInfos = 
+				KafkaTopicPartition.dropLeaderData(getPartitionsForTopic(topics, props));
 
 		if (partitionInfos.size() == 0) {
-			throw new RuntimeException("Unable to retrieve any partitions for the requested topics " + topics.toString() + "." +
-					"Please check previous log entries");
+			throw new RuntimeException(
+					"Unable to retrieve any partitions for the requested topics " + topics + 
+							". Please check previous log entries");
 		}
 
 		if (LOG.isInfoEnabled()) {
-			logPartitionInfo(partitionInfos);
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Source life cycle
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		
-		final int numConsumers = getRuntimeContext().getNumberOfParallelSubtasks();
-		final int thisConsumerIndex = getRuntimeContext().getIndexOfThisSubtask();
-		
-		// pick which partitions we work on
-		subscribedPartitions = assignPartitions(this.partitionInfos, numConsumers, thisConsumerIndex);
-		
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Kafka consumer {} will read partitions {} out of partitions {}",
-					thisConsumerIndex, KafkaTopicPartition.toString(subscribedPartitions), this.partitionInfos.size());
+			logPartitionInfo(LOG, partitionInfos);
 		}
 
-		// we leave the fetcher as null, if we have no partitions
-		if (subscribedPartitions.isEmpty()) {
-			LOG.info("Kafka consumer {} has no partitions (empty source)", thisConsumerIndex);
-			this.fetcher = null; // fetcher remains null
-			return;
-		}
-
-		// offset handling
-		offsetHandler = new ZookeeperOffsetHandler(props);
-
-		committedOffsets = new HashMap<>();
-
-		// initially load the map with "offset not set", last max read timestamp set to Long.MIN_VALUE
-		// and mark the partition as in-active, until we receive the first element
-		Map<KafkaTopicPartition, KafkaPartitionState> subscribedPartitionsWithOffsets =
-			new HashMap<>(subscribedPartitions.size());
-		for(KafkaTopicPartition ktp: subscribedPartitions) {
-			subscribedPartitionsWithOffsets.put(ktp,
-				new KafkaPartitionState(ktp.getPartition(), FlinkKafkaConsumerBase.OFFSET_NOT_SET));
-		}
-
-		// seek to last known pos, from restore request
-		if (restoreToOffset != null) {
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Consumer {} is restored from previous checkpoint: {}",
-						thisConsumerIndex, KafkaTopicPartition.toString(restoreToOffset));
-			}
-			// initialize offsets with restored state
-			this.partitionState = restoreInfoFromCheckpoint();
-			subscribedPartitionsWithOffsets.putAll(partitionState);
-			restoreToOffset = null;
-		}
-		else {
-			// start with empty partition state
-			partitionState = new HashMap<>();
-
-			// no restore request: overwrite offsets.
-			for(Map.Entry<KafkaTopicPartition, Long> offsetInfo: offsetHandler.getOffsets(subscribedPartitions).entrySet()) {
-				KafkaTopicPartition key = offsetInfo.getKey();
-				subscribedPartitionsWithOffsets.put(key,
-					new KafkaPartitionState(key.getPartition(), offsetInfo.getValue()));
-			}
-		}
-		if(subscribedPartitionsWithOffsets.size() != subscribedPartitions.size()) {
-			throw new IllegalStateException("The subscribed partitions map has more entries than the subscribed partitions " +
-					"list: " + subscribedPartitionsWithOffsets.size() + "," + subscribedPartitions.size());
-		}
-
-		// create fetcher
-		fetcher = new LegacyFetcher<T>(this, subscribedPartitionsWithOffsets, props,
-				getRuntimeContext().getTaskName(), getRuntimeContext().getUserCodeClassLoader());
+		setSubscribedPartitions(partitionInfos);
 	}
 
 	@Override
-	public void run(SourceContext<T> sourceContext) throws Exception {
-		if (fetcher != null) {
-			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
+	protected AbstractFetcher<T, ?> createFetcher(
+			SourceContext<T> sourceContext,
+			List<KafkaTopicPartition> thisSubtaskPartitions,
+			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+			StreamingRuntimeContext runtimeContext) throws Exception {
 
-			// if we have a non-checkpointed source, start a thread which periodically commits
-			// the current offset into ZK.
-
-			PeriodicOffsetCommitter<T> offsetCommitter = null;
-			if (!streamingRuntimeContext.isCheckpointingEnabled()) {
-				// we use Kafka's own configuration parameter key for this.
-				// Note that the default configuration value in Kafka is 60 * 1000, so we use the same here.
-				long commitInterval = getLongFromConfig(props, "auto.commit.interval.ms", 60000);
-				offsetCommitter = new PeriodicOffsetCommitter<>(commitInterval, this);
-				offsetCommitter.setDaemon(true);
-				offsetCommitter.start();
-				LOG.info("Starting periodic offset committer, with commit interval of {}ms", commitInterval);
-			}
-
-			try {
-				fetcher.run(sourceContext, deserializer, partitionState);
-			} finally {
-				if (offsetCommitter != null) {
-					offsetCommitter.close();
-					try {
-						offsetCommitter.join();
-					} catch(InterruptedException ie) {
-						// ignore interrupt
-					}
-				}
-			}
-		}
-		else {
-			// this source never completes, so emit a Long.MAX_VALUE watermark
-			// to not block watermark forwarding
-			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
-
-			final Object waitLock = new Object();
-			while (running) {
-				// wait until we are canceled
-				try {
-					//noinspection SynchronizationOnLocalVariableOrMethodParameter
-					synchronized (waitLock) {
-						waitLock.wait();
-					}
-				}
-				catch (InterruptedException e) {
-					// do nothing, check our "running" status
-				}
-			}
-		}
-		
-		// close the context after the work was done. this can actually only
-		// happen when the fetcher decides to stop fetching
-		sourceContext.close();
+		return new Kafka08Fetcher<>(sourceContext, thisSubtaskPartitions,
+				watermarksPeriodic, watermarksPunctuated,
+				runtimeContext, deserializer, kafkaProperties,
+				invalidOffsetBehavior, autoCommitInterval);
 	}
-
-	@Override
-	public void cancel() {
-		// set ourselves as not running
-		running = false;
-		
-		// close the fetcher to interrupt any work
-		Fetcher fetcher = this.fetcher;
-		this.fetcher = null;
-		if (fetcher != null) {
-			try {
-				fetcher.close();
-			}
-			catch (IOException e) {
-				LOG.warn("Error while closing Kafka connector data fetcher", e);
-			}
-		}
-		
-		OffsetHandler offsetHandler = this.offsetHandler;
-		this.offsetHandler = null;
-		if (offsetHandler != null) {
-			try {
-				offsetHandler.close();
-			}
-			catch (IOException e) {
-				LOG.warn("Error while closing Kafka connector offset handler", e);
-			}
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		cancel();
-		super.close();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Checkpoint and restore
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Utility method to commit offsets.
-	 *
-	 * @param toCommit the offsets to commit
-	 * @throws Exception
-	 */
-	@Override
-	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> toCommit) throws Exception {
-		Map<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>();
-		for (KafkaTopicPartition tp : this.subscribedPartitions) {
-			Long offset = toCommit.get(tp);
-			if(offset == null) {
-				// There was no data ever consumed from this topic, that's why there is no entry
-				// for this topicPartition in the map.
-				continue;
-			}
-			Long lastCommitted = this.committedOffsets.get(tp);
-			if (lastCommitted == null) {
-				lastCommitted = OFFSET_NOT_SET;
-			}
-			if (offset != OFFSET_NOT_SET) {
-				if (offset > lastCommitted) {
-					offsetsToCommit.put(tp, offset);
-					this.committedOffsets.put(tp, offset);
-					LOG.debug("Committing offset {} for partition {}", offset, tp);
-				} else {
-					LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, tp);
-				}
-			}
-		}
-
-		if (LOG.isDebugEnabled() && offsetsToCommit.size() > 0) {
-			LOG.debug("Committing offsets {} to Zookeeper", KafkaTopicPartition.toString(offsetsToCommit));
-		}
-
-		this.offsetHandler.commit(offsetsToCommit);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Miscellaneous utilities 
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Thread to periodically commit the current read offset into Zookeeper.
-	 */
-	private static class PeriodicOffsetCommitter<T> extends Thread {
-		private final long commitInterval;
-		private final FlinkKafkaConsumer08<T> consumer;
-		private volatile boolean running = true;
-
-		PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer08<T> consumer) {
-			this.commitInterval = commitInterval;
-			this.consumer = consumer;
-		}
-
-		@Override
-		public void run() {
-			try {
-
-				while (running) {
-					try {
-						Thread.sleep(commitInterval);
-						//  ------------  commit current offsets ----------------
-
-						// create copy a deep copy of the current offsets
-						@SuppressWarnings("unchecked")
-						HashMap<KafkaTopicPartition, Long> currentOffsets = new HashMap<>(consumer.partitionState.size());
-						for (Map.Entry<KafkaTopicPartition, KafkaPartitionState> entry: consumer.partitionState.entrySet()) {
-							currentOffsets.put(entry.getKey(), entry.getValue().getOffset());
-						}
-						consumer.commitOffsets(currentOffsets);
-					} catch (InterruptedException e) {
-						if (running) {
-							// throw unexpected interruption
-							throw e;
-						}
-					}
-				}
-			} catch (Throwable t) {
-				LOG.warn("Periodic checkpoint committer is stopping the fetcher because of an error", t);
-				consumer.fetcher.stopWithError(t);
-			}
-		}
-
-		public void close() {
-			this.running = false;
-			this.interrupt();
-		}
-	}
-
 
 	// ------------------------------------------------------------------------
 	//  Kafka / ZooKeeper communication utilities
@@ -492,11 +229,11 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param topics The name of the topics.
 	 * @param properties The properties for the Kafka Consumer that is used to query the partitions for the topic. 
 	 */
-	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(final List<String> topics, final Properties properties) {
+	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(List<String> topics, Properties properties) {
 		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		final int numRetries = getIntFromConfig(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
 
-		requireNonNull(seedBrokersConfString, "Configuration property " + ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG + " not set");
+		checkNotNull(seedBrokersConfString, "Configuration property %s not set", ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
 
@@ -603,6 +340,19 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 		catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Property 'zookeeper.connection.timeout.ms' is not a valid integer");
+		}
+	}
+
+	private static long getInvalidOffsetBehavior(Properties config) {
+		final String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+		if (val.equals("none")) {
+			throw new IllegalArgumentException("Cannot use '" + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG
+					+ "' value 'none'. Possible values: 'latest', 'largest', or 'earliest'.");
+		}
+		else if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
+			return OffsetRequest.LatestTime();
+		} else {
+			return OffsetRequest.EarliestTime();
 		}
 	}
 }

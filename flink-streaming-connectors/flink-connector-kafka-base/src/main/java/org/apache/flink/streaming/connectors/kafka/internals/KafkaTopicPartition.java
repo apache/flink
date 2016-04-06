@@ -24,14 +24,20 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-
 /**
- * A serializable representation of a kafka topic and a partition.
- * Used as an operator state for the Kafka consumer
+ * Flink's description of a partition in a Kafka topic.
+ * Serializable, and common across all Kafka consumer subclasses (0.8, 0.9, ...)
+ * 
+ * <p>Note: This class must not change in its structure, because it would change the
+ * serialization format and make previous savepoints unreadable.
  */
-public class KafkaTopicPartition implements Serializable {
+public final class KafkaTopicPartition implements Serializable {
 
+	/** THIS SERIAL VERSION UID MUST NOT CHANGE, BECAUSE IT WOULD BREAK
+	 * READING OLD SERIALIZED INSTANCES FROM SAVEPOINTS */
 	private static final long serialVersionUID = 722083576322742325L;
+	
+	// ------------------------------------------------------------------------
 
 	private final String topic;
 	private final int partition;
@@ -43,6 +49,8 @@ public class KafkaTopicPartition implements Serializable {
 		this.cachedHash = 31 * topic.hashCode() + partition;
 	}
 
+	// ------------------------------------------------------------------------
+	
 	public String getTopic() {
 		return topic;
 	}
@@ -51,6 +59,8 @@ public class KafkaTopicPartition implements Serializable {
 		return partition;
 	}
 
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public String toString() {
 		return "KafkaTopicPartition{" +
@@ -64,25 +74,23 @@ public class KafkaTopicPartition implements Serializable {
 		if (this == o) {
 			return true;
 		}
-		if (!(o instanceof KafkaTopicPartition)) {
+		else if (o instanceof KafkaTopicPartition) {
+			KafkaTopicPartition that = (KafkaTopicPartition) o;
+			return this.partition == that.partition && this.topic.equals(that.topic);
+		}
+		else {
 			return false;
 		}
-
-		KafkaTopicPartition that = (KafkaTopicPartition) o;
-
-		if (partition != that.partition) {
-			return false;
-		}
-		return topic.equals(that.topic);
 	}
 
 	@Override
 	public int hashCode() {
 		return cachedHash;
 	}
-
-
-	// ------------------- Utilities -------------------------------------
+	
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	public static String toString(Map<KafkaTopicPartition, Long> map) {
 		StringBuilder sb = new StringBuilder();
