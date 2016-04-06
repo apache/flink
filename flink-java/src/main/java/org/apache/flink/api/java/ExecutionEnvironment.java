@@ -780,6 +780,33 @@ public abstract class ExecutionEnvironment {
 		return fromCollection(Arrays.asList(data), TypeExtractor.getForObject(data[0]), Utils.getCallLocationName());
 	}
 	
+	/**
+	 * Creates a new data set that contains the given elements. The elements must all be of the same type,
+	 * for example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty.
+	 * <p>
+	 * The framework will try and determine the exact type from the collection elements.
+	 * In case of generic elements, it may be necessary to manually supply the type information
+	 * via {@link #fromCollection(Collection, TypeInformation)}.
+	 * <p>
+	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
+	 * a parallelism of one.
+	 *
+	 * @param type The base class type for every element in the collection.
+	 * @param data The elements to make up the data set.
+	 * @return A DataSet representing the given list of elements.
+	 */
+	@SafeVarargs
+	public final <X> DataSource<X> fromElements(Class<X> type, X... data) {
+		if (data == null) {
+			throw new IllegalArgumentException("The data must not be null.");
+		}
+		if (data.length == 0) {
+			throw new IllegalArgumentException("The number of elements must not be zero.");
+		}
+		
+		return fromCollection(Arrays.asList(data), TypeExtractor.getForClass(type), Utils.getCallLocationName());
+	}
+	
 	
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
