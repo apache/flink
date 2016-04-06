@@ -315,13 +315,7 @@ class TaskManager(
     case msg: StopCluster =>
       log.info(s"Stopping TaskManager with final application status ${msg.finalStatus()} " +
         s"and diagnostics: ${msg.message()}")
-      context.system.shutdown()
-
-      // Await actor system termination and shut down JVM
-      new ProcessShutDownThread(
-        log.logger,
-        context.system,
-        FiniteDuration(10, SECONDS)).start()
+      shutdown()
 
     case FatalError(message, cause) =>
       killTaskManagerFatal(message, cause)
@@ -1298,6 +1292,16 @@ class TaskManager(
     log.error("Error in leader retrieval service", exception)
 
     self ! decorateMessage(PoisonPill)
+  }
+
+  protected def shutdown(): Unit = {
+    context.system.shutdown()
+
+    // Await actor system termination and shut down JVM
+    new ProcessShutDownThread(
+      log.logger,
+      context.system,
+      FiniteDuration(10, SECONDS)).start()
   }
 }
 

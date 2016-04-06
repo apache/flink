@@ -35,11 +35,28 @@ class ScalaShellITCase extends TestLogger {
 
   /** Prevent re-creation of environment */
   @Test
-  def testPreventRecreation(): Unit = {
+  def testPreventRecreationBatch(): Unit = {
 
     val input: String =
       """
-        val env = ExecutionEnvironment.getExecutionEnvironment
+        val benv = ExecutionEnvironment.getExecutionEnvironment
+      """.stripMargin
+
+    val output: String = processInShell(input)
+
+    Assert.assertTrue(output.contains(
+      "UnsupportedOperationException: Execution Environment is already " +
+      "defined for this shell"))
+  }
+
+  /** Prevent re-creation of environment */
+  @Test
+  def testPreventRecreationStreaming(): Unit = {
+
+    val input: String =
+      """
+        import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+        val senv = StreamExecutionEnvironment.getExecutionEnvironment
       """.stripMargin
 
     val output: String = processInShell(input)
@@ -51,11 +68,11 @@ class ScalaShellITCase extends TestLogger {
 
   /** Iteration test with iterative Pi example */
   @Test
-  def testIterativePI(): Unit = {
+  def testIterativePIBatch(): Unit = {
 
     val input: String =
       """
-        val initial = env.fromElements(0)
+        val initial = benv.fromElements(0)
         val count = initial.iterate(10000) { iterationInput: DataSet[Int] =>
           val result = iterationInput.map { i =>
             val x = Math.random()
@@ -77,10 +94,10 @@ class ScalaShellITCase extends TestLogger {
 
   /** WordCount in Shell */
   @Test
-  def testWordCount(): Unit = {
+  def testWordCountBatch(): Unit = {
     val input =
       """
-        val text = env.fromElements("To be, or not to be,--that is the question:--",
+        val text = benv.fromElements("To be, or not to be,--that is the question:--",
         "Whether 'tis nobler in the mind to suffer",
         "The slings and arrows of outrageous fortune",
         "Or to take arms against a sea of troubles,")
@@ -103,10 +120,10 @@ class ScalaShellITCase extends TestLogger {
 
   /** Sum 1..10, should be 55 */
   @Test
-  def testSum: Unit = {
+  def testSumBatch: Unit = {
     val input =
       """
-        val input: DataSet[Int] = env.fromElements(0,1,2,3,4,5,6,7,8,9,10)
+        val input: DataSet[Int] = benv.fromElements(0,1,2,3,4,5,6,7,8,9,10)
         val reduced = input.reduce(_+_)
         reduced.print
       """.stripMargin
@@ -122,11 +139,11 @@ class ScalaShellITCase extends TestLogger {
 
   /** WordCount in Shell with custom case class */
   @Test
-  def testWordCountWithCustomCaseClass: Unit = {
+  def testWordCountWithCustomCaseClassBatch: Unit = {
     val input =
       """
       case class WC(word: String, count: Int)
-      val wordCounts = env.fromElements(
+      val wordCounts = benv.fromElements(
         new WC("hello", 1),
         new WC("world", 2),
         new WC("world", 8))
@@ -146,12 +163,47 @@ class ScalaShellITCase extends TestLogger {
 
   /** Submit external library */
   @Test
-  def testSubmissionOfExternalLibrary: Unit = {
+  def testSubmissionOfExternalLibraryBatch: Unit = {
+    val input =
+      """
+         import org.apache.flink.ml.math._
+         val denseVectors = benv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
+         denseVectors.print()
+      """.stripMargin
+
+    // find jar file that contains the ml code
+    var externalJar = ""
+    val folder = new File("../../flink-libraries/flink-ml/target/")
+    val listOfFiles = folder.listFiles()
+
+    for (i <- listOfFiles.indices) {
+      val filename: String = listOfFiles(i).getName
+      if (!filename.contains("test") && !filename.contains("original") && filename.contains(
+        ".jar")) {
+        externalJar = listOfFiles(i).getAbsolutePath
+      }
+    }
+
+    assert(externalJar != "")
+
+    val output: String = processInShell(input, Option(externalJar))
+
+    Assert.assertFalse(output.contains("failed"))
+    Assert.assertFalse(output.contains("error"))
+    Assert.assertFalse(output.contains("Exception"))
+
+    Assert.assertTrue(output.contains("\nDenseVector(1.0, 2.0, 3.0)"))
+  }
+
+  /** Submit external library */
+  @Test
+  def testSubmissionOfExternalLibraryStream: Unit = {
     val input =
       """
         import org.apache.flink.ml.math._
-        val denseVectors = env.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
+        val denseVectors = senv.fromElements[Vector](DenseVector(1.0, 2.0, 3.0))
         denseVectors.print()
+        senv.execute
       """.stripMargin
 
     // find jar file that contains the ml code
@@ -181,6 +233,7 @@ class ScalaShellITCase extends TestLogger {
 
   /**
    * tests flink shell startup with remote cluster (starts cluster internally)
+   * for both streaming and batch api
    */
   @Test
   def testRemoteCluster: Unit = {
@@ -192,7 +245,7 @@ class ScalaShellITCase extends TestLogger {
         |import org.apache.flink.api.common.accumulators.IntCounter
         |import org.apache.flink.configuration.Configuration
         |
-        |val els = env.fromElements("foobar","barfoo")
+        |val els = benv.fromElements("foobar","barfoo")
         |val mapped = els.map{
         | new RichMapFunction[String, String]() {
         |   var intCounter: IntCounter = _
@@ -207,8 +260,20 @@ class ScalaShellITCase extends TestLogger {
         | }
         |}
         |mapped.output(new PrintingOutputFormat())
-        |val executionResult = env.execute("Test Job")
+        |val executionResult = benv.execute("Test Job")
         |System.out.println("IntCounter: " + executionResult.getIntCounterResult("intCounter"))
+        |
+        |val elss = senv.fromElements("foobar","barfoo")
+        |val mapped = elss.map{
+        |     new RichMapFunction[String,String]() {
+        |     def map(element:String): String = {
+        |     element + "Streaming"
+        |   }
+        |  }
+        |}
+        |
+        |mapped.print
+        |senv.execute("awesome streaming process")
         |
         |:q
       """.stripMargin
@@ -245,6 +310,9 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertTrue(output.contains("foobar"))
     Assert.assertTrue(output.contains("barfoo"))
 
+    Assert.assertTrue(output.contains("foobarStreaming"))
+    Assert.assertTrue(output.contains("barfooStreaming"))
+
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("Error"))
     Assert.assertFalse(output.contains("ERROR"))
@@ -277,7 +345,8 @@ object ScalaShellITCase {
 
   /**
    * Run the input using a Scala Shell and return the output of the shell.
-   * @param input commands to be processed in the shell
+    *
+    * @param input commands to be processed in the shell
    * @return output of shell
    */
   def processInShell(input: String, externalJars: Option[String] = None): String = {

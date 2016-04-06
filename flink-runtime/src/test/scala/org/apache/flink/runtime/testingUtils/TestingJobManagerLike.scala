@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Terminated, Cancellable, ActorRef}
+import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
@@ -32,14 +32,12 @@ import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingMessages.{DisableDisconnect,
-CheckIfJobRemoved, Alive}
+import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
 
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import language.postfixOps
 
 /** This mixin can be used to decorate a JobManager with messages for testing purpose.  */
@@ -68,6 +66,8 @@ trait TestingJobManagerLike extends FlinkActor {
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
     })
+
+  val waitForShutdown = scala.collection.mutable.HashSet[ActorRef]()
 
   var disconnectDisabled = false
 
@@ -189,6 +189,10 @@ trait TestingJobManagerLike extends FlinkActor {
             listener ! decorateMessage(TaskManagerTerminated(taskManager))
         }
       }
+
+    // see shutdown method for reply
+    case NotifyOfComponentShutdown =>
+      waitForShutdown += sender()
 
     case NotifyWhenAccumulatorChange(jobID) =>
 
@@ -393,6 +397,8 @@ trait TestingJobManagerLike extends FlinkActor {
     * No killing of the VM for testing.
     */
   override protected def shutdown(): Unit = {
-    system.shutdown()
+    log.info("Shutting down TestingJobManager.")
+    waitForShutdown.foreach(_ ! ComponentShutdown(self))
+    waitForShutdown.clear()
   }
 }
