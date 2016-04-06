@@ -275,11 +275,12 @@ element using a user-defined reduce function.
 For each group of input elements, a reduce function successively combines pairs of elements into one
 element until only a single element for each group remains.
 
-#### Reduce on DataSet Grouped by KeySelector Function
+#### Reduce on DataSet Grouped by Key Expression
 
-A key-selector function extracts a key value from each element of a DataSet. The extracted key
-value is used to group the DataSet.
-The following code shows how to group a POJO DataSet using a key-selector function and to reduce it
+Key expressions specify one or more fields of each element of a DataSet. Each key expression is
+either the name of a public field or a getter method. A dot can be used to drill down into objects.
+The key expression "*" selects all fields.
+The following code shows how to group a POJO DataSet using key expressions and to reduce it
 with a reduce function.
 
 <div class="codetabs" markdown="1">
@@ -323,7 +324,7 @@ class WC(val word: String, val count: Int) {
 }
 
 val words: DataSet[WC] = // [...]
-val wordCounts = words.groupBy { _.word } reduce {
+val wordCounts = words.groupBy("word").reduce {
   (w1, w2) => new WC(w1.word, w1.count + w2.count)
 }
 ~~~
@@ -333,6 +334,82 @@ val wordCounts = words.groupBy { _.word } reduce {
 
 ~~~python
 Not supported.
+~~~
+</div>
+</div>
+
+#### Reduce on DataSet Grouped by KeySelector Function
+
+A key-selector function extracts a key value from each element of a DataSet. The extracted key
+value is used to group the DataSet.
+The following code shows how to group a POJO DataSet using a key-selector function and to reduce it
+with a reduce function.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+// some ordinary POJO
+public class WC {
+  public String word;
+  public int count;
+  // [...]
+}
+
+// ReduceFunction that sums Integer attributes of a POJO
+public class WordCounter implements ReduceFunction<WC> {
+  @Override
+  public WC reduce(WC in1, WC in2) {
+    return new WC(in1.word, in1.count + in2.count);
+  }
+}
+
+// [...]
+DataSet<WC> words = // [...]
+DataSet<WC> wordCounts = words
+                         // DataSet grouping on field "word"
+                         .groupBy(new SelectWord())
+                         // apply ReduceFunction on grouped DataSet
+                         .reduce(new WordCounter());
+
+public class SelectWord implements KeySelector<WC, String> {
+  @Override
+  public String getKey(Word w) {
+    return w.word;
+  }
+}
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// some ordinary POJO
+class WC(val word: String, val count: Int) {
+  def this() {
+    this(null, -1)
+  }
+  // [...]
+}
+
+val words: DataSet[WC] = // [...]
+val wordCounts = words.groupBy { _.word } reduce {
+  (w1, w2) => new WC(w1.word, w1.count + w2.count)
+}
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+class WordCounter(ReduceFunction):
+    def reduce(self, in1, in2):
+        return (in1[0], in1[1] + in2[1])
+
+words = // [...]
+wordCounts = words \
+    .group_by(lambda x: x[0]) \
+    .reduce(WordCounter())
 ~~~
 </div>
 </div>
@@ -347,10 +424,9 @@ The following code shows how to use field position keys and apply a reduce funct
 
 ~~~java
 DataSet<Tuple3<String, Integer, Double>> tuples = // [...]
-DataSet<Tuple3<String, Integer, Double>> reducedTuples =
-                                         tuples
+DataSet<Tuple3<String, Integer, Double>> reducedTuples = tuples
                                          // group DataSet on first and second field of Tuple
-                                         .groupBy(0,1)
+                                         .groupBy(0, 1)
                                          // apply ReduceFunction on grouped DataSet
                                          .reduce(new MyTupleReducer());
 ~~~
@@ -364,10 +440,28 @@ val tuples = DataSet[(String, Int, Double)] = // [...]
 val reducedTuples = tuples.groupBy(0, 1).reduce { ... }
 ~~~
 
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ reducedTuples = tuples.group_by(0, 1).reduce( ... )
+~~~
+
+</div>
+</div>
 
 #### Reduce on DataSet grouped by Case Class Fields
 
 When using Case Classes you can also specify the grouping key using the names of the fields:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+Not supported.
+~~~
+</div>
+<div data-lang="scala" markdown="1">
 
 ~~~scala
 case class MyClass(val a: String, b: Int, c: Double)
@@ -380,9 +474,8 @@ val reducedTuples = tuples.groupBy("a", "b").reduce { ... }
 <div data-lang="python" markdown="1">
 
 ~~~python
- reducedTuples = tuples.group_by(0, 1).reduce( ... )
+Not supported.
 ~~~
-
 </div>
 </div>
 
@@ -442,11 +535,6 @@ val output = input.groupBy(0).reduceGroup {
     }
 ~~~
 
-#### GroupReduce on DataSet Grouped by Case Class Fields
-
-Works analogous to grouping by Case Class fields in *Reduce* transformations.
-
-
 </div>
 <div data-lang="python" markdown="1">
 
@@ -462,13 +550,15 @@ Works analogous to grouping by Case Class fields in *Reduce* transformations.
  output = data.group_by(0).reduce_group(DistinctReduce())
 ~~~
 
-
 </div>
 </div>
 
-#### GroupReduce on DataSet Grouped by KeySelector Function
+#### GroupReduce on DataSet Grouped by Key Expression, KeySelector Function, or Case Class Fields
 
-Works analogous to key-selector functions in *Reduce* transformations.
+Work analogous to [key expressions](#reduce-on-dataset-grouped-by-key-expression),
+[key-selector functions](#reduce-on-dataset-grouped-by-keyselector-function),
+and [case class fields](#reduce-on-dataset-grouped-by-case-class-fields) in *Reduce* transformations.
+
 
 #### GroupReduce on sorted groups
 
