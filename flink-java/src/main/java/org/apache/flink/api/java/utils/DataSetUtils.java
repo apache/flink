@@ -23,6 +23,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
@@ -36,8 +38,12 @@ import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.summarize.aggregation.SummaryAggregatorFactory;
+import org.apache.flink.api.java.summarize.aggregation.TupleSummaryAggregator;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
@@ -280,6 +286,50 @@ public final class DataSetUtils {
 	public static <T, K extends Comparable<K>> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, input.getType());
 		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<>(input.clean(keyExtractor), input.getType(), keyType), distribution, Utils.getCallLocationName());
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Summarize
+	// --------------------------------------------------------------------------------------------
+
+
+	/**
+	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns
+	 *
+	 * Example usage:
+	 * <pre>
+	 * {@code
+	 * Dataset<Tuple3<Double, String, Boolean>> input = // [...]
+	 * Tuple3<NumericColumnSummary,StringColumnSummary, BooleanColumnSummary> summary = DataSetUtils.summarize(input)
+	 *
+	 * summary.f0.getStandardDeviation()
+	 * summary.f1.getMaxLength()
+	 * }
+	 * </pre>
+	 * @return the summary as a Tuple the same width as input rows
+	 */
+	public static <R extends Tuple, T extends Tuple> R summarize(DataSet<T> input) throws Exception {
+		if( !input.getType().isTupleType()) {
+			throw new IllegalArgumentException("summarize() is only implemented for DataSet's of Tuples");
+		}
+		final TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
+		DataSet<TupleSummaryAggregator<R>> result = input.mapPartition(new MapPartitionFunction<T, TupleSummaryAggregator<R>>() {
+			@Override
+			public void mapPartition(Iterable<T> values, Collector<TupleSummaryAggregator<R>> out) throws Exception {
+				TupleSummaryAggregator<R> aggregator = SummaryAggregatorFactory.create(inType);
+				for (Tuple value: values) {
+					aggregator.aggregate(value);
+				}
+				out.collect(aggregator);
+			}
+		}).reduce(new ReduceFunction<TupleSummaryAggregator<R>>() {
+			@Override
+			public TupleSummaryAggregator<R> reduce(TupleSummaryAggregator<R> agg1, TupleSummaryAggregator<R> agg2) throws Exception {
+				agg1.combine(agg2);
+				return agg1;
+			}
+		});
+		return result.collect().get(0).result();
 	}
 
 	// --------------------------------------------------------------------------------------------
