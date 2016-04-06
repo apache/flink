@@ -118,15 +118,17 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 			}
 		}
 
-		if (LOG.isInfoEnabled())
+		if (LOG.isInfoEnabled()) {
 			LOG.info("Opening split {}", split);
+		}
 
 		SeekableInput in = new FSDataInputStreamWrapper(stream, split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
 
 		dataFileReader = DataFileReader.openReader(in, datumReader);
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug("Loaded SCHEMA: {}", dataFileReader.getSchema());
+		}
 		
 		dataFileReader.sync(split.getStart());
 		this.end = split.getStart() + split.getLength();
@@ -143,10 +145,11 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 			return null;
 		}
 		if (isGenericRecord) {
-			if (reuseAvroValue)
+			if (reuseAvroValue) {
 				reuseValue = dataFileReader.next(reuseValue);
-			else
+			} else {
 				reuseValue = dataFileReader.next();
+			}
 		} else {
 			if (!reuseAvroValue) {
 				reuseValue = InstantiationUtil.instantiate(avroValueType, Object.class);
