@@ -24,7 +24,6 @@ import java.util.List;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.util.SourceFunctionUtil;
@@ -45,18 +44,6 @@ public class SourceFunctionTest {
 	}
 
 	@Test
-	public void fromElementsWithBaseTypeTest1() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void fromElementsWithBaseTypeTest2() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
-	}
-
-	@Test
 	public void fromCollectionTest() throws Exception {
 		List<Integer> expectedList = Arrays.asList(1, 2, 3);
 		List<Integer> actualList = SourceFunctionUtil.runSourceFunction(
@@ -72,20 +59,5 @@ public class SourceFunctionTest {
 		List<Long> actualList = SourceFunctionUtil.runSourceFunction(new StatefulSequenceSource(1,
 				7));
 		assertEquals(expectedList, actualList);
-	}
-
-	public static class ParentClass {
-		int num;
-		String string;
-		public ParentClass(int num, String string) {
-			this.num = num;
-			this.string = string;
-		}
-	}
-
-	public static class SubClass extends ParentClass{
-		public SubClass(int num, String string) {
-			super(num, string);
-		}
 	}
 }

@@ -777,17 +777,23 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
 		
-		return fromCollection(Arrays.asList(data), TypeExtractor.getForObject(data[0]), Utils.getCallLocationName());
+		TypeInformation<X> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForObject(data[0]);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
+					+ "; please specify the TypeInformation manually via "
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+
+		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
 	}
 	
 	/**
-	 * Creates a new data set that contains the given elements. The elements must all be of the same type,
-	 * for example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty.
-	 * <p>
-	 * The framework will try and determine the exact type from the collection elements.
-	 * In case of generic elements, it may be necessary to manually supply the type information
-	 * via {@link #fromCollection(Collection, TypeInformation)}.
-	 * <p>
+	 * Creates a new data set that contains the given elements. The framework will determine the type according to the 
+	 * based type user supplied. The elements should be the same or be the subclass to the based type. 
+	 * The sequence of elements must not be empty.
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
 	 *
@@ -804,7 +810,17 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
 		
-		return fromCollection(Arrays.asList(data), TypeExtractor.getForClass(type), Utils.getCallLocationName());
+		TypeInformation<X> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForClass(type);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + type.getName()
+					+ "; please specify the TypeInformation manually via "
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+
+		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
 	}
 	
 	
