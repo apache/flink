@@ -17,7 +17,8 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -35,19 +36,26 @@ public interface Writer<T> extends Serializable {
 	 * Initializes the {@code Writer} for a newly opened bucket file.
 	 * Any internal per-bucket initialization should be performed here.
 	 *
-	 * @param outStream The {@link org.apache.hadoop.fs.FSDataOutputStream} for the newly opened file.
+	 * @param fs The {@link org.apache.hadoop.fs.FileSystem} containing the newly opened file.
+	 * @param path The {@link org.apache.hadoop.fs.Path} of the newly opened file.
 	 */
-	void open(FSDataOutputStream outStream) throws IOException;
+	void open(FileSystem fs, Path path) throws IOException;
 
 	/**
-	 * Flushes out any internally held data.
+	 * Flushes out any internally held data, and returns the offset that the file
+	 * must be truncated to at recovery.
 	 */
-	void flush()throws IOException ;
+	long flush() throws IOException;
 
 	/**
-	 * Closes the {@code Writer}. This must not close the {@code FSDataOutputStream} that
-	 * was handed in in the {@link #open} method. Only internally held state should be
-	 * closed.
+	 * Retrieves the current position, and thus size, of the output file.
+	 */
+	long getPos() throws IOException;
+
+	/**
+	 * Closes the {@code Writer}. If the writer is already closed, no action will be
+	 * taken. The call should close all state related to the current output file,
+	 * including the output stream opened in {@code open}.
 	 */
 	void close() throws IOException ;
 
