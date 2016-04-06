@@ -47,12 +47,14 @@ bin/start-scala-shell.sh remote <hostname> <portnumber>
 
 ## Usage
 
-The shell will prebind the ExecutionEnvironment as "env", so far only batch mode is supported.
+The shell supports Batch and Streaming.
+Two different ExecutionEnvironments are automatically prebound after startup.
+Use "benv" and "senv" to access the Batch and Streaming environment respectively.
 
 The following example will execute the wordcount program in the Scala shell:
 
 ~~~scala
-Scala-Flink> val text = env.fromElements(
+Scala-Flink> val text = benv.fromElements(
   "To be, or not to be,--that is the question:--",
   "Whether 'tis nobler in the mind to suffer",
   "The slings and arrows of outrageous fortune",
@@ -61,14 +63,28 @@ Scala-Flink> val counts = text.flatMap { _.toLowerCase.split("\\W+") }.map { (_,
 Scala-Flink> counts.print()
 ~~~
 
-
 The print() command will automatically send the specified tasks to the JobManager for execution and will show the result of the computation in the terminal.
 
 It is possbile to write results to a file. However, in this case you need to call `execute`, to run your program:
 
 ~~~scala
-Scala-Flink> env.execute("MyProgram")
+Scala-Flink> benv.execute("MyProgram")
 ~~~
+
+The Batch program above can be executed using the Streaming API through:
+
+~~~scala
+Scala-Flink> val textStreaming = senv.fromElements(
+  "To be, or not to be,--that is the question:--",
+  "Whether 'tis nobler in the mind to suffer",
+  "The slings and arrows of outrageous fortune",
+  "Or to take arms against a sea of troubles,")
+ Scala-Flink> val countsStreaming = textStreaming.flatMap { _.toLowerCase.split("\\W+") }.map { (_, 1) }.keyBy(0).sum(1)
+ Scala-Flink> countsStreaming.print()
+ Scala-Flink> senv.execute("Streaming Wordcount")
+~~~
+
+Note, that in the Streaming case, the print operation does not trigger execution directly.
 
 The Flink Shell comes with command history and autocompletion.
 

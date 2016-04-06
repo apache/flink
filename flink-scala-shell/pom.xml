@@ -75,7 +75,16 @@ under the License.
 			<artifactId>scala-reflect</artifactId>
 			<version>${scala.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
+			<version>1.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_2.10</artifactId>
+			<version>1.1-SNAPSHOT</version>
+		</dependency>
 		<!-- tests -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>

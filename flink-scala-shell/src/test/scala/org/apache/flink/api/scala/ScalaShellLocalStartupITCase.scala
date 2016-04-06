@@ -28,6 +28,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
 
   /**
    * tests flink shell with local setup through startup script in bin folder
+   * for both streaming and batch
    */
   @Test
   def testLocalCluster: Unit = {
@@ -38,7 +39,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
         |import org.apache.flink.api.common.accumulators.IntCounter
         |import org.apache.flink.configuration.Configuration
         |
-        |val els = env.fromElements("foobar","barfoo")
+        |val els = benv.fromElements("foobar","barfoo")
         |val mapped = els.map{
         | new RichMapFunction[String, String]() {
         |   var intCounter: IntCounter = _
@@ -53,8 +54,20 @@ class ScalaShellLocalStartupITCase extends TestLogger {
         | }
         |}
         |mapped.output(new PrintingOutputFormat())
-        |val executionResult = env.execute("Test Job")
+        |val executionResult = benv.execute("Test Job")
         |System.out.println("IntCounter: " + executionResult.getIntCounterResult("intCounter"))
+        |
+        |val elss = senv.fromElements("foobar","barfoo")
+        |val mapped = elss.map{
+        |     new RichMapFunction[String,String]() {
+        |     def map(element:String): String = {
+        |     element + "Streaming"
+        |   }
+        |  }
+        |}
+        |
+        |mapped.print
+        |senv.execute("awesome streaming process")
         |
         |:q
       """.stripMargin
@@ -76,6 +89,9 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     Assert.assertTrue(output.contains("IntCounter: 2"))
     Assert.assertTrue(output.contains("foobar"))
     Assert.assertTrue(output.contains("barfoo"))
+
+    Assert.assertTrue(output.contains("foobarStream"))
+    Assert.assertTrue(output.contains("barfooStream"))
 
     Assert.assertFalse(output.contains("failed"))
     Assert.assertFalse(output.contains("Error"))
