@@ -235,11 +235,23 @@ class FlinkILoop(
 
               F L I N K - S C A L A - S H E L L
 
-NOTE: Use the prebound Execution Environment "env" to read data and execute your program:
-  * env.readTextFile("/path/to/data")
-  * env.execute("Program name")
+NOTE: Use the prebound Execution Environments to implement batch or streaming programs.
 
-HINT: You can use print() on a DataSet to print the contents to this shell.
+  Batch - Use the 'benv' variable
+
+    * val dataSet = benv.readTextFile("/path/to/data")
+    * dataSet.writeAsText("/path/to/output")
+    * benv.execute("My batch program")
+
+    HINT: You can use print() on a DataSet to print the contents to the shell.
+
+  Streaming - Use the 'senv' variable
+
+    * val dataStream = senv.fromElements(1, 2, 3, 4)
+    * dataStream.countWindowAll(2).sum(0).print()
+    * senv.execute("My streaming program")
+
+    HINT: You can only print a DataStream to the shell in local mode.
       """
     // scalastyle:on
     )
