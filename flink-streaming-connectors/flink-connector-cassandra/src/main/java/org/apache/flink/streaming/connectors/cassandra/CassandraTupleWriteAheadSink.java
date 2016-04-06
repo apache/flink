@@ -32,6 +32,7 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -58,8 +59,8 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericAtLea
 
 	private transient Object[] fields;
 
-	protected CassandraTupleWriteAheadSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, String jobID, CheckpointCommitter committer) throws Exception {
-		super(committer, serializer, jobID);
+	protected CassandraTupleWriteAheadSink(String insertQuery, TypeSerializer<IN> serializer, ClusterBuilder builder, CheckpointCommitter committer) throws Exception {
+		super(committer, serializer, UUID.randomUUID().toString().replace("-", "_"));
 		this.insertQuery = insertQuery;
 		this.builder = builder;
 		ClosureCleaner.clean(builder, true);
@@ -79,6 +80,7 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericAtLea
 			@Override
 			public void onFailure(Throwable throwable) {
 				exception = throwable;
+				LOG.error("Error while sending value.", throwable);
 			}
 		};
 		cluster = builder.getCluster();
@@ -124,11 +126,11 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericAtLea
 				Futures.addCallback(result, callback);
 			}
 		}
-		while (updatesSent != updatesConfirmed.get()) {
-			try {
+		try {
+			while (updatesSent != updatesConfirmed.get()) {
 				Thread.sleep(100);
-			} catch (InterruptedException e) {
 			}
+		} catch (InterruptedException e) {
 		}
 		updatesSent = 0;
 		updatesConfirmed.set(0);

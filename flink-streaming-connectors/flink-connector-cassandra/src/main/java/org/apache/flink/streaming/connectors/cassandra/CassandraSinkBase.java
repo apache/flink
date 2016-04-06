@@ -60,6 +60,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 			@Override
 			public void onFailure(Throwable t) {
 				exception = t;
+				LOG.error("Error while sending value.", t);
 			}
 		};
 		this.cluster = builder.getCluster();

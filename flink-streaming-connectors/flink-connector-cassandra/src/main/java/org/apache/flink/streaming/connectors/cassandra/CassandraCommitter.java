@@ -35,7 +35,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 	private transient Session session;
 
 	private static final String KEYSPACE = "flink_auxiliary";
-	private String TABLE = "checkpoints_";
+	private String table = "checkpoints_";
 
 	private transient PreparedStatement deleteStatement;
 	private transient PreparedStatement updateStatement;
@@ -54,7 +54,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 	 */
 	public void setJobId(String id) throws Exception {
 		super.setJobId(id);
-		TABLE += id;
+		table += id;
 	}
 
 	/**
@@ -69,7 +69,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 		session = cluster.connect();
 
 		session.execute(String.format("CREATE KEYSPACE IF NOT EXISTS %s with replication={'class':'SimpleStrategy', 'replication_factor':3};", KEYSPACE));
-		session.execute(String.format("CREATE TABLE IF NOT EXISTS %s.%s (sink_id text, sub_id int, checkpoint_id bigint, PRIMARY KEY (sink_id, sub_id));", KEYSPACE, TABLE));
+		session.execute(String.format("CREATE TABLE IF NOT EXISTS %s.%s (sink_id text, sub_id int, checkpoint_id bigint, PRIMARY KEY (sink_id, sub_id));", KEYSPACE, table));
 
 		try {
 			session.close();
@@ -91,11 +91,11 @@ public class CassandraCommitter extends CheckpointCommitter {
 		cluster = builder.getCluster();
 		session = cluster.connect();
 
-		deleteStatement = session.prepare(String.format("DELETE FROM %s.%s where sink_id='%s' and sub_id=%d;", KEYSPACE, TABLE, operatorId, subtaskId));
-		updateStatement = session.prepare(String.format("UPDATE %s.%s set checkpoint_id=? where sink_id='%s' and sub_id=%d;", KEYSPACE, TABLE, operatorId, subtaskId));
-		selectStatement = session.prepare(String.format("SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;", KEYSPACE, TABLE, operatorId, subtaskId));
+		deleteStatement = session.prepare(String.format("DELETE FROM %s.%s where sink_id='%s' and sub_id=%d;", KEYSPACE, table, operatorId, subtaskId));
+		updateStatement = session.prepare(String.format("UPDATE %s.%s set checkpoint_id=? where sink_id='%s' and sub_id=%d;", KEYSPACE, table, operatorId, subtaskId));
+		selectStatement = session.prepare(String.format("SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;", KEYSPACE, table, operatorId, subtaskId));
 
-		session.execute(String.format("INSERT INTO %s.%s (sink_id, sub_id, checkpoint_id) values ('%s', %d, " + -1 + ");", KEYSPACE, TABLE, operatorId, subtaskId));
+		session.execute(String.format("INSERT INTO %s.%s (sink_id, sub_id, checkpoint_id) values ('%s', %d, " + -1 + ");", KEYSPACE, table, operatorId, subtaskId));
 	}
 
 	@Override

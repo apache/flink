@@ -30,15 +30,12 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
-import java.util.UUID;
-
 /**
  * This class wraps different Cassandra sink implementations to provide a common interface for all of them.
  *
  * @param <IN> input type
  */
 public class CassandraSink<IN> {
-	private static final String jobID = UUID.randomUUID().toString().replace("-", "_");
 	private final boolean useDataStreamSink;
 	private DataStreamSink<IN> sink1;
 	private SingleOutputStreamOperator<IN> sink2;
@@ -214,6 +211,9 @@ public class CassandraSink<IN> {
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> setHost(final String host, final int port) {
+			if (builder != null) {
+				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
+			}
 			builder = new ClusterBuilder() {
 				@Override
 				protected Cluster buildCluster(Cluster.Builder builder) {
@@ -230,6 +230,9 @@ public class CassandraSink<IN> {
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> setClusterBuilder(ClusterBuilder builder) {
+			if (builder != null) {
+				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
+			}
 			this.builder = builder;
 			return this;
 		}
@@ -287,8 +290,8 @@ public class CassandraSink<IN> {
 			sanityCheck();
 			if (isWriteAheadLogEnabled) {
 				return committer == null
-					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, jobID, new CassandraCommitter(builder))))
-					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, jobID, committer)));
+					? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, new CassandraCommitter(builder))))
+					: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraTupleWriteAheadSink<>(query, serializer, builder, committer)));
 			} else {
 				return new CassandraSink<>(input.addSink(new CassandraTupleSink<IN>(query, builder)).name("Cassandra Sink"));
 			}

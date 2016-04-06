@@ -26,6 +26,14 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import java.util.ArrayList;
 
+/**
+ * This is an example showing the to use the Pojo Cassandra Sink in the Streaming API.
+ * 
+ * Pojo's have to be annotated with datastax annotations to work with this sink.
+ *
+ * The example assumes that a table exists in a local cassandra database, according to the following query:
+ * CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY)
+ */
 public class CassandraPojoSinkExample {
 	private static final ArrayList<Message> messages = new ArrayList<>(20);
 
@@ -35,9 +43,6 @@ public class CassandraPojoSinkExample {
 		}
 	}
 
-	/*
-	 *	create table: "CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY);"
-	 */
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

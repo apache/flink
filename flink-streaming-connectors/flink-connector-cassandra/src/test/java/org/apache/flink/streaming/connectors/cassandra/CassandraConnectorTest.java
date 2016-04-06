@@ -168,7 +168,6 @@ public class CassandraConnectorTest extends AtLeastOnceSinkTestBase<Tuple3<Strin
 						return builder.addContactPoint("127.0.0.1").build();
 					}
 				},
-				"testJob",
 				new CassandraCommitter(builder));
 		} catch (Exception e) {
 			Assert.fail("Failure while initializing sink: " + e.getMessage());
