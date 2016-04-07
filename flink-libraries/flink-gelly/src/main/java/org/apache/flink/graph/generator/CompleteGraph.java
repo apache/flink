@@ -43,7 +43,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount;
 
 	/**
-	 * A {@link Graph} connecting every distinct pair of vertices.
+	 * An undirected {@link Graph} connecting every distinct pair of vertices.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices

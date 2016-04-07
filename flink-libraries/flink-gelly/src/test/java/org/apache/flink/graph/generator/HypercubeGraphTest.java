@@ -36,7 +36,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int dimensions = 3;
 
-		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(this.env, dimensions)
+		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7";
@@ -51,7 +51,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int dimensions = 10;
 
-		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(this.env, dimensions)
+		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
 			.generate();
 
 		assertEquals(1 << dimensions, graph.numberOfVertices());

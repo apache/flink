@@ -1734,3 +1734,547 @@ vertex represents a group of vertices and each edge represents a group of edges 
 vertex and edge in the output graph stores the common group value and the number of represented elements.
 
 {% top %}
+
+Graph Generators
+-----------
+
+Gelly provides a collection of scalable graph generators. Each generator is
+
+* parallelizable, in order to create large datasets
+* scale-free, generating the same graph regardless of parallelism
+* thrifty, using as few operators as possible
+
+### Complete Graph
+
+An undirected graph connecting every distinct pair of vertices.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, 5)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.CompleteGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new CompleteGraph(env.getJavaEnv, 5).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="540"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="270" y1="40" x2="489" y2="199" />
+    <line x1="270" y1="40" x2="405" y2="456" />
+    <line x1="270" y1="40" x2="135" y2="456" />
+    <line x1="270" y1="40" x2="51" y2="199" />
+
+    <line x1="489" y1="199" x2="405" y2="456" />
+    <line x1="489" y1="199" x2="135" y2="456" />
+    <line x1="489" y1="199" x2="51" y2="199" />
+
+    <line x1="405" y1="456" x2="135" y2="456" />
+    <line x1="405" y1="456" x2="51" y2="199" />
+
+    <line x1="135" y1="456" x2="51" y2="199" />
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">0</text>
+
+    <circle cx="489" cy="199" r="20" />
+    <text x="489" y="199">1</text>
+
+    <circle cx="405" cy="456" r="20" />
+    <text x="405" y="456">2</text>
+
+    <circle cx="135" cy="456" r="20" />
+    <text x="135" y="456">3</text>
+
+    <circle cx="51" cy="199" r="20" />
+    <text x="51" y="199">4</text>
+</svg>
+
+### Cycle Graph
+
+An undirected graph where all edges form a single cycle.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new CycleGraph(env, 5)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.CycleGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new CycleGraph(env.getJavaEnv, 5).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="540"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="270" y1="40" x2="489" y2="199" />
+    <line x1="489" y1="199" x2="405" y2="456" />
+    <line x1="405" y1="456" x2="135" y2="456" />
+    <line x1="135" y1="456" x2="51" y2="199" />
+    <line x1="51" y1="199" x2="270" y2="40" />
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">0</text>
+
+    <circle cx="489" cy="199" r="20" />
+    <text x="489" y="199">1</text>
+
+    <circle cx="405" cy="456" r="20" />
+    <text x="405" y="456">2</text>
+
+    <circle cx="135" cy="456" r="20" />
+    <text x="135" y="456">3</text>
+
+    <circle cx="51" cy="199" r="20" />
+    <text x="51" y="199">4</text>
+</svg>
+
+### Empty Graph
+
+The graph containing no edges.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 5)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.EmptyGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new EmptyGraph(env.getJavaEnv, 5).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="80"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">0</text>
+
+    <circle cx="150" cy="40" r="20" />
+    <text x="150" y="40">1</text>
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">2</text>
+
+    <circle cx="390" cy="40" r="20" />
+    <text x="390" y="40">3</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">4</text>
+</svg>
+
+### Grid Graph
+
+An undirected graph connecting vertices in a regular tiling in one or more dimensions.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+    .addDimension(2, false)
+    .addDimension(4, false)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.GridGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new GridGraph(env.getJavaEnv).addDimension(2, false).addDimension(4, false).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="200"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="30" y1="40" x2="510" y2="40" />
+    <line x1="30" y1="160" x2="510" y2="160" />
+
+    <line x1="30" y1="40" x2="30" y2="160" />
+    <line x1="190" y1="40" x2="190" y2="160" />
+    <line x1="350" y1="40" x2="350" y2="160" />
+    <line x1="510" y1="40" x2="510" y2="160" />
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">0</text>
+
+    <circle cx="190" cy="40" r="20" />
+    <text x="190" y="40">1</text>
+
+    <circle cx="350" cy="40" r="20" />
+    <text x="350" y="40">2</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">3</text>
+
+    <circle cx="30" cy="160" r="20" />
+    <text x="30" y="160">4</text>
+
+    <circle cx="190" cy="160" r="20" />
+    <text x="190" y="160">5</text>
+
+    <circle cx="350" cy="160" r="20" />
+    <text x="350" y="160">6</text>
+
+    <circle cx="510" cy="160" r="20" />
+    <text x="510" y="160">7</text>
+</svg>
+
+### Hypercube Graph
+
+An undirected graph where edges form an n-dimensional hypercube.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new HypercubeGraph(env, 2)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.HypercubeGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+// note: configured with the number of vertex pairs
+val graph = new HypercubeGraph(env.getJavaEnv, 4).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="320"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="190" y1="120" x2="350" y2="120" />
+    <line x1="190" y1="200" x2="350" y2="200" />
+    <line x1="190" y1="120" x2="190" y2="200" />
+    <line x1="350" y1="120" x2="350" y2="200" />
+
+    <line x1="30" y1="40" x2="510" y2="40" />
+    <line x1="30" y1="280" x2="510" y2="280" />
+    <line x1="30" y1="40" x2="30" y2="280" />
+    <line x1="510" y1="40" x2="510" y2="280" />
+
+    <line x1="190" y1="120" x2="30" y2="40" />
+    <line x1="350" y1="120" x2="510" y2="40" />
+    <line x1="190" y1="200" x2="30" y2="280" />
+    <line x1="350" y1="200" x2="510" y2="280" />
+
+    <circle cx="190" cy="120" r="20" />
+    <text x="190" y="120">0</text>
+
+    <circle cx="350" cy="120" r="20" />
+    <text x="350" y="120">1</text>
+
+    <circle cx="190" cy="200" r="20" />
+    <text x="190" y="200">2</text>
+
+    <circle cx="350" cy="200" r="20" />
+    <text x="350" y="200">3</text>
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">4</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">5</text>
+
+    <circle cx="30" cy="280" r="20" />
+    <text x="30" y="280">6</text>
+
+    <circle cx="510" cy="280" r="20" />
+    <text x="510" y="280">7</text>
+</svg>
+
+### Path Graph
+
+An undirected Graph where all edges form a single path.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new PathGraph(env, 5)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.PathGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new PathGraph(env.getJavaEnv, 5).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="80"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="30" y1="40" x2="510" y2="40" />
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">0</text>
+
+    <circle cx="150" cy="40" r="20" />
+    <text x="150" y="40">1</text>
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">2</text>
+
+    <circle cx="390" cy="40" r="20" />
+    <text x="390" y="40">3</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">4</text>
+</svg>
+
+### RMat Graph
+
+A directed or undirected power-law graph generated using the [Recursive Matrix (R-Mat)]
+(http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model. RMat is a stochastic
+generator configured with a source of randomness.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+
+int vertexCount = 1 << scale;
+int edgeCount = edgeFactor * vertexCount;
+
+Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.RMatGraph
+
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 1 << scale
+val edgeCount = edgeFactor * vertexCount
+
+val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).generate()
+{% endhighlight %}
+</div>
+</div>
+
+Manipulating the RMat constants and noise affects the degree-skew. The RMat generator can be
+configured to produce a simple graph by removing self-loops and duplicate edges, with undirected
+edges produced by a "clip-and-flip" throwing away the half matrix above the diagonal or a full
+"flip" preserving and mirroring all edges.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+
+int vertexCount = 1 << scale;
+int edgeCount = edgeFactor * vertexCount;
+
+Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+    .setConstants(0.57f, 0.19f, 0.19f)
+    .setNoise(true, 0.10f)
+    .setSimpleGraph(true, false)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.RMatGraph
+
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 1 << scale
+val edgeCount = edgeFactor * vertexCount
+
+val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConstants(0.57f, 0.19f, 0.19f).setNoise(true, 0.10f).setSimpleGraph(true, false).generate()
+{% endhighlight %}
+</div>
+</div>
+
+### Singleton Edge Graph
+
+An undirected graph containing isolated two-paths.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// note: configured with the number of vertex pairs
+Graph<LongValue,NullValue,NullValue> graph = new SingletonEdgeGraph(env, 4)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.SingletonEdgeGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+// note: configured with the number of vertex pairs
+val graph = new SingletonEdgeGraph(env.getJavaEnv, 4).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="200"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="30" y1="40" x2="190" y2="40" />
+    <line x1="350" y1="40" x2="510" y2="40" />
+    <line x1="30" y1="160" x2="190" y2="160" />
+    <line x1="350" y1="160" x2="510" y2="160" />
+
+    <circle cx="30" cy="40" r="20" />
+    <text x="30" y="40">0</text>
+
+    <circle cx="190" cy="40" r="20" />
+    <text x="190" y="40">1</text>
+
+    <circle cx="350" cy="40" r="20" />
+    <text x="350" y="40">2</text>
+
+    <circle cx="510" cy="40" r="20" />
+    <text x="510" y="40">3</text>
+
+    <circle cx="30" cy="160" r="20" />
+    <text x="30" y="160">4</text>
+
+    <circle cx="190" cy="160" r="20" />
+    <text x="190" y="160">5</text>
+
+    <circle cx="350" cy="160" r="20" />
+    <text x="350" y="160">6</text>
+
+    <circle cx="510" cy="160" r="20" />
+    <text x="510" y="160">7</text>
+</svg>
+
+### Star Graph
+
+An undirected graph containing a single central vertex connected to all other leaf vertices.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, 6)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.StarGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val graph = new StarGraph(env.getJavaEnv, 6).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="540"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="270" y1="270" x2="270" y2="40" />
+    <line x1="270" y1="270" x2="489" y2="199" />
+    <line x1="270" y1="270" x2="405" y2="456" />
+    <line x1="270" y1="270" x2="135" y2="456" />
+    <line x1="270" y1="270" x2="51" y2="199" />
+
+    <circle cx="270" cy="270" r="20" />
+    <text x="270" y="270">0</text>
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">1</text>
+
+    <circle cx="489" cy="199" r="20" />
+    <text x="489" y="199">2</text>
+
+    <circle cx="405" cy="456" r="20" />
+    <text x="405" y="456">3</text>
+
+    <circle cx="135" cy="456" r="20" />
+    <text x="135" y="456">4</text>
+
+    <circle cx="51" cy="199" r="20" />
+    <text x="51" y="199">5</text>
+</svg>
+
+{% top %}

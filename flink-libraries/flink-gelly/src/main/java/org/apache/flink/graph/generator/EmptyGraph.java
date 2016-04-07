@@ -45,7 +45,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount;
 
 	/**
-	 * The empty {@link Graph} containing no edges.
+	 * The {@link Graph} containing no edges.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices

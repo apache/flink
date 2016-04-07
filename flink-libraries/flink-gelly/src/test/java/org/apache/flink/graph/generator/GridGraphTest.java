@@ -34,7 +34,7 @@ extends AbstractGraphTest {
 	@Test
 	public void testGraph()
 			throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(this.env)
+		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, false)
 			.addDimension(3, false)
 			.generate();
@@ -51,7 +51,7 @@ extends AbstractGraphTest {
 	@Test
 	public void testGraphMetrics()
 			throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(this.env)
+		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(2, true)
 			.addDimension(3, true)
 			.addDimension(5, true)

@@ -75,7 +75,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	/**
 	 * Generate a directed or undirected power-law {@link Graph} using the
-	 * Recusrive Matrix (R-Mat) model.
+	 * Recursive Matrix (R-Mat) model.
 	 *
 	 * @param env the Flink execution environment
 	 * @param randomGeneratorFactory source of randomness

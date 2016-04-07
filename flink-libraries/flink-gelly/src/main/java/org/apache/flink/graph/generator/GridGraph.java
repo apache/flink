@@ -49,7 +49,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount = 1;
 
 	/**
-	 * A {@link Graph} connecting vertices in a regular tiling in one or more dimensions.
+	 * An undirected {@link Graph} connecting vertices in a regular tiling in one or more dimensions.
 	 *
 	 * @param env the Flink execution environment
 	 */
