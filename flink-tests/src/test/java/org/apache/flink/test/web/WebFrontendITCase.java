@@ -84,6 +84,7 @@ public class WebFrontendITCase {
 		Files.createFile(outFile.toPath());
 		
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.getAbsolutePath());
+		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.getAbsolutePath());
 
 		cluster = new ForkableFlinkMiniCluster(config, false);
 		cluster.start();

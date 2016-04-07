@@ -44,7 +44,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -70,6 +69,7 @@ import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
