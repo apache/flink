@@ -189,8 +189,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	}
 
 	@Override
-	public void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf) {
+	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
 		this.flinkConfiguration = conf;
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfiguration;
 	}
 
 	@Override
@@ -224,6 +229,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		flinkConfigurationPath = confPath;
 	}
 
+	@Override
 	public void setConfigurationDirectory(String configurationDirectory) {
 		this.configurationDirectory = configurationDirectory;
 	}
@@ -262,6 +268,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
+	@Override
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
@@ -318,6 +325,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return detached;
 	}
 
+	@Override
 	public AbstractFlinkYarnCluster deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
@@ -742,6 +750,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return new ClusterResourceDescription(totalFreeMemory, containerLimit, nodeManagersFree);
 	}
 
+	@Override
 	public String getClusterDescription() throws Exception {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -777,6 +786,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return baos.toString();
 	}
 
+	@Override
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
 	}
