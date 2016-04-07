@@ -38,6 +38,8 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -217,13 +219,14 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
-		acknowledgeCheckpoint(checkpointId, null);
+		acknowledgeCheckpoint(checkpointId, null, null);
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> keyGroupStates) {
 		// try and create a serialized version of the state handle
 		SerializedValue<StateHandle<?>> serializedState;
+		Map<Integer, SerializedValue<StateHandle<?>>> serializedKeyGroupStates;
 		long stateSize;
 
 		if (state == null) {
@@ -243,13 +246,36 @@ public class RuntimeEnvironment implements Environment {
 				throw new RuntimeException("Failed to fetch state handle size", e);
 			}
 		}
+
+		if (keyGroupStates == null) {
+			serializedKeyGroupStates = null;
+		} else {
+			serializedKeyGroupStates = new HashMap<>(keyGroupStates.size());
+
+			for(Map.Entry<Integer, StateHandle<?>> entry: keyGroupStates.entrySet()) {
+				try {
+					SerializedValue<StateHandle<?>> serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
+
+					serializedKeyGroupStates.put(entry.getKey(), serializedKeyGroupState);
+				} catch(IOException e) {
+					throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation.", e);
+				}
+
+				try {
+					stateSize += entry.getValue().getStateSize();
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to fetch state handle size.", e);
+				}
+			}
+		}
 		
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-				jobId,
-				executionId,
-				checkpointId,
-				serializedState,
-				stateSize);
+			jobId,
+			executionId,
+			checkpointId,
+			serializedState,
+			serializedKeyGroupStates,
+			stateSize);
 
 		jobManager.tell(message);
 	}

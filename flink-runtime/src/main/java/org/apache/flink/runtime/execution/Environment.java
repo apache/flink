@@ -154,9 +154,13 @@ public interface Environment {
 	 * the given state in the checkpoint.
 	 *
 	 * @param checkpointId The ID of the checkpoint.
-	 * @param state A handle to the state to be included in the checkpoint.   
+	 * @param state A handle to the state to be included in the checkpoint.
+	 * @param keyGroupStates State handles for key group state
 	 */
-	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
+	void acknowledgeCheckpoint(
+		long checkpointId,
+		StateHandle<?> state,
+		Map<Integer, StateHandle<?>> keyGroupStates);
 
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task

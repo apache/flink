@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
+import java.util.Map;
+
 /**
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
  * {@link org.apache.flink.runtime.jobmanager.JobManager} to signal that the checkpoint of an
@@ -36,6 +38,8 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	
 	private final SerializedValue<StateHandle<?>> state;
 
+	private final Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates;
+
 	/**
 	 * The state size. This is an optimization in order to not deserialize the
 	 * state handle at the checkpoint coordinator when gathering stats about
@@ -44,23 +48,29 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	private final long stateSize;
 
 	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null, 0);
+		this(job, taskExecutionId, checkpointId, null, null, 0);
 	}
 
 	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			SerializedValue<StateHandle<?>> state,
-			long stateSize) {
+		JobID job,
+		ExecutionAttemptID taskExecutionId,
+		long checkpointId,
+		SerializedValue<StateHandle<?>> state,
+		Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates,
+		long stateSize) {
 
 		super(job, taskExecutionId, checkpointId);
 		this.state = state;
+		this.keyGroupStates = keyGroupStates;
 		this.stateSize = stateSize;
 	}
 
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
+	}
+
+	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupStates() {
+		return keyGroupStates;
 	}
 
 	public long getStateSize() {
