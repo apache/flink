@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 import static java.util.Objects.requireNonNull;
 
@@ -117,8 +117,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState state = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorState state = super.snapshotOperatorState(checkpointId, timestamp);
 
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
@@ -150,7 +150,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
 		super.restoreState(state, recoveryTimestamp);
 		
 		StateHandle<Serializable> stateHandle =  state.getFunctionState();

@@ -40,8 +40,8 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskStateList;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -138,11 +138,11 @@ public class RocksDBAsyncKVSnapshotTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
+				assertTrue(state instanceof StreamTaskState);
+				StreamTaskState stateList = (StreamTaskState) state;
 
 				// should be only one k/v state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
+				StreamOperatorState taskState = stateList.getState(this.getUserClassLoader())[0];
 				assertEquals(1, taskState.getKvStates().size());
 
 				// we now know that the checkpoint went through

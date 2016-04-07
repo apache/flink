@@ -101,7 +101,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements StatefulTask<StreamTaskStateList> {
+		implements StatefulTask<StreamTaskState> {
 
 	/** The thread group that holds all trigger timer threads */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -136,7 +136,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 	
 	/** The state to be restored once the initialization is done */
-	private StreamTaskStateList lazyRestoreState;
+	private StreamTaskState lazyRestoreState;
 
 	/**
 	 * This field is used to forward an exception that is caught in the timer thread or other
@@ -426,7 +426,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setInitialState(StreamTaskStateList initialState, long recoveryTimestamp) {
+	public void setInitialState(StreamTaskState initialState, long recoveryTimestamp) {
 		lazyRestoreState = initialState;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
@@ -437,13 +437,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			
 			try {
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-				final StreamTaskState[] states = lazyRestoreState.getState(userClassLoader);
+				final StreamOperatorState[] states = lazyRestoreState.getState(userClassLoader);
 				
 				// be GC friendly
 				lazyRestoreState = null;
 				
 				for (int i = 0; i < states.length; i++) {
-					StreamTaskState state = states[i];
+					StreamOperatorState state = states[i];
 					StreamOperator<?> operator = allOperators[i];
 					
 					if (state != null && operator != null) {
@@ -490,14 +490,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				
 				// now draw the state snapshot
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-				final StreamTaskState[] states = new StreamTaskState[allOperators.length];
+				final StreamOperatorState[] states = new StreamOperatorState[allOperators.length];
 
 				boolean hasAsyncStates = false;
 
 				for (int i = 0; i < states.length; i++) {
 					StreamOperator<?> operator = allOperators[i];
 					if (operator != null) {
-						StreamTaskState state = operator.snapshotOperatorState(checkpointId, timestamp);
+						StreamOperatorState state = operator.snapshotOperatorState(checkpointId, timestamp);
 						if (state.getOperatorState() instanceof AsynchronousStateHandle) {
 							hasAsyncStates = true;
 						}
@@ -522,7 +522,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					throw new CancelTaskException();
 				}
 
-				StreamTaskStateList allStates = new StreamTaskStateList(states);
+				StreamTaskState allStates = new StreamTaskState(states);
 
 				if (allStates.isEmpty()) {
 					getEnvironment().acknowledgeCheckpoint(checkpointId);
@@ -537,7 +537,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						@Override
 						public void run() {
 							try {
-								for (StreamTaskState state : states) {
+								for (StreamOperatorState state : states) {
 									if (state != null) {
 										if (state.getFunctionState() instanceof AsynchronousStateHandle) {
 											AsynchronousStateHandle<Serializable> asyncState = (AsynchronousStateHandle<Serializable>) state.getFunctionState();
@@ -560,7 +560,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 									}
 								}
-								StreamTaskStateList allStates = new StreamTaskStateList(states);
+								StreamTaskState allStates = new StreamTaskState(states);
 								getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
 								LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
 							}

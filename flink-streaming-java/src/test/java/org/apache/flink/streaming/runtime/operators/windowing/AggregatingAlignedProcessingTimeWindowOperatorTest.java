@@ -42,7 +42,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 import org.junit.After;
 import org.junit.Test;
@@ -576,7 +576,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot and dispose the window
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Tuple2<Integer, Integer>> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size();
@@ -684,7 +684,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Tuple2<Integer, Integer>> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size();

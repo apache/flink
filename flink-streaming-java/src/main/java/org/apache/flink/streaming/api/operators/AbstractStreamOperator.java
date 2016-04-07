@@ -31,7 +31,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,10 +167,10 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		// here, we deal with key/value state snapshots
 		
-		StreamTaskState state = new StreamTaskState();
+		StreamOperatorState state = new StreamOperatorState();
 
 		if (stateBackend != null) {
 			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> partitionedSnapshots =
@@ -186,7 +186,7 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	@Override
 	@SuppressWarnings("rawtypes,unchecked")
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
 		if (stateBackend != null) {

@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -92,8 +92,8 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	}
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
 		final AbstractStateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
 			checkpointId,
@@ -117,7 +117,7 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
 		super.restoreState(state, recoveryTimestamp);
 
 		StreamStateHandle stream = (StreamStateHandle)state.getOperatorState();

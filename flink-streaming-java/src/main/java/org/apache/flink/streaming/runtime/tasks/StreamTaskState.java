@@ -19,107 +19,80 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.StateHandle;
 
-import java.io.Serializable;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
-import java.util.Iterator;
 
 /**
- * The state checkpointed by a {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}.
- * This state consists of any combination of those three:
- * <ul>
- *     <li>The state of the stream operator, if it implements the Checkpointed interface.</li>
- *     <li>The state of the user function, if it implements the Checkpointed interface.</li>
- *     <li>The key/value state of the operator, if it executes on a KeyedDataStream.</li>
- * </ul>
+ * List of task states for a chain of streaming tasks.
  */
 @Internal
-public class StreamTaskState implements Serializable {
+public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
 
 	private static final long serialVersionUID = 1L;
-	
-	private StateHandle<?> operatorState;
 
-	private StateHandle<Serializable> functionState;
+	/** The states for all operator */
+	private final StreamOperatorState[] states;
 
-	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates;
-
-	// ------------------------------------------------------------------------
-
-	public StateHandle<?> getOperatorState() {
-		return operatorState;
+	public StreamTaskState(StreamOperatorState[] states) throws Exception {
+		this.states = states;
 	}
 
-	public void setOperatorState(StateHandle<?> operatorState) {
-		this.operatorState = operatorState;
-	}
-
-	public StateHandle<Serializable> getFunctionState() {
-		return functionState;
-	}
-
-	public void setFunctionState(StateHandle<Serializable> functionState) {
-		this.functionState = functionState;
-	}
-
-	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> getKvStates() {
-		return kvStates;
-	}
-
-	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates) {
-		this.kvStates = kvStates;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Checks if this state object actually contains any state, or if all of the state
-	 * fields are null.
-	 * 
-	 * @return True, if all state is null, false if at least one state is not null.
-	 */
 	public boolean isEmpty() {
-		return operatorState == null & functionState == null & kvStates == null;
+		for (StreamOperatorState state : states) {
+			if (state != null) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	@Override
+	public StreamOperatorState[] getState(ClassLoader userCodeClassLoader) {
+		return states;
 	}
 
-	/**
-	 * Discards all the contained states and sets them to null.
-	 * 
-	 * @throws Exception Forwards exceptions that occur when releasing the
-	 *                   state handles and snapshots.
-	 */
+	@Override
 	public void discardState() throws Exception {
-		StateHandle<?> operatorState = this.operatorState;
-		StateHandle<?> functionState = this.functionState;
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
-		
-		if (operatorState != null) {
-			operatorState.discardState();
+		for (StreamOperatorState state : states) {
+			if (state != null) {
+				state.discardState();
+			}
 		}
-		if (functionState != null) {
-			functionState.discardState();
-		}
-		if (kvStates != null) {
-			while (kvStates.size() > 0) {
-				try {
-					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
-					while (values.hasNext()) {
-						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
-						s.discardState();
-						values.remove();
+	}
+
+	@Override
+	public long getStateSize() throws Exception {
+		long sumStateSize = 0;
+
+		if (states != null) {
+			for (StreamOperatorState state : states) {
+				if (state != null) {
+					StateHandle<?> operatorState = state.getOperatorState();
+					StateHandle<?> functionState = state.getFunctionState();
+					HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
+
+					if (operatorState != null) {
+						sumStateSize += operatorState.getStateSize();
 					}
-				}
-				catch (ConcurrentModificationException e) {
-					// fall through the loop
+
+					if (functionState != null) {
+						sumStateSize += functionState.getStateSize();
+					}
+
+					if (kvStates != null) {
+						for (KvStateSnapshot<?, ?, ?, ?, ?> kvState : kvStates.values()) {
+							if (kvState != null) {
+								sumStateSize += kvState.getStateSize();
+							}
+						}
+					}
 				}
 			}
 		}
 
-		this.operatorState = null;
-		this.functionState = null;
-		this.kvStates = null;
+		// State size as sum of all state sizes
+		return sumStateSize;
 	}
 }

@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.util.Collector;
 
 import org.junit.After;
@@ -474,7 +474,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot and dispose the window
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Integer> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size(); 
@@ -570,7 +570,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Integer> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size();

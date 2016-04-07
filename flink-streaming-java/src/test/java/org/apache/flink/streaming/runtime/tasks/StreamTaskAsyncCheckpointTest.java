@@ -99,11 +99,11 @@ public class StreamTaskAsyncCheckpointTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
+				assertTrue(state instanceof StreamTaskState);
+				StreamTaskState stateList = (StreamTaskState) state;
 
 				// should be only one state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
+				StreamOperatorState taskState = stateList.getState(this.getUserClassLoader())[0];
 				StateHandle<?> operatorState = taskState.getOperatorState();
 				assertTrue("It must be a TestStateHandle", operatorState instanceof TestStateHandle);
 				TestStateHandle testState = (TestStateHandle) operatorState;
@@ -158,8 +158,8 @@ public class StreamTaskAsyncCheckpointTest {
 
 
 		@Override
-		public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-			StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		public StreamOperatorState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
+			StreamOperatorState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
 			AsynchronousStateHandle<String> asyncState =
 				new DataInputViewAsynchronousStateHandle(checkpointId, timestamp);
@@ -170,7 +170,7 @@ public class StreamTaskAsyncCheckpointTest {
 		}
 
 		@Override
-		public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
+		public void restoreState(StreamOperatorState taskState, long recoveryTimestamp) throws Exception {
 			super.restoreState(taskState, recoveryTimestamp);
 		}
 	}

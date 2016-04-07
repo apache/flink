@@ -57,7 +57,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -696,20 +696,20 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 		}
 
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		StreamOperatorState operatorState = super.snapshotOperatorState(checkpointId, timestamp);
 
 		AbstractStateBackend.CheckpointStateOutputView out =
 			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
 		snapshotTimers(out);
 
-		taskState.setOperatorState(out.closeAndGetHandle());
+		operatorState.setOperatorState(out.closeAndGetHandle());
 
 		return taskState;
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
+	public void restoreState(StreamOperatorState taskState, long recoveryTimestamp) throws Exception {
 		super.restoreState(taskState, recoveryTimestamp);
 
 		final ClassLoader userClassloader = getUserCodeClassloader();
