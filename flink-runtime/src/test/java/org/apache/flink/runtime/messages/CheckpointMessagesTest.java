@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 
 public class CheckpointMessagesTest {
 	
@@ -58,8 +59,12 @@ public class CheckpointMessagesTest {
 											new JobID(), new ExecutionAttemptID(), 569345L);
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
-											new JobID(), new ExecutionAttemptID(), 87658976143L, 
-											new SerializedValue<StateHandle<?>>(new MyHandle()), 0);
+				new JobID(),
+				new ExecutionAttemptID(),
+				87658976143L,
+				new SerializedValue<StateHandle<?>>(new MyHandle()),
+				Collections.singletonMap(42, new SerializedValue<StateHandle<?>>(new MyHandle())),
+				0);
 			
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);

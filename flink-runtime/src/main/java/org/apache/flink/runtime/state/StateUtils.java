@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
+import java.util.Map;
+
 /**
  * A collection of utility methods for dealing with operator state.
  */
@@ -38,19 +40,26 @@ public class StateUtils {
 	 *            The state carrier operator.
 	 * @param state
 	 *            The state handle.
+	 * @param keyGroupState
+	 *            The key group state handle
 	 * @param recoveryTimestamp
 	 *            Global recovery timestamp
 	 * @param <T>
 	 *            Type bound for the
 	 */
-	public static <T extends StateHandle<?>> void setOperatorState(StatefulTask<?> op,
-			StateHandle<?> state, long recoveryTimestamp) throws Exception {
+	public static <T extends StateHandle<?>, K extends StateHandle<?>> void setOperatorState(
+		StatefulTask<?, ?> op,
+		StateHandle<?> state,
+		Map<Integer, StateHandle<?>> keyGroupState,
+		long recoveryTimestamp) throws Exception {
 		@SuppressWarnings("unchecked")
-		StatefulTask<T> typedOp = (StatefulTask<T>) op;
+		StatefulTask<T, K> typedOp = (StatefulTask<T, K>) op;
 		@SuppressWarnings("unchecked")
 		T typedHandle = (T) state;
+		@SuppressWarnings("unchecked")
+		Map<Integer, K> typedKeyGroupState = (Map<Integer, K>) keyGroupState;
 
-		typedOp.setInitialState(typedHandle, recoveryTimestamp);
+		typedOp.setInitialState(typedHandle, typedKeyGroupState, recoveryTimestamp);
 	}
 
 	// ------------------------------------------------------------------------

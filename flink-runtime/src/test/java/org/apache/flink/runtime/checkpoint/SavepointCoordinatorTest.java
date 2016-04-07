@@ -121,8 +121,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Acknowledge tasks
 		for (ExecutionVertex vertex : vertices) {
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-					checkpointId, createSerializedStateHandle(vertex), 0));
+				jobId,
+				vertex.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointId,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		// The pending checkpoint is completed
@@ -190,7 +194,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : ackVertices) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -249,7 +258,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : ackVertices) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -299,7 +313,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -602,7 +621,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 		for (ExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			ExecutionAttemptID attemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, attemptId, 0, createSerializedStateHandle(vertex), 0));
+				jobId,
+				attemptId,
+				0,
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		try {
@@ -671,14 +695,22 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Acknowledge second checkpoint...
 		for (ExecutionVertex vertex : vertices) {
 			coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-					jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-					checkpointIds[1], createSerializedStateHandle(vertex), 0));
+				jobId,
+				vertex.getCurrentExecutionAttempt().getAttemptId(),
+				checkpointIds[1],
+				createSerializedStateHandle(vertex),
+				createSerializedStateHandleMap(vertex),
+				0));
 		}
 
 		// ...and one task of first checkpoint
 		coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-				jobId, vertices[0].getCurrentExecutionAttempt().getAttemptId(),
-				checkpointIds[0], createSerializedStateHandle(vertices[0]), 0));
+			jobId,
+			vertices[0].getCurrentExecutionAttempt().getAttemptId(),
+			checkpointIds[0],
+			createSerializedStateHandle(vertices[0]),
+			createSerializedStateHandleMap(vertices[0]),
+			0));
 
 		// The second pending checkpoint is completed and subsumes the first one
 		assertTrue(pendingCheckpoints[0].isDiscarded());
@@ -763,8 +795,12 @@ public class SavepointCoordinatorTest extends TestLogger {
 			// Acknowledge tasks
 			for (ExecutionVertex vertex : vertices) {
 				coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-						jobId, vertex.getCurrentExecutionAttempt().getAttemptId(),
-						checkpointId, createSerializedStateHandle(vertex), 0));
+					jobId,
+					vertex.getCurrentExecutionAttempt().getAttemptId(),
+					checkpointId,
+					createSerializedStateHandle(vertex),
+					createSerializedStateHandleMap(vertex),
+					0));
 			}
 
 			// The pending checkpoint is completed
@@ -841,6 +877,14 @@ public class SavepointCoordinatorTest extends TestLogger {
 
 		return new SerializedValue<StateHandle<?>>(new LocalStateHandle<Serializable>(
 				vertex.getCurrentExecutionAttempt().getAttemptId()));
+	}
+
+	private static Map<Integer, SerializedValue<StateHandle<?>>> createSerializedStateHandleMap(ExecutionVertex vertex) throws IOException {
+		return Collections.singletonMap(
+			0,
+			new SerializedValue<StateHandle<?>>(
+				new LocalStateHandle<Serializable>(
+					vertex.getCurrentExecutionAttempt().getAttemptId())));
 	}
 
 	@SuppressWarnings("unchecked")

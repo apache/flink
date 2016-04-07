@@ -50,6 +50,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertFalse;
@@ -172,7 +173,7 @@ public class TaskAsyncCallTest {
 				new TaskManagerRuntimeInfo("localhost", new Configuration()));
 	}
 	
-	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {
+	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>, StateHandle<Serializable>> {
 
 		private volatile long lastCheckpointId = 0;
 		
@@ -196,7 +197,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(StateHandle<Serializable> stateHandle, long ts) throws Exception {
+		public void setInitialState(StateHandle<Serializable> stateHandle, Map<Integer, StateHandle<Serializable>> keyGroupStateHandles, long recoveryTimestamp) throws Exception {
 
 		}
 

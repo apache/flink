@@ -131,7 +131,10 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+	public void acknowledgeCheckpoint(
+		long checkpointId,
+		StateHandle<?> state,
+		Map<Integer, StateHandle<?>> keyGroupStates) {
 	}
 
 	@Override

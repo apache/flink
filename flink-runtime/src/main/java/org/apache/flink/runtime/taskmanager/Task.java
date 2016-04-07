@@ -217,6 +217,8 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
+	private volatile Map<Integer, SerializedValue<StateHandle<?>>> operatorKvStates;
+
 	private volatile long recoveryTs;
 
 	/** The job specific execution configuration (see {@link ExecutionConfig}). */
@@ -252,6 +254,7 @@ public class Task implements Runnable {
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
+		this.operatorKvStates = null;
 		this.recoveryTs = tdd.getRecoveryTimestamp();
 		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
 
@@ -529,14 +532,22 @@ public class Task implements Runnable {
 
 			// get our private reference onto the stack (be safe against concurrent changes)
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
+			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvStates = this.operatorKvStates;
 			long recoveryTs = this.recoveryTs;
 
 			if (operatorState != null) {
 				if (invokable instanceof StatefulTask) {
 					try {
 						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						StatefulTask<?> op = (StatefulTask<?>) invokable;
-						StateUtils.setOperatorState(op, state, recoveryTs);
+
+						Map<Integer, StateHandle<?>> keyGroupState = new HashMap<>();
+
+						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState: operatorKvStates.entrySet()) {
+							keyGroupState.put(operatorKvState.getKey(), operatorKvState.getValue().deserializeValue(userCodeClassLoader));
+						}
+
+						StatefulTask<?, ?> op = (StatefulTask<?, ?>) invokable;
+						StateUtils.setOperatorState(op, state, keyGroupState, recoveryTs);
 					}
 					catch (Exception e) {
 						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
@@ -915,7 +926,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask<?, ?> statefulTask = (StatefulTask<?, ?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -956,7 +967,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask<?, ?> statefulTask = (StatefulTask<?, ?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {

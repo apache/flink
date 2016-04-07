@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.state.KeyGroupAssigner;
@@ -34,6 +36,8 @@ import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.state.DeserializationStateBackendFactory;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.KeyGroupStateBackend;
+import org.apache.flink.runtime.state.KeyGroupState;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -101,7 +105,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements StatefulTask<StreamTaskState> {
+		implements StatefulTask<StreamTaskState, ChainedKeyGroupState> {
 
 	/** The thread group that holds all trigger timer threads */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -137,6 +141,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	
 	/** The state to be restored once the initialization is done */
 	private StreamTaskState lazyRestoreState;
+
+	private Map<Integer, ChainedKeyGroupState> lazyRestoreKeyGroupStates;
 
 	/**
 	 * This field is used to forward an exception that is caught in the timer thread or other
@@ -210,6 +216,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// first order of business is to give operators back their state
 			restoreState();
 			lazyRestoreState = null; // GC friendliness
+			lazyRestoreKeyGroupStates = null; // GC friendliness
 			
 			// we need to make sure that any triggers scheduled in open() cannot be
 			// executed before all operators are opened
@@ -426,8 +433,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setInitialState(StreamTaskState initialState, long recoveryTimestamp) {
+	public void setInitialState(StreamTaskState initialState, Map<Integer, ChainedKeyGroupState> initialKeyGroupStates, long recoveryTimestamp) {
 		lazyRestoreState = initialState;
+		lazyRestoreKeyGroupStates = initialKeyGroupStates;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
 	
@@ -438,20 +446,53 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			try {
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 				final StreamOperatorState[] states = lazyRestoreState.getState(userClassLoader);
-				
+				final List<Map<Integer, KeyGroupState>> keyGroupStates = new ArrayList<Map<Integer, KeyGroupState>>(allOperators.length);
+
 				// be GC friendly
 				lazyRestoreState = null;
-				
+
+				// construct key groups state for operators
+				for (Map.Entry<Integer, ChainedKeyGroupState> lazyRestoreKeyGroupState: lazyRestoreKeyGroupStates.entrySet()) {
+					int keyGroupId = lazyRestoreKeyGroupState.getKey();
+
+					Map<Integer, KeyGroupState> chainedKeyGroupStates = lazyRestoreKeyGroupState.getValue().getState(getUserCodeClassLoader());
+
+					for (Map.Entry<Integer, KeyGroupState> chainedKeyGroupState: chainedKeyGroupStates.entrySet()) {
+						int chainedIndex = chainedKeyGroupState.getKey();
+						Map<Integer, KeyGroupState> keyGroupState;
+
+						if (keyGroupStates.get(chainedIndex) == null) {
+							keyGroupState = new HashMap<>();
+							keyGroupStates.set(chainedIndex, keyGroupState);
+						} else {
+							keyGroupState = keyGroupStates.get(chainedIndex);
+						}
+
+						keyGroupState.put(keyGroupId, chainedKeyGroupState.getValue());
+					}
+				}
+
+				lazyRestoreKeyGroupStates = null;
+
 				for (int i = 0; i < states.length; i++) {
 					StreamOperatorState state = states[i];
 					StreamOperator<?> operator = allOperators[i];
-					
-					if (state != null && operator != null) {
-						LOG.debug("Task {} in chain ({}) has checkpointed state", i, getName());
-						operator.restoreState(state, recoveryTimestamp);
-					}
-					else if (operator != null) {
-						LOG.debug("Task {} in chain ({}) does not have checkpointed state", i, getName());
+					Map<Integer, KeyGroupState> keyGroupState = keyGroupStates.get(i);
+
+					if (operator != null) {
+						if (state != null) {
+							LOG.debug("Task {} in chain ({}) has checkpointed state", i, getName());
+							operator.restoreState(state, recoveryTimestamp);
+						} else {
+							LOG.debug("Task {} in chain ({}) does not have checkpointed state", i, getName());
+						}
+
+						if (keyGroupState != null && !keyGroupState.isEmpty()) {
+							LOG.debug("Task {} in chain ({}) has checkpointed key-value state", i, getName());
+							operator.restoreKvState(keyGroupState, recoveryTimestamp);
+						} else {
+							LOG.debug("Task {} in chain ({}) does not have checkpointed key-value state", i, getName());
+						}
 					}
 				}
 			}
@@ -491,6 +532,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				// now draw the state snapshot
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 				final StreamOperatorState[] states = new StreamOperatorState[allOperators.length];
+				final HashMap<Integer, StateHandle<?>> chainedKeyGroupStates = new HashMap<>();
 
 				boolean hasAsyncStates = false;
 
@@ -504,15 +546,42 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						if (state.getFunctionState() instanceof AsynchronousStateHandle) {
 							hasAsyncStates = true;
 						}
-						if (state.getKvStates() != null) {
-							for (KvStateSnapshot<?, ?, ?, ?, ?> kvSnapshot: state.getKvStates().values()) {
-								if (kvSnapshot instanceof AsynchronousKvStateSnapshot) {
-									hasAsyncStates = true;
+
+						// snapshot kv state
+						Map<Integer, KeyGroupState> keyGroupStates = operator.snapshotKvState(
+							this.getIndexInSubtaskGroup(),
+							checkpointId,
+							timestamp);
+
+						if (keyGroupStates != null) {
+							for (KeyGroupState keyGroupState : keyGroupStates.values()) {
+
+								if (keyGroupState != null) {
+									for (KvStateSnapshot<?, ?, ?, ?, ?> kvSnapshot : keyGroupState.values()) {
+										if (kvSnapshot instanceof AsynchronousKvStateSnapshot) {
+											hasAsyncStates = true;
+										}
+									}
 								}
 							}
 						}
 
 						states[i] = state.isEmpty() ? null : state;
+
+						if (keyGroupStates != null) {
+							for (Map.Entry<Integer, KeyGroupState> keyGroupState : keyGroupStates.entrySet()) {
+								ChainedKeyGroupState chainedKeyGroupState;
+
+								if (!chainedKeyGroupStates.containsKey(keyGroupState.getKey())) {
+									chainedKeyGroupState = new ChainedKeyGroupState(allOperators.length);
+									chainedKeyGroupStates.put(keyGroupState.getKey(), chainedKeyGroupState);
+								} else {
+									chainedKeyGroupState = (ChainedKeyGroupState) chainedKeyGroupStates.get(keyGroupState.getKey());
+								}
+
+								chainedKeyGroupState.put(i, keyGroupState.getValue());
+							}
+						}
 					}
 				}
 
@@ -522,12 +591,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					throw new CancelTaskException();
 				}
 
-				StreamTaskState allStates = new StreamTaskState(states);
+				StreamTaskState streamTaskState = new StreamTaskState(states);
 
-				if (allStates.isEmpty()) {
+				if (streamTaskState.isEmpty()) {
 					getEnvironment().acknowledgeCheckpoint(checkpointId);
 				} else if (!hasAsyncStates) {
-					getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+					getEnvironment().acknowledgeCheckpoint(checkpointId, streamTaskState, chainedKeyGroupStates);
 				} else {
 					// start a Thread that does the asynchronous materialization and
 					// then sends the checkpoint acknowledge
@@ -547,21 +616,23 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 											AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
 											state.setOperatorState(asyncState.materialize());
 										}
-										if (state.getKvStates() != null) {
-											Set<String> keys = state.getKvStates().keySet();
-											HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
-											for (String key: keys) {
-												if (kvStates.get(key) instanceof AsynchronousKvStateSnapshot) {
-													AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) kvStates.get(key);
-													kvStates.put(key, asyncHandle.materialize());
-												}
-											}
-										}
-
 									}
 								}
-								StreamTaskState allStates = new StreamTaskState(states);
-								getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+
+								for (StateHandle<?> stateHandle: chainedKeyGroupStates.values()) {
+									ChainedKeyGroupState chainedKeyGroupState = (ChainedKeyGroupState) stateHandle;
+									for (KeyGroupState keyGroupState: chainedKeyGroupState.getState(getUserCodeClassLoader()).values()) {
+										for (String key: keyGroupState.keySet()) {
+											if (keyGroupState.get(key) instanceof AsynchronousKvStateSnapshot) {
+												AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) keyGroupState.get(key);
+												keyGroupState.put(key, asyncHandle.materialize());
+											}
+										}
+									}
+								}
+
+								StreamTaskState streamTaskState = new StreamTaskState(states);
+								getEnvironment().acknowledgeCheckpoint(checkpointId, streamTaskState, chainedKeyGroupStates);
 								LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
 							}
 							catch (Exception e) {

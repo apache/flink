@@ -57,6 +57,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -127,8 +128,8 @@ public class RocksDBAsyncKVSnapshotTest {
 			}
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-				super.acknowledgeCheckpoint(checkpointId, state);
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> kvStates) {
+				super.acknowledgeCheckpoint(checkpointId, state, kvStates);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -143,7 +144,7 @@ public class RocksDBAsyncKVSnapshotTest {
 
 				// should be only one k/v state
 				StreamOperatorState taskState = stateList.getState(this.getUserClassLoader())[0];
-				assertEquals(1, taskState.getKvStates().size());
+				assertEquals(1, kvStates.size());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();

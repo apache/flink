@@ -19,10 +19,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 
-import java.util.HashMap;
 
 /**
  * List of task states for a chain of streaming tasks.
@@ -71,7 +69,6 @@ public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
 				if (state != null) {
 					StateHandle<?> operatorState = state.getOperatorState();
 					StateHandle<?> functionState = state.getFunctionState();
-					HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = state.getKvStates();
 
 					if (operatorState != null) {
 						sumStateSize += operatorState.getStateSize();
@@ -79,14 +76,6 @@ public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
 
 					if (functionState != null) {
 						sumStateSize += functionState.getStateSize();
-					}
-
-					if (kvStates != null) {
-						for (KvStateSnapshot<?, ?, ?, ?, ?> kvState : kvStates.values()) {
-							if (kvState != null) {
-								sumStateSize += kvState.getStateSize();
-							}
-						}
 					}
 				}
 			}

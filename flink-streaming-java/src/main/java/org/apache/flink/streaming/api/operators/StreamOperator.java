@@ -18,8 +18,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
+import java.util.Map;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.state.KeyGroupState;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -103,6 +105,8 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *                   and the key/value state.
 	 */
 	StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
+
+	Map<Integer, KeyGroupState> snapshotKvState(int subtaskIndex, long checkpointId, long timestamp) throws Exception;
 	
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
@@ -121,6 +125,14 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
 	void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception;
+
+	/**
+	 *
+	 * @param keyGroupStates
+	 * @param recoveryTimestamp
+	 * @throws Exception
+	 */
+	void restoreKvState(Map<Integer, KeyGroupState> keyGroupStates, long recoveryTimestamp) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

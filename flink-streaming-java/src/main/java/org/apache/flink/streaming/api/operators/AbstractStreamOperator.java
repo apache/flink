@@ -25,8 +25,8 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.KeyGroupState;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -168,29 +168,29 @@ public abstract class AbstractStreamOperator<OUT>
 
 	@Override
 	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		return new StreamOperatorState();
+	}
+
+	@Override
+	public Map<Integer, KeyGroupState> snapshotKvState(int subtaskIndex, long checkpointId, long timestamp) throws Exception {
 		// here, we deal with key/value state snapshots
-		
-		StreamOperatorState state = new StreamOperatorState();
-
 		if (stateBackend != null) {
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> partitionedSnapshots =
-				stateBackend.snapshotPartitionedState(checkpointId, timestamp);
-			if (partitionedSnapshots != null) {
-				state.setKvStates(partitionedSnapshots);
-			}
+			return stateBackend.snapshotPartitionedState(subtaskIndex, checkpointId, timestamp);
+		} else {
+			return null;
 		}
-
-
-		return state;
 	}
 	
 	@Override
-	@SuppressWarnings("rawtypes,unchecked")
 	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
+	}
+
+	@Override
+	public void restoreKvState(Map<Integer, KeyGroupState> keyGroupStates, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
 		if (stateBackend != null) {
-			stateBackend.injectKeyValueStateSnapshots((HashMap)state.getKvStates(), recoveryTimestamp);
+			stateBackend.injectKeyValueStateSnapshots(keyGroupStates, recoveryTimestamp);
 		}
 	}
 	

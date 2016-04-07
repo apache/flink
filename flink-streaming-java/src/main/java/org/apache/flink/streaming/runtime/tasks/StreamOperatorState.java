@@ -20,12 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.io.Serializable;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.Iterator;
 
 /**
  * The state checkpointed by a {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}.
@@ -45,8 +41,6 @@ public class StreamOperatorState implements Serializable {
 
 	private StateHandle<Serializable> functionState;
 
-	private HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates;
-
 	// ------------------------------------------------------------------------
 
 	public StateHandle<?> getOperatorState() {
@@ -65,14 +59,6 @@ public class StreamOperatorState implements Serializable {
 		this.functionState = functionState;
 	}
 
-	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> getKvStates() {
-		return kvStates;
-	}
-
-	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates) {
-		this.kvStates = kvStates;
-	}
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -82,7 +68,7 @@ public class StreamOperatorState implements Serializable {
 	 * @return True, if all state is null, false if at least one state is not null.
 	 */
 	public boolean isEmpty() {
-		return operatorState == null & functionState == null & kvStates == null;
+		return operatorState == null & functionState == null;
 	}
 
 	/**
@@ -94,32 +80,15 @@ public class StreamOperatorState implements Serializable {
 	public void discardState() throws Exception {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> kvStates = this.kvStates;
-		
+
 		if (operatorState != null) {
 			operatorState.discardState();
 		}
 		if (functionState != null) {
 			functionState.discardState();
 		}
-		if (kvStates != null) {
-			while (kvStates.size() > 0) {
-				try {
-					Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> values = kvStates.values().iterator();
-					while (values.hasNext()) {
-						KvStateSnapshot<?, ?, ?, ?, ?> s = values.next();
-						s.discardState();
-						values.remove();
-					}
-				}
-				catch (ConcurrentModificationException e) {
-					// fall through the loop
-				}
-			}
-		}
 
 		this.operatorState = null;
 		this.functionState = null;
-		this.kvStates = null;
 	}
 }
