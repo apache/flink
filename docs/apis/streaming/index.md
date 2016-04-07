@@ -637,7 +637,7 @@ keyedStream.reduce { _ + _ }
           emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
           {% highlight scala %}
 val result: DataStream[String] =
-    keyedStream.fold("start", (str, i) => { str + "-" + i })
+    keyedStream.fold("start")((str, i) => { str + "-" + i })
           {% endhighlight %}
           </p>
           </td>
