@@ -1044,6 +1044,9 @@ public class CliFrontend {
 
 			jobManagerAddress = yarnCluster.getJobManagerAddress();
 			writeJobManagerAddressToConfig(jobManagerAddress);
+			
+			// overwrite the yarn client config (because the client parses the dynamic properties)
+			this.config.addAll(flinkYarnClient.getFlinkConfiguration());
 
 			logAndSysout("YARN cluster started");
 			logAndSysout("JobManager web interface address " + yarnCluster.getWebInterfaceURL());
@@ -1180,8 +1183,9 @@ public class CliFrontend {
 					catch (Exception e) {
 						return handleError(e);
 					}
+				} else {
+					return run(params);
 				}
-				return run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.fs.Path;
 import java.io.File;
 import java.util.List;
@@ -43,7 +44,9 @@ public abstract class AbstractFlinkYarnClient {
 	/**
 	 * Flink configuration
 	 */
-	public abstract void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf);
+	public abstract void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf);
+
+	public abstract Configuration getFlinkConfiguration();
 
 	/**
 	 *

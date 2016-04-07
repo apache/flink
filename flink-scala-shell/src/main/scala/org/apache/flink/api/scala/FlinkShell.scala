@@ -223,7 +223,7 @@ object FlinkShell {
     val confFile = new File(confDirPath + File.separator + "flink-conf.yaml")
     val confPath = new Path(confFile.getAbsolutePath)
     GlobalConfiguration.loadConfiguration(confDirPath)
-    yarnClient.setFlinkConfigurationObject(flinkConfiguration)
+    yarnClient.setFlinkConfiguration(flinkConfiguration)
     yarnClient.setConfigurationDirectory(confDirPath)
     yarnClient.setConfigurationFilePath(confPath)
 

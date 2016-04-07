@@ -142,7 +142,7 @@ public class FlinkYarnSessionCli {
 		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
 		GlobalConfiguration.loadConfiguration(confDirPath);
 		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
-		flinkYarnClient.setFlinkConfigurationObject(flinkConfiguration);
+		flinkYarnClient.setFlinkConfiguration(flinkConfiguration);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 		File confFile = new File(confDirPath + File.separator + CONFIG_FILE_NAME);
 		if (!confFile.exists()) {
