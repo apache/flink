@@ -33,8 +33,9 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
-import org.rocksdb.Options;
+import org.rocksdb.DBOptions;
 
 import java.io.File;
 import java.util.UUID;
@@ -162,7 +163,7 @@ public class RocksDBStateBackendConfigTest {
 		try {
 			assertTrue(targetDir1.mkdirs());
 			assertTrue(targetDir2.mkdirs());
-	
+
 			if (!targetDir1.setWritable(false, false)) {
 				System.err.println("Cannot execute 'testContinueOnSomeDbDirectoriesMissing' because cannot mark directory non-writable");
 				return;
@@ -201,13 +202,18 @@ public class RocksDBStateBackendConfigTest {
 		
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
-		
-		Options opt1 = rocksDbBackend.getRocksDBOptions();
-		Options opt2 = rocksDbBackend.getRocksDBOptions();
+
+		DBOptions opt1 = rocksDbBackend.getDbOptions();
+		DBOptions opt2 = rocksDbBackend.getDbOptions();
 		
 		assertEquals(opt1, opt2);
-		
-		assertEquals(CompactionStyle.LEVEL, opt1.compactionStyle());
+
+		ColumnFamilyOptions columnOpt1 = rocksDbBackend.getColumnOptions();
+		ColumnFamilyOptions columnOpt2 = rocksDbBackend.getColumnOptions();
+
+		assertEquals(columnOpt1, columnOpt2);
+
+		assertEquals(CompactionStyle.LEVEL, columnOpt1.compactionStyle());
 	}
 
 	@Test
@@ -216,13 +222,18 @@ public class RocksDBStateBackendConfigTest {
 		
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
-			public Options createOptions(Options currentOptions) {
+			public DBOptions createDBOptions(DBOptions currentOptions) {
+				return currentOptions;
+			}
+
+			@Override
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
 				return currentOptions.setCompactionStyle(CompactionStyle.FIFO);
 			}
 		});
 		
 		assertNotNull(rocksDbBackend.getOptions());
-		assertEquals(CompactionStyle.FIFO, rocksDbBackend.getRocksDBOptions().compactionStyle());
+		assertEquals(CompactionStyle.FIFO, rocksDbBackend.getColumnOptions().compactionStyle());
 	}
 
 	@Test
@@ -234,20 +245,25 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
-			public Options createOptions(Options currentOptions) {
+			public DBOptions createDBOptions(DBOptions currentOptions) {
+				return currentOptions;
+			}
+
+			@Override
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
 				return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 			}
 		});
 		
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 		assertNotNull(rocksDbBackend.getOptions());
-		assertEquals(CompactionStyle.UNIVERSAL, rocksDbBackend.getRocksDBOptions().compactionStyle());
+		assertEquals(CompactionStyle.UNIVERSAL, rocksDbBackend.getColumnOptions().compactionStyle());
 	}
 
 	@Test
 	public void testPredefinedOptionsEnum() {
 		for (PredefinedOptions o : PredefinedOptions.values()) {
-			Options opt = o.createOptions();
+			DBOptions opt = o.createDBOptions();
 			try {
 				assertNotNull(opt);
 			} finally {

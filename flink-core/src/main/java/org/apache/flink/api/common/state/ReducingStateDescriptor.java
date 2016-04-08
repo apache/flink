@@ -96,4 +96,34 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	public ReduceFunction<T> getReduceFunction() {
 		return reduceFunction;
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		ReducingStateDescriptor<?> that = (ReducingStateDescriptor<?>) o;
+
+		return serializer.equals(that.serializer) && name.equals(that.name);
+
+	}
+
+	@Override
+	public int hashCode() {
+		int result = serializer.hashCode();
+		result = 31 * result + name.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "ReducingStateDescriptor{" +
+				"serializer=" + serializer +
+				", reduceFunction=" + reduceFunction +
+				'}';
+	}
 }

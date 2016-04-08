@@ -19,8 +19,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
-import org.rocksdb.Options;
+import org.rocksdb.DBOptions;
+import org.rocksdb.StringAppendOperator;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}. 
@@ -42,11 +44,18 @@ public enum PredefinedOptions {
 	DEFAULT {
 		
 		@Override
-		public Options createOptions() {
-			return new Options()
+		public DBOptions createDBOptions() {
+			return new DBOptions()
 					.setUseFsync(false)
 					.setDisableDataSync(true);
 		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
+			return new ColumnFamilyOptions()
+					.setMergeOperator(new StringAppendOperator());
+		}
+
 	},
 
 	/**
@@ -72,15 +81,21 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED {
 
 		@Override
-		public Options createOptions() {
+		public DBOptions createDBOptions() {
 
-			return new Options()
-					.setCompactionStyle(CompactionStyle.LEVEL)
-					.setLevelCompactionDynamicLevelBytes(true)
+			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setDisableDataSync(true)
 					.setMaxOpenFiles(-1);
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
+			return new ColumnFamilyOptions()
+					.setMergeOperator(new StringAppendOperator())
+					.setCompactionStyle(CompactionStyle.LEVEL)
+					.setLevelCompactionDynamicLevelBytes(true);
 		}
 	},
 
@@ -113,25 +128,32 @@ public enum PredefinedOptions {
 	SPINNING_DISK_OPTIMIZED_HIGH_MEM {
 
 		@Override
-		public Options createOptions() {
+		public DBOptions createDBOptions() {
+
+			return new DBOptions()
+					.setIncreaseParallelism(4)
+					.setUseFsync(false)
+					.setDisableDataSync(true)
+					.setMaxOpenFiles(-1);
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
 
 			final long blockCacheSize = 256 * 1024 * 1024;
 			final long blockSize = 128 * 1024;
 			final long targetFileSize = 256 * 1024 * 1024;
 			final long writeBufferSize = 64 * 1024 * 1024;
 
-			return new Options()
+			return new ColumnFamilyOptions()
+					.setMergeOperator(new StringAppendOperator())
 					.setCompactionStyle(CompactionStyle.LEVEL)
 					.setLevelCompactionDynamicLevelBytes(true)
 					.setTargetFileSizeBase(targetFileSize)
 					.setMaxBytesForLevelBase(4 * targetFileSize)
 					.setWriteBufferSize(writeBufferSize)
-					.setIncreaseParallelism(4)
 					.setMinWriteBufferNumberToMerge(3)
 					.setMaxWriteBufferNumber(4)
-					.setUseFsync(false)
-					.setDisableDataSync(true)
-					.setMaxOpenFiles(-1)
 					.setTableFormatConfig(
 							new BlockBasedTableConfig()
 									.setBlockCacheSize(blockCacheSize)
@@ -160,21 +182,35 @@ public enum PredefinedOptions {
 	FLASH_SSD_OPTIMIZED {
 
 		@Override
-		public Options createOptions() {
-			return new Options()
+		public DBOptions createDBOptions() {
+			return new DBOptions()
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setDisableDataSync(true)
 					.setMaxOpenFiles(-1);
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
+			return new ColumnFamilyOptions()
+					.setMergeOperator(new StringAppendOperator());
 		}
 	};
 	
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates the options for this pre-defined setting.
+	 * Creates the {@link DBOptions}for this pre-defined setting.
 	 * 
 	 * @return The pre-defined options object. 
 	 */
-	public abstract Options createOptions();
+	public abstract DBOptions createDBOptions();
+
+	/**
+	 * Creates the {@link org.rocksdb.ColumnFamilyOptions}for this pre-defined setting.
+	 *
+	 * @return The pre-defined options object.
+	 */
+	public abstract ColumnFamilyOptions createColumnOptions();
+
 }
