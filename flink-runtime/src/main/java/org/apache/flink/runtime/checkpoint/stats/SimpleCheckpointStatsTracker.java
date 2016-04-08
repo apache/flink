@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StateForTask;
+import org.apache.flink.runtime.checkpoint.StateForTaskGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import scala.Option;
@@ -136,29 +137,27 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		}
 
 		synchronized (statsLock) {
-			long overallStateSize = 0;
+			long overallStateSize = checkpoint.getStateSize();
 
 			// Operator stats
 			Map<JobVertexID, long[][]> statsForSubTasks = new HashMap<>();
 
-			for (StateForTask state : checkpoint.getStates()) {
-				// Job-level checkpoint size is sum of all state sizes
-				overallStateSize += state.getStateSize();
+			for (Map.Entry<JobVertexID, StateForTaskGroup> stateForTaskGroupEntry: checkpoint.getTaskGroupStates().entrySet()) {
+				JobVertexID jobVertexID = stateForTaskGroupEntry.getKey();
+				StateForTaskGroup stateForTaskGroup = stateForTaskGroupEntry.getValue();
 
-				// Subtask stats
-				JobVertexID opId = state.getOperatorId();
-				long[][] statsPerSubtask = statsForSubTasks.get(opId);
+				int parallelism = taskParallelism.get(jobVertexID);
+				long[][] statsPerSubtask = new long[parallelism][2];
 
-				if (statsPerSubtask == null) {
-					int parallelism = taskParallelism.get(opId);
-					statsPerSubtask = new long[parallelism][2];
-					statsForSubTasks.put(opId, statsPerSubtask);
-				}
+				statsForSubTasks.put(jobVertexID, statsPerSubtask);
 
-				int subTaskIndex = state.getSubtask();
-				if (subTaskIndex < statsPerSubtask.length) {
-					statsPerSubtask[subTaskIndex][0] = state.getDuration();
-					statsPerSubtask[subTaskIndex][1] = state.getStateSize();
+				for (int i = 0; i < Math.min(stateForTaskGroup.getParallelism(), parallelism); i++) {
+					StateForTask stateForTask = stateForTaskGroup.getState(i);
+
+					if (stateForTask != null) {
+						statsPerSubtask[i][0] = stateForTask.getDuration();
+						statsPerSubtask[i][1] = stateForTask.getStateSize();
+					}
 				}
 			}
 

@@ -637,6 +637,7 @@ public class ExecutionVertex implements Serializable {
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
 			SerializedValue<StateHandle<?>> operatorState,
+			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState,
 			long recoveryTimestamp,
 			int attemptNumber) {
 
@@ -670,11 +671,25 @@ public class ExecutionVertex implements Serializable {
 		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
 		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
 
-		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, config, getTaskName(),
-				subTaskIndex, getTotalNumberOfParallelSubtasks(), attemptNumber, getExecutionGraph().getJobConfiguration(),
-				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),
-				operatorState, recoveryTimestamp);
+		return new TaskDeploymentDescriptor(
+			getJobId(),
+			getJobvertexId(),
+			executionId,
+			config,
+			getTaskName(),
+			subTaskIndex,
+			getTotalNumberOfParallelSubtasks(),
+			attemptNumber,
+			getExecutionGraph().getJobConfiguration(),
+			jobVertex.getJobVertex().getConfiguration(),
+			jobVertex.getJobVertex().getInvokableClassName(),
+			producedPartitions,
+			consumedPartitions,
+			jarFiles,
+			classpaths,
+			targetSlot.getRoot().getSlotNumber(),
+			operatorState,
+			recoveryTimestamp);
 	}
 
 	// --------------------------------------------------------------------------------------------

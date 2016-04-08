@@ -1179,11 +1179,20 @@ class JobManager(
 
           val checkpointIdCounter = checkpointRecoveryFactory.createCheckpointIDCounter(jobId)
 
+          val jobParallelism = jobGraph.getExecutionConfig.getParallelism()
+
+          val parallelism = if (jobParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+            numSlots
+          } else {
+            jobGraph.getExecutionConfig.getParallelism
+          }
+
           executionGraph.enableSnapshotCheckpointing(
             snapshotSettings.getCheckpointInterval,
             snapshotSettings.getCheckpointTimeout,
             snapshotSettings.getMinPauseBetweenCheckpoints,
             snapshotSettings.getMaxConcurrentCheckpoints,
+            parallelism,
             triggerVertices,
             ackVertices,
             confirmVertices,

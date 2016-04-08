@@ -64,11 +64,11 @@ public class CheckpointStateRestoreTest {
 			Execution statelessExec1 = mockExecution();
 			Execution statelessExec2 = mockExecution();
 
-			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0);
-			ExecutionVertex stateful2 = mockExecutionVertex(statefulExec2, statefulId, 1);
-			ExecutionVertex stateful3 = mockExecutionVertex(statefulExec3, statefulId, 2);
-			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0);
-			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1);
+			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0, 3);
+			ExecutionVertex stateful2 = mockExecutionVertex(statefulExec2, statefulId, 1, 3);
+			ExecutionVertex stateful3 = mockExecutionVertex(statefulExec3, statefulId, 2, 3);
+			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0, 2);
+			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1, 2);
 
 			ExecutionJobVertex stateful = mockExecutionJobVertex(statefulId,
 					new ExecutionVertex[] { stateful1, stateful2, stateful3 });
@@ -80,12 +80,18 @@ public class CheckpointStateRestoreTest {
 			map.put(statelessId, stateless);
 
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(jid, 200000L, 200000L,
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0], cl,
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				200000L,
+				200000L,
+				42,
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[0],
+				cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1, cl),
+				RecoveryMode.STANDALONE);
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -107,11 +113,11 @@ public class CheckpointStateRestoreTest {
 			coord.restoreLatestCheckpointedState(map, true, false);
 
 			// verify that each stateful vertex got the state
-			verify(statefulExec1, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.anyLong());
-			verify(statefulExec2, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.anyLong());
-			verify(statefulExec3, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.anyLong());
-			verify(statelessExec1, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.anyLong());
-			verify(statelessExec2, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.anyLong());
+			verify(statefulExec1, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
+			verify(statefulExec2, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
+			verify(statefulExec3, times(1)).setInitialState(Mockito.eq(serializedState), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
+			verify(statelessExec2, times(0)).setInitialState(Mockito.<SerializedValue<StateHandle<?>>>any(), Mockito.<Map<Integer, SerializedValue<StateHandle<?>>>>any(), Mockito.anyLong());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -135,11 +141,11 @@ public class CheckpointStateRestoreTest {
 			Execution statelessExec1 = mockExecution();
 			Execution statelessExec2 = mockExecution();
 
-			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0);
-			ExecutionVertex stateful2 = mockExecutionVertex(statefulExec2, statefulId, 1);
-			ExecutionVertex stateful3 = mockExecutionVertex(statefulExec3, statefulId, 2);
-			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0);
-			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1);
+			ExecutionVertex stateful1 = mockExecutionVertex(statefulExec1, statefulId, 0, 3);
+			ExecutionVertex stateful2 = mockExecutionVertex(statefulExec2, statefulId, 1, 3);
+			ExecutionVertex stateful3 = mockExecutionVertex(statefulExec3, statefulId, 2, 3);
+			ExecutionVertex stateless1 = mockExecutionVertex(statelessExec1, statelessId, 0, 2);
+			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1, 2);
 
 			ExecutionJobVertex stateful = mockExecutionJobVertex(statefulId,
 					new ExecutionVertex[] { stateful1, stateful2, stateful3 });
@@ -151,12 +157,18 @@ public class CheckpointStateRestoreTest {
 			map.put(statelessId, stateless);
 
 
-			CheckpointCoordinator coord = new CheckpointCoordinator(jid, 200000L, 200000L,
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
-					new ExecutionVertex[0], cl,
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				200000L,
+				200000L,
+				42,
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
+				new ExecutionVertex[0],
+				cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1, cl),
+				RecoveryMode.STANDALONE);
 
 			// create ourselves a checkpoint with state
 			final long timestamp = 34623786L;
@@ -193,12 +205,16 @@ public class CheckpointStateRestoreTest {
 	@Test
 	public void testNoCheckpointAvailable() {
 		try {
-			CheckpointCoordinator coord = new CheckpointCoordinator(new JobID(), 200000L, 200000L,
-					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[] { mock(ExecutionVertex.class) },
-					new ExecutionVertex[0], cl,
-					new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				new JobID(),
+				200000L,
+				200000L,
+				42,
+				new ExecutionVertex[] { mock(ExecutionVertex.class) },
+				new ExecutionVertex[] { mock(ExecutionVertex.class) },
+				new ExecutionVertex[0], cl,
+				new StandaloneCheckpointIDCounter(),
+				new StandaloneCompletedCheckpointStore(1, cl), RecoveryMode.STANDALONE);
 
 			try {
 				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
@@ -227,11 +243,12 @@ public class CheckpointStateRestoreTest {
 		return mock;
 	}
 
-	private ExecutionVertex mockExecutionVertex(Execution execution, JobVertexID vertexId, int subtask) {
+	private ExecutionVertex mockExecutionVertex(Execution execution, JobVertexID vertexId, int subtask, int parallelism) {
 		ExecutionVertex mock = mock(ExecutionVertex.class);
 		when(mock.getJobvertexId()).thenReturn(vertexId);
 		when(mock.getParallelSubtaskIndex()).thenReturn(subtask);
 		when(mock.getCurrentExecutionAttempt()).thenReturn(execution);
+		when(mock.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
 		return mock;
 	}
 
