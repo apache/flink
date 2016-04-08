@@ -202,7 +202,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		// Verify all executions have been reset
 		for (ExecutionVertex vertex : ackVertices) {
 			verify(vertex.getCurrentExecutionAttempt(), times(1)).setInitialState(
-					any(SerializedValue.class), anyLong());
+					any(SerializedValue.class), any(Map.class), anyLong());
 		}
 
 		// Verify all promises removed
@@ -328,7 +328,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 	@Test
 	public void testRollbackSetsCheckpointID() throws Exception {
 		CompletedCheckpoint savepoint = mock(CompletedCheckpoint.class);
-		when(savepoint.getStates()).thenReturn(Collections.<StateForTask>emptyList());
+		when(savepoint.getTaskStates()).thenReturn(Collections.<JobVertexID, TaskState>emptyMap());
 		when(savepoint.getCheckpointID()).thenReturn(12312312L);
 
 		CheckpointIDCounter checkpointIdCounter = mock(CheckpointIDCounter.class);
@@ -814,6 +814,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 				jobId,
 				checkpointTimeout,
 				checkpointTimeout,
+				42,
 				triggerVertices,
 				ackVertices,
 				commitVertices,
@@ -907,7 +908,14 @@ public class SavepointCoordinatorTest extends TestLogger {
 		assertEquals(expectedTimestamp, checkpoint.getCheckpointTimestamp());
 		assertEquals(expectedNumberOfAcknowledgedTasks, checkpoint.getNumberOfAcknowledgedTasks());
 		assertEquals(expectedNumberOfNonAcknowledgedTasks, checkpoint.getNumberOfNonAcknowledgedTasks());
-		assertEquals(expectedNumberOfCollectedStates, checkpoint.getCollectedStates().size());
+
+		int actualNumberOfCollectedStates = 0;
+
+		for (TaskState taskState : checkpoint.getTaskStates().values()) {
+			actualNumberOfCollectedStates += taskState.getNumberCollectedStates();
+		}
+
+		assertEquals(expectedNumberOfCollectedStates, actualNumberOfCollectedStates);
 		assertEquals(expectedIsDiscarded, checkpoint.isDiscarded());
 		assertEquals(expectedIsFullyAcknowledged, checkpoint.isFullyAcknowledged());
 	}
@@ -940,27 +948,24 @@ public class SavepointCoordinatorTest extends TestLogger {
 		assertEquals(expectedCheckpointId, checkpoint.getCheckpointID());
 		assertEquals(expectedTimestamp, checkpoint.getTimestamp());
 
-		List<StateForTask> states = checkpoint.getStates();
-		assertEquals(expectedVertices.length, states.size());
-
 		for (ExecutionVertex vertex : expectedVertices) {
-			JobVertexID expectedOperatorId = vertex.getJobvertexId();
+			JobVertexID jobVertexID = vertex.getJobvertexId();
 
-			boolean success = false;
-			for (StateForTask state : states) {
-				if (state.getOperatorId().equals(expectedOperatorId)) {
-					ExecutionAttemptID vertexAttemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
-					ExecutionAttemptID stateAttemptId = (ExecutionAttemptID) state.getState()
-							.deserializeValue(Thread.currentThread().getContextClassLoader())
-							.getState(Thread.currentThread().getContextClassLoader());
+			TaskState taskState = checkpoint.getTaskState(jobVertexID);
 
-					assertEquals(vertexAttemptId, stateAttemptId);
-					success = true;
-					break;
-				}
-			}
+			assertNotNull(taskState);
 
-			assertTrue(success);
+			SubtaskState subtaskState = taskState.getState(vertex.getParallelSubtaskIndex());
+
+			assertNotNull(subtaskState);
+
+			ExecutionAttemptID vertexAttemptId = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+			ExecutionAttemptID stateAttemptId = (ExecutionAttemptID) subtaskState.getState()
+				.deserializeValue(Thread.currentThread().getContextClassLoader())
+				.getState(Thread.currentThread().getContextClassLoader());
+
+			assertEquals(vertexAttemptId, stateAttemptId);
 		}
 	}
 
@@ -979,7 +984,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		ExecutionVertex[] vertices = new ExecutionVertex[parallelism];
 
 		for (int i = 0; i < vertices.length; i++) {
-			vertices[i] = mockExecutionVertex(jobId, jobVertexId, i, ExecutionState.RUNNING);
+			vertices[i] = mockExecutionVertex(jobId, jobVertexId, i, parallelism, ExecutionState.RUNNING);
 		}
 
 		when(jobVertex.getTaskVertices()).thenReturn(vertices);
@@ -995,13 +1000,14 @@ public class SavepointCoordinatorTest extends TestLogger {
 			JobID jobId,
 			ExecutionState state) {
 
-		return mockExecutionVertex(jobId, new JobVertexID(), 0, state);
+		return mockExecutionVertex(jobId, new JobVertexID(), 0, 1, state);
 	}
 
 	private static ExecutionVertex mockExecutionVertex(
 			JobID jobId,
 			JobVertexID jobVertexId,
 			int subtaskIndex,
+			int parallelism,
 			ExecutionState executionState) {
 
 		Execution exec = mock(Execution.class);
@@ -1013,6 +1019,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		when(vertex.getJobvertexId()).thenReturn(jobVertexId);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(subtaskIndex);
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
+		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
 
 		return vertex;
 	}

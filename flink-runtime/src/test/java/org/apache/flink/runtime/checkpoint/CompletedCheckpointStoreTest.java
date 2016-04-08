@@ -27,8 +27,9 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.assertEquals;
@@ -197,31 +198,22 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 		JobVertexID jvid = new JobVertexID();
 
-		ArrayList<StateForTask> taskStates = new ArrayList<>();
+		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
+		TaskState taskState = new TaskState(jvid, numberOfStates);
+		taskGroupStates.put(jvid, taskState);
 
 		for (int i = 0; i < numberOfStates; i++) {
 			SerializedValue<StateHandle<?>> stateHandle = new SerializedValue<StateHandle<?>>(
 					new CheckpointMessagesTest.MyHandle());
 
-			taskStates.add(new StateForTask(stateHandle, 0, jvid, i, 0));
+			taskState.putState(i, new SubtaskState(stateHandle, 0, 0));
 		}
 
-		return new TestCheckpoint(new JobID(), id, 0, taskStates);
+		return new TestCheckpoint(new JobID(), id, 0, taskGroupStates);
 	}
 
 	private void verifyCheckpoint(CompletedCheckpoint expected, CompletedCheckpoint actual) {
-		assertEquals(expected.getJobId(), actual.getJobId());
-		assertEquals(expected.getCheckpointID(), actual.getCheckpointID());
-		assertEquals(expected.getTimestamp(), actual.getTimestamp());
-
-		List<StateForTask> expectedStates = expected.getStates();
-		List<StateForTask> actualStates = actual.getStates();
-
-		assertEquals(expectedStates.size(), actualStates.size());
-
-		for (int i = 0; i < expectedStates.size(); i++) {
-			assertEquals(expectedStates.get(i), actualStates.get(i));
-		}
+		assertEquals(expected, actual);
 	}
 
 	/**
@@ -241,12 +233,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		private transient ClassLoader discardClassLoader;
 
 		public TestCheckpoint(
-				JobID jobId,
-				long checkpointId,
-				long timestamp,
-				ArrayList<StateForTask> states) {
+			JobID jobId,
+			long checkpointId,
+			long timestamp,
+			Map<JobVertexID, TaskState> taskGroupStates) {
 
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, states);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates);
 		}
 
 		@Override

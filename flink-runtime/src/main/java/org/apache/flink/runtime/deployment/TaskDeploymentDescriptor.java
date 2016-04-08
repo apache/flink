@@ -160,9 +160,25 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		List<URL> requiredClasspaths,
 		int targetSlotNumber) {
 
-		this(jobID, vertexID, executionId, executionConfig, taskName, indexInSubtaskGroup,
-				numberOfSubtasks, attemptNumber, jobConfiguration, taskConfiguration, invokableClassName,
-				producedPartitions, inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
+		this(
+			jobID,
+			vertexID,
+			executionId,
+			executionConfig,
+			taskName,
+			indexInSubtaskGroup,
+			numberOfSubtasks,
+			attemptNumber,
+			jobConfiguration,
+			taskConfiguration,
+			invokableClassName,
+			producedPartitions,
+			inputGates,
+			requiredJarFiles,
+			requiredClasspaths,
+			targetSlotNumber,
+			null,
+			-1);
 	}
 
 	/**

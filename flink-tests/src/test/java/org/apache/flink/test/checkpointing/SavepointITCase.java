@@ -32,7 +32,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
-import org.apache.flink.runtime.checkpoint.StateForTask;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -77,6 +78,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -85,6 +87,7 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationS
 import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -309,26 +312,23 @@ public class SavepointITCase extends TestLogger {
 
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.
-			for (StateForTask stateForTask : savepoint.getStates()) {
-				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(
-						stateForTask.getOperatorId());
+			for (Map.Entry<JobVertexID, TaskState> entry: savepoint.getTaskStates().entrySet()) {
+				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(entry.getKey());
+				TaskState taskState = entry.getValue();
 
 				errMsg = "Missing task for savepoint state for operator "
-						+ stateForTask.getOperatorId() + ".";
+					+ entry.getKey() + ".";
 				assertTrue(errMsg, taskTdds.size() > 0);
 
-				boolean success = false;
+				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
+
 				for (TaskDeploymentDescriptor tdd : taskTdds) {
-					if (tdd.getIndexInSubtaskGroup() == stateForTask.getSubtask()) {
-						success = true;
+					SubtaskState subtaskState = taskState.getState(tdd.getIndexInSubtaskGroup());
 
-						errMsg = "Initial operator state mismatch.";
-						assertEquals(errMsg, stateForTask.getState(), tdd.getOperatorState());
-					}
+					assertNotNull(subtaskState);
+					errMsg = "Initial operator state mismatch.";
+					assertEquals(errMsg, subtaskState.getState(), tdd.getOperatorState());
 				}
-
-				errMsg = "No matching task deployment descriptor found.";
-				assertTrue(errMsg, success);
 			}
 
 			// - Verification END ---------------------------------------------
@@ -350,15 +350,17 @@ public class SavepointITCase extends TestLogger {
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
-			for (StateForTask stateForTask : savepoint.getStates()) {
-				StreamTaskStateList taskStateList = (StreamTaskStateList) stateForTask.getState()
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
+					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
-				for (StreamTaskState taskState : taskStateList.getState(
+					for (StreamTaskState taskState : taskStateList.getState(
 						ClassLoader.getSystemClassLoader())) {
 
-					AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
-					checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
+						checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+					}
 				}
 			}
 
@@ -645,15 +647,17 @@ public class SavepointITCase extends TestLogger {
 			assertTrue((Boolean) Await.result(removedRespFuture, deadline.timeLeft()));
 
 			// Check that all checkpoint files have been removed
-			for (StateForTask stateForTask : savepoint.getStates()) {
-				StreamTaskStateList taskStateList = (StreamTaskStateList) stateForTask.getState()
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
+					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
-				for (StreamTaskState taskState : taskStateList.getState(
+					for (StreamTaskState taskState : taskStateList.getState(
 						ClassLoader.getSystemClassLoader())) {
 
-					AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
-					checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
+						checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+					}
 				}
 			}
 		}

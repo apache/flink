@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
@@ -26,24 +25,22 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * Simple bean to describe the state belonging to a parallel operator.
- * Since we hold the state across execution attempts, we identify a task by its
- * JobVertexId and subtask index.
+ * Simple bean to describe the state belonging to a parallel operator. It is part of the
+ * {@link TaskState}.
  * 
- * The state itself is kept in serialized from, since the checkpoint coordinator itself
+ * The state itself is kept in serialized form, since the checkpoint coordinator itself
  * is never looking at it anyways and only sends it back out in case of a recovery.
  * Furthermore, the state may involve user-defined classes that are not accessible without
  * the respective classloader.
  */
-public class StateForTask implements Serializable {
+public class SubtaskState implements Serializable {
 
 	private static final long serialVersionUID = -2394696997971923995L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(StateForTask.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
 
 	/** The state of the parallel operator */
 	private final SerializedValue<StateHandle<?>> state;
@@ -55,29 +52,17 @@ public class StateForTask implements Serializable {
 	 */
 	private final long stateSize;
 
-	/** The vertex id of the parallel operator */
-	private final JobVertexID operatorId;
-	
-	/** The index of the parallel subtask */
-	private final int subtask;
-
 	/** The duration of the acknowledged (ack timestamp - trigger timestamp). */
 	private final long duration;
 	
-	public StateForTask(
+	public SubtaskState(
 			SerializedValue<StateHandle<?>> state,
 			long stateSize,
-			JobVertexID operatorId,
-			int subtask,
 			long duration) {
 
 		this.state = checkNotNull(state, "State");
 		// Sanity check and don't fail checkpoint because of this.
 		this.stateSize = stateSize >= 0 ? stateSize : 0;
-		this.operatorId = checkNotNull(operatorId, "Operator ID");
-
-		checkArgument(subtask >= 0, "Negative subtask index");
-		this.subtask = subtask;
 
 		this.duration = duration;
 	}
@@ -90,14 +75,6 @@ public class StateForTask implements Serializable {
 
 	public long getStateSize() {
 		return stateSize;
-	}
-
-	public JobVertexID getOperatorId() {
-		return operatorId;
-	}
-
-	public int getSubtask() {
-		return subtask;
 	}
 
 	public long getDuration() {
@@ -119,10 +96,10 @@ public class StateForTask implements Serializable {
 		if (this == o) {
 			return true;
 		}
-		else if (o instanceof StateForTask) {
-			StateForTask that = (StateForTask) o;
-			return this.subtask == that.subtask && this.operatorId.equals(that.operatorId)
-					&& this.state.equals(that.state);
+		else if (o instanceof SubtaskState) {
+			SubtaskState that = (SubtaskState) o;
+			return this.state.equals(that.state) && stateSize == that.stateSize &&
+				duration == that.duration;
 		}
 		else {
 			return false;
@@ -131,11 +108,13 @@ public class StateForTask implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return state.hashCode() + 31 * operatorId.hashCode() + 43 * subtask;
+		return (int) (this.stateSize ^ this.stateSize >>> 32) +
+			31 * ((int) (this.duration ^ this.duration >>> 32) +
+				31 * state.hashCode());
 	}
 
 	@Override
 	public String toString() {
-		return String.format("StateForTask %s-%d : %s", operatorId, subtask, state);
+		return String.format("StateForTask(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
 	}
 }

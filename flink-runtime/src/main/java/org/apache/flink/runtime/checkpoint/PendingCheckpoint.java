@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
@@ -45,9 +45,9 @@ public class PendingCheckpoint {
 	private final long checkpointId;
 	
 	private final long checkpointTimestamp;
-	
-	private final List<StateForTask> collectedStates;
-	
+
+	private final Map<JobVertexID, TaskState> taskStates;
+
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
 	
 	private int numAcknowledgedTasks;
@@ -71,7 +71,7 @@ public class PendingCheckpoint {
 		this.checkpointTimestamp = checkpointTimestamp;
 		
 		this.notYetAcknowledgedTasks = verticesToConfirm;
-		this.collectedStates = new ArrayList<StateForTask>(notYetAcknowledgedTasks.size());
+		this.taskStates = new HashMap<>();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -96,7 +96,11 @@ public class PendingCheckpoint {
 	public int getNumberOfAcknowledgedTasks() {
 		return numAcknowledgedTasks;
 	}
-	
+
+	public Map<JobVertexID, TaskState> getTaskStates() {
+		return taskStates;
+	}
+
 	public boolean isFullyAcknowledged() {
 		return this.notYetAcknowledgedTasks.isEmpty() && !discarded;
 	}
@@ -105,18 +109,18 @@ public class PendingCheckpoint {
 		return discarded;
 	}
 	
-	public List<StateForTask> getCollectedStates() {
-		return collectedStates;
-	}
-	
 	public CompletedCheckpoint toCompletedCheckpoint() {
 		synchronized (lock) {
 			if (discarded) {
 				throw new IllegalStateException("pending checkpoint is discarded");
 			}
 			if (notYetAcknowledgedTasks.isEmpty()) {
-				CompletedCheckpoint completed =  new CompletedCheckpoint(jobId, checkpointId,
-						checkpointTimestamp, System.currentTimeMillis(), new ArrayList<StateForTask>(collectedStates));
+				CompletedCheckpoint completed =  new CompletedCheckpoint(
+					jobId,
+					checkpointId,
+					checkpointTimestamp,
+					System.currentTimeMillis(),
+					new HashMap<>(taskStates));
 				dispose(null, false);
 				
 				return completed;
@@ -130,7 +134,8 @@ public class PendingCheckpoint {
 	public boolean acknowledgeTask(
 			ExecutionAttemptID attemptID,
 			SerializedValue<StateHandle<?>> state,
-			long stateSize) {
+			long stateSize,
+			Map<Integer, SerializedValue<StateHandle<?>>> kvState) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -139,13 +144,43 @@ public class PendingCheckpoint {
 			
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
-				if (state != null) {
-					collectedStates.add(new StateForTask(
-							state,
-							stateSize,
-							vertex.getJobvertexId(),
+				if (state != null || kvState != null) {
+
+					JobVertexID jobVertexID = vertex.getJobvertexId();
+
+					TaskState taskState;
+
+					if (taskStates.containsKey(jobVertexID)) {
+						taskState = taskStates.get(jobVertexID);
+					} else {
+						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
+						taskStates.put(jobVertexID, taskState);
+					}
+
+					long timestamp = System.currentTimeMillis() - checkpointTimestamp;
+
+					if (state != null) {
+						taskState.putState(
 							vertex.getParallelSubtaskIndex(),
-							System.currentTimeMillis() - checkpointTimestamp));
+							new SubtaskState(
+								state,
+								stateSize,
+								timestamp
+							)
+						);
+					}
+
+					if (kvState != null) {
+						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
+							taskState.putKvState(
+								entry.getKey(),
+								new KeyGroupState(
+									entry.getValue(),
+									0L,
+									timestamp
+								));
+						}
+					}
 				}
 				numAcknowledgedTasks++;
 				return true;
@@ -168,11 +203,11 @@ public class PendingCheckpoint {
 			discarded = true;
 			numAcknowledgedTasks = -1;
 			if (releaseState) {
-				for (StateForTask state : collectedStates) {
-					state.discard(userClassLoader);
+				for (TaskState taskState : taskStates.values()) {
+					taskState.discard(userClassLoader);
 				}
 			}
-			collectedStates.clear();
+			taskStates.clear();
 			notYetAcknowledgedTasks.clear();
 		}
 	}
