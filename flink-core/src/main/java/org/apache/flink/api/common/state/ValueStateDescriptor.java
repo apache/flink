@@ -79,4 +79,35 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	public ValueState<T> bind(StateBackend stateBackend) throws Exception {
 		return stateBackend.createValueState(this);
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		ValueStateDescriptor<?> that = (ValueStateDescriptor<?>) o;
+
+		return serializer.equals(that.serializer) && name.equals(that.name);
+
+	}
+
+	@Override
+	public int hashCode() {
+		int result = serializer.hashCode();
+		result = 31 * result + name.hashCode();
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "ValueStateDescriptor{" +
+				"name=" + name +
+				", defaultValue=" + defaultValue +
+				", serializer=" + serializer +
+				'}';
+	}
 }

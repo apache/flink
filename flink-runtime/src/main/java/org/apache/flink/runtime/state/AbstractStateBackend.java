@@ -65,7 +65,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	private transient KvState<?, ?, ?, ?, ?>[] keyValueStates;
 
 	/** So that we can give out state when the user uses the same key. */
-	private transient HashMap<String, KvState<?, ?, ?, ?, ?>> keyValueStatesByName;
+	protected transient HashMap<String, KvState<?, ?, ?, ?, ?>> keyValueStatesByName;
 
 	/** For caching the last accessed partitioned state */
 	private transient String lastName;
@@ -110,11 +110,15 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	public abstract void close() throws Exception;
 
 	public void dispose() {
+		lastName = null;
+		lastState = null;
 		if (keyValueStates != null) {
 			for (KvState<?, ?, ?, ?, ?> state : keyValueStates) {
 				state.dispose();
 			}
 		}
+		keyValueStates = null;
+		keyValueStatesByName = null;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -337,7 +341,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @param keyValueStateSnapshots The Map of snapshots
 	 */
 	@SuppressWarnings("unchecked,rawtypes")
-	public final void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
+	public void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot> keyValueStateSnapshots, long recoveryTimestamp) throws Exception {
 		if (keyValueStateSnapshots != null) {
 			if (keyValueStatesByName == null) {
 				keyValueStatesByName = new HashMap<>();

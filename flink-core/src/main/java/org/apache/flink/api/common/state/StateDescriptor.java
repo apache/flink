@@ -49,14 +49,14 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	private static final long serialVersionUID = 1L;
 
 	/** Name that uniquely identifies state created from this StateDescriptor. */
-	private final String name;
+	protected final String name;
 
 	/** The serializer for the type. May be eagerly initialized in the constructor,
 	 * or lazily once the type is serialized or an ExecutionConfig is provided. */
-	private TypeSerializer<T> serializer;
+	protected TypeSerializer<T> serializer;
 
 	/** The default value returned by the state when no other value is bound to a key */
-	private transient T defaultValue;
+	protected transient T defaultValue;
 
 	/** The type information describing the value type. Only used to lazily create the serializer
 	 * and dropped during serialization */
@@ -210,23 +210,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	// ------------------------------------------------------------------------
 
 	@Override
-	public int hashCode() {
-		return name.hashCode() + 41;
-	}
+	public abstract int hashCode();
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		else {
-			StateDescriptor<?, ?> that = (StateDescriptor<?, ?>) o;
-			return this.name.equals(that.name);
-		}
-	}
+	public abstract boolean equals(Object o);
 
 	@Override
 	public String toString() {

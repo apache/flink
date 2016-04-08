@@ -24,17 +24,14 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.KvState;
 
-import org.rocksdb.Options;
+import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,7 +43,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-public class RocksDBFoldingState<K, N, T, ACC>
+class RocksDBFoldingState<K, N, T, ACC>
 	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 	implements FoldingState<T, ACC> {
 
@@ -54,7 +51,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	private final TypeSerializer<ACC> valueSerializer;
 
 	/** This holds the name of the state and can create an initial default value for the state. */
-	protected final FoldingStateDescriptor<T, ACC> stateDesc;
+	private final FoldingStateDescriptor<T, ACC> stateDesc;
 
 	/** User-specified fold function */
 	private final FoldFunction<T, ACC> foldFunction;
@@ -63,59 +60,23 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
 	 * because JNI segfaults for some reason if they are.
 	 */
-	protected final WriteOptions writeOptions;
+	private final WriteOptions writeOptions;
 
 	/**
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
-	 * @param keySerializer The serializer for the keys.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
-	 * @param dbPath The path on the local system where RocksDB data should be stored.
-	 * @param backupPath The path where to store backups.
 	 */
-	protected RocksDBFoldingState(
-			TypeSerializer<K> keySerializer,
+	RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
-			File dbPath,
-			String backupPath,
-			Options options) {
-		
-		super(keySerializer, namespaceSerializer, dbPath, backupPath, options);
+			RocksDBStateBackend backend) {
+
+		super(columnFamily, namespaceSerializer, backend);
 		
 		this.stateDesc = requireNonNull(stateDesc);
-		this.valueSerializer = stateDesc.getSerializer();
-		this.foldFunction = stateDesc.getFoldFunction();
-
-		writeOptions = new WriteOptions();
-		writeOptions.setDisableWAL(true);
-	}
-
-	/**
-	 * Creates a {@code RocksDBFoldingState} by restoring from a directory.
-	 *
-	 * @param keySerializer The serializer for the keys.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
-	 * @param dbPath The path on the local system where RocksDB data should be stored.
-	 * @param backupPath The path where to store backups.
-	 * @param restorePath The path on the local file system that we are restoring from.
-	 */
-	protected RocksDBFoldingState(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc,
-			File dbPath,
-			String backupPath,
-			String restorePath,
-			Options options) {
-		
-		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath, options);
-		
-		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
 
@@ -130,7 +91,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		try {
 			writeKeyAndNamespace(out);
 			byte[] key = baos.toByteArray();
-			byte[] valueBytes = db.get(key);
+			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return stateDesc.getDefaultValue();
 			}
@@ -147,64 +108,21 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		try {
 			writeKeyAndNamespace(out);
 			byte[] key = baos.toByteArray();
-			byte[] valueBytes = db.get(key);
+			byte[] valueBytes = backend.db.get(columnFamily, key);
 
 			if (valueBytes == null) {
 				baos.reset();
 				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
-				db.put(writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 				ACC newValue = foldFunction.fold(oldValue, value);
 				baos.reset();
 				valueSerializer.serialize(newValue, out);
-				db.put(writeOptions, key, baos.toByteArray());
+				backend.db.put(columnFamily, writeOptions, key, baos.toByteArray());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
-		}
-	}
-
-	@Override
-	protected AbstractRocksDBSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> createRocksDBSnapshot(
-			URI backupUri, long checkpointId) {
-		
-		return new Snapshot<>(basePath, checkpointPath, backupUri, checkpointId, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	private static class Snapshot<K, N, T, ACC> extends AbstractRocksDBSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {
-		private static final long serialVersionUID = 1L;
-
-		public Snapshot(
-				File dbPath,
-				String checkpointPath,
-				URI backupUri,
-				long checkpointId,
-				TypeSerializer<K> keySerializer,
-				TypeSerializer<N> namespaceSerializer,
-				FoldingStateDescriptor<T, ACC> stateDesc) {
-			
-			super(dbPath,
-				checkpointPath,
-				backupUri,
-				checkpointId,
-				keySerializer,
-				namespaceSerializer,
-				stateDesc);
-		}
-
-		@Override
-		protected KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, RocksDBStateBackend> 
-			createRocksDBState(
-				TypeSerializer<K> keySerializer,
-				TypeSerializer<N> namespaceSerializer,
-				FoldingStateDescriptor<T, ACC> stateDesc,
-				File dbPath,
-				String backupPath,
-				String restorePath,
-				Options options) throws Exception {
-			
-			return new RocksDBFoldingState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath, restorePath, options);
 		}
 	}
 }

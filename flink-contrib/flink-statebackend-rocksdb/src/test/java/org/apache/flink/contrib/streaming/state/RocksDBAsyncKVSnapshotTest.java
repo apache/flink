@@ -92,7 +92,7 @@ public class RocksDBAsyncKVSnapshotTest {
 		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
 
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
-		
+
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
@@ -144,7 +144,109 @@ public class RocksDBAsyncKVSnapshotTest {
 				// should be only one k/v state
 				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
 				assertEquals(1, taskState.getKvStates().size());
-				assertTrue(taskState.getKvStates().get("count") instanceof AbstractRocksDBState.AbstractRocksDBSnapshot);
+
+				// we now know that the checkpoint went through
+				ensureCheckpointLatch.trigger();
+			}
+		};
+
+		testHarness.invoke(mockEnv);
+
+		// wait for the task to be running
+		for (Field field: StreamTask.class.getDeclaredFields()) {
+			if (field.getName().equals("isRunning")) {
+				field.setAccessible(true);
+				while (!field.getBoolean(task)) {
+					Thread.sleep(10);
+				}
+
+			}
+		}
+
+		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+		task.triggerCheckpoint(42, 17);
+
+		// now we allow the checkpoint
+		delayCheckpointLatch.trigger();
+
+		// wait for the checkpoint to go through
+		ensureCheckpointLatch.await();
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+	}
+
+	/**
+	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 *
+	 * <p>We use latches to block at various stages and see if the code still continues through
+	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
+	 * test will simply lock forever.
+	 */
+	@Test
+	public void testFullyAsyncCheckpoints() throws Exception {
+		LocalFileSystem localFS = new LocalFileSystem();
+		localFS.initialize(new URI("file:///"), new Configuration());
+		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
+
+		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
+		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
+
+		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
+
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
+			@Override
+			public String getKey(String value) throws Exception {
+				return value;
+			}
+		}, BasicTypeInfo.STRING_TYPE_INFO);
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+
+		File dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
+		File chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
+
+		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		backend.setDbStoragePath(dbDir.getAbsolutePath());
+		backend.enableFullyAsyncSnapshots();
+
+		streamConfig.setStateBackend(backend);
+
+		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+
+		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
+				testHarness.jobConfig,
+				testHarness.taskConfig,
+				testHarness.memorySize,
+				new MockInputSplitProvider(),
+				testHarness.bufferSize) {
+
+			@Override
+			public void acknowledgeCheckpoint(long checkpointId) {
+				super.acknowledgeCheckpoint(checkpointId);
+			}
+
+			@Override
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+				super.acknowledgeCheckpoint(checkpointId, state);
+
+				// block on the latch, to verify that triggerCheckpoint returns below,
+				// even though the async checkpoint would not finish
+				try {
+					delayCheckpointLatch.await();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+
+				assertTrue(state instanceof StreamTaskStateList);
+				StreamTaskStateList stateList = (StreamTaskStateList) state;
+
+				// should be only one k/v state
+				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
+				assertEquals(1, taskState.getKvStates().size());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
