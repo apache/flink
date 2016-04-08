@@ -137,11 +137,19 @@ abstract class IterativeSolver() extends Solver {
     parameters.add(LearningRateMethodValue, learningRateMethod)
     this
   }
+
+  def setWarmStart(warmStart: Boolean): this.type = {
+    parameters.add(WarmStart, warmStart)
+    this
+  }
+
 }
 
 object IterativeSolver {
 
   val MAX_DLOSS: Double = 1e12
+
+  var CURRENT_ITER: Int = 0
 
   // Define parameters for IterativeSolver
   case object LearningRate extends Parameter[Double] {
@@ -159,6 +167,11 @@ object IterativeSolver {
   case object LearningRateMethodValue extends Parameter[LearningRateMethodTrait] {
     val defaultValue = Some(LearningRateMethod.Default)
   }
+
+  case object WarmStart extends Parameter[Boolean] {
+    val defaultValue = Some(false)
+  }
+
 }
 
 object LearningRateMethod {

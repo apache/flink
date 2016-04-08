@@ -83,6 +83,12 @@ and is usually determined through model cross-validation.
 A good comparison of regularization types can be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
 Which regularization type is supported depends on the actually used optimization algorithm.
 
+### Warm Starts
+
+For any optimization, the parameter weights must be initialized to some value. In Flink's implementation of Stochastic Gradient Descent for example, the weights are initialized as a zero vector. By default, every time a model is fit the weights are reinitialized to zero. When warm starts are allowed however, successive fits initialize the weight vector with the solution of the previous fit, and the iteration number $j$ is maintained, which may be important for calculating effective learning rate (depending on the strategy, see below).
+
+Suppose for example, you have fit a particularly complex model over 100,000 iterations but have not reached convergence.  By allowing warm starts and fitting for an additional 10,000 iterations, you may be able to achieve convergence with out having to start the fit process over again.  Another example, suppose you wish to measure the convergence rate among different step-size calculation strategies for a particular problem.  By setting a lower iteration number, allowing warm starts, fitting the algorithm multiple times, and measuring the error after each fit this may be achieved (see example).
+
 ## Stochastic Gradient Descent
 
 In order to find a (local) minimum of a function, Gradient Descent methods take steps in the
@@ -310,7 +316,7 @@ Where:
       <tr>
         <td><strong>Constant</strong></td>
         <td>
-          <p> 
+          <p>
             The step size is constant throughout the learning task.
           </p>
         </td>
@@ -321,10 +327,10 @@ Where:
         <td><strong>Leon Bottou's Method</strong></td>
         <td>
           <p>
-            This is the <code>'optimal'</code> method of sklearn. 
+            This is the <code>'optimal'</code> method of sklearn.
             The optimal initial value $t_0$ has to be provided.
             Sklearn uses the following heuristic: $t_0 = \max(1.0, L^\prime(-\beta, 1.0) / (\alpha \cdot \beta)$
-            with $\beta = \sqrt{\frac{1}{\sqrt{\alpha}}}$ and $L^\prime(prediction, truth)$ being the derivative of the loss function. 
+            with $\beta = \sqrt{\frac{1}{\sqrt{\alpha}}}$ and $L^\prime(prediction, truth)$ being the derivative of the loss function.
           </p>
         </td>
         <td class="text-center">$\eta_j = 1 / (\lambda \cdot (t_0 + j -1)) $</td>
@@ -383,3 +389,26 @@ val trainingDS: DataSet[LabeledVector] = ...
 // Optimize the weights, according to the provided data
 val weightDS = sgd.optimize(trainingDS)
 {% endhighlight %}
+
+
+// Use Warm Starts to illustrate convergence
+val mlr_default = MultipleLinearRegression()
+.setIterations(10)
+.setConvergenceThreshold(0.001)
+.setWarmStart(true)
+
+
+val mlr_xu = MultipleLinearRegression()
+.setIterations(10)
+.setConvergenceThreshold(0.001)
+.setWarmStart(true)
+.setLearningRateMethod(LearningRateMethod.Xu(-0.75))
+
+
+for (i <- 1 to 10){
+    mlr_default.fit(trainingDS)
+    mlr_xu.fit(trainingDS)
+    val resid_default = mlr_default.squaredResidualSum(trainingDS).collect()
+    val resid_xu = mlr_xu.squaredResidualSum(trainingDS).collect()
+    println(s"Iteration: ${(10*i).toString}:    Default SSR: ${resid_default.toString}      Xu SSR: ${resid_xu.toString}")
+}

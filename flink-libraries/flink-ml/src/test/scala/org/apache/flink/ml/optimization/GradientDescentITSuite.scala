@@ -272,5 +272,42 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     weight0 should be (expectedWeight0 +- 0.1)
   }
   // TODO: Need more corner cases, see sklearn tests for SGD linear model
+  it should "estimate a linear function without an intercept in partial fits" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
+    env.setParallelism(2)
+
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
+
+    val sgd = SimpleGradientDescent()
+      .setStepsize(0.001)
+      .setIterations(20)
+      .setLossFunction(lossFunction)
+      .setWarmStart(true)
+
+    val inputDS = env.fromCollection(noInterceptData)
+
+
+    var weightsOption: Option[DataSet[WeightVector]] = None
+    for (i <- 1 to 10) { // will perform 10*20=200 iterations
+      weightsOption = Some(sgd.optimize(inputDS, weightsOption))
+    }
+
+    var weightDS = weightsOption.get
+
+    val weightList: Seq[WeightVector] = weightDS.collect()
+
+    weightList.size should equal(1)
+
+    val weightVector: WeightVector = weightList.head
+
+    val weights = weightVector.weights.asInstanceOf[DenseVector].data
+    val weight0 = weightVector.intercept
+
+    expectedNoInterceptWeights zip weights foreach {
+      case (expectedWeight, weight) =>
+        weight should be (expectedWeight +- 0.1)
+    }
+    weight0 should be (expectedNoInterceptWeight0 +- 0.1)
+  }
 }
