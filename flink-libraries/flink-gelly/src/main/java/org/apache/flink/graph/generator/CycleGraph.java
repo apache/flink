@@ -33,7 +33,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private int vertexCount;
+	private long vertexCount;
 
 	/**
 	 * An undirected {@link Graph} where all edges form a single cycle.
@@ -41,7 +41,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
 	 */
-	public CycleGraph(ExecutionEnvironment env, int vertexCount) {
+	public CycleGraph(ExecutionEnvironment env, long vertexCount) {
 		if (vertexCount <= 0) {
 			throw new IllegalArgumentException("Vertex count must be greater than zero");
 		}

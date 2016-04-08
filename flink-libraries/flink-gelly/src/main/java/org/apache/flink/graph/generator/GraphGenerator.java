@@ -39,7 +39,7 @@ public interface GraphGenerator<K, VV, EV> {
 	 *
 	 * @return generated graph
 	 */
-	Graph<K, VV, EV> generate();
+	Graph<K,VV,EV> generate();
 
 	/**
 	 * Override the operator parallelism.

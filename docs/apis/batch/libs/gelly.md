@@ -1744,6 +1744,59 @@ Gelly provides a collection of scalable graph generators. Each generator is
 * scale-free, generating the same graph regardless of parallelism
 * thrifty, using as few operators as possible
 
+Graph generators are configured using the builder pattern. The parallelism of generator
+operators can be set explicitly by calling `setParallelism(parallelism)`. Lowering the
+parallelism will reduce the allocation of memory and network buffers.
+
+Graph-specific configuration must be called first, then configuration common to all
+generators, and lastly the call to `generate()`. The following example configures a
+grid graph with two dimensions, configures the parallelism, and generates the graph.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+boolean wrapEndpoints = false;
+
+int parallelism = 4;
+
+Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+    .addDimension(2, wrapEndpoints)
+    .addDimension(4, wrapEndpoints)
+    .setParallelism(parallelism)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.GridGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+wrapEndpoints = false
+
+val parallelism = 4
+
+val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDimension(4, wrapEndpoints).setParallelism(parallelism).generate()
+{% endhighlight %}
+</div>
+</div>
+
+### Provided graph generators
+
+* [Complete Graph](#complete-graph)
+* [Cycle Graph](#cycle-graph)
+* [Empty Graph](#empty-graph)
+* [Grid Graph](#grid-graph)
+* [Hypercube Graph](#hypercube-graph)
+* [Path Graph](#path-graph)
+* [RMat Graph](#rmat-graph)
+* [Singleton Edge Graph](#singleton-edge-graph)
+* [Star Graph](#star-graph)
+
 ### Complete Graph
 
 An undirected graph connecting every distinct pair of vertices.
@@ -1753,7 +1806,9 @@ An undirected graph connecting every distinct pair of vertices.
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, 5)
+long vertexCount = 5;
+
+Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -1765,7 +1820,9 @@ import org.apache.flink.graph.generator.CompleteGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new CompleteGraph(env.getJavaEnv, 5).generate()
+val vertexCount = 5
+
+val graph = new CompleteGraph(env.getJavaEnv, vertexCount).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -1813,7 +1870,9 @@ An undirected graph where all edges form a single cycle.
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new CycleGraph(env, 5)
+long vertexCount = 5;
+
+Graph<LongValue,NullValue,NullValue> graph = new CycleGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -1825,7 +1884,9 @@ import org.apache.flink.graph.generator.CycleGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new CycleGraph(env.getJavaEnv, 5).generate()
+val vertexCount = 5
+
+val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -1865,7 +1926,9 @@ The graph containing no edges.
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, 5)
+long vertexCount = 5;
+
+Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -1877,7 +1940,9 @@ import org.apache.flink.graph.generator.EmptyGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new EmptyGraph(env.getJavaEnv, 5).generate()
+val vertexCount = 5
+
+val graph = new EmptyGraph(env.getJavaEnv, vertexCount).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -1905,15 +1970,20 @@ val graph = new EmptyGraph(env.getJavaEnv, 5).generate()
 ### Grid Graph
 
 An undirected graph connecting vertices in a regular tiling in one or more dimensions.
+Each dimension is configured separately. When the dimension size is at least three the
+endpoints are optionally connected by setting `wrapEndpoints`. Changing the following
+example to `addDimension(4, true)` would connect `0` to `3` and `4` to `7`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+boolean wrapEndpoints = false;
+
 Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
-    .addDimension(2, false)
-    .addDimension(4, false)
+    .addDimension(2, wrapEndpoints)
+    .addDimension(4, wrapEndpoints)
     .generate();
 {% endhighlight %}
 </div>
@@ -1925,7 +1995,9 @@ import org.apache.flink.graph.generator.GridGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new GridGraph(env.getJavaEnv).addDimension(2, false).addDimension(4, false).generate()
+val wrapEndpoints = false
+
+val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDimension(4, wrapEndpoints).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -1969,14 +2041,17 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, false).addDimension(4,
 
 ### Hypercube Graph
 
-An undirected graph where edges form an n-dimensional hypercube.
+An undirected graph where edges form an n-dimensional hypercube. Each vertex
+in a hypercube connects to one other vertex in each dimension.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new HypercubeGraph(env, 2)
+long dimensions = 3;
+
+Graph<LongValue,NullValue,NullValue> graph = new HypercubeGraph(env, dimensions)
     .generate();
 {% endhighlight %}
 </div>
@@ -1988,8 +2063,9 @@ import org.apache.flink.graph.generator.HypercubeGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-// note: configured with the number of vertex pairs
-val graph = new HypercubeGraph(env.getJavaEnv, 4).generate()
+val dimensions = 3
+
+val graph = new HypercubeGraph(env.getJavaEnv, dimensions).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -2047,7 +2123,9 @@ An undirected Graph where all edges form a single path.
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new PathGraph(env, 5)
+long vertexCount = 5
+
+Graph<LongValue,NullValue,NullValue> graph = new PathGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -2059,7 +2137,9 @@ import org.apache.flink.graph.generator.PathGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new PathGraph(env.getJavaEnv, 5).generate()
+val vertexCount = 5
+
+val graph = new PathGraph(env.getJavaEnv, vertexCount).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -2088,9 +2168,13 @@ val graph = new PathGraph(env.getJavaEnv, 5).generate()
 
 ### RMat Graph
 
-A directed or undirected power-law graph generated using the [Recursive Matrix (R-Mat)]
-(http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model. RMat is a stochastic
-generator configured with a source of randomness.
+A directed or undirected power-law graph generated using the
+[Recursive Matrix (R-Mat)](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
+
+RMat is a stochastic generator configured with a source of randomness implementing the
+`RandomGenerableFactory` interface. Provided implemenations are `JDKRandomGeneratorFactory`
+and `MersenneTwisterFactory`. These generate an initial sequence of random values which are
+then used as seeds for generating the edges.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -2122,10 +2206,14 @@ val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).generate(
 </div>
 </div>
 
-Manipulating the RMat constants and noise affects the degree-skew. The RMat generator can be
-configured to produce a simple graph by removing self-loops and duplicate edges, with undirected
-edges produced by a "clip-and-flip" throwing away the half matrix above the diagonal or a full
-"flip" preserving and mirroring all edges.
+The default RMat contants can be overridden as shown in the following example.
+The contants define the interdependence of bits from each generated edge's source
+and target labels. The RMat noise can be enabled and progressively perturbs the
+contants while generating each edge.
+
+The RMat generator can be configured to produce a simple graph by removing self-loops
+and duplicate edges. Symmetrization is performed either by a "clip-and-flip" throwing away
+the half matrix above the diagonal or a full "flip" preserving and mirroring all edges.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -2137,10 +2225,12 @@ RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory()
 int vertexCount = 1 << scale;
 int edgeCount = edgeFactor * vertexCount;
 
+boolean clipAndFlip = false;
+
 Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .setConstants(0.57f, 0.19f, 0.19f)
     .setNoise(true, 0.10f)
-    .setSimpleGraph(true, false)
+    .setSimpleGraph(true, clipAndFlip)
     .generate();
 {% endhighlight %}
 </div>
@@ -2155,7 +2245,9 @@ val env = ExecutionEnvironment.getExecutionEnvironment
 val vertexCount = 1 << scale
 val edgeCount = edgeFactor * vertexCount
 
-val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConstants(0.57f, 0.19f, 0.19f).setNoise(true, 0.10f).setSimpleGraph(true, false).generate()
+clipAndFlip = false
+
+val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConstants(0.57f, 0.19f, 0.19f).setNoise(true, 0.10f).setSimpleGraph(true, clipAndFlip).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -2169,8 +2261,10 @@ An undirected graph containing isolated two-paths.
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+long vertexPairCount = 4
+
 // note: configured with the number of vertex pairs
-Graph<LongValue,NullValue,NullValue> graph = new SingletonEdgeGraph(env, 4)
+Graph<LongValue,NullValue,NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -2182,8 +2276,10 @@ import org.apache.flink.graph.generator.SingletonEdgeGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
+val vertexPairCount = 4
+
 // note: configured with the number of vertex pairs
-val graph = new SingletonEdgeGraph(env.getJavaEnv, 4).generate()
+val graph = new SingletonEdgeGraph(env.getJavaEnv, vertexPairCount).generate()
 {% endhighlight %}
 </div>
 </div>
@@ -2231,7 +2327,9 @@ An undirected graph containing a single central vertex connected to all other le
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, 6)
+long vertexCount = 6;
+
+Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -2243,7 +2341,9 @@ import org.apache.flink.graph.generator.StarGraph
 
 val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
-val graph = new StarGraph(env.getJavaEnv, 6).generate()
+val vertexCount = 6
+
+val graph = new StarGraph(env.getJavaEnv, vertexCount).generate()
 {% endhighlight %}
 </div>
 </div>

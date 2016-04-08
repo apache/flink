@@ -37,7 +37,7 @@ import java.text.NumberFormat;
  * Generate an RMat graph for Graph 500.
  *
  * Note that this does not yet implement permutation of vertex labels or edges.
-
+ *
  * @see <a href="http://www.graph500.org/specifications">Graph 500</a>
  */
 public class Graph500 {
@@ -45,6 +45,10 @@ public class Graph500 {
 	public static final int DEFAULT_SCALE = 10;
 
 	public static final int DEFAULT_EDGE_FACTOR = 16;
+
+	public static final boolean DEFAULT_SIMPLIFY = false;
+
+	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
@@ -62,13 +66,17 @@ public class Graph500 {
 		long vertexCount = 1 << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
+		boolean simplify = parameters.getBoolean("simplify", DEFAULT_SIMPLIFY);
+		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+
 		DataSet<Tuple2<LongValue,LongValue>> edges = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+			.setSimpleGraph(simplify, clipAndFlip)
 			.generate()
 			.getEdges()
 			.project(0, 1);
 
 		// Print, hash, or write RMat graph to disk
-		switch (parameters.get("output", "hash")) {
+		switch (parameters.get("output", "")) {
 		case "print":
 			edges.print();
 			break;
@@ -87,6 +95,22 @@ public class Graph500 {
 
 			env.execute();
 			break;
+		default:
+			System.out.println("A Graph500 generator using the Recursive Matrix (RMat) graph generator.");
+			System.out.println();
+			System.out.println("The graph matrix contains 2^scale vertices although not every vertex will");
+			System.out.println("be represented in an edge. The number of edges is edge_factor * 2^scale edges");
+			System.out.println("although some edges may be duplicates.");
+			System.out.println();
+			System.out.println("Note: this does not yet implement permutation of vertex labels or edges.");
+			System.out.println();
+			System.out.println("usage:");
+			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
+			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
+			System.out.println("  Graph500 [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
+					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
+
+			return;
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
