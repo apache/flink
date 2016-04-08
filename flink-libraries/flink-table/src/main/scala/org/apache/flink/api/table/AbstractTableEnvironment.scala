@@ -86,9 +86,10 @@ class AbstractTableEnvironment {
   }
 
   /**
-   * Execute a SQL query on a batch [[Table]].
-   * The [[Table]] has to be registered in the tables registry
-   * with a unique name, using [[registerTable()]] or
+   * Execute a SQL query and retrieve the result as a [[Table]].
+   * All input [[Table]]s have to be registered in the
+   * [[org.apache.flink.api.java.table.TableEnvironment]] with unique names,
+   * using [[registerTable()]] or
    * [[org.apache.flink.api.java.table.TableEnvironment.registerDataSet()]]
    *
    * @param query the SQL query

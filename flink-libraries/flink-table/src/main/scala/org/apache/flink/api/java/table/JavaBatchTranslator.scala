@@ -57,9 +57,6 @@ class JavaBatchTranslator(config: TableConfig) extends PlanTranslator {
     // create table scan operator
     relBuilder.scan(tabName)
     val relNode = relBuilder.build()
-    // set the planner in the TranslationContext, so that it can be picked up
-    // by any subsequent SQL queries
-    TranslationContext.setPlanner(relNode.getCluster.getPlanner)
     new Table(relNode, relBuilder)
   }
 

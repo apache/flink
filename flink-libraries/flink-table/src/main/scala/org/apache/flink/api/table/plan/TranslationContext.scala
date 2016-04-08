@@ -71,8 +71,10 @@ object TranslationContext {
 
     tablesRegistry = Map[String, AbstractTable]()
     relBuilder = RelBuilder.create(frameworkConfig)
+    // create a dummy RelNode, in order to retrieve the planner
+    val dummyRelNode = relBuilder.values(Array("dummy"), new Integer(1)).build()
+    relOptPlanner = dummyRelNode.getCluster.getPlanner
     nameCntr.set(0)
-    relOptPlanner = null
   }
 
   /**
@@ -140,10 +142,6 @@ object TranslationContext {
 
   def getPlanner: RelOptPlanner = {
     relOptPlanner
-  }
-
-  def setPlanner(planner: RelOptPlanner): Unit = {
-    relOptPlanner = planner
   }
 
   def getFrameworkConfig: FrameworkConfig = {
