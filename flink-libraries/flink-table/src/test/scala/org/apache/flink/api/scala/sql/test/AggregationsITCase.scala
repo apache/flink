@@ -141,26 +141,6 @@ class AggregationsITCase(
   }
 
   @Test
-  def testProjection(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
-
-    val sqlQuery = "SELECT avg(_1), sum(_1), count(_1), avg(_2), sum(_2) " +
-      "FROM MyTable"
-
-    val ds = env.fromElements((1: Byte, 1: Short), (2: Byte, 2: Short))
-    tEnv.registerDataSet("MyTable", ds)
-
-    val result = tEnv.sql(sqlQuery)
-
-    val expected = "1,3,2,1,3"
-    val results = result.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testTableProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -176,26 +156,6 @@ class AggregationsITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,3,2,1,3"
-    val results = result.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testAggregationWithArithmetic(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
-
-    val sqlQuery = "SELECT avg(_1 + 2) + 2, count(_2) + 5 " +
-      "FROM MyTable"
-
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao"))
-    tEnv.registerDataSet("MyTable", ds)
-
-    val result = tEnv.sql(sqlQuery)
-
-    val expected = "5.5,7"
     val results = result.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -229,8 +189,8 @@ class AggregationsITCase(
 
     val sqlQuery = "SELECT count(_1), count(_2) FROM MyTable"
 
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao"))
-    tEnv.registerDataSet("MyTable", ds)
+    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+    tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
@@ -252,8 +212,8 @@ class AggregationsITCase(
 
     val ds = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
-    tEnv.registerDataSet("MyTable", ds)
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+    tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 

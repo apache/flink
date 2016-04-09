@@ -177,6 +177,26 @@ class JoinITCase(
     tEnv.sql(sqlQuery)
   }
 
+  @Test
+  def testJoinWithAlias(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = getScalaTableEnvironment
+    TranslationContext.reset()
+
+    val sqlQuery = "SELECT Table5.c, Table3.c FROM Table3, Table5 WHERE a = d AND a < 4"
+
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable.as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable.as('d, 'e, 'f, 'g, 'c)
+    tEnv.registerTable("Table3", ds1)
+    tEnv.registerTable("Table5", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+    val expected = "1,Hi\n" + "2,Hello\n" + "1,Hello\n" +
+      "2,Hello world\n" + "2,Hello world\n" + "3,Hello world\n"
+    val results = result.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 
   @Test(expected = classOf[TableException])
   def testJoinNoEqualityPredicate(): Unit = {
