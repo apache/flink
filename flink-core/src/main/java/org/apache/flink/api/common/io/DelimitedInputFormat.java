@@ -19,6 +19,9 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -27,9 +30,6 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -43,7 +43,7 @@ import java.util.ArrayList;
  * <p>The default delimiter is the newline character {@code '\n'}.</p>
  */
 @Public
-public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
+public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> implements CheckpointableInputFormat<FileInputSplit, Long> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -56,7 +56,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 
 	/** The default charset  to convert strings to bytes */
 	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
-	
+
 	/**
 	 * The default read buffer size = 1MB.
 	 */
@@ -81,7 +81,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
 	 */
 	private static int MAX_SAMPLE_LEN;
-	
+
 	static { loadGlobalConfigParams(); }
 	
 	protected static void loadGlobalConfigParams() {
@@ -135,7 +135,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	private transient int readPos;
 
 	private transient int limit;
-	
+
+	private transient FileInputSplit currSplit;
+
+	private transient FileInputSplit restoredSplit;
+	private transient Long restoredOffset;
+
 	private transient byte[] currBuffer;		// buffer in which current record byte sequence is found
 	private transient int currOffset;			// offset in above buffer
 	private transient int currLen;				// length of current byte sequence
@@ -143,8 +148,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	private transient boolean overLimit;
 
 	private transient boolean end;
-	
-	
+
+	private transient long offset;
+
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
 	// --------------------------------------------------------------------------------------------
@@ -182,7 +188,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		
 		this.delimiter = delimiter;
 	}
-	
+
 	public void setDelimiter(char delimiter) {
 		setDelimiter(String.valueOf(delimiter));
 	}
@@ -226,7 +232,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		
 		this.numLineSamples = numLineSamples;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  User-defined behavior
 	// --------------------------------------------------------------------------------------------
@@ -404,15 +410,16 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	/**
 	 * Opens the given input split. This method opens the input stream to the specified file, allocates read buffers
 	 * and positions the stream at the correct position, making sure that any partial record at the beginning is skipped.
-	 * 
+	 *
 	 * @param split The input split to open.
-	 * 
+	 *
 	 * @see org.apache.flink.api.common.io.FileInputFormat#open(org.apache.flink.core.fs.FileInputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		
+
+		this.currSplit = split;
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 		
 		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
@@ -427,18 +434,37 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		this.overLimit = false;
 		this.end = false;
 
-		if (this.splitStart != 0) {
+		if (this.splitStart != 0 && this.restoredOffset == null) {
 			this.stream.seek(this.splitStart);
+			this.offset = this.splitStart;
 			readLine();
-			
+
 			// if the first partial record already pushes the stream over the limit of our split, then no
-			// record starts within this split 
+			// record starts within this split
 			if (this.overLimit) {
+				this.end = true;
+			}
+		} else if (this.restoredOffset != null) {
+
+			if (!this.restoredSplit.equals(split)) {
+				throw new RuntimeException("Tried to open at the wrong split after recovery.");
+			}
+
+			// this is the case where we restart from a specific offset within a split (e.g. after a node failure)
+			this.stream.seek(this.restoredOffset);
+			this.currSplit = this.restoredSplit;
+			this.offset = this.restoredOffset;
+			this.splitLength = this.splitStart + this.splitLength - this.offset;
+
+			if (splitLength <= 0) {
 				this.end = true;
 			}
 		} else {
 			fillBuffer();
+			this.offset = 0;
 		}
+		this.restoredSplit = null;
+		this.restoredOffset = null;
 	}
 
 	/**
@@ -489,6 +515,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			if (this.readPos >= this.limit) {
 				if (!fillBuffer()) {
 					if (countInWrapBuffer > 0) {
+						this.offset += countInWrapBuffer;
 						setResult(this.wrapBuffer, 0, countInWrapBuffer);
 						return true;
 					} else {
@@ -506,13 +533,14 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				} else {
 					i = 0;
 				}
-
 			}
 
 			// check why we dropped out
 			if (i == this.delimiter.length) {
 				// line end
-				count = this.readPos - startPos - this.delimiter.length;
+				int totalBytesRead = this.readPos - startPos;
+				this.offset += countInWrapBuffer + totalBytesRead;
+				count = totalBytesRead - this.delimiter.length;
 
 				// copy to byte array
 				if (countInWrapBuffer > 0) {
@@ -535,7 +563,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				count = this.limit - startPos;
 				
 				// check against the maximum record length
-				if ( ((long) countInWrapBuffer) + count > this.lineLengthLimit) {
+				if (((long) countInWrapBuffer) + count > this.lineLengthLimit) {
 					throw new IOException("The record length exceeded the maximum record length (" + 
 							this.lineLengthLimit + ").");
 				}
@@ -604,13 +632,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 			return true;
 		}
 	}
-	
-	// ============================================================================================
-	//  Parametrization via configuration
-	// ============================================================================================
-	
-	// ------------------------------------- Config Keys ------------------------------------------
-	
+
+	// --------------------------------------------------------------------------------------------
+	// Config Keys for Parametrization via configuration
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * The configuration key to set the record delimiter.
 	 */
@@ -620,4 +646,19 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
 	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
+
+	// --------------------------------------------------------------------------------------------
+	//  Checkpointing
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public Tuple2<FileInputSplit, Long> getCurrentChannelState() throws IOException {
+		return new Tuple2<>(this.currSplit, this.offset);
+	}
+
+	@Override
+	public void restore(FileInputSplit split, Long state) throws IOException {
+		this.restoredSplit = split;
+		this.restoredOffset = state;
+	}
 }

@@ -235,7 +235,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	// --------------------------------------------------------------------------------------------
 	//  Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
-	
+
 	public Path getFilePath() {
 		return filePath;
 	}
@@ -479,7 +479,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			}
 			return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
 		}
-		
+
 
 		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits +
 					(totalLength % minNumSplits == 0 ? 0 : 1));
