@@ -377,7 +377,7 @@ public class FileInputFormatTest {
 		final int numBlocks = 3;
 		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
 		for (int i = 0; i < blockSize * numBlocks; i++) {
-			fileOutputStream.write(new byte[]{1});
+			fileOutputStream.write(new byte[]{(byte) i});
 		}
 		fileOutputStream.close();
 
@@ -392,11 +392,12 @@ public class FileInputFormatTest {
 		FileInputSplit[] inputSplits = inputFormat.createInputSplits(3);
 
 		byte[] bytes = null;
+		byte prev = 0;
 		for (FileInputSplit inputSplit : inputSplits) {
 			inputFormat.open(inputSplit);
 			while (!inputFormat.reachedEnd()) {
 				if ((bytes = inputFormat.nextRecord(bytes)) != null) {
-					Assert.assertArrayEquals(new byte[]{(byte) 0xFE}, bytes);
+					Assert.assertArrayEquals(new byte[]{--prev}, bytes);
 				}
 			}
 		}
@@ -420,14 +421,13 @@ public class FileInputFormatTest {
 		}
 	}
 
-
 	private static final class MyDecoratedInputFormat extends FileInputFormat<byte[]> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public boolean reachedEnd() throws IOException {
-			return this.splitLength <= this.stream.getPos();
+			return this.stream.getPos() >= this.splitStart + this.splitLength;
 		}
 
 		@Override
@@ -442,7 +442,6 @@ public class FileInputFormatTest {
 			inputStream = super.decorateInputStream(inputStream, fileSplit);
 			return new InputStreamFSInputWrapper(new InvertedInputStream(inputStream));
 		}
-
 	}
 
 	private static final class InvertedInputStream extends InputStream {
