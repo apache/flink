@@ -23,8 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -89,7 +91,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	 * followed by the checks in {@link #postSubmit}.
 	 */
 	@Test
-	public void runCheckpointedProgram() {
+	public void runCheckpointedProgram() throws Exception {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getLeaderRPCPort());
@@ -99,13 +101,13 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 			testProgram(env);
 
-			env.execute();
+			TestUtils.tryExecute(env, "Fault Tolerance Test");
 
 			postSubmit();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-			fail(e.getMessage());
+			Assert.fail(e.getMessage());
 		}
 	}
 
