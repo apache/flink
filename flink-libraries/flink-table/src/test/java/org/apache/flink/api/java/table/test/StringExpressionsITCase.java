@@ -120,6 +120,46 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		resultSet.collect();
 	}
 
+	@Test
+	public void testStringConcat() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a + b + 42");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "ABCD342\nABCD242";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testStringConcat1() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
+			new Tuple2<>("ABCD", 3),
+			new Tuple2<>("ABCD", 2));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("42 + b + a");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "44ABCD\n45ABCD";
+		compareResultAsText(results, expected);
+	}
+
 	@Test(expected = CodeGenException.class)
 	public void testGeneratedCodeForStringComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
