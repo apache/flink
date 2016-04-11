@@ -161,45 +161,6 @@ withTimestampsAndWatermarks
 </div>
 
 
-#### **With Ascending timestamps**
-
-The simplest case for generating watermarks is the case where timestamps within one source occur in ascending order.
-In that case, the current timestamp can always act as a watermark, because no lower timestamps will occur any more.
-
-Note that it is only necessary that timestamps are ascending *per parallel data source instance*. For example, if
-in a specific setup one Kafka partition is read by one parallel data source instance, then it is only necessary that
-timestamps are ascending within each Kafka partition. Flink's Watermark merging mechanism will generate correct
-whenever parallel streams are shuffled, unioned, connected, or merged.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<MyEvent> stream = ...
-
-DataStream<MyEvent> withTimestampsAndWatermarks = 
-    stream.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<MyEvent>() {
-
-        @Override
-        public long extractAscendingTimestamp(MyEvent element) {
-            return element.getCreationTime();
-        }
-});
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val stream: DataStream[MyEvent] = ...
-
-val withTimestampsAndWatermarks = stream.assignAscendingTimestamps( _.getCreationTime )
-{% endhighlight %}
-</div>
-</div>
-
-
-*Note:* The generation of watermarks on ascending timestamps is a special case of the periodic watermark
-generation described in the next section.
-
-
 #### **With Periodic Watermarks**
 
 The `AssignerWithPeriodicWatermarks` assigns timestamps and generate watermarks periodically (possibly depending
@@ -307,6 +268,89 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 </div>
 </div>
 
+
+#### **With Ascending timestamps**
+
+The simplest special case for periodic watermark generation is the case where timestamps within one source occur in ascending order.
+In that case, the current timestamp can always act as a watermark, because no lower timestamps will occur any more.
+
+Note that it is only necessary that timestamps are ascending *per parallel data source instance*. For example, if
+in a specific setup one Kafka partition is read by one parallel data source instance, then it is only necessary that
+timestamps are ascending within each Kafka partition. Flink's Watermark merging mechanism will generate correct
+watermarks whenever parallel streams are shuffled, unioned, connected, or merged.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<MyEvent> stream = ...
+
+DataStream<MyEvent> withTimestampsAndWatermarks = 
+    stream.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<MyEvent>() {
+
+        @Override
+        public long extractAscendingTimestamp(MyEvent element) {
+            return element.getCreationTime();
+        }
+});
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val stream: DataStream[MyEvent] = ...
+
+val withTimestampsAndWatermarks = stream.assignAscendingTimestamps( _.getCreationTime )
+{% endhighlight %}
+</div>
+</div>
+
+#### **With adjustable Watermark lateness based on runtime statistics**
+
+When processing a stream, and for the lateness to be as low as possible, the watermark should
+be as close to processing time as possible. Unfortunately, in streams with late data, i.e. 
+data with timestamps smaller than the last received watermark, this means that a number of elements
+will be discarded due to lateness. In order to avoid this, Flink provides a best-effort extractor 
+called `HistogramBasedWatermarkEmitter`, which periodically samples the timestamps of the elements 
+in a stream and keeps a histogram of the observed lateness. Based on this histogram, it sets 
+the watermark lateness to the lowest possible value that, at the same time, guarantees that a 
+user-specified percentage of the elements in the stream are covered and not dropped due to lateness. 
+
+More precisely, the user specifies i) the duration of the sampling period, ii) that of the interval 
+between the end of a sampling period and the start of the next one, and iii) the percentage referring 
+of elements in the stream (late and non-late) that she wants to be covered, i.e. considered non-late.
+Given this information, <b>during the sampling period</b> the extractor keeps a per-second lateness 
+histogram, i.e. a histogram showing how may elements were 0, 1, 2... seconds late, and the maximum 
+(event-time) timestamp seen so far. When <b>the sampling period ends</b>, it computes the minimum 
+lateness that covers the user-specified percentage of data, and whenever a watermark is emitted, its 
+timestamp is the maximum (event-time) timestamp seen up to that point in the stream, minus the 
+previously computed value. This value is not updated till the <b>end</b> of the next sampling period.
+
+An example use of the extractor is the following:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<MyEvent> stream = ...
+
+DataStream<MyEvent> withTimestampsAndWatermarks = 
+    stream.assignTimestampsAndWatermarks(new HistogramBasedWatermarkEmitter<MyEvent>(
+            Time.seconds(2), Time.seconds(10), 0.9) {
+
+        @Override
+        public long extractAscendingTimestamp(MyEvent element) {
+            return element.getCreationTime();
+        }
+});
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val stream: DataStream[MyEvent] = ...
+
+val withTimestampsAndWatermarks = stream.assignTimestampsAndWatermarks(new HistogramBasedWatermarkEmitter[MyEvent](
+                                       Time.seconds(2), Time.seconds(10), 0.9)( _.getCreationTime ))
+{% endhighlight %}
+</div>
+</div>
 
 #### **With Punctuated Watermarks**
 
