@@ -1069,22 +1069,35 @@ public class CheckpointCoordinatorTest {
 
 			coord.startCheckpointScheduler();
 
+			//wait until the first checkpoint was triggered
 			for (int x=0; x<20; x++) {
 				Thread.sleep(100);
 				if (numCalls.get() > 0) {
 					break;
 				}
 			}
+
+			if (numCalls.get() == 0) {
+				fail("No checkpoint was triggered within the first 2000 ms.");
+			}
 			
 			long start = System.currentTimeMillis();
 
 			for (int x = 0; x < 20; x++) {
 				Thread.sleep(100);
-				int z = numCalls.get();
+				int triggeredCheckpoints = numCalls.get();
 				long curT = System.currentTimeMillis();
-				
+
+				/**
+				 * Within a given time-frame T only T/500 checkpoints may be triggered due to the configured minimum
+				 * interval between checkpoints. This value however does not not take the first triggered checkpoint
+				 * into account (=> +1). Furthermore we have to account for the mis-alignment between checkpoints
+				 * being triggered and our time measurement (=> +1); for T=1200 a total of 3-4 checkpoints may have been
+				 * triggered depending on whether the end of the minimum interval for the first checkpoints ends before
+				 * or after T=200.
+				 */
 				long maxAllowedCheckpoints = (curT - start) / 500 + 2;
-				assertTrue(maxAllowedCheckpoints >= z);
+				assertTrue(maxAllowedCheckpoints >= triggeredCheckpoints);
 			}
 
 			coord.stopCheckpointScheduler();
