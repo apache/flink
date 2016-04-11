@@ -30,10 +30,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink's Table API is a a SQL-like expression language embedded in Java and Scala.
-Instead of manipulating a `DataSet` or `DataStream`, you can create and work with the `Table` relational abstraction.
+
+**The Table API: an experimental feature**
+
+Flink's Table API is a SQL-like expression language embedded in Java and Scala.
+Instead of manipulating a `DataSet` or `DataStream`, you can create and work with a relational `Table` abstraction.
 Tables have a schema and allow running relational operations on them, including selection, aggregation, and joins.
-A `Table` can be created from a `DataSet` or a `DataStream` and then queried either using the Table API Operators or using SQL queries.
+A `Table` can be created from a `DataSet` or a `DataStream` and then queried either using the Table API operators or using SQL queries.
 Once a `Table` is converted back to a `DataSet` or `DataStream`, the defined relational plan is optimized using [Apache Calcite](https://calcite.apache.org/)
 and transformed into a `DataSet` or `DataStream` execution plan.
 
@@ -43,7 +46,7 @@ and transformed into a `DataSet` or `DataStream` execution plan.
 Using the Table API and SQL
 ----------------------------
 
-The Table API and SQL are part of the *libraries* Maven project.
+The Table API and SQL are part of the *flink-libraries* Maven project.
 The following dependency must be added to your project in order to use the Table API and SQL:
 
 {% highlight xml %}
@@ -446,7 +449,7 @@ TableEnvironment tableEnv = new TableEnvironment();
 // reset the translation context: this will erase existing registered Tables
 TranslationContext.reset();
 // read a DataSet from an external source
-DataSet<Tuple2<Integer, Long>> ds = env.readTextFile(...);
+DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
 // register the DataSet under the name "MyTable"
 tableEnv.registerDataSet("MyTable", ds);
 // retrieve "MyTable" into a new Table
@@ -458,15 +461,15 @@ Table t = tableEnv.scan("MyTable");
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 // create a Table environment
-val tEnv = new TableEnvironment
+val tableEnv = new TableEnvironment
 // reset the translation context: this will erase existing registered Tables
 TranslationContext.reset()
 // read a DataSet from an external source
-val ds = env.readTextFile(...)
+val ds = env.readCsvFile(...)
 // register the DataSet under the name "MyTable"
-tEnv.registerDataSet("MyTable", ds)
+tableEnv.registerDataSet("MyTable", ds)
 // retrieve "MyTable" into a new Table
-val t = tEnv.scan("MyTable")
+val t = tableEnv.scan("MyTable")
 {% endhighlight %}
 </div>
 </div>
@@ -486,7 +489,7 @@ tableEnv.registerDataSet("MyTable", ds, "user, product, order");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // register the DataSet under the name "MyTable" with columns user, product, and order
-tEnv.registerDataSet("MyTable", ds, 'user, 'product, 'order)
+tableEnv.registerDataSet("MyTable", ds, 'user, 'product, 'order)
 {% endhighlight %}
 </div>
 </div>
@@ -497,7 +500,7 @@ A `Table` can be registered in a similar way:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // read a DataSet from an external source
-DataSet<Tuple2<Integer, Long>> ds = env.readTextFile(...);
+DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
 // create a Table from the DataSet with columns user, product, and order
 Table t = tableEnv.fromDataSet(ds).as("user, product, order");
 // register the Table under the name "MyTable"
@@ -509,14 +512,14 @@ tableEnv.registerTable("MyTable", t);
 {% highlight scala %}
 // read a DataSet from an external source and
 // create a Table from the DataSet with columns user, product, and order
-val t = env.readTextFile(...).as('user, 'product, 'order)
+val t = env.readCsvFile(...).as('user, 'product, 'order)
 // register the Table under the name "MyTable"
-tEnv.registerTable("MyTable", t)
+tableEnv.registerTable("MyTable", t)
 {% endhighlight %}
 </div>
 </div>
 
-After registering a `Table` or `DataSet`, one can use them in SQL queries. A SQL query is executed using the `sql` method of the `TableEnvironment`.
+After registering a `Table` or `DataSet`, one can use them in SQL queries. A SQL query is defined using the `sql` method of the `TableEnvironment`.
 The result of the method is a new `Table` which can either be converted back to a `DataSet` or used in subsequent Table API queries.
 
 <div class="codetabs" markdown="1">
@@ -528,7 +531,7 @@ TableEnvironment tableEnv = new TableEnvironment();
 // reset the translation context: this will erase existing registered Tables
 TranslationContext.reset();
 // read a DataSet from an external source
-DataSet<Tuple2<Integer, Long>> ds = env.readTextFile(...);
+DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
 // create a Table from the DataSet
 Table t = tableEnv.fromDataSet(ds);
 // register the Table under the name "MyTable"
@@ -542,15 +545,15 @@ Table result = tableEnv.sql("SELECT * FROM MyTable");
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 // create a Table environment
-val tEnv = new TableEnvironment
+val tableEnv = new TableEnvironment
 // reset the translation context: this will erase existing registered Tables
 TranslationContext.reset()
 // create a Table
-val t = env.readTextFile(...).as('a, 'b, 'c)
+val t = env.readCsvFile(...).as('a, 'b, 'c)
 // register the Table under the name "MyTable"
-tEnv.registerTable("MyTable", t)
+tableEnv.registerTable("MyTable", t)
 // run a sql query and retrieve the result in a new Table
-val result = tEnv.sql("SELECT * FROM MyTable")
+val result = tableEnv.sql("SELECT * FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
