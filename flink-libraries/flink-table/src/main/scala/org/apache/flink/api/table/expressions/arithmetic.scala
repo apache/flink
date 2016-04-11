@@ -17,28 +17,75 @@
  */
 package org.apache.flink.api.table.expressions
 
-abstract class BinaryArithmetic extends BinaryExpression { self: Product => }
+import scala.collection.JavaConversions._
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.typeutils.TypeConverter
+
+abstract class BinaryArithmetic extends BinaryExpression { self: Product =>
+  def sqlOperator: SqlOperator
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(sqlOperator, children.map(_.toRexNode))
+  }
+}
 
 case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left + $right)"
+
+  val sqlOperator = SqlStdOperatorTable.PLUS
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val l = left.toRexNode
+    val r = right.toRexNode
+    if(SqlTypeName.STRING_TYPES.contains(l.getType.getSqlTypeName)) {
+      val cast: RexNode = relBuilder.cast(r,
+        TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+      relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
+    } else if(SqlTypeName.STRING_TYPES.contains(r.getType.getSqlTypeName)) {
+      val cast: RexNode = relBuilder.cast(l,
+        TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
+      relBuilder.call(SqlStdOperatorTable.PLUS, cast, r)
+    } else {
+      relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
+    }
+  }
 }
 
 case class UnaryMinus(child: Expression) extends UnaryExpression {
   override def toString = s"-($child)"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, child.toRexNode)
+  }
 }
 
 case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left - $right)"
+
+  val sqlOperator = SqlStdOperatorTable.MINUS
 }
 
 case class Div(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left / $right)"
+
+  val sqlOperator = SqlStdOperatorTable.DIVIDE
 }
 
 case class Mul(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left * $right)"
+
+  val sqlOperator = SqlStdOperatorTable.MULTIPLY
 }
 
 case class Mod(left: Expression, right: Expression) extends BinaryArithmetic {
   override def toString = s"($left % $right)"
+
+  val sqlOperator = SqlStdOperatorTable.MOD
 }

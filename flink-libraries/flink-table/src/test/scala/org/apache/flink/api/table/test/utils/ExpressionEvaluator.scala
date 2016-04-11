@@ -29,7 +29,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.{RexNodeTranslator, TranslationContext}
+import org.apache.flink.api.table.plan.TranslationContext
 import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.mockito.Mockito._
@@ -78,7 +78,7 @@ object ExpressionEvaluator {
 
   def evaluate(data: Any, typeInfo: TypeInformation[Any], expr: Expression): String = {
     val relBuilder = prepareTable(typeInfo)._2
-    evaluate(data, typeInfo, relBuilder, RexNodeTranslator.toRexNode(expr, relBuilder))
+    evaluate(data, typeInfo, relBuilder, expr.toRexNode(relBuilder))
   }
 
   def evaluate(

@@ -30,7 +30,7 @@ import org.apache.calcite.util.NlsString
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.plan.{PlanGenException, RexNodeTranslator}
-import RexNodeTranslator.{toRexNode, extractAggCalls}
+import RexNodeTranslator.extractAggCalls
 import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, UnresolvedFieldReference, Expression}
 
 import org.apache.flink.api.scala._
@@ -96,8 +96,7 @@ class Table(
       .map(extractAggCalls(_, relBuilder)).toList
 
     // get aggregation calls
-    val aggCalls: List[AggCall] = extractedAggCalls
-      .map(_._2).reduce( (x,y) => x ::: y)
+    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
 
     // apply aggregations
     if (aggCalls.nonEmpty) {
@@ -106,9 +105,7 @@ class Table(
     }
 
     // get selection expressions
-    val exprs: List[RexNode] = extractedAggCalls
-      .map(_._1)
-      .map(toRexNode(_, relBuilder))
+    val exprs: List[RexNode] = extractedAggCalls.map(_._1.toRexNode(relBuilder))
 
     relBuilder.project(exprs.toIterable.asJava)
     val projected = relBuilder.build()
@@ -170,7 +167,7 @@ class Table(
 
     relBuilder.push(relNode)
 
-    val exprs = (renamings ++ remaining).map(toRexNode(_, relBuilder))
+    val exprs = (renamings ++ remaining).map(_.toRexNode(relBuilder))
 
     new Table(createRenamingProject(exprs), relBuilder)
   }
@@ -203,8 +200,7 @@ class Table(
   def filter(predicate: Expression): Table = {
 
     relBuilder.push(relNode)
-    val pred = toRexNode(predicate, relBuilder)
-    relBuilder.filter(pred)
+    relBuilder.filter(predicate.toRexNode(relBuilder))
     new Table(relBuilder.build(), relBuilder)
   }
 
@@ -264,7 +260,7 @@ class Table(
   def groupBy(fields: Expression*): GroupedTable = {
 
     relBuilder.push(relNode)
-    val groupExpr = fields.map(toRexNode(_, relBuilder)).toIterable.asJava
+    val groupExpr = fields.map(_.toRexNode(relBuilder)).toIterable.asJava
     val groupKey = relBuilder.groupKey(groupExpr)
 
     new GroupedTable(relBuilder.build(), relBuilder, groupKey)
@@ -450,19 +446,15 @@ class GroupedTable(
       .map(extractAggCalls(_, relBuilder)).toList
 
     // get aggregation calls
-    val aggCalls: List[AggCall] = extractedAggCalls
-      .map(_._2).reduce( (x,y) => x ::: y)
+    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
 
     // apply aggregations
     relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
 
     // get selection expressions
     val exprs: List[RexNode] = try {
-      extractedAggCalls
-        .map(_._1)
-        .map(toRexNode(_, relBuilder))
-    }
-    catch {
+      extractedAggCalls.map(_._1.toRexNode(relBuilder))
+    } catch {
       case iae: IllegalArgumentException  =>
         throw new IllegalArgumentException(
           "Only grouping fields and aggregations allowed after groupBy.", iae)

@@ -18,17 +18,10 @@
 
 package org.apache.flink.api.table.plan
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.SqlOperator
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.typeutils.TypeConverter
 
-import scala.collection.JavaConversions._
+import org.apache.flink.api.table.expressions._
 
 object RexNodeTranslator {
 
@@ -42,11 +35,11 @@ object RexNodeTranslator {
     exp match {
       case agg: Aggregation =>
         val name = TranslationContext.getUniqueName
-        val aggCall = toAggCall(agg, name, relBuilder)
+        val aggCall = agg.toAggCall(name)(relBuilder)
         val fieldExp = new UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
       case n@Naming(agg: Aggregation, name) =>
-        val aggCall = toAggCall(agg, name, relBuilder)
+        val aggCall = agg.toAggCall(name)(relBuilder)
         val fieldExp = new UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
       case l: LeafExpression =>
@@ -69,153 +62,4 @@ object RexNodeTranslator {
           s"Expression $e of type ${e.getClass} not supported yet")
     }
   }
-
-  /**
-    * Translates a Table API expression into a Calcite RexNode.
-    */
-  def toRexNode(exp: Expression, relBuilder: RelBuilder): RexNode = {
-
-    exp match {
-      // Basic operators
-      case Literal(value, tpe) =>
-        relBuilder.literal(value)
-      case ResolvedFieldReference(name) =>
-        relBuilder.field(name)
-      case UnresolvedFieldReference(name) =>
-        relBuilder.field(name)
-      case NopExpression() =>
-        throw new IllegalArgumentException("NoOp expression encountered")
-      case Naming(child, name) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.alias(c, name)
-      case Cast(child, tpe) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.cast(c, TypeConverter.typeInfoToSqlType(tpe))
-      case Not(child) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.not(c)
-      case Or(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.or(l, r)
-      case And(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.and(l, r)
-      case EqualTo(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.equals(l, r)
-      case NotEqualTo(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.not(relBuilder.equals(l, r))
-        relBuilder.call(SqlStdOperatorTable.NOT_EQUALS, l, r)
-      case LessThan(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.LESS_THAN, l, r)
-      case LessThanOrEqual(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, l, r)
-      case GreaterThan(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.GREATER_THAN, l, r)
-      case GreaterThanOrEqual(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, l, r)
-      case IsNull(child) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.isNull(c)
-      case IsNotNull(child) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.isNotNull(c)
-      case Plus(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        if(SqlTypeName.STRING_TYPES.contains(l.getType.getSqlTypeName)) {
-          val cast: RexNode = relBuilder.cast(r,
-            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
-          relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
-        } else if(SqlTypeName.STRING_TYPES.contains(r.getType.getSqlTypeName)) {
-          val cast: RexNode = relBuilder.cast(l,
-            TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
-          relBuilder.call(SqlStdOperatorTable.PLUS, cast, r)
-        } else {
-          relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
-        }
-      case Minus(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.MINUS, l, r)
-      case Mul(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.MULTIPLY, l, r)
-      case Div(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.DIVIDE, l, r)
-      case Mod(left, right) =>
-        val l = toRexNode(left, relBuilder)
-        val r = toRexNode(right, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.MOD, l, r)
-      case UnaryMinus(child) =>
-        val c = toRexNode(child, relBuilder)
-        relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, c)
-
-      // Scalar functions
-      case Call(name, args@_*) =>
-        val rexArgs = args.map(toRexNode(_, relBuilder))
-        val sqlOperator = toSqlOperator(name)
-        relBuilder.call(sqlOperator, rexArgs)
-
-      case a: Aggregation =>
-        throw new IllegalArgumentException(s"Aggregation expression $a not allowed at this place")
-      case e@AnyRef =>
-        throw new IllegalArgumentException(
-          s"Expression $e of type ${e.getClass} not supported yet")
-    }
-  }
-
-  private def toAggCall(agg: Aggregation, name: String, relBuilder: RelBuilder): AggCall = {
-
-    val rexNode = toRexNode(agg.child, relBuilder)
-    agg match {
-      case s: Sum => relBuilder.aggregateCall(
-        SqlStdOperatorTable.SUM, false, null, name, rexNode)
-      case m: Min => relBuilder.aggregateCall(
-        SqlStdOperatorTable.MIN, false, null, name, rexNode)
-      case m: Max => relBuilder.aggregateCall(
-        SqlStdOperatorTable.MAX, false, null, name, rexNode)
-      case c: Count => relBuilder.aggregateCall(
-        SqlStdOperatorTable.COUNT, false, null, name, rexNode)
-      case a: Avg => relBuilder.aggregateCall(
-        SqlStdOperatorTable.AVG, false, null, name, rexNode)
-    }
-  }
-
-  private def toSqlOperator(name: String): SqlOperator = {
-    name match {
-      case BuiltInFunctionNames.SUBSTRING => SqlStdOperatorTable.SUBSTRING
-      case BuiltInFunctionNames.TRIM => SqlStdOperatorTable.TRIM
-      case BuiltInFunctionNames.CHAR_LENGTH => SqlStdOperatorTable.CHAR_LENGTH
-      case BuiltInFunctionNames.UPPER_CASE => SqlStdOperatorTable.UPPER
-      case BuiltInFunctionNames.LOWER_CASE => SqlStdOperatorTable.LOWER
-      case BuiltInFunctionNames.INIT_CAP => SqlStdOperatorTable.INITCAP
-      case BuiltInFunctionNames.LIKE => SqlStdOperatorTable.LIKE
-      case BuiltInFunctionNames.SIMILAR => SqlStdOperatorTable.SIMILAR_TO
-      case BuiltInFunctionNames.EXP => SqlStdOperatorTable.EXP
-      case BuiltInFunctionNames.LOG10 => SqlStdOperatorTable.LOG10
-      case BuiltInFunctionNames.POWER => SqlStdOperatorTable.POWER
-      case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
-      case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
-      case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
-      case _ => ???
-    }
-  }
-
 }
