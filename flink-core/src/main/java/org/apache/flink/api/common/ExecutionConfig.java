@@ -778,7 +778,7 @@ public class ExecutionConfig implements Serializable {
 				useClosureCleaner == other.useClosureCleaner &&
 				parallelism == other.parallelism &&
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
-				restartStrategyConfiguration.equals(other.restartStrategyConfiguration)) &&
+					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
