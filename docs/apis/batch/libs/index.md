@@ -26,4 +26,4 @@ under the License.
 
 - Graph processing: [Gelly](gelly_guide.html)
 - Machine Learning: [FlinkML](ml/index.html)
-- Relational Queries: [Table](table.html)
+- Relational Queries: [Table and SQL](table.html)
