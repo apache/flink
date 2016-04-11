@@ -21,12 +21,10 @@ package org.apache.flink.api.table.plan.rules.dataSet
 import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.calcite.rex.{RexInputRef, RexCall}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetJoin, DataSetConvention}
-import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 
 class DataSetJoinRule
@@ -36,6 +34,14 @@ class DataSetJoinRule
       DataSetConvention.INSTANCE,
       "FlinkJoinRule")
   {
+
+  /**
+   * Only translate INNER joins for now
+   */
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
+    join.getJoinType.equals(JoinRelType.INNER)
+  }
 
     def convert(rel: RelNode): RelNode = {
 
