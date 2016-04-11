@@ -32,15 +32,11 @@ public class IntMaximum implements SimpleAccumulator<Integer> {
 	 */
 	@Override
 	public void add(Integer value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	public void add(int value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class IntMaximum implements SimpleAccumulator<Integer> {
 
 	@Override
 	public void merge(Accumulator<Integer, Integer> other) {
-		int otherMax = other.getLocalValue();
-
-		if (otherMax > this.max) {
-			this.max = otherMax;
-		}
+		this.max = Math.max(this.max, other.getLocalValue());
 	}
 
 	@Override

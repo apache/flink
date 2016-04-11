@@ -32,15 +32,11 @@ public class DoubleMinimum implements SimpleAccumulator<Double> {
 	 */
 	@Override
 	public void add(Double value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	public void add(double value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class DoubleMinimum implements SimpleAccumulator<Double> {
 
 	@Override
 	public void merge(Accumulator<Double, Double> other) {
-		double otherMin = other.getLocalValue();
-
-		if (otherMin < this.min) {
-			this.min = otherMin;
-		}
+		this.min = Math.min(this.min, other.getLocalValue());
 	}
 
 	@Override

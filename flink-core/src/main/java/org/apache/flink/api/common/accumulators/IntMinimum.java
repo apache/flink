@@ -32,15 +32,11 @@ public class IntMinimum implements SimpleAccumulator<Integer> {
 	 */
 	@Override
 	public void add(Integer value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	public void add(int value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class IntMinimum implements SimpleAccumulator<Integer> {
 
 	@Override
 	public void merge(Accumulator<Integer, Integer> other) {
-		int otherMin = other.getLocalValue();
-
-		if (otherMin < this.min) {
-			this.min = otherMin;
-		}
+		this.min = Math.min(this.min, other.getLocalValue());
 	}
 
 	@Override

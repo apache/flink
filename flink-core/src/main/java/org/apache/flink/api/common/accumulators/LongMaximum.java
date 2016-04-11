@@ -32,15 +32,11 @@ public class LongMaximum implements SimpleAccumulator<Long> {
 	 */
 	@Override
 	public void add(Long value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	public void add(long value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class LongMaximum implements SimpleAccumulator<Long> {
 
 	@Override
 	public void merge(Accumulator<Long, Long> other) {
-		long otherMax = other.getLocalValue();
-
-		if (otherMax > this.max) {
-			this.max = otherMax;
-		}
+		this.max = Math.max(this.max, other.getLocalValue());
 	}
 
 	@Override

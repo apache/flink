@@ -32,15 +32,11 @@ public class LongMinimum implements SimpleAccumulator<Long> {
 	 */
 	@Override
 	public void add(Long value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	public void add(long value) {
-		if (value < this.min) {
-			this.min = value;
-		}
+		this.min = Math.min(this.min, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class LongMinimum implements SimpleAccumulator<Long> {
 
 	@Override
 	public void merge(Accumulator<Long, Long> other) {
-		long otherMin = other.getLocalValue();
-
-		if (otherMin < this.min) {
-			this.min = otherMin;
-		}
+		this.min = Math.min(this.min, other.getLocalValue());
 	}
 
 	@Override

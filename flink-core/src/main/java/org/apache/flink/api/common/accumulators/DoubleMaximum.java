@@ -32,15 +32,11 @@ public class DoubleMaximum implements SimpleAccumulator<Double> {
 	 */
 	@Override
 	public void add(Double value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	public void add(double value) {
-		if (value > this.max) {
-			this.max = value;
-		}
+		this.max = Math.max(this.max, value);
 	}
 
 	@Override
@@ -55,11 +51,7 @@ public class DoubleMaximum implements SimpleAccumulator<Double> {
 
 	@Override
 	public void merge(Accumulator<Double, Double> other) {
-		double otherMax = other.getLocalValue();
-
-		if (otherMax > this.max) {
-			this.max = otherMax;
-		}
+		this.max = Math.max(this.max, other.getLocalValue());
 	}
 
 	@Override
