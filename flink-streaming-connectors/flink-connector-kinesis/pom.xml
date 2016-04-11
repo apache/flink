@@ -30,15 +30,13 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-twitter_2.10</artifactId>
-	<name>flink-connector-twitter</name>
-
-	<packaging>jar</packaging>
-
+	<artifactId>flink-connector-kinesis_2.10</artifactId>
+	<name>flink-connector-kinesis</name>
 	<properties>
-		<hbc-core.version>2.2.0</hbc-core.version>
+		<kinesis-producer.version>0.10.2</kinesis-producer.version>
 	</properties>
 
+	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
@@ -46,51 +44,15 @@ under the License.
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
+		<!-- Note:
+			This dependency is licenced under the Amazon Software License.
+			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
+		-->
 		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>hbc-core</artifactId>
-			<version>${hbc-core.version}</version>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>amazon-kinesis-producer</artifactId>
+			<version>${kinesis-producer.version}</version>
 		</dependency>
 	</dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<!-- Override artifactSet configuration to build fat-jar with all dependencies packed. -->
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<configuration>
-							<artifactSet>
-								<includes combine.children="append">
-									<!-- We include all dependencies that transitively depend on guava -->
-									<include>com.twitter:hbc-core</include>
-									<include>com.twitter:joauth</include>
-									<include>org.apache.httpcomponents:httpclient</include>
-									<include>org.apache.httpcomponents:httpcore</include>
-								</includes>
-							</artifactSet>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
-							</transformers>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>

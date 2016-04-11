@@ -5,7 +5,7 @@ title: "HDFS Connector"
 sub-nav-group: streaming
 sub-nav-parent: connectors
 sub-nav-pos: 3
-sub-nav-title: HDFS
+sub-nav-title: Filesystem Sink
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
