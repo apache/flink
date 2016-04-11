@@ -17,6 +17,13 @@
  */
 package org.apache.flink.api.table.expressions
 
+import scala.collection.JavaConversions._
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
+
 /**
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
@@ -24,6 +31,12 @@ package org.apache.flink.api.table.expressions
 case class Call(functionName: String, args: Expression*) extends Expression {
 
   override def children: Seq[Expression] = args
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(
+      BuiltInFunctionNames.toSqlOperator(functionName),
+      args.map(_.toRexNode))
+  }
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
 
@@ -54,6 +67,26 @@ object BuiltInFunctionNames {
   val POWER = "POWER"
   val LN = "LN"
   val ABS = "ABS"
+
+  def toSqlOperator(name: String): SqlOperator = {
+    name match {
+      case BuiltInFunctionNames.SUBSTRING => SqlStdOperatorTable.SUBSTRING
+      case BuiltInFunctionNames.TRIM => SqlStdOperatorTable.TRIM
+      case BuiltInFunctionNames.CHAR_LENGTH => SqlStdOperatorTable.CHAR_LENGTH
+      case BuiltInFunctionNames.UPPER_CASE => SqlStdOperatorTable.UPPER
+      case BuiltInFunctionNames.LOWER_CASE => SqlStdOperatorTable.LOWER
+      case BuiltInFunctionNames.INIT_CAP => SqlStdOperatorTable.INITCAP
+      case BuiltInFunctionNames.LIKE => SqlStdOperatorTable.LIKE
+      case BuiltInFunctionNames.SIMILAR => SqlStdOperatorTable.SIMILAR_TO
+      case BuiltInFunctionNames.EXP => SqlStdOperatorTable.EXP
+      case BuiltInFunctionNames.LOG10 => SqlStdOperatorTable.LOG10
+      case BuiltInFunctionNames.POWER => SqlStdOperatorTable.POWER
+      case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
+      case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
+      case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
+      case _ => ???
+    }
+  }
 }
 
 /**

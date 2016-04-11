@@ -17,6 +17,9 @@
  */
 package org.apache.flink.api.table.expressions
 
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
+
 abstract class BinaryPredicate extends BinaryExpression { self: Product => }
 
 case class Not(child: Expression) extends UnaryExpression {
@@ -24,17 +27,30 @@ case class Not(child: Expression) extends UnaryExpression {
   override val name = Expression.freshName("not-" + child.name)
 
   override def toString = s"!($child)"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.not(child.toRexNode)
+  }
 }
 
 case class And(left: Expression, right: Expression) extends BinaryPredicate {
+
   override def toString = s"$left && $right"
 
   override val name = Expression.freshName(left.name + "-and-" + right.name)
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.and(left.toRexNode, right.toRexNode)
+  }
 }
 
 case class Or(left: Expression, right: Expression) extends BinaryPredicate {
+
   override def toString = s"$left || $right"
 
   override val name = Expression.freshName(left.name + "-or-" + right.name)
 
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.or(left.toRexNode, right.toRexNode)
+  }
 }

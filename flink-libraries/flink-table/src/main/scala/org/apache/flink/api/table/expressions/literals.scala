@@ -18,6 +18,9 @@
 package org.apache.flink.api.table.expressions
 
 import java.util.Date
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala.table.ImplicitExpressionOperations
 
@@ -41,4 +44,8 @@ case class Literal(value: Any, tpe: TypeInformation[_])
   def typeInfo = tpe
 
   override def toString = s"$value"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.literal(value)
+  }
 }

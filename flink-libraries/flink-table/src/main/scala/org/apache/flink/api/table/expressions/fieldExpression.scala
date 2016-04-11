@@ -17,18 +17,27 @@
  */
 package org.apache.flink.api.table.expressions
 
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
+
 case class UnresolvedFieldReference(override val name: String) extends LeafExpression {
   override def toString = "\"" + name
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.field(name)
+  }
 }
 
-case class ResolvedFieldReference(
-    override val name: String) extends LeafExpression {
-
+case class ResolvedFieldReference(override val name: String) extends LeafExpression {
   override def toString = s"'$name"
 }
 
 case class Naming(child: Expression, override val name: String) extends UnaryExpression {
   override def toString = s"$child as '$name"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.alias(child.toRexNode, name)
+  }
 
   override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
