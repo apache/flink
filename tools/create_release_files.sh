@@ -182,7 +182,7 @@ deploy_to_maven() {
   # are depending on scala 2.10.
   echo "Deploying Scala 2.10 version"
   cd tools && ./change-scala-version.sh 2.10 && cd ..
-  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source,include-kinesis --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 
 
   echo "Deploying Scala 2.10 / hadoop 1 version"
@@ -190,7 +190,7 @@ deploy_to_maven() {
 
 
   sleep 4
-  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source,include-kinesis --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 }
 
 copy_data() {

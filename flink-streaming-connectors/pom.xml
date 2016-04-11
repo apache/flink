@@ -64,6 +64,18 @@ under the License.
 				<module>flink-connector-filesystem</module>
 			</modules>
 		</profile>
+		<!--
+			We include the kinesis module only optionally because it contains a dependency
+			licenced under the "Amazon Software License".
+			In accordance with the discussion in https://issues.apache.org/jira/browse/LEGAL-198
+			this is an optional module for Flink.
+		-->
+		<profile>
+			<id>include-kinesis</id>
+			<modules>
+				<module>flink-connector-kinesis</module>
+			</modules>
+		</profile>
 	</profiles>
 
 </project>
