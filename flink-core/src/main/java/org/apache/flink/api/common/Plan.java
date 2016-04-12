@@ -288,7 +288,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
 		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
-			"The default parallelism must be positive, or -1 if the system should use the globally comfigured default.");
+			"The default parallelism must be positive, or -1 if the system should use the globally configured default.");
 		
 		this.defaultParallelism = defaultParallelism;
 	}

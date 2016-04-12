@@ -271,7 +271,7 @@ if [ -n "${HBASE_CONF_DIR}" ]; then
 fi
 
 # Auxilliary function which extracts the name of host from a line which
-# also potentialy includes topology information and the taskManager type
+# also potentially includes topology information and the taskManager type
 extractHostName() {
     # handle comments: extract first part of string (before first # character)
     SLAVE=`echo $1 | cut -d'#' -f 1`
