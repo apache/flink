@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.slf4j.Logger;
@@ -70,6 +72,24 @@ public class MergingWindowSet<W extends Window> {
 		this.windowAssigner = windowAssigner;
 
 		windows = new HashMap<>();
+	}
+
+	/**
+	 * Restores a {@link MergingWindowSet} from the given state.
+	 */
+	public MergingWindowSet(MergingWindowAssigner<?, W> windowAssigner, ListState<Tuple2<W, W>> state) throws Exception {
+		this.windowAssigner = windowAssigner;
+		windows = new HashMap<>();
+
+		for (Tuple2<W, W> window: state.get()) {
+			windows.put(window.f0, window.f1);
+		}
+	}
+
+	public void persist(ListState<Tuple2<W, W>> state) throws Exception {
+		for (Map.Entry<W, W> window: windows.entrySet()) {
+			state.add(new Tuple2<>(window.getKey(), window.getValue()));
+		}
 	}
 
 	/**
