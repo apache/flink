@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
@@ -181,13 +182,15 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			
 			for (Path path : configuredDbBasePaths) {
 				File f = new File(path.toUri().getPath());
-				if (!f.exists() && !f.mkdirs()) {
-					String msg = "Local DB files directory '" + f.getAbsolutePath()
+				File testDir = new File(f, UUID.randomUUID().toString());
+				if (!testDir.mkdirs()) {
+					String msg = "Local DB files directory '" + path
 							+ "' does not exist and cannot be created. ";
 					LOG.error(msg);
 					errorMessage += msg;
+				} else {
+					dirs.add(f);
 				}
-				dirs.add(f);
 			}
 			
 			if (dirs.isEmpty()) {
