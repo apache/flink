@@ -20,8 +20,10 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -133,14 +135,17 @@ public class RocksDBStateBackendConfigTest {
 			
 			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
 			rocksDbBackend.setDbStoragePath(targetDir.getAbsolutePath());
-			
+
+			boolean hasFailure = false;
 			try {
 				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
 			}
 			catch (Exception e) {
 				assertTrue(e.getMessage().contains("No local storage directories available"));
 				assertTrue(e.getMessage().contains(targetDir.getAbsolutePath()));
+				hasFailure = true;
 			}
+			assertTrue("We must see a failure because no storaged directory is feasible.", hasFailure);
 		}
 		finally {
 			//noinspection ResultOfMethodCallIgnored
@@ -168,6 +173,9 @@ public class RocksDBStateBackendConfigTest {
 	
 			try {
 				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
+
+				// actually get a state to see whether we can write to the storage directory
+				rocksDbBackend.getPartitionedState(null, VoidSerializer.INSTANCE, new ValueStateDescriptor<>("test", String.class, ""));
 			}
 			catch (Exception e) {
 				e.printStackTrace();
