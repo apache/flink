@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.table.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.Test
@@ -36,8 +36,9 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
   @Test
   def testDistinct(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val distinct = ds.select('b).distinct()
 
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
@@ -48,8 +49,9 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
   @Test
   def testDistinctAfterAggregate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'c, 'd, 'e)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
+    val ds = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     val distinct = ds.groupBy('a, 'e).select('e).distinct()
 
     val expected = "1\n" + "2\n" + "3\n"

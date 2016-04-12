@@ -23,9 +23,10 @@ import java.util.List;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.Table;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,7 +48,7 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 			new Tuple3<>("A", 24.0, "Y"),
 			new Tuple3<>("B", 1.0, "Z"));
 
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		Table table = tableEnv
 			.fromDataSet(data, "groupMe, value, name")

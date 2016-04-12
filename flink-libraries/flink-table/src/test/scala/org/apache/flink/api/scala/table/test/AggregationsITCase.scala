@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala.table.test
 
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -38,7 +38,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
 
     val results = t.toDataSet[Row].collect()
@@ -50,7 +52,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationOnNonExistingField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       // Must fail. Field 'foo does not exist.
       .select('foo.avg)
   }
@@ -59,9 +63,11 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
     val expected = "1,1,1,1,1.5,1.5,2"
@@ -73,9 +79,11 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(
       (1: Byte, 1: Short),
-      (2: Byte, 2: Short)).toTable
+      (2: Byte, 2: Short)).toTable(tEnv)
       .select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
 
     val expected = "1,3,2,1,3"
@@ -87,7 +95,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
       .select(('_1 + 2).avg + 2, '_2.count + 5)
 
     val expected = "5.5,7"
@@ -99,7 +109,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
       .select('_1.count, '_2.count)
 
     val expected = "2,2"
@@ -111,9 +123,11 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationAfterProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
       .select('_1, '_2, '_3)
       .select('_1.avg, '_2.sum, '_3.count)
 
@@ -126,7 +140,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("Hello", 1)).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Field '_1 is not a numeric type.
       .select('_1.sum)
 
@@ -137,7 +153,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("Hello", 1)).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Sum aggregation can not be chained.
       .select('_2.sum.sum)
   }
@@ -146,7 +164,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testSQLStyleAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .select(
         """Sum( a) as a1, a.sum as a2,
           |Min (a) as b1, a.min as b2,
@@ -164,13 +184,15 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testPojoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val input = env.fromElements(
       MyWC("hello", 1),
       MyWC("hello", 1),
       MyWC("ciao", 1),
       MyWC("hola", 1),
       MyWC("hola", 1))
-    val expr = input.toTable
+    val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
       .select('word, 'count.sum as 'count)

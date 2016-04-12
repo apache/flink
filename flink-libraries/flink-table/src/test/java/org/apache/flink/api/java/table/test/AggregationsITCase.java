@@ -41,12 +41,12 @@ import org.apache.flink.api.table.ExpressionParserException;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.plan.PlanGenException;
-import org.apache.flink.examples.java.JavaTableExample;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -66,7 +66,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAggregationTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 
@@ -81,7 +81,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAggregationOnNonExistingField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
@@ -98,7 +98,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testWorkingAggregationDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(
@@ -119,7 +119,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAggregationWithArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input =
 				env.fromElements(
@@ -141,7 +141,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAggregationWithTwoCount() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input =
 			env.fromElements(
@@ -163,7 +163,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = PlanGenException.class)
 	public void testNonWorkingDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<>(1f, "Hello"));
 
@@ -183,7 +183,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionParserException.class)
 	public void testNoNestedAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<>(1f, "Hello"));
 
@@ -203,7 +203,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testPojoAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 		DataSet<WC> input = env.fromElements(
 				new WC("Hello", 1),
 				new WC("Ciao", 1),

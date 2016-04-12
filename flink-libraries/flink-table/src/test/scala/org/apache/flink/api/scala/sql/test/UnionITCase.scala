@@ -21,8 +21,7 @@ package org.apache.flink.api.scala.sql.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.plan.TranslationContext
+import org.apache.flink.api.table.{TableException, TableEnvironment, Row}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -43,8 +42,7 @@ class UnionITCase(
   def testUnion(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT c FROM t1 UNION ALL (SELECT c FROM t2)"
 
@@ -56,7 +54,7 @@ class UnionITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -65,8 +63,11 @@ class UnionITCase(
   def testUnionWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    if (tEnv.getConfig.getEfficientTypeUsage) {
+      return
+    }
 
     val sqlQuery = "SELECT c FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))" +
@@ -89,8 +90,11 @@ class UnionITCase(
   def testUnionWithAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    if (tEnv.getConfig.getEfficientTypeUsage) {
+      return
+    }
 
     val sqlQuery = "SELECT count(c) FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))"
@@ -106,4 +110,5 @@ class UnionITCase(
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
 }

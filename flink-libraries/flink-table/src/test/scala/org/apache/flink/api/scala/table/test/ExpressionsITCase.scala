@@ -23,7 +23,7 @@ import java.util.Date
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import TableProgramsTestBase.TableConfigMode
@@ -39,18 +39,20 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class ExpressionsITCase(
     mode: TestExecutionMode,
-    config: TableConfigMode)
-  extends TableProgramsTestBase(mode, config) {
+    configMode: TableConfigMode)
+  extends TableProgramsTestBase(mode, configMode) {
 
   @Test
   def testArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((5, 10)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env.fromElements((5, 10)).toTable(tEnv, 'a, 'b)
       .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a)
 
     val expected = "0,10,2,10,1,-5"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -58,11 +60,13 @@ class ExpressionsITCase(
   def testLogic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((5, true)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env.fromElements((5, true)).toTable(tEnv, 'a, 'b)
       .select('b && true, 'b && false, 'b || false, !'b)
 
     val expected = "true,false,true,false"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -70,11 +74,13 @@ class ExpressionsITCase(
   def testComparisons(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((5, 5, 4)).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env.fromElements((5, 5, 4)).toTable(tEnv, 'a, 'b, 'c)
       .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull)
 
     val expected = "true,true,false,false,true"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -82,12 +88,13 @@ class ExpressionsITCase(
   def testCaseInsensitiveForAs(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = env.fromElements((3, 5.toByte)).as('a, 'b)
+    val t = env.fromElements((3, 5.toByte)).toTable(tEnv, 'a, 'b)
       .groupBy("a").select("a, a.count As cnt")
 
     val expected = "3,1"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -96,14 +103,15 @@ class ExpressionsITCase(
   @Test
   def testDateLiteral(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = env.fromElements((0L, "test")).as('a, 'b)
+    val t = env.fromElements((0L, "test")).toTable(tEnv, 'a, 'b)
       .select('a,
         Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
         'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
 
     val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

@@ -22,10 +22,11 @@ import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,7 +44,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<>(5, 10));
@@ -63,7 +64,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test
 	public void testLogic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<>(5, true));
@@ -83,7 +84,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test
 	public void testComparisons() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
 				env.fromElements(new Tuple3<>(5, 5, 4));
