@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.table.plan
 
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
+import org.apache.flink.api.table.TableEnvironment
 
 import org.apache.flink.api.table.expressions._
 
@@ -30,11 +30,15 @@ object RexNodeTranslator {
     * these aggregation expressions into Calcite AggCalls, and replaces the original aggregation
     * expressions by field accesses expressions.
     */
-  def extractAggCalls(exp: Expression, relBuilder: RelBuilder): Pair[Expression, List[AggCall]] = {
+  def extractAggCalls(
+    exp: Expression,
+    tableEnv: TableEnvironment): Pair[Expression, List[AggCall]] = {
+
+    val relBuilder = tableEnv.getRelBuilder
 
     exp match {
       case agg: Aggregation =>
-        val name = TranslationContext.getUniqueName
+        val name = tableEnv.createUniqueAttributeName()
         val aggCall = agg.toAggCall(name)(relBuilder)
         val fieldExp = new UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
@@ -45,16 +49,16 @@ object RexNodeTranslator {
       case l: LeafExpression =>
         (l, Nil)
       case u: UnaryExpression =>
-        val c = extractAggCalls(u.child, relBuilder)
+        val c = extractAggCalls(u.child, tableEnv)
         (u.makeCopy(List(c._1)), c._2)
       case b: BinaryExpression =>
-        val l = extractAggCalls(b.left, relBuilder)
-        val r = extractAggCalls(b.right, relBuilder)
+        val l = extractAggCalls(b.left, tableEnv)
+        val r = extractAggCalls(b.right, tableEnv)
         (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
 
       // Scalar functions
       case c@Call(name, args@_*) =>
-        val newArgs = args.map(extractAggCalls(_, relBuilder)).toList
+        val newArgs = args.map(extractAggCalls(_, tableEnv)).toList
         (c.makeCopy(name :: newArgs.map(_._1)), newArgs.flatMap(_._2))
 
       case e@AnyRef =>

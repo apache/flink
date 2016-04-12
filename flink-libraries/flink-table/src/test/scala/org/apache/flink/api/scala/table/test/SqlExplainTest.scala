@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.plan.TranslationContext
+import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.test.util.MultipleProgramsTestBase
 
 import org.junit._
@@ -31,17 +31,16 @@ class SqlExplainTest
 
   val testFilePath = SqlExplainTest.this.getClass.getResource("/").getFile
 
-  @Before
-  def resetContext(): Unit = {
-    TranslationContext.reset()
-  }
-
   @Test
   def testFilterWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table = env.fromElements((1, "hello")).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table.filter("a % 2 = 0").explain()
+    val table = env.fromElements((1, "hello"))
+      .toTable(tEnv, 'a, 'b)
+      .filter("a % 2 = 0")
+
+    val result = tEnv.explain(table)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilter0.out").mkString
     assertEquals(result, source)
@@ -50,9 +49,13 @@ class SqlExplainTest
   @Test
   def testFilterWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table = env.fromElements((1, "hello")).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table.filter("a % 2 = 0").explain(true)
+    val table = env.fromElements((1, "hello"))
+      .toTable(tEnv, 'a, 'b)
+      .filter("a % 2 = 0")
+
+    val result = tEnv.explain(table, true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testFilter1.out").mkString
     assertEquals(result, source)
@@ -61,10 +64,13 @@ class SqlExplainTest
   @Test
   def testJoinWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table1 = env.fromElements((1, "hello")).as('a, 'b)
-    val table2 = env.fromElements((1, "hello")).as('c, 'd)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table1.join(table2).where("b = d").select("a, c").explain()
+    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
+    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
+    val table = table1.join(table2).where("b = d").select("a, c")
+
+    val result = tEnv.explain(table)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testJoin0.out").mkString
     assertEquals(result, source)
@@ -73,10 +79,13 @@ class SqlExplainTest
   @Test
   def testJoinWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table1 = env.fromElements((1, "hello")).as('a, 'b)
-    val table2 = env.fromElements((1, "hello")).as('c, 'd)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table1.join(table2).where("b = d").select("a, c").explain(true)
+    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
+    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
+    val table = table1.join(table2).where("b = d").select("a, c")
+
+    val result = tEnv.explain(table, true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testJoin1.out").mkString
     assertEquals(result, source)
@@ -85,10 +94,13 @@ class SqlExplainTest
   @Test
   def testUnionWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table1 = env.fromElements((1, "hello")).as('count, 'word)
-    val table2 = env.fromElements((1, "hello")).as('count, 'word)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table1.unionAll(table2).explain()
+    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table = table1.unionAll(table2)
+
+    val result = tEnv.explain(table)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion0.out").mkString
     assertEquals(result, source)
@@ -97,10 +109,13 @@ class SqlExplainTest
   @Test
   def testUnionWithExtended() : Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val table1 = env.fromElements((1, "hello")).as('count, 'word)
-    val table2 = env.fromElements((1, "hello")).as('count, 'word)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val result = table1.unionAll(table2).explain(true)
+    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table = table1.unionAll(table2)
+
+    val result = tEnv.explain(table, true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion1.out").mkString
     assertEquals(result, source)

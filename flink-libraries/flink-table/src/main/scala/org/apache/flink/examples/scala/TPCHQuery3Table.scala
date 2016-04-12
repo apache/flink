@@ -17,6 +17,7 @@
  */
 package org.apache.flink.examples.scala
 
+import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
@@ -80,17 +81,18 @@ object TPCHQuery3Table {
     
     // get execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val lineitems = getLineitemDataSet(env)
-      .filter( l => dateFormat.parse(l.shipDate).after(date) )
+      .filter( l => dateFormat.parse(l.shipDate).after(date) ).toTable(tEnv)
       .as('id, 'extdPrice, 'discount, 'shipDate)
 
-    val customers = getCustomerDataSet(env)
+    val customers = getCustomerDataSet(env).toTable(tEnv)
       .as('id, 'mktSegment)
       .filter( 'mktSegment === "AUTOMOBILE" )
 
     val orders = getOrdersDataSet(env)
-      .filter( o => dateFormat.parse(o.orderDate).before(date) )
+      .filter( o => dateFormat.parse(o.orderDate).before(date) ).toTable(tEnv)
       .as('orderId, 'custId, 'orderDate, 'shipPrio)
 
     val items =

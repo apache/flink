@@ -20,13 +20,13 @@ package org.apache.flink.api.java.table.test;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.TableException;
-import org.apache.flink.api.table.plan.TranslationContext;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
@@ -36,9 +36,9 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class RegisterDataSetITCase extends TableProgramsTestBase {
+public class TableEnvironmentITCase extends TableProgramsTestBase {
 
-	public RegisterDataSetITCase(TestExecutionMode mode, TableConfigMode configMode) {
+	public TableEnvironmentITCase(TestExecutionMode mode, TableConfigMode configMode) {
 		super(mode, configMode);
 	}
 
@@ -46,8 +46,7 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	public void testSimpleRegister() throws Exception {
 		final String tableName = "MyTable";
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet(tableName, ds);
@@ -67,8 +66,7 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	public void testRegisterWithFields() throws Exception {
 		final String tableName = "MyTable";
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet(tableName, ds, "a, b, c");
@@ -91,21 +89,22 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	@Test(expected = TableException.class)
 	public void testRegisterExistingDatasetTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet("MyTable", ds);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 =
 				CollectionDataSets.getSmall5TupleDataSet(env);
+		// Must fail. Name is already used for different table.
 		tableEnv.registerDataSet("MyTable", ds2);
 	}
 
 	@Test(expected = TableException.class)
 	public void testScanUnregisteredTable() throws Exception {
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
+		// Must fail. No table registered under that name.
 		tableEnv.scan("nonRegisteredTable");
 	}
 
@@ -113,8 +112,7 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	public void testTableRegister() throws Exception {
 		final String tableName = "MyTable";
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
@@ -132,11 +130,22 @@ public class RegisterDataSetITCase extends TableProgramsTestBase {
 	@Test(expected = TableException.class)
 	public void testIllegalName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
-		TranslationContext.reset();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table t = tableEnv.fromDataSet(ds);
+		// Must fail. Table name matches internal name pattern.
 		tableEnv.registerTable("_DataSetTable_42", t);
+	}
+
+	@Test(expected = TableException.class)
+	public void testRegisterTableFromOtherEnv() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv1 = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv2 = TableEnvironment.getTableEnvironment(env, config());
+
+		Table t = tableEnv1.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
+		// Must fail. Table is bound to different TableEnvironment.
+		tableEnv2.registerTable("MyTable", t);
 	}
 }

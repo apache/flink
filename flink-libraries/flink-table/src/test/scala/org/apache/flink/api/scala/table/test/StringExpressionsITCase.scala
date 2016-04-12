@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
@@ -36,7 +36,9 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   @Test
   def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).toTable(tEnv, 'a, 'b)
       .select('a.substring(1, 'b))
 
     val expected = "AA\nB"
@@ -47,7 +49,9 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   @Test
   def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("ABCD", 3), ("ABCD", 2)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("ABCD", 3), ("ABCD", 2)).toTable(tEnv, 'a, 'b)
       .select('a.substring('b))
 
     val expected = "CD\nBCD"
@@ -57,9 +61,10 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
   @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring1(): Unit = {
-
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).toTable(tEnv, 'a, 'b)
       // must fail, second argument of substring must be Integer not Double.
       .select('a.substring(0, 'b))
 
@@ -68,9 +73,10 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
   @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring2(): Unit = {
-
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).toTable(tEnv, 'a, 'b)
       // must fail, first argument of substring must be Integer not String.
       .select('a.substring('b, 15))
 

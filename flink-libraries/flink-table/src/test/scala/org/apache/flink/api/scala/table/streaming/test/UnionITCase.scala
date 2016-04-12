@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table.streaming.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableException, TableEnvironment, Row}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import scala.collection.JavaConverters._
@@ -36,9 +36,11 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
-    val ds2 = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
@@ -54,9 +56,11 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testUnionWithFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).as('a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
@@ -71,9 +75,11 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
   @Test(expected = classOf[IllegalArgumentException])
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).as('a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2)
 
@@ -87,9 +93,12 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
   @Test(expected = classOf[IllegalArgumentException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).as('a, 'b, 'c, 'd, 'e).select('a, 'b, 'c)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .select('a, 'b, 'c)
 
     val unionDs = ds1.unionAll(ds2)
 
@@ -99,6 +108,19 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     println(StreamITCase.testResults)
     assertEquals(true, StreamITCase.testResults.isEmpty)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testUnionTablesFromDifferentEnvs(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv1 = TableEnvironment.getTableEnvironment(env)
+    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv1, 'a, 'b, 'c)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv2, 'a, 'b, 'c)
+
+    // Must fail. Tables are bound to different TableEnvironments.
+    ds1.unionAll(ds2)
   }
 
 }

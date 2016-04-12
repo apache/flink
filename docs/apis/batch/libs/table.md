@@ -31,13 +31,11 @@ under the License.
 -->
 
 
-**The Table API: an experimental feature**
+**Table API and SQL are experimental features**
 
-Flink's Table API is a SQL-like expression language embedded in Java and Scala.
-Instead of manipulating a `DataSet` or `DataStream`, you can create and work with a relational `Table` abstraction.
-Tables have a schema and allow running relational operations on them, including selection, aggregation, and joins.
-A `Table` can be created from a `DataSet` or a `DataStream` and then queried either using the Table API operators or using SQL queries.
-Once a `Table` is converted back to a `DataSet` or `DataStream`, the defined relational plan is optimized using [Apache Calcite](https://calcite.apache.org/)
+The Table API is a SQL-like expression language that can be embedded in Flink's DataSet and DataStream APIs (Java and Scala).
+A `DataSet` or `DataStream` can be converted into a relational `Table` abstraction. You can apply relational operators such as selection, aggregation, and joins on `Table`s or query them with regular SQL queries.
+When a `Table` is converted back into a `DataSet` or `DataStream`, the logical plan, which was defined by relational operators and SQL queries, is optimized using [Apache Calcite](https://calcite.apache.org/)
 and transformed into a `DataSet` or `DataStream` execution plan.
 
 * This will be replaced by the TOC
@@ -46,7 +44,7 @@ and transformed into a `DataSet` or `DataStream` execution plan.
 Using the Table API and SQL
 ----------------------------
 
-The Table API and SQL are part of the *flink-libraries* Maven project.
+The Table API and SQL are part of the *flink-table* Maven project.
 The following dependency must be added to your project in order to use the Table API and SQL:
 
 {% highlight xml %}
@@ -61,58 +59,73 @@ Note that the Table API is currently not part of the binary distribution. See li
 
 Table API
 ----------
-The Table API provides methods for running relational operations on Tables, both in Scala and Java.
-In the following sections you can find examples that show how to create Tables, how to define and execute relational queries on them,
-and how to retrieve the result of a query as a `DataSet`.
+The Table API provides methods to apply relational operations on DataSets, both in Scala and Java.
+
+The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet`, converted into a `DataSet`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
+
+The following sections show by example how to use the Table API embedded in  the Scala and Java DataSet APIs.
 
 ### Scala Table API
 
-The Table API can be enabled by importing `org.apache.flink.api.scala.table._`. This enables
-implicit conversions that allow
-converting a DataSet to a Table. This example shows how a DataSet can
-be converted, how relational queries can be specified and how a Table can be
-converted back to a DataSet:
+The Table API is enabled by importing `org.apache.flink.api.scala.table._`. This enables
+implicit conversions to convert a DataSet to a Table. The following example shows:
+
+- how a `DataSet` is converted to a `Table`,
+- how relational queries are specified, and 
+- how a `Table` is converted back to a `DataSet`.
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 
 case class WC(word: String, count: Int)
+
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tEnv = TableEnvironment.getTableEnvironment(env)
+
 val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-val expr = input.toTable
-val result = expr.groupBy('word).select('word, 'count.sum as 'count).toDataSet[WC]
+val expr = input.toTable(tEnv)
+val result = expr
+               .groupBy('word)
+               .select('word, 'count.sum as 'count)
+               .toDataSet[WC]
 {% endhighlight %}
 
 The expression DSL uses Scala symbols to refer to field names and code generation to
 transform expressions to efficient runtime code. Please note that the conversion to and from
-Tables only works when using Scala case classes or Flink POJOs. Please check out
-the [Type Extraction and Serialization]({{ site.baseurl }}/internals/types_serialization.html) section
-to learn the requirements for a class to be considered a POJO.
+Tables only works when using Scala case classes or Java POJOs. Please refer to the [Type Extraction and Serialization]({{ site.baseurl }}/internals/types_serialization.html) section
+to learn the characteristics of a valid POJO.
 
-This is another example that shows how you
-can join two Tables:
+Another example shows how to join two Tables:
 
 {% highlight scala %}
 case class MyResult(a: String, d: Int)
 
-val input1 = env.fromElements(...).toTable.as('a, 'b)
-val input2 = env.fromElements(...).toTable.as('c, 'd)
-val joined = input1.join(input2).where("a = c && d > 42").select("a, d").toDataSet[MyResult]
+val input1 = env.fromElements(...).toTable(tEnv).as('a, 'b)
+val input2 = env.fromElements(...).toTable(tEnv, 'c, 'd)
+
+val joined = input1.join(input2)
+               .where("a = c && d > 42")
+               .select("a, d")
+               .toDataSet[MyResult]
 {% endhighlight %}
 
-Notice, how a DataSet can be converted to a Table by using `as` and specifying new
-names for the fields. This can also be used to disambiguate fields before a join operation. Also,
-in this example we see that you can also use Strings to specify relational expressions.
+Notice, how the field names of a Table can be changed with `as()` or specified with `toTable()` when converting a DataSet to a Table. In addition, the example shows how to use Strings to specify relational expressions.
 
-Please refer to the Scaladoc (and Javadoc) for a full list of supported operations and a
-description of the expression syntax.
+Please refer to the Scaladoc (and Javadoc) for a full list of supported operations and a description of the expression syntax.
 
 {% top %}
 
 ### Java Table API
 
-When using Java, Tables can be converted to and from DataSet using `TableEnvironment`.
-This example is equivalent to the above Scala Example:
+When using Flink's Java DataSet API, DataSets are converted to Tables and Tables to DataSets using a `TableEnvironment`.
+The following example shows:
+
+- how a `DataSet` is converted to a `Table`,
+- how relational queries are specified, and 
+- how a `Table` is converted back to a `DataSet`.
+
+It is equivalent to the Scala example in the previous section.
 
 {% highlight java %}
 
@@ -130,15 +143,15 @@ public class WC {
 
 ...
 
-ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-TableEnvironment tableEnv = new TableEnvironment();
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
 
 DataSet<WC> input = env.fromElements(
         new WC("Hello", 1),
         new WC("Ciao", 1),
         new WC("Hello", 1));
 
-Table table = tableEnv.fromDataSet(input);
+Table table = tEnv.fromDataSet(input);
 
 Table wordCounts = table
         .groupBy("word")
@@ -147,14 +160,14 @@ Table wordCounts = table
 DataSet<WC> result = tableEnv.toDataSet(wordCounts, WC.class);
 {% endhighlight %}
 
-When using Java, the embedded DSL for specifying expressions cannot be used. Only String expressions
-are supported. They support exactly the same feature set as the expression DSL.
+With Java, expressions must be specified by Strings. The embedded expression DSL is not supported.
 
 {% top %}
 
 ### Table API Operators
-The Table API provides a domain-spcific language to execute language-integrated queries on structured data in Scala and Java.
-This section gives a brief overview of all available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/api/table/Table.html).
+
+The Table API features a domain-specific language to execute language-integrated queries on structured data in Scala and Java.
+This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/api/table/Table.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -173,7 +186,7 @@ This section gives a brief overview of all available operators. You can find mor
     <tr>
       <td><strong>Select</strong></td>
       <td>
-        <p>Similar to a SQL SELECT statement. Perform a select operation.</p>
+        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.select("a, c as d");
@@ -184,7 +197,7 @@ Table result = in.select("a, c as d");
     <tr>
       <td><strong>As</strong></td>
       <td>
-        <p>Rename fields.</p>
+        <p>Renames fields.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.as("d, e, f");
@@ -193,42 +206,28 @@ Table result = in.as("d, e, f");
     </tr>
 
     <tr>
-      <td><strong>Filter</strong></td>
+      <td><strong>Where / Filter</strong></td>
       <td>
-        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.where("b = 'red'");
+{% endhighlight %}
+or
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.filter("a % 2 = 0");
 {% endhighlight %}
       </td>
     </tr>
-
-    <tr>
-      <td><strong>Where</strong></td>
-      <td>
-        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
-{% highlight java %}
-Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.where("b = 'red'");
-{% endhighlight %}
-      </td>
-    </tr>
-
     <tr>
       <td><strong>GroupBy</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation
-        operator to aggregate on per-group basis.</p>
+        <p>Similar to a SQL GROUPBY clause. Groups the rows on the grouping keys, with a following aggregation
+        operator to aggregate rows group-wise.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.groupBy("a").select("a, b.sum as d");
-{% endhighlight %}
-        <p><i>Note:</i> Flink can refer to nonaggregated columns in the select list that are not named in
-        the groupBy clause, it could be used to get better performance by avoiding unnecessary column sorting and
-        grouping while nonaggregated column is cogrouped with columns in groupBy clause. For example:</p>
-{% highlight java %}
-Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.groupBy("a").select("a, b, c.sum as d");
 {% endhighlight %}
       </td>
     </tr>
@@ -236,8 +235,7 @@ Table result = in.groupBy("a").select("a, b, c.sum as d");
     <tr>
       <td><strong>Join</strong></td>
       <td>
-        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where
-        clause is mandatory for join condition.</p>
+        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and an equality join predicate must be defined using a where or filter operator.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -249,7 +247,7 @@ Table result = left.join(right).where("a = d").select("a, b, e");
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Union two tables, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical schema, i.e., field names and types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -288,9 +286,9 @@ Table result = in.distinct();
     <tr>
       <td><strong>Select</strong></td>
       <td>
-        <p>Similar to a SQL SELECT statement. Perform a select operation.</p>
+        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.select('a, 'c as 'd);
 {% endhighlight %}
       </td>
@@ -299,30 +297,24 @@ val result = in.select('a, 'c as 'd);
     <tr>
       <td><strong>As</strong></td>
       <td>
-        <p>Rename fields.</p>
+        <p>Renames fields.</p>
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv).as('a, 'b, 'c);
 {% endhighlight %}
       </td>
     </tr>
 
     <tr>
-      <td><strong>Filter</strong></td>
+      <td><strong>Where / Filter</strong></td>
       <td>
-        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.filter('a % 2 === 0)
 {% endhighlight %}
-      </td>
-    </tr>
-
-    <tr>
-      <td><strong>Where</strong></td>
-      <td>
-        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+or
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.where('b === "red");
 {% endhighlight %}
       </td>
@@ -331,18 +323,11 @@ val result = in.where('b === "red");
     <tr>
       <td><strong>GroupBy</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation
-        operator to aggregate on per-group basis.</p>
+        <p>Similar to a SQL GROUPBY clause. Groups rows on the grouping keys, with a following aggregation
+        operator to aggregate rows group-wise.</p>
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.groupBy('a).select('a, 'b.sum as 'd);
-{% endhighlight %}
-        <p><i>Note:</i> Flink can refer to nonaggregated columns in the select list that are not named in
-        the groupBy clause, it could be used to get better performance by avoiding unnecessary column sorting and
-        grouping while nonaggregated column is cogrouped with columns in groupBy clause. For example:</p>
-{% highlight scala %}
-val in = ds.as('a, 'b, 'c);
-val result = in.groupBy('a).select('a, 'b, 'c.sum as 'd);
 {% endhighlight %}
       </td>
     </tr>
@@ -350,11 +335,10 @@ val result = in.groupBy('a).select('a, 'b, 'c.sum as 'd);
     <tr>
       <td><strong>Join</strong></td>
       <td>
-        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where
-        clause is mandatory for join condition.</p>
+        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and an equality join predicate must be defined using a where or filter operator.</p>
 {% highlight scala %}
-val left = ds1.as('a, 'b, 'c);
-val right = ds2.as('d, 'e, 'f);
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'd, 'e, 'f);
 val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 {% endhighlight %}
       </td>
@@ -363,10 +347,10 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Union two tables, both tables must have identical schema(field names and types).</p>
+        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical schema(field names and types).</p>
 {% highlight scala %}
-val left = ds1.as('a, 'b, 'c);
-val right = ds2.as('a, 'b, 'c);
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
 val result = left.unionAll(right);
 {% endhighlight %}
       </td>
@@ -377,7 +361,7 @@ val result = left.unionAll(right);
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
 {% highlight scala %}
-val in = ds.as('a, 'b, 'c);
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.distinct();
 {% endhighlight %}
       </td>
@@ -391,9 +375,7 @@ val result = in.distinct();
 {% top %}
 
 ### Expression Syntax
-Some of operators in previous section expect an expression. These can either be specified using an embedded Scala DSL or
-a String expression. Please refer to the examples above to learn how expressions can be
-formulated.
+Some of the operators in previous sections expect one or more expressions. Expressions can be specified using an embedded Scala DSL or as Strings. Please refer to the examples above to learn how expressions can be specified.
 
 This is the complete EBNF grammar for expressions:
 
@@ -438,19 +420,17 @@ SQL
 ----
 The Table API also supports embedded SQL queries.
 In order to use a `Table` or `DataSet` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name.
-A registered `Table` can be retrieved back from the `TableEnvironment` using the `scan` method:
+A registered `Table` can be retrieved back from the `TableEnvironment` using the `scan()` method:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 // create a Table environment
-TableEnvironment tableEnv = new TableEnvironment();
-// reset the translation context: this will erase existing registered Tables
-TranslationContext.reset();
-// read a DataSet from an external source
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
 DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
-// register the DataSet under the name "MyTable"
+// register the DataSet as table "MyTable"
 tableEnv.registerDataSet("MyTable", ds);
 // retrieve "MyTable" into a new Table
 Table t = tableEnv.scan("MyTable");
@@ -461,12 +441,10 @@ Table t = tableEnv.scan("MyTable");
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 // create a Table environment
-val tableEnv = new TableEnvironment
-// reset the translation context: this will erase existing registered Tables
-TranslationContext.reset()
-// read a DataSet from an external source
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
 val ds = env.readCsvFile(...)
-// register the DataSet under the name "MyTable"
+// register the DataSet as table "MyTable"
 tableEnv.registerDataSet("MyTable", ds)
 // retrieve "MyTable" into a new Table
 val t = tableEnv.scan("MyTable")
@@ -476,20 +454,20 @@ val t = tableEnv.scan("MyTable")
 
 *Note: Table names are not allowed to follow the `^_DataSetTable_[0-9]+` pattern, as this is reserved for internal use only.*
 
-When registering a `DataSet`, one can also give names to the `Table` columns. For example, if "MyTable" has three columns, `user`, `product`, and `order`, we can give them names upon registering the `DataSet` as shown below:
+When registering a `DataSet`, one can also specify the field names of the table:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// register the DataSet under the name "MyTable" with columns user, product, and order
-tableEnv.registerDataSet("MyTable", ds, "user, product, order");
+// register the DataSet as table "Orders" with fields user, product, and amount
+tableEnv.registerDataSet("Orders", ds, "user, product, amount");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// register the DataSet under the name "MyTable" with columns user, product, and order
-tableEnv.registerDataSet("MyTable", ds, 'user, 'product, 'order)
+// register the DataSet as table "Orders" with fields user, product, and amount
+tableEnv.registerDataSet("Orders", ds, 'user, 'product, 'amount)
 {% endhighlight %}
 </div>
 </div>
@@ -499,61 +477,49 @@ A `Table` can be registered in a similar way:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// read a DataSet from an external source
-DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
-// create a Table from the DataSet with columns user, product, and order
-Table t = tableEnv.fromDataSet(ds).as("user, product, order");
-// register the Table under the name "MyTable"
-tableEnv.registerTable("MyTable", t);
+Table t = tableEnv.fromDataSet(ds).as("user, product, amount");
+// register the Table as table "Orders"
+tableEnv.registerTable("Orders", t);
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// read a DataSet from an external source and
-// create a Table from the DataSet with columns user, product, and order
-val t = env.readCsvFile(...).as('user, 'product, 'order)
-// register the Table under the name "MyTable"
-tableEnv.registerTable("MyTable", t)
+val t = ds.toTable(tableEnv, 'user, 'product, 'amount)
+// register the Table as table "Orders"
+tableEnv.registerTable("Orders", t)
 {% endhighlight %}
 </div>
 </div>
 
-After registering a `Table` or `DataSet`, one can use them in SQL queries. A SQL query is defined using the `sql` method of the `TableEnvironment`.
-The result of the method is a new `Table` which can either be converted back to a `DataSet` or used in subsequent Table API queries.
+Registered tables can be used in SQL queries. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet` or used in subsequent Table API queries.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-// create a Table environment
-TableEnvironment tableEnv = new TableEnvironment();
-// reset the translation context: this will erase existing registered Tables
-TranslationContext.reset();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
 // read a DataSet from an external source
 DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
-// create a Table from the DataSet
-Table t = tableEnv.fromDataSet(ds);
-// register the Table under the name "MyTable"
-tableEnv.registerTable("MyTable", t);
-// run a sql query and retrieve the result in a new Table
-Table result = tableEnv.sql("SELECT * FROM MyTable");
+// register the DataSet as table "Orders"
+tableEnv.registerDataSet("Orders", ds, "user, product, amount");
+// run a SQL query and retrieve the result in a new Table
+Table result = tableEnv.sql("SELECT SUM(amount) FROM Orders WHERE product = 10");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
-// create a Table environment
-val tableEnv = new TableEnvironment
-// reset the translation context: this will erase existing registered Tables
-TranslationContext.reset()
-// create a Table
-val t = env.readCsvFile(...).as('a, 'b, 'c)
-// register the Table under the name "MyTable"
-tableEnv.registerTable("MyTable", t)
-// run a sql query and retrieve the result in a new Table
-val result = tableEnv.sql("SELECT * FROM MyTable")
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// read a DataSet from an external source
+val ds = env.readCsvFile(...)
+// register the DataSet under the name "Orders"
+tableEnv.registerDataSet("Orders", ds, 'user, 'product, 'amount)
+// run a SQL query and retrieve the result in a new Table
+val result = tableEnv.sql("SELECT SUM(amount) FROM Orders WHERE product = 10")
 {% endhighlight %}
 </div>
 </div>

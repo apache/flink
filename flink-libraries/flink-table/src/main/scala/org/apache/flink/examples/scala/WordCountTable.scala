@@ -20,6 +20,7 @@ package org.apache.flink.examples.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
+import org.apache.flink.api.table.TableEnvironment
 
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count.
@@ -32,9 +33,10 @@ object WordCountTable {
 
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    val expr = input.toTable
+    val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
       .select('word, 'count.sum as 'count)

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -38,7 +38,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupingOnNonExistentField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. '_foo not a valid field
       .groupBy('_foo)
       .select('a.avg)
@@ -48,7 +50,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupingInvalidSelection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('a, 'b)
       // must fail. 'c is not a grouping key or aggregation
       .select('c)
@@ -58,7 +62,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupedAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, 'a.sum)
 
@@ -71,7 +77,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupingKeyForwardIfNotUsed(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('a.sum)
 
@@ -84,8 +92,10 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupNoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = CollectionDataSets.get3TupleDataSet(env)
-      .as('a, 'b, 'c)
+      .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('a.sum as 'd, 'b)
       .groupBy('b, 'd)
@@ -101,6 +111,8 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     // This uses very long keys to force serialized comparison.
     // With short keys, the normalized key is sufficient.
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val ds = env.fromElements(
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
@@ -111,7 +123,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2),
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhab", 1, 2))
-      .rebalance().setParallelism(2).as('a, 'b, 'c)
+      .rebalance().setParallelism(2).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('a, 'b)
       .select('c.sum)
 
@@ -124,7 +136,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupedAggregateWithConstant1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .select('a, 4 as 'four, 'b)
       .groupBy('four, 'a)
       .select('four, 'b.sum)
@@ -141,7 +155,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupedAggregateWithConstant2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
         .select('b, 4 as 'four, 'a)
         .groupBy('b, 'four)
         .select('four, 'a.sum)
@@ -155,7 +171,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupedAggregateWithExpression(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get5TupleDataSet(env).as('a, 'b, 'c, 'd, 'e)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
         .groupBy('e, 'b % 3)
         .select('c.min, 'e, 'a.avg, 'd.count)
 
@@ -169,7 +187,9 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
   def testGroupedAggregateWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, 'a.sum)
       .where('b === 2)
