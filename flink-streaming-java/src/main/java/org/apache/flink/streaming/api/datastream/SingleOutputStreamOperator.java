@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -228,6 +229,10 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		requireNonNull(typeInfo, "TypeInformation must not be null");
 		
 		transformation.setOutputType(typeInfo);
+		if (!environment.getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(typeInfo, environment.getConfig(), deduplicator);
+		}
+		
 		return this;
 	}
 	

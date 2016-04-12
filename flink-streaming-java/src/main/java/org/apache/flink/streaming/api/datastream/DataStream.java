@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -43,6 +44,7 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -110,6 +112,8 @@ public class DataStream<T> {
 	protected final StreamExecutionEnvironment environment;
 
 	protected final StreamTransformation<T> transformation;
+
+	protected static final HashSet<Class<?>> deduplicator = new HashSet<>();
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -1021,6 +1025,10 @@ public class DataStream<T> {
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();
+
+		if (!environment.getConfig().isAutoTypeRegistrationDisabled()) {
+			Serializers.recursivelyRegisterType(outTypeInfo, environment.getConfig(), deduplicator);
+		}
 
 		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
 				this.transformation,
