@@ -245,3 +245,24 @@ img.offset {
 *:hover > .anchorjs-link {
     transition: color .25s linear;
 }
+
+/*=============================================================================
+                                 Gelly Graphs
+=============================================================================*/
+
+svg.graph line {
+    stroke: rgb(255,0,0);
+    stroke-width: 4;
+}
+
+svg.graph circle {
+    fill: red;
+    stroke: black;
+    stroke-width: 3;
+}
+
+svg.graph text {
+    dominant-baseline: central;
+    font-size: 32px;
+    text-anchor: middle;
+}
