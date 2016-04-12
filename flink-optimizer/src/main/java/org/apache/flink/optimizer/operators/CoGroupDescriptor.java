@@ -155,8 +155,6 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 					checkSameOrdering(produced1, produced2, produced1.getPartitioningFields().size()) &&
 					produced1.getDataDistribution().equals(produced2.getDataDistribution());
 			
-			
-
 		}
 		else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
 				produced2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING) {

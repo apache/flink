@@ -25,23 +25,18 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 public class TestDistribution implements DataDistribution {
 
-	private int boundary;
+	public int boundary;
 
 	public TestDistribution(int boundary) {
 		this.boundary = boundary;
 	}
 
-	public int getParallelism() {
-		return 4;
-	}
-
 	@Override
 	public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Integer[]{bucketNum * boundary};
+		return new Object[0];
 	}
 
 	@Override
@@ -66,22 +61,11 @@ public class TestDistribution implements DataDistribution {
 
 	@Override
 	public boolean equals(Object obj) {
-		boolean result = true;
-		if((obj == null) || (getClass() != obj.getClass())){
-			result = false;
+		boolean isEqual = true;
+		TestDistribution dist = (TestDistribution)obj;
+		if (this.boundary != dist.boundary) {
+			isEqual = false;
 		}
-		else{
-			TestDistribution dist = (TestDistribution)obj;
-			if (!Arrays.equals(this.getKeyTypes(), dist.getKeyTypes())) {
-				result = false;
-			}
-			for (int i = 0; i < this.getParallelism(); i++) {
-				if (!Arrays.equals(this.getBucketBoundary(i, this.getParallelism()), dist.getBucketBoundary(i, this.getParallelism()))) {
-					result = false;
-					break;
-				}
-			}
-		}
-		return result;
+		return isEqual;
 	}
 }

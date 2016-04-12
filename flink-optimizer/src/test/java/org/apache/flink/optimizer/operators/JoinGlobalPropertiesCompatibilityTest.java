@@ -37,7 +37,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 			final FieldList keysLeft = new FieldList(1, 4);
 			final FieldList keysRight = new FieldList(3, 1);
 
-			SortMergeInnerJoinDescriptor descr1 = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
+			SortMergeInnerJoinDescriptor descr = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
 			
 			// test compatible hash partitioning
 			{
@@ -51,7 +51,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setHashPartitioned(keysRight);
 				
-				assertTrue(descr1.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 			
 			// test compatible custom partitioning
@@ -73,7 +73,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setCustomPartitioned(keysRight, part);
 				
-				assertTrue(descr1.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 			
 			// test custom partitioning matching any partitioning
@@ -95,13 +95,11 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setCustomPartitioned(keysRight, part);
 				
-				assertTrue(descr1.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 
 			TestDistribution dist1 = new TestDistribution(1);
 			TestDistribution dist2 = new TestDistribution(1);
-			SortMergeInnerJoinDescriptor descr2 = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
-			
 			// test compatible range partitioning
 			{
 				Ordering ordering1 = new Ordering();
@@ -115,14 +113,14 @@ public class JoinGlobalPropertiesCompatibilityTest {
 
 				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
 				reqLeft.setRangePartitioned(ordering1, dist1);
-				RequestedGlobalProperties reqRigth = new RequestedGlobalProperties();
-				reqRigth.setRangePartitioned(ordering2, dist2);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
 
 				GlobalProperties propsLeft = new GlobalProperties();
 				propsLeft.setRangePartitioned(ordering1, dist1);
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setRangePartitioned(ordering2, dist2);
-				assertTrue(descr2.areCompatible(reqLeft, reqRigth, propsLeft, propsRight));
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 		}
 		catch (Exception e) {
@@ -150,7 +148,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				}
 			};
 			
-			SortMergeInnerJoinDescriptor descr1 = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
+			SortMergeInnerJoinDescriptor descr = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
 			
 			// test incompatible hash with custom partitioning
 			{
@@ -164,7 +162,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setCustomPartitioned(keysRight, part);
 				
-				assertFalse(descr1.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 			
 			// test incompatible custom partitionings
@@ -179,14 +177,63 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				GlobalProperties propsRight = new GlobalProperties();
 				propsRight.setCustomPartitioned(keysRight, part2);
 				
-				assertFalse(descr1.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 
 			TestDistribution dist1 = new TestDistribution(1);
-			TestDistribution dist2 = new TestDistribution(2);
-			SortMergeInnerJoinDescriptor descr2 = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
+			TestDistribution dist2 = new TestDistribution(1);
 
-			// test compatible range partitioning
+			// test incompatible range partitioning with different key size
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+					ordering2.appendOrdering(field, null, Order.ASCENDING);
+				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+
+			// test incompatible range partitioning with different ordering
+			{
+				Ordering ordering1 = new Ordering();
+				for (int field : keysLeft) {
+					ordering1.appendOrdering(field, null, Order.ASCENDING);
+				}
+				Ordering ordering2 = new Ordering();
+				for (int field : keysRight) {
+					ordering2.appendOrdering(field, null, Order.DESCENDING);
+				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+
+			TestDistribution dist3 = new TestDistribution(1);
+			TestDistribution dist4 = new TestDistribution(2);
+
+			// test incompatible range partitioning with different distribution
 			{
 				Ordering ordering1 = new Ordering();
 				for (int field : keysLeft) {
@@ -198,15 +245,15 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				}
 
 				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
-				reqLeft.setRangePartitioned(ordering1, dist1);
-				RequestedGlobalProperties reqRigth = new RequestedGlobalProperties();
-				reqRigth.setRangePartitioned(ordering2, dist2);
+				reqLeft.setRangePartitioned(ordering1, dist3);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist4);
 
 				GlobalProperties propsLeft = new GlobalProperties();
-				propsLeft.setRangePartitioned(ordering1, dist1);
+				propsLeft.setRangePartitioned(ordering1, dist3);
 				GlobalProperties propsRight = new GlobalProperties();
-				propsRight.setRangePartitioned(ordering2, dist2);
-				assertFalse(descr2.areCompatible(reqLeft, reqRigth, propsLeft, propsRight));
+				propsRight.setRangePartitioned(ordering2, dist4);
+				assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
 			}
 		}
 		catch (Exception e) {

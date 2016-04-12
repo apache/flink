@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -428,14 +427,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 						}
 					}
 					
-					if (child1.getInputs().iterator().hasNext()) {
-						Channel input1 = child1.getInputs().iterator().next();
-						DataDistribution distribution1 = input1.getDataDistribution();
-						if (distribution1 != null) {
-							c1.getGlobalProperties().setDistribution(distribution1);
-						}
-					}
-					
 					for (RequestedGlobalProperties igps2: intGlobal2) {
 						// create a candidate channel for the first input. mark it cached, if the connection says so
 						final Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
@@ -460,14 +451,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 							
 							if (dopChange2) {
 								c2.adjustGlobalPropertiesForFullParallelismChange();
-							}
-						}
-						
-						if (child2.getInputs().iterator().hasNext()) {
-							Channel input2 = child2.getInputs().iterator().next();
-							DataDistribution distribution2 = input2.getDataDistribution();
-							if (distribution2 != null) {
-								c2.getGlobalProperties().setDistribution(distribution2);
 							}
 						}
 						

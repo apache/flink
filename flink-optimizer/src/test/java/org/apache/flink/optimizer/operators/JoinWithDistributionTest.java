@@ -32,7 +32,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class JoinWithDistribution extends CompilerTestBase {
+public class JoinWithDistributionTest extends CompilerTestBase {
 
 	@Test
 	public void JoinWithSameDistributionTest() throws Exception {
