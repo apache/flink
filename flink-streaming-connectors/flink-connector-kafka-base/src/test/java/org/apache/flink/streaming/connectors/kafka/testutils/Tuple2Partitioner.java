@@ -28,12 +28,11 @@ import java.io.Serializable;
  * and that expects a specific number of partitions.
  */
 public class Tuple2Partitioner extends KafkaPartitioner<Tuple2<Integer, Integer>> implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final int expectedPartitions;
 
-	
 	public Tuple2Partitioner(int expectedPartitions) {
 		this.expectedPartitions = expectedPartitions;
 	}
@@ -43,9 +42,7 @@ public class Tuple2Partitioner extends KafkaPartitioner<Tuple2<Integer, Integer>
 		if (numPartitions != expectedPartitions) {
 			throw new IllegalArgumentException("Expected " + expectedPartitions + " partitions");
 		}
-		@SuppressWarnings("unchecked")
-		Tuple2<Integer, Integer> element = next;
 
-		return element.f0;
+		return next.f0;
 	}
 }

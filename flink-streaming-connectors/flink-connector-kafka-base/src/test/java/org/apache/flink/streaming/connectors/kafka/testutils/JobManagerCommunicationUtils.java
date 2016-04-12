@@ -31,10 +31,28 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class JobManagerCommunicationUtils {
-	
+
 	private static final FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
-	
-	
+
+
+	public static void waitUntilNoJobIsRunning(ActorGateway jobManager) throws Exception {
+		while (true) {
+			// find the jobID
+			Future<Object> listResponse = jobManager.ask(
+					JobManagerMessages.getRequestRunningJobsStatus(), askTimeout);
+
+			Object result = Await.result(listResponse, askTimeout);
+			List<JobStatusMessage> jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
+
+
+			if (jobs.isEmpty()) {
+				return;
+			}
+
+			Thread.sleep(50);
+		}
+	}
+
 	public static void cancelCurrentJob(ActorGateway jobManager) throws Exception {
 		JobStatusMessage status = null;
 		
