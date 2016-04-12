@@ -106,6 +106,11 @@ public final class ConfigConstants {
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
 
 	/**
+	 * The config parameter defining the flink web directory to be used by the webmonitor.
+	 */
+	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
+
+	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
