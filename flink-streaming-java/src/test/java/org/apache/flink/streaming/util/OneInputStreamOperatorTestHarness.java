@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -69,6 +70,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	final Object checkpointLock;
 
 	StreamTask<?, ?> mockTask;
+
+	/**
+	 * Whether setup() was called on the operator. This is reset when calling close().
+	 */
+	private boolean setupCalled = false;
 	
 	
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
@@ -151,12 +157,38 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}
+	 * Calls
+	 * {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 */
+	public void setup() throws Exception {
+		operator.setup(mockTask, config, new MockOutput());
+		setupCalled = true;
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}. This also
+	 * calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
+	 * if it was not called before.
 	 */
 	public void open() throws Exception {
-		operator.setup(mockTask, config, new MockOutput());
-
+		if (!setupCalled) {
+			setup();
+		}
 		operator.open();
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotOperatorState(long, long)} ()}
+	 */
+	public StreamTaskState snapshot(long checkpointId, long timestamp) throws Exception {
+		return operator.snapshotOperatorState(checkpointId, timestamp);
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)} ()}
+	 */
+	public void restore(StreamTaskState snapshot, long recoveryTimestamp) throws Exception {
+		operator.restoreState(snapshot, recoveryTimestamp);
 	}
 
 	/**
@@ -165,6 +197,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	public void close() throws Exception {
 		operator.close();
 		operator.dispose();
+		setupCalled = false;
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
