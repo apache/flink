@@ -44,12 +44,12 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testEitherWatermarkExtractor() {
 		try {
-			new DummyFlinkKafkaConsumer<>().setPeriodicWatermarkEmitter(null);
+			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			new DummyFlinkKafkaConsumer<>().setPunctuatedWatermarkEmitter(null);
+			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 		
@@ -59,16 +59,16 @@ public class FlinkKafkaConsumerBaseTest {
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
 		
 		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
-		c1.setPeriodicWatermarkEmitter(periodicAssigner);
+		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
-			c1.setPunctuatedWatermarkEmitter(punctuatedAssigner);
+			c1.assignTimestampsAndWatermarks(punctuatedAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 
 		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>();
-		c2.setPunctuatedWatermarkEmitter(punctuatedAssigner);
+		c2.assignTimestampsAndWatermarks(punctuatedAssigner);
 		try {
-			c2.setPeriodicWatermarkEmitter(periodicAssigner);
+			c2.assignTimestampsAndWatermarks(periodicAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 	}

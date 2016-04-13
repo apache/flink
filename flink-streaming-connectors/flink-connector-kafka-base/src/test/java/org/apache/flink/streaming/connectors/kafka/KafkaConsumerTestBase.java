@@ -1662,7 +1662,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		FlinkKafkaConsumerBase<Tuple2<Long, Integer>> source = kafkaServer
 			.getConsumer(topics, sourceSchema, standardProps)
-			.setPunctuatedWatermarkEmitter(new TestPunctuatedTSExtractor());
+			.assignTimestampsAndWatermarks(new TestPunctuatedTSExtractor());
 
 		DataStreamSource<Tuple2<Long, Integer>> consuming = env.setParallelism(1).addSource(source);
 
