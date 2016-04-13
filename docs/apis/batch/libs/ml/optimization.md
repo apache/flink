@@ -388,8 +388,6 @@ val trainingDS: DataSet[LabeledVector] = ...
 
 // Optimize the weights, according to the provided data
 val weightDS = sgd.optimize(trainingDS)
-{% endhighlight %}
-
 
 // Use Warm Starts to illustrate convergence
 val mlr_default = MultipleLinearRegression()
@@ -412,3 +410,4 @@ for (i <- 1 to 10){
     val resid_xu = mlr_xu.squaredResidualSum(trainingDS).collect()
     println(s"Iteration: ${(10*i).toString}:    Default SSR: ${resid_default.toString}      Xu SSR: ${resid_xu.toString}")
 }
+{% endhighlight %}
