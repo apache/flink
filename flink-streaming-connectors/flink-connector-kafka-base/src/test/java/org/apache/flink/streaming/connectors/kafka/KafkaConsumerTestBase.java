@@ -175,11 +175,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic("testCheckpointing", 1, 1);
 
 		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer("testCheckpointing", new SimpleStringSchema(), standardProps);
-		Field pendingCheckpointsField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingCheckpoints");
-		pendingCheckpointsField.setAccessible(true);
-		LinkedMap pendingCheckpoints = (LinkedMap) pendingCheckpointsField.get(source);
+		Field pendingOffsetCommitsField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingOffsetCommitsByCheckpoint");
+		pendingOffsetCommitsField.setAccessible(true);
+		LinkedMap pendingOffsetCommits = (LinkedMap) pendingOffsetCommitsField.get(source);
 
-		Assert.assertEquals(0, pendingCheckpoints.size());
+		Assert.assertEquals(0, pendingOffsetCommits.size());
 		source.setRuntimeContext(new MockRuntimeContext(1, 0));
 
 		final HashMap<KafkaTopicPartition, Long> initialOffsets = new HashMap<>();
@@ -197,33 +197,33 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		HashMap<KafkaTopicPartition, Long> state2 = source.snapshotState(2, 30);
 		Assert.assertEquals(initialOffsets, state2);
 
-		Assert.assertEquals(2, pendingCheckpoints.size());
+		Assert.assertEquals(2, pendingOffsetCommits.size());
 
 		source.notifyCheckpointComplete(1);
-		Assert.assertEquals(1, pendingCheckpoints.size());
+		Assert.assertEquals(1, pendingOffsetCommits.size());
 
 		source.notifyCheckpointComplete(2);
-		Assert.assertEquals(0, pendingCheckpoints.size());
+		Assert.assertEquals(0, pendingOffsetCommits.size());
 
 		source.notifyCheckpointComplete(666); // invalid checkpoint
-		Assert.assertEquals(0, pendingCheckpoints.size());
+		Assert.assertEquals(0, pendingOffsetCommits.size());
 
 		// create 500 snapshots
 		for (int i = 100; i < 600; i++) {
 			source.snapshotState(i, 15 * i);
 		}
-		Assert.assertEquals(FlinkKafkaConsumerBase.MAX_NUM_PENDING_CHECKPOINTS, pendingCheckpoints.size());
+		Assert.assertEquals(FlinkKafkaConsumerBase.MAX_PENDING_OFFSET_COMMITS, pendingOffsetCommits.size());
 
 		// commit only the second last
 		source.notifyCheckpointComplete(598);
-		Assert.assertEquals(1, pendingCheckpoints.size());
+		Assert.assertEquals(1, pendingOffsetCommits.size());
 
 		// access invalid checkpoint
 		source.notifyCheckpointComplete(590);
 
 		// and the last
 		source.notifyCheckpointComplete(599);
-		Assert.assertEquals(0, pendingCheckpoints.size());
+		Assert.assertEquals(0, pendingOffsetCommits.size());
 
 		source.close();
 

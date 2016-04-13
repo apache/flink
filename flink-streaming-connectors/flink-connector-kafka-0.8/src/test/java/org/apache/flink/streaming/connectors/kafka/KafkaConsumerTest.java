@@ -83,13 +83,14 @@ public class KafkaConsumerTest {
 		try {
 			Field offsetsField = FlinkKafkaConsumerBase.class.getDeclaredField("offsetsState");
 			Field runningField = FlinkKafkaConsumerBase.class.getDeclaredField("running");
-			Field mapField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingCheckpoints");
+			Field mapField = FlinkKafkaConsumerBase.class.getDeclaredField("pendingOffsetCommitsByCheckpoint");
 
 			offsetsField.setAccessible(true);
 			runningField.setAccessible(true);
 			mapField.setAccessible(true);
 
 			FlinkKafkaConsumer08<?> consumer = mock(FlinkKafkaConsumer08.class);
+			when(consumer.isAutoCommitEnabled()).thenReturn(true);
 			when(consumer.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
 
 
@@ -124,7 +125,7 @@ public class KafkaConsumerTest {
 				assertEquals(checkpointCopy, checkpoint);
 
 				assertTrue(map.size() > 0);
-				assertTrue(map.size() <= FlinkKafkaConsumer08.MAX_NUM_PENDING_CHECKPOINTS);
+				assertTrue(map.size() <= FlinkKafkaConsumer08.MAX_PENDING_OFFSET_COMMITS);
 			}
 		}
 		catch (Exception e) {

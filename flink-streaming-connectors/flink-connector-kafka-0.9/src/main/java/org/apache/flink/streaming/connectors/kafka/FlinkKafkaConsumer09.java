@@ -49,6 +49,7 @@ import java.util.Properties;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getBoolFromConfig;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -273,9 +274,13 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			return;
 		} else {
 			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
-			// if checkpointing is enabled, we are not automatically committing to Kafka.
-			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.toString(!streamingRuntimeContext.isCheckpointingEnabled()));
-			this.consumer = new KafkaConsumer<>(properties);
+			final Properties consumerProperties = new Properties();
+			consumerProperties.putAll(properties);
+			if (isAutoCommitEnabled() && streamingRuntimeContext.isCheckpointingEnabled()) {
+				// if checkpointing is enabled, we are not going to use Kafka's auto-commit but manage it ourselves
+				consumerProperties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+			}
+			this.consumer = new KafkaConsumer<>(consumerProperties);
 		}
 		subscribedPartitions = convertToKafkaTopicPartition(subscribedPartitionsAsFlink);
 
@@ -384,6 +389,10 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	//  Checkpoint and restore
 	// ------------------------------------------------------------------------
 
+	@Override
+	protected boolean isAutoCommitEnabled() {
+		return getBoolFromConfig(properties, "enable.auto.commit", true);
+	}
 
 	@Override
 	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> checkpointOffsets) {
