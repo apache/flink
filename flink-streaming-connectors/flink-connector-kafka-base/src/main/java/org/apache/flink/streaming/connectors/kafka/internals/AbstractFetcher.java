@@ -328,45 +328,66 @@ public abstract class AbstractFetcher<T, KPH> {
 			ClassLoader userCodeClassLoader)
 		throws IOException, ClassNotFoundException
 	{
-		@SuppressWarnings("unchecked")
-		KafkaTopicPartitionState<KPH>[] partitions =
-				(KafkaTopicPartitionState<KPH>[]) new KafkaTopicPartitionState<?>[assignedPartitions.size()];
-
-		int pos = 0;
-		for (KafkaTopicPartition partition : assignedPartitions) {
-			// create the kafka version specific partition handle
-			KPH kafkaHandle = createKafkaPartitionHandle(partition);
+		switch (timestampWatermarkMode) {
 			
-			// create the partition state
-			KafkaTopicPartitionState<KPH> partitionState;
-			switch (timestampWatermarkMode) {
-				case NO_TIMESTAMPS_WATERMARKS:
-					partitionState = new KafkaTopicPartitionState<>(partition, kafkaHandle);
-					break;
-				case PERIODIC_WATERMARKS: {
-					AssignerWithPeriodicWatermarks<T> assignerInstance =
-							watermarksPeriodic.deserializeValue(userCodeClassLoader);
-					partitionState = new KafkaTopicPartitionStateWithPeriodicWatermarks<>(
-							partition, kafkaHandle, assignerInstance);
-					break;
+			case NO_TIMESTAMPS_WATERMARKS: {
+				@SuppressWarnings("unchecked")
+				KafkaTopicPartitionState<KPH>[] partitions =
+						(KafkaTopicPartitionState<KPH>[]) new KafkaTopicPartitionState<?>[assignedPartitions.size()];
+
+				int pos = 0;
+				for (KafkaTopicPartition partition : assignedPartitions) {
+					// create the kafka version specific partition handle
+					KPH kafkaHandle = createKafkaPartitionHandle(partition);
+					partitions[pos++] = new KafkaTopicPartitionState<>(partition, kafkaHandle);
 				}
-					
-				case PUNCTUATED_WATERMARKS: {
-					AssignerWithPunctuatedWatermarks<T> assignerInstance =
-							watermarksPunctuated.deserializeValue(userCodeClassLoader);
-					partitionState = new KafkaTopicPartitionStateWithPunctuatedWatermarks<>(
-							partition, kafkaHandle, assignerInstance);
-					break;
-				}
-				default:
-					// cannot happen, add this as a guard for the future
-					throw new RuntimeException();
+
+				return partitions;
 			}
 
-			partitions[pos++] = partitionState;
+			case PERIODIC_WATERMARKS: {
+				@SuppressWarnings("unchecked")
+				KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH>[] partitions =
+						(KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH>[])
+								new KafkaTopicPartitionStateWithPeriodicWatermarks<?, ?>[assignedPartitions.size()];
+
+				int pos = 0;
+				for (KafkaTopicPartition partition : assignedPartitions) {
+					KPH kafkaHandle = createKafkaPartitionHandle(partition);
+
+					AssignerWithPeriodicWatermarks<T> assignerInstance =
+							watermarksPeriodic.deserializeValue(userCodeClassLoader);
+					
+					partitions[pos++] = new KafkaTopicPartitionStateWithPeriodicWatermarks<>(
+							partition, kafkaHandle, assignerInstance);
+				}
+
+				return partitions;
+			}
+
+			case PUNCTUATED_WATERMARKS: {
+				@SuppressWarnings("unchecked")
+				KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH>[] partitions =
+						(KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH>[])
+								new KafkaTopicPartitionStateWithPunctuatedWatermarks<?, ?>[assignedPartitions.size()];
+
+				int pos = 0;
+				for (KafkaTopicPartition partition : assignedPartitions) {
+					KPH kafkaHandle = createKafkaPartitionHandle(partition);
+
+					AssignerWithPunctuatedWatermarks<T> assignerInstance =
+							watermarksPunctuated.deserializeValue(userCodeClassLoader);
+
+					partitions[pos++] = new KafkaTopicPartitionStateWithPunctuatedWatermarks<>(
+							partition, kafkaHandle, assignerInstance);
+				}
+
+				return partitions;
+			}
+			default:
+				// cannot happen, add this as a guard for the future
+				throw new RuntimeException();
 		}
-		
-		return partitions;
 	}
 	
 	// ------------------------------------------------------------------------
