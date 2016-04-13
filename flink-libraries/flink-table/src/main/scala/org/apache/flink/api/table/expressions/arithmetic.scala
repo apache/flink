@@ -25,14 +25,28 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeConverter}
+import org.apache.flink.api.table.validate.ExprValidationResult
 
-abstract class BinaryArithmetic extends BinaryExpression { self: Product =>
+abstract class BinaryArithmetic extends BinaryExpression {
   def sqlOperator: SqlOperator
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
+  }
+
+  override def dataType = left.dataType
+
+  // TODO: tighten this rule once we implemented type coercion rules during validation
+  override def validateInput(): ExprValidationResult = {
+    if (!left.dataType.isInstanceOf[NumericTypeInfo[_]] ||
+      !right.dataType.isInstanceOf[NumericTypeInfo[_]]) {
+      ExprValidationResult.ValidationFailure(s"$this require both operand Numeric, get" +
+        s"${left.dataType} and ${right.dataType}")
+    } else {
+      ExprValidationResult.ValidationSuccess
+    }
   }
 }
 
@@ -56,6 +70,29 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
       relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
     }
   }
+
+  override def dataType: TypeInformation[_] = {
+    if (left.dataType == BasicTypeInfo.STRING_TYPE_INFO ||
+      right.dataType == BasicTypeInfo.STRING_TYPE_INFO) {
+      BasicTypeInfo.STRING_TYPE_INFO
+    } else {
+      left.dataType
+    }
+  }
+
+  // TODO: tighten this rule once we implemented type coercion rules during validation
+  override def validateInput(): ExprValidationResult = {
+    if (left.dataType == BasicTypeInfo.STRING_TYPE_INFO ||
+        right.dataType == BasicTypeInfo.STRING_TYPE_INFO) {
+      ExprValidationResult.ValidationSuccess
+    } else if (!left.dataType.isInstanceOf[NumericTypeInfo[_]] ||
+        !right.dataType.isInstanceOf[NumericTypeInfo[_]]) {
+      ExprValidationResult.ValidationFailure(s"$this requires Numeric or String input," +
+        s" get ${left.dataType} and ${right.dataType}")
+    } else {
+      ExprValidationResult.ValidationSuccess
+    }
+  }
 }
 
 case class UnaryMinus(child: Expression) extends UnaryExpression {
@@ -64,6 +101,11 @@ case class UnaryMinus(child: Expression) extends UnaryExpression {
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, child.toRexNode)
   }
+
+  override def dataType = child.dataType
+
+  override def validateInput(): ExprValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.dataType, "unary minus")
 }
 
 case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {

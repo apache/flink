@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import org.apache.flink.api.table.validate.ValidationException
 
 @RunWith(classOf[Parameterized])
 class UnionITCase(
@@ -90,7 +91,7 @@ class UnionITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionDifferentFieldNames(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -99,10 +100,10 @@ class UnionITCase(
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     // must fail. Union inputs have different field names.
-    ds1.unionAll(ds2)
+    ds1.unionAll(ds2).collect()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionDifferentFieldTypes(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -112,7 +113,7 @@ class UnionITCase(
       .select('a, 'b, 'c)
 
     // must fail. Union inputs have different field types.
-    ds1.unionAll(ds2)
+    ds1.unionAll(ds2).collect()
   }
 
   @Test
@@ -159,7 +160,7 @@ class UnionITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = TableEnvironment.getTableEnvironment(env, config)
@@ -169,6 +170,6 @@ class UnionITCase(
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
 
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.unionAll(ds2).select('c)
+    ds1.unionAll(ds2).select('c).collect()
   }
 }

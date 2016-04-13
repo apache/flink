@@ -25,6 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
+import org.apache.flink.api.table.validate.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -40,32 +41,34 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testGroupingOnNonExistentField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		tableEnv
+		Table result = tableEnv
 			.fromDataSet(input, "a, b, c")
 			// must fail. Field foo is not in input
 			.groupBy("foo")
 			.select("a.avg");
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testGroupingInvalidSelection() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		tableEnv
+		Table result = tableEnv
 			.fromDataSet(input, "a, b, c")
 			.groupBy("a, b")
 			// must fail. Field c is not a grouping key or aggregation
 			.select("c");
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test

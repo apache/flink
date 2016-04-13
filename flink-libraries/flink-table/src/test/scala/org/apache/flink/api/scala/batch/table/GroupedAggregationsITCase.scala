@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.validate.ValidationException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
@@ -33,7 +34,7 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testGroupingOnNonExistentField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -42,10 +43,10 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. '_foo not a valid field
       .groupBy('_foo)
-      .select('a.avg)
+      .select('a.avg).collect()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testGroupingInvalidSelection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -54,7 +55,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('a, 'b)
       // must fail. 'c is not a grouping key or aggregation
-      .select('c)
+      .select('c).collect()
   }
 
   @Test

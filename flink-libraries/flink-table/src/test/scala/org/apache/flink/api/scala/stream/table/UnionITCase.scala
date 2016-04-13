@@ -21,13 +21,14 @@ package org.apache.flink.api.scala.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.stream.utils.{StreamTestData, StreamITCase}
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
+import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
+import org.apache.flink.api.table.validate.ValidationException
 
 class UnionITCase extends StreamingMultipleProgramsTestBase {
 
@@ -70,7 +71,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -88,7 +89,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(true, StreamITCase.testResults.isEmpty)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -108,7 +109,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(true, StreamITCase.testResults.isEmpty)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = TableEnvironment.getTableEnvironment(env)

@@ -28,6 +28,7 @@ import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.expressions.{Literal, Null}
 import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.validate.ValidationException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Assert._
@@ -144,7 +145,7 @@ class ExpressionsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testEvalInvalidTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
