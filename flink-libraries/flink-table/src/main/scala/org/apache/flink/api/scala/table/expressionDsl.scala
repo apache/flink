@@ -65,6 +65,19 @@ trait ImplicitExpressionOperations {
 
   def as(name: Symbol) = Naming(expr, name.name)
 
+  /**
+    * Conditional operator that decides which of two other expressions should be evaluated
+    * based on a evaluated boolean condition.
+    *
+    * e.g. (42 > 5).eval("A", "B") leads to "A"
+    *
+    * @param ifTrue expression to be evaluated if condition holds
+    * @param ifFalse expression to be evaluated if condition does not hold
+    */
+  def eval(ifTrue: Expression, ifFalse: Expression) = {
+    Eval(expr, ifTrue, ifFalse)
+  }
+
   // scalar functions
 
   /**

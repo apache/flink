@@ -69,4 +69,57 @@ class ExpressionsITCase(
     }
   }
 
+  @Test
+  def testCase(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = getScalaTableEnvironment
+    TranslationContext.reset()
+
+    val sqlQuery = "SELECT " +
+      "CASE 11 WHEN 1 THEN 'a' ELSE 'b' END," +
+      "CASE WHEN 'a'='a' THEN 1 END," +
+      "CASE 2 WHEN 1 THEN 'a' ELSE 'b' END," +
+      "CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END," +
+      "CASE 1 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 THEN '3' " +
+      "  ELSE 'none of the above' END" +
+      " FROM MyTable"
+
+    val ds = env.fromElements((1, 0))
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "b,1,b,bcd,1 or 2"
+    val results = result.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCaseWithNull(): Unit = {
+    if (!getConfig.getNullCheck) {
+      return
+    }
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = getScalaTableEnvironment
+    TranslationContext.reset()
+
+    val sqlQuery = "SELECT " +
+      "CASE a WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END," +
+      "CASE b WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END," +
+      "CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END," +
+      "CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END" +
+      " FROM MyTable"
+
+    val ds = env.fromElements((1, 0))
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "11,null,null,true"
+    val results = result.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
 }

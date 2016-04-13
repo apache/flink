@@ -385,6 +385,65 @@ object ScalarOperators {
     }
   }
 
+  def generateIfElse(
+      nullCheck: Boolean,
+      operands: Seq[GeneratedExpression],
+      resultType: TypeInformation[_],
+      i: Int = 0)
+    : GeneratedExpression = {
+    // else part
+    if (i == operands.size - 1) {
+      generateCast(nullCheck, operands(i), resultType)
+    }
+    else {
+      // check that the condition is boolean
+      // we do not check for null instead we use the default value
+      // thus null is false
+      requireBoolean(operands(i))
+      val condition = operands(i)
+      val trueAction = generateCast(nullCheck, operands(i + 1), resultType)
+      val falseAction = generateIfElse(nullCheck, operands, resultType, i + 2)
+
+      val resultTerm = newName("result")
+      val nullTerm = newName("isNull")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+
+      val operatorCode = if (nullCheck) {
+        s"""
+          |${condition.code}
+          |$resultTypeTerm $resultTerm;
+          |boolean $nullTerm;
+          |if (${condition.resultTerm}) {
+          |  ${trueAction.code}
+          |  $resultTerm = ${trueAction.resultTerm};
+          |  $nullTerm = ${trueAction.nullTerm};
+          |}
+          |else {
+          |  ${falseAction.code}
+          |  $resultTerm = ${falseAction.resultTerm};
+          |  $nullTerm = ${falseAction.nullTerm};
+          |}
+          |""".stripMargin
+      }
+      else {
+        s"""
+          |${condition.code}
+          |$resultTypeTerm $resultTerm;
+          |if (${condition.resultTerm}) {
+          |  ${trueAction.code}
+          |  $resultTerm = ${trueAction.resultTerm};
+          |}
+          |else {
+          |  ${falseAction.code}
+          |  $resultTerm = ${falseAction.resultTerm};
+          |}
+          |""".stripMargin
+      }
+
+      GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
+    }
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(

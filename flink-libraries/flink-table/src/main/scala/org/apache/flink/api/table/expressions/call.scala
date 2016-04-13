@@ -17,8 +17,6 @@
  */
 package org.apache.flink.api.table.expressions
 
-import scala.collection.JavaConversions._
-
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -35,7 +33,7 @@ case class Call(functionName: String, args: Expression*) extends Expression {
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(
       BuiltInFunctionNames.toSqlOperator(functionName),
-      args.map(_.toRexNode))
+      args.map(_.toRexNode): _*)
   }
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
