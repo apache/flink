@@ -15,9 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
+package org.apache.flink.api.table.typeutils
 
-/**
- * Exception for all errors occurring during expression evaluation.
- */
-class ExpressionParserException(msg: String) extends RuntimeException(msg)
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.table.validate._
+
+object TypeCheckUtils {
+
+  def assertNumericExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {
+    if (dataType.isInstanceOf[NumericTypeInfo[_]]) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"$caller requires numeric types, get $dataType here")
+    }
+  }
+
+  def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {
+    if (dataType.isSortKeyType) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"$caller requires orderable types, get $dataType here")
+    }
+  }
+}

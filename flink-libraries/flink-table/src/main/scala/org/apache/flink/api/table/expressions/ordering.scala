@@ -16,28 +16,39 @@
  * limitations under the License.
  */
 package org.apache.flink.api.table.expressions
+
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
-abstract class Ordering extends UnaryExpression { self: Product =>
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.validate._
+
+abstract class Ordering extends UnaryExpression {
+  override def validateInput(): ExprValidationResult = {
+    if (!child.isInstanceOf[NamedExpression]) {
+      ValidationFailure(s"Sort should only based on field reference")
+    } else {
+      ValidationSuccess
+    }
+  }
 }
 
 case class Asc(child: Expression) extends Ordering {
   override def toString: String = s"($child).asc"
 
-  override def name: String = child.name + "-asc"
-
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     child.toRexNode
   }
+
+  override def resultType: TypeInformation[_] = child.resultType
 }
 
 case class Desc(child: Expression) extends Ordering {
   override def toString: String = s"($child).desc"
 
-  override def name: String = child.name + "-desc"
-
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.desc(child.toRexNode)
   }
+
+  override def resultType: TypeInformation[_] = child.resultType
 }

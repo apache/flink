@@ -26,7 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.TableEnvironment;
-import org.apache.flink.api.table.TableException;
+import org.apache.flink.api.table.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -80,7 +80,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleNumberOfFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -95,7 +95,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		in1.unionAll(in2);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleFieldsName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -110,7 +110,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		in1.unionAll(in2);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleFieldTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -168,7 +168,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	    compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionTablesFromDifferentEnvs() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv1 = TableEnvironment.getTableEnvironment(env);

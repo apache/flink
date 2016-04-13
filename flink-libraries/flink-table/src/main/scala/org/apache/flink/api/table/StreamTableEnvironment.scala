@@ -24,10 +24,12 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
+import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.api.table.plan.schema.
@@ -86,18 +88,17 @@ abstract class StreamTableEnvironment(
     * The table to ingest must be registered in the [[TableEnvironment]]'s catalog.
     *
     * @param tableName The name of the table to ingest.
-    * @throws TableException if no table is registered under the given name.
+    * @throws ValidationException if no table is registered under the given name.
     * @return The ingested table.
     */
-  @throws[TableException]
+  @throws[ValidationException]
   def ingest(tableName: String): Table = {
 
     if (isRegistered(tableName)) {
-      relBuilder.scan(tableName)
-      new Table(relBuilder.build(), this)
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
     }
     else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
@@ -132,7 +133,7 @@ abstract class StreamTableEnvironment(
     // transform to a relational tree
     val relational = planner.rel(validated)
 
-    new Table(relational.rel, this)
+    new Table(this, LogicalRelNode(relational.rel))
   }
 
   /**
@@ -240,7 +241,7 @@ abstract class StreamTableEnvironment(
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
-    val relNode = table.relNode
+    val relNode = table.getRelNode
 
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)

@@ -50,6 +50,13 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
   }
 
   @Test(expected = classOf[TableException])
+  def testSort(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).orderBy('_1.desc)
+  }
+
+  @Test(expected = classOf[TableException])
   def testJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
