@@ -48,6 +48,7 @@ public class UserCodeType {
 		int port = Integer.parseInt(args[2]);
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> input = env.fromElements(1,2,3,4,5);
 

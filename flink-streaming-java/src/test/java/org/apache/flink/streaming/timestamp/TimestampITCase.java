@@ -203,7 +203,7 @@ public class TimestampITCase {
 					// try until we get the running jobs
 					List<JobID> running;
 					while ((running = cluster.getCurrentlyRunningJobsJava()).isEmpty()) {
-						Thread.sleep(100);
+						Thread.sleep(50);
 					}
 
 					JobID id = running.get(0);
@@ -223,22 +223,26 @@ public class TimestampITCase {
 		env.execute();
 
 		// verify that all the watermarks arrived at the final custom operator
-		for (int i = 0; i < PARALLELISM; i++) {
+		for (List<Watermark> subtaskWatermarks : CustomOperator.finalWatermarks) {
+			
 			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks because the
 			// other source stops emitting after that
-			for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
-				if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+			for (int j = 0; j < subtaskWatermarks.size(); j++) {
+				if (subtaskWatermarks.get(j).getTimestamp() != initialTime + j) {
 					System.err.println("All Watermarks: ");
 					for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
-						System.err.println(CustomOperator.finalWatermarks[i].get(k));
+						System.err.println(subtaskWatermarks.get(k));
 					}
 
 					fail("Wrong watermark.");
 				}
 			}
 			
-			assertNotEquals(Watermark.MAX_WATERMARK,
-					CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size()-1));
+			// if there are watermarks, the final one must not be the MAX watermark
+			if (subtaskWatermarks.size() > 0) {
+				assertNotEquals(Watermark.MAX_WATERMARK,
+						subtaskWatermarks.get(subtaskWatermarks.size()-1));
+			}
 		}
 	}
 

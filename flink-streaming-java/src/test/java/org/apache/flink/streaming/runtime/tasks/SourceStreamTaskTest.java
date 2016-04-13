@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -28,12 +27,13 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -75,19 +75,6 @@ public class SourceStreamTaskTest {
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(10, resultElements.size());
-	}
-
-	// test flag for testStop()
-	static boolean stopped = false;
-
-	@Test
-	public void testStop() {
-		final StoppableSourceStreamTask<Object, StoppableSource> sourceTask = new StoppableSourceStreamTask<>();
-		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableSource());
-
-		sourceTask.stop();
-
-		Assert.assertTrue(stopped);
 	}
 
 	/**
@@ -155,24 +142,7 @@ public class SourceStreamTaskTest {
 		}
 	}
 
-	private static class StoppableSource extends RichSourceFunction<Object> implements StoppableFunction {
-		private static final long serialVersionUID = 728864804042338806L;
-
-		@Override
-		public void run(org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext<Object> ctx)
-				throws Exception {
-		}
-
-		@Override
-		public void cancel() {}
-
-		@Override
-		public void stop() {
-			stopped = true;
-		}
-	}
-
-	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed {
+	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed<Serializable> {
 		private static final long serialVersionUID = 1;
 
 		private int maxElements;
@@ -240,9 +210,7 @@ public class SourceStreamTaskTest {
 		}
 
 		@Override
-		public void restoreState(Serializable state) {
-
-		}
+		public void restoreState(Serializable state) {}
 	}
 
 	/**
