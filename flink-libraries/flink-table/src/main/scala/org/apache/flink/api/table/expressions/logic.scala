@@ -18,6 +18,7 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
 abstract class BinaryPredicate extends BinaryExpression { self: Product => }
@@ -52,5 +53,25 @@ case class Or(left: Expression, right: Expression) extends BinaryPredicate {
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.or(left.toRexNode, right.toRexNode)
+  }
+}
+
+case class Eval(
+    condition: Expression,
+    ifTrue: Expression,
+    ifFalse: Expression)
+  extends Expression {
+  def children = Seq(condition, ifTrue, ifFalse)
+
+  override def toString = s"($condition)? $ifTrue : $ifFalse"
+
+  override val name = Expression.freshName("if-" + condition.name +
+    "-then-" + ifTrue.name + "-else-" + ifFalse.name)
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val c = condition.toRexNode
+    val t = ifTrue.toRexNode
+    val f = ifFalse.toRexNode
+    relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
   }
 }

@@ -134,6 +134,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case e ~ _ ~ target ~ _ => Naming(e, target.name)
   }
 
+  lazy val eval: PackratParser[Expression] = atom ~
+      ".eval(" ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case condition ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => Eval(condition, ifTrue, ifFalse)
+  }
+
   // general function calls
 
   lazy val functionCall = ident ~ "(" ~ rep1sep(expression, ",") ~ ")" ^^ {
@@ -200,7 +205,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffix =
     isNull | isNotNull |
-      sum | min | max | count | avg | cast | nullLiteral |
+      sum | min | max | count | avg | cast | nullLiteral | eval |
       specialFunctionCalls | functionCall | functionCallWithoutArgs |
       specialSuffixFunctionCalls | suffixFunctionCall | suffixFunctionCallWithoutArgs |
       atom

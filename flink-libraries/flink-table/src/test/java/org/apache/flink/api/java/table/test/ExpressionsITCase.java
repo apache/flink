@@ -132,5 +132,46 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		}
 	}
 
+	@Test
+	public void testEval() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSource<Tuple2<Integer, Boolean>> input =
+				env.fromElements(new Tuple2<>(5, true));
+
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
+
+		Table result = table.select(
+				"(b && true).eval('true', 'false')," +
+					"false.eval('true', 'false')," +
+					"true.eval(true.eval(true.eval(10, 4), 4), 4)");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "true,false,10";
+		compareResultAsText(results, expected);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testEvalInvalidTypes() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSource<Tuple2<Integer, Boolean>> input =
+				env.fromElements(new Tuple2<>(5, true));
+
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
+
+		Table result = table.select("(b && true).eval(5, 'false')");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "true,false,3,10";
+		compareResultAsText(results, expected);
+	}
+
 }
 

@@ -723,6 +723,9 @@ class CodeGenerator(
         requireBoolean(operand)
         generateNot(nullCheck, operand)
 
+      case CASE =>
+        generateIfElse(nullCheck, operands, resultType)
+
       // casting
       case CAST =>
         val operand = operands.head
