@@ -521,6 +521,11 @@ class CodeGenerator(
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
     val resultType = sqlTypeToTypeInfo(literal.getType.getSqlTypeName)
     val value = literal.getValue3
+    // null value with type
+    if (value == null) {
+      return generateNullLiteral(resultType)
+    }
+    // non-null values
     literal.getType.getSqlTypeName match {
       case BOOLEAN =>
         generateNonNullLiteral(resultType, literal.getValue3.toString)
@@ -574,8 +579,6 @@ class CodeGenerator(
         }
       case VARCHAR | CHAR =>
         generateNonNullLiteral(resultType, "\"" + value.toString + "\"")
-      case NULL =>
-        generateNullLiteral(resultType)
       case SYMBOL =>
         val symbolOrdinal = value.asInstanceOf[SqlLiteral.SqlSymbol].ordinal()
         generateNonNullLiteral(resultType, symbolOrdinal.toString)
@@ -742,6 +745,12 @@ class CodeGenerator(
     }
   }
 
+  override def visitOver(over: RexOver): GeneratedExpression = ???
+
+  // ----------------------------------------------------------------------------------------------
+  // generator helping methods
+  // ----------------------------------------------------------------------------------------------
+
   def checkNumericOrString(left: GeneratedExpression, right: GeneratedExpression): Unit = {
     if (isNumeric(left)) {
       requireNumeric(right)
@@ -749,12 +758,6 @@ class CodeGenerator(
       requireString(right)
     }
   }
-
-  override def visitOver(over: RexOver): GeneratedExpression = ???
-
-  // ----------------------------------------------------------------------------------------------
-  // generator helping methods
-  // ----------------------------------------------------------------------------------------------
 
   private def generateInputAccess(
       inputType: TypeInformation[Any],
@@ -906,7 +909,7 @@ class CodeGenerator(
 
     val wrappedCode = if (nullCheck) {
       s"""
-        |$resultTypeTerm $resultTerm = null;
+        |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = true;
         |""".stripMargin
     } else {

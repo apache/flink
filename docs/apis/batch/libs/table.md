@@ -560,3 +560,10 @@ val result = tableEnv.sql("SELECT * FROM MyTable")
 
 {% top %}
 
+Runtime Configuration
+----
+The Table API provides a configuration (the so-called `TableConfig`) to modify runtime behavior. It can be accessed either through `TableEnvironment` or passed to the `toDataSet`/`toDataStream` method when using Scala implicit conversion.
+
+### Null Handling
+By default, the Table API does not support `null` values at runtime for efficiency purposes. Null handling can be enabled by setting the `nullCheck` property in the `TableConfig` to `true`.
+
