@@ -18,10 +18,16 @@
 
 package org.apache.flink.streaming.connectors.wikiedits;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.junit.Assume;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -36,6 +42,9 @@ public class WikipediaEditsSourceTest {
 	 */
 	@Test(timeout = 120 * 1000)
 	public void testWikipediaEditsSource() throws Exception {
+
+		// If the Wikipedia IRC port is not reachable then skip this test
+		Assume.assumeTrue(wikipediaIrcPortReachable());
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
@@ -56,6 +65,26 @@ public class WikipediaEditsSourceTest {
 		catch (Exception e) {
 			assertNotNull(e.getCause());
 			assertEquals("Expected test exception", e.getCause().getMessage());
+		}
+	}
+
+	/**
+	 * True if the Wikipedia IRC port reachable
+	 */
+	private static boolean wikipediaIrcPortReachable() {
+		Socket socket = new Socket();
+		try {
+			InetSocketAddress endpoint = new InetSocketAddress(WikipediaEditsSource.DEFAULT_HOST, WikipediaEditsSource.DEFAULT_PORT);
+			socket.connect(endpoint, 10000);
+			return true;
+		}
+		catch (IOException e){
+			e.printStackTrace();
+			// This might happen if the service is down or we are behind a firewall without a SOCKS Proxy
+			return false;
+		}
+		finally {
+			IOUtils.closeQuietly(socket);
 		}
 	}
 }
