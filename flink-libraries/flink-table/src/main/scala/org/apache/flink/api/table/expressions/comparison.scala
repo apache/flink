@@ -24,7 +24,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-abstract class BinaryComparison extends BinaryExpression { self: Product =>
+abstract class BinaryComparison extends BinaryExpression {
   def sqlOperator: SqlOperator
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {

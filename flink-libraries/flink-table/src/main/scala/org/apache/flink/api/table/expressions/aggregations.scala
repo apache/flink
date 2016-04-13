@@ -22,7 +22,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 
-abstract sealed class Aggregation extends UnaryExpression { self: Product =>
+abstract sealed class Aggregation extends UnaryExpression {
 
   override def toString = s"Aggregate($child)"
 

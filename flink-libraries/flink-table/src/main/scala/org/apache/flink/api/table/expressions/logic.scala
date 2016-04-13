@@ -21,7 +21,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-abstract class BinaryPredicate extends BinaryExpression { self: Product => }
+abstract class BinaryPredicate extends BinaryExpression
 
 case class Not(child: Expression) extends UnaryExpression {
 

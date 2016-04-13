@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
-abstract class Expression extends TreeNode[Expression] { self: Product =>
+abstract class Expression extends TreeNode[Expression] {
   def name: String = Expression.freshName("expression")
 
   /**
@@ -34,18 +34,18 @@ abstract class Expression extends TreeNode[Expression] { self: Product =>
     )
 }
 
-abstract class BinaryExpression extends Expression { self: Product =>
+abstract class BinaryExpression extends Expression {
   def left: Expression
   def right: Expression
   def children = Seq(left, right)
 }
 
-abstract class UnaryExpression extends Expression { self: Product =>
+abstract class UnaryExpression extends Expression {
   def child: Expression
   def children = Seq(child)
 }
 
-abstract class LeafExpression extends Expression { self: Product =>
+abstract class LeafExpression extends Expression {
   val children = Nil
 }
 

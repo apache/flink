@@ -28,7 +28,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter
 
-abstract class BinaryArithmetic extends BinaryExpression { self: Product =>
+abstract class BinaryArithmetic extends BinaryExpression {
   def sqlOperator: SqlOperator
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {

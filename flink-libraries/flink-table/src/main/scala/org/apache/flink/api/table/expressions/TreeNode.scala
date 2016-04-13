@@ -20,7 +20,7 @@ package org.apache.flink.api.table.expressions
 /**
  * Generic base class for trees that can be transformed and traversed.
  */
-abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
+abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
 
   /**
    * List of child nodes that should be considered when doing transformations. Other values
