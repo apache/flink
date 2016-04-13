@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.scala.sql.test
 
-import org.apache.calcite.tools.ValidationException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets

@@ -27,7 +27,7 @@ import scala.language.implicitConversions
  * operations.
  *
  * These operations must be kept in sync with the parser in
- * [[org.apache.flink.api.table.parser.ExpressionParser]].
+ * [[org.apache.flink.api.table.expressions.ExpressionParser]].
  */
 trait ImplicitExpressionOperations {
   def expr: Expression

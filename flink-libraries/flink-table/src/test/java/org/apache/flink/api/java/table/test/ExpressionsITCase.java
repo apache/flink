@@ -100,5 +100,30 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testNullLiteral() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
+
+		DataSource<Tuple2<Integer, Integer>> input =
+				env.fromElements(new Tuple2<>(1, 0));
+
+		Table table =
+				tableEnv.fromDataSet(input, "a, b");
+
+		Table result = table.select("a, b, Null(INT), Null(STRING) === ''");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected;
+		if (getConfig().getNullCheck()) {
+			expected = "1,0,null,null";
+		}
+		else {
+			expected = "1,0,-1,true";
+		}
+		compareResultAsText(results, expected);
+	}
+
 }
 

@@ -75,6 +75,10 @@ object TypeConverter {
     case VARCHAR | CHAR => STRING_TYPE_INFO
     case DATE => DATE_TYPE_INFO
 
+    case NULL =>
+      throw new TableException("Type NULL is not supported. " +
+        "Null values must have a supported type.")
+
     // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
     // are represented as integer
     case SYMBOL => INT_TYPE_INFO

@@ -77,6 +77,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     str => Literal(str.toBoolean)
   }
 
+  lazy val nullLiteral: PackratParser[Expression] =
+    "Null(BYTE)" ^^ { e => Null(BasicTypeInfo.BYTE_TYPE_INFO) } |
+    "Null(SHORT)" ^^ { e => Null(BasicTypeInfo.SHORT_TYPE_INFO) } |
+    "Null(INT)" ^^ { e => Null(BasicTypeInfo.INT_TYPE_INFO) } |
+    "Null(LONG)" ^^ { e => Null(BasicTypeInfo.LONG_TYPE_INFO) } |
+    "Null(FLOAT)" ^^ { e => Null(BasicTypeInfo.FLOAT_TYPE_INFO) } |
+    "Null(DOUBLE)" ^^ { e => Null(BasicTypeInfo.DOUBLE_TYPE_INFO) } |
+    "Null(BOOL)" ^^ { e => Null(BasicTypeInfo.BOOLEAN_TYPE_INFO) } |
+    "Null(BOOLEAN)" ^^ { e => Null(BasicTypeInfo.BOOLEAN_TYPE_INFO) } |
+    "Null(STRING)" ^^ { e => Null(BasicTypeInfo.STRING_TYPE_INFO) } |
+    "Null(DATE)" ^^ { e => Null(BasicTypeInfo.DATE_TYPE_INFO) }
+
   lazy val literalExpr: PackratParser[Expression] =
     numberLiteral |
       stringLiteralFlink | singleQuoteStringLiteral |
@@ -188,8 +200,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffix =
     isNull | isNotNull |
-      sum | min | max | count | avg | cast |
-      specialFunctionCalls |functionCall | functionCallWithoutArgs |
+      sum | min | max | count | avg | cast | nullLiteral |
+      specialFunctionCalls | functionCall | functionCallWithoutArgs |
       specialSuffixFunctionCalls | suffixFunctionCall | suffixFunctionCallWithoutArgs |
       atom
 

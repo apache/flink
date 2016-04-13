@@ -24,10 +24,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.Literal
+import org.apache.flink.api.table.expressions.{Literal, Null}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
-import TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.table.test.utils.TableProgramsTestBase
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -87,6 +86,26 @@ class ExpressionsITCase(
       .groupBy("a").select("a, a.count As cnt")
 
     val expected = "3,1"
+    val results = t.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testNullLiteral(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val t = env.fromElements((1, 0)).as('a, 'b)
+      .select(
+        'a,
+        'b,
+        Null(BasicTypeInfo.INT_TYPE_INFO),
+        Null(BasicTypeInfo.STRING_TYPE_INFO) === "")
+
+    val expected = if (getConfig.getNullCheck) {
+      "1,0,null,null"
+    } else {
+      "1,0,-1,true"
+    }
     val results = t.toDataSet[Row](getConfig).collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
