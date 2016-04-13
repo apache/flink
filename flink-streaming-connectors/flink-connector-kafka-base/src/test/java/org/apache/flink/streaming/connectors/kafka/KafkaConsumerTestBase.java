@@ -1278,13 +1278,24 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 							new Tuple2Partitioner(parallelism)))
 					.setParallelism(parallelism);
 
-			writeEnv.execute("Write sequence");
+			try {
+				writeEnv.execute("Write sequence");
+			}
+			catch (Exception e) {
+				LOG.error("Write attempt failed, trying again", e);
+				deleteTestTopic(topicName);
+				JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+				continue;
+			}
+			
 			LOG.info("Finished writing sequence");
 
 			// -------- Validate the Sequence --------
 			
 			// we need to validate the sequence, because kafka's producers are not exactly once
 			LOG.info("Validating sequence");
+
+			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 			
 			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
