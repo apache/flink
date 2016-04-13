@@ -15,33 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
+import scala.collection.mutable
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.typeutils.{TypeCoercion, TypeConverter}
 import org.apache.flink.api.table.validate._
 
-case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
+/**
+  * Expressions that have specification on its inputs.
+  */
+trait InputTypeSpec extends Expression {
 
-  override def toString = s"$child.cast($resultType)"
-
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
-  }
-
-  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
-    val child: Expression = anyRefs.head.asInstanceOf[Expression]
-    copy(child, resultType).asInstanceOf[this.type]
-  }
+  /**
+    * Input type specification for each child.
+    *
+    * For example, [[Power]] expecting both of the children be of Double Type should use:
+    * {{{
+    *   def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
+    * }}}
+    */
+  def expectedTypes: Seq[TypeInformation[_]]
 
   override def validateInput(): ExprValidationResult = {
-    if (TypeCoercion.canCast(child.resultType, resultType)) {
+    val typeMismatches = mutable.ArrayBuffer.empty[String]
+    children.zip(expectedTypes).zipWithIndex.foreach { case ((e, tpe), i) =>
+      if (e.resultType != tpe) {
+        typeMismatches += s"expecting $tpe on ${i}th input, get ${e.resultType}"
+      }
+    }
+    if (typeMismatches.isEmpty) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")
+      ValidationFailure(
+        s"$this fails on input type checking: ${typeMismatches.mkString("[", ", ", "]")}")
     }
   }
 }

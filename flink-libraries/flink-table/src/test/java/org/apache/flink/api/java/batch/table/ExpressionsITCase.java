@@ -30,6 +30,8 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.codegen.CodeGenException;
 import static org.junit.Assert.fail;
+
+import org.apache.flink.api.table.ValidationException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -154,7 +156,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testEvalInvalidTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());

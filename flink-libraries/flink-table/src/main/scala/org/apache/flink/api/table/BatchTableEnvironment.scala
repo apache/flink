@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.io.DiscardingOutputFormat
@@ -31,7 +32,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetRel, DataSetConvention}
+import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataSetTable}
 import org.apache.flink.api.table.sinks.{BatchTableSink, TableSink}
@@ -72,7 +74,7 @@ abstract class BatchTableEnvironment(
     val m = internalNamePattern.findFirstIn(name)
     m match {
       case Some(_) =>
-        throw new TableException(s"Illegal Table name. " +
+        throw new ValidationException(s"Illegal Table name. " +
           s"Please choose a name that does not contain the pattern $internalNamePattern")
       case None =>
     }
@@ -87,18 +89,15 @@ abstract class BatchTableEnvironment(
     * The table to scan must be registered in the [[TableEnvironment]]'s catalog.
     *
     * @param tableName The name of the table to scan.
-    * @throws TableException if no table is registered under the given name.
+    * @throws ValidationException if no table is registered under the given name.
     * @return The scanned table.
     */
-  @throws[TableException]
+  @throws[ValidationException]
   def scan(tableName: String): Table = {
-
     if (isRegistered(tableName)) {
-      relBuilder.scan(tableName)
-      new Table(relBuilder.build(), this)
-    }
-    else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
+    } else {
+      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
@@ -133,7 +132,7 @@ abstract class BatchTableEnvironment(
     // transform to a relational tree
     val relational = planner.rel(validated)
 
-    new Table(relational.rel, this)
+    new Table(this, LogicalRelNode(relational.rel))
   }
 
   /**
@@ -169,7 +168,7 @@ abstract class BatchTableEnvironment(
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
 
-    val ast = RelOptUtil.toString(table.relNode)
+    val ast = RelOptUtil.toString(table.getRelNode)
     val dataSet = translate[Row](table)(TypeExtractor.createTypeInfo(classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
     val env = dataSet.getExecutionEnvironment
@@ -219,15 +218,10 @@ abstract class BatchTableEnvironment(
     * @tparam T The type of the [[DataSet]].
     */
   protected def registerDataSetInternal[T](
-    name: String, dataSet: DataSet[T],
-    fields: Array[Expression]): Unit = {
+      name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType, fields.toArray)
-    val dataSetTable = new DataSetTable[T](
-      dataSet,
-      fieldIndexes.toArray,
-      fieldNames.toArray
-    )
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType, fields)
+    val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
     registerTableInternal(name, dataSetTable)
   }
 

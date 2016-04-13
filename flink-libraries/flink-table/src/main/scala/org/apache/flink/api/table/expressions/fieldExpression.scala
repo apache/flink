@@ -20,27 +20,88 @@ package org.apache.flink.api.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
-case class UnresolvedFieldReference(override val name: String) extends LeafExpression {
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.UnresolvedException
+import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
+
+trait NamedExpression extends Expression {
+  def name: String
+  def toAttribute: Attribute
+}
+
+abstract class Attribute extends LeafExpression with NamedExpression {
+  override def toAttribute: Attribute = this
+
+  def withName(newName: String): Attribute
+}
+
+case class UnresolvedFieldReference(name: String) extends Attribute {
+
   override def toString = "\"" + name
+
+  override def withName(newName: String): Attribute = UnresolvedFieldReference(newName)
+
+  override def resultType: TypeInformation[_] =
+    throw new UnresolvedException(s"calling resultType on ${this.getClass}")
+
+  override def validateInput(): ExprValidationResult =
+    ValidationFailure(s"Unresolved reference $name")
+}
+
+case class ResolvedFieldReference(
+    name: String,
+    resultType: TypeInformation[_]) extends Attribute {
+
+  override def toString = s"'$name"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.field(name)
   }
+
+  override def withName(newName: String): Attribute = {
+    if (newName == name) {
+      this
+    } else {
+      ResolvedFieldReference(newName, resultType)
+    }
+  }
 }
 
-case class ResolvedFieldReference(override val name: String) extends LeafExpression {
-  override def toString = s"'$name"
-}
+case class Alias(child: Expression, name: String)
+    extends UnaryExpression with NamedExpression {
 
-case class Naming(child: Expression, override val name: String) extends UnaryExpression {
   override def toString = s"$child as '$name"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.alias(child.toRexNode, name)
   }
 
-  override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
+  override def resultType: TypeInformation[_] = child.resultType
+
+  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, name).asInstanceOf[this.type]
   }
+
+  override def toAttribute: Attribute = {
+    if (valid) {
+      ResolvedFieldReference(name, child.resultType)
+    } else {
+      UnresolvedFieldReference(name)
+    }
+  }
+}
+
+case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
+
+  override def name: String =
+    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
+
+  override def toAttribute: Attribute =
+    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+
+  override def resultType: TypeInformation[_] =
+    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+
+  override lazy val valid = false
 }

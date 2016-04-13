@@ -15,9 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
+package org.apache.flink.api.table.validate
 
 /**
- * General Exception for all errors during table handling.
- */
-class TableException(msg: String) extends RuntimeException(msg)
+  * Represents the result of `Expression.validateInput`.
+  */
+sealed trait ExprValidationResult {
+  def isFailure: Boolean = !isSuccess
+  def isSuccess: Boolean
+}
+
+/**
+  * Represents the successful result of `Expression.checkInputDataTypes`.
+  */
+object ValidationSuccess extends ExprValidationResult {
+  val isSuccess: Boolean = true
+}
+
+/**
+  * Represents the failing result of `Expression.checkInputDataTypes`,
+  * with a error message to show the reason of failure.
+  */
+case class ValidationFailure(message: String) extends ExprValidationResult {
+  val isSuccess: Boolean = false
+}

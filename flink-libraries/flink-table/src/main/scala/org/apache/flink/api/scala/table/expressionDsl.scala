@@ -17,10 +17,10 @@
  */
 package org.apache.flink.api.scala.table
 
+import scala.language.implicitConversions
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions._
-
-import scala.language.implicitConversions
 
 /**
  * These are all the operations that can be used to construct an [[Expression]] AST for expression
@@ -63,7 +63,7 @@ trait ImplicitExpressionOperations {
 
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)
 
-  def as(name: Symbol) = Naming(expr, name.name)
+  def as(name: Symbol) = Alias(expr, name.name)
 
   def asc = Asc(expr)
   def desc = Desc(expr)
@@ -91,37 +91,37 @@ trait ImplicitExpressionOperations {
   /**
     * Calculates the Euler's number raised to the given power.
     */
-  def exp() = Call(BuiltInFunctionNames.EXP, expr)
+  def exp() = Exp(expr)
 
   /**
     * Calculates the base 10 logarithm of given value.
     */
-  def log10() = Call(BuiltInFunctionNames.LOG10, expr)
+  def log10() = Log10(expr)
 
   /**
     * Calculates the natural logarithm of given value.
     */
-  def ln() = Call(BuiltInFunctionNames.LN, expr)
+  def ln() = Ln(expr)
 
   /**
     * Calculates the given number raised to the power of the other value.
     */
-  def power(other: Expression) = Call(BuiltInFunctionNames.POWER, expr, other)
+  def power(other: Expression) = Power(expr, other)
 
   /**
     * Calculates the absolute value of given one.
     */
-  def abs() = Call(BuiltInFunctionNames.ABS, expr)
+  def abs() = Abs(expr)
 
   /**
     * Calculates the largest integer less than or equal to a given number.
     */
-  def floor() = Call(BuiltInFunctionNames.FLOOR, expr)
+  def floor() = Floor(expr)
 
   /**
     * Calculates the smallest integer greater than or equal to a given number.
     */
-  def ceil() = Call(BuiltInFunctionNames.CEIL, expr)
+  def ceil() = Ceil(expr)
 
   /**
     * Creates a substring of the given string between the given indices.
@@ -130,9 +130,8 @@ trait ImplicitExpressionOperations {
     * @param endIndex last character of the substring (starting at 1, inclusive)
     * @return substring
     */
-  def substring(beginIndex: Expression, endIndex: Expression) = {
-    Call(BuiltInFunctionNames.SUBSTRING, expr, beginIndex, endIndex)
-  }
+  def substring(beginIndex: Expression, endIndex: Expression) =
+    SubString(expr, beginIndex, endIndex)
 
   /**
     * Creates a substring of the given string beginning at the given index to the end.
@@ -140,9 +139,8 @@ trait ImplicitExpressionOperations {
     * @param beginIndex first character of the substring (starting at 1, inclusive)
     * @return substring
     */
-  def substring(beginIndex: Expression) = {
-    Call(BuiltInFunctionNames.SUBSTRING, expr, beginIndex)
-  }
+  def substring(beginIndex: Expression) =
+    new SubString(expr, beginIndex)
 
   /**
     * Removes leading and/or trailing characters from the given string.
@@ -155,25 +153,13 @@ trait ImplicitExpressionOperations {
   def trim(
       removeLeading: Boolean = true,
       removeTrailing: Boolean = true,
-      character: Expression = BuiltInFunctionConstants.TRIM_DEFAULT_CHAR) = {
+      character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = {
     if (removeLeading && removeTrailing) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
-        character,
-        expr)
+      Trim(TrimConstants.TRIM_BOTH, character, expr)
     } else if (removeLeading) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_LEADING,
-        character,
-        expr)
+      Trim(TrimConstants.TRIM_LEADING, character, expr)
     } else if (removeTrailing) {
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_TRAILING,
-        character,
-        expr)
+      Trim(TrimConstants.TRIM_TRAILING, character, expr)
     } else {
       expr
     }
@@ -182,51 +168,39 @@ trait ImplicitExpressionOperations {
   /**
     * Returns the length of a String.
     */
-  def charLength() = {
-    Call(BuiltInFunctionNames.CHAR_LENGTH, expr)
-  }
+  def charLength() = CharLength(expr)
 
   /**
     * Returns all of the characters in a String in upper case using the rules of
     * the default locale.
     */
-  def upperCase() = {
-    Call(BuiltInFunctionNames.UPPER_CASE, expr)
-  }
+  def upperCase() = Upper(expr)
 
   /**
     * Returns all of the characters in a String in lower case using the rules of
     * the default locale.
     */
-  def lowerCase() = {
-    Call(BuiltInFunctionNames.LOWER_CASE, expr)
-  }
+  def lowerCase() = Lower(expr)
 
   /**
     * Converts the initial letter of each word in a String to uppercase.
     * Assumes a String containing only [A-Za-z0-9], everything else is treated as whitespace.
     */
-  def initCap() = {
-    Call(BuiltInFunctionNames.INIT_CAP, expr)
-  }
+  def initCap() = InitCap(expr)
 
   /**
     * Returns true, if a String matches the specified LIKE pattern.
     *
     * e.g. "Jo_n%" matches all Strings that start with "Jo(arbitrary letter)n"
     */
-  def like(pattern: Expression) = {
-    Call(BuiltInFunctionNames.LIKE, expr, pattern)
-  }
+  def like(pattern: Expression) = Like(expr, pattern)
 
   /**
     * Returns true, if a String matches the specified SQL regex pattern.
     *
     * e.g. "A+" matches all Strings that consist of at least one A
     */
-  def similar(pattern: Expression) = {
-    Call(BuiltInFunctionNames.SIMILAR, expr, pattern)
-  }
+  def similar(pattern: Expression) = Similar(expr, pattern)
 }
 
 /**

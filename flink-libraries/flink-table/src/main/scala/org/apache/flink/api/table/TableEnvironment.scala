@@ -21,11 +21,13 @@ package org.apache.flink.api.table
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
-import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{Frameworks, FrameworkConfig, RelBuilder}
+import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
+
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaBatchTableEnv}
@@ -35,11 +37,11 @@ import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
+import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
 import org.apache.flink.api.table.sinks.TableSink
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
+import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -72,10 +74,16 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
   protected val relBuilder: RelBuilder = RelBuilder.create(frameworkConfig)
 
-  // the planner instance used to optimize queries of this TableEnvironment
-  private val planner: RelOptPlanner = relBuilder
+  private val cluster: RelOptCluster = relBuilder
     .values(Array("dummy"), new Integer(1))
-    .build().getCluster.getPlanner
+    .build().getCluster
+
+  // the planner instance used to optimize queries of this TableEnvironment
+  private val planner: RelOptPlanner = cluster.getPlanner
+
+  private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
+
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
 
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -94,7 +102,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // check that table belongs to this table environment
     if (table.tableEnv != this) {
-      throw new TableException(
+      throw new ValidationException(
         "Only tables that belong to this TableEnvironment can be registered.")
     }
 
@@ -152,7 +160,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param name The name under which the table is registered.
     * @param table The table to register in the catalog
-    * @throws TableException if another table is registered under the provided name.
+    * @throws ValidationException if another table is registered under the provided name.
     */
   @throws[TableException]
   protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
@@ -182,6 +190,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     tables.getTableNames.contains(name)
   }
 
+  protected def getRowType(name: String): RelDataType = {
+    tables.getTable(name).getRowType(typeFactory)
+  }
+
   /** Returns a unique temporary attribute name. */
   private[flink] def createUniqueAttributeName(): String = {
     "TMP_" + attrNameCntr.getAndIncrement()
@@ -195,6 +207,10 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
   protected def getPlanner: RelOptPlanner = {
     planner
+  }
+
+  private[flink] def getFunctionCatalog: FunctionCatalog = {
+    functionCatalog
   }
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
@@ -253,7 +269,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       case t: TupleTypeInfo[A] =>
         exprs.zipWithIndex.map {
           case (UnresolvedFieldReference(name), idx) => (idx, name)
-          case (Naming(UnresolvedFieldReference(origName), name), _) =>
+          case (Alias(UnresolvedFieldReference(origName), name), _) =>
             val idx = t.getFieldIndex(origName)
             if (idx < 0) {
               throw new IllegalArgumentException(s"$origName is not a field of type $t")
@@ -265,7 +281,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       case c: CaseClassTypeInfo[A] =>
         exprs.zipWithIndex.map {
           case (UnresolvedFieldReference(name), idx) => (idx, name)
-          case (Naming(UnresolvedFieldReference(origName), name), _) =>
+          case (Alias(UnresolvedFieldReference(origName), name), _) =>
             val idx = c.getFieldIndex(origName)
             if (idx < 0) {
               throw new IllegalArgumentException(s"$origName is not a field of type $c")
@@ -276,7 +292,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
       case p: PojoTypeInfo[A] =>
         exprs.map {
-          case Naming(UnresolvedFieldReference(origName), name) =>
+          case Alias(UnresolvedFieldReference(origName), name) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
               throw new IllegalArgumentException(s"$origName is not a field of type $p")
@@ -389,5 +405,4 @@ object TableEnvironment {
 
     new ScalaStreamTableEnv(executionEnvironment, tableConfig)
   }
-
 }
