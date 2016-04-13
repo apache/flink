@@ -82,11 +82,17 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @param checkpointId
 	 * @throws IOException
 	 */
-	private void saveHandleInState(final long checkpointId, final long timestamp) throws IOException {
+	private void saveHandleInState(final long checkpointId, final long timestamp) throws Exception {
 		//only add handle if a new OperatorState was created since the last snapshot
 		if (out != null) {
 			StateHandle<DataInputView> handle = out.closeAndGetHandle();
-			state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
+			if (state.pendingHandles.containsKey(checkpointId)) {
+				//we already have a checkpoint stored for that ID that may have been partially written,
+				//so we discard this "alternate version" and use the stored checkpoint
+				handle.discardState();
+			} else {
+				state.pendingHandles.put(checkpointId, new Tuple2<>(timestamp, handle));
+			}
 			out = null;
 		}
 	}
@@ -174,10 +180,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 
 		@Override
 		public void discardState() throws Exception {
-			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
-				pair.f1.discardState();
-			}
-			pendingHandles = new TreeMap<>();
+			//we specifically want the state to survive failed jobs, so we don't discard anything
 		}
 
 		@Override
