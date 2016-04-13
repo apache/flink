@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.manual;
 
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -73,6 +74,7 @@ public class OverwriteObjects {
 			testReduce(env);
 			testGroupedReduce(env);
 			testJoin(env);
+			testCross(env);
 		}
 	}
 
@@ -127,7 +129,7 @@ public class OverwriteObjects {
 		Assert.assertEquals(disabledChecksum, enabledChecksum);
 	}
 
-	public class OverwriteObjectsReduce implements ReduceFunction<Tuple2<IntValue, IntValue>> {
+	private class OverwriteObjectsReduce implements ReduceFunction<Tuple2<IntValue, IntValue>> {
 		private Scrambler scrambler;
 
 		public OverwriteObjectsReduce(boolean keyed) {
@@ -252,7 +254,7 @@ public class OverwriteObjects {
 		}
 	}
 
-	public class OverwriteObjectsJoin implements JoinFunction<Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>> {
+	private class OverwriteObjectsJoin implements JoinFunction<Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>> {
 		private Scrambler scrambler = new Scrambler(true);
 
 		@Override
@@ -263,10 +265,67 @@ public class OverwriteObjects {
 
 	// --------------------------------------------------------------------------------------------
 
-	private DataSet<Tuple2<IntValue, IntValue>> getDataSet(ExecutionEnvironment env) {
+	public void testCross(ExecutionEnvironment env) throws Exception {
+		/*
+		 * Test CrossDriver
+		 */
+
+		LOG.info("Testing cross");
+
+		DataSet<Tuple2<IntValue, IntValue>> small = getDataSet(env, 100, 20);
+		DataSet<Tuple2<IntValue, IntValue>> large = getDataSet(env, 10000, 2000);
+
+		// test NESTEDLOOP_BLOCKED_OUTER_FIRST and NESTEDLOOP_BLOCKED_OUTER_SECOND with object reuse enabled
+
+		env.getConfig().enableObjectReuse();
+
+		ChecksumHashCode enabledChecksumWithHuge = DataSetUtils.checksumHashCode(small
+			.crossWithHuge(large)
+			.with(new OverwriteObjectsCross()));
+
+		ChecksumHashCode enabledChecksumWithTiny = DataSetUtils.checksumHashCode(small
+			.crossWithTiny(large)
+			.with(new OverwriteObjectsCross()));
+
+		Assert.assertEquals(enabledChecksumWithHuge, enabledChecksumWithTiny);
+
+		// test NESTEDLOOP_BLOCKED_OUTER_FIRST and NESTEDLOOP_BLOCKED_OUTER_SECOND with object reuse disabled
+
+		env.getConfig().disableObjectReuse();
+
+		ChecksumHashCode disabledChecksumWithHuge = DataSetUtils.checksumHashCode(small
+			.crossWithHuge(large)
+			.with(new OverwriteObjectsCross()));
+
+		ChecksumHashCode disabledChecksumWithTiny = DataSetUtils.checksumHashCode(small
+			.crossWithTiny(large)
+			.with(new OverwriteObjectsCross()));
+
+		Assert.assertEquals(disabledChecksumWithHuge, disabledChecksumWithTiny);
+
+		// verify that checksums match between object reuse enabled and disabled
+		Assert.assertEquals(enabledChecksumWithHuge, disabledChecksumWithHuge);
+	}
+
+	private class OverwriteObjectsCross implements CrossFunction<Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>, Tuple2<IntValue, IntValue>> {
+		private Scrambler scrambler = new Scrambler(true);
+
+		@Override
+		public Tuple2<IntValue, IntValue> cross(Tuple2<IntValue, IntValue> a, Tuple2<IntValue, IntValue> b) throws Exception {
+			return scrambler.scramble(a, b);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private DataSet<Tuple2<IntValue, IntValue>> getDataSet(ExecutionEnvironment env, int numberOfElements, int keyRange) {
 		return env
-			.fromCollection(new TupleIntValueIntValueIterator(NUMBER_OF_ELEMENTS, KEY_RANGE),
+			.fromCollection(new TupleIntValueIntValueIterator(numberOfElements, keyRange),
 				TupleTypeInfo.<Tuple2<IntValue, IntValue>>getBasicAndBasicValueTupleTypeInfo(IntValue.class, IntValue.class));
+	}
+
+	private DataSet<Tuple2<IntValue, IntValue>> getDataSet(ExecutionEnvironment env) {
+		return getDataSet(env, NUMBER_OF_ELEMENTS, KEY_RANGE);
 	}
 
 	private DataSet<Tuple2<IntValue, IntValue>> getFilteredDataSet(ExecutionEnvironment env) {
