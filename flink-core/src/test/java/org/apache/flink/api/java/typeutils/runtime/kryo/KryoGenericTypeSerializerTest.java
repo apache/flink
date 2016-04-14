@@ -160,9 +160,9 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 	}
 
 	@Test
-	public void validateReferenceMappingDisabled() {
+	public void validateReferenceMappingEnabled() {
 		KryoSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
 		Kryo kryo = serializer.getKryo();
-		assertFalse(kryo.getReferences());
+		assertTrue(kryo.getReferences());
 	}
 }
