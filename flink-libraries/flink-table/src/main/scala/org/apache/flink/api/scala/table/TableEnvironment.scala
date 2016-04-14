@@ -20,7 +20,8 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.{TableConfig, Table}
+import org.apache.flink.api.table.{AbstractTableEnvironment, Table}
+import org.apache.flink.streaming.api.scala.DataStream
 
 /**
  * Environment for working with the Table API.
@@ -28,14 +29,7 @@ import org.apache.flink.api.table.{TableConfig, Table}
  * This can be used to convert a [[DataSet]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
-class TableEnvironment {
-
-  private val config = new TableConfig()
-
-  /**
-   * Returns the table config to define the runtime behavior of the Table API.
-   */
-  def getConfig = config
+class TableEnvironment extends AbstractTableEnvironment {
 
   /**
    * Converts the [[DataSet]] to a [[Table]]. The field names can be specified like this:
@@ -72,5 +66,61 @@ class TableEnvironment {
      new ScalaBatchTranslator(config).translate[T](table.relNode)
   }
 
-}
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are used to name the Table fields.
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T]): Unit = {
+    registerDataSetInternal(name, dataset.javaSet)
+  }
 
+  /**
+   * Registers a DataSet under a unique name, so that it can be used in SQL queries.
+   * The fields of the DataSet type are renamed to the given set of fields.
+   *
+   * @param name the Table name
+   * @param dataset the DataSet to register
+   * @param fields the field names expression
+   */
+  def registerDataSet[T](name: String, dataset: DataSet[T], fields: Expression*): Unit = {
+    registerDataSetInternal(name, dataset.javaSet, fields.toArray)
+  }
+
+    /**
+   * Converts the [[DataStream]] to a [[Table]]. The field names can be specified like this:
+   *
+   * {{{
+   *   val in: DataStream[(String, Int)] = ...
+   *   val table = in.as('a, 'b)
+   * }}}
+   *
+   * This results in a [[Table]] that has field `a` of type `String` and field `b`
+   * of type `Int`.
+   */
+  def fromDataStream[T](set: DataStream[T], fields: Expression*): Table = {
+    new ScalaStreamTranslator(config).createTable(set, fields.toArray)
+  }
+
+  /**
+   * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
+   * The fields of the DataSet type are used to name the
+   * [[org.apache.flink.api.table.Table]] fields.
+   */
+  def fromDataStream[T](set: DataStream[T]): Table = {
+    new ScalaStreamTranslator(config).createTable(set)
+  }
+
+  /**
+   * Converts the given [[org.apache.flink.api.table.Table]] to
+   * a DataStream. The given type must have exactly the same field types and field order as the
+   * [[org.apache.flink.api.table.Table]]. Row and tuple types can be mapped by position.
+   * POJO types require name equivalence to be mapped correctly as their fields do not have
+   * an order.
+   */
+  def toDataStream[T: TypeInformation](table: Table): DataStream[T] = {
+     new ScalaStreamTranslator(config).translate[T](table.relNode)
+  }
+
+}

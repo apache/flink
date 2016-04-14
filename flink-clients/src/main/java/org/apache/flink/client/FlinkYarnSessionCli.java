@@ -24,12 +24,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -143,7 +142,7 @@ public class FlinkYarnSessionCli {
 		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
 		GlobalConfiguration.loadConfiguration(confDirPath);
 		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
-		flinkYarnClient.setFlinkConfigurationObject(flinkConfiguration);
+		flinkYarnClient.setFlinkConfiguration(flinkConfiguration);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 		File confFile = new File(confDirPath + File.separator + CONFIG_FILE_NAME);
 		if (!confFile.exists()) {
@@ -304,11 +303,12 @@ public class FlinkYarnSessionCli {
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
-				FlinkYarnClusterStatus status = yarnCluster.getClusterStatus();
-				if (status != null && numTaskmanagers != status.getNumberOfTaskManagers()) {
+				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
 					System.err.println("Number of connected TaskManagers changed to " +
-							status.getNumberOfTaskManagers() + ". Slots available: " + status.getNumberOfSlots());
-					numTaskmanagers = status.getNumberOfTaskManagers();
+							status.numRegisteredTaskManagers() + ". " +
+						"Slots available: " + status.totalNumberOfSlots());
+					numTaskmanagers = status.numRegisteredTaskManagers();
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();
@@ -430,13 +430,9 @@ public class FlinkYarnSessionCli {
 			String jobManagerAddress = yarnCluster.getJobManagerAddress().getAddress().getHostAddress() + ":" + yarnCluster.getJobManagerAddress().getPort();
 			System.out.println("Flink JobManager is now running on " + jobManagerAddress);
 			System.out.println("JobManager Web Interface: " + yarnCluster.getWebInterfaceURL());
+
 			// file that we write into the conf/ dir containing the jobManager address and the dop.
-
-			String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-			String currentUser = System.getProperty("user.name");
-			String propertiesFileLocation = yarnCluster.getFlinkConfiguration().getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
-
-			File yarnPropertiesFile = new File(propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser);
+			File yarnPropertiesFile = new File(CliFrontend.getYarnPropertiesLocation(yarnCluster.getFlinkConfiguration()));
 
 			Properties yarnProps = new Properties();
 			yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY, jobManagerAddress);

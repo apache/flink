@@ -29,6 +29,9 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -42,6 +45,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.junit.Test;
 import scala.Option;
 import scala.Tuple2;
@@ -78,6 +82,12 @@ public class TaskManagerComponentsStartupShutdownTest {
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
+			FlinkResourceManager.startResourceManagerActors(
+				config,
+				actorSystem,
+				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager),
+				StandaloneResourceManager.class);
+
 			// create the components for the TaskManager manually
 			final TaskManagerConfiguration tmConfig = new TaskManagerConfiguration(
 					TMP_DIR,
@@ -107,6 +117,7 @@ public class TaskManagerComponentsStartupShutdownTest {
 			final Props tmProps = Props.create(
 					TaskManager.class,
 					tmConfig,
+					ResourceID.generate(),
 					connectionInfo,
 					memManager,
 					ioManager,

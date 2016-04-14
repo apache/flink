@@ -127,6 +127,8 @@ public class CheckpointCoordinator {
 
 	private ScheduledTrigger currentPeriodicTrigger;
 
+	private long lastTriggeredCheckpoint;
+
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
 	 * Non-volatile, because only accessed in synchronized scope */
 	private boolean periodicScheduling;
@@ -370,6 +372,17 @@ public class CheckpointCoordinator {
 				}
 				return false;
 			}
+
+			//make sure the minimum interval between checkpoints has passed
+			if (lastTriggeredCheckpoint + minPauseBetweenCheckpoints > timestamp) {
+				if (currentPeriodicTrigger != null) {
+					currentPeriodicTrigger.cancel();
+					currentPeriodicTrigger = null;
+				}
+				ScheduledTrigger trigger = new ScheduledTrigger();
+				timer.scheduleAtFixedRate(trigger, minPauseBetweenCheckpoints, baseInterval);
+				return false;
+			}
 		}
 
 		// first check if all tasks that we need to trigger are running.
@@ -403,6 +416,7 @@ public class CheckpointCoordinator {
 
 		// we will actually trigger this checkpoint!
 
+		lastTriggeredCheckpoint = timestamp;
 		final long checkpointID;
 		if (nextCheckpointId < 0) {
 			try {

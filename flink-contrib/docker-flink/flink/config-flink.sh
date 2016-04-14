@@ -35,7 +35,6 @@ if [ "$1" = "jobmanager" ]; then
     echo "Configuring Job Manager on this node"
     sed -i -e "s/%jobmanager%/`hostname -i`/g" $CONF/flink-conf.yaml
     $EXEC/jobmanager.sh start cluster
-    $EXEC/start-webclient.sh
 
 elif [ "$1" = "taskmanager" ]; then
     echo "Configuring Task Manager on this node"

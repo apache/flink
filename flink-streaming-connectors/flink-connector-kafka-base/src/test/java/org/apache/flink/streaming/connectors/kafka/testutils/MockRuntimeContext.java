@@ -28,7 +28,6 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -38,32 +37,43 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("deprecation")
 public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	private final int numberOfParallelSubtasks;
 	private final int indexOfThisSubtask;
+	
+	private final ExecutionConfig execConfig;
+	private final Object checkpointLock;
 
+	private ScheduledExecutorService timer;
+	
 	public MockRuntimeContext(int numberOfParallelSubtasks, int indexOfThisSubtask) {
+		this(numberOfParallelSubtasks, indexOfThisSubtask, new ExecutionConfig(), null);
+	}
+	
+	public MockRuntimeContext(
+			int numberOfParallelSubtasks, int indexOfThisSubtask, 
+			ExecutionConfig execConfig,
+			Object checkpointLock) {
 		super(new MockStreamOperator(),
 				new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
+		
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.indexOfThisSubtask = indexOfThisSubtask;
-	}
-
-	private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
-		private static final long serialVersionUID = -1153976702711944427L;
-
-		@Override
-		public ExecutionConfig getExecutionConfig() {
-			return new ExecutionConfig();
-		}
+		this.execConfig = execConfig;
+		this.checkpointLock = checkpointLock;
 	}
 
 	@Override
@@ -73,7 +83,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	@Override
 	public String getTaskName() {
-		return null;
+		return "mock task";
 	}
 
 	@Override
@@ -93,7 +103,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	@Override
 	public ExecutionConfig getExecutionConfig() {
-		throw new UnsupportedOperationException();
+		return execConfig;
 	}
 
 	@Override
@@ -152,12 +162,12 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
+	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+	public <S> org.apache.flink.api.common.state.OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -174,5 +184,39 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public void registerTimer(final long time, final Triggerable target) {
+		if (timer == null) {
+			timer = Executors.newSingleThreadScheduledExecutor();
+		}
+		
+		final long delay = Math.max(time - System.currentTimeMillis(), 0);
+
+		timer.schedule(new Runnable() {
+			@Override
+			public void run() {
+				synchronized (checkpointLock) {
+					try {
+						target.trigger(time);
+					} catch (Throwable t) {
+						System.err.println("!!! Caught exception while processing timer. !!!");
+						t.printStackTrace();
+					}
+				}
+			}
+		}, delay, TimeUnit.MILLISECONDS);
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
+		private static final long serialVersionUID = -1153976702711944427L;
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return new ExecutionConfig();
+		}
 	}
 }

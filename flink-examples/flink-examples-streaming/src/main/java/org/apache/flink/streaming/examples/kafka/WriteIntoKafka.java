@@ -30,17 +30,17 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
  * Generate a String every 500 ms and write it into a Kafka topic
  *
  * Please pass the following arguments to run the example:
- * 	--topic test --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181
+ * 	--topic test --bootstrap.servers localhost:9092
  *
  */
 public class WriteIntoKafka {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		if(parameterTool.getNumberOfParameters() < 3) {
+		if(parameterTool.getNumberOfParameters() < 2) {
 			System.out.println("Missing parameters!");
-			System.out.println("Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers> --zookeeper.connect <zk quorum>");
-			System.exit(1);
+			System.out.println("Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers>");
+			return;
 		}
 
 		StreamExecutionEnvironment env =StreamExecutionEnvironment.getExecutionEnvironment();

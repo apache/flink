@@ -18,30 +18,39 @@
 package org.apache.flink.api.table.expressions
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.language.postfixOps
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 
 abstract class Expression extends TreeNode[Expression] { self: Product =>
   def name: String = Expression.freshName("expression")
+
+  /**
+    * Convert Expression to its counterpart in Calcite, i.e. RexNode
+    */
+  def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getName} cannot be transformed to RexNode"
+    )
 }
 
-abstract class BinaryExpression() extends Expression { self: Product =>
+abstract class BinaryExpression extends Expression { self: Product =>
   def left: Expression
   def right: Expression
   def children = Seq(left, right)
 }
 
-abstract class UnaryExpression() extends Expression { self: Product =>
+abstract class UnaryExpression extends Expression { self: Product =>
   def child: Expression
   def children = Seq(child)
 }
 
-abstract class LeafExpression() extends Expression { self: Product =>
+abstract class LeafExpression extends Expression { self: Product =>
   val children = Nil
 }
 
 case class NopExpression() extends LeafExpression {
   override val name = Expression.freshName("nop")
-
 }
 
 object Expression {

@@ -18,11 +18,11 @@
 package org.apache.flink.yarn;
 
 /**
- * Default implementation of {@link FlinkYarnClientBase} which starts an {@link ApplicationMaster}.
+ * Default implementation of {@link FlinkYarnClientBase} which starts an {@link YarnApplicationMasterRunner}.
  */
 public class FlinkYarnClient extends FlinkYarnClientBase {
 	@Override
 	protected Class<?> getApplicationMasterClass() {
-		return ApplicationMaster.class;
+		return YarnApplicationMasterRunner.class;
 	}
 }

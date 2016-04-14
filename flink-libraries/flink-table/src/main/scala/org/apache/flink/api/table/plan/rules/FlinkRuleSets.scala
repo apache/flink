@@ -21,13 +21,20 @@ package org.apache.flink.api.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSets, RuleSet}
 import org.apache.flink.api.table.plan.rules.dataSet._
+import org.apache.flink.api.table.plan.rules.datastream.DataStreamCalcRule
+import org.apache.flink.api.table.plan.rules.datastream.DataStreamScanRule
+import org.apache.flink.api.table.plan.rules.datastream.DataStreamUnionRule
 
 object FlinkRuleSets {
 
   /**
-    * RuleSet to optimize plans for batch / DataSet exeuction
+    * RuleSet to optimize plans for batch / DataSet execution
     */
   val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
+
+    // convert a logical table scan to a relational expression
+    TableScanRule.INSTANCE,
+    EnumerableToLogicalTableScan.INSTANCE,
 
     // push a filter into a join
     FilterJoinRule.FILTER_ON_JOIN,
@@ -94,6 +101,40 @@ object FlinkRuleSets {
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE
+  )
+
+  /**
+  * RuleSet to optimize plans for batch / DataSet execution
+  */
+  val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
+
+    // translate to DataStream nodes
+    DataStreamCalcRule.INSTANCE,
+    DataStreamScanRule.INSTANCE,
+    DataStreamUnionRule.INSTANCE,
+
+    // calc rules
+    FilterToCalcRule.INSTANCE,
+    ProjectToCalcRule.INSTANCE,
+    FilterCalcMergeRule.INSTANCE,
+    ProjectCalcMergeRule.INSTANCE,
+    CalcMergeRule.INSTANCE,
+
+    // prune empty results rules
+    PruneEmptyRules.FILTER_INSTANCE,
+    PruneEmptyRules.PROJECT_INSTANCE,
+    PruneEmptyRules.UNION_INSTANCE,
+
+    // simplify expressions rules
+    ReduceExpressionsRule.CALC_INSTANCE,
+
+    // push and merge projection rules
+    ProjectFilterTransposeRule.INSTANCE,
+    FilterProjectTransposeRule.INSTANCE,
+    ProjectRemoveRule.INSTANCE,
+
+    // merge and push unions rules
+    UnionEliminatorRule.INSTANCE
   )
 
 }

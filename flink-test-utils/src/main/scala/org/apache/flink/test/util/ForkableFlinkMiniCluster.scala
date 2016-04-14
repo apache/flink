@@ -26,11 +26,15 @@ import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist, TestingTaskManager, TestingUtils}
+
+import org.apache.flink.runtime.testutils.TestingResourceManager
 
 import scala.concurrent.{Await, Future}
 
@@ -55,10 +59,10 @@ class ForkableFlinkMiniCluster(
   var zookeeperCluster: Option[TestingCluster] = None
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
-    val forNumberString = System.getProperty("forkNumber")
+    val forkNumberString = System.getProperty("forkNumber")
 
     val forkNumber = try {
-      Integer.parseInt(forNumberString)
+      Integer.parseInt(forkNumberString)
     }
     catch {
       case e: NumberFormatException => -1
@@ -67,13 +71,15 @@ class ForkableFlinkMiniCluster(
     val config = userConfiguration.clone()
 
     if (forkNumber != -1) {
-      val jobManagerRPC = 1024 + forkNumber*300
-      val taskManagerRPC = 1024 + forkNumber*300 + 100
-      val taskManagerData = 1024 + forkNumber*300 + 200
+      val jobManagerRPC = 1024 + forkNumber*400
+      val taskManagerRPC = 1024 + forkNumber*400 + 100
+      val taskManagerData = 1024 + forkNumber*400 + 200
+      val resourceManagerRPC = 1024 + forkNumber*400 + 300
 
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)
     }
 
     super.generateConfiguration(config)
@@ -104,6 +110,29 @@ class ForkableFlinkMiniCluster(
     jobManager
   }
 
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = getResourceManagerName(index)
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if (resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
+      config,
+      system,
+      createLeaderRetrievalService(),
+      classOf[TestingResourceManager],
+      resourceManagerName)
+
+    resourceManager
+  }
+
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
@@ -126,6 +155,7 @@ class ForkableFlinkMiniCluster(
 
     TaskManager.startTaskManagerComponentsAndActor(
       config,
+      ResourceID.generate(),
       system,
       hostname,
       Some(TaskManager.TASK_MANAGER_NAME + index),
@@ -167,7 +197,7 @@ class ForkableFlinkMiniCluster(
 
           val lrs = createLeaderRetrievalService()
 
-          leaderRetrievalService = Some(lrs)
+          jobManagerLeaderRetrievalService = Some(lrs)
           lrs.start(this)
 
         case _ => throw new Exception("The JobManager of the ForkableFlinkMiniCluster have not " +
@@ -175,6 +205,7 @@ class ForkableFlinkMiniCluster(
       }
     }
   }
+
 
   def restartTaskManager(index: Int): Unit = {
     (taskManagerActorSystems, taskManagerActors) match {

@@ -64,8 +64,8 @@ public class PatternStream<T> {
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
-			false,
-			false,
+			1,
+			-1,
 			inputType,
 			null,
 			false);
@@ -93,8 +93,8 @@ public class PatternStream<T> {
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
-			false,
-			false,
+			1,
+			0,
 			inputType,
 			null,
 			false);

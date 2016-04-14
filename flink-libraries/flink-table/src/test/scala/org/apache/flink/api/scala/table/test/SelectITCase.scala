@@ -116,7 +116,7 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo
-      .select('a + 1 as 'foo, 'b + 2 as 'foo).print()
+      .select('a + 1 as 'foo, 'b + 2 as 'foo).toDataSet[Row].print()
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -125,7 +125,7 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'a
-      .select('a, 'b as 'a).print()
+      .select('a, 'b as 'a).toDataSet[Row].print()
   }
 
 }

@@ -104,7 +104,7 @@ public class RollingSinkFaultTolerance2ITCase extends StreamFaultToleranceTestBa
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
-		int PARALLELISM = 6;
+		int PARALLELISM = 12;
 
 		env.enableCheckpointing(Long.MAX_VALUE);
 		env.setParallelism(PARALLELISM);

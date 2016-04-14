@@ -132,7 +132,9 @@ public class TwitterExample {
 				jsonParser = new ObjectMapper();
 			}
 			JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);
-			if (jsonNode.has("user") && jsonNode.get("user").get("lang").asText().equals("en")) {
+			boolean isEnglish = jsonNode.has("user") && jsonNode.get("user").has("lang") && jsonNode.get("user").get("lang").asText().equals("en");
+			boolean hasText = jsonNode.has("text");
+			if (isEnglish && hasText) {
 				// message of tweet
 				StringTokenizer tokenizer = new StringTokenizer(jsonNode.get("text").asText());
 

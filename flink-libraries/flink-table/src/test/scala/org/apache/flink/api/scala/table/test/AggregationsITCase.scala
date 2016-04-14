@@ -133,7 +133,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     t.collect()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[UnsupportedOperationException])
   def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

@@ -90,6 +90,12 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
 		@Override
 		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
+
+		@Override
+		public TriggerResult onMerge(GlobalWindow window,
+				OnMergeContext ctx) {
+			return TriggerResult.CONTINUE;
+		}
 	}
 
 	@Override

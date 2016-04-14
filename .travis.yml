@@ -13,7 +13,7 @@ language: java
 
 #See https://issues.apache.org/jira/browse/FLINK-1072
 # NOTE: When changing the build matrix, please also check with the tools/deploy_to_maven.sh file
-# The file assumes a certain build order for the maven / nigthly build deployments.
+# The file assumes a certain build order for the maven / nightly build deployments.
 matrix:
   include:
     - jdk: "oraclejdk8"

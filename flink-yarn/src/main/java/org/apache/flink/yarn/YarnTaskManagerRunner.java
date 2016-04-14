@@ -21,9 +21,11 @@ package org.apache.flink.yarn;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -36,14 +38,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The entry point for running a TaskManager in a YARN container. The YARN container will invoke
- * this class' main method.
+ * The entry point for running a TaskManager in a YARN container.
  */
 public class YarnTaskManagerRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
 
-	public static <T extends YarnTaskManager> void runYarnTaskManager(String[] args, final Class<T> taskManager) throws IOException {
+	public static void runYarnTaskManager(String[] args, final Class<? extends YarnTaskManager> taskManager) throws IOException {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		org.apache.flink.runtime.util.SignalHandler.register(LOG);
 
@@ -60,7 +61,7 @@ public class YarnTaskManagerRunner {
 
 		// read the environment variables for YARN
 		final Map<String, String> envs = System.getenv();
-		final String yarnClientUsername = envs.get(FlinkYarnClient.ENV_CLIENT_USERNAME);
+		final String yarnClientUsername = envs.get(YarnConfigKeys.ENV_CLIENT_USERNAME);
 		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
 
 		// configure local directory
@@ -84,11 +85,16 @@ public class YarnTaskManagerRunner {
 		for (Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
 			ugi.addToken(toks);
 		}
+
+		// Infer the resource identifier from the environment variable
+		String containerID = Objects.requireNonNull(System.getenv(Environment.CONTAINER_ID.key()));
+		final ResourceID resourceId = new ResourceID(containerID);
+
 		ugi.doAs(new PrivilegedAction<Object>() {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, taskManager);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);
@@ -97,10 +103,5 @@ public class YarnTaskManagerRunner {
 				return null;
 			}
 		});
-	}
-
-
-	public static void main(final String[] args) throws IOException {
-		runYarnTaskManager(args, YarnTaskManager.class);
 	}
 }

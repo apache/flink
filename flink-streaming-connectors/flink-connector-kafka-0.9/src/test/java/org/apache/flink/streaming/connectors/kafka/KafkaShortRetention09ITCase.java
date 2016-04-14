@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.Test;
 
+@SuppressWarnings("serial")
 public class KafkaShortRetention09ITCase extends KafkaShortRetentionTestBase {
 
 	@Test(timeout=60000)

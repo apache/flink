@@ -22,9 +22,10 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.SerializedValue;
 
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -61,11 +62,27 @@ public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	// Key for storing it in the Job Configuration
+	public static final String CONFIG_KEY = "runtime.config";
+
 	/**
 	 * The constant to use for the parallelism, if the system should use the number
-	 *  of currently available slots.
+	 * of currently available slots.
 	 */
 	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
+
+	/**
+	 * The flag value indicating use of the default parallelism. This value can
+	 * be used to reset the parallelism back to the default state.
+	 */
+	public static final int PARALLELISM_DEFAULT = -1;
+
+	/**
+	 * The flag value indicating an unknown or unset parallelism. This value is
+	 * not a valid parallelism and indicates that the parallelism should remain
+	 * unchanged.
+	 */
+	public static final int PARALLELISM_UNKNOWN = -2;
 
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
@@ -76,7 +93,7 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean useClosureCleaner = true;
 
-	private int parallelism = -1;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -97,8 +114,6 @@ public class ExecutionConfig implements Serializable {
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
 
-	private GlobalJobParameters globalJobParameters;
-
 	private long autoWatermarkInterval = 0;
 
 	/**
@@ -109,22 +124,42 @@ public class ExecutionConfig implements Serializable {
 
 	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
 	
-	private long taskCancellationIntervalMillis = ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS;
+	private long taskCancellationIntervalMillis = -1;
+
+	// ------------------------------- User code values --------------------------------------------
+
+	private transient GlobalJobParameters globalJobParameters;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
 
-	private final LinkedHashMap<Class<?>, SerializableSerializer<?>> registeredTypesWithKryoSerializers = new LinkedHashMap<>();
+	private LinkedHashMap<Class<?>, SerializableSerializer<?>> registeredTypesWithKryoSerializers = new LinkedHashMap<>();
 
-	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
+	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
 
-	private final LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers = new LinkedHashMap<>();
+	private LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers = new LinkedHashMap<>();
 
-	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses = new LinkedHashMap<>();
+	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses = new LinkedHashMap<>();
 
-	private final LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
+	private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
 
-	private final LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
+	private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
+
+	// ----------------------- Helper values for serialized user objects ---------------------------
+
+	private SerializedValue<GlobalJobParameters> serializedGlobalJobParameters;
+
+	private SerializedValue<LinkedHashMap<Class<?>, SerializableSerializer<?>>> serializedRegisteredTypesWithKryoSerializers;
+
+	private SerializedValue<LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>> serializedRegisteredTypesWithKryoSerializerClasses;
+
+	private SerializedValue<LinkedHashMap<Class<?>, SerializableSerializer<?>>> serializedDefaultKryoSerializers;
+
+	private SerializedValue<LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>> serializedDefaultKryoSerializerClasses;
+
+	private SerializedValue<LinkedHashSet<Class<?>>> serializedRegisteredKryoTypes;
+
+	private SerializedValue<LinkedHashSet<Class<?>>> serializedRegisteredPojoTypes;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -190,7 +225,8 @@ public class ExecutionConfig implements Serializable {
 	 * with a parallelism of one (the final reduce to the single result value).
 	 *
 	 * @return The parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environment's default parallelism should be used.
+	 *         returns {@link #PARALLELISM_DEFAULT} if the environment's default parallelism
+	 *         should be used.
 	 */
 	public int getParallelism() {
 		return parallelism;
@@ -209,11 +245,13 @@ public class ExecutionConfig implements Serializable {
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		if (parallelism < 1 && parallelism != -1) {
-			throw new IllegalArgumentException(
-					"Parallelism must be at least one, or -1 (use system default).");
+		if (parallelism != PARALLELISM_UNKNOWN) {
+			if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
+				throw new IllegalArgumentException(
+					"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+			}
+			this.parallelism = parallelism;
 		}
-		this.parallelism = parallelism;
 		return this;
 	}
 
@@ -230,11 +268,6 @@ public class ExecutionConfig implements Serializable {
 	 * @param interval the interval (in milliseconds).
 	 */
 	public ExecutionConfig setTaskCancellationInterval(long interval) {
-		if(interval < 0) {
-			throw new IllegalArgumentException(
-				"The task cancellation interval cannot be negative."
-			);
-		}
 		this.taskCancellationIntervalMillis = interval;
 		return this;
 	}
@@ -662,6 +695,79 @@ public class ExecutionConfig implements Serializable {
 		this.autoTypeRegistrationEnabled = false;
 	}
 
+	/**
+	 * Deserializes user code objects given a user code class loader
+	 *
+	 * @param userCodeClassLoader User code class loader
+	 * @throws IOException Thrown if an IOException occurs while loading the classes
+	 * @throws ClassNotFoundException Thrown if the given class cannot be loaded
+	 */
+	public void deserializeUserCode(ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
+		if (serializedRegisteredKryoTypes != null) {
+			registeredKryoTypes = serializedRegisteredKryoTypes.deserializeValue(userCodeClassLoader);
+		} else {
+			registeredKryoTypes = new LinkedHashSet<>();
+		}
+
+		if (serializedRegisteredPojoTypes != null) {
+			registeredPojoTypes = serializedRegisteredPojoTypes.deserializeValue(userCodeClassLoader);
+		} else {
+			registeredPojoTypes = new LinkedHashSet<>();
+		}
+
+		if (serializedRegisteredTypesWithKryoSerializerClasses != null) {
+			registeredTypesWithKryoSerializerClasses = serializedRegisteredTypesWithKryoSerializerClasses.deserializeValue(userCodeClassLoader);
+		} else {
+			registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
+		}
+
+		if (serializedRegisteredTypesWithKryoSerializers != null) {
+			registeredTypesWithKryoSerializers = serializedRegisteredTypesWithKryoSerializers.deserializeValue(userCodeClassLoader);
+		} else {
+			registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
+		}
+
+		if (serializedDefaultKryoSerializers != null) {
+			defaultKryoSerializers = serializedDefaultKryoSerializers.deserializeValue(userCodeClassLoader);
+		} else {
+			defaultKryoSerializers = new LinkedHashMap<>();
+
+		}
+
+		if (serializedDefaultKryoSerializerClasses != null) {
+			defaultKryoSerializerClasses = serializedDefaultKryoSerializerClasses.deserializeValue(userCodeClassLoader);
+		} else {
+			defaultKryoSerializerClasses = new LinkedHashMap<>();
+		}
+
+		if (serializedGlobalJobParameters != null) {
+			globalJobParameters = serializedGlobalJobParameters.deserializeValue(userCodeClassLoader);
+		}
+	}
+
+	public void serializeUserCode() throws IOException {
+		serializedRegisteredKryoTypes = new SerializedValue<>(registeredKryoTypes);
+		registeredKryoTypes = null;
+
+		serializedRegisteredPojoTypes = new SerializedValue<>(registeredPojoTypes);
+		registeredPojoTypes = null;
+
+		serializedRegisteredTypesWithKryoSerializerClasses = new SerializedValue<>(registeredTypesWithKryoSerializerClasses);
+		registeredTypesWithKryoSerializerClasses = null;
+
+		serializedRegisteredTypesWithKryoSerializers = new SerializedValue<>(registeredTypesWithKryoSerializers);
+		registeredTypesWithKryoSerializers = null;
+
+		serializedDefaultKryoSerializers = new SerializedValue<>(defaultKryoSerializers);
+		defaultKryoSerializers = null;
+
+		serializedDefaultKryoSerializerClasses = new SerializedValue<>(defaultKryoSerializerClasses);
+		defaultKryoSerializerClasses = null;
+
+		serializedGlobalJobParameters = new SerializedValue<>(globalJobParameters);
+		globalJobParameters = null;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
@@ -754,5 +860,4 @@ public class ExecutionConfig implements Serializable {
 			return null;
 		}
 	}
-
 }

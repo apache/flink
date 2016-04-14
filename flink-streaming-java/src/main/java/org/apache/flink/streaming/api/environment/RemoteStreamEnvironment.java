@@ -55,7 +55,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private final Configuration config;
 
 	/** The jar files that need to be attached to each job */
-	private final List<URL> jarFiles;
+	protected final List<URL> jarFiles;
 	
 	/** The classpaths that need to be attached to each job */
 	private final List<URL> globalClasspaths;
@@ -179,7 +179,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            Stream Graph to execute
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private JobExecutionResult executeRemotely(StreamGraph streamGraph) throws ProgramInvocationException {
+	protected JobExecutionResult executeRemotely(StreamGraph streamGraph) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}

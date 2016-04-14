@@ -18,14 +18,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.TreeCache;
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
-import org.apache.curator.framework.recipes.cache.TreeCacheListener;
+
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
@@ -35,20 +31,17 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
-
-	@Test(timeout = 60000)
-	public void testCheckpointing() throws Exception {
-		runCheckpointingTest();
-	}
 
 	@Test(timeout = 60000)
 	public void testFailOnNoBroker() throws Exception {
@@ -60,6 +53,16 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
+
+//	@Test(timeout = 60000)
+//	public void testPunctuatedExplicitWMConsumer() throws Exception {
+//		runExplicitPunctuatedWMgeneratingConsumerTest(false);
+//	}
+
+//	@Test(timeout = 60000)
+//	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
+//		runExplicitPunctuatedWMgeneratingConsumerTest(true);
+//	}
 
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
@@ -85,16 +88,11 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 	@Test(timeout = 60000)
 	public void testInvalidOffset() throws Exception {
-		final String topic = "invalidOffsetTopic";
+		
 		final int parallelism = 1;
-
-		// create topic
-		createTestTopic(topic, parallelism, 1);
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-
+		
 		// write 20 messages into topic:
-		writeSequence(env, topic, 20, parallelism);
+		final String topic = writeSequence("invalidOffsetTopic", 20, parallelism, 1);
 
 		// set invalid offset:
 		CuratorFramework curatorClient = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
@@ -104,6 +102,10 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		// read from topic
 		final int valuesCount = 20;
 		final int startFrom = 0;
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		
 		readSequence(env, standardProps, parallelism, topic, valuesCount, startFrom);
 
 		deleteTestTopic(topic);
@@ -142,7 +144,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 	@Test(timeout = 60000)
 	public void testMultipleTopics() throws Exception {
-		runConsumeMultipleTopics();
+		runProduceConsumeMultipleTopics();
 	}
 
 	@Test(timeout = 60000)
@@ -155,7 +157,31 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		runMetricsAndEndOfStreamTest();
 	}
 
+	@Test
+	public void runOffsetManipulationInZooKeeperTest() {
+		try {
+			final String topicName = "ZookeeperOffsetHandlerTest-Topic";
+			final String groupId = "ZookeeperOffsetHandlerTest-Group";
 
+			final Long offset = (long) (Math.random() * Long.MAX_VALUE);
+
+			CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer ).createCuratorClient();
+			kafkaServer.createTestTopic(topicName, 3, 2);
+
+			ZookeeperOffsetHandler.setOffsetInZooKeeper(curatorFramework, groupId, topicName, 0, offset);
+
+			Long fetchedOffset = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, groupId, topicName, 0);
+
+			curatorFramework.close();
+
+			assertEquals(offset, fetchedOffset);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	/**
 	 * Tests that offsets are properly committed to ZooKeeper and initial offsets are read from ZooKeeper.
 	 *
@@ -163,10 +189,10 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testOffsetInZookeeper() throws Exception {
-		final String topicName = "testOffsetInZK";
 		final int parallelism = 3;
 
-		createTestTopic(topicName, parallelism, 1);
+		// write a sequence from 0 to 99 to each of the 3 partitions.
+		final String topicName = writeSequence("testOffsetInZK", 100, parallelism, 1);
 
 		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env1.getConfig().disableSysoutLogging();
@@ -180,28 +206,19 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env2.setParallelism(parallelism);
 
-		StreamExecutionEnvironment env3 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env3.getConfig().disableSysoutLogging();
-		env3.enableCheckpointing(50);
-		env3.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env3.setParallelism(parallelism);
-
-		// write a sequence from 0 to 99 to each of the 3 partitions.
-		writeSequence(env1, topicName, 100, parallelism);
-
-		readSequence(env2, standardProps, parallelism, topicName, 100, 0);
+		readSequence(env1, standardProps, parallelism, topicName, 100, 0);
 
 		CuratorFramework curatorClient = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
 
-		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 0);
-		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 1);
-		long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 2);
+		Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 0);
+		Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 1);
+		Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorClient, standardProps.getProperty("group.id"), topicName, 2);
 
 		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
-		assertTrue(o1 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
-		assertTrue(o2 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
-		assertTrue(o3 == FlinkKafkaConsumer08.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
+		assertTrue(o1 == null || (o1 >= 0 && o1 <= 100));
+		assertTrue(o2 == null || (o2 >= 0 && o2 <= 100));
+		assertTrue(o3 == null || (o3 >= 0 && o3 <= 100));
 
 		LOG.info("Manipulating offsets");
 
@@ -213,33 +230,23 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		curatorClient.close();
 
 		// create new env
-		readSequence(env3, standardProps, parallelism, topicName, 50, 50);
+		readSequence(env2, standardProps, parallelism, topicName, 50, 50);
 
 		deleteTestTopic(topicName);
 	}
 
 	@Test(timeout = 60000)
 	public void testOffsetAutocommitTest() throws Exception {
-		final String topicName = "testOffsetAutocommit";
 		final int parallelism = 3;
 
-		createTestTopic(topicName, parallelism, 1);
-
-		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env1.getConfig().disableSysoutLogging();
-		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.setParallelism(parallelism);
-
-		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		// NOTE: We are not enabling the checkpointing!
-		env2.getConfig().disableSysoutLogging();
-		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env2.setParallelism(parallelism);
-
-
 		// write a sequence from 0 to 99 to each of the 3 partitions.
-		writeSequence(env1, topicName, 100, parallelism);
+		final String topicName = writeSequence("testOffsetAutocommit", 100, parallelism, 1);
 
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		// NOTE: We are not enabling the checkpointing!
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env.setParallelism(parallelism);
 
 		// the readSequence operation sleeps for 20 ms between each record.
 		// setting a delay of 25*20 = 500 for the commit interval makes
@@ -250,21 +257,21 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		readProps.setProperty("auto.commit.interval.ms", "500");
 
 		// read so that the offset can be committed to ZK
-		readSequence(env2, readProps, parallelism, topicName, 100, 0);
+		readSequence(env, readProps, parallelism, topicName, 100, 0);
 
 		// get the offset
 		CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
 
-		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
-		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
-		long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
+		Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
+		Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
+		Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
 		curatorFramework.close();
 		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
 		// ensure that the offset has been committed
-		boolean atLeastOneOffsetSet = (o1 > 0 && o1 <= 100) ||
-				(o2 > 0 && o2 <= 100) ||
-				(o3 > 0 && o3 <= 100);
+		boolean atLeastOneOffsetSet = (o1 != null && o1 > 0 && o1 <= 100) ||
+				(o2 != null && o2 > 0 && o2 <= 100) ||
+				(o3 != null && o3 > 0 && o3 <= 100);
 		assertTrue("Expecting at least one offset to be set o1="+o1+" o2="+o2+" o3="+o3, atLeastOneOffsetSet);
 
 		deleteTestTopic(topicName);
@@ -284,21 +291,12 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testKafkaOffsetRetrievalToZookeeper() throws Exception {
-		final String topicName = "testKafkaOffsetToZk";
 		final int parallelism = 3;
-		createTestTopic(topicName, parallelism, 1);
-		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-		env1.getConfig().disableSysoutLogging();
-		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.setParallelism(parallelism);
 
 		// write a sequence from 0 to 49 to each of the 3 partitions.
-		writeSequence(env1, topicName, 50, parallelism);
+		final String topicName =  writeSequence("testKafkaOffsetToZk", 50, parallelism, 1);
 
-
-		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
-
-		// enable checkpointing
+		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env2.getConfig().disableSysoutLogging();
 		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env2.setParallelism(parallelism);
@@ -311,78 +309,55 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		DataStream<String> stream = env2.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), readProps));
 		stream.addSink(new DiscardingSink<String>());
 
-		CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
-		String consumerGroupDir = standardProps.getProperty("group.id");
-		TreeCache tc1 = new TreeCache(curatorFramework, "/consumers/" + consumerGroupDir + "/offsets/" + topicName + "/0");
-		TreeCache tc2 = new TreeCache(curatorFramework, "/consumers/" + consumerGroupDir + "/offsets/" + topicName + "/1");
-		TreeCache tc3 = new TreeCache(curatorFramework, "/consumers/" + consumerGroupDir + "/offsets/" + topicName + "/2");
-
-		// add listener to wait until first partition is updated in ZK
-		TreeCacheListener stopListener = new TreeCacheListener() {
-			AtomicInteger counter = new AtomicInteger(0);
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+		final Thread runner = new Thread("runner") {
 			@Override
-			public void childEvent(CuratorFramework client, TreeCacheEvent event) throws Exception {
-				LOG.info("Updated {}", event);
-				if (event.getType().equals(TreeCacheEvent.Type.NODE_UPDATED)) {
-					if(counter.incrementAndGet() == 3) {
-						// cancel job, node has been created
-						LOG.info("Cancelling job after all three ZK nodes were updated");
-						JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+			public void run() {
+				try {
+					env2.execute();
+				}
+				catch (Throwable t) {
+					if (!(t.getCause() instanceof JobCancellationException)) {
+						errorRef.set(t);
 					}
 				}
 			}
 		};
-		tc1.getListenable().addListener(stopListener);
-		tc1.start();
-		tc2.getListenable().addListener(stopListener);
-		tc2.start();
-		tc3.getListenable().addListener(stopListener);
-		tc3.start();
+		runner.start();
 
-		// the curator listener is not always working properly. Stop job after 10 seconds
-		final Tuple1<Throwable> error = new Tuple1<>();
-		Thread canceller = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					Thread.sleep(10_000L);
-					LOG.info("Cancelling job after 10 seconds");
-					JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-				} catch (Throwable t) {
-					if (!(t instanceof InterruptedException)) {
-						error.f0 = t;
-					}
-				}
-			}
-		});
-		canceller.start();
+		final CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();
+		final Long l49 = 49L;
+				
+		final long deadline = 30000 + System.currentTimeMillis();
+		do {
+			Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
+			Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
+			Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
 
-		try {
-			env2.execute("Idlying Kafka source");
-		} catch( Throwable thr) {
-			if(!(thr.getCause() instanceof JobCancellationException)) {
-				throw thr;
+			if (l49.equals(o1) && l49.equals(o2) && l49.equals(o3)) {
+				break;
 			}
+			
+			Thread.sleep(100);
 		}
-		tc1.close();
-		tc2.close();
-		tc3.close();
-
-		canceller.interrupt();
-		canceller.join();
-		if(error.f0 != null) {
-			throw new RuntimeException("Delayed cancelling thread had an error", error.f0);
+		while (System.currentTimeMillis() < deadline);
+		
+		// cancel the job
+		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		
+		final Throwable t = errorRef.get();
+		if (t != null) {
+			throw new RuntimeException("Job failed with an exception", t);
 		}
 
 		// check if offsets are correctly in ZK
-		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
-		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
-		long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
-		Assert.assertEquals(49L, o1);
-		Assert.assertEquals(49L, o2);
-		Assert.assertEquals(49L, o3);
+		Long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 0);
+		Long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 1);
+		Long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(curatorFramework, standardProps.getProperty("group.id"), topicName, 2);
+		Assert.assertEquals(Long.valueOf(49L), o1);
+		Assert.assertEquals(Long.valueOf(49L), o2);
+		Assert.assertEquals(Long.valueOf(49L), o3);
 
 		curatorFramework.close();
-
 	}
 }

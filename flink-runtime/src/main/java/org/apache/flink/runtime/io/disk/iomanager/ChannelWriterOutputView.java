@@ -29,7 +29,7 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 /**
  * A {@link org.apache.flink.core.memory.DataOutputView} that is backed by a
  * {@link BlockChannelWriter}, making it effectively a data output
- * stream. The view writes it data in blocks to the underlying channel, adding a minimal header to each block.
+ * stream. The view writes its data in blocks to the underlying channel, adding a minimal header to each block.
  * The data can be re-read by a {@link ChannelReaderInputView}, if it uses the same block size.
  */
 public final class ChannelWriterOutputView extends AbstractPagedOutputView {
@@ -116,7 +116,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 	
 	/**
 	 * Creates an new ChannelWriterOutputView that writes to the given channel. It uses only a single
-	 * memory segment for the buffering, which it takes from the writers return queue.
+	 * memory segment for the buffering, which it takes from the writer's return queue.
 	 * Note that this variant locks if no buffers are contained
 	 * in the return queue.
 	 * 

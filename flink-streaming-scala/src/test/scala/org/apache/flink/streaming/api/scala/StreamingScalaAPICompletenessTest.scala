@@ -21,8 +21,6 @@ import java.lang.reflect.Method
 
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
-import org.apache.flink.streaming.api.scala.JoinedStreams
-import org.apache.flink.streaming.api.scala.CoGroupedStreams
 
 import scala.language.existentials
 

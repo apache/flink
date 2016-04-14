@@ -184,12 +184,11 @@ public class NetUtils {
 	 * @return Set of ports from the range definition
 	 * @throws NumberFormatException If an invalid string is passed.
 	 */
-
 	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
 		final String[] ranges = rangeDefinition.trim().split(",");
 		List<Iterator<Integer>> iterators = new ArrayList<>(ranges.length);
 		for(String rawRange: ranges) {
-			Iterator<Integer> rangeIterator = null;
+			Iterator<Integer> rangeIterator;
 			String range = rawRange.trim();
 			int dashIdx = range.indexOf('-');
 			if (dashIdx == -1) {
@@ -229,7 +228,7 @@ public class NetUtils {
 	 * @param factory A factory for creating the SocketServer
 	 * @return null if no port was available or an allocated socket.
 	 */
-	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) throws IOException {
+	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) {
 		while (portsIterator.hasNext()) {
 			int port = portsIterator.next();
 			LOG.debug("Trying to open socket on port {}", port);

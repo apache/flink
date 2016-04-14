@@ -142,7 +142,7 @@ public class FlinkTopology {
 					getClass().getClassLoader()
 					);
 		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException("Failed to copy object.");
+			throw new RuntimeException("Failed to copy object.", e);
 		}
 	}
 

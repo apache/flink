@@ -31,9 +31,20 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 public class StoppableSourceStreamTask<OUT, SRC extends SourceFunction<OUT> & StoppableFunction>
 	extends SourceStreamTask<OUT, SRC, StoppableStreamSource<OUT, SRC>> implements StoppableTask {
 
+	private volatile boolean stopped;
+
 	@Override
-	public void stop() {
-		this.headOperator.stop();
+	protected void run() throws Exception {
+		if (!stopped) {
+			super.run();
+		}
 	}
 
+	@Override
+	public void stop() {
+		stopped = true;
+		if (this.headOperator != null) {
+			this.headOperator.stop();
+		}
+	}
 }

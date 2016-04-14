@@ -40,4 +40,9 @@ public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSch
 	public byte[] serializeValue(T element) {
 		return serializationSchema.serialize(element);
 	}
+
+	@Override
+	public String getTargetTopic(T element) {
+		return null; // we are never overriding the topic
+	}
 }

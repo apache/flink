@@ -18,9 +18,10 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -51,7 +52,7 @@ import org.junit.BeforeClass;
  *
  * </pre>
  */
-public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
+public class StreamingMultipleProgramsTestBase extends AbstractTestBase {
 
 	// ------------------------------------------------------------------------
 	//  The mini cluster that is shared across tests
@@ -60,7 +61,10 @@ public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 	protected static final int DEFAULT_PARALLELISM = 4;
 
 	protected static ForkableFlinkMiniCluster cluster;
-	
+
+	public StreamingMultipleProgramsTestBase() {
+		super(new Configuration());
+	}
 
 	// ------------------------------------------------------------------------
 	//  Cluster setup & teardown

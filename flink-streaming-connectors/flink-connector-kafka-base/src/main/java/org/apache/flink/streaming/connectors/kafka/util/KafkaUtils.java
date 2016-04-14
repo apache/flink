@@ -14,34 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka.util;
 
+package org.apache.flink.streaming.connectors.kafka.util;
 
 import java.util.Properties;
 
+/**
+ * Simple utilities, used by the Flink Kafka Consumers.
+ */
 public class KafkaUtils {
 
 	public static int getIntFromConfig(Properties config, String key, int defaultValue) {
-		try {
-			return Integer.parseInt(config.getProperty(key, Integer.toString(defaultValue)));
-		} catch(NumberFormatException nfe) {
-			throw new IllegalArgumentException("Value for configuration key='" + key + "' is not set correctly. " +
-					"Entered value='" + config.getProperty(key) + "'. Default value='" + defaultValue + "'");
+		String val = config.getProperty(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			try {
+				return Integer.parseInt(val);
+			} catch (NumberFormatException nfe) {
+				throw new IllegalArgumentException("Value for configuration key='" + key + "' is not set correctly. " +
+						"Entered value='" + val + "'. Default value='" + defaultValue + "'");
+			}
 		}
 	}
 
 	public static long getLongFromConfig(Properties config, String key, long defaultValue) {
-		try {
-			return Long.parseLong(config.getProperty(key, Long.toString(defaultValue)));
-		} catch(NumberFormatException nfe) {
-			throw new IllegalArgumentException("Value for configuration key='" + key + "' is not set correctly. " +
-					"Entered value='" + config.getProperty(key) + "'. Default value='" + defaultValue + "'");
+		String val = config.getProperty(key);
+		if (val == null) {
+			return defaultValue;
+		} else {
+			try {
+				return Long.parseLong(val);
+			} catch (NumberFormatException nfe) {
+				throw new IllegalArgumentException("Value for configuration key='" + key + "' is not set correctly. " +
+						"Entered value='" + val + "'. Default value='" + defaultValue + "'");
+			}
 		}
 	}
-
-	public static void checkArgument(boolean arg) {
-		if(!arg) {
-			throw new IllegalArgumentException();
-		}
-	}
+	
+	// ------------------------------------------------------------------------
+	
+	/** Private default constructor to prevent instantiation */
+	private KafkaUtils() {}
 }

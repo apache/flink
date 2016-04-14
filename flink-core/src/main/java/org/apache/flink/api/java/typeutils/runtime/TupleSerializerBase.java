@@ -78,7 +78,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	}
 
 	// We use this in the Aggregate and Distinct Operators to create instances
-	// of immutable Typles (i.e. Scala Tuples)
+	// of immutable Tuples (i.e. Scala Tuples)
 	public abstract T createInstance(Object[] fields);
 
 	public abstract T createOrReuseInstance(Object[] fields, T reuse);

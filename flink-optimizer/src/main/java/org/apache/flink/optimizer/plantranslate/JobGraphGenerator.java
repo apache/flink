@@ -83,6 +83,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -212,9 +213,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		attachOperatorNamesAndDescriptions();
 
 		// ----------- finalize the job graph -----------
-		
+
 		// create the job graph object
 		JobGraph graph = new JobGraph(jobId, program.getJobName(), program.getOriginalPlan().getExecutionConfig());
+
 		graph.setAllowQueuedScheduling(false);
 		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 
@@ -240,6 +242,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		this.auxVertices = null;
 		this.iterations = null;
 		this.iterationStack = null;
+
+		try {
+			// make sure that we can send the ExecutionConfig using the system class loader
+			graph.getExecutionConfig().serializeUserCode();
+		} catch (IOException e) {
+			throw new CompilerException("Could not serialize the user code object in the " +
+				"ExecutionConfig.", e);
+		}
 		
 		// return job graph
 		return graph;

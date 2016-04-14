@@ -26,6 +26,9 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -55,7 +58,6 @@ import java.net.ServerSocket;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.testingUtils.TestingUtils.createForwardingJobManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createJobManager;
@@ -110,6 +112,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			try {
 				// a simple JobManager
 				jobManager = createJobManager(actorSystem, config);
+				startResourceManager(config, jobManager.actor());
 
 				// start two TaskManagers. it will automatically try to register
 				taskManager1 = createTaskManager(
@@ -191,6 +194,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				jobManager = createJobManager(
 						actorSystem,
 						new Configuration());
+
+				startResourceManager(config, jobManager.actor());
+
+				startResourceManager(config, jobManager.actor());
 
 				// check that the TaskManagers are registered
 				Future<Object> responseFuture = taskManager.ask(
@@ -276,7 +283,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			ActorGateway jm = null;
 			ActorGateway taskManager =null;
 			try {
-				jm= createForwardingJobManager(actorSystem, getTestActor(), Option.<String>empty());
+				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
 				final ActorGateway jmGateway = jm;
 
 				// we make the test actor (the test kit) the JobManager to intercept
@@ -300,7 +307,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 						// we decline the registration
 						taskManagerGateway.tell(
-								new RefuseRegistration("test reason"),
+								new RefuseRegistration(new Exception("test reason")),
 								jmGateway);
 					}
 				};
@@ -339,7 +346,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			final String JOB_MANAGER_NAME = "ForwardingJobManager";
 
 			try {
-				fakeJobManager1Gateway = createForwardingJobManager(
+				fakeJobManager1Gateway = TestingUtils.createForwardingActor(
 						actorSystem,
 						getTestActor(),
 						Option.apply(JOB_MANAGER_NAME));
@@ -407,7 +414,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				long deadline = 20000000000L + System.nanoTime();
 				do {
 					try {
-						fakeJobManager2Gateway = createForwardingJobManager(
+						fakeJobManager2Gateway = TestingUtils.createForwardingActor(
 								actorSystem,
 								getTestActor(),
 								Option.apply(JOB_MANAGER_NAME));
@@ -463,14 +470,17 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			new JavaTestKit(actorSystem) {{
 				ActorRef taskManager = null;
 				ActorRef jobManager = null;
+				ActorRef resourceManager = null;
 
 				try {
 					// a simple JobManager
 					jobManager = startJobManager(config);
 
+					resourceManager = startResourceManager(config, jobManager);
+
 					// start a task manager with a configuration that provides a blocked port
 					taskManager = TaskManager.startTaskManagerComponentsAndActor(
-							cfg, actorSystem, "localhost",
+							cfg, ResourceID.generate(), actorSystem, "localhost",
 							NONE_STRING, // no actor name -> random
 							new Some<LeaderRetrievalService>(new StandaloneLeaderRetrievalService(jobManager.path().toString())),
 							false, // init network stack !!!
@@ -597,5 +607,13 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			NONE_STRING,
 			JobManager.class,
 			MemoryArchivist.class)._1();
+	}
+
+	private static ActorRef startResourceManager(Configuration config, ActorRef jobManager) {
+		return FlinkResourceManager.startResourceManagerActors(
+			config,
+			actorSystem,
+			new StandaloneLeaderRetrievalService(jobManager.path().toString()),
+			StandaloneResourceManager.class);
 	}
 }

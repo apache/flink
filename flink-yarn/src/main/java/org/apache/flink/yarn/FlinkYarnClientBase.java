@@ -85,24 +85,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnClient.class);
 
 	/**
-	 * Constants,
-	 * all starting with ENV_ are used as environment variables to pass values from the Client
-	 * to the Application Master.
-	 */
-	public final static String ENV_TM_MEMORY = "_CLIENT_TM_MEMORY";
-	public final static String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
-	public final static String ENV_APP_ID = "_APP_ID";
-	public final static String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
-	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
-	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
-	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
-	public static final String ENV_SLOTS = "_SLOTS";
-	public static final String ENV_DETACHED = "_DETACHED";
-	public static final String ENV_STREAMING_MODE = "_STREAMING_MODE";
-	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
-
-
-	/**
 	 * Minimum memory requirements, checked by the Client.
 	 */
 	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
@@ -142,7 +124,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	private String dynamicPropertiesEncoded;
 
-	private List<File> shipFiles = new ArrayList<File>();
+	private List<File> shipFiles = new ArrayList<>();
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
@@ -168,6 +150,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
+	/**
+	 * The class to bootstrap the application master of the Yarn cluster (runs main method).
+	 */
 	protected abstract Class<?> getApplicationMasterClass();
 
 	@Override
@@ -189,8 +174,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	}
 
 	@Override
-	public void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf) {
+	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
 		this.flinkConfiguration = conf;
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfiguration;
 	}
 
 	@Override
@@ -224,6 +214,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		flinkConfigurationPath = confPath;
 	}
 
+	@Override
 	public void setConfigurationDirectory(String configurationDirectory) {
 		this.configurationDirectory = configurationDirectory;
 	}
@@ -262,6 +253,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
+	@Override
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
@@ -318,6 +310,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return detached;
 	}
 
+	@Override
 	public AbstractFlinkYarnCluster deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
@@ -495,7 +488,8 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
 		String amCommand = "$JAVA_HOME/bin/java"
-			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) + "M " +javaOpts;
+			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)
+			+ "M " + javaOpts;
 
 		if(hasLogback || hasLog4j) {
 			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
@@ -554,9 +548,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
-		Path remotePathConf = Utils.setupLocalResource(conf, fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
-		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>(2);
+		Path remotePathJar = Utils.setupLocalResource(fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
+		Path remotePathConf = Utils.setupLocalResource(fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
+		Map<String, LocalResource> localResources = new HashMap<>(2);
 		localResources.put("flink.jar", appMasterJar);
 		localResources.put("flink-conf.yaml", flinkConf);
 
@@ -569,7 +563,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			File shipFile = shipFiles.get(i);
 			LocalResource shipResources = Records.newRecord(LocalResource.class);
 			Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
-			paths[2 + i] = Utils.setupLocalResource(conf, fs, appId.toString(),
+			paths[2 + i] = Utils.setupLocalResource(fs, appId.toString(),
 				shipLocalPath, shipResources, fs.getHomeDirectory());
 			localResources.put(shipFile.getName(), shipResources);
 
@@ -592,24 +586,24 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		fs.close();
 
 		// Setup CLASSPATH for ApplicationMaster
-		Map<String, String> appMasterEnv = new HashMap<String, String>();
+		Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
 		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
 		// set classpath from YARN configuration
 		Utils.setupEnv(conf, appMasterEnv);
 		// set Flink on YARN internal configuration values
-		appMasterEnv.put(FlinkYarnClient.ENV_TM_COUNT, String.valueOf(taskManagerCount));
-		appMasterEnv.put(FlinkYarnClient.ENV_TM_MEMORY, String.valueOf(taskManagerMemoryMb));
-		appMasterEnv.put(FlinkYarnClient.FLINK_JAR_PATH, remotePathJar.toString() );
-		appMasterEnv.put(FlinkYarnClient.ENV_APP_ID, appId.toString());
-		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
-		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
-		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
-		appMasterEnv.put(FlinkYarnClient.ENV_SLOTS, String.valueOf(slots));
-		appMasterEnv.put(FlinkYarnClient.ENV_DETACHED, String.valueOf(detached));
+		appMasterEnv.put(YarnConfigKeys.ENV_TM_COUNT, String.valueOf(taskManagerCount));
+		appMasterEnv.put(YarnConfigKeys.ENV_TM_MEMORY, String.valueOf(taskManagerMemoryMb));
+		appMasterEnv.put(YarnConfigKeys.FLINK_JAR_PATH, remotePathJar.toString() );
+		appMasterEnv.put(YarnConfigKeys.ENV_APP_ID, appId.toString());
+		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
+		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
+		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
+		appMasterEnv.put(YarnConfigKeys.ENV_SLOTS, String.valueOf(slots));
+		appMasterEnv.put(YarnConfigKeys.ENV_DETACHED, String.valueOf(detached));
 
 		if(dynamicPropertiesEncoded != null) {
-			appMasterEnv.put(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
+			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
 
 		amContainer.setEnvironment(appMasterEnv);
@@ -742,6 +736,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return new ClusterResourceDescription(totalFreeMemory, containerLimit, nodeManagersFree);
 	}
 
+	@Override
 	public String getClusterDescription() throws Exception {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -777,6 +772,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return baos.toString();
 	}
 
+	@Override
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
 	}

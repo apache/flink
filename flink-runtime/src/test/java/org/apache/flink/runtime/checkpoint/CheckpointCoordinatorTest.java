@@ -30,9 +30,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
-
 import org.junit.Test;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -43,7 +41,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -1025,6 +1028,86 @@ public class CheckpointCoordinatorTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	/**
+	 * This test verified that after a completed checkpoint a certain time has passed before
+	 * another is triggered.
+	 */
+	@Test
+	public void testMinInterval() {
+		try {
+			final JobID jid = new JobID();
+
+			// create some mock execution vertices and trigger some checkpoint
+			final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
+			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
+
+			final AtomicInteger numCalls = new AtomicInteger();
+
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					if (invocation.getArguments()[0] instanceof TriggerCheckpoint) {
+						numCalls.incrementAndGet();
+					}
+					return null;
+				}
+			}).when(vertex1).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
+
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+				jid,
+				10,		// periodic interval is 10 ms
+				200000,	// timeout is very long (200 s)
+				500,	// 500ms delay between checkpoints
+				10,
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 },
+				new ExecutionVertex[] { vertex1 }, cl, new StandaloneCheckpointIDCounter
+				(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
+				new DisabledCheckpointStatsTracker());
+
+			coord.startCheckpointScheduler();
+
+			//wait until the first checkpoint was triggered
+			for (int x=0; x<20; x++) {
+				Thread.sleep(100);
+				if (numCalls.get() > 0) {
+					break;
+				}
+			}
+
+			if (numCalls.get() == 0) {
+				fail("No checkpoint was triggered within the first 2000 ms.");
+			}
+			
+			long start = System.currentTimeMillis();
+
+			for (int x = 0; x < 20; x++) {
+				Thread.sleep(100);
+				int triggeredCheckpoints = numCalls.get();
+				long curT = System.currentTimeMillis();
+
+				/**
+				 * Within a given time-frame T only T/500 checkpoints may be triggered due to the configured minimum
+				 * interval between checkpoints. This value however does not not take the first triggered checkpoint
+				 * into account (=> +1). Furthermore we have to account for the mis-alignment between checkpoints
+				 * being triggered and our time measurement (=> +1); for T=1200 a total of 3-4 checkpoints may have been
+				 * triggered depending on whether the end of the minimum interval for the first checkpoints ends before
+				 * or after T=200.
+				 */
+				long maxAllowedCheckpoints = (curT - start) / 500 + 2;
+				assertTrue(maxAllowedCheckpoints >= triggeredCheckpoints);
+			}
+
+			coord.stopCheckpointScheduler();
+
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}		
 	}
 
 	@Test

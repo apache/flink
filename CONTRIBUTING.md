@@ -8,4 +8,4 @@ To make the process smooth for the project *committers* (those who review and ac
 
 Please check out the [How to Contribute guide](http://flink.apache.org/how-to-contribute.html) to understand how contributions are made. 
 A detailed explanation can be found in our [Contribute Code Guide](http://flink.apache.org/contribute-code.html) which also contains a list of coding guidelines that you should follow.
-
+For pull requests, there is a [check list](PULL_REQUEST_TEMPLATE.md) with criteria taken from the How to Contribute Guide and the Coding Guidelines.

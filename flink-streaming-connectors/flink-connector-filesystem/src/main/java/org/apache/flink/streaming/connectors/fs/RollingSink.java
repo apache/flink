@@ -253,11 +253,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	private transient Path currentBucketDirectory;
 
 	/**
-	 * The {@code FSDataOutputStream} for the current part file.
-	 */
-	private transient FSDataOutputStream outStream;
-
-	/**
 	 * Our subtask index, retrieved from the {@code RuntimeContext} in {@link #open}.
 	 */
 	private transient int subtaskIndex;
@@ -269,10 +264,9 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	private transient int partCounter;
 
 	/**
-	 * We use reflection to get the hflush method or use sync as a fallback.
-	 * The idea for this and the code comes from the Flume HDFS Sink.
+	 * Tracks if the writer is currently opened or closed.
 	 */
-	private transient Method refHflushOrSync;
+	private transient boolean isWriterOpen = false;
 
 	/**
 	 * We use reflection to get the .truncate() method, this is only available starting with
@@ -336,15 +330,15 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 					LocatedFileStatus file = bucketFiles.next();
 					if (file.getPath().toString().endsWith(pendingSuffix)) {
 						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-							LOG.debug("Deleting leftover pending file {}", file.getPath().toString());
+						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+							LOG.debug("(OPEN) Deleting leftover pending file {}", file.getPath().toString());
 							fs.delete(file.getPath(), true);
 						}
 					}
 					if (file.getPath().toString().endsWith(inProgressSuffix)) {
 						// only delete files that contain our subtask index
-						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-							LOG.debug("Deleting leftover in-progress file {}", file.getPath().toString());
+						if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+							LOG.debug("(OPEN) Deleting leftover in-progress file {}", file.getPath().toString());
 							fs.delete(file.getPath(), true);
 						}
 					}
@@ -385,7 +379,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 */
 	private boolean shouldRoll() throws IOException {
 		boolean shouldRoll = false;
-		if (outStream == null) {
+		if (!isWriterOpen) {
 			shouldRoll = true;
 			LOG.debug("RollingSink {} starting new initial bucket. ", subtaskIndex);
 		}
@@ -395,9 +389,9 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 			// we will retrieve a new bucket base path in openNewPartFile so reset the part counter
 			partCounter = 0;
 		}
-		if (outStream != null) {
-			long writePosition = outStream.getPos();
-			if (outStream != null && writePosition > batchSize) {
+		if (isWriterOpen) {
+			long writePosition = writer.getPos();
+			if (isWriterOpen && writePosition > batchSize) {
 				shouldRoll = true;
 				LOG.debug(
 						"RollingSink {} starting new bucket because file position {} is above batch size {}.",
@@ -452,16 +446,8 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 		Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
 
-
-
-		outStream = fs.create(inProgressPath, false);
-
-		// We do the reflection here since this is the first time that we have a FSDataOutputStream
-		if (refHflushOrSync == null) {
-			refHflushOrSync = reflectHflushOrSync(outStream);
-		}
-
-		writer.open(outStream);
+		writer.open(fs, inProgressPath);
+		isWriterOpen = true;
 	}
 
 	/**
@@ -472,15 +458,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 * of pending files in our bucket state.
 	 */
 	private void closeCurrentPartFile() throws Exception {
-		if (writer != null) {
+		if (isWriterOpen) {
 			writer.close();
+			isWriterOpen = false;
 		}
 
-		if (outStream != null) {
-			hflushOrSync(outStream);
-			outStream.close();
-			outStream = null;
-		}
 		if (currentPartPath != null) {
 			Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
 			Path pendingPath = new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix);
@@ -491,62 +473,6 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 					pendingPath);
 			this.bucketState.pendingFiles.add(currentPartPath.toString());
 		}
-	}
-
-	/**
-	 * If hflush is available in this version of HDFS, then this method calls
-	 * hflush, else it calls sync.
-	 * @param os - The stream to flush/sync
-	 * @throws java.io.IOException
-	 *
-	 * <p>
-	 * Note: This code comes from Flume
-	 */
-	protected void hflushOrSync(FSDataOutputStream os) throws IOException {
-		try {
-			// At this point the refHflushOrSync cannot be null,
-			// since register method would have thrown if it was.
-			this.refHflushOrSync.invoke(os);
-		} catch (InvocationTargetException e) {
-			String msg = "Error while trying to hflushOrSync!";
-			LOG.error(msg + " " + e.getCause());
-			Throwable cause = e.getCause();
-			if(cause != null && cause instanceof IOException) {
-				throw (IOException)cause;
-			}
-			throw new RuntimeException(msg, e);
-		} catch (Exception e) {
-			String msg = "Error while trying to hflushOrSync!";
-			LOG.error(msg + " " + e);
-			throw new RuntimeException(msg, e);
-		}
-	}
-
-	/**
-	 * Gets the hflush call using reflection. Fallback to sync if hflush is not available.
-	 *
-	 * <p>
-	 * Note: This code comes from Flume
-	 */
-	private Method reflectHflushOrSync(FSDataOutputStream os) {
-		Method m = null;
-		if(os != null) {
-			Class<?> fsDataOutputStreamClass = os.getClass();
-			try {
-				m = fsDataOutputStreamClass.getMethod("hflush");
-			} catch (NoSuchMethodException ex) {
-				LOG.debug("HFlush not found. Will use sync() instead");
-				try {
-					m = fsDataOutputStreamClass.getMethod("sync");
-				} catch (Exception ex1) {
-					String msg = "Neither hflush not sync were found. That seems to be " +
-							"a problem!";
-					LOG.error(msg);
-					throw new RuntimeException(msg, ex1);
-				}
-			}
-		}
-		return m;
 	}
 
 	/**
@@ -633,13 +559,10 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 	@Override
 	public BucketState snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		if (writer != null) {
-			writer.flush();
-		}
-		if (outStream != null) {
-			hflushOrSync(outStream);
+		if (isWriterOpen) {
+			long pos = writer.flush();
 			bucketState.currentFile = currentPartPath.toString();
-			bucketState.currentFileValidLength = outStream.getPos();
+			bucketState.currentFileValidLength = pos;
 		}
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
 			bucketState.pendingFilesPerCheckpoint.put(checkpointId, bucketState.pendingFiles);
@@ -681,10 +604,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 					LOG.debug("In-progress file {} is still in-progress, moving to final location.", partPath);
 					// it was still in progress, rename to final path
 					fs.rename(partInProgressPath, partPath);
+				} else if (fs.exists(partPath)) {
+					LOG.debug("In-Progress file {} was already moved to final location {}.", bucketState.currentFile, partPath);
 				} else {
-					LOG.error("In-Progress file {} was neither moved to pending nor is still in progress.", bucketState.currentFile);
-					throw new RuntimeException("In-Progress file " + bucketState.currentFile+ " " +
-							"was neither moved to pending nor is still in progress.");
+					LOG.debug("In-Progress file {} was neither moved to pending nor is still in progress. Possibly, " +
+							"it was moved to final location by a previous snapshot restore", bucketState.currentFile);
 				}
 
 				refTruncate = reflectTruncate(fs);
@@ -739,9 +663,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				} else {
 					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
 					Path validLengthFilePath = new Path(partPath.getParent(), validLengthPrefix + partPath.getName()).suffix(validLengthSuffix);
-					FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
-					lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
-					lengthFileOut.close();
+					if (!fs.exists(validLengthFilePath)) {
+						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
+						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
+						lengthFileOut.close();
+					}
 				}
 
 				// invalidate in the state object
@@ -772,14 +698,11 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 
 				try {
 					if (fs.exists(pendingPath)) {
-						LOG.debug(
-								"Moving pending file {} to final location after complete checkpoint {}.",
-								pendingPath,
-								pastCheckpointId);
+						LOG.debug("(RESTORE) Moving pending file {} to final location after complete checkpoint {}.", pendingPath, pastCheckpointId);
 						fs.rename(pendingPath, finalPath);
 					}
 				} catch (IOException e) {
-					LOG.error("Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
+					LOG.error("(RESTORE) Error while renaming pending file {} to final path {}: {}", pendingPath, finalPath, e);
 					throw new RuntimeException("Error while renaming pending file " + pendingPath+ " to final path " + finalPath, e);
 				}
 			}
@@ -800,14 +723,15 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 				LocatedFileStatus file = bucketFiles.next();
 				if (file.getPath().toString().endsWith(pendingSuffix)) {
 					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
+					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+						LOG.debug("(RESTORE) Deleting pending file {}", file.getPath().toString());
 						fs.delete(file.getPath(), true);
 					}
 				}
 				if (file.getPath().toString().endsWith(inProgressSuffix)) {
 					// only delete files that contain our subtask index
-					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex)) {
-						LOG.debug("Deleting in-progress file {}", file.getPath().toString());
+					if (file.getPath().toString().contains(partPrefix + "-" + subtaskIndex + "-")) {
+						LOG.debug("(RESTORE) Deleting in-progress file {}", file.getPath().toString());
 						fs.delete(file.getPath(), true);
 					}
 				}

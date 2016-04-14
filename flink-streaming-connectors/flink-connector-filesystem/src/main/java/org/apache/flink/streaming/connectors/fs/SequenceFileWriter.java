@@ -24,7 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -41,14 +42,12 @@ import java.io.IOException;
  * @param <K> The type of the first tuple field.
  * @param <V> The type of the second tuple field.
  */
-public class SequenceFileWriter<K extends Writable, V extends Writable> implements Writer<Tuple2<K, V>>, InputTypeConfigurable {
+public class SequenceFileWriter<K extends Writable, V extends Writable> extends StreamWriterBase<Tuple2<K, V>> implements InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 
 	private final String compressionCodecName;
 
 	private SequenceFile.CompressionType compressionType;
-
-	private transient FSDataOutputStream outputStream;
 
 	private transient SequenceFile.Writer writer;
 
@@ -77,18 +76,14 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 	}
 
 	@Override
-	public void open(FSDataOutputStream outStream) throws IOException {
-		if (outputStream != null) {
-			throw new IllegalStateException("SequenceFileWriter has already been opened.");
-		}
+	public void open(FileSystem fs, Path path) throws IOException {
+		super.open(fs, path);
 		if (keyClass == null) {
 			throw new IllegalStateException("Key Class has not been initialized.");
 		}
 		if (valueClass == null) {
 			throw new IllegalStateException("Value Class has not been initialized.");
 		}
-
-		this.outputStream = outStream;
 
 		CompressionCodec codec = null;
 
@@ -102,7 +97,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 
 		// the non-deprecated constructor syntax is only available in recent hadoop versions...
 		writer = SequenceFile.createWriter(new Configuration(),
-				outStream,
+				getStream(),
 				keyClass,
 				valueClass,
 				compressionType,
@@ -110,23 +105,16 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 	}
 
 	@Override
-	public void flush() throws IOException {
-	}
-
-	@Override
 	public void close() throws IOException {
 		if (writer != null) {
 			writer.close();
 		}
-		writer = null;
-		outputStream = null;
+		super.close();
 	}
 
 	@Override
 	public void write(Tuple2<K, V> element) throws IOException {
-		if (outputStream == null) {
-			throw new IllegalStateException("SequenceFileWriter has not been opened.");
-		}
+		getStream(); // Throws if the stream is not open
 		writer.append(element.f0, element.f1);
 	}
 

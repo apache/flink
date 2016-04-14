@@ -21,7 +21,7 @@ package org.apache.flink.runtime.messages;
 /**
  * Interface for message decorators
  */
-public interface MessageDecorator {
+public interface MessageDecorator extends java.io.Serializable {
 
 	/**
 	 * Decorates a message

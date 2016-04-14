@@ -673,6 +673,39 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a new data set that contains the given elements. The framework will determine the type according to the 
+	 * based type user supplied. The elements should be the same or be the subclass to the based type. 
+	 * The sequence of elements must not be empty.
+	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
+	 * degree of parallelism one.
+	 *
+	 * @param type
+	 * 		The based class type in the collection.
+	 * @param data
+	 * 		The array of elements to create the data stream from.
+	 * @param <OUT>
+	 * 		The type of the returned data stream
+	 * @return The data stream representing the given array of elements
+	 */
+	@SafeVarargs
+	public final <OUT> DataStreamSource<OUT> fromElements(Class<OUT> type, OUT... data) {
+		if (data.length == 0) {
+			throw new IllegalArgumentException("fromElements needs at least one element as argument");
+		}
+
+		TypeInformation<OUT> typeInfo;
+		try {
+			typeInfo = TypeExtractor.getForClass(type);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Could not create TypeInformation for type " + type.getName()
+					+ "; please specify the TypeInformation manually via "
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+		}
+		return fromCollection(Arrays.asList(data), typeInfo);
+	}
+
+	/**
 	 * Creates a data stream from the given non-empty collection. The type of the data stream is that of the
 	 * elements in the collection.
 	 *

@@ -131,13 +131,13 @@ Stop the YARN session by stopping the unix process (using CTRL+C) or by entering
 
 #### Detached YARN Session
 
-If you do not want to keep the Flink YARN client running all the time, its also possible to start a *detached* YARN session.
+If you do not want to keep the Flink YARN client running all the time, it's also possible to start a *detached* YARN session.
 The parameter for that is called `-d` or `--detached`.
 
 In that case, the Flink YARN client will only submit Flink to the cluster and then close itself.
 Note that in this case its not possible to stop the YARN session using Flink.
 
-Use the YARN utilities (`yarn application -kill <appId`) to stop the YARN session.
+Use the YARN utilities (`yarn application -kill <appId>`) to stop the YARN session.
 
 ### Submit Job to Flink
 

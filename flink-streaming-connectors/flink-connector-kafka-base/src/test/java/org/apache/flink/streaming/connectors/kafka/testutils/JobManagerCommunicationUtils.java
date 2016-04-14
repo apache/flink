@@ -31,35 +31,62 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class JobManagerCommunicationUtils {
-	
-	private static final FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
-	
-	
-	public static void cancelCurrentJob(ActorGateway jobManager) throws Exception {
-		
-		// find the jobID
-		Future<Object> listResponse = jobManager.ask(
-				JobManagerMessages.getRequestRunningJobsStatus(),
-				askTimeout);
 
-		List<JobStatusMessage> jobs;
-		try {
+	private static final FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
+
+
+	public static void waitUntilNoJobIsRunning(ActorGateway jobManager) throws Exception {
+		while (true) {
+			// find the jobID
+			Future<Object> listResponse = jobManager.ask(
+					JobManagerMessages.getRequestRunningJobsStatus(), askTimeout);
+
 			Object result = Await.result(listResponse, askTimeout);
-			jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
+			List<JobStatusMessage> jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
+
+
+			if (jobs.isEmpty()) {
+				return;
+			}
+
+			Thread.sleep(50);
 		}
-		catch (Exception e) {
-			throw new Exception("Could not cancel job - failed to retrieve running jobs from the JobManager.", e);
+	}
+
+	public static void cancelCurrentJob(ActorGateway jobManager) throws Exception {
+		JobStatusMessage status = null;
+		
+		for (int i = 0; i < 200; i++) {
+			// find the jobID
+			Future<Object> listResponse = jobManager.ask(
+					JobManagerMessages.getRequestRunningJobsStatus(),
+					askTimeout);
+	
+			List<JobStatusMessage> jobs;
+			try {
+				Object result = Await.result(listResponse, askTimeout);
+				jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
+			}
+			catch (Exception e) {
+				throw new Exception("Could not cancel job - failed to retrieve running jobs from the JobManager.", e);
+			}
+		
+			if (jobs.isEmpty()) {
+				// try again, fall through the loop
+				Thread.sleep(50);
+			}
+			else if (jobs.size() == 1) {
+				status = jobs.get(0);
+			}
+			else {
+				throw new Exception("Could not cancel job - more than one running job.");
+			}
 		}
 		
-		if (jobs.isEmpty()) {
-			throw new Exception("Could not cancel job - no running jobs");
+		if (status == null) {
+			throw new Exception("Could not cancel job - no running jobs");	
 		}
-		if (jobs.size() != 1) {
-			throw new Exception("Could not cancel job - more than one running job.");
-		}
-		
-		JobStatusMessage status = jobs.get(0);
-		if (status.getJobState().isTerminalState()) {
+		else if (status.getJobState().isTerminalState()) {
 			throw new Exception("Could not cancel job - job is not running any more");
 		}
 		

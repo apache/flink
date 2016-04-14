@@ -29,6 +29,11 @@ import static org.junit.Assert.fail;
 
 public class WikipediaEditsSourceTest {
 
+	/**
+	 * NOTE: if you are behind a firewall you may need to use a SOCKS Proxy for this test
+	 *
+	 * @see <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html">Socks Proxy</a>
+	 */
 	@Test(timeout = 120 * 1000)
 	public void testWikipediaEditsSource() throws Exception {
 

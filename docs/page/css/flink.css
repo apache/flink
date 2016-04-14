@@ -226,6 +226,15 @@ td {
 	padding: 5px;
 }
 
+img.offset {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 30px;
+	margin-top: 30px;
+	padding: 10px;
+}
+
 /*=============================================================================
             AnchorJS (anchor links when hovering over headers)
 =============================================================================*/
@@ -235,4 +244,25 @@ td {
 }
 *:hover > .anchorjs-link {
     transition: color .25s linear;
+}
+
+/*=============================================================================
+                                 Gelly Graphs
+=============================================================================*/
+
+svg.graph line {
+    stroke: rgb(255,0,0);
+    stroke-width: 4;
+}
+
+svg.graph circle {
+    fill: red;
+    stroke: black;
+    stroke-width: 3;
+}
+
+svg.graph text {
+    dominant-baseline: central;
+    font-size: 32px;
+    text-anchor: middle;
 }

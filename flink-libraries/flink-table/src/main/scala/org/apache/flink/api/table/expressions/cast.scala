@@ -17,11 +17,19 @@
  */
 package org.apache.flink.api.table.expressions
 
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.typeutils.TypeConverter
 
 case class Cast(child: Expression, tpe: TypeInformation[_]) extends UnaryExpression {
 
   override def toString = s"$child.cast($tpe)"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(tpe))
+  }
 
   override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]

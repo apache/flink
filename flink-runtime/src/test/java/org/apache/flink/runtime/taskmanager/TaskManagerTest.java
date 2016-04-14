@@ -124,7 +124,7 @@ public class TaskManagerTest extends TestLogger {
 		new JavaTestKit(system){{
 
 			ActorGateway taskManager = null;
-			final ActorGateway jobManager = TestingUtils.createForwardingJobManager(
+			final ActorGateway jobManager = TestingUtils.createForwardingActor(
 					system,
 					getTestActor(),
 					Option.<String>empty());

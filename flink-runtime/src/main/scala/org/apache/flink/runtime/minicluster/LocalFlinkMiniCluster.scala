@@ -26,6 +26,9 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.messages.JobManagerMessages
@@ -89,6 +92,29 @@ class LocalFlinkMiniCluster(
     jobManager
   }
 
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = getResourceManagerName(index)
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
+      config,
+      system,
+      createLeaderRetrievalService(),
+      classOf[StandaloneResourceManager],
+      resourceManagerName)
+
+    resourceManager
+  }
+
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
@@ -117,10 +143,11 @@ class LocalFlinkMiniCluster(
     
     TaskManager.startTaskManagerComponentsAndActor(
       config,
+      ResourceID.generate(), // generate random resource id
       system,
       hostname, // network interface to bind to
       Some(taskManagerActorName), // actor name
-      Some(createLeaderRetrievalService), // job manager leader retrieval service
+      Some(createLeaderRetrievalService()), // job manager leader retrieval service
       localExecution, // start network stack?
       classOf[TaskManager])
   }
@@ -211,6 +238,15 @@ class LocalFlinkMiniCluster(
       JobManager.JOB_MANAGER_NAME
     }
   }
+
+  protected def getResourceManagerName(index: Int): String = {
+    if(singleActorSystem) {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME
+    }
+  }
+
   protected def getArchiveName(index: Int): String = {
     if(singleActorSystem) {
       JobManager.ARCHIVE_NAME + "_" + (index + 1)
