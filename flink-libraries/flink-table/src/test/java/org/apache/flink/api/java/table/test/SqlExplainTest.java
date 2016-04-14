@@ -20,12 +20,11 @@ package org.apache.flink.api.java.table.test;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.api.table.plan.TranslationContext;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -33,30 +32,25 @@ import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
 
-public class SqlExplainITCase extends MultipleProgramsTestBase {
+public class SqlExplainTest extends MultipleProgramsTestBase {
 
-	public SqlExplainITCase() {
+	public SqlExplainTest() {
 		super(TestExecutionMode.CLUSTER);
 	}
 
-	private static String testFilePath = SqlExplainITCase.class.getResource("/").getFile();
-
-	@Before
-	public void resetContext() {
-		TranslationContext.reset();
-	}
+	private static String testFilePath = SqlExplainTest.class.getResource("/").getFile();
 
 	@Test
 	public void testFilterWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input = env.fromElements(new Tuple2<>(1,"d"));
-		Table table = tableEnv.fromDataSet(input, "a, b");
+		Table table = tableEnv
+			.fromDataSet(input, "a, b")
+			.filter("a % 2 = 0");
 
-		String result = table
-				.filter("a % 2 = 0")
-				.explain();
+		String result = tableEnv.explain(table);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testFilter0.out"))
 				.useDelimiter("\\A").next();
@@ -66,14 +60,14 @@ public class SqlExplainITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testFilterWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input = env.fromElements(new Tuple2<>(1,"d"));
-		Table table = tableEnv.fromDataSet(input, "a, b");
+		Table table = tableEnv
+			.fromDataSet(input, "a, b")
+			.filter("a % 2 = 0");
 
-		String result = table
-				.filter("a % 2 = 0")
-				.explain(true);
+		String result = tableEnv.explain(table, true);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testFilter1.out"))
 				.useDelimiter("\\A").next();
@@ -83,18 +77,18 @@ public class SqlExplainITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input1 = env.fromElements(new Tuple2<>(1,"d"));
 		DataSet<Tuple2<Integer, String>> input2 = env.fromElements(new Tuple2<>(1,"d"));
 		Table table1 = tableEnv.fromDataSet(input1, "a, b");
 		Table table2 = tableEnv.fromDataSet(input2, "c, d");
+		Table table = table1
+			.join(table2)
+			.where("b = d")
+			.select("a, c");
 
-		String result = table1
-				.join(table2)
-				.where("b = d")
-				.select("a, c")
-				.explain();
+		String result = tableEnv.explain(table);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testJoin0.out"))
 				.useDelimiter("\\A").next();
@@ -104,18 +98,18 @@ public class SqlExplainITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input1 = env.fromElements(new Tuple2<>(1,"d"));
 		DataSet<Tuple2<Integer, String>> input2 = env.fromElements(new Tuple2<>(1,"d"));
 		Table table1 = tableEnv.fromDataSet(input1, "a, b");
 		Table table2 = tableEnv.fromDataSet(input2, "c, d");
+		Table table = table1
+			.join(table2)
+			.where("b = d")
+			.select("a, c");
 
-		String result = table1
-				.join(table2)
-				.where("b = d")
-				.select("a, c")
-				.explain(true);
+		String result = tableEnv.explain(table, true);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testJoin1.out"))
 				.useDelimiter("\\A").next();
@@ -125,16 +119,15 @@ public class SqlExplainITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testUnionWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input1 = env.fromElements(new Tuple2<>(1,"d"));
 		DataSet<Tuple2<Integer, String>> input2 = env.fromElements(new Tuple2<>(1,"d"));
 		Table table1 = tableEnv.fromDataSet(input1, "count, word");
 		Table table2 = tableEnv.fromDataSet(input2, "count, word");
+		Table table = table1.unionAll(table2);
 
-		String result = table1
-				.unionAll(table2)
-				.explain();
+		String result = tableEnv.explain(table);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testUnion0.out"))
 				.useDelimiter("\\A").next();
@@ -144,16 +137,15 @@ public class SqlExplainITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testUnionWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple2<Integer, String>> input1 = env.fromElements(new Tuple2<>(1,"d"));
 		DataSet<Tuple2<Integer, String>> input2 = env.fromElements(new Tuple2<>(1,"d"));
 		Table table1 = tableEnv.fromDataSet(input1, "count, word");
 		Table table2 = tableEnv.fromDataSet(input2, "count, word");
+		Table table = table1.unionAll(table2);
 
-		String result = table1
-				.unionAll(table2)
-				.explain(true);
+		String result = tableEnv.explain(table, true);
 		String source = new Scanner(new File(testFilePath +
 				"../../src/test/scala/resources/testUnion1.out"))
 				.useDelimiter("\\A").next();

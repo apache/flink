@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -30,7 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.api.table.codegen.CodeGenException;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testNumericAutocastInArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple8<Byte, Short, Integer, Long, Float, Double, Long, Double>> input =
 				env.fromElements(new Tuple8<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, 1L, 1001.1));
@@ -67,7 +67,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testNumericAutocastInComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple6<Byte, Short, Integer, Long, Float, Double>> input =
 				env.fromElements(
@@ -89,7 +89,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testCasting() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple4<Integer, Double, Long, Boolean>> input =
 				env.fromElements(new Tuple4<>(1, 0.0, 1L, true));
@@ -122,7 +122,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testCastFromString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple3<String, String, String>> input =
 				env.fromElements(new Tuple3<>("1", "true", "2.0"));
@@ -143,7 +143,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testCastDateFromString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple4<String, String, String, String>> input =
 				env.fromElements(new Tuple4<>("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"));
@@ -166,7 +166,7 @@ public class CastingITCase extends TableProgramsTestBase {
 	@Test
 	public void testCastDateToStringAndLong() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<String, String>> input =
 			env.fromElements(new Tuple2<>("2011-05-03 15:51:36.000", "1304437896000"));

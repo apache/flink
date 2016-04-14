@@ -22,9 +22,9 @@ import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.table.codegen.CodeGenException;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
@@ -43,7 +43,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testAllRejectingFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -60,7 +60,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testAllPassingFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -83,7 +83,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testFilterOnIntegerTupleField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -102,7 +102,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testNotEquals() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -121,7 +121,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testDisjunctivePreds() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -138,7 +138,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test
 	public void testIntegerBiggerThan128() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<>(300, 1L, "Hello"));
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -155,7 +155,7 @@ public class FilterITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testFilterInvalidField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");

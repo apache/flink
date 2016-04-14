@@ -20,12 +20,10 @@ package org.apache.flink.api.scala.table.streaming.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.JavaConversions._
 import org.junit.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamITCase
@@ -37,8 +35,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testSimpleSelectAll(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toStreamTable.select('_1, '_2, '_3)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1, '_2, '_3)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -55,8 +54,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testSelectFirst(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toStreamTable.select('_1)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -71,8 +71,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
 
     // verify ProjectMergeRule.
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).toStreamTable
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
@@ -91,8 +92,10 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testSimpleSelectAllWithAs(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c).select('a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .select('a, 'b, 'c)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -109,8 +112,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testAsWithToFewFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -124,8 +128,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testAsWithToManyFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b, 'c, 'd)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -139,8 +144,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testAsWithAmbiguousFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b, 'b)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'b)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
@@ -155,8 +161,9 @@ class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
   def testOnlyFieldRefInAs(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b as 'c, 'd)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b as 'c, 'd)
 
     val results = ds.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)

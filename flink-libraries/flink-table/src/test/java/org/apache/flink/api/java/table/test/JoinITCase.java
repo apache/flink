@@ -22,9 +22,10 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.TableException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -45,7 +46,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoin() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -64,7 +65,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -83,7 +84,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithJoinFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -103,7 +104,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithMultipleKeys() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -123,7 +124,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testJoinNonExistingKey() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -138,7 +139,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test(expected = TableException.class)
 	public void testJoinWithNonMatchingKeyTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -156,7 +157,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testJoinWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -171,7 +172,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJoinWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -186,6 +187,22 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 		String expected = "6";
 		compareResultAsText(results, expected);
+	}
+
+	@Test(expected = TableException.class)
+	public void testJoinTablesFromDifferentEnvs() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tEnv1 = TableEnvironment.getTableEnvironment(env);
+		BatchTableEnvironment tEnv2 = TableEnvironment.getTableEnvironment(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+
+		Table in1 = tEnv1.fromDataSet(ds1, "a, b, c");
+		Table in2 = tEnv2.fromDataSet(ds2, "d, e, f, g, h");
+
+		// Must fail. Tables are bound to different TableEnvironments.
+		in1.join(in2).where("a === d").select("g.count");
 	}
 
 }

@@ -23,7 +23,7 @@ import java.util.Date
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
@@ -42,7 +42,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     // don't test everything, just some common cast directions
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable(tEnv)
       .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
 
     val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
@@ -56,9 +58,11 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     // don't test everything, just some common cast directions
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d)).as('a, 'b, 'c, 'd, 'e, 'f)
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d)).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'f)
       .filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d  && 'f > 1)
 
     val expected = "2,2,2,2,2.0,2.0"
@@ -72,7 +76,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   def testAutoCastToString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, new Date(0))).toTable
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, new Date(0))).toTable(tEnv)
       .select('_1 + "b", '_2 + "s", '_3 + "i", '_4 + "L", '_5 + "f", '_6 + "d", '_7 + "Date")
 
     val expected = "1b,1s,1i,1L,1.0f,1.0d,1970-01-01 00:00:00.000Date"
@@ -84,8 +90,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   def testCasting(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements((1, 0.0, 1L, true))
-      .toTable
+      .toTable(tEnv)
       .select(
         // * -> String
         '_1.cast(BasicTypeInfo.STRING_TYPE_INFO),
@@ -121,8 +129,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   def testCastFromString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(("1", "true", "2.0"))
-      .toTable
+      .toTable(tEnv)
       .select(
         // String -> BASIC TYPE (not String, Date, Void, Character)
         '_1.cast(BasicTypeInfo.BYTE_TYPE_INFO),
@@ -143,8 +153,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   def testCastDateFromString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val t = env.fromElements(("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"))
-      .toTable
+      .toTable(tEnv)
       .select(
         '_1.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
         '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO),
@@ -161,8 +173,10 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   @Test
   def testCastDateToStringAndLong(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))
-    val t = ds.toTable
+    val t = ds.toTable(tEnv)
       .select('_1.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f0),
         '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f1))
       .select('f0.cast(BasicTypeInfo.STRING_TYPE_INFO),

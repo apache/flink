@@ -20,11 +20,11 @@ package org.apache.flink.api.table.test.utils
 
 import java.util
 
-import org.apache.flink.api.java.table.{TableEnvironment => JavaTableEnv}
+import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaTableEnv}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv}
-import org.apache.flink.api.scala.table.{TableEnvironment => ScalaTableEnv}
+import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaTableEnv}
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaEnv}
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.{TableEnvironment, TableConfig}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode.{EFFICIENT, NULL}
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -38,34 +38,16 @@ class TableProgramsTestBase(
     tableConfigMode: TableConfigMode)
   extends MultipleProgramsTestBase(mode) {
 
-  def getJavaTableEnvironment: JavaTableEnv = {
-    val env = JavaEnv.getExecutionEnvironment // TODO pass it to tableEnv
-    val tableEnv = new JavaTableEnv
-    configure(tableEnv.getConfig)
-    tableEnv
-  }
-
-  def getScalaTableEnvironment: ScalaTableEnv = {
-    val env = ScalaEnv.getExecutionEnvironment // TODO pass it to tableEnv
-    val tableEnv = new ScalaTableEnv
-    configure(tableEnv.getConfig)
-    tableEnv
-  }
-
-  def getConfig: TableConfig = {
-    val config = new TableConfig()
-    configure(config)
-    config
-  }
-
-  def configure(config: TableConfig): Unit = {
+  def config: TableConfig = {
+    val conf = new TableConfig
     tableConfigMode match {
       case NULL =>
-        config.setNullCheck(true)
+        conf.setNullCheck(true)
       case EFFICIENT =>
-        config.setEfficientTypeUsage(true)
+        conf.setEfficientTypeUsage(true)
       case _ => // keep default
     }
+    conf
   }
 }
 

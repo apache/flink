@@ -21,8 +21,7 @@ package org.apache.flink.api.scala.sql.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.plan.TranslationContext
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -43,8 +42,7 @@ class TableWithSQLITCase(
   def testSQLTable(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
@@ -54,7 +52,7 @@ class TableWithSQLITCase(
     val result = tEnv.sql(sqlQuery).select('a.avg, 'b.sum, 'c.count)
 
     val expected = "15,65,12"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -62,10 +60,9 @@ class TableWithSQLITCase(
   def testTableSQLTable(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val t1 = ds.filter('a > 9)
 
     tEnv.registerTable("MyTable", t1)
@@ -75,7 +72,7 @@ class TableWithSQLITCase(
     val result = tEnv.sql(sqlQuery).select('a1 + 1, 'b1 - 5, 'c1)
 
     val expected = "16,60,12"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -83,10 +80,9 @@ class TableWithSQLITCase(
   def testMultipleSQLQueries(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a as aa FROM MyTable WHERE b = 6"
@@ -97,7 +93,7 @@ class TableWithSQLITCase(
     val result2 = tEnv.sql(sqlQuery2)
 
     val expected = "6"
-    val results = result2.toDataSet[Row](getConfig).collect()
+    val results = result2.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

@@ -21,8 +21,7 @@ package org.apache.flink.api.scala.sql.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.plan.TranslationContext
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -43,8 +42,7 @@ class AggregationsITCase(
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT sum(_1), min(_1), max(_1), count(_1), avg(_1) FROM MyTable"
 
@@ -54,7 +52,7 @@ class AggregationsITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "231,1,21,21,11"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -62,18 +60,17 @@ class AggregationsITCase(
   def testTableAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT sum(_1) FROM MyTable"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "231"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -81,8 +78,7 @@ class AggregationsITCase(
   def testDataSetAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT sum(_1) FROM MyTable"
 
@@ -92,7 +88,7 @@ class AggregationsITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "231"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -100,8 +96,7 @@ class AggregationsITCase(
   def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT avg(_1), avg(_2), avg(_3), avg(_4), avg(_5), avg(_6), count(_7)" +
       "FROM MyTable"
@@ -114,7 +109,7 @@ class AggregationsITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,1,1,1,1.5,1.5,2"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -122,21 +117,20 @@ class AggregationsITCase(
   def testTableWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT avg(a), avg(b), avg(c), avg(d), avg(e), avg(f), count(g)" +
       "FROM MyTable"
 
     val ds = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).as('a, 'b, 'c, 'd, 'e, 'f, 'g)
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'f, 'g)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,1,1,1,1.5,1.5,2"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -144,19 +138,18 @@ class AggregationsITCase(
   def testTableProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT avg(a), sum(a), count(a), avg(b), sum(b) " +
       "FROM MyTable"
 
-    val ds = env.fromElements((1: Byte, 1: Short), (2: Byte, 2: Short)).as('a, 'b)
+    val ds = env.fromElements((1: Byte, 1: Short), (2: Byte, 2: Short)).toTable(tEnv, 'a, 'b)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,3,2,1,3"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -164,19 +157,18 @@ class AggregationsITCase(
   def testTableAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT avg(a + 2) + 2, count(b) + 5 " +
       "FROM MyTable"
 
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).as('a, 'b)
+    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv, 'a, 'b)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "5.5,7"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -184,18 +176,17 @@ class AggregationsITCase(
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT count(_1), count(_2) FROM MyTable"
 
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "2,2"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -204,21 +195,20 @@ class AggregationsITCase(
   def testAggregationAfterProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM " +
       "(SELECT _1 as a, _2 as b, _3 as c FROM MyTable)"
 
     val ds = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sql(sqlQuery)
 
     val expected = "1,3,2"
-    val results = result.toDataSet[Row](getConfig).collect()
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

@@ -17,50 +17,46 @@
  */
 package org.apache.flink.api.scala.table
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table._
-import org.apache.flink.api.table.expressions.{UnresolvedFieldReference, Expression}
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.scala._
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.streaming.api.scala.DataStream
 
 /**
- * Methods for converting a [[DataStream]] to a [[Table]]. A [[DataStream]] is
- * wrapped in this by the implicit conversions in [[org.apache.flink.api.scala.table]].
- */
-class DataStreamConversions[T](set: DataStream[T], inputType: CompositeType[T]) {
+  * Holds methods to convert a [[DataStream]] into a [[Table]].
+  *
+  * @param dataStream The [[DataStream]] to convert.
+  * @param inputType The [[TypeInformation]] for the type of the [[DataStream]].
+  * @tparam T The type of the [[DataStream]].
+  */
+class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInformation[T]) {
 
   /**
-   * Converts the [[DataStream]] to a [[Table]]. The field names can be specified like this:
-   *
-   * {{{
-   *   val in: DataStream[(String, Int)] = ...
-   *   val table = in.asStream('a, 'b)
-   * }}}
-   *
-   * This results in a [[Table]] that has field `a` of type `String` and field `b`
-   * of type `Int`.
-   */
-  def as(fields: Expression*): Table = {
-     new ScalaStreamTranslator().createTable(set, fields.toArray)
-  }
-
-  /**
-   * Converts the [[DataStream]] to a [[Table]]. The field names will be taken from the field names
-   * of the input type.
-   *
-   * Example:
-   *
-   * {{{
-   *   val in: DataStream[(String, Int)] = ...
-   *   val table = in.toStreamTable
-   * }}}
-   *
-   * Here, the result is a [[Table]] that has field `_1` of type `String` and field `_2`
-   * of type `Int`.
-   */
-  def toStreamTable: Table = {
-    val resultFields = inputType.getFieldNames.map(UnresolvedFieldReference)
-    as(resultFields: _*)
+    * Converts the [[DataStream]] into a [[Table]].
+    *
+    * The field name of the new [[Table]] can be specified like this:
+    *
+    * {{{
+    *   val env = StreamExecutionEnvironment.getExecutionEnvironment
+    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *
+    *   val stream: DataStream[(String, Int)] = ...
+    *   val table = stream.toTable(tEnv, 'name, 'amount)
+    * }}}
+    *
+    * If not explicitly specified, field names are automatically extracted from the type of
+    * the [[DataStream]].
+    *
+    * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+    * @param fields The field names of the new [[Table]] (optional).
+    * @return The resulting [[Table]].
+    */
+  def toTable(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
+    if (fields.isEmpty) {
+      tableEnv.fromDataStream(dataStream)
+    } else {
+      tableEnv.fromDataStream(dataStream, fields:_*)
+    }
   }
 
 }

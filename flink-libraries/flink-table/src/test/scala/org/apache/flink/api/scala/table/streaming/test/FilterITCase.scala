@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table.streaming.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -40,8 +40,10 @@ class FilterITCase extends StreamingMultipleProgramsTestBase {
      * Test simple filter
      */
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter('a === 3)
     val results = filterDs.toDataStream[Row]
@@ -58,8 +60,10 @@ class FilterITCase extends StreamingMultipleProgramsTestBase {
      * Test all-rejecting filter
      */
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( Literal(false) )
     val results = filterDs.toDataStream[Row]
@@ -75,8 +79,10 @@ class FilterITCase extends StreamingMultipleProgramsTestBase {
      * Test all-passing filter
      */
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).as('a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( Literal(true) )
     val results = filterDs.toDataStream[Row]
@@ -96,8 +102,10 @@ class FilterITCase extends StreamingMultipleProgramsTestBase {
      * Test filter on Integer tuple field.
      */
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b, 'c)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 === 0 )
     val results = filterDs.toDataStream[Row]
@@ -118,8 +126,10 @@ class FilterITCase extends StreamingMultipleProgramsTestBase {
      * Test filter on Integer tuple field.
      */
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).as('a, 'b, 'c)
+    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 !== 0)
     val results = filterDs.toDataStream[Row]

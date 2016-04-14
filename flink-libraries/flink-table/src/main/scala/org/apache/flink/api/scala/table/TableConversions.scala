@@ -20,41 +20,43 @@ package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.api.table._
 import org.apache.flink.streaming.api.scala.DataStream
 
+import org.apache.flink.api.table.{Table, TableException}
+import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv}
+import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTableEnv}
+
 /**
- * Methods for converting a [[Table]] to a [[DataSet]] or a [[DataStream]]. A [[Table]] is
- * wrapped in this by the implicit conversions in [[org.apache.flink.api.scala.table]].
- */
+  * Holds methods to convert a [[Table]] into a [[DataSet]] or a [[DataStream]].
+  *
+  * @param table The table to convert.
+  */
 class TableConversions(table: Table) {
 
-  /**
-   * Converts the [[Table]] to a [[DataSet]] using the default configuration.
-   */
+  /** Converts the [[Table]] to a [[DataSet]] of the specified type. */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
-     new ScalaBatchTranslator().translate[T](table.relNode)
+
+    table.tableEnv match {
+      case tEnv: ScalaBatchTableEnv =>
+        tEnv.toDataSet(table)
+      case _ =>
+        throw new TableException(
+          "Only tables that orginate from Scala DataSets can be converted to Scala DataSets.")
+    }
   }
 
-  /**
-   * Converts the [[Table]] to a [[DataSet]] using a custom configuration.
-   */
-  def toDataSet[T: TypeInformation](config: TableConfig): DataSet[T] = {
-     new ScalaBatchTranslator(config).translate[T](table.relNode)
-  }
-
-  /**
-   * Converts the [[Table]] to a [[DataStream]] using the default configuration.
-   */
+  /** Converts the [[Table]] to a [[DataStream]] of the specified type. */
   def toDataStream[T: TypeInformation]: DataStream[T] = {
-     new ScalaStreamTranslator().translate[T](table.relNode)
+
+    table.tableEnv match {
+      case tEnv: ScalaStreamTableEnv =>
+        tEnv.toDataStream(table)
+      case _ =>
+        throw new TableException(
+          "Only tables that originate from Scala DataStreams " +
+            "can be converted to Scala DataStreams.")
+    }
   }
 
-  /**
-   * Converts the [[Table]] to a [[DataStream]] using a custom configuration.
-   */
-  def toDataStream[T: TypeInformation](config: TableConfig): DataStream[T] = {
-     new ScalaStreamTranslator(config).translate[T](table.relNode)
-  }
 }
 

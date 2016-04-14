@@ -17,63 +17,65 @@
  */
 package org.apache.flink.api.table
 
-import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexCall, RexNode}
 import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.util.NlsString
-import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.table.explain.PlanJsonParser
-import org.apache.flink.api.table.plan.{PlanGenException, RexNodeTranslator}
-import RexNodeTranslator.extractAggCalls
-import org.apache.flink.api.table.expressions.{ExpressionParser, Naming, UnresolvedFieldReference, Expression}
-
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+import org.apache.flink.api.table.plan.PlanGenException
+import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggCalls
+import org.apache.flink.api.table.expressions.{ExpressionParser, Naming,
+          UnresolvedFieldReference, Expression}
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 case class BaseTable(
   private[flink] val relNode: RelNode,
-  private[flink] val relBuilder: RelBuilder)
+  private[flink] val tableEnv: TableEnvironment)
 
 /**
-  * The abstraction for writing Table API programs. Similar to how the batch and streaming APIs
-  * have [[org.apache.flink.api.scala.DataSet]] and
-  * [[org.apache.flink.streaming.api.scala.DataStream]].
+  * A Table is the core component of the Table API.
+  * Similar to how the batch and streaming APIs have DataSet and DataStream,
+  * the Table API is built around [[Table]].
   *
-  * Use the methods of [[Table]] to transform data. Use
-  * [[org.apache.flink.api.java.table.TableEnvironment]] to convert a [[Table]] back to a DataSet
-  * or DataStream.
+  * Use the methods of [[Table]] to transform data. Use [[TableEnvironment]] to convert a [[Table]]
+  * back to a DataSet or DataStream.
   *
   * When using Scala a [[Table]] can also be converted using implicit conversions.
   *
   * Example:
   *
   * {{{
-  *   val table = set.toTable('a, 'b)
+  *   val env = ExecutionEnvironment.getExecutionEnvironment
+  *   val tEnv = TableEnvironment.getTableEnvironment(env)
+  *
+  *   val set: DataSet[(String, Int)] = ...
+  *   val table = set.toTable(tEnv, 'a, 'b)
   *   ...
   *   val table2 = ...
-  *   val set = table2.toDataSet[MyType]
+  *   val set2: DataSet[MyType] = table2.toDataSet[MyType]
   * }}}
   *
   * Operations such as [[join]], [[select]], [[where]] and [[groupBy]] either take arguments
   * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
   * syntax.
+  *
+  * @param relNode The root node of the relational Calcite [[RelNode]] tree.
+  * @param tableEnv The [[TableEnvironment]] to which the table is bound.
   */
 class Table(
   private[flink] override val relNode: RelNode,
-  private[flink] override val relBuilder: RelBuilder)
-  extends BaseTable(relNode, relBuilder)
+  private[flink] override val tableEnv: TableEnvironment)
+  extends BaseTable(relNode, tableEnv)
 {
 
-  def getRelNode(): RelNode = relNode
+  def relBuilder = tableEnv.getRelBuilder
+
+  def getRelNode: RelNode = relNode
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -82,7 +84,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(0, 10))
+    *   tab.select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
   def select(fields: Expression*): Table = {
@@ -93,7 +95,7 @@ class Table(
 
     // separate aggregations and selection expressions
     val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-      .map(extractAggCalls(_, relBuilder)).toList
+      .map(extractAggCalls(_, tableEnv)).toList
 
     // get aggregation calls
     val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
@@ -113,9 +115,9 @@ class Table(
     if(relNode == projected) {
       // Calcite's RelBuilder does not translate identity projects even if they rename fields.
       //   Add a projection ourselves (will be automatically removed by translation rules).
-      new Table(createRenamingProject(exprs), relBuilder)
+      new Table(createRenamingProject(exprs), tableEnv)
     } else {
-      new Table(projected, relBuilder)
+      new Table(projected, tableEnv)
     }
 
   }
@@ -127,7 +129,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.select("key, value.avg + " The average" as average, other.substring(0, 10)")
+    *   tab.select("key, value.avg + ' The average' as average")
     * }}}
     */
   def select(fields: String): Table = {
@@ -142,7 +144,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.as('a, 'b)
+    *   tab.as('a, 'b)
     * }}}
     */
   def as(fields: Expression*): Table = {
@@ -169,7 +171,7 @@ class Table(
 
     val exprs = (renamings ++ remaining).map(_.toRexNode(relBuilder))
 
-    new Table(createRenamingProject(exprs), relBuilder)
+    new Table(createRenamingProject(exprs), tableEnv)
   }
 
   /**
@@ -179,7 +181,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.as("a, b")
+    *   tab.as("a, b")
     * }}}
     */
   def as(fields: String): Table = {
@@ -194,14 +196,15 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.filter('name === "Fred")
+    *   tab.filter('name === "Fred")
     * }}}
     */
   def filter(predicate: Expression): Table = {
 
     relBuilder.push(relNode)
     relBuilder.filter(predicate.toRexNode(relBuilder))
-    new Table(relBuilder.build(), relBuilder)
+    
+    new Table(relBuilder.build(), tableEnv)
   }
 
   /**
@@ -211,7 +214,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.filter("name = 'Fred'")
+    *   tab.filter("name = 'Fred'")
     * }}}
     */
   def filter(predicate: String): Table = {
@@ -226,7 +229,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.where('name === "Fred")
+    *   tab.where('name === "Fred")
     * }}}
     */
   def where(predicate: Expression): Table = {
@@ -240,7 +243,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.where("name = 'Fred'")
+    *   tab.where("name = 'Fred'")
     * }}}
     */
   def where(predicate: String): Table = {
@@ -254,7 +257,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.groupBy('key).select('key, 'value.avg)
+    *   tab.groupBy('key).select('key, 'value.avg)
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
@@ -263,7 +266,7 @@ class Table(
     val groupExpr = fields.map(_.toRexNode(relBuilder)).toIterable.asJava
     val groupKey = relBuilder.groupKey(groupExpr)
 
-    new GroupedTable(relBuilder.build(), relBuilder, groupKey)
+    new GroupedTable(relBuilder.build(), tableEnv, groupKey)
   }
 
   /**
@@ -273,7 +276,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.groupBy("key").select("key, value.avg")
+    *   tab.groupBy("key").select("key, value.avg")
     * }}}
     */
   def groupBy(fields: String): GroupedTable = {
@@ -287,19 +290,21 @@ class Table(
     * Example:
     *
     * {{{
-    *   in.select("key, value").distinct()
+    *   tab.select("key, value").distinct()
     * }}}
     */
   def distinct(): Table = {
     relBuilder.push(relNode)
     relBuilder.distinct()
-    new Table(relBuilder.build(), relBuilder)
+    new Table(relBuilder.build(), tableEnv)
   }
 
   /**
     * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
     * operations must not overlap, use [[as]] to rename fields if necessary. You can use
     * where and select clauses after a join to further specify the behaviour of the join.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
     * Example:
     *
@@ -308,6 +313,11 @@ class Table(
     * }}}
     */
   def join(right: Table): Table = {
+
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new TableException("Only tables from the same TableEnvironment can be joined.")
+    }
 
     // check that join inputs do not have overlapping field names
     val leftFields = relNode.getRowType.getFieldNames.asScala.toSet
@@ -321,12 +331,14 @@ class Table(
 
     relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
     val join = relBuilder.build()
-    new Table(join, relBuilder)
+    new Table(join, tableEnv)
   }
 
   /**
     * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
     *
     * Example:
     *
@@ -335,6 +347,11 @@ class Table(
     * }}}
     */
   def unionAll(right: Table): Table = {
+
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new TableException("Only tables from the same TableEnvironment can be unioned.")
+    }
 
     val leftRowType: List[RelDataTypeField] = relNode.getRowType.getFieldList.asScala.toList
     val rightRowType: List[RelDataTypeField] = right.relNode.getRowType.getFieldList.asScala.toList
@@ -355,30 +372,8 @@ class Table(
     relBuilder.push(right.relNode)
 
     relBuilder.union(true)
-    new Table(relBuilder.build(), relBuilder)
+    new Table(relBuilder.build(), tableEnv)
   }
-
-  /**
-    * Get the process of the sql parsing, print AST and physical execution plan.The AST
-    * show the structure of the supplied statement. The execution plan shows how the table
-    * referenced by the statement will be scanned.
-    */
-  private[flink] def explain(extended: Boolean): String = {
-
-    val ast = RelOptUtil.toString(relNode)
-    val dataSet = this.toDataSet[Row]
-    dataSet.output(new DiscardingOutputFormat[Row])
-    val env = dataSet.getExecutionEnvironment
-    val jasonSqlPlan = env.getExecutionPlan()
-    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
-    val result = "== Abstract Syntax Tree ==\n" + ast + "\n" + "== Physical Execution Plan ==" +
-      "\n" + sqlPlan
-    return result
-
-    ""
-  }
-
-  def explain(): String = explain(false)
 
   private def createRenamingProject(exprs: Seq[RexNode]): LogicalProject = {
 
@@ -422,19 +417,28 @@ class Table(
 
 }
 
+/**
+  * A table that has been grouped on a set of grouping keys.
+  *
+  * @param relNode The root node of the relational Calcite [[RelNode]] tree.
+  * @param tableEnv The [[TableEnvironment]] to which the table is bound.
+  * @param groupKey The Calcite [[GroupKey]] of this table.
+  */
 class GroupedTable(
   private[flink] override val relNode: RelNode,
-  private[flink] override val relBuilder: RelBuilder,
-  private[flink] val groupKey: GroupKey) extends BaseTable(relNode, relBuilder) {
+  private[flink] override val tableEnv: TableEnvironment,
+  private[flink] val groupKey: GroupKey) extends BaseTable(relNode, tableEnv) {
+
+  def relBuilder = tableEnv.getRelBuilder
 
   /**
-    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
-    * can contain complex expressions and aggregations.
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(1, 10))
+    *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
   def select(fields: Expression*): Table = {
@@ -443,7 +447,7 @@ class GroupedTable(
 
     // separate aggregations and selection expressions
     val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-      .map(extractAggCalls(_, relBuilder)).toList
+      .map(extractAggCalls(_, tableEnv)).toList
 
     // get aggregation calls
     val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
@@ -463,17 +467,17 @@ class GroupedTable(
 
     relBuilder.project(exprs.toIterable.asJava)
 
-    new Table(relBuilder.build(), relBuilder)
+    new Table(relBuilder.build(), tableEnv)
   }
 
   /**
-    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
-    * can contain complex expressions and aggregations.
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   in.select("key, value.avg + " The average" as average, other.substring(1, 10)")
+    *   tab.groupBy("key").select("key, value.avg + " The average" as average")
     * }}}
     */
   def select(fields: String): Table = {

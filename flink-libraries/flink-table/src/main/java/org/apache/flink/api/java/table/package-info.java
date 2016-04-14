@@ -19,12 +19,14 @@
 /**
  * <strong>Table API (Java)</strong><br>
  *
- * {@link org.apache.flink.api.java.table.TableEnvironment} can be used to create a
- * {@link org.apache.flink.api.table.Table} from a {@link org.apache.flink.api.java.DataSet}
- * or {@link org.apache.flink.streaming.api.datastream.DataStream}.
+ * A {@link org.apache.flink.api.java.table.BatchTableEnvironment} can be used to create a
+ * {@link org.apache.flink.api.table.Table} from a {@link org.apache.flink.api.java.DataSet}.
+ * Equivalently, a {@link org.apache.flink.api.java.table.StreamTableEnvironment} can be used to
+ * create a {@link org.apache.flink.api.table.Table} from a
+ * {@link org.apache.flink.streaming.api.datastream.DataStream}.
  *
  * <p>
- * This can be used to perform SQL-like queries on data. Please have
+ * Tables can be used to perform SQL-like queries on data. Please have
  * a look at {@link org.apache.flink.api.table.Table} to see which operations are supported and
  * how query strings are written.
  *
@@ -32,29 +34,30 @@
  * Example:
  *
  * <pre>{@code
- * ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+ * ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ * BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
  *
  * DataSet<WC> input = env.fromElements(
  *   new WC("Hello", 1),
  *   new WC("Ciao", 1),
  *   new WC("Hello", 1));
  *
- * Table table = TableUtil.from(input);
+ * Table table = tEnv.fromDataSet(input);
  *
  * Table filtered = table
  *     .groupBy("word")
  *     .select("word.count as count, word")
  *     .filter("count = 2");
  *
- * DataSet<WC> result = TableUtil.toSet(filtered, WC.class);
+ * DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
  *
  * result.print();
- * env.execute();
  * }</pre>
  *
  * <p>
  * As seen above, a {@link org.apache.flink.api.table.Table} can be converted back to the
- * underlying API representation using {@link org.apache.flink.api.java.table.TableEnvironment#toDataSet(org.apache.flink.api.table.Table, java.lang.Class)}
- * or {@link org.apache.flink.api.java.table.TableEnvironment#toDataStream(org.apache.flink.api.table.Table, java.lang.Class)}}.
+ * underlying API representation using
+ * {@link org.apache.flink.api.java.table.BatchTableEnvironment#toDataSet(org.apache.flink.api.table.Table, java.lang.Class)}
+ * or {@link org.apache.flink.api.java.table.StreamTableEnvironment#toDataStream(org.apache.flink.api.table.Table, java.lang.Class)}}.
  */
 package org.apache.flink.api.java.table;

@@ -27,7 +27,8 @@ import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
@@ -38,16 +39,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class AsITCase extends TableProgramsTestBase {
+public class FromDataSetITCase extends TableProgramsTestBase {
 
-	public AsITCase(TestExecutionMode mode, TableConfigMode configMode){
+	public FromDataSetITCase(TestExecutionMode mode, TableConfigMode configMode){
 		super(mode, configMode);
 	}
 
 	@Test
 	public void testAsFromTuple() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		Table table = tableEnv
 			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
@@ -68,7 +69,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromAndToTuple() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		Table table = tableEnv
 			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
@@ -94,7 +95,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromTupleToPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<Tuple4<String, Integer, Double, String>> data = new ArrayList<>();
 		data.add(new Tuple4<>("Rofl", 1, 1.0, "Hi"));
@@ -114,7 +115,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<SmallPojo> data = new ArrayList<>();
 		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
@@ -141,7 +142,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromPrivateFieldsPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<PrivateSmallPojo> data = new ArrayList<>();
 		data.add(new PrivateSmallPojo("Peter", 28, 4000.00, "Sales"));
@@ -168,7 +169,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromAndToPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<SmallPojo> data = new ArrayList<>();
 		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
@@ -195,7 +196,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test
 	public void testAsFromAndToPrivateFieldPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<PrivateSmallPojo> data = new ArrayList<>();
 		data.add(new PrivateSmallPojo("Peter", 28, 4000.00, "Sales"));
@@ -222,7 +223,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// Must fail. Not enough field names specified.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
@@ -231,7 +232,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithToManyFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// Must fail. Too many field names specified.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
@@ -240,7 +241,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// Must fail. Specified field names are not unique.
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
@@ -249,7 +250,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithNonFieldReference1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// Must fail. as() does only allow field name expressions
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
@@ -258,7 +259,7 @@ public class AsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testAsWithNonFieldReference2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		// Must fail. as() does only allow field name expressions
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b,  c");

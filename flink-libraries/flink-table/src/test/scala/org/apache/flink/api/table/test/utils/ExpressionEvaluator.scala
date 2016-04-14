@@ -25,12 +25,11 @@ import org.apache.calcite.tools.{Frameworks, RelBuilder}
 import org.apache.flink.api.common.functions.{Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.api.java.{DataSet => JDataSet}
+import org.apache.flink.api.table.{TableEnvironment, TableConfig}
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.TranslationContext
-import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.mockito.Mockito._
 
@@ -45,20 +44,26 @@ object ExpressionEvaluator {
       compile(getClass.getClassLoader, genFunc.name, genFunc.code)
   }
 
-  private def prepareTable(typeInfo: TypeInformation[Any]): (String, RelBuilder) = {
+  private def prepareTable(
+    typeInfo: TypeInformation[Any]): (String, RelBuilder, TableEnvironment) = {
+
     // create DataSetTable
     val dataSetMock = mock(classOf[DataSet[Any]])
-    when(dataSetMock.getType).thenReturn(typeInfo)
-    val tableName = TranslationContext.registerDataSetTable(new DataSetTable[Any](
-      dataSetMock,
-      (0 until typeInfo.getArity).toArray,
-      (0 until typeInfo.getArity).map("f" + _).toArray))
+    val jDataSetMock = mock(classOf[JDataSet[Any]])
+    when(dataSetMock.javaSet).thenReturn(jDataSetMock)
+    when(jDataSetMock.getType).thenReturn(typeInfo)
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val tableName = "myTable"
+    tEnv.registerDataSet(tableName, dataSetMock)
 
     // prepare RelBuilder
-    val relBuilder = TranslationContext.getRelBuilder
+    val relBuilder = tEnv.getRelBuilder
     relBuilder.scan(tableName)
 
-    (tableName, relBuilder)
+    (tableName, relBuilder, tEnv)
   }
 
   def evaluate(data: Any, typeInfo: TypeInformation[Any], sqlExpr: String): String = {
@@ -66,7 +71,7 @@ object ExpressionEvaluator {
     val table = prepareTable(typeInfo)
 
     // create RelNode from SQL expression
-    val planner = Frameworks.getPlanner(TranslationContext.getFrameworkConfig)
+    val planner = Frameworks.getPlanner(table._3.getFrameworkConfig)
     val parsed = planner.parse("SELECT " + sqlExpr + " FROM " + table._1)
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated)

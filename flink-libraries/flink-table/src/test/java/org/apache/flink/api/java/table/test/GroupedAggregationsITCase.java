@@ -22,8 +22,9 @@ import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.table.TableEnvironment;
+import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -42,7 +43,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testGroupingOnNonExistentField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -56,7 +57,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testGroupingInvalidSelection() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -70,7 +71,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testGroupedAggregate() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -87,7 +88,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testGroupingKeyForwardIfNotUsed() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
@@ -105,7 +106,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 	public void testGroupNoAggregation() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");

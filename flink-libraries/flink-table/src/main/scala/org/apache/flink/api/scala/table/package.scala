@@ -20,51 +20,48 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.{Row, Table}
 import scala.language.implicitConversions
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.scala._
+
+import scala.reflect.ClassTag
 
 /**
- * == Table API (Scala) ==
- *
- * Importing this package with:
- *
- * {{{
- *   import org.apache.flink.api.scala.table._
- * }}}
- *
- * imports implicit conversions for converting a [[DataSet]] and a [[DataStream]] to a
- * [[Table]]. This can be used to perform SQL-like queries on data. Please have
- * a look at [[Table]] to see which operations are supported and
- * [[org.apache.flink.api.scala.table.ImplicitExpressionOperations]] to see how an
- * expression can be specified.
- *
- * When writing a query you can use Scala Symbols to refer to field names. One would
- * refer to field `a` by writing `'a`. Sometimes it is necessary to manually convert a
- * Scala literal to an Expression Literal, in those cases use `Literal`, as in `Literal(3)`.
- *
- * Example:
- *
- * {{{
- *   import org.apache.flink.api.scala._
- *   import org.apache.flink.api.scala.table._
- *
- *   val env = ExecutionEnvironment.getExecutionEnvironment
- *   val input = env.fromElements(("Hello", 2), ("Hello", 5), ("Ciao", 3))
- *   val result = input.as('word, 'count).groupBy('word).select('word, 'count.avg)
- *   result.print()
- *
- *   env.execute()
- * }}}
- *
- * A [[Table]] can be converted back to the underlying API
- * representation using `as`:
- *
- * {{{
- *   case class Word(word: String, count: Int)
- *
- *   val result = in.select(...).as('word, 'count)
- *   val set = result.as[Word]
- * }}}
- */
+  * == Table API (Scala) ==
+  *
+  * Importing this package with:
+  *
+  * {{{
+  *   import org.apache.flink.api.scala.table._
+  * }}}
+  *
+  * imports implicit conversions for converting a [[DataSet]] and a [[DataStream]] to a
+  * [[Table]]. This can be used to perform SQL-like queries on data. Please have
+  * a look at [[Table]] to see which operations are supported and
+  * [[org.apache.flink.api.scala.table.ImplicitExpressionOperations]] to see how an
+  * expression can be specified.
+  *
+  * When writing a query you can use Scala Symbols to refer to field names. One would
+  * refer to field `a` by writing `'a`. Sometimes it is necessary to manually convert a
+  * Scala literal to an Expression literal, in those cases use `Literal`, as in `Literal(3)`.
+  *
+  * Example:
+  *
+  * {{{
+  *   import org.apache.flink.api.scala._
+  *   import org.apache.flink.api.scala.table._
+  *
+  *   val env = ExecutionEnvironment.getExecutionEnvironment
+  *   val tEnv = TableEnvironment.getTableEnvironment(env)
+  *
+  *   val input: DataSet[(String, Int)] = env.fromElements(("Hello", 2), ("Hello", 5), ("Ciao", 3))
+  *   val result = input
+  *         .toTable(tEnv, 'word, 'count)
+  *         .groupBy('word)
+  *         .select('word, 'count.avg)
+  *
+  *   result.print()
+  * }}}
+  *
+  */
 package object table extends ImplicitExpressionConversions {
 
   implicit def table2TableConversions(table: Table): TableConversions = {
@@ -72,30 +69,21 @@ package object table extends ImplicitExpressionConversions {
   }
 
   implicit def dataSet2DataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
-    new DataSetConversions[T](set, set.getType)
+    new DataSetConversions[T](set, set.getType())
   }
 
-  implicit def table2RowDataSet(
-      table: Table): DataSet[Row] = {
-    new ScalaBatchTranslator().translate[Row](table.relNode)
-  }
-
-  implicit def rowDataSet2Table(
-      rowDataSet: DataSet[Row]): Table = {
-    rowDataSet.toTable
+  implicit def table2RowDataSet(table: Table): DataSet[Row] = {
+    val tableEnv = table.tableEnv.asInstanceOf[BatchTableEnvironment]
+    tableEnv.toDataSet[Row](table)
   }
 
   implicit def dataStream2DataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
-    new DataStreamConversions[T](set, set.getType.asInstanceOf[CompositeType[T]])
+    new DataStreamConversions[T](set, set.dataType.asInstanceOf[CompositeType[T]])
   }
 
-  implicit def table2RowDataStream(
-      table: Table): DataStream[Row] = {
-    new ScalaStreamTranslator().translate[Row](table.relNode)
+  implicit def table2RowDataStream(table: Table): DataStream[Row] = {
+    val tableEnv = table.tableEnv.asInstanceOf[StreamTableEnvironment]
+    tableEnv.toDataStream[Row](table)
   }
 
-  implicit def rowDataStream2Table(
-      rowDataStream: DataStream[Row]): Table = {
-    rowDataStream.toStreamTable
-  }
 }
