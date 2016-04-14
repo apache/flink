@@ -73,6 +73,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	private long min;
 	private long fetchSize;
 	
+	private boolean hasNext = true;
+	
 	private static final String BETWEEN = "(%s BETWEEN %s AND %s)";
 	public static final String CONDITIONS = "$CONDITIONS";
 
@@ -91,6 +93,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 */
 	@Override
 	public void open(InputSplit inputSplit) throws IOException {
+		hasNext = true;
 		try {
 			//TODO is this performed once per Task Manager..?
 			establishConnection();
@@ -100,14 +103,12 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 				RangeInputSplit jdbcInputSplit = (RangeInputSplit) inputSplit;
 				long start = jdbcInputSplit.getMin();
 				long end = jdbcInputSplit.getMax();
-				if(isSplitConfigured()){
-					query = queryTemplate.replace(CONDITIONS, String.format(BETWEEN, splitColumnName, start, end));
-				}
+				query = queryTemplate.replace(CONDITIONS, String.format(BETWEEN, splitColumnName, start, end));
 			}
 			LOG.debug(query);
 			resultSet = statement.executeQuery(query);
 		} catch (SQLException se) {
-			//close(); already closed by the caller
+			close();
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
@@ -115,7 +116,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	}
 
 	private boolean isSplitConfigured() {
-		return splitColumnName!=null;
+		return splitColumnName != null;
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {
@@ -163,10 +164,14 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	@Override
 	public boolean reachedEnd() throws IOException {
 		try {
-			return !resultSet.next();
+			if (!hasNext || resultSet.isLast()) {
+				close();	
+				return true;
+			}
+			return false;
 		} catch (SQLException se) {
-			//close();already closed by the caller
-			throw new IOException("ResultSet error during next() - " + se.getMessage(), se);
+			close();	
+			throw new IOException("Couldn't evaluate reachedEnd() - " + se.getMessage(), se);
 		}
 	}
 
@@ -180,16 +185,20 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	@Override
 	public OUT nextRecord(OUT tuple) throws IOException {
 		try {
+			hasNext = resultSet.next();
+			if(!hasNext){
+				return null;
+			}
 			if (columnTypes == null) {
 				extractTypes(tuple);
 			}
 			addValue(tuple);
 			return tuple;
 		} catch (SQLException se) {
-			//close();already closed by the caller
+			close();
 			throw new IOException("Couldn't read data - " + se.getMessage(), se);
 		} catch (NullPointerException npe) {
-			//close();already closed by the caller
+			close();
 			throw new IOException("Couldn't access resultSet", npe);
 		}
 	}
@@ -198,7 +207,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
 		columnTypes = new int[resultSetMetaData.getColumnCount()];
 		if (tuple.getArity() != columnTypes.length) {
-			//close();already closed by the caller
+			close();
 			throw new IOException("Tuple size does not match column count");
 		}
 		for (int pos = 0; pos < columnTypes.length; pos++) {
@@ -255,7 +264,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 						reuse.setField(resultSet.getInt(pos + 1), pos);
 						break;
 					case java.sql.Types.FLOAT:
-						reuse.setField(resultSet.getFloat(pos + 1), pos);
+						reuse.setField(resultSet.getDouble(pos + 1), pos);
 						break;
 					case java.sql.Types.REAL:
 						reuse.setField(resultSet.getFloat(pos + 1), pos);
@@ -272,7 +281,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 								reuse.setField(resultSet.getBigDecimal(pos + 1).toPlainString(), pos);
 							}
 						} catch (SQLException e) {
-							System.err.println("error reading at position " + pos + " setting blank field!");
+							LOG.warn("error reading at position " + pos + " setting blank field!");
 							reuse.setField("", pos);
 							// throw e;
 						}
@@ -285,7 +294,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 								reuse.setField(resultSet.getBigDecimal(pos + 1).toPlainString(), pos);
 							}
 						} catch (SQLException e) {
-							System.err.println("error reading at position " + pos + " setting blank field!");
+							LOG.warn("error reading at position " + pos + " setting blank field!");
 							reuse.setField("", pos);
 							// throw e;
 						}
@@ -383,7 +392,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		@SuppressWarnings("rawtypes")
 		public JDBCInputFormatBuilder() {
 			this.format = new JDBCInputFormat();
-			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
+			// The 'isLast' method is only allowed on scroll cursors.
+			this.format.resultSetType = ResultSet.TYPE_SCROLL_INSENSITIVE;
 			this.format.resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 		}
 
