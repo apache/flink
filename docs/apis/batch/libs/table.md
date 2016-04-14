@@ -61,7 +61,7 @@ Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets, both in Scala and Java.
 
-The central concept of the Table API is a `Table` which is represents a table with relational schema (or relation). Tables can be created from a `DataSet`, converted into a `DataSet`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
+The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet`, converted into a `DataSet`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
 
 The following sections show by example how to use the Table API embedded in  the Scala and Java DataSet APIs.
 
@@ -118,7 +118,7 @@ Please refer to the Scaladoc (and Javadoc) for a full list of supported operatio
 
 ### Java Table API
 
-When using Flink's Java DataSet API, DataSet are converted to Tables and Tables to DataSet using a `TableEnvironment`.
+When using Flink's Java DataSet API, DataSets are converted to Tables and Tables to DataSets using a `TableEnvironment`.
 The following example shows:
 
 - how a `DataSet` is converted to a `Table`,
@@ -375,7 +375,7 @@ val result = in.distinct();
 {% top %}
 
 ### Expression Syntax
-Some of operators in previous section expect one or more expressions. Expressions can be specified using an embedded Scala DSL or as Strings. Please refer to the examples above to learn how expressions can be specified.
+Some of the operators in previous sections expect one or more expressions. Expressions can be specified using an embedded Scala DSL or as Strings. Please refer to the examples above to learn how expressions can be specified.
 
 This is the complete EBNF grammar for expressions:
 
