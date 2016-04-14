@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.streaming.api.functions.source.MockSourceContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -28,9 +29,7 @@ import java.util.List;
  * 
  * @param <T> Type of the collected elements.
  */
-public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
-	
-	private final Object lock = new Object();
+public class ListSourceContext<T> extends MockSourceContext<T> {
 	
 	private final List<T> target;
 
@@ -63,20 +62,5 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 	@Override
 	public void collectWithTimestamp(T element, long timestamp) {
 		target.add(element);
-	}
-
-	@Override
-	public void emitWatermark(Watermark mark) {
-		// don't do anything
-	}
-
-	@Override
-	public Object getCheckpointLock() {
-		return lock;
-	}
-
-	@Override
-	public void close() {
-
 	}
 }

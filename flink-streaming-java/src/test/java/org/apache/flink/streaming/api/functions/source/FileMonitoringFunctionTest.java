@@ -46,22 +46,9 @@ public class FileMonitoringFunctionTest {
 		}.start();
 
 		fileMonitoringFunction.run(
-				new SourceFunction.SourceContext<Tuple3<String, Long, Long>>() {
-
+				new MockSourceContext<Tuple3<String,Long,Long>>() {
 					@Override
 					public void collect(Tuple3<String, Long, Long> element) {}
-
-					@Override
-					public void collectWithTimestamp(Tuple3<String, Long, Long> element, long timestamp) {}
-
-					@Override
-					public void emitWatermark(Watermark mark) {}
-
-					@Override
-					public Object getCheckpointLock() { return null; }
-
-					@Override
-					public void close() {}
 				});
 	}
 }

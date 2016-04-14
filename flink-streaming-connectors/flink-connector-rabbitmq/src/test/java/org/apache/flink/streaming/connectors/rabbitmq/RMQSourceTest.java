@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.SerializedCheckpointData;
+import org.apache.flink.streaming.api.functions.source.MockSourceContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -363,36 +364,20 @@ public class RMQSourceTest {
 		}
 	}
 
-	private static class DummySourceContext implements SourceFunction.SourceContext<String> {
+	private static class DummySourceContext extends MockSourceContext<String> {
 
 		private static final Object lock = new Object();
 
 		private static long numElementsCollected;
 
 		public DummySourceContext() {
+			super(lock);
 			numElementsCollected = 0;
 		}
 
 		@Override
 		public void collect(String element) {
 			numElementsCollected++;
-		}
-
-		@Override
-		public void collectWithTimestamp(java.lang.String element, long timestamp) {
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lock;
-		}
-
-		@Override
-		public void close() {
 		}
 	}
 }

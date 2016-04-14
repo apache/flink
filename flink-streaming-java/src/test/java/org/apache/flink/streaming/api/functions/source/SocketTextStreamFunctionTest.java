@@ -258,10 +258,7 @@ public class SocketTextStreamFunctionTest {
 
 		public void run() {
 			try {
-				SourceFunction.SourceContext<String> ctx = new SourceFunction.SourceContext<String>() {
-					
-					private final Object lock = new Object();
-					
+				SourceFunction.SourceContext<String> ctx = new MockSourceContext<String>() {
 					@Override
 					public void collect(String element) {
 						int pos = numElementsReceived;
@@ -276,22 +273,6 @@ public class SocketTextStreamFunctionTest {
 							assertEquals(expectedData[pos], element);
 						}
 					}
-
-					@Override
-					public void collectWithTimestamp(String element, long timestamp) {
-						collect(element);
-					}
-
-					@Override
-					public void emitWatermark(Watermark mark) {}
-
-					@Override
-					public Object getCheckpointLock() {
-						return lock;
-					}
-
-					@Override
-					public void close() {}
 				};
 				
 				socketSource.run(ctx);
