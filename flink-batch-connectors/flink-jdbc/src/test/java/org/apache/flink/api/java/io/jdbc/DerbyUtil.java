@@ -19,7 +19,6 @@ package org.apache.flink.api.java.io.jdbc;
 
 import java.io.OutputStream;
 
-@SuppressWarnings("unused")
 /**
  * Utility class to disable derby logging
  */
