@@ -18,14 +18,12 @@
 
 package org.apache.flink.api.java.io;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.InputSplit;
 
 /**
  * A range input split provides information about a particular range of keys, each with a min and a max value. 
  */
-@Public
-public class RangeInputSplit implements InputSplit{
+public class RangeInputSplit implements InputSplit {
 
 	private static final long serialVersionUID = 4310893817447171721L;
 	
@@ -35,7 +33,7 @@ public class RangeInputSplit implements InputSplit{
 	/** The number of the split. */
 	private final int splitNumber;
 	
-	public RangeInputSplit(int splitNumber, long min, long max){
+	public RangeInputSplit(int splitNumber, long min, long max) {
 		this.min = min;
 		this.max = max;
 		this.splitNumber = splitNumber;
@@ -53,6 +51,5 @@ public class RangeInputSplit implements InputSplit{
 	public long getMax() {
 		return max;
 	}
-
 
 }
