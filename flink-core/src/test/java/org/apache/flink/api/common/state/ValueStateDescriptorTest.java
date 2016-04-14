@@ -101,4 +101,33 @@ public class ValueStateDescriptorTest {
 		assertNotNull(copy.getSerializer());
 		assertEquals(StringSerializer.INSTANCE, copy.getSerializer());
 	}
+
+	@Test
+	public void testVeryLargeDefaultValue() throws Exception {
+		// ensure that we correctly read very large data when deserializing the default value
+
+		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+		byte[] data = new byte[200000];
+		for (int i = 0; i < 200000; i++) {
+			data[i] = 65;
+		}
+		data[199000] = '\0';
+
+		String defaultValue = new String(data);
+
+		ValueStateDescriptor<String> descr =
+				new ValueStateDescriptor<String>("testName", serializer, defaultValue);
+
+		assertEquals("testName", descr.getName());
+		assertEquals(defaultValue, descr.getDefaultValue());
+		assertNotNull(descr.getSerializer());
+		assertEquals(serializer, descr.getSerializer());
+
+		ValueStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
+
+		assertEquals("testName", copy.getName());
+		assertEquals(defaultValue, copy.getDefaultValue());
+		assertNotNull(copy.getSerializer());
+		assertEquals(serializer, copy.getSerializer());
+	}
 }
