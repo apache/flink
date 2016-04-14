@@ -26,13 +26,12 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.apache.flink.api.common.io.NonParallelInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.io.RangeInputSplit;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
@@ -44,28 +43,38 @@ import org.apache.flink.types.NullValue;
  * InputFormat to read data from a database and generate tuples.
  * The InputFormat has to be configured using the supplied InputFormatBuilder.
  * 
+ * Remark: split (if set) works only if the split column is numeric
+ * 
  * @param <OUT>
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput {
-	private static final long serialVersionUID = 1L;
+public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, InputSplit> {
 
+	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
 
 	private String username;
 	private String password;
 	private String drivername;
 	private String dbURL;
-	private String query;
+	private String queryTemplate;
 	private int resultSetType;
 	private int resultSetConcurrency;
 
 	private transient Connection dbConn;
 	private transient Statement statement;
 	private transient ResultSet resultSet;
+	
+	private int[] columnTypes;
 
-	private int[] columnTypes = null;
+	private String splitColumnName;
+	private long max;
+	private long min;
+	private long fetchSize;
+	
+	private static final String BETWEEN = "(%s BETWEEN %s AND %s)";
+	public static final String CONDITIONS = "$CONDITIONS";
 
 	public JDBCInputFormat() {
 	}
@@ -81,17 +90,32 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 * @throws IOException
 	 */
 	@Override
-	public void open(InputSplit ignored) throws IOException {
+	public void open(InputSplit inputSplit) throws IOException {
 		try {
+			//TODO is this performed once per Task Manager..?
 			establishConnection();
 			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
+			String query = queryTemplate;
+			if(isSplitConfigured()){
+				RangeInputSplit jdbcInputSplit = (RangeInputSplit) inputSplit;
+				long start = jdbcInputSplit.getMin();
+				long end = jdbcInputSplit.getMax();
+				if(isSplitConfigured()){
+					query = queryTemplate.replace(CONDITIONS, String.format(BETWEEN, splitColumnName, start, end));
+				}
+			}
+			LOG.debug(query);
 			resultSet = statement.executeQuery(query);
 		} catch (SQLException se) {
-			close();
+			//close(); already closed by the caller
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
 		}
+	}
+
+	private boolean isSplitConfigured() {
+		return splitColumnName!=null;
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {
@@ -139,13 +163,10 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	@Override
 	public boolean reachedEnd() throws IOException {
 		try {
-			if (resultSet.isLast()) {
-				close();
-				return true;
-			}
-			return false;
+			return !resultSet.next();
 		} catch (SQLException se) {
-			throw new IOException("Couldn't evaluate reachedEnd() - " + se.getMessage(), se);
+			//close();already closed by the caller
+			throw new IOException("ResultSet error during next() - " + se.getMessage(), se);
 		}
 	}
 
@@ -159,17 +180,16 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	@Override
 	public OUT nextRecord(OUT tuple) throws IOException {
 		try {
-			resultSet.next();
 			if (columnTypes == null) {
 				extractTypes(tuple);
 			}
 			addValue(tuple);
 			return tuple;
 		} catch (SQLException se) {
-			close();
+			//close();already closed by the caller
 			throw new IOException("Couldn't read data - " + se.getMessage(), se);
 		} catch (NullPointerException npe) {
-			close();
+			//close();already closed by the caller
 			throw new IOException("Couldn't access resultSet", npe);
 		}
 	}
@@ -178,8 +198,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
 		columnTypes = new int[resultSetMetaData.getColumnCount()];
 		if (tuple.getArity() != columnTypes.length) {
-			close();
-			throw new IOException("Tuple size does not match columncount");
+			//close();already closed by the caller
+			throw new IOException("Tuple size does not match column count");
 		}
 		for (int pos = 0; pos < columnTypes.length; pos++) {
 			columnTypes[pos] = resultSetMetaData.getColumnType(pos + 1);
@@ -193,6 +213,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 */
 	private void addValue(OUT reuse) throws IOException, SQLException {
 		for (int pos = 0; pos < columnTypes.length; pos++) {
+			//TODO what if null?? use strings for now. Maybe use Row for JDBC??
+			Object o = resultSet.getObject(pos + 1);
 			try {
 				switch (columnTypes[pos]) {
 					case java.sql.Types.NULL:
@@ -211,7 +233,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 						reuse.setField(resultSet.getString(pos + 1), pos);
 						break;
 					case java.sql.Types.VARCHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
+						//TODO manage null fields
+						reuse.setField(o == null ? "" :resultSet.getString(pos + 1), pos);
 						break;
 					case java.sql.Types.LONGVARCHAR:
 						reuse.setField(resultSet.getString(pos + 1), pos);
@@ -232,7 +255,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 						reuse.setField(resultSet.getInt(pos + 1), pos);
 						break;
 					case java.sql.Types.FLOAT:
-						reuse.setField(resultSet.getDouble(pos + 1), pos);
+						reuse.setField(resultSet.getFloat(pos + 1), pos);
 						break;
 					case java.sql.Types.REAL:
 						reuse.setField(resultSet.getFloat(pos + 1), pos);
@@ -241,10 +264,29 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 						reuse.setField(resultSet.getDouble(pos + 1), pos);
 						break;
 					case java.sql.Types.DECIMAL:
-						reuse.setField(resultSet.getBigDecimal(pos + 1).doubleValue(), pos);
-						break;
+						//TODO manage null fields
+						try {
+							if (o == null)
+								reuse.setField("", pos);
+							else
+								reuse.setField(resultSet.getBigDecimal(pos + 1).toPlainString(), pos);
+						} catch (SQLException e) {
+							System.err.println("error reading at position " + pos + " setting blank field!");
+							reuse.setField("", pos);
+							// throw e;
+						}
 					case java.sql.Types.NUMERIC:
-						reuse.setField(resultSet.getBigDecimal(pos + 1).doubleValue(), pos);
+						//TODO manage null fields
+						try {
+							if (o == null)
+								reuse.setField("", pos);
+							else
+								reuse.setField(resultSet.getBigDecimal(pos + 1).toPlainString(), pos);
+						} catch (SQLException e) {
+							System.err.println("error reading at position " + pos + " setting blank field!");
+							reuse.setField("", pos);
+							// throw e;
+						}
 						break;
 					case java.sql.Types.DATE:
 						reuse.setField(resultSet.getDate(pos + 1).toString(), pos);
@@ -253,7 +295,11 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 						reuse.setField(resultSet.getTime(pos + 1).getTime(), pos);
 						break;
 					case java.sql.Types.TIMESTAMP:
-						reuse.setField(resultSet.getTimestamp(pos + 1).toString(), pos);
+						//TODO manage null fields
+						if (o == null) 
+							reuse.setField("", pos + 1);
+						else 
+							reuse.setField(resultSet.getTimestamp(pos + 1).toString(), pos);
 						break;
 					case java.sql.Types.SQLXML:
 						reuse.setField(resultSet.getSQLXML(pos + 1).toString(), pos);
@@ -289,17 +335,38 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 
 	@Override
 	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		GenericInputSplit[] split = {
-			new GenericInputSplit(0, 1)
-		};
-		return split;
+		if(!isSplitConfigured()){
+			GenericInputSplit[] split = {
+					new GenericInputSplit(0, 1)
+				};
+			return split;
+		}
+		
+		double maxEelemCount = (max - min) +1;
+		if(min==0)
+			maxEelemCount = max + 1;
+		int size = new Double(Math.ceil( maxEelemCount / fetchSize)).intValue();
+		if(minNumSplits > size){
+			size = minNumSplits;
+			fetchSize = new Double(Math.ceil( maxEelemCount / minNumSplits)).intValue();
+		}
+		RangeInputSplit[] ret = new RangeInputSplit[size];
+		int count = 0;
+		for (long i = min; i < max; i += fetchSize, count++) {
+			long currentLimit = i + fetchSize - 1;
+			ret[count] = new RangeInputSplit(count, i, currentLimit);
+			if (currentLimit + 1 + fetchSize > max) {
+				ret[count+1] = new RangeInputSplit(count, currentLimit + 1, max);
+				break;
+			}
+		}
+		return ret;
 	}
 
 	@Override
 	public InputSplitAssigner getInputSplitAssigner(InputSplit[] inputSplits) {
 		return new DefaultInputSplitAssigner(inputSplits);
 	}
-	
 
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
@@ -310,8 +377,9 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	}
 
 	public static class JDBCInputFormatBuilder {
-		private final JDBCInputFormat format;
+		private final JDBCInputFormat<?> format;
 
+		@SuppressWarnings("rawtypes")
 		public JDBCInputFormatBuilder() {
 			this.format = new JDBCInputFormat();
 			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
@@ -339,7 +407,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		}
 
 		public JDBCInputFormatBuilder setQuery(String query) {
-			format.query = query;
+			format.queryTemplate = query;
 			return this;
 		}
 
@@ -352,8 +420,15 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 			format.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
+		public JDBCInputFormatBuilder setSplitConfig(String splitColumnName,long fetchSize, long min, long max) {
+			format.splitColumnName = splitColumnName;
+			format.fetchSize = fetchSize;
+			format.min = min;
+			format.max = max;
+			return this;
+		}
 
-		public JDBCInputFormat finish() {
+		public JDBCInputFormat<?> finish() {
 			if (format.username == null) {
 				LOG.info("Username was not supplied separately.");
 			}
@@ -363,13 +438,28 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 			if (format.dbURL == null) {
 				throw new IllegalArgumentException("No database URL supplied");
 			}
-			if (format.query == null) {
+			if (format.queryTemplate == null) {
 				throw new IllegalArgumentException("No query supplied");
 			}
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
+			adjustQueryTemplateIfNecessary();
 			return format;
+		}
+
+		/** Try to add $CONDITIONS token automatically (at least for straightforward cases) */
+		private void adjustQueryTemplateIfNecessary() {
+			if(!format.isSplitConfigured())
+				return;
+			if(!format.queryTemplate.toLowerCase().contains("where")){
+				if(format.queryTemplate.contains(";"))
+					format.queryTemplate = format.queryTemplate.replace(";", "");
+				format.queryTemplate += " WHERE "+CONDITIONS;
+			}else if(!format.queryTemplate.contains(CONDITIONS)){		
+				//if not simple query and no $CONDITIONS avoid dangerous heuristics
+				throw new IllegalArgumentException("Usage of splits requires to specify "+CONDITIONS+" in the query for their generation");
+			}
 		}
 	}
 
