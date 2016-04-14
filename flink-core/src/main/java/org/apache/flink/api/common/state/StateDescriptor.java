@@ -61,12 +61,12 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	/** The type information describing the value type. Only used to lazily create the serializer
 	 * and dropped during serialization */
 	private transient TypeInformation<T> typeInfo;
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Create a new {@code StateDescriptor} with the given name and the given type serializer.
-	 * 
+	 *
 	 * @param name The name of the {@code StateDescriptor}.
 	 * @param serializer The type serializer for the values in the state.
 	 * @param defaultValue The default value that will be set when requesting state without setting
@@ -94,7 +94,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	/**
 	 * Create a new {@code StateDescriptor} with the given name and the given type information.
-	 * 
+	 *
 	 * <p>If this constructor fails (because it is not possible to describe the type via a class),
 	 * consider using the {@link #StateDescriptor(String, TypeInformation, Object)} constructor.
 	 *
@@ -106,7 +106,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	protected StateDescriptor(String name, Class<T> type, T defaultValue) {
 		this.name = requireNonNull(name, "name must not be null");
 		requireNonNull(type, "type class must not be null");
-		
+
 		try {
 			this.typeInfo = TypeExtractor.createTypeInfo(type);
 		} catch (Exception e) {
@@ -117,7 +117,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns the name of this {@code StateDescriptor}.
 	 */
@@ -152,21 +152,21 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			throw new IllegalStateException("Serializer not yet initialized.");
 		}
 	}
-	
+
 	/**
 	 * Creates a new {@link State} on the given {@link StateBackend}.
 	 *
 	 * @param stateBackend The {@code StateBackend} on which to create the {@link State}.
 	 */
 	public abstract S bind(StateBackend stateBackend) throws Exception;
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Checks whether the serializer has been initialized. Serializer initialization is lazy,
 	 * to allow parametrization of serializers with an {@link ExecutionConfig} via
 	 * {@link #initializeSerializerUnlessSet(ExecutionConfig)}.
-	 * 
+	 *
 	 * @return True if the serializers have been initialized, false otherwise.
 	 */
 	public boolean isSerializerInitialized() {
@@ -175,7 +175,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	/**
 	 * Initializes the serializer, unless it has been initialized before.
-	 * 
+	 *
 	 * @param executionConfig The execution config to use when creating the serializer.
 	 */
 	public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
@@ -188,7 +188,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			}
 		}
 	}
-	
+
 	/**
 	 * This method should be called by subclasses prior to serialization. Because the TypeInformation is
 	 * not always serializable, it is 'transient' and dropped during serialization. Hence, the descriptor
@@ -204,7 +204,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Standard Utils
 	// ------------------------------------------------------------------------
@@ -230,7 +230,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + 
+		return getClass().getSimpleName() +
 				"{name=" + name +
 				", defaultValue=" + defaultValue +
 				", serializer=" + serializer +
@@ -257,7 +257,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 			out.writeBoolean(true);
 
 			byte[] serializedDefaultValue;
-			try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
 			{
 				TypeSerializer<T> duplicateSerializer = serializer.duplicate();
@@ -284,12 +284,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 		boolean hasDefaultValue = in.readBoolean();
 		if (hasDefaultValue) {
 			int size = in.readInt();
-			byte[] buffer = new byte[size];
-			int bytesRead = in.read(buffer);
 
-			if (bytesRead != size) {
-				throw new RuntimeException("Read size does not match expected size.");
-			}
+			byte[] buffer = new byte[size];
+
+			in.readFully(buffer);
 
 			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
 					DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
