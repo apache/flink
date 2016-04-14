@@ -287,15 +287,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 			byte[] buffer = new byte[size];
 
-			int bytesRead = 0;
-
-			while (bytesRead < size) {
-				bytesRead += in.read(buffer, bytesRead, size - bytesRead);
-			}
-
-			if (bytesRead != size) {
-				throw new RuntimeException("Read size does not match expected size.");
-			}
+			in.readFully(buffer);
 
 			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
 					DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
