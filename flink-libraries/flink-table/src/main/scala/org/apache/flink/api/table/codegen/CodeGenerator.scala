@@ -907,18 +907,15 @@ class CodeGenerator(
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
-    val wrappedCode = if (nullCheck) {
-      s"""
+    if (nullCheck) {
+      val wrappedCode = s"""
         |$resultTypeTerm $resultTerm = $defaultValue;
         |boolean $nullTerm = true;
         |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
     } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $defaultValue;
-        |""".stripMargin
+      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
-
-    GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType)
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -18,14 +18,16 @@
 
 package org.apache.flink.api.scala.sql.test
 
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.scala.table._
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.plan.TranslationContext
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,13 +54,21 @@ class ExpressionsITCase(
 
     val result = tEnv.sql(sqlQuery)
 
-    val expected = if (getConfig.getNullCheck) {
-      "1,0,null,null"
-    } else {
-      "1,0,-1,true"
+    try {
+      val ds = result.toDataSet[Row](getConfig)
+      if (!getConfig.getNullCheck) {
+        fail("Exception expected if null check is disabled.")
+      }
+      val results = ds.collect()
+      val expected = "1,0,null,null"
+      TestBaseUtils.compareResultAsText(results.asJava, expected)
     }
-    val results = result.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    catch {
+      case e: CodeGenException =>
+        if (getConfig.getNullCheck) {
+          throw e
+        }
+    }
   }
 
 }

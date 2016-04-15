@@ -26,7 +26,9 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
+import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -113,16 +115,20 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 
 		Table result = table.select("a, b, Null(INT), Null(STRING) === ''");
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected;
-		if (getConfig().getNullCheck()) {
-			expected = "1,0,null,null";
+		try {
+			DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+			if (!getConfig().getNullCheck()) {
+				fail("Exception expected if null check is disabled.");
+			}
+			List<Row> results = ds.collect();
+			String expected = "1,0,null,null";
+			compareResultAsText(results, expected);
 		}
-		else {
-			expected = "1,0,-1,true";
+		catch (CodeGenException e) {
+			if (getConfig().getNullCheck()) {
+				throw e;
+			}
 		}
-		compareResultAsText(results, expected);
 	}
 
 }
