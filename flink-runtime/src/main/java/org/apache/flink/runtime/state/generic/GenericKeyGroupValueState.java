@@ -16,38 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.generic;
 
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.io.IOException;
 
-public class KeyGroupValueState<K, N, V> extends KeyGroupKVState<K, N, ValueState<V>, ValueStateDescriptor<V>> implements ValueState<V> {
+public class GenericKeyGroupValueState<K, T, N> extends GenericKeyGroupKVState<K, T, N, ValueState<T>> implements ValueState<T> {
 
-	public KeyGroupValueState(
-		KeyGroupStateBackend backend,
-		KeyGroupAssigner<K> keyGroupAssigner,
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<ValueState<V>, ?> stateDescriptor) {
-		super(backend, keyGroupAssigner, namespaceSerializer, stateDescriptor);
+	public GenericKeyGroupValueState(ValueStateDescriptor<T> stateDescriptor, TypeSerializer<N> namespaceSerializer) {
+		super(stateDescriptor, namespaceSerializer);
 	}
 
 	@Override
-	public V value() throws IOException {
-		return state.value();
+	public T value() throws IOException {
+		if (state != null) {
+			return state.value();
+		} else {
+			throw new RuntimeException("Could not retrieve the state's value, because the state has not been set.");
+		}
 	}
 
 	@Override
-	public void update(V value) throws IOException {
-		state.update(value);
+	public void update(T value) throws IOException {
+		if (state != null) {
+			state.update(value);
+		} else {
+			throw new RuntimeException("Could not update the state's value, because the state has not been set.");
+		}
 	}
 
 	@Override
 	public void clear() {
-		state.clear();
+		if (state != null) {
+			state.clear();
+		} else {
+			throw new RuntimeException("Could not clear the state, because the state has not been set.");
+		}
 	}
 }

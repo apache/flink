@@ -24,16 +24,21 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Collection;
-import java.util.Map;
 
-public interface KeyGroupStateBackend<KEY> {
+public interface PartitionedStateBackend<KEY> {
+	/**
+	 * Closes the state backend, releasing all internal resources, but does not delete any persistent
+	 * checkpoint data.
+	 *
+	 * @throws Exception Exceptions can be forwarded and will be logged by the system
+	 */
 	void close() throws Exception;
 
 	void dispose();
 
 	<S extends PartitionedState> void dispose(StateDescriptor<S, ?> stateDescriptor);
 
-	void setCurrentKey(KEY key) throws Exception;
+	void setCurrentKey(KEY key);
 
 	KEY getCurrentKey();
 
@@ -48,9 +53,9 @@ public interface KeyGroupStateBackend<KEY> {
 		final TypeSerializer<N> namespaceSerializer,
 		final StateDescriptor<S, ?> stateDescriptor) throws Exception;
 
-	Map<Integer, PartitionedStateSnapshot> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception;
+	PartitionedStateSnapshot snapshotPartitionedState(long checkpointId, long timestamp) throws Exception;
 
-	void restorePartitionedState(Map<Integer, PartitionedStateSnapshot> partitionedStateSnapshots, long recoveryTimestamp) throws Exception;
+	void restorePartitionedState(PartitionedStateSnapshot partitionedStateSnapshot, long recoveryTimestamp) throws Exception;
 
 	void notifyCompletedCheckpoint(long checkpointId) throws Exception;
 }

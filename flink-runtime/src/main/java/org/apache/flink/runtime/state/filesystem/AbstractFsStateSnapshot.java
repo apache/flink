@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -39,7 +39,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
  */
-public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
+public abstract class AbstractFsStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, PartitionedFsStateBackend<K>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -77,11 +77,11 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 
 	}
 
-	public abstract KvState<K, N, S, SD, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, SV>> stateMap);
+	public abstract KvState<K, N, S, SD, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, SV>> stateMap);
 
 	@Override
-	public KvState<K, N, S, SD, FsStateBackend> restoreState(
-		FsStateBackend stateBackend,
+	public KvState<K, N, S, SD, PartitionedFsStateBackend<K>> restoreState(
+		PartitionedFsStateBackend<K> stateBackend,
 		final TypeSerializer<K> keySerializer,
 		ClassLoader classLoader,
 		long recoveryTimestamp) throws Exception {
@@ -96,7 +96,7 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 		}
 
 		// state restore
-		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
+		try (FSDataInputStream inStream = stateBackend.getFsStateBackend().getFileSystem().open(getFilePath())) {
 			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(new DataInputStream(inStream));
 
 

@@ -18,8 +18,5 @@
 
 package org.apache.flink.api.common.state;
 
-import java.io.Serializable;
-
-public interface KeyGroupAssigner<K> extends Serializable {
-	int getKeyGroupIndex(K key);
+public interface PartitionedState extends State {
 }

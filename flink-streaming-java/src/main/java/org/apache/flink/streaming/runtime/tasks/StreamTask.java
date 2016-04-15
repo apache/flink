@@ -21,24 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousKvStateSnapshot;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
-import org.apache.flink.runtime.state.DeserializationStateBackendFactory;
 import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.KeyGroupStateBackend;
-import org.apache.flink.runtime.state.KeyGroupState;
+import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -446,7 +437,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			try {
 				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 				final StreamOperatorState[] states = lazyRestoreState.getState(userClassLoader);
-				final List<Map<Integer, KeyGroupState>> keyGroupStates = new ArrayList<Map<Integer, KeyGroupState>>(allOperators.length);
+				final List<Map<Integer, PartitionedStateSnapshot>> keyGroupStates = new ArrayList<Map<Integer, PartitionedStateSnapshot>>(allOperators.length);
 
 				// be GC friendly
 				lazyRestoreState = null;
@@ -455,11 +446,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				for (Map.Entry<Integer, ChainedKeyGroupState> lazyRestoreKeyGroupState: lazyRestoreKeyGroupStates.entrySet()) {
 					int keyGroupId = lazyRestoreKeyGroupState.getKey();
 
-					Map<Integer, KeyGroupState> chainedKeyGroupStates = lazyRestoreKeyGroupState.getValue().getState(getUserCodeClassLoader());
+					Map<Integer, PartitionedStateSnapshot> chainedKeyGroupStates = lazyRestoreKeyGroupState.getValue().getState(getUserCodeClassLoader());
 
-					for (Map.Entry<Integer, KeyGroupState> chainedKeyGroupState: chainedKeyGroupStates.entrySet()) {
+					for (Map.Entry<Integer, PartitionedStateSnapshot> chainedKeyGroupState: chainedKeyGroupStates.entrySet()) {
 						int chainedIndex = chainedKeyGroupState.getKey();
-						Map<Integer, KeyGroupState> keyGroupState;
+						Map<Integer, PartitionedStateSnapshot> keyGroupState;
 
 						if (keyGroupStates.get(chainedIndex) == null) {
 							keyGroupState = new HashMap<>();
@@ -477,7 +468,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				for (int i = 0; i < states.length; i++) {
 					StreamOperatorState state = states[i];
 					StreamOperator<?> operator = allOperators[i];
-					Map<Integer, KeyGroupState> keyGroupState = keyGroupStates.get(i);
+					Map<Integer, PartitionedStateSnapshot> keyGroupState = keyGroupStates.get(i);
 
 					if (operator != null) {
 						if (state != null) {
@@ -548,16 +539,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						}
 
 						// snapshot kv state
-						Map<Integer, KeyGroupState> keyGroupStates = operator.snapshotKvState(
-							this.getIndexInSubtaskGroup(),
+						Map<Integer, PartitionedStateSnapshot> keyGroupStates = operator.snapshotKvState(
 							checkpointId,
 							timestamp);
 
 						if (keyGroupStates != null) {
-							for (KeyGroupState keyGroupState : keyGroupStates.values()) {
+							for (PartitionedStateSnapshot partitionedStateSnapshot : keyGroupStates.values()) {
 
-								if (keyGroupState != null) {
-									for (KvStateSnapshot<?, ?, ?, ?, ?> kvSnapshot : keyGroupState.values()) {
+								if (partitionedStateSnapshot != null) {
+									for (KvStateSnapshot<?, ?, ?, ?, ?> kvSnapshot : partitionedStateSnapshot.values()) {
 										if (kvSnapshot instanceof AsynchronousKvStateSnapshot) {
 											hasAsyncStates = true;
 										}
@@ -569,7 +559,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						states[i] = state.isEmpty() ? null : state;
 
 						if (keyGroupStates != null) {
-							for (Map.Entry<Integer, KeyGroupState> keyGroupState : keyGroupStates.entrySet()) {
+							for (Map.Entry<Integer, PartitionedStateSnapshot> keyGroupState : keyGroupStates.entrySet()) {
 								ChainedKeyGroupState chainedKeyGroupState;
 
 								if (!chainedKeyGroupStates.containsKey(keyGroupState.getKey())) {
@@ -621,7 +611,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 								for (StateHandle<?> stateHandle: chainedKeyGroupStates.values()) {
 									ChainedKeyGroupState chainedKeyGroupState = (ChainedKeyGroupState) stateHandle;
-									for (KeyGroupState keyGroupState: chainedKeyGroupState.getState(getUserCodeClassLoader()).values()) {
+									for (PartitionedStateSnapshot keyGroupState: chainedKeyGroupState.getState(getUserCodeClassLoader()).values()) {
 										for (String key: keyGroupState.keySet()) {
 											if (keyGroupState.get(key) instanceof AsynchronousKvStateSnapshot) {
 												AsynchronousKvStateSnapshot<?, ?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) keyGroupState.get(key);
@@ -674,72 +664,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 			}
 		}
-	}
-	
-	// ------------------------------------------------------------------------
-	//  State backend
-	// ------------------------------------------------------------------------
-
-	private StateBackendFactory<?> createStateBackendFactory() {
-		byte[] serializedStateBackend = configuration.getSerializedStateBackend();
-
-		if (serializedStateBackend != null) {
-			LOG.info("Using user-defined state backend.");
-			return new DeserializationStateBackendFactory(serializedStateBackend, userClassLoader);
-		} else {
-			// see if we have a backend specified in the configuration
-			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
-			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
-
-			if (backendName == null) {
-				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
-				backendName = "jobmanager";
-			}
-
-			backendName = backendName.toLowerCase();
-			switch (backendName) {
-				case "jobmanager":
-					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					return new MemoryStateBackendFactory();
-
-				case "filesystem":
-					LOG.info("State backend is set to file system.");
-					return new FsStateBackendFactory();
-
-				default:
-					try {
-						@SuppressWarnings("rawtypes")
-						Class<? extends StateBackendFactory> clazz =
-							Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
-
-						return (StateBackendFactory<?>) clazz.newInstance();
-					} catch (ClassNotFoundException e) {
-						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
-					} catch (ClassCastException e) {
-						throw new IllegalConfigurationException("The class configured under '" +
-							ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
-							backendName + ')');
-					} catch (Throwable t) {
-						throw new IllegalConfigurationException("Cannot create configured state backend", t);
-					}
-			}
-		}
-	}
-
-	public AbstractStateBackend createStateBackend(String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
-		KeyGroupAssigner<?> keyGroupAssigner = configuration.getKeyGroupAssigner(userClassLoader);
-		Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
-
-		StateBackendFactory<?> stateBackendFactory = createStateBackendFactory();
-
-		KeyGroupStateBackend backend = new KeyGroupStateBackend(
-			keyGroupAssigner,
-			stateBackendFactory,
-			flinkConfig);
-
-		backend.initializeForJob(getEnvironment(), operatorIdentifier, keySerializer);
-
-		return backend;
 	}
 
 	/**

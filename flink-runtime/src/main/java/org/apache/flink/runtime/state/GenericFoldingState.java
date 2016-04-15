@@ -34,7 +34,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBackend, W extends ValueState<ACC> & KvState<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend>>
+public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateBackend<K>, W extends ValueState<ACC> & KvState<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend>>
 	implements FoldingState<T, ACC>, KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
 
 	private final W wrappedState;
@@ -97,7 +97,7 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 		wrappedState.clear();
 	}
 
-	private static class Snapshot<K, N, T, ACC, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
+	private static class Snapshot<K, N, T, ACC, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> {
 		private static final long serialVersionUID = 1L;
 
 		private final KvStateSnapshot<K, N, ValueState<ACC>, ValueStateDescriptor<ACC>, Backend> wrappedSnapshot;

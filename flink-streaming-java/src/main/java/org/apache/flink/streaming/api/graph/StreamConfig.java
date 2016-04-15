@@ -440,7 +440,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public KeyGroupAssigner<?> getKeyGroupAssigner(ClassLoader cl) {
+	public <K> KeyGroupAssigner<K> getKeyGroupAssigner(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, KEY_GROUP_ASSIGNER, cl);
 		} catch (Exception e) {

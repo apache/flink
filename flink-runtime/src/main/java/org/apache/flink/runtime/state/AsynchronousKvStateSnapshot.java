@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,7 +34,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <SD> The type of the {@link StateDescriptor}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public abstract class AsynchronousKvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, S, SD, Backend> {
+public abstract class AsynchronousKvStateSnapshot<K, N, S extends PartitionedState, SD extends StateDescriptor<S, ?>, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, S, SD, Backend> {
 	private static final long serialVersionUID = 1L;
 
 	/**

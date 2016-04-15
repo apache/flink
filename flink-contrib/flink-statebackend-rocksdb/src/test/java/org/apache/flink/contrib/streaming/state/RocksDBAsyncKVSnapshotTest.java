@@ -28,6 +28,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.OneShotLatch;
@@ -36,12 +38,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ChainedKeyGroupState;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -115,6 +116,8 @@ public class RocksDBAsyncKVSnapshotTest {
 
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
 
+		streamConfig.setKeyGroupAssigner(new HashKeyGroupAssigner<String>(1));
+
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 			testHarness.jobConfig,
 			testHarness.taskConfig,
@@ -139,11 +142,6 @@ public class RocksDBAsyncKVSnapshotTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskState);
-				StreamTaskState stateList = (StreamTaskState) state;
-
-				// should be only one k/v state
-				StreamOperatorState taskState = stateList.getState(this.getUserClassLoader())[0];
 				assertEquals(1, kvStates.size());
 
 				// we now know that the checkpoint went through

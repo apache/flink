@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.AbstractHeapState;
@@ -39,8 +39,8 @@ import java.util.Map;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractMemState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		extends AbstractHeapState<K, N, SV, S, SD, MemoryStateBackend> {
+public abstract class AbstractMemState<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>>
+		extends AbstractHeapState<K, N, SV, S, SD, PartitionedMemoryStateBackend<K>> {
 
 	public AbstractMemState(TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
@@ -57,10 +57,10 @@ public abstract class AbstractMemState<K, N, SV, S extends State, SD extends Sta
 		super(keySerializer, namespaceSerializer, stateSerializer, stateDesc, state);
 	}
 
-	public abstract KvStateSnapshot<K, N, S, SD, MemoryStateBackend> createHeapSnapshot(byte[] bytes);
+	public abstract KvStateSnapshot<K, N, S, SD, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes);
 
 	@Override
-	public KvStateSnapshot<K, N, S, SD, MemoryStateBackend> snapshot(long checkpointId, long timestamp) throws Exception {
+	public KvStateSnapshot<K, N, S, SD, PartitionedMemoryStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
 
 		DataOutputSerializer out = new DataOutputSerializer(Math.max(size() * 16, 16));
 

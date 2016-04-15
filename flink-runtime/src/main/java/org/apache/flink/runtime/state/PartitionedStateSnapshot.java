@@ -26,12 +26,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-public class KeyGroupState implements Serializable {
+public class PartitionedStateSnapshot implements Serializable {
 	private static final long serialVersionUID = 7043475572141783706L;
 
 	private final Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> namedKvStateSnapshots;
 
-	public KeyGroupState() {
+	public PartitionedStateSnapshot() {
 		namedKvStateSnapshots = new HashMap<>();
 	}
 

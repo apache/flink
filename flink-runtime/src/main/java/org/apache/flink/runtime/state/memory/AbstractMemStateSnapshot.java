@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KvState;
@@ -36,7 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the value in the snapshot state.
  */
-public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
+public abstract class AbstractMemStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, SD, PartitionedMemoryStateBackend<K>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -76,11 +76,11 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 		this.data = data;
 	}
 
-	public abstract KvState<K, N, S, SD, MemoryStateBackend> createMemState(HashMap<N, Map<K, SV>> stateMap);
+	public abstract KvState<K, N, S, SD, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, SV>> stateMap);
 
 	@Override
-	public KvState<K, N, S, SD, MemoryStateBackend> restoreState(
-		MemoryStateBackend stateBackend,
+	public KvState<K, N, S, SD, PartitionedMemoryStateBackend<K>> restoreState(
+		PartitionedMemoryStateBackend<K> stateBackend,
 		final TypeSerializer<K> keySerializer,
 		ClassLoader classLoader, long recoveryTimestamp) throws Exception {
 

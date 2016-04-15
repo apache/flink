@@ -33,7 +33,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend, W extends ValueState<T> & KvState<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend>>
+public class GenericReducingState<K, N, T, Backend extends PartitionedStateBackend<K>, W extends ValueState<T> & KvState<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend>>
 	implements ReducingState<T>, KvState<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> {
 
 	private final W wrappedState;
@@ -100,7 +100,7 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 		wrappedState.clear();
 	}
 
-	private static class Snapshot<K, N, T, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> {
+	private static class Snapshot<K, N, T, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> {
 		private static final long serialVersionUID = 1L;
 
 		private final KvStateSnapshot<K, N, ValueState<T>, ValueStateDescriptor<T>, Backend> wrappedSnapshot;

@@ -35,7 +35,7 @@ import java.util.Collections;
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W extends ValueState<ArrayList<T>> & KvState<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend>>
+public class GenericListState<K, N, T, Backend extends PartitionedStateBackend<K>, W extends ValueState<ArrayList<T>> & KvState<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend>>
 	implements ListState<T>, KvState<K, N, ListState<T>, ListStateDescriptor<T>, Backend> {
 
 	private final W wrappedState;
@@ -106,7 +106,7 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		wrappedState.clear();
 	}
 
-	private static class Snapshot<K, N, T, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, ListState<T>, ListStateDescriptor<T>, Backend> {
+	private static class Snapshot<K, N, T, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, ListState<T>, ListStateDescriptor<T>, Backend> {
 		private static final long serialVersionUID = 1L;
 
 		private final KvStateSnapshot<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend> wrappedSnapshot;

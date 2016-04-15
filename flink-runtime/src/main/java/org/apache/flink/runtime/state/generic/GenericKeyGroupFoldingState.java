@@ -16,38 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.generic;
 
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-public class KeyGroupFoldingState<K, N, V, ACC>
-	extends KeyGroupKVState<K, N, FoldingState<V, ACC>, FoldingStateDescriptor<V, ACC>>
-	implements FoldingState<V, ACC> {
+public class GenericKeyGroupFoldingState<K, T, ACC, N> extends GenericKeyGroupKVState<K, ACC, N, FoldingState<T, ACC>> implements FoldingState<T, ACC> {
 
-	public KeyGroupFoldingState(
-		KeyGroupStateBackend backend,
-		KeyGroupAssigner<K> keyGroupAssigner,
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<FoldingState<V, ACC>, ?> stateDescriptor) {
-		super(backend, keyGroupAssigner, namespaceSerializer, stateDescriptor);
+	public GenericKeyGroupFoldingState(FoldingStateDescriptor<T, ACC> stateDescriptor, TypeSerializer<N> namespaceSerializer) {
+		super(stateDescriptor, namespaceSerializer);
 	}
 
 	@Override
 	public ACC get() throws Exception {
-		return state.get();
+		if (state != null) {
+			return state.get();
+		} else {
+			throw new RuntimeException("Could not retrieve the state's value, because the state has not been set.");
+		}
 	}
 
 	@Override
-	public void add(V value) throws Exception {
-		state.add(value);
+	public void add(T value) throws Exception {
+		if (state != null) {
+			state.add(value);
+		} else {
+			throw new RuntimeException("Could not update the state's value, because the state has not been set.");
+		}
 	}
 
 	@Override
 	public void clear() {
-		state.clear();
+		if (state != null) {
+			state.clear();
+		} else {
+			throw new RuntimeException("Could not clear the state, because the state has not been set.");
+		}
 	}
 }

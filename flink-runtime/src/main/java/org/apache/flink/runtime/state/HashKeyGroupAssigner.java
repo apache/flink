@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.KeyGroupAssigner;
-import org.apache.flink.runtime.util.MathUtils;
+import org.apache.flink.util.MathUtils;
 
 /**
  * Hash based key group assigner
@@ -38,7 +38,7 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 	}
 
 	@Override
-	public int getKeyGroupID(K key) {
+	public int getKeyGroupIndex(K key) {
 		if (key == null) {
 			return 0;
 		} else {

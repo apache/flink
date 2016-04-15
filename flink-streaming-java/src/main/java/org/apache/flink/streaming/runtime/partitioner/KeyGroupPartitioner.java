@@ -53,7 +53,7 @@ public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> {
 		} catch (Exception e) {
 			throw new RuntimeException("Could not extract key from " + record.getInstance().getValue(), e);
 		}
-		returnArray[0] = keyGroupAssigner.getKeyGroupID(key) % numberOfOutputChannels;
+		returnArray[0] = keyGroupAssigner.getKeyGroupIndex(key) % numberOfOutputChannels;
 
 		return returnArray;
 	}

@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.state;
+package org.apache.flink.runtime.state;
 
-import java.io.Serializable;
-
-public interface KeyGroupAssigner<K> extends Serializable {
-	int getKeyGroupIndex(K key);
+public class UnionStateSnapshot {
 }

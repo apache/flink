@@ -96,7 +96,7 @@ public class MemFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, MemoryStateBackend> createHeapSnapshot(byte[] bytes) {
+	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
 	}
 
@@ -111,7 +111,7 @@ public class MemFoldingState<K, N, T, ACC>
 		}
 
 		@Override
-		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, MemoryStateBackend> createMemState(HashMap<N, Map<K, ACC>> stateMap) {
+		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, ACC>> stateMap) {
 			return new MemFoldingState<>(keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

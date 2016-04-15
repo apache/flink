@@ -18,19 +18,12 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.PartitionedStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
@@ -237,10 +230,8 @@ public class FsStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
-		super.initializeForJob(env, operatorIdentifier, keySerializer);
+	public void initializeForJob(Environment env, String operatorIdentifier) throws Exception {
+		super.initializeForJob(env, operatorIdentifier);
 
 		Path dir = new Path(basePath, env.getJobID().toString());
 
@@ -250,6 +241,11 @@ public class FsStateBackend extends AbstractStateBackend {
 		filesystem.mkdirs(dir);
 
 		checkpointDirectory = dir;
+	}
+
+	@Override
+	public <K> PartitionedStateBackend<K> createKeyedStateBackend(TypeSerializer<K> keySerializer) {
+		return new PartitionedFsStateBackend<K>(keySerializer, classLoader, this);
 	}
 
 	@Override
@@ -273,27 +269,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
-
-	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
-		return new FsValueState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		return new FsListState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		return new FsReducingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
 
 	@Override
 	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(

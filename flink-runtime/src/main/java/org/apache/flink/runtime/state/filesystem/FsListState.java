@@ -52,7 +52,7 @@ public class FsListState<K, N, V>
 	 * and can create a default state value.
 	 * @param backend The file system state backend backing snapshots of this state
 	 */
-	public FsListState(FsStateBackend backend,
+	public FsListState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		ListStateDescriptor<V> stateDesc) {
@@ -71,7 +71,7 @@ public class FsListState<K, N, V>
 	 * @param state The map of key/value pairs to initialize the state with.
 	 * @param backend The file system state backend backing snapshots of this state
 	 */
-	public FsListState(FsStateBackend backend,
+	public FsListState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		ListStateDescriptor<V> stateDesc,
@@ -117,7 +117,7 @@ public class FsListState<K, N, V>
 	}
 	
 	@Override
-	public KvStateSnapshot<K, N, ListState<V>, ListStateDescriptor<V>, FsStateBackend> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, ListState<V>, ListStateDescriptor<V>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), new ArrayListSerializer<>(stateDesc.getSerializer()), stateDesc, filePath);
 	}
 
@@ -133,7 +133,7 @@ public class FsListState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ListState<V>, ListStateDescriptor<V>, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, ArrayList<V>>> stateMap) {
+		public KvState<K, N, ListState<V>, ListStateDescriptor<V>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, ArrayList<V>>> stateMap) {
 			return new FsListState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

@@ -38,7 +38,7 @@ import java.io.IOException;
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @PublicEvolving
-public interface AppendingState<IN, OUT> extends State {
+public interface AppendingState<IN, OUT> extends PartitionedState {
 
 	/**
 	 * Returns the current value for the state. When the state is not

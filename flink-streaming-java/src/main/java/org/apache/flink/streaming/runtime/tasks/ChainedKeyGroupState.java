@@ -19,28 +19,28 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.commons.lang3.concurrent.ConcurrentException;
-import org.apache.flink.runtime.state.KeyGroupState;
+import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class ChainedKeyGroupState implements StateHandle<Map<Integer, KeyGroupState>> {
+public class ChainedKeyGroupState implements StateHandle<Map<Integer, PartitionedStateSnapshot>> {
 	private static final long serialVersionUID = -9207708192881175094L;
 
-	private final Map<Integer, KeyGroupState> keyGroupStates;
+	private final Map<Integer, PartitionedStateSnapshot> keyGroupStates;
 
 	public ChainedKeyGroupState(int maxChainedStates) {
 		this.keyGroupStates = new HashMap<>(maxChainedStates);
 	}
 
-	public void put(int chainIndex, KeyGroupState keyGroupState) {
-		keyGroupStates.put(chainIndex, keyGroupState);
+	public void put(int chainIndex, PartitionedStateSnapshot partitionedStateSnapshot) {
+		keyGroupStates.put(chainIndex, partitionedStateSnapshot);
 	}
 
 	@Override
-	public Map<Integer, KeyGroupState> getState(ClassLoader userCodeClassLoader) throws Exception {
+	public Map<Integer, PartitionedStateSnapshot> getState(ClassLoader userCodeClassLoader) {
 		return keyGroupStates;
 	}
 
@@ -49,19 +49,19 @@ public class ChainedKeyGroupState implements StateHandle<Map<Integer, KeyGroupSt
 
 		while (!keyGroupStates.isEmpty()) {
 			try {
-				Iterator<KeyGroupState> iterator = keyGroupStates.values().iterator();
+				Iterator<PartitionedStateSnapshot> iterator = keyGroupStates.values().iterator();
 
 				while (iterator.hasNext()) {
-					KeyGroupState keyGroupState = iterator.next();
-					keyGroupState.discardState();
+					PartitionedStateSnapshot partitionedStateSnapshot = iterator.next();
+					partitionedStateSnapshot.discardState();
 					iterator.remove();
 				}
 			} catch (ConcurrentException e) {
 				// fall through the loop
 			}
 		}
-		for (KeyGroupState keyGroupState: keyGroupStates.values()) {
-			keyGroupState.discardState();
+		for (PartitionedStateSnapshot partitionedStateSnapshot : keyGroupStates.values()) {
+			partitionedStateSnapshot.discardState();
 		}
 	}
 
@@ -69,8 +69,8 @@ public class ChainedKeyGroupState implements StateHandle<Map<Integer, KeyGroupSt
 	public long getStateSize() throws Exception {
 		int stateSize = 0;
 
-		for (KeyGroupState keyGroupState: keyGroupStates.values()) {
-			stateSize += keyGroupState.getStateSize();
+		for (PartitionedStateSnapshot partitionedStateSnapshot : keyGroupStates.values()) {
+			stateSize += partitionedStateSnapshot.getStateSize();
 		}
 
 		return stateSize;
