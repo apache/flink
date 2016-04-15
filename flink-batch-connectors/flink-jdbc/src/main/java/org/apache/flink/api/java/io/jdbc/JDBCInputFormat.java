@@ -95,7 +95,6 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	public void open(InputSplit inputSplit) throws IOException {
 		hasNext = true;
 		try {
-			//TODO is this performed once per Task Manager..?
 			establishConnection();
 			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
 			String query = queryTemplate;
@@ -119,7 +118,11 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		return splitColumnName != null;
 	}
 
+	/** Perform initialization of the JDBC connection. Done just once per parallel task */
 	private void establishConnection() throws SQLException, ClassNotFoundException {
+		if(dbConn!=null){
+			return;
+		}
 		Class.forName(drivername);
 		if (username == null) {
 			dbConn = DriverManager.getConnection(dbURL);
