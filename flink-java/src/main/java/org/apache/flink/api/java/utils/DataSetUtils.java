@@ -60,7 +60,7 @@ public final class DataSetUtils {
 	 * @param input the DataSet received as input
 	 * @return a data set containing tuples of subtask index, number of elements mappings.
 	 */
-	private static <T> DataSet<Tuple2<Integer, Long>> countElements(DataSet<T> input) {
+	public static <T> DataSet<Tuple2<Integer, Long>> countElementsPerPartition(DataSet<T> input) {
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Integer, Long>>() {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
@@ -68,7 +68,6 @@ public final class DataSetUtils {
 				for (T value : values) {
 					counter++;
 				}
-
 				out.collect(new Tuple2<>(getRuntimeContext().getIndexOfThisSubtask(), counter));
 			}
 		});
@@ -83,7 +82,7 @@ public final class DataSetUtils {
 	 */
 	public static <T> DataSet<Tuple2<Long, T>> zipWithIndex(DataSet<T> input) {
 
-		DataSet<Tuple2<Integer, Long>> elementCount = countElements(input);
+		DataSet<Tuple2<Integer, Long>> elementCount = countElementsPerPartition(input);
 
 		return input.mapPartition(new RichMapPartitionFunction<T, Tuple2<Long, T>>() {
 

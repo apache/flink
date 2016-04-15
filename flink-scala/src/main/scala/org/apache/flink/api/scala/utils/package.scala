@@ -48,6 +48,20 @@ package object utils {
   implicit class DataSetUtils[T: TypeInformation : ClassTag](val self: DataSet[T]) {
 
     /**
+      * Method that goes over all the elements in each partition in order to retrieve
+      * the total number of elements.
+      *
+      * @return a data set of tuple2 consisting of (subtask index, number of elements mappings)
+      */
+    def countElementsPerPartition: DataSet[(Int, Long)] = {
+      implicit val typeInfo = createTuple2TypeInformation[Int, Long](
+        BasicTypeInfo.INT_TYPE_INFO.asInstanceOf[TypeInformation[Int]],
+        BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
+      )
+      wrap(jutils.countElementsPerPartition(self.javaSet)).map { t => (t.f0.toInt, t.f1.toLong)}
+    }
+
+    /**
      * Method that takes a set of subtask index, total number of elements mappings
      * and assigns ids to all the elements from the input data set.
      *

@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,8 +30,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -45,12 +45,24 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testCountElementsPerPartition() throws Exception {
+	 	ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	 	long expectedSize = 100L;
+	 	DataSet<Long> numbers = env.generateSequence(0, expectedSize - 1);
+
+	 	DataSet<Tuple2<Integer, Long>> ds = DataSetUtils.countElementsPerPartition(numbers);
+
+	 	Assert.assertEquals(env.getParallelism(), ds.count());
+	 	Assert.assertEquals(expectedSize, ds.sum(1).collect().get(0).f1.longValue());
+	}
+
+	@Test
 	public void testZipWithIndex() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		long expectedSize = 100L;
 		DataSet<Long> numbers = env.generateSequence(0, expectedSize - 1);
 
-		List<Tuple2<Long, Long>> result = Lists.newArrayList(DataSetUtils.zipWithIndex(numbers).collect());
+		List<Tuple2<Long, Long>> result = new ArrayList<>(DataSetUtils.zipWithIndex(numbers).collect());
 
 		Assert.assertEquals(expectedSize, result.size());
 		// sort result by created index
@@ -79,7 +91,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 			}
 		});
 
-		Set<Long> result = Sets.newHashSet(ids.collect());
+		Set<Long> result = new HashSet<>(ids.collect());
 
 		Assert.assertEquals(expectedSize, result.size());
 	}
