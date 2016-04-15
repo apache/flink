@@ -84,8 +84,9 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		Preconditions.checkArgument(distribution == null || pMethod == PartitionMethod.RANGE, "Customized data distribution is only neccessary for range partition.");
 		
 		if (distribution != null) {
-			Preconditions.checkArgument(pKeys.getNumberOfKeyFields() <= distribution.getNumberOfFields(), "The number of key fields in range partitioner should be less than the number in the distribution.");
-			Preconditions.checkArgument(Arrays.equals(pKeys.getKeyFieldTypes(), Arrays.copyOfRange(distribution.getKeyTypes(), 0, pKeys.getNumberOfKeyFields())), "The type array of the partition key should be prefix of the type array of the distribution.");
+			Preconditions.checkArgument(pKeys.getNumberOfKeyFields() <= distribution.getNumberOfFields(), "The distribution must provide at least as many fields as flat key fields are specified.");
+			Preconditions.checkArgument(Arrays.equals(pKeys.getKeyFieldTypes(), Arrays.copyOfRange(distribution.getKeyTypes(), 0, pKeys.getNumberOfKeyFields())),
+					"The types of the flat key fields must be a equal of the types of the fields of the distribution.");
 		}
 		
 		if (customPartitioner != null) {

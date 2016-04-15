@@ -100,7 +100,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 
 			TestDistribution dist1 = new TestDistribution(1);
 			TestDistribution dist2 = new TestDistribution(1);
-			// test compatible range partitioning
+			// test compatible range partitioning with one ordering
 			{
 				Ordering ordering1 = new Ordering();
 				for (int field : keysLeft) {
@@ -110,6 +110,26 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				for (int field : keysRight) {
 					ordering2.appendOrdering(field, null, Order.ASCENDING);
 				}
+
+				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
+				reqLeft.setRangePartitioned(ordering1, dist1);
+				RequestedGlobalProperties reqRight = new RequestedGlobalProperties();
+				reqRight.setRangePartitioned(ordering2, dist2);
+
+				GlobalProperties propsLeft = new GlobalProperties();
+				propsLeft.setRangePartitioned(ordering1, dist1);
+				GlobalProperties propsRight = new GlobalProperties();
+				propsRight.setRangePartitioned(ordering2, dist2);
+				assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+			}
+			// test compatible range partitioning with two orderings
+			{
+				Ordering ordering1 = new Ordering();
+				ordering1.appendOrdering(keysLeft.get(0), null, Order.DESCENDING);
+				ordering1.appendOrdering(keysLeft.get(1), null, Order.ASCENDING);
+				Ordering ordering2 = new Ordering();
+				ordering2.appendOrdering(keysRight.get(0), null, Order.DESCENDING);
+				ordering2.appendOrdering(keysRight.get(1), null, Order.ASCENDING);
 
 				RequestedGlobalProperties reqLeft = new RequestedGlobalProperties();
 				reqLeft.setRangePartitioned(ordering1, dist1);
