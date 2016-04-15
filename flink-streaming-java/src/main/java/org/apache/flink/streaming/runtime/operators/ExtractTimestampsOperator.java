@@ -57,7 +57,7 @@ public class ExtractTimestampsOperator<T>
 			registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		}
 
-		currentWatermark = -1L;
+		currentWatermark = Long.MIN_VALUE;
 	}
 
 	@Override

@@ -133,7 +133,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * To keep track of the current watermark so that we can immediately fire if a trigger
 	 * registers an event time callback for a timestamp that lies in the past.
 	 */
-	protected transient long currentWatermark = -1L;
+	protected transient long currentWatermark = Long.MIN_VALUE;
 
 	protected transient Context context = new Context(null, null);
 
@@ -216,6 +216,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindowsByKey = new HashMap<>();
 		}
+
+		currentWatermark = Long.MIN_VALUE;
+
 	}
 
 	@Override
