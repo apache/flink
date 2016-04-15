@@ -18,10 +18,12 @@
 
 package org.apache.flink.ml.nn
 
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.Classification
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
+import org.apache.flink.ml.metrics.distances.{ManhattanDistanceMetric,
+SquaredEuclideanDistanceMetric}
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -40,23 +42,25 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
-  it should "calculate kNN join correctly" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+  val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // prepare data
-    val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
-    val testingSet = env.fromElements(DenseVector(0.0, 0.0))
+  // prepare data
+  val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
+  val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
-    // calculate answer
-    val answer = Classification.trainingData.map {
-      v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
-    }.sortBy(_._2).take(3).map(_._1).toArray
+  // calculate answer
+  val answer = Classification.trainingData.map {
+    v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
+  }.sortBy(_._2).take(3).map(_._1).toArray
+
+  it should "calculate kNN join correctly without using a Quadtree" in {
 
     val knn = KNN()
       .setK(3)
       .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
-      .setUseQuadTree(true)
+      .setUseQuadTree(false)
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
 
     // run knn join
     knn.fit(trainingSet)
@@ -66,4 +70,39 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
   }
+
+  it should "calculate kNN join correctly with a Quadtree" in {
+
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(2) // blocks set to 2 to make sure initial quadtree box is partitioned
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setUseQuadTree(true)
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+
+    // run knn join
+    knn.fit(trainingSet)
+    val result = knn.predict(testingSet).collect()
+
+    result.size should be(1)
+    result.head._1 should be(DenseVector(0.0, 0.0))
+    result.head._2 should be(answer)
+  }
+
+  it should "throw an exception when using a Quadtree with an incompatible metric" in {
+    intercept[IllegalArgumentException] {
+      val knn = KNN()
+        .setK(3)
+        .setBlocks(10)
+        .setDistanceMetric(ManhattanDistanceMetric())
+        .setUseQuadTree(true)
+
+      // run knn join
+      knn.fit(trainingSet)
+      val result = knn.predict(testingSet).collect()
+
+    }
+  }
+
 }
+

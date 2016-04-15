@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.nn.util
+package org.apache.flink.ml.nn
 
 import org.apache.flink.ml.math.{Breeze, Vector}
 import Breeze._

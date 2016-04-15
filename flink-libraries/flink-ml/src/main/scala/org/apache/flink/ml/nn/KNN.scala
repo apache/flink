@@ -20,18 +20,15 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-//import org.apache.flink.api.scala.DataSetUtils._
 import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
-import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
-DistanceMetric, EuclideanDistanceMetric}
+import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric, DistanceMetric,
+EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
-
-import org.apache.flink.ml.nn.util.QuadTree
 
 import scala.collection.immutable.Vector
 import scala.collection.mutable
@@ -62,15 +59,29 @@ import scala.reflect.ClassTag
   * - [[org.apache.flink.ml.nn.KNN.K]]
   * Sets the K which is the number of selected points as neighbors. (Default value: '''5''')
   *
+  * - [[org.apache.flink.ml.nn.KNN.DistanceMetric]]
+  * Sets the distance metric we use to calculate the distance between two points. If no metric is
+  * specified, then [[org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric]] is used.
+  * (Default value: '''EuclideanDistanceMetric()''')
+  *
   * - [[org.apache.flink.ml.nn.KNN.Blocks]]
   * Sets the number of blocks into which the input data will be split. This number should be set
   * at least to the degree of parallelism. If no value is specified, then the parallelism of the
   * input [[DataSet]] is used as the number of blocks. (Default value: '''None''')
   *
-  * - [[org.apache.flink.ml.nn.KNN.DistanceMetric]]
-  * Sets the distance metric we use to calculate the distance between two points. If no metric is
-  * specified, then [[org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric]] is used.
-  * (Default value: '''EuclideanDistanceMetric()''')
+  * - [[org.apache.flink.ml.nn.KNN.UseQuadTreeParam]]
+  * A boolean variable that whether or not to use a Quadtree to partition the training set
+  * to potentially simplify the KNN search.  If no value is specified, the code will
+  * automatically decide whether or not to use a Quadtree.  Use of a Quadtree scales well
+  * with the number of training and testing points, though poorly with the dimension.
+  * (Default value:  ```None```)
+  *
+  * - [[org.apache.flink.ml.nn.KNN.SizeHint]]
+  * Specifies whether the training set or test set is small to optimize the cross
+  * product operation needed for the KNN search.  If the training set is small
+  * this should be `CrossHint.FIRST_IS_SMALL` and set to `CrossHint.SECOND_IS_SMALL`
+  * if the test set is small.
+  * (Default value:  ```None```)
   *
   */
 
@@ -110,6 +121,10 @@ class KNN extends Predictor[KNN] {
    * Sets the Boolean variable that decides whether to use the QuadTree or not
    */
   def setUseQuadTree(UseQuadTree: Boolean): KNN = {
+    if (UseQuadTree){
+      require(parameters(DistanceMetric).isInstanceOf[SquaredEuclideanDistanceMetric] ||
+        parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric])
+    }
     parameters.add(UseQuadTreeParam, UseQuadTree)
     this
   }
@@ -224,13 +239,7 @@ object KNN {
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
-                    if (metric.isInstanceOf[EuclideanDistanceMetric] ||
-                      metric.isInstanceOf[SquaredEuclideanDistanceMetric]){
                       knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
-                    } else {
-                      throw new IllegalArgumentException(s" Error: metric must be" +
-                        s" Euclidean or SquaredEuclidean!")
-                    }
                   } else {
                     knnQueryBasic(training.values, testing.values, k, metric, queue, out)
                   }
@@ -279,8 +288,8 @@ object KNN {
 
     val minVecTrain = MinArr.map(i => training.map(x => x(i)).min - 0.01)
     val minVecTest = MinArr.map(i => testing.map(x => x._2(i)).min - 0.01)
-    val maxVecTrain = MaxArr.map(i => training.map(x => x(i)).min + 0.01)
-    val maxVecTest = MaxArr.map(i => testing.map(x => x._2(i)).min + 0.01)
+    val maxVecTrain = MaxArr.map(i => training.map(x => x(i)).max + 0.01)
+    val maxVecTest = MaxArr.map(i => testing.map(x => x._2(i)).max + 0.01)
 
     val MinVec = DenseVector(MinArr.map(i => Array(minVecTrain(i), minVecTest(i)).min))
     val MaxVec = DenseVector(MinArr.map(i => Array(maxVecTrain(i), maxVecTest(i)).max))
