@@ -1,6 +1,6 @@
 ---
 mathjax: include
-title: Multiple linear regression
+title: Neural Networks
 
 # Sub navigation
 sub-nav-group: batch
