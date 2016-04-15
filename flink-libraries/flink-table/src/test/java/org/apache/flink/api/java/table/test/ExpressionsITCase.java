@@ -27,7 +27,9 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
+import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
+import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -104,7 +106,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test
 	public void testNullLiteral() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<>(1, 0));
@@ -114,16 +116,20 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 
 		Table result = table.select("a, b, Null(INT), Null(STRING) === ''");
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected;
-		if (getConfig().getNullCheck()) {
-			expected = "1,0,null,null";
+		try {
+			DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+			if (!config().getNullCheck()) {
+				fail("Exception expected if null check is disabled.");
+			}
+			List<Row> results = ds.collect();
+			String expected = "1,0,null,null";
+			compareResultAsText(results, expected);
 		}
-		else {
-			expected = "1,0,-1,true";
+		catch (CodeGenException e) {
+			if (config().getNullCheck()) {
+				throw e;
+			}
 		}
-		compareResultAsText(results, expected);
 	}
 
 }

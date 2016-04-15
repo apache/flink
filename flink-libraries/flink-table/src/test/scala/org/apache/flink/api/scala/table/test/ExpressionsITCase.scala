@@ -23,6 +23,7 @@ import java.util.Date
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.expressions.Null
 import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.expressions.Literal
@@ -30,6 +31,7 @@ import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -110,13 +112,21 @@ class ExpressionsITCase(
         Null(BasicTypeInfo.INT_TYPE_INFO),
         Null(BasicTypeInfo.STRING_TYPE_INFO) === "")
 
-    val expected = if (config.getNullCheck) {
-      "1,0,null,null"
-    } else {
-      "1,0,-1,true"
+    try {
+      val ds = t.toDataSet[Row]
+      if (!config.getNullCheck) {
+        fail("Exception expected if null check is disabled.")
+      }
+      val results = ds.collect()
+      val expected = "1,0,null,null"
+      TestBaseUtils.compareResultAsText(results.asJava, expected)
     }
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    catch {
+      case e: CodeGenException =>
+        if (config.getNullCheck) {
+          throw e
+        }
+    }
   }
 
   // Date literals not yet supported

@@ -19,13 +19,14 @@
 package org.apache.flink.api.scala.sql.test
 
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.plan.TranslationContext
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -42,23 +43,30 @@ class ExpressionsITCase(
   def testNullLiteral(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = getScalaTableEnvironment
-    TranslationContext.reset()
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT a, b, CAST(NULL AS INT), CAST(NULL AS VARCHAR) = '' FROM MyTable"
 
-    val ds = env.fromElements((1, 0))
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b)
+    val t = env.fromElements((1, 0))
+    tEnv.registerDataSet("MyTable", t, 'a, 'b)
 
     val result = tEnv.sql(sqlQuery)
 
-    val expected = if (getConfig.getNullCheck) {
-      "1,0,null,null"
-    } else {
-      "1,0,-1,true"
+    try {
+      val ds = result.toDataSet[Row]
+      if (!config.getNullCheck) {
+        fail("Exception expected if null check is disabled.")
+      }
+      val results = ds.collect()
+      val expected = "1,0,null,null"
+      TestBaseUtils.compareResultAsText(results.asJava, expected)
     }
-    val results = result.toDataSet[Row](getConfig).collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    catch {
+      case e: CodeGenException =>
+        if (config.getNullCheck) {
+          throw e
+        }
+    }
   }
 
 }
