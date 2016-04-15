@@ -37,7 +37,7 @@ import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.TableTable
+import org.apache.flink.api.table.plan.schema.{TransStreamTable, TableTable}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -98,8 +98,32 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     checkValidTableName(name)
 
-    val tableTable = new TableTable(table.getRelNode)
-    registerTableInternal(name, tableTable)
+    table.tableEnv match {
+      case e: BatchTableEnvironment =>
+        val tableTable = new TableTable(table.getRelNode)
+        registerTableInternal(name, tableTable)
+      case e: StreamTableEnvironment =>
+        val sTableTable = new TransStreamTable(table.getRelNode, true)
+        tables.add(name, sTableTable)
+    }
+
+  }
+
+  /**
+    * Replaces a registered Table with another Table under the same name.
+    * We use this method to replace a [[org.apache.flink.api.table.plan.schema.DataStreamTable]]
+    * with a [[org.apache.calcite.schema.TranslatableTable]].
+    *
+    * @param name
+    * @param table
+    */
+  protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
+
+    if (isRegistered(name)) {
+      tables.add(name, table)
+    } else {
+      throw new TableException(s"Table \'$name\' is not registered.")
+    }
   }
 
   /**

@@ -59,16 +59,18 @@ Note that the Table API is currently not part of the binary distribution. See li
 
 Table API
 ----------
-The Table API provides methods to apply relational operations on DataSets, both in Scala and Java.
+The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
 
-The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet`, converted into a `DataSet`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
+The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
 
-The following sections show by example how to use the Table API embedded in  the Scala and Java DataSet APIs.
+*Note that the only operations currently supported on streaming Tables are selection, filtering, and union.*
+
+The following sections show by example how to use the Table API embedded in the Scala and Java DataSet APIs.
 
 ### Scala Table API
 
 The Table API is enabled by importing `org.apache.flink.api.scala.table._`. This enables
-implicit conversions to convert a DataSet to a Table. The following example shows:
+implicit conversions to convert a `DataSet` or `DataStream` to a Table. The following example shows:
 
 - how a `DataSet` is converted to a `Table`,
 - how relational queries are specified, and 
@@ -111,6 +113,23 @@ val joined = input1.join(input2)
 {% endhighlight %}
 
 Notice, how the field names of a Table can be changed with `as()` or specified with `toTable()` when converting a DataSet to a Table. In addition, the example shows how to use Strings to specify relational expressions.
+
+Creating a `Table` from a `DataStream` works in a similar way.
+The following example shows how to convert a `DataStream` to a `Table` and filter it with the Table API.
+
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.table._
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tEnv = TableEnvironment.getTableEnvironment(env)
+
+val inputStream = env.addSource(...)
+val result = inputStream
+                .toTable(tEnv, 'a, 'b, 'c)
+                .filter('a === 3)
+val resultStream = result.toDataStream[Row]
+{% endhighlight %}
 
 Please refer to the Scaladoc (and Javadoc) for a full list of supported operations and a description of the expression syntax.
 
@@ -419,8 +438,8 @@ Only the types `LONG` and `STRING` can be casted to `DATE` and vice versa. A `LO
 SQL
 ----
 The Table API also supports embedded SQL queries.
-In order to use a `Table` or `DataSet` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name.
-A registered `Table` can be retrieved back from the `TableEnvironment` using the `scan()` method:
+In order to use a `Table`, `DataSet`, or `DataStream` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name.
+A registered Dataset `Table` can be retrieved back from the `TableEnvironment` using the `scan()` method and a registered DataStream `Table` can be retrieved using the `ingest()` method.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -452,9 +471,11 @@ val t = tableEnv.scan("MyTable")
 </div>
 </div>
 
-*Note: Table names are not allowed to follow the `^_DataSetTable_[0-9]+` pattern, as this is reserved for internal use only.*
+A DataStream `Table` can be registered in the `StreamTableEnvironment` using the correponding `registerDataStream` method.
 
-When registering a `DataSet`, one can also specify the field names of the table:
+*Note: DataSet Table names are not allowed to follow the `^_DataSetTable_[0-9]+` pattern and DataStream Tables are not allowed to follow the `^_DataStreamTable_[0-9]+` pattern, as these are reserved for internal use only.*
+
+When registering a `DataSet` or `DataStream`, one can also specify the field names of the table:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -492,7 +513,7 @@ tableEnv.registerTable("Orders", t)
 </div>
 </div>
 
-Registered tables can be used in SQL queries. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet` or used in subsequent Table API queries.
+Registered tables can be used in SQL queries. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet`, or `DataStream`, or used in subsequent Table API queries.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -523,6 +544,8 @@ val result = tableEnv.sql("SELECT SUM(amount) FROM Orders WHERE product = 10")
 {% endhighlight %}
 </div>
 </div>
+
+SQL queries can be executed on DataStream Tables by adding the `STREAM` SQL keyword before the table name. Please refer to the [Apache Calcite SQL Streaming documentation](https://calcite.apache.org/docs/stream.html) for more information on the Streaming SQL syntax.
 
 {% top %}
 

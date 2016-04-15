@@ -29,7 +29,7 @@ import org.junit.Assert._
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamITCase
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamTestData
 
-class StreamSelectITCase extends StreamingMultipleProgramsTestBase {
+class SelectITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testSimpleSelectAll(): Unit = {

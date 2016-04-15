@@ -18,32 +18,39 @@
 
 package org.apache.flink.api.table.plan.rules
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.adapter.enumerable.EnumerableTableScan
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRuleCall, RelOptRule, RelOptRuleOperand}
+import org.apache.calcite.prepare.RelOptTableImpl
 import org.apache.calcite.rel.logical.LogicalTableScan
+import org.apache.calcite.schema.StreamableTable
+import org.apache.flink.api.table.plan.schema.TransStreamTable
 
 /**
- * Rule that converts an EnumerableTableScan into a LogicalTableScan.
- * We need this rule because Calcite creates an EnumerableTableScan
- * when parsing a SQL query. We convert it into a LogicalTableScan
- * so we can merge the optimization process with any plan that might be created
- * by the Table API.
- */
-class EnumerableToLogicalTableScan(
+  * Custom rule that converts a LogicalScan into another LogicalScan
+  * whose internal Table is [[StreamableTable]] and [[org.apache.calcite.schema.TranslatableTable]].
+  */
+class LogicalScanToStreamable(
     operand: RelOptRuleOperand,
     description: String) extends RelOptRule(operand, description) {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val oldRel = call.rel(0).asInstanceOf[EnumerableTableScan]
+    val oldRel = call.rel(0).asInstanceOf[LogicalTableScan]
     val table = oldRel.getTable
-    val newRel = LogicalTableScan.create(oldRel.getCluster, table)
-    call.transformTo(newRel)
+    table.unwrap(classOf[StreamableTable]) match {
+      case s: StreamableTable =>
+        // already a StreamableTable => do nothing
+      case _ => // convert to a StreamableTable
+        val sTable = new TransStreamTable(oldRel, false)
+        val newRel = LogicalTableScan.create(oldRel.getCluster,
+          RelOptTableImpl.create(table.getRelOptSchema, table.getRowType, sTable))
+        call.transformTo(newRel)
+    }
   }
 }
 
-object EnumerableToLogicalTableScan {
-  val INSTANCE = new EnumerableToLogicalTableScan(
-      operand(classOf[EnumerableTableScan], any),
-    "EnumerableToLogicalTableScan")
+object LogicalScanToStreamable {
+  val INSTANCE = new LogicalScanToStreamable(
+    operand(classOf[LogicalTableScan], any),
+    "LogicalScanToStreamable")
 }
+
