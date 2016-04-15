@@ -24,9 +24,7 @@ import org.apache.flink.api.table.{TableEnvironment, Row}
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.JavaConversions._
 import org.junit.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamITCase

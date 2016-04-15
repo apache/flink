@@ -30,7 +30,7 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.plan.schema.DataStreamTable
+import org.apache.flink.api.table.plan.schema.{TransStreamTable, DataStreamTable}
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
@@ -103,7 +103,15 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     */
   override def sql(query: String): Table = {
 
-    ???
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner)
+    // parse the sql query
+    val parsed = planner.parse(query)
+    // validate the sql query
+    val validated = planner.validate(parsed)
+    // transform to a relational tree
+    val relational = planner.rel(validated)
+
+    new Table(relational.rel, this)
   }
 
   /**
@@ -112,11 +120,14 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
+    * @param wrapper True if the registration has to wrap the datastreamTable
+    *                into a [[org.apache.calcite.schema.StreamableTable]]
     * @tparam T the type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
     name: String,
-    dataStream: DataStream[T]): Unit = {
+    dataStream: DataStream[T],
+    wrapper: Boolean): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
     val dataStreamTable = new DataStreamTable[T](
@@ -124,7 +135,16 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
       fieldIndexes,
       fieldNames
     )
-    registerTableInternal(name, dataStreamTable)
+    // when registering a DataStream, we need to wrap it into a StreamableTable
+    // so that the SQL validation phase won't fail
+    if (wrapper) {
+      registerTableInternal(name, dataStreamTable)
+      val t = ingest(name)
+      replaceRegisteredTable(name, new TransStreamTable(t.getRelNode, true))
+    }
+    else {
+      registerTableInternal(name, dataStreamTable)
+    }
   }
 
   /**
@@ -134,12 +154,15 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @param fields The field expressions to define the field names of the table.
+    * @param wrapper True if the registration has to wrap the datastreamTable
+    *                into a [[org.apache.calcite.schema.StreamableTable]]
     * @tparam T The type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
     name: String,
     dataStream: DataStream[T],
-    fields: Array[Expression]): Unit = {
+    fields: Array[Expression],
+    wrapper: Boolean): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields.toArray)
     val dataStreamTable = new DataStreamTable[T](
@@ -147,7 +170,16 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
       fieldIndexes.toArray,
       fieldNames.toArray
     )
-    registerTableInternal(name, dataStreamTable)
+    // when registering a DataStream, we need to wrap it into a StreamableTable
+    // so that the SQL validation phase won't fail
+    if (wrapper) {
+      registerTableInternal(name, dataStreamTable)
+      val t = ingest(name)
+      replaceRegisteredTable(name, new TransStreamTable(t.getRelNode, true))
+    }
+    else {
+      registerTableInternal(name, dataStreamTable)
+    }
   }
 
   /**
