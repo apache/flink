@@ -18,16 +18,55 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+
 /**
  * Recovery mode for Flink's cluster execution. Currently supported modes are:
  *
- *   - Standalone: No recovery from JobManager failures
- *   - ZooKeeper: JobManager high availability via ZooKeeper
- *     ZooKeeper is used to select a leader among a group of JobManager. This JobManager
- *     is responsible for the job execution. Upon failure of the leader a new leader is elected
- *     which will take over the responsibilities of the old leader
+ * - Standalone: No recovery from JobManager failures
+ * - ZooKeeper: JobManager high availability via ZooKeeper
+ * ZooKeeper is used to select a leader among a group of JobManager. This JobManager
+ * is responsible for the job execution. Upon failure of the leader a new leader is elected
+ * which will take over the responsibilities of the old leader
  */
 public enum RecoveryMode {
 	STANDALONE,
-	ZOOKEEPER
+	ZOOKEEPER;
+
+	/**
+	 * Return the configured {@link RecoveryMode}.
+	 *
+	 * @param config The config to parse
+	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
+	 * configured.
+	 */
+	public static RecoveryMode fromConfig(Configuration config) {
+		return RecoveryMode.valueOf(config.getString(
+				ConfigConstants.RECOVERY_MODE,
+				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+	}
+
+	/**
+	 * Returns true if the defined recovery mode supports high availability.
+	 *
+	 * @param configuration Configuration which contains the recovery mode
+	 * @return true if high availability is supported by the recovery mode, otherwise false
+	 */
+	public static boolean isHighAvailabilityModeActivated(Configuration configuration) {
+		String recoveryMode = configuration.getString(
+			ConfigConstants.RECOVERY_MODE,
+			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+
+		RecoveryMode mode = RecoveryMode.valueOf(recoveryMode);
+
+		switch(mode) {
+			case STANDALONE:
+				return false;
+			case ZOOKEEPER:
+				return true;
+			default:
+				return false;
+		}
+	}
 }

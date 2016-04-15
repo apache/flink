@@ -21,6 +21,7 @@ package org.apache.flink.core.fs.local;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.BlockLocation;
 
 /**
@@ -28,6 +29,7 @@ import org.apache.flink.core.fs.BlockLocation;
  * local file system.
  * 
  */
+@Internal
 public class LocalBlockLocation implements BlockLocation {
 
 	private final long length;

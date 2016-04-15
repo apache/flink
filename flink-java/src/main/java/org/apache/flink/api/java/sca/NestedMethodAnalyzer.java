@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.sca.TaggedValue.Tag;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -48,6 +49,7 @@ import org.objectweb.asm.tree.analysis.BasicValue;
  * information to values. The NestedMethodAnalyzer follows interesting values
  * and analyzes nested methods (control/method flow) if necessary.
  */
+@Internal
 public class NestedMethodAnalyzer extends BasicInterpreter {
 
 	// reference to current UDF analysis context

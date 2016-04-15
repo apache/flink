@@ -198,6 +198,20 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	public final boolean isInMemory() {
 		return this.buildSideChannel == null;
 	}
+
+	/**
+	 * Gets the number of memory segments used by this partition, which includes build side
+	 * memory buffers and overflow memory segments.
+	 * 
+	 * @return The number of occupied memory segments.
+	 */
+	public int getNumOccupiedMemorySegments() {
+		// either the number of memory segments, or one for spilling
+		final int numPartitionBuffers = this.partitionBuffers != null ?
+			this.partitionBuffers.length : this.buildSideWriteBuffer.getNumOccupiedMemorySegments();
+		return numPartitionBuffers + numOverflowSegments;
+	}
+	
 	
 	public int getBuildSideBlockCount() {
 		return this.partitionBuffers == null ? this.buildSideWriteBuffer.getBlockCount() : this.partitionBuffers.length;
@@ -284,7 +298,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			throw new RuntimeException("Bug in Hybrid Hash Join: " +
 					"Request to spill a partition that has already been spilled.");
 		}
-		if (getBuildSideBlockCount() + this.numOverflowSegments < 2) {
+		if (getNumOccupiedMemorySegments() < 2) {
 			throw new RuntimeException("Bug in Hybrid Hash Join: " +
 				"Request to spill a partition with less than two buffers.");
 		}
@@ -325,11 +339,14 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	}
 	
 	/**
+	 * @param keepUnprobedSpilledPartitions If true then partitions that were spilled but received no further probe
+	 *                                      requests will be retained; used for build-side outer joins.
 	 * @return The number of write-behind buffers reclaimable after this method call.
 	 * 
 	 * @throws IOException
 	 */
-	public int finalizeProbePhase(List<MemorySegment> freeMemory, List<HashPartition<BT, PT>> spilledPartitions)
+	public int finalizeProbePhase(List<MemorySegment> freeMemory, List<HashPartition<BT, PT>> spilledPartitions,
+			boolean keepUnprobedSpilledPartitions)
 	throws IOException
 	{
 		if (isInMemory()) {
@@ -349,11 +366,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			this.partitionBuffers = null;
 			return 0;
 		}
-		else if (this.probeSideRecordCounter == 0) { 
+		else if (this.probeSideRecordCounter == 0 && !keepUnprobedSpilledPartitions) {
 			// partition is empty, no spilled buffers
 			// return the memory buffer
 			freeMemory.add(this.probeSideBuffer.getCurrentSegment());
-			
+
 			// delete the spill files
 			this.probeSideChannel.close();
 			this.buildSideChannel.deleteChannel();
@@ -527,6 +544,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 		int getBlockCount() {
 			return this.currentBlockNumber + 1;
+		}
+
+		int getNumOccupiedMemorySegments() {
+			// return the current segment + all filled segments
+			return this.targetList.size() + 1;
 		}
 		
 		int spill(BlockChannelWriter<MemorySegment> writer) throws IOException {

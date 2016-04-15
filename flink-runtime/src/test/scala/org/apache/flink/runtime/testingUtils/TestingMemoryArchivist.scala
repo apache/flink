@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.jobmanager.MemoryArchivist
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 

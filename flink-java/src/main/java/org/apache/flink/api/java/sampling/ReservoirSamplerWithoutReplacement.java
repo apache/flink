@@ -18,6 +18,8 @@
 package org.apache.flink.api.java.sampling;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;
 import java.util.PriorityQueue;
@@ -38,6 +40,7 @@ import java.util.Random;
  *
  * @param <T> The type of the sampler.
  */
+@Internal
 public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSampler<T> {
 	
 	private final Random random;
@@ -60,7 +63,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	 * @param numSamples Maximum number of samples to retain in reservoir, must be non-negative.
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples) {
-		this(numSamples, new Random());
+		this(numSamples, new XORShiftRandom());
 	}
 	
 	/**
@@ -71,7 +74,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples, long seed) {
 		
-		this(numSamples, new Random(seed));
+		this(numSamples, new XORShiftRandom(seed));
 	}
 	
 	@Override

@@ -31,6 +31,8 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.WeakHashMap;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.
  * <p>
@@ -43,23 +45,16 @@ public class ExecutionGraphHolder {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphHolder.class);
 
-	/** Retrieves the current leading JobManager and its corresponding archive */
-	private final JobManagerArchiveRetriever retriever;
-
 	private final FiniteDuration timeout;
 
 	private final WeakHashMap<JobID, ExecutionGraph> cache = new WeakHashMap<JobID, ExecutionGraph>();
 
-	public ExecutionGraphHolder(JobManagerArchiveRetriever retriever) {
-		this(retriever, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
+	public ExecutionGraphHolder() {
+		this(WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 
-	public ExecutionGraphHolder(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	public ExecutionGraphHolder(FiniteDuration timeout) {
+		this.timeout = checkNotNull(timeout);
 	}
 
 	/**
@@ -68,15 +63,13 @@ public class ExecutionGraphHolder {
 	 * @param jid jobID of the execution graph to be retrieved
 	 * @return the retrieved execution graph or null if it is not retrievable
 	 */
-	public ExecutionGraph getExecutionGraph(JobID jid) {
+	public ExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
 		ExecutionGraph cached = cache.get(jid);
 		if (cached != null) {
 			return cached;
 		}
 
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
 				Object result = Await.result(future, timeout);

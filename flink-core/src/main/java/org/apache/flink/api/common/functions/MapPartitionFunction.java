@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -31,15 +32,16 @@ import java.io.Serializable;
  * For most of the simple use cases, consider using the {@link MapFunction} or {@link FlatMapFunction}.
  * <p>
  * The basic syntax for a MapPartitionFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<Y> result = input.mapPartition(new MyMapPartitionFunction());
- * </blockquote></pre>
+ * }</pre>
  * 
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
+@Public
 public interface MapPartitionFunction<T, O> extends Function, Serializable {
 	
 	/**

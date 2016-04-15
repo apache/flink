@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.types.{BooleanValue, ByteValue, CharValue, DoubleValue, FloatValue, IntValue, LongValue, ShortValue, StringValue}
 
 import scala.collection._
@@ -24,6 +25,7 @@ import scala.collection.generic.CanBuildFrom
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
 
+@Internal
 private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
@@ -56,7 +58,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case ArrayType(elemTpe) => analyzeArray(id, tpe, elemTpe)
 
-          case NothingType() => NothingDesciptor(id, tpe)
+          case NothingType() => NothingDescriptor(id, tpe)
+
+          case UnitType() => UnitDescriptor(id, tpe)
 
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
 
@@ -149,9 +153,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       val immutableFields = tpe.members filter { _.isTerm } map { _.asTerm } filter { _.isVal }
       if (immutableFields.nonEmpty) {
         // We don't support POJOs with immutable fields
-        c.warning(
-          c.enclosingPosition,
-          s"Type $tpe is no POJO, has immutable fields: ${immutableFields.mkString(", ")}.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -176,8 +177,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
 
       if (invalidFields.nonEmpty) {
-        c.warning(c.enclosingPosition, s"Type $tpe is no POJO because it has non-public fields '" +
-          s"${invalidFields.mkString(", ")}' that don't have public getters/setters.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -190,9 +189,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
       if (!hasZeroCtor) {
         // We don't support POJOs without zero-paramter ctor
-        c.warning(
-          c.enclosingPosition,
-          s"Class $tpe is no POJO, has no zero-parameters constructor.")
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -337,6 +333,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object NothingType {
       def unapply(tpe: Type): Boolean = tpe =:= typeOf[Nothing]
+    }
+
+    private object UnitType {
+      def unapply(tpe: Type): Boolean = tpe =:= typeOf[Unit]
     }
 
     private object EitherType {

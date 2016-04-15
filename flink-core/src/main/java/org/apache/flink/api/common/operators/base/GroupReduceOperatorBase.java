@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
@@ -50,6 +51,7 @@ import java.util.List;
 /**
  * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
+@Internal
 public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 	/** The ordering for the order inside a reduce group. */
@@ -195,28 +197,30 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		
 		ArrayList<OUT> result = new ArrayList<OUT>();
 
-		if (keyColumns.length == 0) {
-			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
-			for (IN in: inputData) {
-				inputDataCopy.add(inputSerializer.copy(in));
-			}
-			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+		if (inputData.size() > 0) {
+			if (keyColumns.length == 0) {
+				final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+				List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
+				for (IN in : inputData) {
+					inputDataCopy.add(inputSerializer.copy(in));
+				}
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
 
-			function.reduce(inputDataCopy, collector);
-		} else {
-			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
-			boolean[] keyOrderings = new boolean[keyColumns.length];
-			final TypeComparator<IN> comparator = getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
+				function.reduce(inputDataCopy, collector);
+			} else {
+				final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+				boolean[] keyOrderings = new boolean[keyColumns.length];
+				final TypeComparator<IN> comparator = getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
 
-			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
+				ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
 
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
 
-			while (keyedIterator.nextKey()) {
-				function.reduce(keyedIterator.getValues(), collector);
+				while (keyedIterator.nextKey()) {
+					function.reduce(keyedIterator.getValues(), collector);
+				}
 			}
 		}
 

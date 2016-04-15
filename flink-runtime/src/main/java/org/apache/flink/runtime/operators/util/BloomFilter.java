@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,11 +34,11 @@ import static com.google.common.base.Preconditions.checkArgument;
  * During the creation of bloom filter expected number of entries must be specified. If the number
  * of insertions exceed the specified initial number of entries then false positive probability will
  * increase accordingly.
- * <p/>
+ * <p>
  * Internally, this implementation of bloom filter uses MemorySegment to store BitSet, BloomFilter and
  * BitSet are designed to be able to switch between different MemorySegments, so that Flink can share
  * the same BloomFilter/BitSet object instance for different bloom filters.
- * <p/>
+ * <p>
  * Part of this class refers to the implementation from Apache Hive project
  * https://github.com/apache/hive/blob/master/common/src/java/org/apache/hive/common/util/BloomFilter.java
  */

@@ -101,11 +101,15 @@ public class ParameterToolTest {
 
 	@Test
 	public void testFromCliArgs() {
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--input", "myInput", "-expectedCount", "15", "--withoutValues", "--negativeFloat", "-0.58"});
-		Assert.assertEquals(4, parameter.getNumberOfParameters());
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--input", "myInput", "-expectedCount", "15", "--withoutValues",
+				"--negativeFloat", "-0.58", "-isWorking", "true", "--maxByte", "127", "-negativeShort", "-1024"});
+		Assert.assertEquals(7, parameter.getNumberOfParameters());
 		validate(parameter);
 		Assert.assertTrue(parameter.has("withoutValues"));
 		Assert.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
+		Assert.assertTrue(parameter.getBoolean("isWorking"));
+		Assert.assertEquals(127, parameter.getByte("maxByte"));
+		Assert.assertEquals(-1024, parameter.getShort("negativeShort"));
 	}
 
 	@Test
@@ -162,6 +166,9 @@ public class ParameterToolTest {
 		Assert.assertEquals("myDefaultValue", parameter.get("output", "myDefaultValue"));
 		Assert.assertEquals(null, parameter.get("whatever"));
 		Assert.assertEquals(15L, parameter.getLong("expectedCount", -1L));
+		Assert.assertTrue(parameter.getBoolean("thisIsUseful", true));
+		Assert.assertEquals(42, parameter.getByte("myDefaultByte", (byte) 42));
+		Assert.assertEquals(42, parameter.getShort("myDefaultShort", (short) 42));
 
 		Configuration config = parameter.getConfiguration();
 		Assert.assertEquals(15L, config.getLong("expectedCount", -1L));

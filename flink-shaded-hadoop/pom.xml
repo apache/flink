@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.1-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -63,6 +63,12 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<!--Disable shade-flink execution to avoid duplicate relocation of
+						dependencies-->
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
 						<id>shade-hadoop</id>
 						<phase>package</phase>
 						<goals>
@@ -72,6 +78,7 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<filters>
 								<!-- Exclude signatures -->
 								<filter>
@@ -85,7 +92,14 @@ under the License.
 								<filter>
 									<artifact>org.slf4j:*</artifact>
 									<excludes>
-										<exclude>org/slf4j/impl/StaticLoggerBinder*</exclude>
+										<exclude>org/slf4j/impl/**</exclude>
+									</excludes>
+								</filter>
+								<!-- Exclude Hadoop's log4j. Hadoop can use Flink's log4j dependency -->
+								<filter>
+									<artifact>log4j:*</artifact>
+									<excludes>
+										<exclude>org/apache/log4j/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -94,6 +108,23 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
 							</transformers>
+							<artifactSet>
+								<includes>
+									<include>com.google.guava:*</include>
+									<include>com.google.protobuf:*</include>
+									<include>com.google.code.findbugs:*</include>
+									<include>asm:asm</include>
+									<include>io.netty:netty:*</include>
+									<include>org.apache.curator:*</include>
+									<include>org.apache.hadoop:*</include>
+									<include>org.htrace:htrace-core</include>
+
+									<!-- This dependency needs to be included to properly get rid of the HTTP Components dependency -->
+									<include>net.java.dev.jets3t:jets3t</include>
+									<include>org.apache.httpcomponents:*</include>
+									<include>commons-httpclient:commons-httpclient</include>
+								</includes>
+							</artifactSet>
 							<relocations>
 								<relocation>
 									<pattern>com.google</pattern>
@@ -113,6 +144,18 @@ under the License.
 								<relocation>
 									<pattern>org.apache.curator</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.http</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.httpclient</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.commons.httpclient</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.htrace</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.htrace</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

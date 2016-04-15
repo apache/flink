@@ -20,22 +20,23 @@ package org.apache.flink.test.util
 
 import java.util.concurrent.TimeoutException
 
-import akka.pattern.ask
-import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.Patterns._
+import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.{RecoveryMode, JobManager}
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages
-.NotifyWhenRegisteredAtJobManager
-import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager,
-TestingJobManager, TestingMemoryArchivist}
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist, TestingTaskManager, TestingUtils}
 
-import scala.concurrent.{Future, Await}
+import org.apache.flink.runtime.testutils.TestingResourceManager
+
+import scala.concurrent.{Await, Future}
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
@@ -48,24 +49,20 @@ import scala.concurrent.{Future, Await}
  */
 class ForkableFlinkMiniCluster(
     userConfiguration: Configuration,
-    singleActorSystem: Boolean,
-    streamingMode: StreamingMode)
-  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
-
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+    singleActorSystem: Boolean)
+  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
-  
+
   // --------------------------------------------------------------------------
 
   var zookeeperCluster: Option[TestingCluster] = None
-  
+
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
-    val forNumberString = System.getProperty("forkNumber")
+    val forkNumberString = System.getProperty("forkNumber")
 
     val forkNumber = try {
-      Integer.parseInt(forNumberString)
+      Integer.parseInt(forkNumberString)
     }
     catch {
       case e: NumberFormatException => -1
@@ -74,13 +71,15 @@ class ForkableFlinkMiniCluster(
     val config = userConfiguration.clone()
 
     if (forkNumber != -1) {
-      val jobManagerRPC = 1024 + forkNumber*300
-      val taskManagerRPC = 1024 + forkNumber*300 + 100
-      val taskManagerData = 1024 + forkNumber*300 + 200
+      val jobManagerRPC = 1024 + forkNumber*400
+      val taskManagerRPC = 1024 + forkNumber*400 + 100
+      val taskManagerData = 1024 + forkNumber*400 + 200
+      val resourceManagerRPC = 1024 + forkNumber*400 + 300
 
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)
     }
 
     super.generateConfiguration(config)
@@ -96,42 +95,42 @@ class ForkableFlinkMiniCluster(
       ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-    if(jobManagerPort > 0) {
+    if (jobManagerPort > 0) {
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 
-    val (executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      _,
-      executionRetries,
-      delayBetweenRetries,
-      timeout,
-      archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
-      val testArchiveProps = Props(
-        new TestingMemoryArchivist(archiveCount))
-
-    val archiver = actorSystem.actorOf(testArchiveProps, archiveName)
-
-    val jobManagerProps = Props(
-      new TestingJobManager(
-        configuration,
-        executionContext,
-        instanceManager,
-        scheduler,
-        libraryCacheManager,
-        archiver,
-        executionRetries,
-        delayBetweenRetries,
-        timeout,
-        streamingMode,
-        leaderElectionService))
-
-    val jobManager = actorSystem.actorOf(jobManagerProps, jobManagerName)
+    val (jobManager, _) = JobManager.startJobManagerActors(
+      config,
+      actorSystem,
+      Some(jobManagerName),
+      Some(archiveName),
+      classOf[TestingJobManager],
+      classOf[TestingMemoryArchivist])
 
     jobManager
+  }
+
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = getResourceManagerName(index)
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if (resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
+      config,
+      system,
+      createLeaderRetrievalService(),
+      classOf[TestingResourceManager],
+      resourceManagerName)
+
+    resourceManager
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
@@ -156,12 +155,12 @@ class ForkableFlinkMiniCluster(
 
     TaskManager.startTaskManagerComponentsAndActor(
       config,
+      ResourceID.generate(),
       system,
       hostname,
       Some(TaskManager.TASK_MANAGER_NAME + index),
       Some(createLeaderRetrievalService()),
       localExecution,
-      streamingMode,
       classOf[TestingTaskManager])
   }
 
@@ -198,7 +197,7 @@ class ForkableFlinkMiniCluster(
 
           val lrs = createLeaderRetrievalService()
 
-          leaderRetrievalService = Some(lrs)
+          jobManagerLeaderRetrievalService = Some(lrs)
           lrs.start(this)
 
         case _ => throw new Exception("The JobManager of the ForkableFlinkMiniCluster have not " +
@@ -206,6 +205,7 @@ class ForkableFlinkMiniCluster(
       }
     }
   }
+
 
   def restartTaskManager(index: Int): Unit = {
     (taskManagerActorSystems, taskManagerActors) match {
@@ -286,10 +286,10 @@ object ForkableFlinkMiniCluster {
   import org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT
 
   def startCluster(
-      numSlots: Int,
-      numTaskManagers: Int,
-      timeout: String = DEFAULT_AKKA_ASK_TIMEOUT)
-    : ForkableFlinkMiniCluster = {
+                    numSlots: Int,
+                    numTaskManagers: Int,
+                    timeout: String = DEFAULT_AKKA_ASK_TIMEOUT)
+  : ForkableFlinkMiniCluster = {
 
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)

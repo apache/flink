@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.io.StringWriter;
@@ -30,7 +31,7 @@ import java.util.TimeZone;
  * against this web server should behave. It defines for example the refresh interval,
  * and time zone of the server timestamps.
  */
-public class DashboardConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class DashboardConfigHandler implements RequestHandler {
 	
 	private final String configString;
 	
@@ -41,7 +42,7 @@ public class DashboardConfigHandler implements RequestHandler, RequestHandler.Js
 
 		try {
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 	
 			gen.writeStartObject();
 			gen.writeNumberField("refresh-interval", refreshInterval);
@@ -66,7 +67,7 @@ public class DashboardConfigHandler implements RequestHandler, RequestHandler.Js
 	}
 	
 	@Override
-	public String handleRequest(Map<String, String> params) {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return this.configString;
 	}
 }

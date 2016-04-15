@@ -47,11 +47,11 @@ check_scala_version() {
 check_scala_version "$TO_VERSION"
 
 if [ $TO_VERSION = "2.11" ]; then
-  FROM_SUFFIX=""
-  TO_SUFFIX="_2.11"
+  FROM_SUFFIX="_2\.10"
+  TO_SUFFIX="_2\.11"
 else
   FROM_SUFFIX="_2\.11"
-  TO_SUFFIX=""
+  TO_SUFFIX="_2\.10"
 fi
 
 sed_i() {
@@ -67,8 +67,11 @@ find "$BASEDIR" -name 'pom.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(artifactId>flink.*\)'$FROM_SUFFIX'<\/artifactId>/\1'$TO_SUFFIX'<\/artifactId>/g' {}" \;
 
 # fix for examples
-find "$BASEDIR/flink-examples/flink-java-examples" -name 'pom.xml' -not -path '*target*' -print \
-  -exec bash -c "sed_i 's/\(<copy file=\".*flink-java-examples\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
+find "$BASEDIR/flink-examples/flink-examples-batch" -name 'pom.xml' -not -path '*target*' -print \
+  -exec bash -c "sed_i 's/\(<copy file=\".*flink-examples-batch\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
+
+find "$BASEDIR/flink-examples/flink-examples-streaming" -name 'pom.xml' -not -path '*target*' -print \
+  -exec bash -c "sed_i 's/\(<copy file=\".*flink-examples-streaming\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
 
 # fix for quickstart
 find "$BASEDIR/flink-quickstart" -name 'pom.xml' -not -path '*target*' -print \
@@ -80,6 +83,9 @@ find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
 
+# fix for shading curator with Scala 2.11
+find "$BASEDIR/flink-runtime" -name 'pom.xml' -not -path '*target*' -print \
+     -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-shaded-curator.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
 
 if [ "$TO_VERSION" == "2.11" ]; then
   # set the profile activation to !scala-2.11 in parent pom, so that it activates by default

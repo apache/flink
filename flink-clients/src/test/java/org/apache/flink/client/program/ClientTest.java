@@ -22,7 +22,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
 
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
@@ -32,6 +31,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
@@ -44,20 +44,18 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.NetUtils;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.net.URL;
 import java.util.Collections;
-
-
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -78,6 +76,9 @@ public class ClientTest {
 
 	private ActorSystem jobManagerSystem;
 
+	private static final String ACCUMULATOR_NAME = "test_accumulator";
+
+	private static final String FAIL_MESSAGE = "Invalid program should have thrown ProgramInvocationException.";
 
 	@Before
 	public void setUp() throws Exception {
@@ -86,7 +87,7 @@ public class ClientTest {
 		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());
 		
 		Plan plan = env.createProgramPlan();
-		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<String>emptyList());
+		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<URL>emptyList(),  Collections.<URL>emptyList());
 
 		program = mock(PackagedProgram.class);
 		when(program.getPlanWithJars()).thenReturn(jobWithJars);
@@ -117,6 +118,75 @@ public class ClientTest {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
+		}
+	}
+
+	/**
+	 * Tests that invalid detached mode programs fail.
+	 */
+	@Test
+	public void testDetachedMode() throws Exception{
+		jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
+		Client out = new Client(config);
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE,
+					e.getCause().getMessage());
+		}
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestEager.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
+					e.getCause().getMessage());
+		}
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
+					e.getCause().getMessage());
+		}
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
+					e.getCause().getMessage());
+		}
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
+					e.getCause().getMessage());
+		}
+
+		try {
+			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
+			out.runDetached(prg, 1);
+			fail(FAIL_MESSAGE);
+		} catch (ProgramInvocationException e) {
+			assertEquals(
+					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
+					e.getCause().getMessage());
 		}
 	}
 
@@ -305,6 +375,60 @@ public class ClientTest {
 		@Override
 		public String getDescription() {
 			return "TestOptimizerPlan <input-file-path> <output-file-path>";
+		}
+	}
+
+	private static final class TestExecuteTwice {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+			env.execute();
+			env.fromElements(1, 2).collect();
+		}
+	}
+
+	private static final class TestEager {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).collect();
+		}
+	}
+
+	private static final class TestGetRuntime {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+			env.execute().getNetRuntime();
+		}
+	}
+
+	private static final class TestGetJobID {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+			env.execute().getJobID();
+		}
+	}
+
+	private static final class TestGetAccumulator {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+			env.execute().getAccumulatorResult(ACCUMULATOR_NAME);
+		}
+	}
+
+	private static final class TestGetAllAccumulator {
+
+		public static void main(String args[]) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+			env.execute().getAllAccumulatorResults();
 		}
 	}
 }

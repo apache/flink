@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -36,6 +37,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> The data type processed by the combine function.
  * @param <OUT> The data type emitted by the combine function.
  */
+@Public
 public interface GroupCombineFunction<IN, OUT> extends Function, Serializable {
 
 	/**

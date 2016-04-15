@@ -24,12 +24,17 @@ import akka.actor.PoisonPill;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
-
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.Test;
 
 import scala.Some;
@@ -40,6 +45,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -78,17 +84,29 @@ public class TaskManagerProcessReapingTest {
 			tempLogFile.deleteOnExit();
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
+			final InetAddress localhost = InetAddress.getByName("localhost");
 			final int jobManagerPort = NetUtils.getAvailablePort();
 
 			// start a JobManager
-			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
+			Tuple2<String, Object> localAddress = new Tuple2<String, Object>(localhost.getHostAddress(), jobManagerPort);
 			jmActorSystem = AkkaUtils.createActorSystem(
 					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
 
-			JobManager.startJobManagerActors(
+			ActorRef jmActor = JobManager.startJobManagerActors(
 				new Configuration(),
 				jmActorSystem,
-				StreamingMode.BATCH_ONLY);
+				JobManager.class,
+				MemoryArchivist.class)._1;
+
+			// start a ResourceManager
+			StandaloneLeaderRetrievalService standaloneLeaderRetrievalService =
+				new StandaloneLeaderRetrievalService(AkkaUtils.getAkkaURL(jmActorSystem, jmActor));
+
+			FlinkResourceManager.startResourceManagerActors(
+				new Configuration(),
+				jmActorSystem,
+				standaloneLeaderRetrievalService,
+				StandaloneResourceManager.class);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
 
@@ -109,8 +127,9 @@ public class TaskManagerProcessReapingTest {
 
 			// grab the reference to the TaskManager. try multiple times, until the process
 			// is started and the TaskManager is up
-			String taskManagerActorName = String.format("akka.tcp://flink@%s:%d/user/%s",
-					"127.0.0.1", taskManagerPort, TaskManager.TASK_MANAGER_NAME());
+			String taskManagerActorName = String.format("akka.tcp://flink@%s/user/%s",
+					org.apache.flink.util.NetUtils.ipAddressAndPortToUrlString(localhost, taskManagerPort),
+					TaskManager.TASK_MANAGER_NAME());
 
 			ActorRef taskManagerRef = null;
 			Throwable lastError = null;
@@ -202,7 +221,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 256);
 
-				TaskManager.runTaskManager("localhost", taskManagerPort, cfg, StreamingMode.BATCH_ONLY);
+				TaskManager.runTaskManager("localhost", ResourceID.generate(), taskManagerPort, cfg);
 
 				// wait forever
 				Object lock = new Object();

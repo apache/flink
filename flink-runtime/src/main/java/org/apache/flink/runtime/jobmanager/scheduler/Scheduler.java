@@ -57,7 +57,7 @@ import scala.concurrent.ExecutionContext;
  * <p>The scheduler supports two scheduling modes:</p>
  * <ul>
  *     <li>Immediate scheduling: A request for a task slot immediately returns a task slot, if one is
- *         available, or throws a {@link NoResourceAvailableException}</li>.
+ *         available, or throws a {@link NoResourceAvailableException}.</li>
  *     <li>Queued Scheduling: A request for a task slot is queued and returns a future that will be
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>

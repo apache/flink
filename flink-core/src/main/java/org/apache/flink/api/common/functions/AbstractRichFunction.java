@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -28,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
  * teardown ({@link #close()}), as well as access to their runtime execution context via
  * {@link #getRuntimeContext()}.
  */
+@Public
 public abstract class AbstractRichFunction implements RichFunction, Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -38,10 +40,12 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	
 	private transient RuntimeContext runtimeContext;
 
+	@Override
 	public void setRuntimeContext(RuntimeContext t) {
 		this.runtimeContext = t;
 	}
-	
+
+	@Override
 	public RuntimeContext getRuntimeContext() {
 		if (this.runtimeContext != null) {
 			return this.runtimeContext;
@@ -50,6 +54,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 		}
 	}
 	
+	@Override
 	public IterationRuntimeContext getIterationRuntimeContext() {
 		if (this.runtimeContext == null) {
 			throw new IllegalStateException("The runtime context has not been initialized.");

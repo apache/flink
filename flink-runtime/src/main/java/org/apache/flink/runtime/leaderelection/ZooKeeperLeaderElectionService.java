@@ -43,6 +43,7 @@ import java.util.UUID;
  * ZooKeeper as well.
  */
 public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener {
+
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionService.class);
 
 	/** Client to the ZooKeeper quorum */
@@ -147,11 +148,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	@Override
 	public boolean hasLeadership() {
-		if(leaderLatch.getState().equals(LeaderLatch.State.STARTED)) {
-			return leaderLatch.hasLeadership();
-		} else {
-			return false;
-		}
+		return leaderLatch.hasLeadership();
 	}
 
 	@Override

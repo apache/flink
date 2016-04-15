@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -103,7 +104,7 @@ public class SlotCountExceedingParallelismTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
+		final JobGraph jobGraph = new JobGraph(jobName, new ExecutionConfig(), sender, receiver);
 
 		// We need to allow queued scheduling, because there are not enough slots available
 		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking
@@ -120,20 +121,13 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private RecordWriter<IntValue> writer;
-
-		private int numberOfTimesToSend;
-
-		@Override
-		public void registerInputOutput() {
-			writer = new RecordWriter<IntValue>(getEnvironment().getWriter(0));
-			numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-		}
-
 		@Override
 		public void invoke() throws Exception {
+			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+
 			final IntValue subtaskIndex = new IntValue(
-					getEnvironment().getIndexInSubtaskGroup());
+					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 			try {
 				for (int i = 0; i < numberOfTimesToSend; i++) {
@@ -154,26 +148,16 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
 
-		private RecordReader<IntValue> reader;
-
-		private int numberOfSubtaskIndexesToReceive;
-
-		/** Each set bit position corresponds to a received subtask index */
-		private BitSet receivedSubtaskIndexes;
-
 		@Override
-		public void registerInputOutput() {
-			reader = new RecordReader<IntValue>(
+		public void invoke() throws Exception {
+			RecordReader<IntValue> reader = new RecordReader<>(
 					getEnvironment().getInputGate(0),
 					IntValue.class);
 
-			numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-			receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
-		}
-
-		@Override
-		public void invoke() throws Exception {
 			try {
+				final int numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+				final BitSet receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
+
 				IntValue record;
 
 				int numberOfReceivedSubtaskIndexes = 0;

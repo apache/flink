@@ -18,6 +18,9 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.PublicEvolving;
+
+@PublicEvolving
 public class JavaToValueConverter {
 
 	public static Value convertBoxedJavaType(Object boxed) {

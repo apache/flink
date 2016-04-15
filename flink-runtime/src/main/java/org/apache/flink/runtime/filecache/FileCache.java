@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The FileCache is used to create the local files for the registered cache files when a task is deployed.
  * The files will be removed when the task is unregistered after a 5 second delay.
- * A given file x will be placed in "<system-tmp-dir>/tmp_<jobID>/".
+ * A given file x will be placed in "{@code <system-tmp-dir>/tmp_<jobID>/}".
  */
 public class FileCache {
 

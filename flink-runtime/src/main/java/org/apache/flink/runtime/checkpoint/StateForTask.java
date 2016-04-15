@@ -24,6 +24,11 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Simple bean to describe the state belonging to a parallel operator.
  * Since we hold the state across execution attempts, we identify a task by its
@@ -34,33 +39,57 @@ import org.slf4j.LoggerFactory;
  * Furthermore, the state may involve user-defined classes that are not accessible without
  * the respective classloader.
  */
-public class StateForTask {
-	
+public class StateForTask implements Serializable {
+
+	private static final long serialVersionUID = -2394696997971923995L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(StateForTask.class);
 
 	/** The state of the parallel operator */
 	private final SerializedValue<StateHandle<?>> state;
+
+	/**
+	 * The state size. This is also part of the deserialized state handle.
+	 * We store it here in order to not deserialize the state handle when
+	 * gathering stats.
+	 */
+	private final long stateSize;
 
 	/** The vertex id of the parallel operator */
 	private final JobVertexID operatorId;
 	
 	/** The index of the parallel subtask */
 	private final int subtask;
+
+	/** The duration of the acknowledged (ack timestamp - trigger timestamp). */
+	private final long duration;
 	
-	public StateForTask(SerializedValue<StateHandle<?>> state, JobVertexID operatorId, int subtask) {
-	if (state == null || operatorId == null || subtask < 0) {
-			throw new IllegalArgumentException();
-		}
-		
-		this.state = state;
-		this.operatorId = operatorId;
+	public StateForTask(
+			SerializedValue<StateHandle<?>> state,
+			long stateSize,
+			JobVertexID operatorId,
+			int subtask,
+			long duration) {
+
+		this.state = checkNotNull(state, "State");
+		// Sanity check and don't fail checkpoint because of this.
+		this.stateSize = stateSize >= 0 ? stateSize : 0;
+		this.operatorId = checkNotNull(operatorId, "Operator ID");
+
+		checkArgument(subtask >= 0, "Negative subtask index");
 		this.subtask = subtask;
+
+		this.duration = duration;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
+	}
+
+	public long getStateSize() {
+		return stateSize;
 	}
 
 	public JobVertexID getOperatorId() {
@@ -70,7 +99,11 @@ public class StateForTask {
 	public int getSubtask() {
 		return subtask;
 	}
-	
+
+	public long getDuration() {
+		return duration;
+	}
+
 	public void discard(ClassLoader userClassLoader) {
 		try {
 			state.deserializeValue(userClassLoader).discardState();

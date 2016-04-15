@@ -41,12 +41,9 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -83,14 +80,15 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	private volatile boolean cleanupCalled;
 
 	@Override
-	public void registerInputOutput() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Start registering input and output"));
-		}
+	public void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
+		LOG.debug(getLogString("Start registering input and output"));
 
 		// initialize OutputFormat
 		initOutputFormat();
-		
+
 		// initialize input readers
 		try {
 			initInputReaders();
@@ -99,47 +97,23 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Finished registering input and output"));
-		}
-	}
+		LOG.debug(getLogString("Finished registering input and output"));
 
-
-	@Override
-	public void invoke() throws Exception
-	{
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Starting data sink operator"));
-		}
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
+		LOG.debug(getLogString("Starting data sink operator"));
 
 		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
 			((RichOutputFormat) this.format).setRuntimeContext(createRuntimeContext());
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
-			}
+			LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
 		}
 
-		ExecutionConfig executionConfig;
-		try {
-			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					getUserCodeClassLoader());
-			if (c != null) {
-				executionConfig = c;
-			} else {
-				LOG.warn("The execution config returned by the configuration was null");
-				executionConfig = new ExecutionConfig();
-			}
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		}
+		ExecutionConfig executionConfig = getExecutionConfig();
+
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 		
 		try {
-			
 			// initialize local strategies
 			MutableObjectIterator<IT> input1;
 			switch (this.config.getInputLocalStrategy(0)) {
@@ -164,7 +138,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 							getEnvironment().getIOManager(),
 							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
 							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
-							this.config.getSpillingThresholdInput(0));
+							this.config.getSpillingThresholdInput(0),
+							this.getExecutionConfig().isObjectReuseEnabled());
 					
 					this.localStrategy = sorter;
 					input1 = sorter.getIterator();
@@ -189,12 +164,10 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				return;
 			}
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Starting to produce output"));
-			}
+			LOG.debug(getLogString("Starting to produce output"));
 
 			// open
-			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getNumberOfSubtasks());
+			format.open(this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(), this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
 
 			if (objectReuseEnabled) {
 				IT record = serializer.createInstance();
@@ -267,18 +240,14 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 			}
 
-			RegularPactTask.clearReaders(new MutableReader[]{inputReader});
+			BatchTask.clearReaders(new MutableReader<?>[]{inputReader});
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Finished data sink operator"));
-			}
+			LOG.debug(getLogString("Finished data sink operator"));
 		}
 		else {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Data sink operator cancelled"));
-			}
+			LOG.debug(getLogString("Data sink operator cancelled"));
 		}
 	}
 
@@ -303,9 +272,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			}
 		}
 		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Cancelling data sink operator"));
-		}
+		LOG.debug(getLogString("Cancelling data sink operator"));
 	}
 	
 	/**
@@ -401,14 +368,13 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message) {
-		return RegularPactTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
+		return BatchTask.constructLogString(message, this.getEnvironment().getTaskInfo().getTaskName(), this);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

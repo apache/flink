@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorRef
-
+import org.apache.flink.runtime.akka.ListeningBehaviour
 
 /**
  * Utility class to store job information on the [[JobManager]]. The JobInfo stores which actor
@@ -27,11 +27,20 @@ import akka.actor.ActorRef
  * Additionally, it stores whether the job was started in the detached mode. Detached means that
  * the submitting actor does not wait for the job result once the job has terminated.
  *
+ * Important: This class is serializable, but needs to be deserialized in the context of an actor
+ * system in order to resolve the client [[ActorRef]]. It is possible to serialize the Akka URL
+ * manually, but it is cumbersome and complicates testing in certain scenarios, where you need to
+ * make sure to resolve the correct [[ActorRef]]s when submitting jobs (RepointableActorRef vs.
+ * RemoteActorRef).
+ *
  * @param client Actor which submitted the job
  * @param start Starting time
  */
-class JobInfo(val client: ActorRef, val start: Long,
-              val sessionTimeout: Long) {
+class JobInfo(
+  val client: ActorRef,
+  val listeningBehaviour: ListeningBehaviour,
+  val start: Long,
+  val sessionTimeout: Long) extends Serializable {
 
   var sessionAlive = sessionTimeout > 0
 
@@ -49,12 +58,16 @@ class JobInfo(val client: ActorRef, val start: Long,
     }
   }
 
+  override def toString = s"JobInfo(client: $client ($listeningBehaviour), start: $start)"
+
   def setLastActive() =
     lastActive = System.currentTimeMillis()
 }
 
 object JobInfo{
-  def apply(client: ActorRef, start: Long,
-            sessionTimeout: Long) =
-    new JobInfo(client, start, sessionTimeout)
+  def apply(
+    client: ActorRef,
+    listeningBehaviour: ListeningBehaviour,
+    start: Long,
+    sessionTimeout: Long) = new JobInfo(client, listeningBehaviour, start, sessionTimeout)
 }

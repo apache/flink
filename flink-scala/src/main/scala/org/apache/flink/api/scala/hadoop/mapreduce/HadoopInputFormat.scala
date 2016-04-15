@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.scala.hadoop.mapreduce
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormatBase
 import org.apache.hadoop.mapreduce.{InputFormat, Job}
 
+@Public
 class HadoopInputFormat[K, V](
     mapredInputFormat: InputFormat[K, V],
     keyClass: Class[K],
@@ -28,15 +30,20 @@ class HadoopInputFormat[K, V](
     job: Job)
   extends HadoopInputFormatBase[K, V, (K, V)](mapredInputFormat, keyClass, valueClass, job) {
 
+  def this(mapredInputFormat: InputFormat[K, V], keyClass: Class[K], valueClass: Class[V]) = {
+    this(mapredInputFormat, keyClass, valueClass, Job.getInstance())
+  }
+
   def nextRecord(reuse: (K, V)): (K, V) = {
     if (!fetched) {
       fetchNext()
     }
     if (!hasNext) {
-      return null
+      null
+    } else {
+      fetched = false
+      (recordReader.getCurrentKey, recordReader.getCurrentValue)
     }
-    fetched = false
-    (recordReader.getCurrentKey, recordReader.getCurrentValue)
   }
 
 }

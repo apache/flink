@@ -18,11 +18,11 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
@@ -58,7 +58,7 @@ public class TempInIterationsTest {
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = (new Optimizer(new Configuration())).compile(plan);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();

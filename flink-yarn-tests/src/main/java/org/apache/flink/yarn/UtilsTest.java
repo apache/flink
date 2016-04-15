@@ -17,6 +17,8 @@
  */
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -29,13 +31,14 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class UtilsTest {
 	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
 	@Test
 	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile(".", new YarnTestBase.RootDirFilenameFilter());
+		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
 		Assert.assertNotNull(dir);
 		Assert.assertTrue(dir.getName().endsWith(".jar"));
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
@@ -47,6 +50,84 @@ public class UtilsTest {
 		Assert.assertTrue(files.contains("conf"));
 	}
 
+	/**
+	 * Remove 15% of the heap, at least 384MB.
+	 *
+	 */
+	@Test
+	public void testHeapCutoff() {
+		Configuration conf = new Configuration();
+		conf.setDouble(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, 0.15);
+		conf.setInteger(ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+
+		// test different configuration
+		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_MIN, "1000");
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "0.1");
+		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "0.5");
+		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+
+		// test also deprecated keys
+		conf = new Configuration();
+		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
+		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgument() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "1.1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgumentNegative() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "-0.01");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void tooMuchCutoff() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.CONTAINERED_HEAP_CUTOFF_RATIO, "6000");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test
+	public void testGetEnvironmentVariables() {
+		Configuration testConf = new Configuration();
+		testConf.setString("yarn.application-master.env.LD_LIBRARY_PATH", "/usr/lib/native");
+
+		Map<String, String> res = Utils.getEnvironmentVariables("yarn.application-master.env.", testConf);
+
+		Assert.assertEquals(1, res.size());
+		Map.Entry<String, String> entry = res.entrySet().iterator().next();
+		Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+		Assert.assertEquals("/usr/lib/native", entry.getValue());
+	}
+
+	@Test
+	public void testGetEnvironmentVariablesErroneous() {
+		Configuration testConf = new Configuration();
+		testConf.setString("yarn.application-master.env.", "/usr/lib/native");
+
+		Map<String, String> res = Utils.getEnvironmentVariables("yarn.application-master.env.", testConf);
+
+		Assert.assertEquals(0, res.size());
+	}
 
 	//
 	// --------------- Tools to test if a certain string has been logged with Log4j. -------------

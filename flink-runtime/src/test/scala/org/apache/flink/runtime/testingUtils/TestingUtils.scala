@@ -26,15 +26,22 @@ import com.google.common.util.concurrent.MoreExecutors
 
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
+import org.apache.flink.api.common.JobExecutionResult
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.jobmanager.JobManager
-import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor, StreamingMode}
+import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.testutils.TestingResourceManager
+import org.apache.flink.runtime.util.LeaderRetrievalUtils
+import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 
 import scala.concurrent.duration._
@@ -169,6 +176,26 @@ object TestingUtils {
   }
 
   def createTaskManager(
+    actorSystem: ActorSystem,
+    jobManager: ActorGateway,
+    configuration: Configuration,
+    useLocalCommunication: Boolean,
+    waitForRegistration: Boolean,
+    taskManagerClass: Class[_ <: TaskManager])
+  : ActorGateway = {
+    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
+
+    createTaskManager(
+      actorSystem,
+      jobManagerURL,
+      configuration,
+      useLocalCommunication,
+      waitForRegistration,
+      taskManagerClass
+    )
+  }
+
+  def createTaskManager(
       actorSystem: ActorSystem,
       jobManager: ActorGateway,
       configuration: Configuration,
@@ -201,11 +228,30 @@ object TestingUtils {
     * @return ActorGateway of the created TaskManager
     */
   def createTaskManager(
+    actorSystem: ActorSystem,
+    jobManagerURL: String,
+    configuration: Configuration,
+    useLocalCommunication: Boolean,
+    waitForRegistration: Boolean)
+  : ActorGateway = {
+    createTaskManager(
+      actorSystem,
+      jobManagerURL,
+      configuration,
+      useLocalCommunication,
+      waitForRegistration,
+      classOf[TestingTaskManager]
+    )
+  }
+
+
+  def createTaskManager(
       actorSystem: ActorSystem,
       jobManagerURL: String,
       configuration: Configuration,
       useLocalCommunication: Boolean,
-      waitForRegistration: Boolean)
+      waitForRegistration: Boolean,
+      taskManagerClass: Class[_ <: TaskManager])
     : ActorGateway = {
 
     val resultingConfiguration = new Configuration()
@@ -218,17 +264,17 @@ object TestingUtils {
 
     val taskManager = TaskManager.startTaskManagerComponentsAndActor(
       resultingConfiguration,
+      ResourceID.generate(),
       actorSystem,
       "localhost",
       None,
       leaderRetrievalService,
       useLocalCommunication,
-      StreamingMode.BATCH_ONLY,
-      classOf[TestingTaskManager]
+      taskManagerClass
     )
 
     if (waitForRegistration) {
-      val notificationResult = (taskManager ? NotifyWhenRegisteredAtAnyJobManager)(TESTING_DURATION)
+      val notificationResult = (taskManager ? NotifyWhenRegisteredAtJobManager)(TESTING_DURATION)
 
       Await.ready(notificationResult, TESTING_DURATION)
     }
@@ -258,13 +304,122 @@ object TestingUtils {
 
   /** Creates a testing JobManager using the default recovery mode (standalone)
     *
-    * @param actorSystem
-    * @param configuration
+    * @param actorSystem The ActorSystem to use
+    * @param configuration The Flink configuration
     * @return
     */
   def createJobManager(
       actorSystem: ActorSystem,
       configuration: Configuration)
+    : ActorGateway = {
+    createJobManager(
+      actorSystem,
+      configuration,
+      classOf[TestingJobManager],
+      ""
+    )
+  }
+
+  /** Creates a testing JobManager using the default recovery mode (standalone).
+    * Additional prefix can be supplied for the Actor system names
+    *
+    * @param actorSystem The ActorSystem to use
+    * @param configuration The Flink configuration
+    * @param prefix The prefix for the actor names
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      prefix: String)
+    : ActorGateway = {
+    createJobManager(
+      actorSystem,
+      configuration,
+      classOf[TestingJobManager],
+      prefix
+    )
+  }
+
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      executionContext: ExecutionContext)
+    : ActorGateway = {
+
+    val (_,
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    restartStrategy,
+    timeout,
+    archiveCount,
+    leaderElectionService,
+    submittedJobGraphs,
+    checkpointRecoveryFactory,
+    savepointStore,
+    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
+      configuration,
+      None
+    )
+
+    val archiveProps = Props(classOf[TestingMemoryArchivist], archiveCount)
+
+    val archive: ActorRef = actorSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(
+      classOf[TestingJobManager],
+      configuration,
+      executionContext,
+      instanceManager,
+      scheduler,
+      libraryCacheManager,
+      archive,
+      restartStrategy,
+      timeout,
+      leaderElectionService,
+      submittedJobGraphs,
+      checkpointRecoveryFactory,
+      jobRecoveryTimeout)
+
+    val jobManager: ActorRef = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+
+    new AkkaActorGateway(jobManager, null)
+  }
+
+  /**
+    * Creates a JobManager of the given class using the default recovery mode (standalone)
+    *
+    * @param actorSystem ActorSystem to use
+    * @param configuration Configuration to use
+    * @param jobManagerClass JobManager class to instantiate
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      jobManagerClass: Class[_ <: JobManager])
+    : ActorGateway = {
+
+    createJobManager(actorSystem, configuration, jobManagerClass, "")
+  }
+
+  /**
+    * Creates a JobManager of the given class using the default recovery mode (standalone).
+    * Additional prefix for the Actor names can be added.
+    *
+    * @param actorSystem ActorSystem to use
+    * @param configuration Configuration to use
+    * @param jobManagerClass JobManager class to instantiate
+    * @param prefix The prefix to use for the Actor names
+    *
+    * @return
+    */
+  def createJobManager(
+      actorSystem: ActorSystem,
+      configuration: Configuration,
+      jobManagerClass: Class[_ <: JobManager],
+      prefix: String)
     : ActorGateway = {
 
     configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
@@ -272,27 +427,28 @@ object TestingUtils {
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
         actorSystem,
-        Some(JobManager.JOB_MANAGER_NAME),
-        Some(JobManager.ARCHIVE_NAME),
-        StreamingMode.BATCH_ONLY)
+        Some(prefix + JobManager.JOB_MANAGER_NAME),
+        Some(prefix + JobManager.ARCHIVE_NAME),
+        jobManagerClass,
+        classOf[MemoryArchivist])
 
     new AkkaActorGateway(actor, null)
   }
 
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
     *
-    * @param actorSystem
-    * @param forwardingTarget
-    * @param jobManagerName
+    * @param actorSystem The actor system to start the actor in.
+    * @param forwardingTarget Target to forward to.
+    * @param actorName Name for forwarding Actor
     * @return
     */
-  def createForwardingJobManager(
+  def createForwardingActor(
       actorSystem: ActorSystem,
       forwardingTarget: ActorRef,
-      jobManagerName: Option[String] = None)
+      actorName: Option[String] = None)
     : ActorGateway = {
 
-    val actor = jobManagerName match {
+    val actor = actorName match {
       case Some(name) =>
         actorSystem.actorOf(
           Props(
@@ -312,6 +468,50 @@ object TestingUtils {
 
     new AkkaActorGateway(actor, null)
   }
+
+  def submitJobAndWait(
+      actorSystem: ActorSystem,
+      jobManager: ActorGateway,
+      jobGraph: JobGraph)
+    : JobExecutionResult = {
+
+    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
+    val leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManagerURL)
+
+    JobClient.submitJobAndWait(
+      actorSystem,
+      leaderRetrievalService,
+      jobGraph,
+      TESTING_DURATION,
+      false,
+      Thread.currentThread().getContextClassLoader
+    )
+  }
+
+  /** Creates a testing JobManager using the default recovery mode (standalone)
+    *
+    * @param actorSystem The actor system to start the actor
+    * @param jobManager The jobManager for the standalone leader service.
+    * @param configuration The configuration
+    * @return
+    */
+  def createResourceManager(
+      actorSystem: ActorSystem,
+      jobManager: ActorRef,
+      configuration: Configuration)
+  : ActorGateway = {
+
+    configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
+
+    val actor = FlinkResourceManager.startResourceManagerActors(
+      configuration,
+      actorSystem,
+      LeaderRetrievalUtils.createLeaderRetrievalService(configuration, jobManager),
+      classOf[TestingResourceManager])
+
+    new AkkaActorGateway(actor, null)
+  }
+
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
     extends FlinkActor with LeaderSessionMessageFilter with LogMessages {

@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -66,17 +65,17 @@ import static com.google.common.base.Preconditions.checkState;
  * <p> As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
- * <pre>
+ * <pre>{@code
  * +-----+              +---------------------+              +--------+
  * | Map | = produce => | Intermediate Result | <= consume = | Reduce |
  * +-----+              +---------------------+              +--------+
- * </pre>
+ * }</pre>
  *
  * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
- * <pre>
+ * <pre>{@code
  *                            Intermediate result
  *               +-----------------------------------------+
  *               |                      +----------------+ |              +-----------------------+
@@ -91,7 +90,7 @@ import static com.google.common.base.Preconditions.checkState;
  * +-------+     | +-------------+  +=> | Subpartition 2 | | <==+======== | Input Gate | Reduce 2 |
  *               |                      +----------------+ |              +-----------------------+
  *               +-----------------------------------------+
- * </pre>
+ * }</pre>
  *
  * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
@@ -158,7 +157,7 @@ public class SingleInputGate implements InputGate {
 	private volatile boolean isReleased;
 
 	/** Registered listener to forward buffer notifications to. */
-	private final List<EventListener<InputGate>> registeredListeners = new CopyOnWriteArrayList<EventListener<InputGate>>();
+	private volatile EventListener<InputGate> registeredListener;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<TaskEvent>();
 
@@ -281,7 +280,9 @@ public class SingleInputGate implements InputGate {
 
 				inputChannels.put(partitionId, newChannel);
 
-				newChannel.requestSubpartition(consumedSubpartitionIndex);
+				if (requestedPartitionsFlag) {
+					newChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
 
 				for (TaskEvent event : pendingEvents) {
 					newChannel.sendTaskEvent(event);
@@ -374,15 +375,19 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void requestPartitions() throws IOException, InterruptedException {
-		// Sanity check
-		if (numberOfInputChannels != inputChannels.size()) {
-			throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
-					"number of total input channels and the currently set number of input " +
-					"channels.");
-		}
+		synchronized (requestLock) {
+			if (!requestedPartitionsFlag) {
+				if (isReleased) {
+					throw new IllegalStateException("Already released.");
+				}
 
-		if (!requestedPartitionsFlag) {
-			synchronized (requestLock) {
+				// Sanity checks
+				if (numberOfInputChannels != inputChannels.size()) {
+					throw new IllegalStateException("Bug in input gate setup logic: mismatch between" +
+							"number of total input channels and the currently set number of input " +
+							"channels.");
+				}
+
 				for (InputChannel inputChannel : inputChannels.values()) {
 					inputChannel.requestSubpartition(consumedSubpartitionIndex);
 				}
@@ -403,14 +408,14 @@ public class SingleInputGate implements InputGate {
 			return null;
 		}
 
-		if (isReleased) {
-			throw new IllegalStateException("Already released.");
-		}
-
 		requestPartitions();
 
 		InputChannel currentChannel = null;
 		while (currentChannel == null) {
+			if (isReleased) {
+				throw new IllegalStateException("Released");
+			}
+
 			currentChannel = inputChannelsWithData.poll(2, TimeUnit.SECONDS);
 		}
 
@@ -463,14 +468,19 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void registerListener(EventListener<InputGate> listener) {
-		registeredListeners.add(checkNotNull(listener));
+		if (registeredListener == null) {
+			registeredListener = listener;
+		}
+		else {
+			throw new IllegalStateException("Multiple listeners");
+		}
 	}
 
 	public void onAvailableBuffer(InputChannel channel) {
 		inputChannelsWithData.add(channel);
-
-		for (EventListener<InputGate> registeredListener : registeredListeners) {
-			registeredListener.onEvent(this);
+		EventListener<InputGate> listener = registeredListener;
+		if (listener != null) {
+			listener.onEvent(this);
 		}
 	}
 

@@ -60,35 +60,32 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 	
 	private final double bnljn_frac;
 	
-	private final DriverStrategy driverStrategy;
-	
 	@SuppressWarnings("unchecked")
-	private final TypeComparator<Tuple2<Integer, Integer>> comparator1 = new TupleComparator<>(
+	protected final TypeComparator<Tuple2<Integer, Integer>> comparator1 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
 	);
 	
 	@SuppressWarnings("unchecked")
-	private final TypeComparator<Tuple2<Integer, Integer>> comparator2 = new TupleComparator<>(
+	protected final TypeComparator<Tuple2<Integer, Integer>> comparator2 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
 	);
 	
-	private final List<Tuple2<Integer, Integer>> outList = new ArrayList<>();
+	protected final List<Tuple2<Integer, Integer>> outList = new ArrayList<>();
 	
 	@SuppressWarnings("unchecked")
-	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<>(
+	protected final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE, IntSerializer.INSTANCE}
 	);
 	
 	
-	public AbstractOuterJoinTaskTest(ExecutionConfig config, DriverStrategy driverStrategy) {
+	public AbstractOuterJoinTaskTest(ExecutionConfig config) {
 		super(config, HASH_MEM, NUM_SORTER, SORT_MEM);
 		bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
-		this.driverStrategy = driverStrategy;
 	}
 	
 	@Test
@@ -162,7 +159,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -191,7 +188,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -220,7 +217,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -249,7 +246,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -266,7 +263,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		this.outList.clear();
 	}
-	
+
 	@Test(expected = ExpectedTestException.class)
 	public void testFailingOuterJoinTask() throws Exception {
 		int keyCnt1 = 20;
@@ -279,7 +276,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -297,7 +294,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -324,7 +321,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		
 		cancel();
 		taskRunner.interrupt();
-		
+
 		taskRunner.join(60000);
 		
 		assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
@@ -341,7 +338,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(this.driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(this.bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -385,7 +382,7 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortDriverStrategy());
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -426,6 +423,8 @@ public abstract class AbstractOuterJoinTaskTest extends BinaryOperatorTestBase<F
 	protected abstract AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver();
 	
 	protected abstract int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2);
+
+	protected abstract DriverStrategy getSortDriverStrategy();
 	
 	// =================================================================================================
 

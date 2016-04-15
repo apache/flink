@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.util.NetUtils;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -149,8 +149,6 @@ public class ClientConnectionTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class TestInvokable extends AbstractInvokable {
-		@Override
-		public void registerInputOutput() {}
 
 		@Override
 		public void invoke() {}

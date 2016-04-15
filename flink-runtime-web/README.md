@@ -27,17 +27,10 @@ provide the following missing features of the current web dashboard:
  - A REST style API to access the status of individual jobs.
  - A more modular design
 
-The web dashboard can be activated by adding/uncommenting the config parameter
-`jobmanager.new-web-frontend: true` in the `conf/fink-conf.yaml` file.
 The dashboard listens at `http://localhost:8081`.
 
-The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8081)
-that serves the new web pages and additional background requests. It also relies on the old HTTP server
-for some requests still.
-
-**NOTE: Many values are placeholders still.**
-
-
+The new web dashboard is work in progress. It starts an HTTP server (by default at port 8081)
+that serves the new web pages and additional background requests.
 
 ## Server Backend
 
@@ -57,7 +50,8 @@ The dashboard files are all pre-built, so one can try it out without building it
 
 ### Preparing the Build Environment
 
-Depending on your version of Linux or MacOS, you may need to manually install *node.js* and *bower*.
+Depending on your version of Linux, Windows or MacOS, you may need to manually install *node.js*
+and *bower*.
 
 
 #### Ubuntu Linux
@@ -95,10 +89,6 @@ gulp
 
 The dashboard code is under `/app`. The result of the build process is under `/web`.
 
-When building Flink with Maven (in particular the `flink-dist` project), the generated
-files are copied into the build target, to the folder `resources/web-runtime-monitor`.
-
-
 ### Developing
 
 When developing the dashboard, every change needs to recompile the files and update the server:
@@ -113,8 +103,7 @@ mvn -DskipTests clean package
 To simplify continuous development, one can use a *standalone proxy server*, together with automatic
 re-compilation:
 
-1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, and `jobServer` URLs.
+1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `jobServer` URL.
 2. Re-compile the files via `gulp`. By calling `gulp watch`, the build-tool autocompiles future changes.
 3. Start the proxy server via `node server.js`
 4. Access the dashboard at [`http://localhost:3000`](http://localhost:3000)
-

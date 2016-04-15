@@ -32,6 +32,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 
+import org.apache.flink.annotation.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.BlockLocation;
@@ -47,6 +48,7 @@ import org.apache.flink.util.OperatingSystem;
  * system.
  * 
  */
+@Internal
 public class LocalFileSystem extends FileSystem {
 
 	/**

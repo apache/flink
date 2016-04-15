@@ -44,6 +44,7 @@ public class StandaloneLeaderRetrievalService implements LeaderRetrievalService 
 		this.jobManagerAddress = jobManagerAddress;
 	}
 
+	@Override
 	public void start(LeaderRetrievalListener listener) {
 		Preconditions.checkNotNull(listener, "Listener must not be null.");
 		Preconditions.checkState(leaderListener == null, "StandaloneLeaderRetrievalService can " +
@@ -55,5 +56,6 @@ public class StandaloneLeaderRetrievalService implements LeaderRetrievalService 
 		leaderListener.notifyLeaderAddress(jobManagerAddress, null);
 	}
 
+	@Override
 	public void stop() {}
 }

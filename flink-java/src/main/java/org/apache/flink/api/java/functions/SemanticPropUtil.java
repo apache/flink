@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
@@ -37,7 +38,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
-import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import java.lang.annotation.Annotation;
@@ -48,7 +49,11 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class SemanticPropUtil {
+/**
+ * Utility class that contains helper methods to work with {@link SemanticProperties}.
+ */
+@Internal
+public final class SemanticPropUtil {
 
 	private final static String REGEX_WILDCARD = "[\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR+"\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA+"]";
 	private final static String REGEX_SINGLE_FIELD = "[\\p{L}\\p{Digit}_\\$]+";
@@ -698,4 +703,10 @@ public class SemanticPropUtil {
 		}
 	}
 
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private SemanticPropUtil() {
+		throw new RuntimeException();
+	}
 }

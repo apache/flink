@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.10-SNAPSHOT</version>
+	<version>1.1-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -50,6 +50,9 @@ under the License.
 	</scm>
 
 	<modules>
+		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
+		<module>tools/force-shading</module>
+		<module>flink-annotations</module>
 		<module>flink-shaded-hadoop</module>
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
@@ -58,11 +61,16 @@ under the License.
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
+		<module>flink-streaming-java</module>
+		<module>flink-streaming-scala</module>
+		<module>flink-streaming-connectors</module>
+		<module>flink-batch-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
 		<module>flink-test-utils</module>
-		<module>flink-staging</module>
+		<module>flink-libraries</module>
+		<module>flink-scala-shell</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
@@ -90,14 +98,27 @@ under the License.
 		<!-- Default scala versions, may be overwritten by build profiles -->
 		<scala.version>2.10.4</scala.version>
 		<scala.binary.version>2.10</scala.binary.version>
-		<chill.version>0.5.2</chill.version>
+		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
-		<tez.version>0.6.1</tez.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.8.0</curator.version>
+		<jackson.version>2.4.2</jackson.version>
 	</properties>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>force-shading</artifactId>
+			<version>1.1-SNAPSHOT</version>
+		</dependency>
+
+		<!-- Add the 'javax.annotation' annotations (JSR305), such as '@Nullable' -->
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>jsr305</artifactId>
+		</dependency>
+		
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
@@ -176,28 +197,13 @@ under the License.
 		-->
 		<dependencies>
 
-			<!-- Make sure we use a consistent jetty version throughout the project -->
+			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
 			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>8.0.0.M1</version>
+				<groupId>com.google.code.findbugs</groupId>
+				<artifactId>jsr305</artifactId>
+				<version>1.3.9</version>
 			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-security</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-util</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-
+			
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
@@ -223,11 +229,25 @@ under the License.
 				<version>2.4</version>
 			</dependency>
 
-			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
+			<!-- common-beanutils-bean-collections is used by flink-shaded-hadoop2 -->
 			<dependency>
-				<groupId>commons-collections</groupId>
-				<artifactId>commons-collections</artifactId>
-				<version>3.2.1</version>
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils-bean-collections</artifactId>
+				<version>1.8.3</version>
+			</dependency>
+
+			<!--We have to bump the commons-configuration to version 1.7 because Hadoop uses per
+			default 1.6. This version has the problem that it depends on commons-beanutils-core and
+			commons-digester. Commons-digester depends on commons-beanutils. Both dependencies are
+			contains classes of commons-collections. Since the dependency reduced pom does not
+			exclude commons-beanutils from commons-configuration, sbt would pull it in again. The
+			solution is setting the version of commons-configuration to 1.7 which also depends on
+			common-beanutils. Consequently, the dependency reduced pom will also contain an
+			exclusion for commons-beanutils for commons-configuration. -->
+			<dependency>
+				<groupId>commons-configuration</groupId>
+				<artifactId>commons-configuration</artifactId>
+				<version>1.7</version>
 			</dependency>
 
 			<dependency>
@@ -240,7 +260,7 @@ under the License.
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
-				<version>3.18.1-GA</version>
+				<version>3.18.2-GA</version>
 			</dependency>
 
 			<!-- joda time is pulled in different versions by different transitive dependencies-->
@@ -250,11 +270,10 @@ under the License.
 				<version>2.5</version>
 			</dependency>
 
-			<!-- stax is pulled in different versions by different transitive dependencies-->
 			<dependency>
-				<groupId>stax</groupId>
-				<artifactId>stax-api</artifactId>
-				<version>1.0.1</version>
+				<groupId>org.joda</groupId>
+				<artifactId>joda-convert</artifactId>
+				<version>1.7</version>
 			</dependency>
 			
 			<!-- kryo used in different versions by Flink an chill -->
@@ -347,7 +366,33 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-all</artifactId>
-				<version>4.0.31.Final</version>
+				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
+				contain an improvement by Netty, which slices a Netty buffer
+				instead of doing a memory copy [1] in the
+				LengthFieldBasedFrameDecoder. In some situations, this
+				interacts badly with our Netty pipeline leading to OutOfMemory
+				errors.
+
+				[1] https://github.com/netty/netty/issues/3704 -->
+				<version>4.0.27.Final</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>${jackson.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -363,7 +408,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.4</scala.version>
+				<scala.version>2.11.7</scala.version>
 				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
 		</profile>
@@ -379,7 +424,7 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
+				<shading-artifact.name>flink-shaded-hadoop1_2.10</shading-artifact.name>
 				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
 			</properties>
 		</profile>
@@ -400,29 +445,19 @@ under the License.
 			</properties>
 			<modules>
 				<module>flink-yarn</module>
+				<!-- Include the flink-fs-tests project only for HD2.
+				 	The HDFS minicluster interfaces changed between the two versions.
+				 -->
+				<module>flink-fs-tests</module>
 			</modules>
 		</profile>
 
 		<!-- Profile to deactivate the YARN tests -->
 		<profile>
 			<id>include-yarn-tests</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
 			<modules>
 				<module>flink-yarn-tests</module>
 			</modules>
-		</profile>
-
-		<!-- Profile to set the Hadoop 2 version properly for TEZ -->
-		<profile>
-			<id>include-tez</id>
-			<properties>
-				<hadoop.version>2.6.0</hadoop.version>
-			</properties>
 		</profile>
 		
 		<profile>
@@ -468,9 +503,24 @@ under the License.
 		<profile>
 			<!-- used for aggregating  ScalaDoc with JavaDoc -->
 			<id>aggregate-scaladoc</id>
+                        <dependencies>
+				<dependency>
+					<!--
+					This is necessary for building the java docs using Java 8. Otherwise the javadoc
+					plugin will fail with "javadoc: error -
+						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
+							com.sun.tools.javac.code.Symbol$CompletionFailure:
+								class file for akka.testkit.TestKit not found"
+					-->
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<version>${akka.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
 			<build>
-				<plugins>
 
+				<plugins>
 					<!-- We need to clean compiled classes to make sure that genjavadoc
 					is called to generate our fake Java source from Scala source. -->
 					<plugin>
@@ -581,6 +631,21 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+			<dependencies>
+				<dependency>
+					<!--
+					This is necessary for building the java docs using Java 8. Otherwise the javadoc
+					plugin will fail with "javadoc: error -
+						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
+							com.sun.tools.javac.code.Symbol$CompletionFailure:
+								class file for akka.testkit.TestKit not found"
+					-->
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<version>${akka.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
 		</profile>
 		
 		<profile>
@@ -598,6 +663,27 @@ under the License.
 								<goals>
 									<goal>sign</goal>
 								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<version>1.4.1</version>
+						<executions>
+							<execution>
+								<id>enforce-maven</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<requireMavenVersion>
+											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
+											<version>(,3.3)</version>
+										</requireMavenVersion>
+									</rules>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -656,6 +742,7 @@ under the License.
 
 	<build>
 		<plugins>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -729,14 +816,6 @@ under the License.
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/sb-admin.css</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/flot/*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
 
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
@@ -747,7 +826,7 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
 
-                        <!-- generated contents -->
+						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
@@ -757,29 +836,32 @@ under the License.
 
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
+						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 						<!-- TweetInputFormat Test Data-->
 						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
-						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
-						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_csv</exclude>
-						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_text</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
+						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
+						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>
 						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
-                        <exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
+						<exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>CONTRIBUTING.md</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
+						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
 						<!-- Generated content -->
+						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
 						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
@@ -806,7 +888,7 @@ under the License.
 				</executions>
 				<configuration>
 					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<suppressionsFileExpression>/checkstyle.suppressions.file</suppressionsFileExpression>
+					<suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<logViolationsToConsole>true</logViolationsToConsole>
 				</configuration>
@@ -819,7 +901,7 @@ under the License.
 				<configuration>
 					<source>1.7</source>
 					<target>1.7</target>
-					<!-- The output of Xlint is not show by default, but we activate it for the QA bot
+					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>
@@ -928,6 +1010,13 @@ under the License.
 							</filters>
 							<artifactSet>
 								<includes>
+									<!-- Unfortunately, the next line is necessary for now to force the execution
+									of the Shade plugin upon all sub modules. This will generate effective poms,
+									i.e. poms which do not contain properties which are derived from this root pom.
+									In particular, the Scala version properties are defined in the root pom and without
+									shading, the root pom would have to be Scala suffixed and thereby all other modules.
+									-->
+									<include>org.apache.flink:force-shading</include>
 									<include>com.google.guava:*</include>
 									<include>org.ow2.asm:*</include>
 								</includes>
@@ -1040,6 +1129,30 @@ under the License.
 								</pluginExecution>
 							</pluginExecutions>
 						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+
+				<!-- configure scala style -->
+				<plugin>
+					<groupId>org.scalastyle</groupId>
+					<artifactId>scalastyle-maven-plugin</artifactId>
+					<version>0.5.0</version>
+					<executions>
+						<execution>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<verbose>false</verbose>
+						<failOnViolation>true</failOnViolation>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<failOnWarning>false</failOnWarning>
+						<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
+						<outputEncoding>UTF-8</outputEncoding>
 					</configuration>
 				</plugin>
 			</plugins>

@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -28,9 +29,8 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable character type, representing the primitive
  * type {@code char}.
- * 
- * @see org.apache.flink.types.Key
  */
+@Public
 public class CharValue implements NormalizableKey<CharValue>, ResettableValue<CharValue>, CopyableValue<CharValue> {
 	private static final long serialVersionUID = 1L;
 	
@@ -151,10 +151,15 @@ public class CharValue implements NormalizableKey<CharValue>, ResettableValue<Ch
 	public int getBinaryLength() {
 		return 2;
 	}
-	
+
 	@Override
 	public void copyTo(CharValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public CharValue copy() {
+		return new CharValue(this.value);
 	}
 
 	@Override

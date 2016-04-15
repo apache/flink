@@ -28,7 +28,7 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
@@ -265,7 +265,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(0, 0));
@@ -292,7 +292,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(1, 0));
@@ -319,7 +319,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(1, 0));
@@ -352,7 +352,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(0, 1));
@@ -382,7 +382,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(0, 1));
@@ -410,7 +410,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getForwardingTargetFields(0, 0));
@@ -440,7 +440,7 @@ public class SemanticPropertiesTranslationTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+		InnerJoinOperatorBase<?, ?, ?, ?> join = (InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput();
 
 		DualInputSemanticProperties semantics = join.getSemanticProperties();
 		assertNotNull(semantics.getReadFields(0));

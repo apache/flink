@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.ReflectionUtil;
@@ -42,6 +43,7 @@ import org.apache.flink.util.ReflectionUtil;
  * 
  * 
  */
+@Public
 public abstract class ListValue<V extends Value> implements Value, List<V> {
 	private static final long serialVersionUID = 1L;
 	

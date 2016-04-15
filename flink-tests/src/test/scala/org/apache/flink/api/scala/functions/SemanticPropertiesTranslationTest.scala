@@ -22,7 +22,7 @@ import org.junit.Assert._
 import org.apache.flink.api.common.functions.RichJoinFunction
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.operators.{GenericDataSinkBase, SingleInputSemanticProperties}
-import org.apache.flink.api.common.operators.base.{JoinOperatorBase, MapOperatorBase}
+import org.apache.flink.api.common.operators.base.{InnerJoinOperatorBase, MapOperatorBase}
 import org.apache.flink.api.common.operators.util.FieldSet
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
@@ -170,8 +170,8 @@ class SemanticPropertiesTranslationTest {
       val plan = env.createProgramPlan()
       val sink: GenericDataSinkBase[_] = plan.getDataSinks.iterator.next
 
-      val join: JoinOperatorBase[_, _, _, _] =
-        sink.getInput.asInstanceOf[JoinOperatorBase[_, _, _, _]]
+      val join: InnerJoinOperatorBase[_, _, _, _] =
+        sink.getInput.asInstanceOf[InnerJoinOperatorBase[_, _, _, _]]
 
       val semantics = join.getSemanticProperties
       val fw11: FieldSet = semantics.getForwardingTargetFields(0, 0)
@@ -215,8 +215,8 @@ class SemanticPropertiesTranslationTest {
       val plan = env.createProgramPlan()
       val sink: GenericDataSinkBase[_] = plan.getDataSinks.iterator.next
 
-      val join: JoinOperatorBase[_, _, _, _] =
-        sink.getInput.asInstanceOf[JoinOperatorBase[_, _, _, _]]
+      val join: InnerJoinOperatorBase[_, _, _, _] =
+        sink.getInput.asInstanceOf[InnerJoinOperatorBase[_, _, _, _]]
 
       val semantics = join.getSemanticProperties
       val fw11: FieldSet = semantics.getForwardingTargetFields(0, 0)

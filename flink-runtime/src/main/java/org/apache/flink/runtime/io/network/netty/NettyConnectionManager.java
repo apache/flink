@@ -32,11 +32,14 @@ public class NettyConnectionManager implements ConnectionManager {
 
 	private final NettyClient client;
 
+	private final NettyBufferPool bufferPool;
+
 	private final PartitionRequestClientFactory partitionRequestClientFactory;
 
 	public NettyConnectionManager(NettyConfig nettyConfig) {
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
+		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
 
 		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
 	}
@@ -47,8 +50,8 @@ public class NettyConnectionManager implements ConnectionManager {
 		PartitionRequestProtocol partitionRequestProtocol =
 				new PartitionRequestProtocol(partitionProvider, taskEventDispatcher, networkbufferPool);
 
-		client.init(partitionRequestProtocol);
-		server.init(partitionRequestProtocol);
+		client.init(partitionRequestProtocol, bufferPool);
+		server.init(partitionRequestProtocol, bufferPool);
 	}
 
 	@Override
@@ -71,5 +74,17 @@ public class NettyConnectionManager implements ConnectionManager {
 	public void shutdown() {
 		client.shutdown();
 		server.shutdown();
+	}
+
+	NettyClient getClient() {
+		return client;
+	}
+
+	NettyServer getServer() {
+		return server;
+	}
+
+	NettyBufferPool getBufferPool() {
+		return bufferPool;
 	}
 }

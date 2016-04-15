@@ -20,12 +20,12 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.fail;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.optimizer.plan.Channel;
@@ -60,7 +60,7 @@ public class GroupOrderTest extends CompilerTestBase {
 				.reduceGroup(new IdentityGroupReducer<Tuple4<Long, Long, Long, Long>>()).name("Reduce")
 				.output(new DiscardingOutputFormat<Tuple4<Long, Long, Long, Long>>()).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		OptimizedPlan oPlan;
 
 		try {
@@ -108,7 +108,7 @@ public class GroupOrderTest extends CompilerTestBase {
 				.with(new IdentityCoGrouper<Tuple7<Long, Long, Long, Long, Long, Long, Long>>()).name("CoGroup")
 				.output(new DiscardingOutputFormat<Tuple7<Long, Long, Long, Long, Long, Long, Long>>()).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		OptimizedPlan oPlan;
 
 		try {

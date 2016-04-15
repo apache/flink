@@ -36,6 +36,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.Random;
 
+@SuppressWarnings("serial")
 public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorStatsAccumulatorTest.class);
@@ -45,7 +46,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 	public OperatorStatsAccumulatorTest(){
 		super(new Configuration());
 	}
-
+	
 	public static class StringToInt extends RichFlatMapFunction<String, Tuple1<Integer>> {
 
 		// Is instantiated later since the runtime context is not yet initialized
@@ -81,9 +82,8 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 			try {
 				intValue = Integer.parseInt(value);
 				localAccumulator.add(intValue);
-				out.collect(new Tuple1(intValue));
-			} catch (NumberFormatException ex) {
-			}
+				out.collect(new Tuple1<>(intValue));
+			} catch (NumberFormatException ignored) {}
 		}
 
 		@Override
@@ -110,6 +110,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		String inputFile = createTempFile("datapoints.txt", input);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
 		OperatorStatisticsConfig operatorStatisticsConfig =
 				new OperatorStatisticsConfig(OperatorStatisticsConfig.CountDistinctAlgorithm.HYPERLOGLOG,
@@ -122,8 +123,8 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		JobExecutionResult result = env.execute();
 
 		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
-		System.out.println("Global Stats");
-		System.out.println(globalStats.toString());
+//		System.out.println("Global Stats");
+//		System.out.println(globalStats.toString());
 
 		OperatorStatistics merged = null;
 
@@ -177,6 +178,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		String inputFile = createTempFile("datapoints.txt", input);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
 		OperatorStatisticsConfig operatorStatisticsConfig =
 				new OperatorStatisticsConfig(false);
@@ -190,8 +192,8 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		JobExecutionResult result = env.execute();
 
 		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
-		System.out.println("Global Stats");
-		System.out.println(globalStats.toString());
+//		System.out.println("Global Stats");
+//		System.out.println(globalStats.toString());
 
 		Assert.assertTrue("Min value for accumulator should not be null",globalStats.getMin()!=null);
 		Assert.assertTrue("Max value for accumulator should not be null",globalStats.getMax()!=null);
@@ -215,6 +217,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		String inputFile = createTempFile("datapoints.txt", input);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
 		OperatorStatisticsConfig operatorStatisticsConfig =
 				new OperatorStatisticsConfig(false);
@@ -229,8 +232,8 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		JobExecutionResult result = env.execute();
 
 		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
-		System.out.println("Global Stats");
-		System.out.println(globalStats.toString());
+//		System.out.println("Global Stats");
+//		System.out.println(globalStats.toString());
 
 		Assert.assertTrue("Count Distinct for accumulator should not be null",globalStats.countDistinct!=null);
 	}
@@ -253,6 +256,7 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		String inputFile = createTempFile("datapoints.txt", input);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
 
 		OperatorStatisticsConfig operatorStatisticsConfig =
 				new OperatorStatisticsConfig(false);
@@ -266,8 +270,8 @@ public class OperatorStatsAccumulatorTest extends AbstractTestBase {
 		JobExecutionResult result = env.execute();
 
 		OperatorStatistics globalStats = result.getAccumulatorResult(ACCUMULATOR_NAME);
-		System.out.println("Global Stats");
-		System.out.println(globalStats.toString());
+//		System.out.println("Global Stats");
+//		System.out.println(globalStats.toString());
 
 		Assert.assertTrue("Count Distinct for accumulator should not be null",globalStats.heavyHitter!=null);
 	}

@@ -17,10 +17,10 @@
  */
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -74,7 +74,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
 					.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
 				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
@@ -118,7 +118,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
 				.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
 				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -163,7 +163,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
 				.withForwardedFields("*").setParallelism(p * 2).name("Reduce2")
 				.output(new DiscardingOutputFormat<Long>()).setParallelism(p * 2).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
@@ -203,7 +203,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
 				.withForwardedFields("*").setParallelism(p).name("Reduce2")
 			.output(new DiscardingOutputFormat<Long>()).setParallelism(p).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 
@@ -258,7 +258,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
 					.with(new IdentityJoiner<Long>()).setParallelism(5)
 				.output(new DiscardingOutputFormat<Long>()).setParallelism(5);
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
 

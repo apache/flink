@@ -216,24 +216,9 @@ put_yarn_logs_to_artifacts
 
 upload_artifacts_s3
 
-# Check the number of files in the uber jar and fail the build if there are too many files (see: FLINK-1637)
-
 # since we are in flink/tools/artifacts
 # we are going back to
 cd ../../
-
-
-UBERJAR=`find . | grep flink-dist  | grep jar | head -n 1`
-if [ -z "$UBERJAR" ] ; then
-	echo "Uberjar not found. Assuming failed build";
-else 
-	jar tf $UBERJAR | wc -l > num_files_in_uberjar
-	NUM_FILES_IN_UBERJAR=`cat num_files_in_uberjar`
-	echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
-	if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
-		echo "WARN: The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
-	fi
-fi
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

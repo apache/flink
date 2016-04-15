@@ -27,7 +27,7 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <!--<logger name="org.apache.flink.runtime.operators.RegularPactTask" level="OFF"/>-->
+    <!--<logger name="org.apache.flink.runtime.operators.BatchTask" level="OFF"/>-->
     <!--<logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>-->
     <!--<logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>-->
     <!--<logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>-->

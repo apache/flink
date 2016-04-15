@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.Value;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,8 +41,8 @@ public class RecordTest {
 	private static final long SEED = 354144423270432543L;
 	private final Random rand = new Random(RecordTest.SEED);
 	
-	private DataInputStream in;
-	private DataOutputStream out;
+	private DataInputView in;
+	private DataOutputView out;
 	
 	// Couple of test values
 	private final StringValue origVal1 = new StringValue("Hello World!");
@@ -59,28 +52,28 @@ public class RecordTest {
 	
 
 	@Before
-	public void setUp() throws Exception
-	{
-		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
-		this.in = new DataInputStream(pipedInput);
-		this.out = new DataOutputStream(new PipedOutputStream(pipedInput));
+	public void setUp() throws Exception {
+		PipedInputStream pipeIn = new PipedInputStream(1024*1024);
+		PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
+		
+		this.in = new DataInputViewStreamWrapper(pipeIn);
+		this.out = new DataOutputViewStreamWrapper(pipeOut);
 	}
 	
 	@Test
-	public void testEmptyRecordSerialization()
-	{
+	public void testEmptyRecordSerialization() {
 		try {
 			// test deserialize into self
 			Record empty = new Record();
-			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
-			empty.read(new InputViewDataInputStreamWrapper(this.in));
+			empty.write(this.out);
+			empty.read(in);
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
 			
 			// test deserialize into new
 			empty = new Record();
-			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
+			empty.write(this.out);
 			empty = new Record();
-			empty.read(new InputViewDataInputStreamWrapper(this.in));
+			empty.read(this.in);
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
 			
 		} catch (Throwable t) {
@@ -170,7 +163,7 @@ public class RecordTest {
 //	}
 
 	@Test
-	public void testRemoveField() {		
+	public void testRemoveField() {
 		Record record = null;
 		int oldLen = 0;
 
@@ -271,8 +264,7 @@ public class RecordTest {
 //	}
 
 	@Test
-	public void testSetNullInt()
-	{
+	public void testSetNullInt() {
 		try {
 			Record record = this.generateFilledDenseRecord(58);
 	
@@ -285,8 +277,7 @@ public class RecordTest {
 	}
 
 	@Test
-	public void testSetNullLong()
-	{
+	public void testSetNullLong() {
 		try {
 			Record record = this.generateFilledDenseRecord(58);
 			long mask = generateRandomBitmask(58);
@@ -395,18 +386,18 @@ public class RecordTest {
 	
 			try {
 				// serialize and deserialize to remove all buffered info
-				r.write(new OutputViewDataOutputStreamWrapper(out));
+				r.write(this.out);
 				r = new Record();
-				r.read(new InputViewDataInputStreamWrapper(in));
+				r.read(this.in);
 	
 				r.setField(1, new IntValue(10));
 				r.setField(4, new StringValue("Some long value"));
 				r.setField(5, new StringValue("An even longer value"));
 				r.setField(10, new IntValue(10));
 	
-				r.write(new OutputViewDataOutputStreamWrapper(out));
+				r.write(this.out);
 				r = new Record();
-				r.read(new InputViewDataInputStreamWrapper(in));
+				r.read(this.in);
 	
 				assertTrue(r.getField(0, IntValue.class).getValue() == 0);
 				assertTrue(r.getField(1, IntValue.class).getValue() == 10);
@@ -420,10 +411,8 @@ public class RecordTest {
 				assertTrue(r.getField(9, IntValue.class) == null);
 				assertTrue(r.getField(10, IntValue.class).getValue() == 10);
 	
-			} catch (RuntimeException re) {
+			} catch (RuntimeException | IOException re) {
 				fail("Error updating binary representation: " + re.getMessage());
-			} catch (IOException e) {
-				fail("Error updating binary representation: " + e.getMessage());
 			}
 		} catch (Throwable t) {
 			Assert.fail("Test failed due to an exception: " + t.getMessage());
@@ -440,8 +429,8 @@ public class RecordTest {
 			Record record2 = new Record();
 			try {
 				// De/Serialize the record
-				record1.write(new OutputViewDataOutputStreamWrapper(this.out));
-				record2.read(new InputViewDataInputStreamWrapper(this.in));
+				record1.write(this.out);
+				record2.read(this.in);
 	
 				assertTrue(record1.getNumFields() == record2.getNumFields());
 	
@@ -469,20 +458,20 @@ public class RecordTest {
 		try {
 			Record record = new Record(new IntValue(42));
 	
-			record.write(new OutputViewDataOutputStreamWrapper(out));
+			record.write(this.out);
 			Assert.assertEquals(42, record.getField(0, IntValue.class).getValue());
 	
 			record.setField(0, new IntValue(23));
-			record.write(new OutputViewDataOutputStreamWrapper(out));
+			record.write(this.out);
 			Assert.assertEquals(23, record.getField(0, IntValue.class).getValue());
 	
 			record.clear();
 			Assert.assertEquals(0, record.getNumFields());
 	
 			Record record2 = new Record(new IntValue(42));
-			record2.read(new InputViewDataInputStreamWrapper(in));
+			record2.read(in);
 			Assert.assertEquals(42, record2.getField(0, IntValue.class).getValue());
-			record2.read(new InputViewDataInputStreamWrapper(in));
+			record2.read(in);
 			Assert.assertEquals(23, record2.getField(0, IntValue.class).getValue());
 		} catch (Throwable t) {
 			Assert.fail("Test failed due to an exception: " + t.getMessage());
@@ -533,9 +522,9 @@ public class RecordTest {
 				// two very long fields
 				{new StringValue(createRandomString(this.rand, 1265)), null, new StringValue(createRandomString(this.rand, 855))}
 			};
-			
-			for (int i = 0; i < values.length; i++) {
-				blackboxTestRecordWithValues(values[i], this.rand, this.in, this.out);
+
+			for (Value[] value : values) {
+				blackboxTestRecordWithValues(value, this.rand, this.in, this.out);
 			}
 			
 			// random test with records with a small number of fields
@@ -554,8 +543,8 @@ public class RecordTest {
 		}
 	}
 	
-	static final void blackboxTestRecordWithValues(Value[] values, Random rnd, DataInputStream reader,
-												   DataOutputStream writer)
+	static void blackboxTestRecordWithValues(Value[] values, Random rnd, DataInputView reader,
+												   DataOutputView writer)
 	throws Exception
 	{
 		final int[] permutation1 = createPermutation(rnd, values.length);
@@ -600,9 +589,9 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(writer);
 		rec = new Record();
-		rec.read(new InputViewDataInputStreamWrapper(reader));
+		rec.read(reader);
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with full stream serialization and deserialization into the same record
@@ -611,8 +600,8 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
-		rec.read(new InputViewDataInputStreamWrapper(reader));
+		rec.write(writer);
+		rec.read(reader);
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with partial stream serialization and deserialization into a new record
@@ -620,18 +609,18 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(writer);
 				rec = new Record();
-				rec.read(new InputViewDataInputStreamWrapper(reader));
+				rec.read(reader);
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(new OutputViewDataOutputStreamWrapper(writer));
+			rec.write(writer);
 			rec = new Record();
-			rec.read(new InputViewDataInputStreamWrapper(reader));
+			rec.read(reader);
 		}
 		testAllRetrievalMethods(rec, permutation2, values);
 		
@@ -640,16 +629,16 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
-				rec.read(new InputViewDataInputStreamWrapper(reader));
+				rec.write(writer);
+				rec.read(reader);
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(new OutputViewDataOutputStreamWrapper(writer));
-			rec.read(new InputViewDataInputStreamWrapper(reader));
+			rec.write(writer);
+			rec.read(reader);
 		}
 		testAllRetrievalMethods(rec, permutation2, values);
 
@@ -658,17 +647,17 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(writer);
 				rec = new Record();
-				rec.read(new InputViewDataInputStreamWrapper(reader));
+				rec.read(reader);
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(writer);
 		rec = new Record();
-		rec.read(new InputViewDataInputStreamWrapper(reader));
+		rec.read(reader);
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with partial stream serialization and deserialization into the same record
@@ -676,21 +665,19 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
-				rec.read(new InputViewDataInputStreamWrapper(reader));
+				rec.write(writer);
+				rec.read(reader);
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
-		rec.read(new InputViewDataInputStreamWrapper(reader));
+		rec.write(writer);
+		rec.read(reader);
 		testAllRetrievalMethods(rec, permutation2, values);
 	}
 	
-	public static final void testAllRetrievalMethods(Record rec, int[] permutation, Value[] expected)
-	throws Exception
-	{
+	public static void testAllRetrievalMethods(Record rec, int[] permutation, Value[] expected) throws Exception {
 		// test getField(int, Class)
 		for (int i = 0; i < expected.length; i++) {
 			final int pos = permutation[i];
@@ -750,8 +737,7 @@ public class RecordTest {
 	}
 
 	@Test
-	public void testUnionFields()
-	{
+	public void testUnionFields() {
 		try {
 			final Value[][] values = new Value[][] {
 				{new IntValue(56), null, new IntValue(-7628761)},
@@ -776,8 +762,7 @@ public class RecordTest {
 		}
 	}
 	
-	private void testUnionFieldsForValues(Value[] rec1fields, Value[] rec2fields, Random rnd)
-	{
+	private void testUnionFieldsForValues(Value[] rec1fields, Value[] rec2fields, Random rnd) {
 		// fully in binary sync
 		Record rec1 = createRecord(rec1fields);
 		Record rec2 = createRecord(rec2fields);
@@ -807,7 +792,6 @@ public class RecordTest {
 		checkUnionedRecord(rec1, rec1fields, rec2fields);
 		
 		// both partially in binary sync
-		rec1 = new Record();
 		rec1 = new Record();
 		
 		int[] permutation1 = createPermutation(rnd, rec1fields.length);
@@ -843,8 +827,7 @@ public class RecordTest {
 		checkUnionedRecord(rec1, rec1fields, rec2fields);
 	}
 	
-	private static final void checkUnionedRecord(Record union, Value[] rec1fields, Value[] rec2fields)
-	{
+	private static void checkUnionedRecord(Record union, Value[] rec1fields, Value[] rec2fields) {
 		for (int i = 0; i < Math.max(rec1fields.length, rec2fields.length); i++) {
 			// determine the expected value from the value arrays
 			final Value expected;
@@ -875,8 +858,7 @@ public class RecordTest {
 	//                                       Utilities
 	// --------------------------------------------------------------------------------------------
 	
-	public static final Record createRecord(Value[] fields)
-	{
+	public static Record createRecord(Value[] fields) {
 		final Record rec = new Record();
 		for (int i = 0; i < fields.length; i++) {
 			rec.setField(i, fields[i]);
@@ -884,8 +866,7 @@ public class RecordTest {
 		return rec;
 	}
 	
-	public static final Value[] createRandomValues(Random rnd, int minNum, int maxNum)
-	{
+	public static Value[] createRandomValues(Random rnd, int minNum, int maxNum) {
 		final int numFields = rnd.nextInt(maxNum - minNum + 1) + minNum;
 		final Value[] values = new Value[numFields];
 		
@@ -917,13 +898,11 @@ public class RecordTest {
 		return values;
 	}
 
-	public static String createRandomString(Random rnd)
-	{
+	public static String createRandomString(Random rnd) {
 		return createRandomString(rnd, rnd.nextInt(150));
 	}
 	
-	public static String createRandomString(Random rnd, int length)
-	{
+	public static String createRandomString(Random rnd, int length) {
 		final StringBuilder sb = new StringBuilder();
 		sb.ensureCapacity(length);
 		
@@ -933,8 +912,7 @@ public class RecordTest {
 		return sb.toString();
 	}
 	
-	public static int[] createPermutation(Random rnd, int length)
-	{
+	public static int[] createPermutation(Random rnd, int length) {
 		final int[] a = new int[length];
 		for (int i = 0; i < length; i++) {
 			a[i] = i;

@@ -20,8 +20,11 @@ package org.apache.flink.runtime.util;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -29,7 +32,8 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.net.ConnectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -40,6 +44,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.net.InetAddress;
 import java.util.UUID;
 
+/**
+ * Utility class to work with {@link LeaderRetrievalService} class.
+ */
 public class LeaderRetrievalUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LeaderRetrievalUtils.class);
@@ -54,10 +61,7 @@ public class LeaderRetrievalUtils {
 	public static LeaderRetrievalService createLeaderRetrievalService(Configuration configuration)
 		throws Exception {
 
-		RecoveryMode recoveryMode = RecoveryMode.valueOf(
-				configuration.getString(
-						ConfigConstants.RECOVERY_MODE,
-						ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+		RecoveryMode recoveryMode = getRecoveryMode(configuration);
 
 		switch (recoveryMode) {
 			case STANDALONE:
@@ -69,6 +73,32 @@ public class LeaderRetrievalUtils {
 		}
 	}
 
+	/**
+	 * Creates a {@link LeaderRetrievalService} that either uses the distributed leader election
+	 * configured in the configuration, or, in standalone mode, the given actor reference.
+	 *
+	 * @param configuration Configuration containing the settings for the {@link LeaderRetrievalService}
+	 * @param standaloneRef Actor reference to be used in standalone mode. 
+	 *                      
+	 * @return The {@link LeaderRetrievalService} specified in the configuration object
+	 * @throws Exception
+	 */
+	public static LeaderRetrievalService createLeaderRetrievalService(
+				Configuration configuration, ActorRef standaloneRef) throws Exception {
+
+		RecoveryMode recoveryMode = getRecoveryMode(configuration);
+
+		switch (recoveryMode) {
+			case STANDALONE:
+				String akkaUrl = standaloneRef.path().toSerializationFormat();
+				return new StandaloneLeaderRetrievalService(akkaUrl);
+			case ZOOKEEPER:
+				return ZooKeeperUtils.createLeaderRetrievalService(configuration);
+			default:
+				throw new Exception("Recovery mode " + recoveryMode + " is not supported.");
+		}
+	}
+	
 	/**
 	 * Retrieves the current leader gateway using the given {@link LeaderRetrievalService}. If the
 	 * current leader could not be retrieved after the given timeout, then a
@@ -92,9 +122,7 @@ public class LeaderRetrievalUtils {
 
 			Future<ActorGateway> actorGatewayFuture = listener.getActorGatewayFuture();
 
-			ActorGateway gateway = Await.result(actorGatewayFuture, timeout);
-
-			return gateway;
+			return Await.result(actorGatewayFuture, timeout);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not retrieve the leader gateway", e);
 		} finally {
@@ -128,9 +156,7 @@ public class LeaderRetrievalUtils {
 
 			Future<LeaderConnectionInfo> connectionInfoFuture = listener.getLeaderConnectionInfoFuture();
 
-			LeaderConnectionInfo result = Await.result(connectionInfoFuture, timeout);
-
-			return result;
+			return Await.result(connectionInfoFuture, timeout);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not retrieve the leader address and leader " +
 					"session ID.", e);
@@ -146,7 +172,7 @@ public class LeaderRetrievalUtils {
 	public static InetAddress findConnectingAddress(
 			LeaderRetrievalService leaderRetrievalService,
 			FiniteDuration timeout) throws LeaderRetrievalException {
-		NetUtils.LeaderConnectingAddressListener listener = new NetUtils.LeaderConnectingAddressListener();
+		ConnectionUtils.LeaderConnectingAddressListener listener = new ConnectionUtils.LeaderConnectingAddressListener();
 
 		try {
 			leaderRetrievalService.start(listener);
@@ -157,9 +183,7 @@ public class LeaderRetrievalUtils {
 			LOG.info("TaskManager will try to connect for " + timeout +
 					" before falling back to heuristics");
 
-			InetAddress result =  listener.findConnectingAddress(timeout);
-
-			return result;
+			return listener.findConnectingAddress(timeout);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not find the connecting address by " +
 					"connecting to the current leader.", e);
@@ -180,6 +204,7 @@ public class LeaderRetrievalUtils {
 
 		private final ActorSystem actorSystem;
 		private final FiniteDuration timeout;
+		private final Object lock = new Object();
 
 		private final Promise<ActorGateway> futureActorGateway = new scala.concurrent.impl.Promise.DefaultPromise<ActorGateway>();
 
@@ -188,19 +213,33 @@ public class LeaderRetrievalUtils {
 			this.timeout = timeout;
 		}
 
-		@Override
-		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-			if(leaderAddress != null && !leaderAddress.equals("") && !futureActorGateway.isCompleted()) {
-				try {
-					ActorRef actorRef = AkkaUtils.getActorRef(leaderAddress, actorSystem, timeout);
-
-					ActorGateway gateway = new AkkaActorGateway(actorRef, leaderSessionID);
-
+		private void completePromise(ActorGateway gateway) {
+			synchronized (lock) {
+				if (!futureActorGateway.isCompleted()) {
 					futureActorGateway.success(gateway);
-
-				} catch(Exception e){
-					futureActorGateway.failure(e);
 				}
+			}
+		}
+
+		@Override
+		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
+			if(leaderAddress != null && !leaderAddress.equals("") && !futureActorGateway.isCompleted()) {
+				AkkaUtils.getActorRefFuture(leaderAddress, actorSystem, timeout)
+					.map(new Mapper<ActorRef, ActorGateway>() {
+						public ActorGateway apply(ActorRef ref) {
+							return new AkkaActorGateway(ref, leaderSessionID);
+						}
+					}, actorSystem.dispatcher())
+					.onComplete(new OnComplete<ActorGateway>() {
+						@Override
+						public void onComplete(Throwable failure, ActorGateway success) throws Throwable {
+							if (failure == null) {
+								completePromise(success);
+							} else {
+								LOG.debug("Could not retrieve the leader for address " + leaderAddress + ".", failure);
+							}
+						}
+					}, actorSystem.dispatcher());
 			}
 		}
 
@@ -240,5 +279,40 @@ public class LeaderRetrievalUtils {
 				connectionInfo.failure(exception);
 			}
 		}
+	}
+
+	/**
+	 * Gets the recovery mode as configured, based on the {@link ConfigConstants#RECOVERY_MODE}
+	 * config key.
+	 * 
+	 * @param config The configuration to read the recovery mode from.
+	 * @return The recovery mode.
+	 * 
+	 * @throws IllegalConfigurationException Thrown, if the recovery mode does not correspond
+	 *                                       to a known value.
+	 */
+	public static RecoveryMode getRecoveryMode(Configuration config) {
+		String mode = config.getString(
+			ConfigConstants.RECOVERY_MODE,
+			ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase();
+		
+		switch (mode) {
+			case "STANDALONE":
+				return RecoveryMode.STANDALONE;
+			case "ZOOKEEPER":
+				return RecoveryMode.ZOOKEEPER;
+			default:
+				throw new IllegalConfigurationException(
+					"The value for '" + ConfigConstants.RECOVERY_MODE + "' is unknown: " + mode);
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private LeaderRetrievalUtils() {
+		throw new RuntimeException();
 	}
 }

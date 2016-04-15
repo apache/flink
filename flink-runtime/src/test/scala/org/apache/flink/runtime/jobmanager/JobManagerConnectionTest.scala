@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.util.NetUtils
 import org.junit.Assert._
 import org.junit.Test
 

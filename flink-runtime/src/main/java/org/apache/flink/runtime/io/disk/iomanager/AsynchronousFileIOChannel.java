@@ -467,7 +467,7 @@ final class FileSegmentReadRequest implements ReadRequest {
 
 			fileSegment = new FileSegment(fileChannel, position, length, isBuffer);
 
-			// Skip the binary dataa
+			// Skip the binary data
 			fileChannel.position(position + length);
 
 			hasReachedEndOfFile.set(fileChannel.size() - fileChannel.position() == 0);

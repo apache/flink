@@ -23,12 +23,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
 /**
  * The <code>LocalDataOutputStream</code> class is a wrapper class for a data
  * output stream to the local file system.
  */
+@Internal
 public class LocalDataOutputStream extends FSDataOutputStream {
 
 	private static final int MAX_OPEN_TRIES = 3;

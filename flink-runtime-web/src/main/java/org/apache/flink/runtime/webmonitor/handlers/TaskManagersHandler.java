@@ -21,9 +21,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
+import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
+import org.apache.flink.util.StringUtils;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -33,34 +36,47 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TaskManagersHandler implements  RequestHandler, RequestHandler.JsonResponse {
+import static java.util.Objects.requireNonNull;
 
-	private final JobManagerArchiveRetriever retriever;
+public class TaskManagersHandler implements RequestHandler {
 
+	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
+	
 	private final FiniteDuration timeout;
-
-
-	public TaskManagersHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	
+	public TaskManagersHandler(FiniteDuration timeout) {
+		this.timeout = requireNonNull(timeout);
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
-				Future<Object> future = jobManager.ask(JobManagerMessages.getRequestRegisteredTaskManagers(), timeout);
-				RegisteredTaskManagers taskManagers = (RegisteredTaskManagers) Await.result(future, timeout);
-
-				final List<Instance> instances = new ArrayList<Instance>(taskManagers.asJavaCollection());
+				// whether one task manager's metrics are requested, or all task manager, we
+				// return them in an array. This avoids unnecessary code complexity.
+				// If only one task manager is requested, we only fetch one task manager metrics.
+				final List<Instance> instances = new ArrayList<>();
+				if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
+					try {
+						InstanceID instanceID = new InstanceID(StringUtils.hexStringToByte(pathParams.get(TASK_MANAGER_ID_KEY)));
+						Future<Object> future = jobManager.ask(new JobManagerMessages.RequestTaskManagerInstance(instanceID), timeout);
+						TaskManagerInstance instance = (TaskManagerInstance) Await.result(future, timeout);
+						if (instance.instance().nonEmpty()) {
+							instances.add(instance.instance().get());
+						}
+					}
+					// this means the id string was invalid. Keep the list empty.
+					catch (IllegalArgumentException e){
+						// do nothing.
+					}
+				} else {
+					Future<Object> future = jobManager.ask(JobManagerMessages.getRequestRegisteredTaskManagers(), timeout);
+					RegisteredTaskManagers taskManagers = (RegisteredTaskManagers) Await.result(future, timeout);
+					instances.addAll(taskManagers.asJavaCollection());
+				}
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeArrayFieldStart("taskmanagers");
@@ -78,10 +94,13 @@ public class TaskManagersHandler implements  RequestHandler, RequestHandler.Json
 					gen.writeNumberField("freeMemory", instance.getResources().getSizeOfJvmHeap());
 					gen.writeNumberField("managedMemory", instance.getResources().getSizeOfManagedMemory());
 
-					byte[] report = instance.getLastMetricsReport();
-					if (report != null) {
-						gen.writeFieldName("metrics");
-						gen.writeRawValue(new String(report, "utf-8"));
+					// only send metrics when only one task manager requests them.
+					if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
+						byte[] report = instance.getLastMetricsReport();
+						if (report != null) {
+							gen.writeFieldName("metrics");
+							gen.writeRawValue(new String(report, "utf-8"));
+						}
 					}
 
 					gen.writeEndObject();
@@ -92,7 +111,8 @@ public class TaskManagersHandler implements  RequestHandler, RequestHandler.Json
 
 				gen.close();
 				return writer.toString();
-			} else {
+			}
+			else {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}

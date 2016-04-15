@@ -21,39 +21,35 @@ package org.apache.flink.runtime.jobgraph.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the abstract base class for every task that can be executed by a TaskManager.
- * Concrete tasks like the stream vertices of the batch tasks
- * (see {@link org.apache.flink.runtime.operators.RegularPactTask}) inherit from this class.
+ * This is the abstract base class for every task that can be executed by a
+ * TaskManager. Concrete tasks like the vertices of batch jobs (see
+ * {@link BatchTask} inherit from this class.
  *
- * The TaskManager invokes the methods {@link #registerInputOutput()} and {@link #invoke()} in
- * this order when executing a task. The first method is responsible for setting up input and
- * output stream readers and writers, the second method contains the task's core operation.
+ * <p>The TaskManager invokes the {@link #invoke()} method when executing a
+ * task. All operations of the task happen in this method (setting up input
+ * output stream readers and writers as well as the task's core operation).
  */
 public abstract class AbstractInvokable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokable.class);
 
-
 	/** The environment assigned to this invokable. */
 	private Environment environment;
 
-	/** The execution config, cached from the deserialization from the JobConfiguration */
-	private ExecutionConfig executionConfig;
-
-
 	/**
-	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
-	 */
-	public abstract void registerInputOutput() throws Exception;
-
-	/**
-	 * Must be overwritten by the concrete task. This method is called by the task manager
-	 * when the actual execution of the task starts.
+	 * Starts the execution.
+	 *
+	 * <p>Must be overwritten by the concrete task implementation. This method
+	 * is called by the task manager when the actual execution of the task
+	 * starts.
+	 *
+	 * <p>All resources should be cleaned up when the method returns. Make sure
+	 * to guard the code with <code>try-finally</code> blocks where necessary.
 	 * 
 	 * @throws Exception
 	 *         Tasks may forward their exceptions for the TaskManager to handle through failure/recovery.
@@ -88,14 +84,13 @@ public abstract class AbstractInvokable {
 		return getEnvironment().getUserClassLoader();
 	}
 
-
 	/**
 	 * Returns the current number of subtasks the respective task is split into.
 	 * 
 	 * @return the current number of subtasks the respective task is split into
 	 */
 	public int getCurrentNumberOfSubtasks() {
-		return this.environment.getNumberOfSubtasks();
+		return this.environment.getTaskInfo().getNumberOfParallelSubtasks();
 	}
 
 	/**
@@ -104,7 +99,7 @@ public abstract class AbstractInvokable {
 	 * @return the index of this subtask in the subtask group
 	 */
 	public int getIndexInSubtaskGroup() {
-		return this.environment.getIndexInSubtaskGroup();
+		return this.environment.getTaskInfo().getIndexOfThisSubtask();
 	}
 
 	/**
@@ -126,29 +121,10 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the global ExecutionConfig, obtained from the job configuration.
+	 * Returns the global ExecutionConfig.
 	 */
 	public ExecutionConfig getExecutionConfig() {
-		if (executionConfig != null) {
-			return executionConfig;
-		}
-
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					getUserCodeClassLoader());
-
-			if (executionConfig == null) {
-				LOG.warn("Environment did not contain an ExecutionConfig - using a default config.");
-				executionConfig = new ExecutionConfig();
-			}
-			return executionConfig;
-		}
-		catch (Exception e) {
-			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig", e);
-			return new ExecutionConfig();
-		}
+		return this.environment.getExecutionConfig();
 	}
 
 	/**

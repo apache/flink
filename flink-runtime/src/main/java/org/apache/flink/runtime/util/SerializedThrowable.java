@@ -105,11 +105,11 @@ public class SerializedThrowable extends Exception implements Serializable {
 		}
 	}
 
-	public Throwable deserializeError(ClassLoader userCodeClassloader) {
+	public Throwable deserializeError(ClassLoader classloader) {
 		Throwable cached = cachedException == null ? null : cachedException.get();
 		if (cached == null) {
 			try {
-				cached = (Throwable) InstantiationUtil.deserializeObject(serializedException, userCodeClassloader);
+				cached = InstantiationUtil.deserializeObject(serializedException, classloader);
 				cachedException = new WeakReference<Throwable>(cached);
 			}
 			catch (Exception e) {

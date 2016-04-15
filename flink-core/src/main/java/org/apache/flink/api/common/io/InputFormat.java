@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
@@ -60,6 +61,7 @@ import org.apache.flink.core.io.InputSplitSource;
  * @param <OT> The type of the produced records.
  * @param <T> The type of input split.
  */
+@Public
 public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<T>, Serializable {
 	
 	/**
@@ -130,15 +132,12 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	boolean reachedEnd() throws IOException;
 	
 	/**
-	 * Tries to read the next pair from the input. By using the return value invalid records in the
-	 * input can be skipped.
+	 * Reads the next record from the input.
 	 * <p>
 	 * When this method is called, the input format it guaranteed to be opened.
 	 * 
 	 * @param reuse Object that may be reused.
-	 * @return Indicates whether the record could be successfully read. A return value of <i>true</i>
-	 *         indicates that the read was successful, a return value of false indicates that the
-	 *         current record was not read successfully and should be skipped.
+	 * @return Read record.
 	 *         
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */

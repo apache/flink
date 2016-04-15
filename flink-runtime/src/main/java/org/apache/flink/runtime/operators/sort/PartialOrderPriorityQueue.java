@@ -33,7 +33,7 @@ import java.util.Queue;
 
 /**
  * This class implements a priority-queue, which maintains a partial
- * ordering of its elements such that the+ least element can always be found
+ * ordering of its elements such that the least element can always be found
  * in constant time. Put()'s and pop()'s require log(size) time.
  * 
  */

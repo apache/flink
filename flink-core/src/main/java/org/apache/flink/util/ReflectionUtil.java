@@ -19,10 +19,13 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public class ReflectionUtil {
+@Internal
+public final class ReflectionUtil {
 	public static <T> T newInstance(Class<T> clazz) {
 		try {
 			return clazz.newInstance();
@@ -137,5 +140,12 @@ public class ReflectionUtil {
 			types[i++] = (Class<?>) templateArgument;
 		}
 		return types;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ReflectionUtil() {
+		throw new RuntimeException();
 	}
 }

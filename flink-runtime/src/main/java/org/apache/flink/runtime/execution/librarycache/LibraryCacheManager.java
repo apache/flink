@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 
 public interface LibraryCacheManager {
@@ -45,22 +46,26 @@ public interface LibraryCacheManager {
 	File getFile(BlobKey blobKey) throws IOException;
 
 	/**
-	 * Registers a job with its required jar files. The jar files are identified by their blob keys.
+	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
+	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
 	 * @throws IOException
 	 */
-	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles) throws IOException;
+	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+			throws IOException;
 	
 	/**
-	 * Registers a job task execution with its required jar files. The jar files are identified by their blob keys.
+	 * Registers a job task execution with its required jar files and classpaths. The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
+	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
 	 * @throws IOException
 	 */
-	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles) throws IOException;
+	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths) throws IOException;
 
 	/**
 	 * Unregisters a job from the library cache manager.

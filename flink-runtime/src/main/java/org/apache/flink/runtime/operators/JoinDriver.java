@@ -26,10 +26,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashJoinIterator;
 import org.apache.flink.runtime.operators.sort.NonReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
@@ -46,11 +46,11 @@ import org.slf4j.LoggerFactory;
  * 
  * @see org.apache.flink.api.common.functions.FlatJoinFunction
  */
-public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(JoinDriver.class);
 	
-	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
+	protected TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private volatile JoinTaskIterator<IT1, IT2, OT> joinIterator; // the iterator that does the actual join 
 	
@@ -59,7 +59,7 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -133,23 +133,27 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 							memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new ReusingBuildFirstHashMatchIterator<>(in1, in2,
+					this.joinIterator = new ReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new ReusingBuildSecondHashMatchIterator<>(in1, in2,
+					this.joinIterator = new ReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				default:
@@ -166,23 +170,27 @@ public class JoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1
 
 					break;
 				case HYBRIDHASH_BUILD_FIRST:
-					this.joinIterator = new NonReusingBuildFirstHashMatchIterator<>(in1, in2,
+					this.joinIterator = new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator21(comparator1, comparator2),
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
-					this.joinIterator = new NonReusingBuildSecondHashMatchIterator<>(in1, in2,
+					this.joinIterator = new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
 							serializer1, comparator1,
 							serializer2, comparator2,
 							pairComparatorFactory.createComparator12(comparator1, comparator2),
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				default:

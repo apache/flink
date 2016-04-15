@@ -18,24 +18,26 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.Nothing;
 import org.apache.flink.api.java.DataSet;
 
 import java.util.Arrays;
 
-
+@Public
 public class DataSink<T> {
 	
 	private final OutputFormat<T> format;
@@ -46,7 +48,7 @@ public class DataSink<T> {
 	
 	private String name;
 	
-	private int parallelism = -1;
+	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	private Configuration parameters;
 
@@ -71,15 +73,18 @@ public class DataSink<T> {
 		this.type = type;
 	}
 
-	
+
+	@Internal
 	public OutputFormat<T> getFormat() {
 		return format;
 	}
-	
+
+	@Internal
 	public TypeInformation<T> getType() {
 		return type;
 	}
-	
+
+	@Internal
 	public DataSet<T> getDataSet() {
 		return data;
 	}
@@ -95,8 +100,8 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a {@link org.apache.flink.api.java.tuple.Tuple} data set
-	 * on the specified field in the specified {@link Order} before it is emitted by the output format.</br>
-	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br/>
+	 * on the specified field in the specified {@link Order} before it is emitted by the output format.<br>
+	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br>
 	 * The tuple data set can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(int, Order)} calls.
 	 *
@@ -107,24 +112,17 @@ public class DataSink<T> {
 	 * @see org.apache.flink.api.java.tuple.Tuple
 	 * @see Order
 	 */
+	@Deprecated
+	@PublicEvolving
 	public DataSink<T> sortLocalOutput(int field, Order order) {
 
-		if (!this.type.isTupleType()) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
-		}
-		if (field >= this.type.getArity()) {
-			throw new InvalidProgramException("Order key out of tuple bounds.");
-		}
-		isValidSortKeyType(field);
-
 		// get flat keys
-		Keys.ExpressionKeys<T> ek;
-		try {
-			ek = new Keys.ExpressionKeys<T>(new int[]{field}, this.type);
-		} catch(IllegalArgumentException iae) {
-			throw new InvalidProgramException("Invalid specification of field expression.", iae);
-		}
+		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(field, this.type);
 		int[] flatKeys = ek.computeLogicalKeyPositions();
+
+		if (!Keys.ExpressionKeys.isSortKey(field, this.type)) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
+		}
 
 		if(this.sortKeyPositions == null) {
 			// set sorting info
@@ -149,9 +147,9 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a data set on the field(s) specified by the field expression
-	 * in the specified {@link Order} before it is emitted by the output format.</br>
+	 * in the specified {@link Order} before it is emitted by the output format.<br>
 	 * <b>Note: Non-composite types can only be sorted on the full element which is specified by
-	 * a wildcard expression ("*" or "_").</b><br/>
+	 * a wildcard expression ("*" or "_").</b><br>
 	 * Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(String, Order)} calls.
 	 *
@@ -161,39 +159,25 @@ public class DataSink<T> {
 	 *
 	 * @see Order
 	 */
+	@Deprecated
+	@PublicEvolving
 	public DataSink<T> sortLocalOutput(String fieldExpression, Order order) {
 
 		int numFields;
 		int[] fields;
 		Order[] orders;
 
-		if(this.type instanceof CompositeType) {
+		// compute flat field positions for (nested) sorting fields
+		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(fieldExpression, this.type);
+		fields = ek.computeLogicalKeyPositions();
 
-			// compute flat field positions for (nested) sorting fields
-			Keys.ExpressionKeys<T> ek;
-			try {
-				isValidSortKeyType(fieldExpression);
-				ek = new Keys.ExpressionKeys<T>(new String[]{fieldExpression}, this.type);
-			} catch(IllegalArgumentException iae) {
-				throw new InvalidProgramException("Invalid specification of field expression.", iae);
-			}
-			fields = ek.computeLogicalKeyPositions();
-			numFields = fields.length;
-			orders = new Order[numFields];
-			Arrays.fill(orders, order);
-		} else {
-			fieldExpression = fieldExpression.trim();
-			if (!(fieldExpression.equals("*") || fieldExpression.equals("_"))) {
-				throw new InvalidProgramException("Output sorting of non-composite types can only be defined on the full type. " +
-						"Use a field wildcard for that (\"*\" or \"_\")");
-			} else {
-				isValidSortKeyType(fieldExpression);
-
-				numFields = 1;
-				fields = new int[]{0};
-				orders = new Order[]{order};
-			}
+		if (!Keys.ExpressionKeys.isSortKey(fieldExpression, this.type)) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
+
+		numFields = fields.length;
+		orders = new Order[numFields];
+		Arrays.fill(orders, order);
 
 		if(this.sortKeyPositions == null) {
 			// set sorting info
@@ -212,28 +196,6 @@ public class DataSink<T> {
 		}
 
 		return this;
-	}
-
-	private void isValidSortKeyType(int field) {
-		TypeInformation<?> sortKeyType = ((TupleTypeInfoBase<?>) this.type).getTypeAt(field);
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
-	}
-
-	private void isValidSortKeyType(String field) {
-		TypeInformation<?> sortKeyType;
-
-		field = field.trim();
-		if(field.equals("*") || field.equals("_")) {
-			sortKeyType = this.type;
-		} else {
-			sortKeyType = ((CompositeType<?>) this.type).getTypeAt(field);
-		}
-
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
 	}
 
 	/**
@@ -255,7 +217,7 @@ public class DataSink<T> {
 	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
-		GenericDataSinkBase<T> sink = new GenericDataSinkBase<T>(this.format, new UnaryOperatorInformation<T, Nothing>(this.type, new NothingTypeInfo()), name);
+		GenericDataSinkBase<T> sink = new GenericDataSinkBase<>(this.format, new UnaryOperatorInformation<>(this.type, new NothingTypeInfo()), name);
 		// set input
 		sink.setInput(input);
 		// set parameters

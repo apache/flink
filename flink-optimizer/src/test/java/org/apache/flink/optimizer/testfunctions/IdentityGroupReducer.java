@@ -19,11 +19,10 @@
 package org.apache.flink.optimizer.testfunctions;
 
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
-public class IdentityGroupReducer<T> extends RichGroupReduceFunction<T, T> {
+public class IdentityGroupReducer<T> implements GroupReduceFunction<T, T> {
 
 	private static final long serialVersionUID = 1L;
 

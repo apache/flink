@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.java.sampling;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
@@ -30,6 +32,7 @@ import java.util.PriorityQueue;
  *
  * @param <T> The input data type.
  */
+@Internal
 public abstract class DistributedRandomSampler<T> extends RandomSampler<T> {
 
 	protected final int numSamples;

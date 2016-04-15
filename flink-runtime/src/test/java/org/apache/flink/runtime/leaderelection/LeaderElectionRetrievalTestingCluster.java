@@ -20,10 +20,12 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import scala.Option;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -36,29 +38,23 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	private final Configuration userConfiguration;
 	private final boolean useSingleActorSystem;
-	private final StreamingMode streamingMode;
 
-	public TestingLeaderElectionService[] leaderElectionServices;
-	public TestingLeaderRetrievalService[] leaderRetrievalServices;
-
-	private int leaderElectionServiceCounter = 0;
-	private int leaderRetrievalServiceCounter = 0;
+	public List<TestingLeaderElectionService> leaderElectionServices;
+	public List<TestingLeaderRetrievalService> leaderRetrievalServices;
 
 	private int leaderIndex = -1;
 
 	public LeaderElectionRetrievalTestingCluster(
 			Configuration userConfiguration,
 			boolean singleActorSystem,
-			boolean synchronousDispatcher,
-			StreamingMode streamingMode) {
-		super(userConfiguration, singleActorSystem, synchronousDispatcher, streamingMode);
+			boolean synchronousDispatcher) {
+		super(userConfiguration, singleActorSystem, synchronousDispatcher);
 
 		this.userConfiguration = userConfiguration;
 		this.useSingleActorSystem = singleActorSystem;
-		this.streamingMode = streamingMode;
 
-		leaderElectionServices = new TestingLeaderElectionService[this.numJobManagers()];
-		leaderRetrievalServices = new TestingLeaderRetrievalService[this.numTaskManagers() + 1];
+		leaderElectionServices = new ArrayList<TestingLeaderElectionService>();
+		leaderRetrievalServices = new ArrayList<TestingLeaderRetrievalService>();
 	}
 
 	@Override
@@ -67,29 +63,24 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	}
 
 	@Override
-	public StreamingMode streamingMode() {
-		return streamingMode;
-	}
-
-	@Override
 	public boolean useSingleActorSystem() {
 		return useSingleActorSystem;
 	}
 
 	@Override
-	public LeaderElectionService createLeaderElectionService(LeaderElectionService originalService) {
-		leaderElectionServices[leaderElectionServiceCounter] = new TestingLeaderElectionService();
+	public Option<LeaderElectionService> createLeaderElectionService() {
+		leaderElectionServices.add(new TestingLeaderElectionService());
 
-		LeaderElectionService result = leaderElectionServices[leaderElectionServiceCounter++];
+		LeaderElectionService result = leaderElectionServices.get(leaderElectionServices.size() - 1);
 
-		return result;
+		return Option.apply(result);
 	}
 
 	@Override
 	public LeaderRetrievalService createLeaderRetrievalService() {
-		leaderRetrievalServices[leaderRetrievalServiceCounter] = new TestingLeaderRetrievalService();
+		leaderRetrievalServices.add(new TestingLeaderRetrievalService());
 
-		return leaderRetrievalServices[leaderRetrievalServiceCounter++];
+		return leaderRetrievalServices.get(leaderRetrievalServices.size() - 1);
 	}
 
 	@Override
@@ -102,11 +93,11 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	public void grantLeadership(int index, UUID leaderSessionID) {
 		if(leaderIndex >= 0) {
 			// first revoke leadership
-			leaderElectionServices[leaderIndex].notLeader();
+			leaderElectionServices.get(leaderIndex).notLeader();
 		}
 
 		// make the JM with index the new leader
-		leaderElectionServices[index].isLeader(leaderSessionID);
+		leaderElectionServices.get(index).isLeader(leaderSessionID);
 
 		leaderIndex = index;
 	}

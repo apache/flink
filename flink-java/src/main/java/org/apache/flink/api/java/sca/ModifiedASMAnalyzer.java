@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -33,6 +34,7 @@ import java.lang.reflect.Field;
  * one iterable input e.g. GroupReduce.
  * (see also UdfAnalyzer's field "iteratorTrueAssumptionApplied")
  */
+@Internal
 public class ModifiedASMAnalyzer extends Analyzer {
 
 	private NestedMethodAnalyzer interpreter;

@@ -25,11 +25,14 @@ import static org.mockito.Mockito.spy;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -109,7 +112,7 @@ public class ExecutionGraphTestUtils {
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 
-		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
+		return new Instance(gateway, connection, ResourceID.generate(), new InstanceID(), hardwareDescription, numberOfSlots);
 	}
 
 	@SuppressWarnings("serial")
@@ -169,11 +172,13 @@ public class ExecutionGraphTestUtils {
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 		ExecutionGraph graph = new ExecutionGraph(
-				executionContext,
-				new JobID(),
-				"test job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+			executionContext, 
+			new JobID(), 
+			"test job", 
+			new Configuration(), 
+			new ExecutionConfig(),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
 
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));

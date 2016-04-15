@@ -1,5 +1,9 @@
 ---
 title: "Quickstart: Setup"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 1
+top-nav-title: Setup & Run Example
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,41 +27,21 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Get Flink up and running in a few simple steps.
+Get a Flink example program up and running in a few simple steps.
 
-## Requirements
+## Setup: Download and Start
 
-Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the
-only requirement is to have a working __Java 6.x__ (or higher)
-installation. Windows users, please take a look at the
-[Flink on Windows]({{ site.baseurl }}/setup/local_setup.html#flink-on-windows) guide which describes
-how to run Flink on Windows for local setups.
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 7.x__ (or higher) installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/setup/local_setup.html#flink-on-windows) guide which describes how to run Flink on Windows for local setups.
 
-## Download
-Download the ready to run binary package. Choose the Flink distribution that __matches your Hadoop version__. If you are unsure which version to choose or you just want to run locally, pick the package for Hadoop 1.2.
+### Download
 
-<ul class="nav nav-tabs">
-  <li class="active"><a href="#bin-hadoop1" data-toggle="tab">Hadoop 1.2</a></li>
-  <li><a href="#bin-hadoop2" data-toggle="tab">Hadoop 2 (YARN)</a></li>
-</ul>
-<p>
-<div class="tab-content text-center">
-  <div class="tab-pane active" id="bin-hadoop1">
-    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP1_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 1.2</a>
-  </div>
-  <div class="tab-pane" id="bin-hadoop2">
-    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 2</a>
-  </div>
-</div>
-</p>
+Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick any Hadoop/Scala combination you like, for instance [Flink for Hadoop 2]({{ site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE }}).
 
+### Start a Local Flink Cluster
 
-## Start
-  
 1. Go to the download directory.
 2. Unpack the downloaded archive.
 3. Start Flink.
-
 
 ~~~bash
 $ cd ~/Downloads        # Go to download directory
@@ -66,34 +50,82 @@ $ cd flink-{{site.version}}
 $ bin/start-local.sh    # Start Flink
 ~~~
 
-Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make
-sure everything is up and running.
+Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
 
-Instead of starting Flink with `bin/start-local.sh` you can also start Flink in an streaming optimized
-mode, using `bin/start-local-streaming.sh`.
+<a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="JobManager: Overview"/></a>
 
 ## Run Example
 
-Run the __Word Count example__ to see Flink at work.
+Now, we are going to run the [SocketTextStreamWordCount example](https://github.com/apache/flink/blob/release-1.0.0/flink-quickstart/flink-quickstart-java/src/main/resources/archetype-resources/src/main/java/SocketTextStreamWordCount.java) and read text from a socket and count the number of distinct words.
 
-* __Download test data__:
+* First of all, we use **netcat** to start local server via
 
   ~~~bash
-  $ wget -O hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
+  $ nc -l 9000
   ~~~ 
 
-* You now have a text file called _hamlet.txt_ in your working directory.
-* __Start the example program__:
-  
+* Submit the Flink program:
+
   ~~~bash
-  $ bin/flink run ./examples/WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+  $ bin/flink run examples/streaming/SocketTextStreamWordCount.jar \
+    --hostname localhost \
+    --port 9000
+  Printing result to stdout. Use --output to specify output path.
+  03/08/2016 17:21:56 Job execution switched to status RUNNING.
+  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
+  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
+  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to SCHEDULED
+  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to DEPLOYING
+  03/08/2016 17:21:56 Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
+  03/08/2016 17:21:56 Keyed Aggregation -> Sink: Unnamed(1/1) switched to RUNNING
   ~~~
 
-* You will find a file called __wordcount-result.txt__ in your current directory.
-  
+  The program connects to the socket and waits for input. You can check the web interface to verify that the job is running as expected:
 
-## Cluster Setup
-  
+  <div class="row">
+    <div class="col-sm-6">
+      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" alt="JobManager: Overview (cont'd)"/></a>
+    </div>
+    <div class="col-sm-6">
+      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" alt="JobManager: Running Jobs"/></a>
+    </div>
+  </div>
+
+* Counts are printed to `stdout`. Monitor the JobManager's output file and write some text in `nc`:
+
+  ~~~bash
+  $ nc -l 9000
+  lorem ipsum
+  ipsum ipsum ipsum
+  bye
+  ~~~
+
+  The `.out` file will print the counts immediately:
+
+  ~~~bash
+  $ tail -f log/flink-*-jobmanager-*.out
+  (lorem,1)
+  (ipsum,1)
+  (ipsum,2)
+  (ipsum,3)
+  (ipsum,4)
+  (bye,1)
+  ~~~~
+
+  To **stop** Flink when you're done type:
+
+  ~~~bash
+  $ bin/stop-local.sh
+  ~~~
+
+  <a href="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/setup.gif" alt="Quickstart: Setup"/></a>
+
+## Next Steps
+
+Check out the [step-by-step example](run_example_quickstart.html) in order to get a first feel of Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/apis/streaming/).
+
+### Cluster Setup
+
 __Running Flink on a cluster__ is as easy as running it locally. Having __passwordless SSH__ and
 __the same directory structure__ on all your cluster nodes lets you use our scripts to control
 everything.
@@ -106,9 +138,7 @@ on each node of your setup.
 3. Add the IPs or hostnames (one per line) of all __worker nodes__ (TaskManager) to the slaves files
 in `conf/slaves`.
 
-You can now __start the cluster__ at your master node with `bin/start-cluster.sh`. If you are planning
-to run only streaming jobs with Flink, you can also an optimized streaming mode: `start-cluster-streaming.sh`.
-
+You can now __start the cluster__ at your master node with `bin/start-cluster.sh`.
 
 The following __example__ illustrates the setup with three nodes (with IP addresses from _10.0.0.1_
 to _10.0.0.3_ and hostnames _master_, _worker1_, _worker2_) and shows the contents of the
@@ -139,9 +169,9 @@ configuration files, which need to be accessible at the same path on all machine
 Have a look at the [Configuration]({{ site.baseurl }}/setup/config.html) section of the documentation to see other available configuration options.
 For Flink to run efficiently, a few configuration values need to be set.
 
-In particular, 
+In particular,
 
- * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`taskmanager.tmp.dirs`)
@@ -149,11 +179,10 @@ In particular,
 
 are very important configuration values.
 
-## Flink on YARN
-You can easily deploy Flink on your existing __YARN cluster__. 
+### Flink on YARN
+
+You can easily deploy Flink on your existing __YARN cluster__.
 
 1. Download the __Flink Hadoop2 package__: [Flink with Hadoop 2]({{site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE}})
 2. Make sure your __HADOOP_HOME__ (or _YARN_CONF_DIR_ or _HADOOP_CONF_DIR_) __environment variable__ is set to read your YARN and HDFS configuration.
 3. Run the __YARN client__ with: `./bin/yarn-session.sh`. You can run the client with options `-n 10 -tm 8192` to allocate 10 TaskManagers with 8GB of memory each.
-
-For __more detailed instructions__, check out the programming Guides and examples.

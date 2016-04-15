@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.Channel;
+
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.util.NetUtils;
+
 import scala.Tuple2;
 
 import java.net.InetAddress;
@@ -41,34 +43,28 @@ public class NettyTestUtil {
 	// NettyServer and NettyClient
 	// ---------------------------------------------------------------------------------------------
 
-	static NettyServer initServer(NettyConfig config, NettyProtocol protocol) throws Exception {
+	static NettyServer initServer(NettyConfig config, NettyProtocol protocol, NettyBufferPool bufferPool) throws Exception {
 		final NettyServer server = new NettyServer(config);
 
 		try {
-			server.init(protocol);
+			server.init(protocol, bufferPool);
 		}
 		catch (Exception e) {
-			if (server != null) {
-				server.shutdown();
-			}
-
+			server.shutdown();
 			throw e;
 		}
 
 		return server;
 	}
 
-	static NettyClient initClient(NettyConfig config, NettyProtocol protocol) throws Exception {
+	static NettyClient initClient(NettyConfig config, NettyProtocol protocol, NettyBufferPool bufferPool) throws Exception {
 		final NettyClient client = new NettyClient(config);
 
 		try {
-			client.init(protocol);
+			client.init(protocol, bufferPool);
 		}
 		catch (Exception e) {
-			if (client != null) {
-				client.shutdown();
-			}
-
+			client.shutdown();
 			throw e;
 		}
 
@@ -82,8 +78,10 @@ public class NettyTestUtil {
 	static NettyServerAndClient initServerAndClient(NettyProtocol protocol, NettyConfig config)
 			throws Exception {
 
-		final NettyClient client = initClient(config, protocol);
-		final NettyServer server = initServer(config, protocol);
+		NettyBufferPool bufferPool = new NettyBufferPool(1);
+
+		final NettyClient client = initClient(config, protocol, bufferPool);
+		final NettyServer server = initServer(config, protocol, bufferPool);
 
 		return new NettyServerAndClient(server, client);
 	}
@@ -144,6 +142,7 @@ public class NettyTestUtil {
 				InetAddress.getLocalHost(),
 				NetUtils.getAvailablePort(),
 				segmentSize,
+				1,
 				config);
 	}
 

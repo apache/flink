@@ -53,7 +53,7 @@ public abstract class AbstractMergeInnerJoinIterator<T1, T2, O> extends Abstract
 	/**
 	 * Calls the <code>JoinFunction#join()</code> method for all two key-value pairs that share the same key and come
 	 * from different inputs. The output of the <code>join()</code> method is forwarded.
-	 * <p/>
+	 * <p>
 	 * This method first zig-zags between the two sorted inputs in order to find a common
 	 * key, and then calls the join stub with the cross product of the values.
 	 *

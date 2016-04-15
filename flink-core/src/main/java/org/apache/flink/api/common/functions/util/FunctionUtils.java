@@ -20,12 +20,17 @@ package org.apache.flink.api.common.functions.util;
 
 import java.lang.reflect.Method;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 
-public class FunctionUtils {
+/**
+ * Utility class that contains helper methods to work with Flink {@link Function} class.
+ */
+@Internal
+public final class FunctionUtils {
 
 	public static void openFunction(Function function, Configuration parameters) throws Exception{
 		if (function instanceof RichFunction) {
@@ -123,5 +128,12 @@ public class FunctionUtils {
 		catch (Exception e) {
 			throw new RuntimeException("Could not extract lambda method out of function: " + e.getClass().getSimpleName() + " - " + e.getMessage(), e);
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private FunctionUtils() {
+		throw new RuntimeException();
 	}
 }

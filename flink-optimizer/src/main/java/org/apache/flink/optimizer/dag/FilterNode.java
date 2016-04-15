@@ -29,7 +29,7 @@ import org.apache.flink.optimizer.operators.FilterDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 
 /**
- * The optimizer's internal representation of a <i>FlatMap</i> operator node.
+ * The optimizer's internal representation of a <i>Filter</i> operator node.
  */
 public class FilterNode extends SingleInputNode {
 	

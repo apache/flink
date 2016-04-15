@@ -20,24 +20,27 @@ package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -72,10 +75,13 @@ public class JobSubmitTest {
 
 		scala.Option<Tuple2<String, Object>> listeningAddress = scala.Option.apply(new Tuple2<String, Object>("localhost", port));
 		jobManagerSystem = AkkaUtils.createActorSystem(config, listeningAddress);
-		ActorRef jobManagerActorRef = JobManager.startJobManagerActors(
+
+		// only start JobManager (no ResourceManager)
+		JobManager.startJobManagerActors(
 				config,
 				jobManagerSystem,
-				StreamingMode.BATCH_ONLY)._1();
+				JobManager.class,
+				MemoryArchivist.class)._1();
 
 		try {
 			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
@@ -103,7 +109,7 @@ public class JobSubmitTest {
 			// create a simple job graph
 			JobVertex jobVertex = new JobVertex("Test Vertex");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
 
 			// request the blob port from the job manager
 			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
@@ -167,7 +173,7 @@ public class JobSubmitTest {
 			};
 
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

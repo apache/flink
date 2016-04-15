@@ -15,115 +15,240 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.web;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.apache.commons.io.FileUtils;
+
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.webmonitor.WebMonitor;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONObject;
-import org.junit.Assert;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+
+import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
+
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.nio.file.Files;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@RunWith(Parameterized.class)
-public class WebFrontendITCase extends MultipleProgramsTestBase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-	// make sure that the webserver is started for us!
-	static {
-		startWebServer = true;
-	}
+import static org.apache.flink.test.util.TestBaseUtils.getFromHTTP;
+
+public class WebFrontendITCase {
+
+	private static final int NUM_TASK_MANAGERS = 2;
+	private static final int NUM_SLOTS = 4;
+	
+	private static ForkableFlinkMiniCluster cluster;
 
 	private static int port = -1;
-
+	
 	@BeforeClass
-	public static void initialize() {
-		WebMonitor webMonitor = cluster.webMonitor().get();
-		port = webMonitor.getServerPort();
+	public static void initialize() throws Exception {
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS);
+		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
+		File logDir = File.createTempFile("TestBaseUtils-logdir", null);
+		assertTrue("Unable to delete temp file", logDir.delete());
+		assertTrue("Unable to create temp directory", logDir.mkdir());
+		File logFile = new File(logDir, "jobmanager.log");
+		File outFile = new File(logDir, "jobmanager.out");
+		
+		Files.createFile(logFile.toPath());
+		Files.createFile(outFile.toPath());
+		
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.getAbsolutePath());
+
+		cluster = new ForkableFlinkMiniCluster(config, false);
+		cluster.start();
+		
+		port = cluster.webMonitor().get().getServerPort();
 	}
 
-	static final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
-
-	public WebFrontendITCase(TestExecutionMode m) {
-		super(m);
-	}
-
-	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		Collection<TestExecutionMode[]> c = new ArrayList<TestExecutionMode[]>(1);
-		c.add(new TestExecutionMode[] {TestExecutionMode.CLUSTER});
-		return c;
+	@Test
+	public void getFrontPage() {
+		try {
+			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/index.html");
+			String text = "Apache Flink Dashboard";
+			assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	@Test
 	public void getNumberOfTaskManagers() {
 		try {
-			Assert.assertEquals("{\"taskmanagers\": "+cluster.getTaskManagers().size()+", \"slots\": 4}",
-					TestBaseUtils.getFromHTTP("http://localhost:" + port + "/jobsInfo?get=taskmanagers"));
-		}catch(Throwable e) {
+			String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode response = mapper.readTree(json);
+			ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
+
+			assertNotNull(taskManagers);
+			assertEquals(cluster.numTaskManagers(), taskManagers.size());
+		}
+		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
 	public void getTaskmanagers() {
 		try {
-			String json = getFromHTTP("http://localhost:" + port + "/setupInfo?get=taskmanagers");
-			JSONObject parsed = new JSONObject(json);
-			Object taskManagers = parsed.get("taskmanagers");
-			Assert.assertNotNull(taskManagers);
-			Assert.assertTrue(taskManagers instanceof JSONArray);
-			JSONArray tma = (JSONArray) taskManagers;
-			Assert.assertEquals(cluster.numTaskManagers(), tma.length());
-			Object taskManager = tma.get(0);
-			Assert.assertNotNull(taskManager);
-			Assert.assertTrue(taskManager instanceof JSONObject);
-			Assert.assertEquals(4, ((JSONObject) taskManager).getInt("freeSlots"));
-		}catch(Throwable e) {
+			String json = getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode parsed = mapper.readTree(json);
+			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+
+			assertNotNull(taskManagers);
+			assertEquals(cluster.numTaskManagers(), taskManagers.size());
+
+			JsonNode taskManager = taskManagers.get(0);
+			assertNotNull(taskManager);
+			assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
+			assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
+		}
+		catch(Exception e) {
 			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void getLogfiles() {
-		try {
-			String logPath = cluster.configuration().getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
-			Assert.assertNotNull(logPath);
-			FileUtils.writeStringToFile(new File(logPath, "jobmanager-main.log"), "test content");
+	public void getLogAndStdoutFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(cluster.configuration());
 
-			String logs = getFromHTTP("http://localhost:8081/logInfo");
-			Assert.assertTrue(logs.contains("test content"));
-		}catch(Throwable e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
+		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+		String logs = getFromHTTP("http://localhost:" + port + "/jobmanager/log");
+		assertTrue(logs.contains("job manager log"));
+
+		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+		logs = getFromHTTP("http://localhost:" + port + "/jobmanager/stdout");
+		assertTrue(logs.contains("job manager out"));
 	}
 
 	@Test
 	public void getConfiguration() {
 		try {
-			String config = getFromHTTP("http://localhost:" + port + "/setupInfo?get=globalC");
-			JSONObject parsed = new JSONObject(config);
-			Assert.assertEquals(logDir.toString(), parsed.getString("jobmanager.web.logpath"));
-			Assert.assertEquals(cluster.configuration().getString("taskmanager.numberOfTaskSlots", null), parsed.getString("taskmanager.numberOfTaskSlots"));
-		}catch(Throwable e) {
+			String config = getFromHTTP("http://localhost:" + port + "/jobmanager/config");
+
+			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
+			assertEquals(
+				cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
+				conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
+		}
+		catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail(e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 
+	@Test
+	public void testStop() throws Exception {
+		// this only works if there is no active job at this point
+		assertTrue(cluster.getCurrentlyRunningJobsJava().isEmpty());
+		
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(StoppableInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", new ExecutionConfig(), sender);
+		final JobID jid = jobGraph.getJobID();
+
+		cluster.submitJobDetached(jobGraph);
+
+		// wait for job to show up
+		while (cluster.getCurrentlyRunningJobsJava().isEmpty()) {
+			Thread.sleep(10);
+		}
+		
+		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+		final Deadline deadline = testTimeout.fromNow();
+
+		while (!cluster.getCurrentlyRunningJobsJava().isEmpty()) {
+			try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+				// Request the file from the web server
+				client.sendDeleteRequest("/jobs/" + jid + "/stop", deadline.timeLeft());
+				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+	
+				assertEquals(HttpResponseStatus.OK, response.getStatus());
+				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("{}", response.getContent());
+			}
+
+			Thread.sleep(20);
+		}
+	}
+
+	@Test
+	public void testStopYarn() throws Exception {
+		// this only works if there is no active job at this point
+		assertTrue(cluster.getCurrentlyRunningJobsJava().isEmpty());
+		
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(StoppableInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", new ExecutionConfig(), sender);
+		final JobID jid = jobGraph.getJobID();
+
+		cluster.submitJobDetached(jobGraph);
+
+		// wait for job to show up
+		while (cluster.getCurrentlyRunningJobsJava().isEmpty()) {
+			Thread.sleep(10);
+		}
+
+		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+		final Deadline deadline = testTimeout.fromNow();
+
+		while (!cluster.getCurrentlyRunningJobsJava().isEmpty()) {
+			try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+				// Request the file from the web server
+				client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
+	
+				HttpTestClient.SimpleHttpResponse response = client
+						.getNextResponse(deadline.timeLeft());
+	
+				assertEquals(HttpResponseStatus.OK, response.getStatus());
+				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("{}", response.getContent());
+			}
+			
+			Thread.sleep(20);
+		}
+	}
 }

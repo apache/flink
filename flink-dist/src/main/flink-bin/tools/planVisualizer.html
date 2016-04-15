@@ -22,59 +22,8 @@
 <head>
   <title>Flink Plan Visualizer</title>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-  <link rel="stylesheet" type="text/css" href="css/nephelefrontend.css" />
-  <link rel="stylesheet" type="text/css" href="css/pactgraphs.css" />
-  <link rel="stylesheet" type="text/css" href="css/graph.css" />
-  <link rel="stylesheet" type="text/css" href="css/overlay.css" />
-  <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
-  <script type="text/javascript" src="js/jquery-2.1.0.js"></script>
-  <script type="text/javascript" src="js/graphCreator.js"></script>
-  <script type="text/javascript" src="js/d3.js" charset="utf-8"></script>
-  <script type="text/javascript" src="js/dagre-d3.js"></script>
-  <script type="text/javascript" src="js/bootstrap.min.js"></script>
-  <script type="text/javascript" src="js/jquery.tools.min.js"></script>
-
 <body>
-  <div class="mainHeading">
-    <h1 style="margin-top:0"><img src="img/flink-logo.png" width="100" height="100" alt="Flink Logo" align="middle"/>Flink Plan Visualizer
-	    <div style="position:absolute; top:40px; right:110px;">
-		  <button id="zoomIn" type="button" class="btn btn-default">Zoom In</button>
-		  <button id="zoomOut" type="button" class="btn btn-default">Zoom Out</button>
-		</div>
-    </h1>
-  </div>
-    <div>
-      <div id="mainCanvas" class="canvas boxed">
-        <div><h3>Paste the plan data here</h3></div>
-        <div align="center"><textarea id="plantext" style="width: 600px; height: 400px;"></textarea></div>
-        <div align="center"; style="float: bottom;"> 
-          <input id="draw_button" type="button" value="Draw"/> 
-        </div>
-      </div>
-    </div>
-    <div class="simple_overlay" id="propertyO">
-	  <div id="propertyCanvas" class="propertyCanvas">
-	  </div>
-	</div>
-    <script type="text/javascript">
-
-      $(document).ready(function() {
-		
-	  	//change height of mainCanvas to maximum
-	  	$("#mainCanvas").css("height", $(document).height() - 15 - 105);
-
-        $('#draw_button').click(function () {
-          var planData = $("textarea#plantext").val();
-          $("#mainCanvas").empty();
-          var svgElement = "<div id=\"attach\"><svg id=\"svg-main\" width=500 height=500><g transform=\"translate(20, 20)\"/></svg></div>";
-          $("#mainCanvas").append(svgElement);
-          var asObject = eval('(' + planData + ')');
-          drawGraph(asObject, "#svg-main");
-        });
-
-      });
-      activateZoomButtons();
-    </script>
+  <h1>Moved to Project Website</h1>
+  <p>The plan visualizer has been moved to the <a href="http://flink.apache.org/visualizer/index.html">Flink project website</a>.</p>
 </body>
 </html>
-

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
@@ -36,6 +38,7 @@ import org.apache.flink.types.Value;
  *
  * @see DataSet#iterate(int)
  */
+@Public
 public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeDataSet<T>> {
 
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
@@ -69,8 +72,9 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * set that will trigger to halt the loop as soon as the data set is empty. A typical way of using the termination
 	 * criterion is to have a filter that filters out all elements that are considered non-converged. As soon as no more
 	 * such elements exist, the iteration finishes.
-	 * 
+	 *
 	 * @param iterationResult The data set that will be fed back to the next iteration.
+	 * @param terminationCriterion The data set that being used to trigger halt on operation once it is empty.
 	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
 	 * 
 	 * @see DataSet#iterate(int)
@@ -102,6 +106,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * 
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
+	@PublicEvolving
 	public IterativeDataSet<T> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
@@ -121,6 +126,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * 
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
+	@PublicEvolving
 	public <X extends Value> IterativeDataSet<T> registerAggregationConvergenceCriterion(
 			String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck)
 	{
@@ -131,11 +137,11 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	/**
 	 * Gets the registry for aggregators. On the registry, one can add {@link Aggregator}s and an aggregator-based 
 	 * {@link ConvergenceCriterion}. This method offers an alternative way to registering the aggregators via
-	 * {@link #registerAggregator(String, Aggregator)} and {@link #registerAggregationConvergenceCriterion(String, Aggregator, ConvergenceCriterion)
-)}.
+	 * {@link #registerAggregator(String, Aggregator)} and {@link #registerAggregationConvergenceCriterion(String, Aggregator, ConvergenceCriterion))}.
 	 * 
 	 * @return The registry for aggregators.
 	 */
+	@PublicEvolving
 	public AggregatorRegistry getAggregators() {
 		return aggregators;
 	}

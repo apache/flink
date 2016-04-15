@@ -23,8 +23,10 @@ import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +62,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		});
 		// test if index is consecutive
 		for (int i = 0; i < expectedSize; i++) {
-			Assert.assertEquals(i, (long) result.get(i).f0);
+			Assert.assertEquals(i, result.get(i).f0.longValue());
 		}
 	}
 
@@ -80,5 +82,16 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		Set<Long> result = Sets.newHashSet(ids.collect());
 
 		Assert.assertEquals(expectedSize, result.size());
+	}
+
+	@Test
+	public void testIntegerDataSetChecksumHashCode() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
+
+		Utils.ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ds);
+		Assert.assertEquals(checksum.getCount(), 15);
+		Assert.assertEquals(checksum.getChecksum(), 55);
 	}
 }

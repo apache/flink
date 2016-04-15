@@ -29,7 +29,7 @@ import java.util.jar.JarFile;
  * Utilities for information with respect to class loaders, specifically class loaders for
  * the dynamic loading of user defined classes.
  */
-public class ClassLoaderUtil {
+public final class ClassLoaderUtil {
 
 	/**
 	 * Gets information about URL class loaders. The returned info string contains all URLs of the
@@ -128,5 +128,12 @@ public class ClassLoaderUtil {
 		catch (Exception e) {
 			return false;
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ClassLoaderUtil() {
+		throw new RuntimeException();
 	}
 }

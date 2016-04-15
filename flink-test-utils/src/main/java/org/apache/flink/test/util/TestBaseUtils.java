@@ -32,7 +32,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -58,6 +57,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -77,10 +78,6 @@ public class TestBaseUtils extends TestLogger {
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
-
-	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
-
-	protected static final int DEFAULT_NUM_TASK_MANAGERS = 1;
 
 	protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
 
@@ -106,7 +103,6 @@ public class TestBaseUtils extends TestLogger {
 	public static ForkableFlinkMiniCluster startCluster(
 		int numTaskManagers,
 		int taskManagerNumSlots,
-		StreamingMode mode,
 		boolean startWebserver,
 		boolean startZooKeeper,
 		boolean singleActorSystem) throws Exception {
@@ -118,22 +114,23 @@ public class TestBaseUtils extends TestLogger {
 		
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
 
-		if(startZooKeeper) {
+		if (startZooKeeper) {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
 			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		}
 
-		return startCluster(config, mode, singleActorSystem);
+		return startCluster(config, singleActorSystem);
 	}
 
 	public static ForkableFlinkMiniCluster startCluster(
 		Configuration config,
-		StreamingMode mode,
 		boolean singleActorSystem) throws Exception {
 
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
 		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
+		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
+		Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
@@ -142,9 +139,9 @@ public class TestBaseUtils extends TestLogger {
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
 
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
-		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem);
 
 		cluster.start();
 
@@ -159,10 +156,11 @@ public class TestBaseUtils extends TestLogger {
 		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
-			{
+			
+			if (executor.running()) {
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
-				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<Future<Object>>();
-				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<Future<Object>>();
+				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<>();
+				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<>();
 
 				for (ActorRef tm : tms) {
 					bcVariableManagerResponseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
@@ -296,7 +294,7 @@ public class TestBaseUtils extends TestLogger {
 
 	public static void compareResultsByLinesInMemory(String expectedResultStr, String resultPath,
 											String[] excludePrefixes) throws Exception {
-		ArrayList<String> list = new ArrayList<String>();
+		ArrayList<String> list = new ArrayList<>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
 		String[] result = list.toArray(new String[list.size()]);
@@ -316,7 +314,7 @@ public class TestBaseUtils extends TestLogger {
 
 	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
 																	String resultPath, String[] excludePrefixes) throws Exception {
-		ArrayList<String> list = new ArrayList<String>();
+		ArrayList<String> list = new ArrayList<>();
 		readAllResultLines(list, resultPath, excludePrefixes, true);
 
 		String[] result = list.toArray(new String[list.size()]);
@@ -331,7 +329,7 @@ public class TestBaseUtils extends TestLogger {
 		Pattern pattern = Pattern.compile(regexp);
 		Matcher matcher = pattern.matcher("");
 
-		ArrayList<String> list = new ArrayList<String>();
+		ArrayList<String> list = new ArrayList<>();
 		try {
 			readAllResultLines(list, resultPath, new String[]{}, false);
 		} catch (IOException e1) {
@@ -354,7 +352,7 @@ public class TestBaseUtils extends TestLogger {
 
 	public static void compareKeyValuePairsWithDelta(String expectedLines, String resultPath,
 														String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
-		ArrayList<String> list = new ArrayList<String>();
+		ArrayList<String> list = new ArrayList<>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
 		String[] result = list.toArray(new String[list.size()]);
@@ -420,9 +418,7 @@ public class TestBaseUtils extends TestLogger {
 			} else {
 				throw new IllegalArgumentException("This path does not denote a local file.");
 			}
-		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
-		} catch (NullPointerException e) {
+		} catch (URISyntaxException | NullPointerException e) {
 			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
 		}
 	}
@@ -440,7 +436,7 @@ public class TestBaseUtils extends TestLogger {
 	}
 	
 	private static <T> void compareResult(List<T> result, String expected, boolean asTuples) {
-		String[] extectedStrings = expected.split("\n");
+		String[] expectedStrings = expected.split("\n");
 		String[] resultStrings = new String[result.size()];
 		
 		for (int i = 0; i < resultStrings.length; i++) {
@@ -466,13 +462,13 @@ public class TestBaseUtils extends TestLogger {
 			}
 		}
 		
-		assertEquals("Wrong number of elements result", extectedStrings.length, resultStrings.length);
+		assertEquals("Wrong number of elements result", expectedStrings.length, resultStrings.length);
 
-		Arrays.sort(extectedStrings);
+		Arrays.sort(expectedStrings);
 		Arrays.sort(resultStrings);
 		
-		for (int i = 0; i < extectedStrings.length; i++) {
-			assertEquals(extectedStrings[i], resultStrings[i]);
+		for (int i = 0; i < expectedStrings.length; i++) {
+			assertEquals(expectedStrings[i], resultStrings[i]);
 		}
 	}
 	
@@ -509,7 +505,7 @@ public class TestBaseUtils extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 
 	protected static Collection<Object[]> toParameterList(Configuration ... testConfigs) {
-		ArrayList<Object[]> configs = new ArrayList<Object[]>();
+		ArrayList<Object[]> configs = new ArrayList<>();
 		for (Configuration testConfig : testConfigs) {
 			Object[] c = { testConfig };
 			configs.add(c);
@@ -518,7 +514,7 @@ public class TestBaseUtils extends TestLogger {
 	}
 
 	protected static Collection<Object[]> toParameterList(List<Configuration> testConfigs) {
-		LinkedList<Object[]> configs = new LinkedList<Object[]>();
+		LinkedList<Object[]> configs = new LinkedList<>();
 		for (Configuration testConfig : testConfigs) {
 			Object[] c = { testConfig };
 			configs.add(c);

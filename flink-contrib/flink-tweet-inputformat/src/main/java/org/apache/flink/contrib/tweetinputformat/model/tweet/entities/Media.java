@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents media elements uploaded with the {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet}.
+ * Represents media elements uploaded with the {@link org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet}.
  */
 public class Media {
 

@@ -28,15 +28,50 @@ angular.module('flinkApp')
 
   amDurationFormatExtendedFilter
 
+.filter "humanizeDuration", ->
+  (value, short) ->
+    return "" if typeof value is "undefined" or value is null
+    ms = value % 1000
+    x = Math.floor(value / 1000)
+    seconds = x % 60
+    x = Math.floor(x / 60)
+    minutes = x % 60
+    x = Math.floor(x / 60)
+    hours = x % 24
+    x = Math.floor(x / 24)
+    days = x
+    if days == 0
+      if hours == 0
+        if minutes == 0
+          if seconds == 0
+            return ms + "ms"
+          else
+            return seconds + "s "
+        else
+          return minutes + "m " + seconds + "s"
+      else
+        if short then return hours + "h " + minutes + "m" else return hours + "h " + minutes + "m " + seconds + "s"
+    else
+      if short then return days + "d " + hours + "h" else return days + "d " + hours + "h " + minutes + "m " + seconds + "s"
+
 .filter "humanizeText", ->
   (text) ->
     # TODO: extend... a lot
     if text then text.replace(/&gt;/g, ">").replace(/<br\/>/g,"") else ''
 
-.filter "bytes", ->
-  (bytes, precision) ->
-    return "-"  if isNaN(parseFloat(bytes)) or not isFinite(bytes)
-    precision = 1  if typeof precision is "undefined"
-    units = [ "bytes", "kB", "MB", "GB", "TB", "PB" ]
-    number = Math.floor(Math.log(bytes) / Math.log(1024))
-    (bytes / Math.pow(1024, Math.floor(number))).toFixed(precision) + " " + units[number]
+.filter "humanizeBytes", ->
+  (bytes) ->
+    units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"]
+    converter = (value, power) ->
+      base = Math.pow(1024, power)
+      if value < base
+        return (value / base).toFixed(2) + " " + units[power]
+      else if value < base * 1000
+        return (value / base).toPrecision(3) + " " + units[power]
+      else
+        return converter(value, power + 1)
+    return "" if typeof bytes is "undefined" or bytes is null
+    if bytes < 1000 then bytes + " B" else converter(bytes, 1)
+
+.filter "toUpperCase", ->
+  (text) -> text.toUpperCase()

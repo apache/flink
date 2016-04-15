@@ -169,8 +169,7 @@ public abstract class CostEstimator {
 		switch (n.getDriverStrategy()) {
 		case NONE:
 		case UNARY_NO_OP:
-		case BINARY_NO_OP:	
-		case COLLECTOR_MAP:
+		case BINARY_NO_OP:
 		case MAP:
 		case MAP_PARTITION:
 		case FLAT_MAP:
@@ -196,12 +195,21 @@ public abstract class CostEstimator {
 			
 			break;
 		case INNER_MERGE:
+		case FULL_OUTER_MERGE:
+		case LEFT_OUTER_MERGE:
+		case RIGHT_OUTER_MERGE:
 			addLocalMergeCost(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:
+		case RIGHT_HYBRIDHASH_BUILD_FIRST:
+		case LEFT_HYBRIDHASH_BUILD_FIRST:
+		case FULL_OUTER_HYBRIDHASH_BUILD_FIRST:
 			addHybridHashCosts(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_SECOND:
+		case LEFT_HYBRIDHASH_BUILD_SECOND:
+		case RIGHT_HYBRIDHASH_BUILD_SECOND:
+		case FULL_OUTER_HYBRIDHASH_BUILD_SECOND:
 			addHybridHashCosts(secondInput, firstInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST_CACHED:

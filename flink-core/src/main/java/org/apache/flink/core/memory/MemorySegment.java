@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -90,6 +92,7 @@ import java.nio.ByteOrder;
  * or by identifying that the invocations are monomorphic (all go to the same concrete
  * method implementation). Under these conditions, the JIT can perfectly inline methods.
  */
+@Internal
 public abstract class MemorySegment {
 
 	/** The unsafe handle for transparent memory copied (heap / off-heap) */
@@ -210,7 +213,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Wraps the chunk of the underlying memory located between <tt>offset<tt> and 
+	 * Wraps the chunk of the underlying memory located between <tt>offset</tt> and
 	 * <tt>length</tt> in a NIO ByteBuffer.
 	 *
 	 * @param offset The offset in the memory segment.
@@ -1220,7 +1223,7 @@ public abstract class MemorySegment {
 	 * @param offset2 Offset of seg2 to start comparing
 	 * @param len Length of the compared memory region
 	 *
-	 * @return 0 if equal, -1 if seg1 < seg2, 1 otherwise
+	 * @return 0 if equal, -1 if seg1 &lt; seg2, 1 otherwise
 	 */
 	public final int compare(MemorySegment seg2, int offset1, int offset2, int len) {
 		while (len >= 8) {

@@ -1,5 +1,9 @@
 ---
 title:  "Data Streaming Fault Tolerance"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 4
+top-nav-title: Fault Tolerance for Data Streaming
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document describes Flink' fault tolerance mechanism for streaming data flows.
+This document describes Flink's fault tolerance mechanism for streaming data flows.
 
 * This will be replaced by the TOC
 {:toc}
@@ -52,7 +56,7 @@ Kafka exploits this ability.
 ## Checkpointing
 
 The central part of Flink's fault tolerance mechanism is drawing consistent snapshots of the distributed data stream and operator state.
-These shapshots act as consistent checkpoints to which the system can fall back in case of a failure. Flink's mechanism for drawing these
+These snapshots act as consistent checkpoints to which the system can fall back in case of a failure. Flink's mechanism for drawing these
 snapshots is described in "[Lightweight Asynchronous Snapshots for Distributed Dataflows](http://arxiv.org/abs/1506.08603)". It is inspired by 
 the standard [Chandy-Lamport algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) for distributed snapshots and is 
 specifically tailored to Flink's execution model.
@@ -87,9 +91,9 @@ their descendant records) have passed through the entire data flow topology.
   <img src="{{ site.baseurl }}/internals/fig/stream_aligning.svg" alt="Aligning data streams at operators with multiple inputs" style="width:100%; padding-top:10px; padding-bottom:10px;" />
 </div>
 
-Operators that receive more than one input stream need to *align* the input streams on the snapshot barriers. The figure above illutrates this:
+Operators that receive more than one input stream need to *align* the input streams on the snapshot barriers. The figure above illustrates this:
 
-  - As soon as the operator received snapshot barrier *n* from an incoming stream, it cannot process any further records from that stream until it has received the
+  - As soon as the operator received snapshot barrier *n* from an incoming stream, it cannot process any further records from that stream until it has received
 the barrier *n* from the other inputs as well. Otherwise, it would have mixed records that belong to snapshot *n* and with records that belong to snapshot *n+1*.
   - Streams that report barrier *n* are temporarily set aside. Records that are received from these streams are not processed, but put into an input buffer.
   - Once the last stream has received barrier *n*, the operator emits all pending outgoing records, and then emits snapshot *n* barriers itself.
@@ -103,7 +107,7 @@ When operators contain any form of *state*, this state must be part of the snaps
   - *User-defined state*: This is state that is created and modified directly by the transformation functions (like `map()` or `filter()`). User-defined state can either be a simple variable in the function's java object, or the associated key/value state of a function (see [State in Streaming Applications]({{ site.baseurl }}/apis/streaming_guide.html#stateful-computation) for details).
   - *System state*: This state refers to data buffers that are part of the operator's computation. A typical example for this state are the *window buffers*, inside which the system collects (and aggregates) records for windows until the window is evaluated and evicted.
 
-Operators snapshot their state at the point in time when they received all snapshot barriers from their input streams, before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be potentially large, it is stored in a configurable *state backend*. By default, this is the JobManager's memory, but for serious setups, a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emity the snapshot barrier into the output streams, and proceeds.
+Operators snapshot their state at the point in time when they received all snapshot barriers from their input streams, before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be potentially large, it is stored in a configurable *state backend*. By default, this is the JobManager's memory, but for serious setups, a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emits the snapshot barrier into the output streams, and proceeds.
 
 The resulting snapshot now contains:
 
@@ -118,16 +122,16 @@ The resulting snapshot now contains:
 ### Exactly Once vs. At Least Once
 
 The alignment step may add latency to the streaming program. Usually, this extra latency is in the order of a few milliseconds, but we have seen cases where the latency
-of some outliers increased noticeably. For applications that require consistenty super low latencies (few milliseconds) for all records, Flink has a switch to skip the 
+of some outliers increased noticeably. For applications that require consistently super low latencies (few milliseconds) for all records, Flink has a switch to skip the
 stream alignment during a checkpoint. Checkpoint snapshots are still drawn as soon as an operator has seen the checkpoint barrier from each input.
 
 When the alignment is skipped, an operator keeps processing all inputs, even after some checkpoint barriers for checkpoint *n* arrived. That way, the operator also processes
 elements that belong to checkpoint *n+1* before the state snapshot for checkpoint *n* was taken.
 On a restore, these records will occur as duplicates, because they are both included in the state snapshot of checkpoint *n*, and will be replayed as part
-of the data after checkoint *n*.
+of the data after checkpoint *n*.
 
-*NOTE*: Alignment happens only for operators wih multiple predecessors (joins) as well as operators with multiple senders (after a stream repartitionging/shuffle).
-Because of that, dataflows with only embarassingly parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually give *exactly once* guarantees even
+*NOTE*: Alignment happens only for operators with multiple predecessors (joins) as well as operators with multiple senders (after a stream repartitioning/shuffle).
+Because of that, dataflows with only embarrassingly parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually give *exactly once* guarantees even
 in *at least once* mode.
 
 <!--
@@ -141,7 +145,7 @@ It is possible to let an operator continue processing while it stores its state 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks received the barriers and all stateful operators acknowledged their completed backup (which may be later than the barriers reaching the sinks).
 
 User-defined state that is used through the key/value state abstraction can be snapshotted *asynchronously*.
-User functions that implement the interface {% gh_link /flink-staging/flink-streaming/flink-streaming-core/src/main/java/org/apache/flink/streaming/api/checkpoint/Checkpointed.java "Checkpointed" %} will be snapshotted *synchronously*, while functions that implement {% gh_link /flink-staging/flink-streaming/flink-streaming-core/src/main/java/org/apache/flink/streaming/api/checkpoint/CheckpointedAsynchronously.java "CheckpointedAsynchronously" %} will be snapshotted *asynchronously*. Note that for the latter, the user function must guarantee that any future modifications to its state to not affect the state object returned by the `snapshotState()` method.
+User functions that implement the interface {% gh_link /flink-FIXME/flink-streaming/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/checkpoint/Checkpointed.java "Checkpointed" %} will be snapshotted *synchronously*, while functions that implement {% gh_link /flink-FIXME/flink-streaming/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/checkpoint/CheckpointedAsynchronously.java "CheckpointedAsynchronously" %} will be snapshotted *asynchronously*. Note that for the latter, the user function must guarantee that any future modifications to its state to not affect the state object returned by the `snapshotState()` method.
 
 
 

@@ -23,9 +23,9 @@ import java.io.File;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -35,13 +35,17 @@ import static org.junit.Assert.fail;
 
 public class ClassLoaderITCase {
 
-	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
+	private static final String INPUT_SPLITS_PROG_JAR_FILE = "customsplit-test-jar.jar";
 
-	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
+	private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE = "streaming-customsplit-test-jar.jar";
 
-	private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE = "target/streaming-checkpointed-classloader-test-jar.jar";
+	private static final String STREAMING_PROG_JAR_FILE = "streamingclassloader-test-jar.jar";
 
-	private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
+	private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE = "streaming-checkpointed-classloader-test-jar.jar";
+
+	private static final String KMEANS_JAR_PATH = "kmeans-test-jar.jar";
+
+	private static final String USERCODETYPE_JAR_PATH = "usercodetype-test-jar.jar";
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
@@ -52,11 +56,11 @@ public class ClassLoaderITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 s");
 
 			// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(ConfigConstants.STATE_BACKEND_FS_DIR, "file://" + folder.newFolder().getAbsolutePath());
+			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+					folder.newFolder().getAbsoluteFile().toURI().toString());
 
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
 
@@ -68,16 +72,36 @@ public class ClassLoaderITCase {
 				PackagedProgram inputSplitTestProg = new PackagedProgram(
 						new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { INPUT_SPLITS_PROG_JAR_FILE,
+										"", // classpath
 										"localhost",
 										String.valueOf(port),
 										"4" // parallelism
 									});
 				inputSplitTestProg.invokeInteractiveModeForExecution();
 
+				PackagedProgram streamingInputSplitTestProg = new PackagedProgram(
+						new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE),
+						new String[] { STREAMING_INPUT_SPLITS_PROG_JAR_FILE,
+								"localhost",
+								String.valueOf(port),
+								"4" // parallelism
+						});
+				streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+
+				String classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL().toString();
+				PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
+						new String[] { "",
+										classpath, // classpath
+										"localhost",
+										String.valueOf(port),
+										"4" // parallelism
+									} );
+				inputSplitTestProg2.invokeInteractiveModeForExecution();
+
 				// regular streaming job
 				PackagedProgram streamingProg = new PackagedProgram(
 						new File(STREAMING_PROG_JAR_FILE),
-						new String[] { 
+						new String[] {
 								STREAMING_PROG_JAR_FILE,
 								"localhost",
 								String.valueOf(port)
@@ -90,7 +114,7 @@ public class ClassLoaderITCase {
 					PackagedProgram streamingCheckpointedProg = new PackagedProgram(
 							new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE),
 							new String[] {
-									STREAMING_CHECKPOINTED_PROG_JAR_FILE, 
+									STREAMING_CHECKPOINTED_PROG_JAR_FILE,
 									"localhost",
 									String.valueOf(port)});
 					streamingCheckpointedProg.invokeInteractiveModeForExecution();
@@ -113,6 +137,16 @@ public class ClassLoaderITCase {
 										"25"
 									});
 				kMeansProg.invokeInteractiveModeForExecution();
+
+				// test FLINK-3633
+				PackagedProgram userCodeTypeProg = new PackagedProgram(
+					new File(USERCODETYPE_JAR_PATH),
+					new String[] { USERCODETYPE_JAR_PATH,
+						"localhost",
+						String.valueOf(port),
+					});
+
+				userCodeTypeProg.invokeInteractiveModeForExecution();
 			}
 			finally {
 				testCluster.shutdown();

@@ -18,10 +18,12 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.sca.CodeAnalyzerException;
@@ -29,7 +31,11 @@ import org.apache.flink.api.java.sca.UdfAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class UdfOperatorUtils {
+/**
+ * Utility class that contains helper methods to work with UDF operators.
+ */
+@Internal
+public final class UdfOperatorUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UdfOperatorUtils.class);
 
@@ -99,5 +105,12 @@ public abstract class UdfOperatorUtils {
 				LOG.debug("Code analysis failed.", e);
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private UdfOperatorUtils() {
+		throw new RuntimeException();
 	}
 }

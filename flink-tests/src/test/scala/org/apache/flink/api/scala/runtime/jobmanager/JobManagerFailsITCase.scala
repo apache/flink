@@ -20,21 +20,21 @@ package org.apache.flink.api.scala.runtime.jobmanager
 
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
-
-import org.junit.runner.RunWith
-
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
-import org.apache.flink.runtime.jobgraph.{JobVertex, JobGraph}
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.Messages.Acknowledge
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerFailsITCase(_system: ActorSystem)
@@ -57,13 +57,13 @@ class JobManagerFailsITCase(_system: ActorSystem)
       val num_slots = 13
       val cluster = startDeathwatchCluster(num_slots, 1)
 
-      val tm = cluster.getTaskManagers(0)
-      val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
-
-      // disable disconnect message to test death watch
-      tm ! DisableDisconnect
-
       try {
+        val tm = cluster.getTaskManagers(0)
+        val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
+
+        // disable disconnect message to test death watch
+        tm ! DisableDisconnect
+
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(RequestNumberRegisteredTaskManager, self)
           expectMsg(1)
@@ -94,19 +94,19 @@ class JobManagerFailsITCase(_system: ActorSystem)
       val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
-      val jobGraph = new JobGraph("Blocking Testjob", sender)
+      val jobGraph = new JobGraph("Blocking Testjob", new ExecutionConfig(), sender)
 
       val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
-      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+      val jobGraph2 = new JobGraph("NoOp Testjob", new ExecutionConfig(), noOp)
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 
-      var jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
-      val tm = cluster.getTaskManagers(0)
-
       try {
+        var jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
+        val tm = cluster.getTaskManagers(0)
+
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), self)
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
@@ -119,9 +119,12 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
           cluster.restartLeadingJobManager()
 
-          cluster.waitForTaskManagersToBeRegistered()
-
           jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
+
+          // Ask the job manager for the TMs. Don't ask the TMs, because they
+          // can still have state associated with the old job manager.
+          jmGateway.tell(NotifyWhenAtLeastNumTaskManagerAreRegistered(2), self)
+          expectMsg(Acknowledge)
 
           jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
 

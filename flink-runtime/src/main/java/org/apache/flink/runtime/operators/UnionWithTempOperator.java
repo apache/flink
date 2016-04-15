@@ -22,18 +22,18 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class UnionWithTempOperator<T> implements PactDriver<Function, T> {
+public class UnionWithTempOperator<T> implements Driver<Function, T> {
 	
 	private static final int CACHED_INPUT = 0;
 	private static final int STREAMED_INPUT = 1;
 	
-	private PactTaskContext<Function, T> taskContext;
+	private TaskContext<Function, T> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<Function, T> context) {
+	public void setup(TaskContext<Function, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

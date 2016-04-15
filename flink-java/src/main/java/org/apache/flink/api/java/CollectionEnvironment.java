@@ -18,10 +18,12 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.CollectionExecutor;
 
+@PublicEvolving
 public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
@@ -32,15 +34,6 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
 		this.lastJobExecutionResult = exec.execute(p);
 		return this.lastJobExecutionResult;
-	}
-
-	/**
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Override
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
 	}
 
 	@Override

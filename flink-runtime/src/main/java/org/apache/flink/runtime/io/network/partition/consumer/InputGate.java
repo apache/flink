@@ -32,17 +32,17 @@ import java.io.IOException;
  * <p> As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
- * <pre>
+ * <pre>{@code
  * +-----+              +---------------------+              +--------+
  * | Map | = produce => | Intermediate Result | <= consume = | Reduce |
  * +-----+              +---------------------+              +--------+
- * </pre>
+ * }</pre>
  *
  * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
- * <pre>
+ * <pre>{@code
  *                            Intermediate result
  *               +-----------------------------------------+
  *               |                      +----------------+ |              +-----------------------+
@@ -57,7 +57,7 @@ import java.io.IOException;
  * +-------+     | +-------------+  +=> | Subpartition 2 | | <==+======== | Input Gate | Reduce 2 |
  *               |                      +----------------+ |              +-----------------------+
  *               +-----------------------------------------+
- * </pre>
+ * }</pre>
  *
  * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -47,6 +48,7 @@ import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -147,12 +149,13 @@ public class TaskAsyncCallTest {
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
-				"Test Task", 0, 1,
+				new ExecutionConfig(), "Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				CheckpointsInOrderInvokable.class.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
 				0);
 
 		ActorGateway taskManagerGateway = DummyActorGateway.INSTANCE;
@@ -176,9 +179,6 @@ public class TaskAsyncCallTest {
 		private volatile Exception error;
 		
 		@Override
-		public void registerInputOutput() {}
-
-		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
 			
@@ -196,12 +196,12 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
+		public void setInitialState(StateHandle<Serializable> stateHandle, long ts) throws Exception {
 
 		}
 
 		@Override
-		public void triggerCheckpoint(long checkpointId, long timestamp) {
+		public boolean triggerCheckpoint(long checkpointId, long timestamp) {
 			lastCheckpointId++;
 			if (checkpointId == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -214,6 +214,7 @@ public class TaskAsyncCallTest {
 					notifyAll();
 				}
 			}
+			return true;
 		}
 
 		@Override

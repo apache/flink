@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemoryUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 
 /**
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
@@ -38,6 +40,8 @@ public class DataOutputSerializer implements DataOutputView {
 	private static final Logger LOG = LoggerFactory.getLogger(DataOutputSerializer.class);
 	
 	private static final int PRUNE_BUFFER_THRESHOLD = 5 * 1024 * 1024;
+
+	// ------------------------------------------------------------------------
 	
 	private final byte[] startBuffer;
 	
@@ -46,6 +50,8 @@ public class DataOutputSerializer implements DataOutputView {
 	private int position;
 
 	private ByteBuffer wrapper;
+
+	// ------------------------------------------------------------------------
 	
 	public DataOutputSerializer(int startSize) {
 		if (startSize < 1) {
@@ -65,6 +71,10 @@ public class DataOutputSerializer implements DataOutputView {
 
 	public byte[] getByteArray() {
 		return buffer;
+	}
+	
+	public byte[] getCopyOfBuffer() {
+		return Arrays.copyOf(buffer, position);
 	}
 
 	public void clear() {
@@ -298,14 +308,6 @@ public class DataOutputSerializer implements DataOutputView {
 		this.buffer = nb;
 		this.wrapper = ByteBuffer.wrap(this.buffer);
 	}
-	
-	@SuppressWarnings("restriction")
-	private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
-	
-	@SuppressWarnings("restriction")
-	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
-	
-	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
 
 	@Override
 	public void skipBytesToWrite(int numBytes) throws IOException {
@@ -325,4 +327,16 @@ public class DataOutputSerializer implements DataOutputView {
 		source.read(this.buffer, this.position, numBytes);
 		this.position += numBytes;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	@SuppressWarnings("restriction")
+	private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+
+	@SuppressWarnings("restriction")
+	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
+	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
 }

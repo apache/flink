@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.sampling.DistributedRandomSampler;
@@ -32,6 +33,7 @@ import java.util.Iterator;
  *
  * @param <T> The type of input data
  */
+@Internal
 public class SampleInPartition<T> extends RichMapPartitionFunction<T, IntermediateSampleData<T>> {
 
 	private boolean withReplacement;

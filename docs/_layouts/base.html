@@ -23,11 +23,7 @@ under the License.
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    {% if page.htmlTitle %}
-    <title>Apache Flink {{ site.version}} Documentation: {{ page.htmlTitle }}</title>
-    {% else %}
     <title>Apache Flink {{ site.version}} Documentation: {{ page.title }}</title>
-    {% endif %}
     <link rel="shortcut icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
     <link rel="icon" href="{{ site.baseurl }}/page/favicon.ico" type="image/x-icon">
 
@@ -77,7 +73,8 @@ under the License.
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-    <script src="{{ site.baseurl }}/page/js/codetabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/3.1.0/anchor.min.js"></script>
+    <script src="{{ site.baseurl }}/page/js/flink.js"></script>
 
     <!-- Google Analytics -->
     <script>
@@ -91,6 +88,7 @@ under the License.
     </script>
 
     <!-- Disqus -->
+    {% comment %}
     <script type="text/javascript">
     var disqus_shortname = 'stratosphere-eu';
     (function() {
@@ -98,6 +96,7 @@ under the License.
         dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
         (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
     })();
-</script>
+    </script>
+    {% endcomment %}
   </body>
 </html>

@@ -46,7 +46,7 @@ public interface BlockChannelReader<T> extends FileIOChannel {
 	 * such a segment is available, or until an error occurs in the reader, or the reader is closed.
 	 * <p>
 	 * WARNING: If this method is invoked without any segment ever returning (for example, because the
-	 * {@link #readBlock(T)} method has not been invoked appropriately), the method may block
+	 * {@link #readBlock} method has not been invoked appropriately), the method may block
 	 * forever.
 	 * 
 	 * @return The next memory segment from the reader's return queue.

@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.java.sampling;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Iterator;
 
 /**
@@ -25,6 +27,7 @@ import java.util.Iterator;
  *
  * @param <T> The type of sampler data.
  */
+@Internal
 public abstract class RandomSampler<T> {
 
 	protected final static double EPSILON = 1e-5;
@@ -56,6 +59,7 @@ public abstract class RandomSampler<T> {
  *
  * @param <T> The type of iterator data.
  */
+@Internal
 abstract class SampledIterator<T> implements Iterator<T> {
 	@Override
 	public void remove() {

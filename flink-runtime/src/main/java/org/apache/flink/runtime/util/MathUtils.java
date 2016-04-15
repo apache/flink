@@ -34,7 +34,7 @@ public final class MathUtils {
 	 * @return The logarithm (rounded down) to the base of 2.
 	 * @throws ArithmeticException Thrown, if the given value is zero.
 	 */
-	public static final int log2floor(int value) throws ArithmeticException {
+	public static int log2floor(int value) throws ArithmeticException {
 		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
 		}
@@ -56,7 +56,7 @@ public final class MathUtils {
 	 * @throws ArithmeticException Thrown, if the given value is zero.
 	 * @throws IllegalArgumentException Thrown, if the given value is not a power of two.
 	 */
-	public static final int log2strict(int value) throws ArithmeticException, IllegalArgumentException {
+	public static int log2strict(int value) throws ArithmeticException, IllegalArgumentException {
 		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
 		}
@@ -79,7 +79,7 @@ public final class MathUtils {
 	 * @param value The value to round down.
 	 * @return The closest value that is a power of to and less or equal than the given value.
 	 */
-	public static final int roundDownToPowerOf2(int value) {
+	public static int roundDownToPowerOf2(int value) {
 		return Integer.highestOneBit(value);
 	}
 	
@@ -93,7 +93,7 @@ public final class MathUtils {
 	 * @param value The value to be cast to an integer.
 	 * @return The given value as an integer.
 	 */
-	public static final int checkedDownCast(long value) {
+	public static int checkedDownCast(long value) {
 		if (value > Integer.MAX_VALUE) {
 			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
 		}
@@ -109,7 +109,64 @@ public final class MathUtils {
 	public static boolean isPowerOf2(long value) {
 		return (value & (value - 1)) == 0;
 	}
-	
+
+	/**
+	 * This function hashes an integer value. It is adapted from Bob Jenkins' website
+	 * <a href="http://www.burtleburtle.net/bob/hash/integer.html">http://www.burtleburtle.net/bob/hash/integer.html</a>.
+	 * The hash function has the <i>full avalanche</i> property, meaning that every bit of the value to be hashed
+	 * affects every bit of the hash value.
+	 *
+	 * It is crucial to use different hash functions to partition data across machines and the internal partitioning of
+	 * data structures. This hash function is intended for partitioning internally in data structures.
+	 *
+	 * @param code The integer to be hashed.
+	 * @return The non-negative hash code for the integer.
+	 */
+	public static int jenkinsHash(int code) {
+		code = (code + 0x7ed55d16) + (code << 12);
+		code = (code ^ 0xc761c23c) ^ (code >>> 19);
+		code = (code + 0x165667b1) + (code << 5);
+		code = (code + 0xd3a2646c) ^ (code << 9);
+		code = (code + 0xfd7046c5) + (code << 3);
+		code = (code ^ 0xb55a4f09) ^ (code >>> 16);
+		return code >= 0 ? code : -(code + 1);
+	}
+
+	/**
+	 * This function hashes an integer value.
+	 *
+	 * It is crucial to use different hash functions to partition data across machines and the internal partitioning of
+	 * data structures. This hash function is intended for partitioning across machines.
+	 *
+	 * @param code The integer to be hashed.
+	 * @return The non-negative hash code for the integer.
+	 */
+	public static int murmurHash(int code) {
+		code *= 0xcc9e2d51;
+		code = Integer.rotateLeft(code, 15);
+		code *= 0x1b873593;
+
+		code = Integer.rotateLeft(code, 13);
+		code = code * 5 + 0xe6546b64;
+
+		code ^= 4;
+		code ^= code >>> 16;
+		code *= 0x85ebca6b;
+		code ^= code >>> 13;
+		code *= 0xc2b2ae35;
+		code ^= code >>> 16;
+
+		if (code >= 0) {
+			return code;
+		}
+		else if (code != Integer.MIN_VALUE) {
+			return -code;
+		}
+		else {
+			return 0;
+		}
+	}
+
 	// ============================================================================================
 	
 	/**

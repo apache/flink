@@ -22,7 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
@@ -66,11 +66,11 @@ public class LambdaExtractionTest {
 			MapFunction<?, ?> fromDerived = new ToTuple<Integer>() {
 				@Override
 				public Tuple2<Integer, Long> map(Integer value) {
-					return new Tuple2<Integer, Long>(value, 1L);
+					return new Tuple2<>(value, 1L);
 				}
 			};
 
-			MapFunction<String, Integer> lambda = (str) -> Integer.parseInt(str);
+			MapFunction<String, Integer> lambda = Integer::parseInt;
 
 			assertNull(FunctionUtils.checkAndExtractLambdaMethod(anonymousFromInterface));
 			assertNull(FunctionUtils.checkAndExtractLambdaMethod(anonymousFromClass));
@@ -92,10 +92,10 @@ public class LambdaExtractionTest {
 
 	public interface ToTuple<T> extends MapFunction<T, Tuple2<T, Long>> {
 		@Override
-		public Tuple2<T, Long> map(T value) throws Exception;
+		Tuple2<T, Long> map(T value) throws Exception;
 	}
 
-	private static final MapFunction<String, Integer> STATIC_LAMBDA = (str) -> Integer.parseInt(str);
+	private static final MapFunction<String, Integer> STATIC_LAMBDA = Integer::parseInt;
 
 	public static class MyClass {
 		private String s = "mystring";

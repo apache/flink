@@ -30,12 +30,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -43,7 +45,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
@@ -69,21 +71,23 @@ public class ExecutionGraphDeploymentTest {
 			v3.setParallelism(10);
 			v4.setParallelism(10);
 
-			v1.setInvokableClass(RegularPactTask.class);
-			v2.setInvokableClass(RegularPactTask.class);
-			v3.setInvokableClass(RegularPactTask.class);
-			v4.setInvokableClass(RegularPactTask.class);
+			v1.setInvokableClass(BatchTask.class);
+			v2.setInvokableClass(BatchTask.class);
+			v3.setInvokableClass(BatchTask.class);
+			v4.setInvokableClass(BatchTask.class);
 
 			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					"some job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
+				TestingUtils.defaultExecutionContext(), 
+				jobId, 
+				"some job", 
+				new Configuration(), 
+				new ExecutionConfig(),
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -111,7 +115,7 @@ public class ExecutionGraphDeploymentTest {
 			assertEquals(jid2, descr.getVertexID());
 			assertEquals(3, descr.getIndexInSubtaskGroup());
 			assertEquals(10, descr.getNumberOfSubtasks());
-			assertEquals(RegularPactTask.class.getName(), descr.getInvokableClassName());
+			assertEquals(BatchTask.class.getName(), descr.getInvokableClassName());
 			assertEquals("v2", descr.getTaskName());
 
 			List<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
@@ -276,16 +280,19 @@ public class ExecutionGraphDeploymentTest {
 		v1.setParallelism(dop1);
 		v2.setParallelism(dop2);
 
-		v1.setInvokableClass(RegularPactTask.class);
-		v2.setInvokableClass(RegularPactTask.class);
+		v1.setInvokableClass(BatchTask.class);
+		v2.setInvokableClass(BatchTask.class);
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.directExecutionContext(),
-				jobId,
-				"some job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+			TestingUtils.directExecutionContext(), 
+			jobId, 
+			"some job", 
+			new Configuration(),
+			new ExecutionConfig(),
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
+		
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);

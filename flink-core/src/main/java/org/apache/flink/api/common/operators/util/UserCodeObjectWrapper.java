@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.NonSerializableUserCodeException;
 
 import com.google.common.base.Preconditions;
@@ -31,6 +32,7 @@ import com.google.common.base.Preconditions;
 /**
  * This holds an actual object containing user defined code.
  */
+@Internal
 public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	private static final long serialVersionUID = 1L;
 	

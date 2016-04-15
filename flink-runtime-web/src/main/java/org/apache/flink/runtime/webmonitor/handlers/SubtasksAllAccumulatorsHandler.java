@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
-public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
+public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
 	
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -41,7 +41,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 	@Override
 	public String handleRequest(ExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
@@ -45,6 +46,7 @@ import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBas
 /**
  * Base class shared between the Java and Scala API of Flink
  */
+@Internal
 public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
 
 	private static final long serialVersionUID = 1L;
@@ -53,16 +55,16 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
 	// In contrast, Flink parallelizes using Threads, so multiple Hadoop OutputFormat instances
 	// might be used in the same JVM.
-	private static final Object OPEN_MUTEX = new Object();
-	private static final Object CONFIGURE_MUTEX = new Object();
-	private static final Object CLOSE_MUTEX = new Object();
+	protected static final Object OPEN_MUTEX = new Object();
+	protected static final Object CONFIGURE_MUTEX = new Object();
+	protected static final Object CLOSE_MUTEX = new Object();
 
-	private org.apache.hadoop.conf.Configuration configuration;
-	private org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat;
+	protected org.apache.hadoop.conf.Configuration configuration;
+	protected org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat;
 	protected transient RecordWriter<K,V> recordWriter;
-	private transient OutputCommitter outputCommitter;
-	private transient TaskAttemptContext context;
-	private transient int taskNumber;
+	protected transient OutputCommitter outputCommitter;
+	protected transient TaskAttemptContext context;
+	protected transient int taskNumber;
 
 	public HadoopOutputFormatBase(org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat, Job job) {
 		super(job.getCredentials());

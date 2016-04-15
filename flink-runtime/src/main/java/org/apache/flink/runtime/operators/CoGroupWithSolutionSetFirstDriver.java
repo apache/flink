@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
-import org.apache.flink.runtime.iterative.task.AbstractIterativePactTask;
+import org.apache.flink.runtime.iterative.task.AbstractIterativeTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
@@ -37,9 +37,9 @@ import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.SingleElementIterator;
 import org.apache.flink.util.Collector;
 
-public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettablePactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
+public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
-	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
+	private TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CompactingHashTable<IT1> hashTable;
 	
@@ -63,7 +63,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -106,8 +106,8 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 		final TypeComparator<IT1> solutionSetComparator;
 		
 		// grab a handle to the hash table from the iteration broker
-		if (taskContext instanceof AbstractIterativePactTask) {
-			AbstractIterativePactTask<?, ?> iterativeTaskContext = (AbstractIterativePactTask<?, ?>) taskContext;
+		if (taskContext instanceof AbstractIterativeTask) {
+			AbstractIterativeTask<?, ?> iterativeTaskContext = (AbstractIterativeTask<?, ?>) taskContext;
 			String identifier = iterativeTaskContext.brokerKey();
 			
 			Object table = SolutionSetBroker.instance().get(identifier);

@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * Test {@link LeaderElectionService} implementation which directly forwards isLeader and notLeader
  * calls to the contender.
  */
-public class TestingLeaderElectionService implements LeaderElectionService, Serializable {
+public class TestingLeaderElectionService implements LeaderElectionService {
 
 	private LeaderContender contender;
 	private boolean hasLeadership = false;
@@ -51,10 +50,12 @@ public class TestingLeaderElectionService implements LeaderElectionService, Seri
 	}
 
 	public void isLeader(UUID leaderSessionID) {
+		hasLeadership = true;
 		contender.grantLeadership(leaderSessionID);
 	}
 
 	public void notLeader() {
+		hasLeadership = false;
 		contender.revokeLeadership();
 	}
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.fs.Path;
 import java.io.File;
 import java.util.List;
@@ -43,7 +44,9 @@ public abstract class AbstractFlinkYarnClient {
 	/**
 	 * Flink configuration
 	 */
-	public abstract void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf);
+	public abstract void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf);
+
+	public abstract Configuration getFlinkConfiguration();
 
 	/**
 	 *
@@ -131,12 +134,6 @@ public abstract class AbstractFlinkYarnClient {
 	 * directory in HDFS that contains the jar files and configuration which is shipped to all the containers.
 	 */
 	public abstract String getSessionFilesDir();
-
-	/**
-	 * Instruct Flink to start in streaming mode
-	 * @param streamingMode
-	 */
-	public abstract  void setStreamingMode(boolean streamingMode);
 
 	/**
 	 * Set a name for the YARN application

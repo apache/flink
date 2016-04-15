@@ -37,9 +37,9 @@ import org.junit.Test;
 
 public abstract class AbstractOuterJoinTaskExternalITCase extends BinaryOperatorTestBase<FlatJoinFunction<Tuple2<Integer, Integer>,
 		Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
-	
-	private static final long HASH_MEM = 4 * 1024 * 1024;
-	
+
+	protected static final long HASH_MEM = 4 * 1024 * 1024;
+
 	private static final long SORT_MEM = 3 * 1024 * 1024;
 	
 	private static final long BNLJN_MEM = 10 * PAGE_SIZE;
@@ -47,33 +47,30 @@ public abstract class AbstractOuterJoinTaskExternalITCase extends BinaryOperator
 	private final double bnljn_frac;
 	
 	@SuppressWarnings("unchecked")
-	private final TypeComparator<Tuple2<Integer, Integer>> comparator1 = new TupleComparator<>(
+	protected final TypeComparator<Tuple2<Integer, Integer>> comparator1 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
 	);
 	
 	@SuppressWarnings("unchecked")
-	private final TypeComparator<Tuple2<Integer, Integer>> comparator2 = new TupleComparator<>(
+	protected final TypeComparator<Tuple2<Integer, Integer>> comparator2 = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[]{new IntComparator(true)},
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE}
 	);
 	
 	@SuppressWarnings("unchecked")
-	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<>(
+	protected final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
 			new TypeSerializer<?>[]{IntSerializer.INSTANCE, IntSerializer.INSTANCE}
 	);
 	
-	private final CountingOutputCollector<Tuple2<Integer, Integer>> output = new CountingOutputCollector<>();
+	protected final CountingOutputCollector<Tuple2<Integer, Integer>> output = new CountingOutputCollector<>();
 	
-	private final DriverStrategy driverStrategy;
-	
-	public AbstractOuterJoinTaskExternalITCase(ExecutionConfig config, DriverStrategy driverStrategy) {
+	public AbstractOuterJoinTaskExternalITCase(ExecutionConfig config) {
 		super(config, HASH_MEM, 2, SORT_MEM);
 		bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
-		this.driverStrategy = driverStrategy;
 	}
 	
 	@Test
@@ -90,7 +87,7 @@ public abstract class AbstractOuterJoinTaskExternalITCase extends BinaryOperator
 		addDriverComparator(this.comparator1);
 		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(driverStrategy);
+		getTaskConfig().setDriverStrategy(this.getSortStrategy());
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
@@ -106,6 +103,8 @@ public abstract class AbstractOuterJoinTaskExternalITCase extends BinaryOperator
 	protected abstract int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2);
 	
 	protected abstract AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver();
+
+	protected abstract DriverStrategy getSortStrategy();
 	
 	// =================================================================================================
 

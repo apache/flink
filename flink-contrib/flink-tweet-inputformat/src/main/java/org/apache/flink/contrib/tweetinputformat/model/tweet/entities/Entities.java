@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Entities which have been parsed out of the text of the
- * {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet}.
+ * {@link org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet}.
  */
 public class Entities {
 

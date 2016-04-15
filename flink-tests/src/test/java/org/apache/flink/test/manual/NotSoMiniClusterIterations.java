@@ -59,6 +59,7 @@ public class NotSoMiniClusterIterations {
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 
 			cluster = new LocalFlinkMiniCluster(config, false);
+			cluster.start();
 
 			runConnectedComponents(cluster.getLeaderRPCPort());
 		}

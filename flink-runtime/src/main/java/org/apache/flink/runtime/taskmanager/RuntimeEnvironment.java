@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -40,25 +42,22 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * In implementation of the {@link Environment}.
  */
 public class RuntimeEnvironment implements Environment {
-	
+
 	private final JobID jobId;
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
 	
-	private final String taskName;
-	private final String taskNameWithSubtasks;
-	private final int subtaskIndex;
-	private final int parallelism;
+	private final TaskInfo taskInfo;
 	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
-	
+	private final ExecutionConfig executionConfig;
+
 	private final ClassLoader userCodeClassLoader;
 
 	private final MemoryManager memManager;
@@ -83,10 +82,8 @@ public class RuntimeEnvironment implements Environment {
 			JobID jobId,
 			JobVertexID jobVertexId,
 			ExecutionAttemptID executionId,
-			String taskName,
-			String taskNameWithSubtasks,
-			int subtaskIndex,
-			int parallelism,
+			ExecutionConfig executionConfig,
+			TaskInfo taskInfo,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
 			ClassLoader userCodeClassLoader,
@@ -100,16 +97,12 @@ public class RuntimeEnvironment implements Environment {
 			InputGate[] inputGates,
 			ActorGateway jobManager,
 			TaskManagerRuntimeInfo taskManagerInfo) {
-		
-		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
-		this.taskName = checkNotNull(taskName);
-		this.taskNameWithSubtasks = checkNotNull(taskNameWithSubtasks);
-		this.subtaskIndex = subtaskIndex;
-		this.parallelism = parallelism;
+		this.taskInfo = checkNotNull(taskInfo);
+		this.executionConfig = checkNotNull(executionConfig);
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -126,7 +119,12 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return this.executionConfig;
+	}
+
 	@Override
 	public JobID getJobID() {
 		return jobId;
@@ -143,23 +141,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public String getTaskName() {
-		return taskName;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return taskNameWithSubtasks;
-	}
-
-	@Override
-	public int getNumberOfSubtasks() {
-		return parallelism;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return subtaskIndex;
+	public TaskInfo getTaskInfo() {
+		return this.taskInfo;
 	}
 
 	@Override
@@ -241,17 +224,33 @@ public class RuntimeEnvironment implements Environment {
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
 		// try and create a serialized version of the state handle
 		SerializedValue<StateHandle<?>> serializedState;
+		long stateSize;
+
 		if (state == null) {
 			serializedState = null;
+			stateSize = 0;
 		} else {
 			try {
 				serializedState = new SerializedValue<StateHandle<?>>(state);
 			} catch (Exception e) {
 				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
 			}
+
+			try {
+				stateSize = state.getStateSize();
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Failed to fetch state handle size", e);
+			}
 		}
 		
-		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(jobId, executionId, checkpointId, serializedState);
+		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
+				jobId,
+				executionId,
+				checkpointId,
+				serializedState,
+				stateSize);
+
 		jobManager.tell(message);
 	}
 }

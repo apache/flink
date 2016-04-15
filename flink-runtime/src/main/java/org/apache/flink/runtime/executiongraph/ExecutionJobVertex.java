@@ -127,7 +127,11 @@ public class ExecutionJobVertex implements Serializable {
 			final IntermediateDataSet result = jobVertex.getProducedDataSets().get(i);
 
 			this.producedDataSets[i] = new IntermediateResult(
-					result.getId(), this, numTaskVertices, result.getResultType());
+					result.getId(),
+					this,
+					numTaskVertices,
+					result.getResultType(),
+					result.getEagerlyDeployConsumers());
 		}
 
 		// create all task vertices
@@ -182,7 +186,7 @@ public class ExecutionJobVertex implements Serializable {
 	public int getParallelism() {
 		return parallelism;
 	}
-	
+
 	public JobID getJobId() {
 		return graph.getJobID();
 	}
@@ -310,7 +314,7 @@ public class ExecutionJobVertex implements Serializable {
 					pos = 0;
 					assignments.put(host, 0);
 				} else {
-					assignments.put(host, pos + 1 % instancesOnHost.size());
+					assignments.put(host, (pos + 1) % instancesOnHost.size());
 				}
 				
 				v.setLocationConstraintHosts(Collections.singletonList(instancesOnHost.get(pos)));
@@ -352,9 +356,6 @@ public class ExecutionJobVertex implements Serializable {
 			// check and reset the sharing groups with scheduler hints
 			if (slotSharingGroup != null) {
 				slotSharingGroup.clearTaskAssignment();
-			}
-			if (coLocationGroup != null) {
-				coLocationGroup.resetConstraints();
 			}
 			
 			// reset vertices one by one. if one reset fails, the "vertices in final state"

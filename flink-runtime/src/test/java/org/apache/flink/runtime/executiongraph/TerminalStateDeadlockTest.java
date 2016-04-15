@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -78,7 +81,8 @@ public class TerminalStateDeadlockTest {
 			InstanceConnectionInfo ci = new InstanceConnectionInfo(address, 12345);
 				
 			HardwareDescription resources = new HardwareDescription(4, 4000000, 3000000, 2000000);
-			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci, new InstanceID(), resources, 4);
+			Instance instance = new Instance(DummyActorGateway.INSTANCE, ci,
+				ResourceID.generate(), new InstanceID(), resources, 4);
 
 			this.resource = instance.allocateSimpleSlot(new JobID());
 		}
@@ -124,9 +128,7 @@ public class TerminalStateDeadlockTest {
 			for (int i = 0; i < 20000; i++) {
 				final TestExecGraph eg = new TestExecGraph(jobId);
 				eg.attachJobGraph(vertices);
-				eg.setDelayBeforeRetrying(0);
-				eg.setNumberOfRetriesLeft(1);
-				
+
 				final Execution e1 = eg.getJobVertex(vid1).getTaskVertices()[0].getCurrentExecutionAttempt();
 				final Execution e2 = eg.getJobVertex(vid2).getTaskVertices()[0].getCurrentExecutionAttempt();
 
@@ -181,7 +183,14 @@ public class TerminalStateDeadlockTest {
 		private volatile boolean done;
 
 		TestExecGraph(JobID jobId) {
-			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
+			super(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				"test graph",
+				EMPTY_CONFIG,
+				new ExecutionConfig(),
+				TIMEOUT,
+				new FixedDelayRestartStrategy(1, 0));
 		}
 
 		@Override

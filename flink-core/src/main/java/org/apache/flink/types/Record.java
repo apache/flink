@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.io.UTFDataFormatException;
 import java.nio.ByteOrder;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemoryUtils;
@@ -34,7 +35,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 
 /**
- * The Record represents a multi-valued data record and forms the base of the "Record API"
+ * The Record represents a multi-valued data record.
  * The record is a tuple of arbitrary values. It implements a sparse tuple model, meaning that the record can contain
  * many fields which are actually null and not represented in the record. It has internally a bitmap marking which fields
  * are set and which are not.
@@ -51,6 +52,7 @@ import org.apache.flink.util.InstantiationUtil;
  * <p>
  * This class is NOT thread-safe!
  */
+@Public
 public final class Record implements Value, CopyableValue<Record> {
 	private static final long serialVersionUID = 1L;
 	
@@ -763,6 +765,11 @@ public final class Record implements Value, CopyableValue<Record> {
 	}
 
 	@Override
+	public Record copy() {
+		return createCopy();
+	}
+
+	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int val = source.readUnsignedByte();
 		target.writeByte(val);
@@ -798,7 +805,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	 * Bin-copies fields from a source record to this record. The following caveats apply:
 	 * 
 	 * If the source field is in a modified state, no binary representation will exist yet.
-	 * In that case, this method is equivalent to setField(..., source.getField(..., <class>)). 
+	 * In that case, this method is equivalent to {@code setField(..., source.getField(..., <class>))}.
 	 * In particular, if setValue is called on the source field Value instance, that change 
 	 * will propagate to this record.
 	 * 

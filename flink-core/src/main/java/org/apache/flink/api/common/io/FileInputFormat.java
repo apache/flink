@@ -28,13 +28,13 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -54,6 +54,7 @@ import org.apache.flink.core.fs.Path;
  * <p>After the {@link #open(FileInputSplit)} method completed, the file input data is available
  * from the {@link #stream} field.</p>
  */
+@Public
 public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputSplit> {
 	
 	// -------------------------------------- Constants -------------------------------------------
@@ -922,69 +923,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
 	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
-	
-	
-	// ----------------------------------- Config Builder -----------------------------------------
-	
-	/**
-	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
-	 * fashion.
-	 * 
-	 * @return A config builder for setting parameters.
-	 */
-	public static ConfigBuilder configureFileFormat(GenericDataSourceBase<?, ?> target) {
-		return new ConfigBuilder(target.getParameters());
-	}
-	
-	/**
-	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	protected static abstract class AbstractConfigBuilder<T> {
-		/**
-		 * The configuration into which the parameters will be written.
-		 */
-		protected final Configuration config;
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected AbstractConfigBuilder(Configuration targetConfig) {
-			this.config = targetConfig;
-		}
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Sets the path to the file or directory to be read by this file input format.
-		 * 
-		 * @param filePath The path to the file or directory.
-		 * @return The builder itself.
-		 */
-		public T filePath(String filePath) {
-			this.config.setString(FILE_PARAMETER_KEY, filePath);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-	}
-	
-	/**
-	 * A builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected ConfigBuilder(Configuration targetConfig) {
-			super(targetConfig);
-		}
-		
-	}
 }

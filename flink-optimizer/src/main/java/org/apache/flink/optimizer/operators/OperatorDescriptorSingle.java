@@ -35,7 +35,7 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
  * Abstract base class for Operator descriptions which instantiates the node and sets the driver
  * strategy and the sorting and grouping keys. Returns possible local and global properties and
  * updates them after the operation has been performed.
- * @see org.apache.flink.compiler.dag.SingleInputNode
+ * @see org.apache.flink.optimizer.dag.SingleInputNode
  */
 public abstract class OperatorDescriptorSingle implements AbstractOperatorDescriptor {
 	

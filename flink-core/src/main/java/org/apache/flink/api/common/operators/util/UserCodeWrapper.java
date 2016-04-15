@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.operators.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 
@@ -25,6 +27,7 @@ import java.lang.annotation.Annotation;
  * UDf operators can have either a class or an object containing the user
  * code, this is the common interface to access them.
  */
+@Internal
 public interface UserCodeWrapper<T> extends Serializable {
 	
 	/**

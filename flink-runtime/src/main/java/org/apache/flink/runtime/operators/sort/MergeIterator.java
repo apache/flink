@@ -55,18 +55,43 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 
 	/**
 	 * Gets the next smallest element, with respect to the definition of order implied by
-	 * the {@link TypeSerializer} provided to this iterator. This method does in fact not
-	 * reuse the given element (which would here imply potentially expensive copying), 
-	 * but always returns a new element.
+	 * the {@link TypeSerializer} provided to this iterator.
 	 * 
-	 * @param reuse Ignored.
-	 * @return The next smallest element, or null, if the iterator is exhausted. 
+	 * @param reuse Object that may be reused.
+	 * @return The next element if the iterator has another element, null otherwise.
 	 * 
 	 * @see org.apache.flink.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
 	public E next(E reuse) throws IOException {
-		return next();
+		/* There are three ways to handle object reuse:
+		 * 1) reuse and return the given object
+		 * 2) ignore the given object and return a new object
+		 * 3) exchange the given object for an existing object
+		 *
+		 * The first option is not available here as the return value has
+		 * already been deserialized from the heap's top iterator. The second
+		 * option avoids object reuse. The third option is implemented below
+		 * by passing the given object to the heap's top iterator into which
+		 * the next value will be deserialized.
+		 */
+
+		if (this.heap.size() > 0) {
+			// get the smallest element
+			final HeadStream<E> top = this.heap.peek();
+			E result = top.getHead();
+
+			// read an element
+			if (!top.nextHead(reuse)) {
+				this.heap.poll();
+			} else {
+				this.heap.adjustTop();
+			}
+			return result;
+		}
+		else {
+			return null;
+		}
 	}
 
 	/**
@@ -120,6 +145,16 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 
 		public E getHead() {
 			return this.head;
+		}
+
+		public boolean nextHead(E reuse) throws IOException {
+			if ((this.head = this.iterator.next(reuse)) != null) {
+				this.comparator.setReference(this.head);
+				return true;
+			}
+			else {
+				return false;
+			}
 		}
 
 		public boolean nextHead() throws IOException {

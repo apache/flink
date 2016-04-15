@@ -20,6 +20,8 @@ package org.apache.flink.api.java.utils;
 import com.google.common.base.Preconditions;
 import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -38,6 +40,7 @@ import java.util.Properties;
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources
  */
+@Public
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
@@ -188,6 +191,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
 	 * @see GenericOptionsParser
 	 */
+	@PublicEvolving
 	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
 		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
 		Map<String, String> map = new HashMap<String, String>();
@@ -362,6 +366,84 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			return defaultValue;
 		} else {
 			return Double.valueOf(value);
+		}
+	}
+
+	// -------------- BOOLEAN
+
+	/**
+	 * Returns the Boolean value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public boolean getBoolean(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Boolean.valueOf(value);
+	}
+
+	/**
+	 * Returns the Boolean value for the given key. If the key does not exists it will return the default value given.
+	 * The method returns whether the string of the value is "true" ignoring cases.
+	 */
+	public boolean getBoolean(String key, boolean defaultValue) {
+		addToDefaults(key, Boolean.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Boolean.valueOf(value);
+		}
+	}
+
+	// -------------- SHORT
+
+	/**
+	 * Returns the Short value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public short getShort(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Short.valueOf(value);
+	}
+
+	/**
+	 * Returns the Short value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Short.
+	 */
+	public short getShort(String key, short defaultValue) {
+		addToDefaults(key, Short.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Short.valueOf(value);
+		}
+	}
+
+	// -------------- BYTE
+
+	/**
+	 * Returns the Byte value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public byte getByte(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Byte.valueOf(value);
+	}
+
+	/**
+	 * Returns the Byte value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Byte.
+	 */
+	public byte getByte(String key, byte defaultValue) {
+		addToDefaults(key, Byte.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Byte.valueOf(value);
 		}
 	}
 

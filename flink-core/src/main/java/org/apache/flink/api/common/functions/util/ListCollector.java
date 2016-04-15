@@ -20,8 +20,15 @@ package org.apache.flink.api.common.functions.util;
 
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Collector;
 
+/**
+ * A {@link Collector} that puts the collected elements into a given list.
+ * 
+ * @param <T> The type of the collected elements.
+ */
+@Internal
 public class ListCollector<T> implements Collector<T> {
 
 	private final List<T> list;

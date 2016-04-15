@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -34,12 +35,12 @@ import java.io.Serializable;
  * if their key is not contained in the other data set.
  * <p>
  * The basic syntax for using Join on two data sets is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
  * 
  * set1.join(set2).where(<key-definition>).equalTo(<key-definition>).with(new MyJoinFunction());
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * {@code set1} is here considered the first input, {@code set2} the second input.
  * <p>
@@ -53,6 +54,7 @@ import java.io.Serializable;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
+@Public
 public interface FlatJoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**

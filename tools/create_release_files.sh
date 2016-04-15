@@ -66,10 +66,10 @@ fi
 GPG_PASSPHRASE=${GPG_PASSPHRASE:-XXX}
 GPG_KEY=${GPG_KEY:-XXX}
 GIT_AUTHOR=${GIT_AUTHOR:-"Your name <you@apache.org>"}
-GIT_BRANCH=${GIT_BRANCH:-branch-1.0}
-OLD_VERSION=${OLD_VERSION:-0.6-incubating-SNAPSHOT}
+OLD_VERSION=${OLD_VERSION:-0.10-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
+RELEASE_BRANCH=${RELEASE_BRANCH:-master}
 NEW_VERSION_HADOOP1=${NEW_VERSION_HADOOP1:-"$RELEASE_VERSION-hadoop1"}
 USER_NAME=${USER_NAME:-yourapacheidhere}
 MVN=${MVN:-mvn}
@@ -79,11 +79,11 @@ sonatype_pw=${sonatype_pw:-XXX}
 
 
 if [ "$(uname)" == "Darwin" ]; then
-    SHASUM=shasum -a 512
-    MD5SUM=md5 -r
+    SHASUM="shasum -a 512"
+    MD5SUM="md5 -r"
 else
-    SHASUM=sha512sum
-    MD5SUM=md5sum
+    SHASUM="sha512sum"
+    MD5SUM="md5sum"
 fi
 
 
@@ -91,22 +91,31 @@ prepare() {
   # prepare
   git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
   cd flink
-  git checkout -b "$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
+  git checkout -b "release-$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
   rm -f .gitignore
   rm -f .travis.yml
   rm -f deploysettings.xml
   rm -f CHANGELOG
+  cd ..
 }
 
 # create source package
 make_source_release() {
 
-  #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
-  if [ "$(uname)" == "Darwin" ]; then
-      find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-  else
-      find . -name 'pom.xml' -type f -exec sed -i    's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-  fi
+  cd flink
+
+  #change version in all pom files
+  find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+
+  #change version in quickstart archetypes
+  find . -name 'pom.xml' -type f -exec perl -pi -e 's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
+
+  #change version of documentation
+  cd docs
+  perl -pi -e "s#^version: .*#version: ${NEW_VERSION}#" _config.yml
+  perl -pi -e "s#^version_hadoop1: .*#version_hadoop1: ${NEW_VERSION}-hadoop1#" _config.yml
+  perl -pi -e "s#^version_short: .*#version_short: ${NEW_VERSION}#" _config.yml
+  cd ..
 
   git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
   git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
@@ -116,7 +125,7 @@ make_source_release() {
   cd ..
 
   echo "Creating source package"
-  rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION
+  rsync -a --exclude ".git" flink/ flink-$RELEASE_VERSION
   tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
   echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION-src.tgz.asc \
     --detach-sig flink-$RELEASE_VERSION-src.tgz
@@ -129,40 +138,32 @@ make_source_release() {
 make_binary_release() {
   NAME=$1
   FLAGS=$2
-  echo "Creating binary release name: $NAME, flags: $FLAGS"
-  rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION-bin-$NAME
+  SCALA_VERSION=$3
 
-  cd flink-$RELEASE_VERSION-bin-$NAME
+  echo "Creating binary release name: $NAME, flags: $FLAGS, SCALA_VERSION: ${SCALA_VERSION}"
+  dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
+  rsync -a --exclude "flink/.git" flink/ "${dir_name}"
+
   # make distribution
-  $MVN clean package $FLAGS -DskipTests
+  cd "${dir_name}"
+  ./tools/change-scala-version.sh ${SCALA_VERSION}
 
-  # Check that the uberjar is not too big
-  UBERJAR=`find flink-dist -name "flink-dist-${RELEASE_VERSION}.jar" | head -n 1`
-  if [ -z "$UBERJAR" ] ; then
-    echo "Uberjar not found. Assuming failed build";
-  else
-    jar tf $UBERJAR | wc -l > num_files_in_uberjar
-    NUM_FILES_IN_UBERJAR=`cat num_files_in_uberjar`
-    echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
-    if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
-      echo "The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
-    #  exit 1
-    fi
-  fi
+  # enable release profile here (to check for the maven version)
+  $MVN clean package $FLAGS -DskipTests -Prelease -Dgpg.skip
+
   cd flink-dist/target/flink-$RELEASE_VERSION-bin/
-  tar czf flink-$RELEASE_VERSION-bin-$NAME.tgz flink-$RELEASE_VERSION
+  tar czf "${dir_name}.tgz" flink-$RELEASE_VERSION
 
   cp flink-*.tgz ../../../../
   cd ../../../../
-  rm -rf flink-$RELEASE_VERSION
 
   # Sign md5 and sha the tgz
   echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY \
     --passphrase-fd 0 --armour \
-    --output flink-$RELEASE_VERSION-bin-$NAME.tgz.asc \
-    --detach-sig flink-$RELEASE_VERSION-bin-$NAME.tgz
-  $MD5SUM flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.md5
-  $SHASUM flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.sha
+    --output "${dir_name}.tgz.asc" \
+    --detach-sig "${dir_name}.tgz"
+  $MD5SUM "${dir_name}.tgz" > "${dir_name}.tgz.md5"
+  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha"
 
 }
 
@@ -171,9 +172,23 @@ deploy_to_maven() {
 
   cd flink
   cp ../../deploysettings.xml .
-  echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml"
+  
+  echo "Deploying Scala 2.11 version"
+  cd tools && ./change-scala-version.sh 2.11 && cd ..
+
   $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  
+  # It is important to first deploy scala 2.11 and then scala 2.10 so that the quickstarts (which are independent of the scala version)
+  # are depending on scala 2.10.
+  echo "Deploying Scala 2.10 version"
+  cd tools && ./change-scala-version.sh 2.10 && cd ..
+  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
+
+  echo "Deploying Scala 2.10 / hadoop 1 version"
   ../generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
+
+
   sleep 4
   $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 }
@@ -191,20 +206,20 @@ prepare
 
 make_source_release
 
-make_binary_release "hadoop1" "-Dhadoop.profile=1"
-#make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.version=2.0.0-alpha"
-make_binary_release "hadoop2" ""
-make_binary_release "hadoop24" "-Dhadoop.version=2.4.1"
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.0"
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.0"
-# make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
+make_binary_release "hadoop1" "-Dhadoop.profile=1" 2.10
+make_binary_release "hadoop2" "" 2.10
+make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.10
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.10
+
+make_binary_release "hadoop2" "" 2.11
+make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.11
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.11
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.11
 
 copy_data
 
 deploy_to_maven
-
-
-
 
 
 echo "Done. Don't forget to commit the release version"

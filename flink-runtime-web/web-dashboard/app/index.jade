@@ -53,14 +53,24 @@ html(lang='en')
               | Running Jobs
           li
             a(ui-sref="completed-jobs" ui-sref-active='active')
-              i.fa.fa-server.fa-fw
+              i.fa.fa-check-circle.fa-fw
               | 
               | Completed Jobs
           li
-            a(ui-sref="taskmanagers" ui-sref-active='active')
+            a(ui-sref="all-manager" ui-sref-active='active')
               i.fa.fa-sitemap.fa-fw
               | 
               | Task Managers
+          li
+            a(ui-sref="jobmanager.config" ui-sref-active='active')
+              i.fa.fa-server.fa-fw
+              | 
+              | Job Manager
+          li
+            a(ui-sref="submit" ui-sref-active='active')
+              i.fa.fa-upload.fa-fw
+              | 
+              | Submit new Job
 
     #content(ng-class="{ 'sidebar-visible': sidebarVisible }")
       div(ui-view='main')

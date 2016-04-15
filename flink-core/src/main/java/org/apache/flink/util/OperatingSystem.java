@@ -18,14 +18,13 @@
 
 package org.apache.flink.util;
 
-/**
- * An enumeration indicating the operating system that the engine runs on.
- */
-public enum OperatingSystem {
+import org.apache.flink.annotation.Internal;
 
-	// --------------------------------------------------------------------------------------------
-	//  Constants to extract the OS type from the java environment 
-	// --------------------------------------------------------------------------------------------
+/**
+ * An enumeration indicating the operating system that the JVM runs on.
+ */
+@Internal
+public enum OperatingSystem {
 	
 	LINUX,
 	WINDOWS,
@@ -33,9 +32,7 @@ public enum OperatingSystem {
 	FREE_BSD,
 	UNKNOWN;
 	
-	// --------------------------------------------------------------------------------------------
-	//  Constants to extract the OS type from the java environment 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * Gets the operating system that the JVM runs on from the java system properties.
@@ -116,8 +113,6 @@ public enum OperatingSystem {
 		
 		return UNKNOWN;
 	}
-	
-	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constants to extract the OS type from the java environment 

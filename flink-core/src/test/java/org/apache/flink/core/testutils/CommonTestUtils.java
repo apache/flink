@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.testutils;
 
 import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -33,12 +30,11 @@ import java.io.ObjectOutputStream;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 /**
- * This class contains auxiliary methods for unit tests in the Nephele common module.
- * 
+ * This class contains reusable utility methods for unit tests.
  */
 public class CommonTestUtils {
 
@@ -103,9 +99,7 @@ public class CommonTestUtils {
 	public static <T extends IOReadableWritable> T createCopyWritable(final T original) throws IOException {
 
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
-
-		original.write(new OutputViewDataOutputStreamWrapper(dos));
+		original.write(new DataOutputViewStreamWrapper(baos));
 
 		final String className = original.getClass().getName();
 		if (className == null) {
@@ -127,9 +121,7 @@ public class CommonTestUtils {
 		T copy = null;
 		try {
 			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
+		} catch (InstantiationException | IllegalAccessException e) {
 			fail(e.getMessage());
 		}
 
@@ -138,10 +130,7 @@ public class CommonTestUtils {
 		}
 
 		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		final DataInputStream dis = new DataInputStream(bais);
-
-		copy.read(new InputViewDataInputStreamWrapper(dis));
-
+		copy.read(new DataInputViewStreamWrapper(bais));
 		return copy;
 	}
 
@@ -157,19 +146,14 @@ public class CommonTestUtils {
 		baos.close();
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
 
-		T copy;
-		try {
-			copy = (T) ois.readObject();
+		try (ObjectInputStream ois = new ObjectInputStream(bais)) {
+			@SuppressWarnings("unchecked")
+			T copy = (T) ois.readObject();
+			return copy;
 		}
 		catch (ClassNotFoundException e) {
 			throw new IOException(e);
 		}
-
-		ois.close();
-		bais.close();
-
-		return copy;
 	}
 }

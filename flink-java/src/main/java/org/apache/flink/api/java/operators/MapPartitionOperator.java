@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -34,6 +35,7 @@ import org.apache.flink.api.java.DataSet;
  * 
  * @see MapPartitionFunction
  */
+@Public
 public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapPartitionOperator<IN, OUT>> {
 	
 	protected final MapPartitionFunction<IN, OUT> function;

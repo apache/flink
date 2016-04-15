@@ -20,7 +20,19 @@ package org.apache.flink.test.optimizer.iterations;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.program.OptimizerPlanEnvironment.ProgramAbortException;
+import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -33,13 +45,14 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.test.recordJobs.graph.ConnectedComponentsWithCoGroup;
+import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
  *
  */
+@SuppressWarnings("serial")
 public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";
@@ -59,10 +72,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 	
 	@Test
 	public void testWorksetConnectedComponents() {
-		ConnectedComponentsWithCoGroup cc = new ConnectedComponentsWithCoGroup();
-
-		Plan plan = cc.getPlan(String.valueOf(DEFAULT_PARALLELISM),
-				IN_FILE, IN_FILE, OUT_FILE, String.valueOf(100));
+		Plan plan = getConnectedComponentsCoGroupPlan();
 		plan.setExecutionConfig(new ExecutionConfig());
 		OptimizedPlan optPlan = compileNoStats(plan);
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(optPlan);
@@ -133,5 +143,69 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
+	}
+
+	public static Plan getConnectedComponentsCoGroupPlan() {
+		// prepare the test environment
+		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		env.setAsContext();
+		try {
+			ConnectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
+		} catch (ProgramAbortException pae) {
+			// all good.
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("ConnectedComponentsWithCoGroup failed with an exception");
+		}
+		return env.getPlan();
+	}
+
+	public static void ConnectedComponentsWithCoGroup(String[] args) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(Integer.parseInt(args[0]));
+
+		DataSet<Tuple1<Long>> initialVertices = env.readCsvFile(args[1]).types(Long.class).name(VERTEX_SOURCE);
+
+		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(args[2]).types(Long.class, Long.class).name(EDGES_SOURCE);
+
+		DataSet<Tuple2<Long, Long>> verticesWithId = initialVertices.flatMap(new DummyMapFunction());
+
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration
+				= verticesWithId.iterateDelta(verticesWithId, Integer.parseInt(args[4]), 0).name(ITERATION_NAME);
+
+		DataSet<Tuple2<Long, Long>> joinWithNeighbors = iteration.getWorkset().join(edges)
+				.where(0).equalTo(0)
+				.with(new DummyJoinFunction()).name(JOIN_NEIGHBORS_MATCH);
+
+		DataSet<Tuple2<Long, Long>> minAndUpdate = joinWithNeighbors.coGroup(iteration.getSolutionSet())
+				.where(0).equalTo(0)
+				.with(new DummyCoGroupFunction()).name(MIN_ID_AND_UPDATE);
+
+		iteration.closeWith(minAndUpdate, minAndUpdate).writeAsCsv(args[3]).name(SINK);
+
+		env.execute();
+	}
+
+	public static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
+		@Override
+		public void flatMap(Tuple1<Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
+			// won't be executed
+		}
+	}
+
+	public static class DummyJoinFunction implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+		@Override
+		public void join(Tuple2<Long, Long> first, Tuple2<Long, Long> second, Collector<Tuple2<Long, Long>> out) throws Exception {
+			// won't be executed
+		}
+	}
+
+	@ForwardedFieldsFirst("f0->f0")
+	@ForwardedFieldsSecond("f0->f0")
+	public static class DummyCoGroupFunction implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+		@Override
+		public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<Tuple2<Long, Long>> second, Collector<Tuple2<Long, Long>> out) throws Exception {
+			// won't be executed
+		}
 	}
 }

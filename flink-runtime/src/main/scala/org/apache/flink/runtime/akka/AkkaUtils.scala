@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.akka
 
 import java.io.IOException
-import java.net.{InetSocketAddress, InetAddress}
+import java.net._
 import java.util.concurrent.{TimeUnit, Callable}
 
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.util.NetUtils
 import org.jboss.netty.logging.{Slf4JLoggerFactory, InternalLoggerFactory}
 import org.slf4j.LoggerFactory
 import scala.concurrent._
@@ -102,6 +103,7 @@ object AkkaUtils {
    *                         then an Akka config for local actor system will be returned
    * @return Akka config
    */
+  @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     listeningAddress: Option[(String, Int)]): Config = {
     val defaultConfig = getBasicAkkaConfig(configuration)
@@ -109,8 +111,9 @@ object AkkaUtils {
     listeningAddress match {
 
       case Some((hostname, port)) =>
-        val ipAddress = "\"" + InetAddress.getByName(hostname).getHostAddress() + "\""
-        val remoteConfig = getRemoteAkkaConfig(configuration, ipAddress, port)
+        val ipAddress = InetAddress.getByName(hostname)
+        val hostString = "\"" + NetUtils.ipAddressToUrlString(ipAddress) + "\""
+        val remoteConfig = getRemoteAkkaConfig(configuration, hostString, port)
         remoteConfig.withFallback(defaultConfig)
 
       case None =>
@@ -203,7 +206,7 @@ object AkkaUtils {
 
     val startupTimeout = configuration.getString(
       ConfigConstants.AKKA_STARTUP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val transportHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
@@ -219,11 +222,11 @@ object AkkaUtils {
 
     val watchHeartbeatInterval = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-      (akkaAskTimeout/10).toString)
+      (akkaAskTimeout).toString)
 
     val watchHeartbeatPause = configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val watchThreshold = configuration.getDouble(
       ConfigConstants.AKKA_WATCH_THRESHOLD,
@@ -231,7 +234,7 @@ object AkkaUtils {
 
     val akkaTCPTimeout = configuration.getString(
       ConfigConstants.AKKA_TCP_TIMEOUT,
-      akkaAskTimeout.toString)
+      (akkaAskTimeout * 10).toString)
 
     val akkaFramesize = configuration.getString(
       ConfigConstants.AKKA_FRAMESIZE,
@@ -473,6 +476,22 @@ object AkkaUtils {
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
+  def getClientTimeout(config: Configuration): FiniteDuration = {
+    val duration = Duration(
+      config.getString(
+        ConfigConstants.AKKA_CLIENT_TIMEOUT,
+        ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT
+      ))
+
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
+  def getDefaultClientTimeout: FiniteDuration = {
+    val duration = Duration(ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT)
+
+    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  }
+
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains
     * the port and the host under which the actor system is reachable
     *
@@ -513,23 +532,30 @@ object AkkaUtils {
     * the Akka URL does not contain the hostname and port information, e.g. a local Akka URL is
     * provided, then an [[Exception]] is thrown.
     *
-    * @param akkaURL
-    * @throws java.lang.Exception
-    * @return
+    * @param akkaURL The URL to extract the host and port from.
+    * @throws java.lang.Exception Thrown, if the given string does not represent a proper url
+    * @return The InetSocketAddress with teh extracted host and port.
     */
   @throws(classOf[Exception])
   def getInetSockeAddressFromAkkaURL(akkaURL: String): InetSocketAddress = {
     // AkkaURLs have the form schema://systemName@host:port/.... if it's a remote Akka URL
-    val hostPortRegex = """@([^/:]*):(\d*)""".r
-
-    hostPortRegex.findFirstMatchIn(akkaURL) match {
-      case Some(m) =>
-        val host = m.group(1)
-        val port = m.group(2).toInt
-
-        new InetSocketAddress(host, port)
-      case None => throw new Exception("Could not retrieve InetSocketAddress from " +
-        s"Akka URL $akkaURL")
+    try {
+      // we need to manually strip the protocol, because "akka.tcp" is not
+      // a valid protocol for Java's URL class
+      val protocolonPos = akkaURL.indexOf("://")
+      if (protocolonPos == -1 || protocolonPos >= akkaURL.length - 4) {
+        throw new MalformedURLException()
+      }
+      
+      val url = new URL("http://" + akkaURL.substring(protocolonPos + 3))
+      if (url.getHost == null || url.getPort == -1) {
+        throw new MalformedURLException()
+      }
+      new InetSocketAddress(url.getHost, url.getPort)
+    }
+    catch {
+      case _ : MalformedURLException =>
+        throw new Exception(s"Could not retrieve InetSocketAddress from Akka URL $akkaURL")
     }
   }
 }

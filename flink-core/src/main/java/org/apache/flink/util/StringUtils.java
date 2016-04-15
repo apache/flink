@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -29,6 +30,7 @@ import org.apache.flink.types.StringValue;
 /**
  * Utility class to convert objects into strings in vice-versa.
  */
+@PublicEvolving
 public final class StringUtils {
 
 	/**
@@ -58,17 +60,25 @@ public final class StringUtils {
 	 * @param end
 	 *        end index, exclusively
 	 * @return hex string representation of the byte array
+	 *
+	 * @see org.apache.commons.codec.binary.Hex#encodeHexString(byte[])
 	 */
 	public static String byteToHexString(final byte[] bytes, final int start, final int end) {
 		if (bytes == null) {
 			throw new IllegalArgumentException("bytes == null");
 		}
 		
-		final StringBuilder s = new StringBuilder();
-		for (int i = start; i < end; i++) {
-			s.append(String.format("%02x", bytes[i]));
+		final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+		int length = end - start;
+		char[] out = new char[length * 2];
+
+		for (int i = start, j = 0; i < end; i++) {
+			out[j++] = HEX_CHARS[(0xF0 & bytes[i]) >>> 4];
+			out[j++] = HEX_CHARS[0x0F & bytes[i]];
 		}
-		return s.toString();
+
+		return new String(out);
 	}
 
 	/**

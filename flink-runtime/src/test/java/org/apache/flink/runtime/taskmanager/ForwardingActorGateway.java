@@ -28,8 +28,9 @@ import java.util.concurrent.BlockingQueue;
  * in a {@link BlockingQueue}.
  */
 public class ForwardingActorGateway extends BaseTestingActorGateway {
+	private static final long serialVersionUID = 7001973884263802603L;
 
-	private final BlockingQueue<Object> queue;
+	private final transient BlockingQueue<Object> queue;
 
 	public ForwardingActorGateway(BlockingQueue<Object> queue) {
 		super(TestingUtils.directExecutionContext());

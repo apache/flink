@@ -24,8 +24,10 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.api.common.JobID;
@@ -48,12 +50,13 @@ public class ExecutionStateProgressTest {
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 			ExecutionGraph graph = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jid,
-					"test job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
-
+				TestingUtils.defaultExecutionContext(), 
+				jid, 
+				"test job", 
+				new Configuration(), 
+                new ExecutionConfig(),
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 			graph.attachJobGraph(Arrays.asList(ajv));
 
 			setGraphStatus(graph, JobStatus.RUNNING);

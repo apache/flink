@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -30,6 +31,7 @@ import java.io.IOException;
  * An input format that reads single field primitive data from a given file. The difference between this and
  * {@link org.apache.flink.api.java.io.CsvInputFormat} is that it won't go through {@link org.apache.flink.api.java.tuple.Tuple1}.
  */
+@PublicEvolving
 public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private static final long serialVersionUID = 1L;

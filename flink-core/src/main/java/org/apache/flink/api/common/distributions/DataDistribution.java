@@ -21,9 +21,11 @@ package org.apache.flink.api.common.distributions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.types.Key;
 
+@PublicEvolving
 public interface DataDistribution extends IOReadableWritable, Serializable {
 	
 	/**
@@ -39,14 +41,14 @@ public interface DataDistribution extends IOReadableWritable, Serializable {
 	 * <p>
 	 * Note: The last bucket's upper bound is actually discarded by many algorithms.
 	 * The last bucket is assumed to hold all values <i>v</i> such that
-	 * {@code v &gt; getBucketBoundary(n-1, n)}, where <i>n</i> is the number of buckets.
+	 * {@code v > getBucketBoundary(n-1, n)}, where <i>n</i> is the number of buckets.
 	 * 
 	 * @param bucketNum The number of the bucket for which to get the upper bound.
 	 * @param totalNumBuckets The number of buckets to split the data into.
 	 * 
 	 * @return A record whose values act as bucket boundaries for the specified bucket.
 	 */
-	Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets);
+	Object[] getBucketBoundary(int bucketNum, int totalNumBuckets);
 	
 	/**
 	 * The number of fields in the (composite) key. This determines how many fields in the records define
@@ -56,4 +58,10 @@ public interface DataDistribution extends IOReadableWritable, Serializable {
 	 * @return The number of fields in the (composite) key.
 	 */
 	int getNumberOfFields();
+
+	/**
+	 * Gets the type of the key by which the dataSet is partitioned. 
+	 * @return The type of the key by which the dataSet is partitioned.
+	 */
+	TypeInformation[] getKeyTypes();
 }

@@ -22,7 +22,10 @@ package org.apache.flink.optimizer.dag;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
@@ -49,7 +52,7 @@ public class PartitionNode extends SingleInputNode {
 		super(operator);
 		
 		OperatorDescriptorSingle descr = new PartitionDescriptor(
-					this.getOperator().getPartitionMethod(), this.keys, operator.getCustomPartitioner());
+					this.getOperator().getPartitionMethod(), this.keys, operator.getCustomPartitioner(), operator.getDistribution());
 		this.possibleProperties = Collections.singletonList(descr);
 	}
 
@@ -86,12 +89,14 @@ public class PartitionNode extends SingleInputNode {
 
 		private final PartitionMethod pMethod;
 		private final Partitioner<?> customPartitioner;
+		private final DataDistribution distribution;
 		
-		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Partitioner<?> customPartitioner) {
+		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Partitioner<?> customPartitioner, DataDistribution distribution) {
 			super(pKeys);
 			
 			this.pMethod = pMethod;
 			this.customPartitioner = customPartitioner;
+			this.distribution = distribution;
 		}
 		
 		@Override
@@ -119,7 +124,14 @@ public class PartitionNode extends SingleInputNode {
 				rgps.setCustomPartitioned(this.keys, this.customPartitioner);
 				break;
 			case RANGE:
-				throw new UnsupportedOperationException("Not yet supported");
+				// Initiate Ordering as ascending here as no order parameter in API level,
+				// we could revisit this while order is required in future optimization.
+				Ordering ordering = new Ordering();
+				for (int field : this.keys) {
+					ordering.appendOrdering(field, null, Order.ASCENDING);
+				}
+				rgps.setRangePartitioned(ordering, distribution);
+				break;
 			default:
 				throw new IllegalArgumentException("Invalid partition method");
 			}

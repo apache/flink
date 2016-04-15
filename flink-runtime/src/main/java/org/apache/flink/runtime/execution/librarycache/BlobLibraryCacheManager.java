@@ -68,39 +68,46 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	/** The blob service to download libraries */
 	private final BlobService blobService;
 	
+	private final Timer cleanupTimer;
+	
 	// --------------------------------------------------------------------------------------------
 
 	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
 		this.blobService = blobService;
 
 		// Initializing the clean up task
-		Timer timer = new Timer(true);
-		timer.schedule(this, cleanupInterval);
+		this.cleanupTimer = new Timer(true);
+		this.cleanupTimer.schedule(this, cleanupInterval);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles) throws IOException {
-		registerTask(id, JOB_ATTEMPT_ID, requiredJarFiles);
+	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+			throws IOException {
+		registerTask(id, JOB_ATTEMPT_ID, requiredJarFiles, requiredClasspaths);
 	}
 	
 	@Override
-	public void registerTask(JobID jobId, ExecutionAttemptID task, Collection<BlobKey> requiredJarFiles) throws IOException {
+	public void registerTask(JobID jobId, ExecutionAttemptID task, Collection<BlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths) throws IOException {
 		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
 		Preconditions.checkNotNull(task, "The task execution id must not be null.");
-		
+
 		if (requiredJarFiles == null) {
 			requiredJarFiles = Collections.emptySet();
 		}
-		
+		if (requiredClasspaths == null) {
+			requiredClasspaths = Collections.emptySet();
+		}
+
 		synchronized (lockObject) {
 			LibraryCacheEntry entry = cacheEntries.get(jobId);
-			
+
 			if (entry == null) {
 				// create a new entry in the library cache
 				BlobKey[] keys = requiredJarFiles.toArray(new BlobKey[requiredJarFiles.size()]);
-				URL[] urls = new URL[keys.length];
+				URL[] urls = new URL[keys.length + requiredClasspaths.size()];
 
 				int count = 0;
 				try {
@@ -124,7 +131,13 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 					ExceptionUtils.tryRethrowIOException(t);
 					throw new IOException("Library cache could not register the user code libraries.", t);
 				}
-				
+
+				// add classpaths
+				for (URL url : requiredClasspaths) {
+					urls[count] = url;
+					count++;
+				}
+
 				URLClassLoader classLoader = new FlinkUserCodeClassLoader(urls);
 				cacheEntries.put(jobId, new LibraryCacheEntry(requiredJarFiles, classLoader, task));
 			}
@@ -188,6 +201,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void shutdown() throws IOException{
 		blobService.shutdown();
+		cleanupTimer.cancel();
 	}
 	
 	/**
@@ -315,7 +329,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	private static class FlinkUserCodeClassLoader extends URLClassLoader {
 
 		public FlinkUserCodeClassLoader(URL[] urls) {
-			super(urls);
+			super(urls, FlinkUserCodeClassLoader.class.getClassLoader());
 		}
 	}
 }

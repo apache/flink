@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * The execution mode specifies how a batch program is executed in terms
  * of data exchange: pipelining or batched.
  */
+@Public
 public enum ExecutionMode {
 
 	/**
@@ -33,10 +36,10 @@ public enum ExecutionMode {
 	 * pipelined manner) are data flows that branch (one data set consumed by multiple
 	 * operations) and re-join later:
 	 * <pre>{@code
-	 *    DataSet data = ...;
-	 *    DataSet mapped1 = data.map(new MyMapper());
-	 *    DataSet mapped2 = data.map(new AnotherMapper());
-	 *    mapped1.join(mapped2).where(...).equalTo(...);
+	 * DataSet data = ...;
+	 * DataSet mapped1 = data.map(new MyMapper());
+	 * DataSet mapped2 = data.map(new AnotherMapper());
+	 * mapped1.join(mapped2).where(...).equalTo(...);
 	 * }</pre>
 	 */
 	PIPELINED,

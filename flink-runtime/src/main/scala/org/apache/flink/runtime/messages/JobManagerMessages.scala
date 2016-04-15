@@ -23,11 +23,13 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusMessage}
+import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
-import org.apache.flink.runtime.instance.{InstanceID, Instance}
+import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph
+import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
 import org.apache.flink.runtime.util.SerializedThrowable
 
 import scala.collection.JavaConverters._
@@ -66,12 +68,40 @@ object JobManagerMessages {
     extends RequiresLeaderSessionID
 
   /**
+   * Triggers the recovery of the job with the given ID.
+   *
+   * @param jobId ID of the job to recover
+   */
+  case class RecoverJob(jobId: JobID) extends RequiresLeaderSessionID
+
+  /**
+   * Triggers the submission of the recovered job
+   *
+   * @param submittedJobGraph Contains the submitted JobGraph and the associated JobInfo
+   */
+  case class RecoverSubmittedJob(submittedJobGraph: SubmittedJobGraph)
+    extends RequiresLeaderSessionID
+
+  /**
+   * Triggers recovery of all available jobs.
+   */
+  case object RecoverAllJobs extends RequiresLeaderSessionID
+
+  /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
    * sent back to the sender as a [[CancellationResponse]] message.
    *
    * @param jobID
    */
   case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
+
+  /**
+   * Stops a (streaming) job with the given [[jobID]] at the JobManager. The result of
+   * stopping is sent back to the sender as a [[StoppingResponse]] message.
+   *
+   * @param jobID
+   */
+  case class StopJob(jobID: JobID) extends RequiresLeaderSessionID
 
   /**
    * Requesting next input split for the
@@ -100,7 +130,7 @@ object JobManagerMessages {
    * Requests the current state of the partition.
    *
    * The state of a partition is currently bound to the state of the producing execution.
-   * 
+   *
    * @param jobId The job ID of the job, which produces the partition.
    * @param partitionId The partition ID of the partition to request the state of.
    * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
@@ -185,7 +215,7 @@ object JobManagerMessages {
    * @param jobId Ths job's ID.
    */
   case class JobSubmitSuccess(jobId: JobID)
-  
+
   /**
    * Denotes a successful job execution.
    * @param result The result of the job execution, in serialized form.
@@ -215,6 +245,23 @@ object JobManagerMessages {
    * @param cause
    */
   case class CancellationFailure(jobID: JobID, cause: Throwable) extends CancellationResponse
+
+  sealed trait StoppingResponse {
+    def jobID: JobID
+  }
+
+  /**
+   * Denotes a successful (streaming) job stopping
+   * @param jobID
+   */
+  case class StoppingSuccess(jobID: JobID) extends StoppingResponse
+
+  /**
+   * Denotes a failed (streaming) job stopping
+   * @param jobID
+   * @param cause
+   */
+  case class StoppingFailure(jobID: JobID, cause: Throwable) extends StoppingResponse
 
   /**
    * Requests all currently running jobs from the job manager. This message triggers a
@@ -274,6 +321,14 @@ object JobManagerMessages {
    */
   case class JobNotFound(jobID: JobID) extends JobResponse with JobStatusResponse
 
+  /** Triggers the removal of the job with the given job ID
+    *
+    * @param jobID
+    * @param removeJobFromStateBackend true if the job has properly finished
+    */
+  case class RemoveJob(jobID: JobID, removeJobFromStateBackend: Boolean = true)
+    extends RequiresLeaderSessionID
+
   /**
    * Removes the job belonging to the job identifier from the job manager and archives it.
    * @param jobID The job identifier
@@ -302,6 +357,19 @@ object JobManagerMessages {
       taskManagers.asJavaCollection
     }
   }
+
+  /**
+   * Requests the [[Instance]] object of the task manager with the given instance ID
+   *
+   * @param instanceID Instance ID of the task manager
+   */
+  case class RequestTaskManagerInstance(instanceID: InstanceID)
+
+  /**
+   * Returns the [[Instance]] object of the requested task manager. This is in response to
+   * [[RequestTaskManagerInstance]]
+   */
+  case class TaskManagerInstance(instance: Option[Instance])
 
   /**
    * Requests stack trace messages of the task manager
@@ -338,22 +406,80 @@ object JobManagerMessages {
   /** Response containing the ActorRef of the archiver */
   case class ResponseArchive(actor: ActorRef)
 
+  /** Request for the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port. */
+  case object RequestWebMonitorPort
+
+  /**
+   * Response containing the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port.
+   *
+   * -1 indicates that there is no web monitor running.
+   */
+  case class ResponseWebMonitorPort(port: Integer)
+
+  /**
+    * Triggers a savepoint for the specified job.
+    *
+    * This is not a subtype of [[AbstractCheckpointMessage]], because it is a
+    * control-flow message, which is *not* part of the checkpointing mechanism
+    * of triggering and acknowledging checkpoints.
+    *
+    * @param jobId The JobID of the job to trigger the savepoint for.
+    */
+  case class TriggerSavepoint(jobId: JobID) extends RequiresLeaderSessionID
+
+  /**
+    * Response after a successful savepoint trigger containing the savepoint path.
+    *
+    * @param jobId The job ID for which the savepoint was triggered.
+    * @param savepointPath The path of the savepoint.
+    */
+  case class TriggerSavepointSuccess(jobId: JobID, savepointPath: String)
+
+  /**
+    * Response after a failed savepoint trigger containing the failure cause.
+    *
+    * @param jobId The job ID for which the savepoint was triggered.
+    * @param cause The cause of the failure.
+    */
+  case class TriggerSavepointFailure(jobId: JobID, cause: Throwable)
+
+  /**
+    * Disposes a savepoint.
+    *
+    * @param savepointPath The path of the savepoint to dispose.
+    */
+  case class DisposeSavepoint(savepointPath: String) extends RequiresLeaderSessionID
+
+  /** Response after a successful savepoint dispose. */
+  case object DisposeSavepointSuccess
+
+  /**
+    * Response after a failed savepoint dispose containing the failure cause.
+    *
+    * @param cause The cause of the failure.
+    */
+  case class DisposeSavepointFailure(cause: Throwable)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
-  
+
+  def getRequestJobStatus(jobId : JobID) : AnyRef = {
+    RequestJobStatus(jobId)
+  }
+
   def getRequestNumberRegisteredTaskManager : AnyRef = {
     RequestNumberRegisteredTaskManager
   }
-  
+
   def getRequestTotalNumberOfSlots : AnyRef = {
     RequestTotalNumberOfSlots
   }
-  
+
   def getRequestBlobManagerPort : AnyRef = {
     RequestBlobManagerPort
   }
-  
+
   def getRequestRunningJobs : AnyRef = {
     RequestRunningJobs
   }
@@ -365,11 +491,11 @@ object JobManagerMessages {
   def getRequestRegisteredTaskManagers : AnyRef = {
     RequestRegisteredTaskManagers
   }
-  
+
   def getRequestJobManagerStatus : AnyRef = {
     RequestJobManagerStatus
   }
-  
+
   def getJobManagerStatusAlive : AnyRef = {
     JobManagerStatusAlive
   }
@@ -380,5 +506,17 @@ object JobManagerMessages {
 
   def getRequestArchive: AnyRef = {
     RequestArchive
+  }
+
+  def getRecoverAllJobs: AnyRef = {
+    RecoverAllJobs
+  }
+
+  def getRequestWebMonitorPort: AnyRef = {
+    RequestWebMonitorPort
+  }
+
+  def getDisposeSavepointSuccess: AnyRef = {
+    DisposeSavepointSuccess
   }
 }

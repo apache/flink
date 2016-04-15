@@ -134,6 +134,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public PlanNode getSource() {
 		return this.source;
 	}
+
+	public void setSource(PlanNode source) {
+		this.source = source;
+	}
 	
 	/**
 	 * Sets the target of this Channel.
@@ -186,7 +190,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 * Sets the data exchange mode (batch / pipelined) to use for the data
 	 * exchange of this channel.
 	 *
-	 * @return The data exchange mode of this channel.
 	 */
 	public void setDataExchangeMode(DataExchangeMode dataExchangeMode) {
 		this.dataExchangeMode = checkNotNull(dataExchangeMode);
@@ -424,7 +427,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 					this.globalProps.setHashPartitioned(this.shipKeys);
 					break;
 				case PARTITION_RANGE:
-					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
+					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder), this.dataDistribution);
 					break;
 				case FORWARD:
 					break;

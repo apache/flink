@@ -45,7 +45,7 @@ class BatchScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
        "org.apache.flink.api.java.DataSet.getType",
        "org.apache.flink.api.java.operators.Operator.getResultType",
        "org.apache.flink.api.java.operators.Operator.getName",
-       "org.apache.flink.api.java.operators.Grouping.getDataSet",
+       "org.apache.flink.api.java.operators.Grouping.getInputDataSet",
        "org.apache.flink.api.java.operators.Grouping.getKeys",
        "org.apache.flink.api.java.operators.SingleInputOperator.getInput",
        "org.apache.flink.api.java.operators.SingleInputOperator.getInputType",
@@ -53,7 +53,8 @@ class BatchScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
        "org.apache.flink.api.java.operators.TwoInputOperator.getInput2",
        "org.apache.flink.api.java.operators.TwoInputOperator.getInput1Type",
        "org.apache.flink.api.java.operators.TwoInputOperator.getInput2Type",
-       "org.apache.flink.api.java.ExecutionEnvironment.localExecutionIsAllowed",
+       "org.apache.flink.api.java.ExecutionEnvironment.areExplicitEnvironmentsAllowed",
+       "org.apache.flink.api.java.ExecutionEnvironment.resetContextEnvironment",
        "org.apache.flink.api.java.ExecutionEnvironment.setDefaultLocalParallelism",
 
        // TypeHints are only needed for Java API, Scala API doesn't need them

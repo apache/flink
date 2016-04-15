@@ -31,8 +31,9 @@ public interface StatefulTask<T extends StateHandle<?>> {
 	 * a snapshot of the state from a previous execution.
 	 * 
 	 * @param stateHandle The handle to the state.
+	 * @param recoveryTimestamp Global recovery timestamp.
 	 */
-	void setInitialState(T stateHandle) throws Exception;
+	void setInitialState(T stateHandle, long recoveryTimestamp) throws Exception;
 
 	/**
 	 * This method is either called directly and asynchronously by the checkpoint
@@ -42,8 +43,10 @@ public interface StatefulTask<T extends StateHandle<?>> {
 	 *
 	 * @param checkpointId The ID of the checkpoint, incrementing.
 	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 *
+	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
+	boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
 
 
 	/**

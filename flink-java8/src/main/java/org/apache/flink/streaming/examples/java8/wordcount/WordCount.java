@@ -73,12 +73,12 @@ public class WordCount {
 					.forEach(t -> out.collect(new Tuple2<>(t, 1)));
 				})
 				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
+				.keyBy(0)
 				.sum(1);
 
 		// emit result
 		if(fileOutput) {
-			counts.writeAsCsv(outputPath, 1);
+			counts.writeAsCsv(outputPath);
 		} else {
 			counts.print();
 		}

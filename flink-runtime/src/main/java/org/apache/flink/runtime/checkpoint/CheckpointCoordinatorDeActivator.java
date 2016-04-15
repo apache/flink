@@ -32,19 +32,15 @@ import java.util.UUID;
 public class CheckpointCoordinatorDeActivator extends FlinkUntypedActor {
 
 	private final CheckpointCoordinator coordinator;
-	private final long interval;
 	private final UUID leaderSessionID;
 	
 	public CheckpointCoordinatorDeActivator(
 			CheckpointCoordinator coordinator,
-			long interval,
 			UUID leaderSessionID) {
 
 		LOG.info("Create CheckpointCoordinatorDeActivator");
 
 		this.coordinator = Preconditions.checkNotNull(coordinator, "The checkpointCoordinator must not be null.");
-
-		this.interval = interval;
 		this.leaderSessionID = leaderSessionID;
 	}
 
@@ -55,11 +51,10 @@ public class CheckpointCoordinatorDeActivator extends FlinkUntypedActor {
 			
 			if (status == JobStatus.RUNNING) {
 				// start the checkpoint scheduler
-				coordinator.startPeriodicCheckpointScheduler(interval);
-			}
-			else {
+				coordinator.startCheckpointScheduler();
+			} else {
 				// anything else should stop the trigger for now
-				coordinator.stopPeriodicCheckpointScheduler();
+				coordinator.stopCheckpointScheduler();
 			}
 		}
 		

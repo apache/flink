@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -68,7 +68,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
 
-		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false, StreamingMode.BATCH_ONLY);
+		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false);
 		cluster.start(false); // TaskManagers don't have to register at the JobManager
 
 		cluster.waitForActorsToBeAlive(); // we only wait until all actors are alive
@@ -129,7 +129,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout);
+		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(jm2.path(), jm2.leaderSessionID()));
 	}
 
 	/**
@@ -207,7 +207,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		UUID leaderSessionID = UUID.randomUUID();
 		UUID newLeaderSessionID = UUID.randomUUID();
 
-		FiniteDuration shortTimeout = new FiniteDuration(20, TimeUnit.SECONDS);
+		FiniteDuration shortTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
@@ -244,10 +244,11 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		cluster.waitForTaskManagersToBeRegistered();
 
+		ActorGateway leaderGateway = cluster.getLeaderGateway(timeout);
+
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout);
-
+		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(leaderGateway.path(), leaderGateway.leaderSessionID()));
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {
@@ -268,6 +269,6 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		return new JobGraph("Blocking test job", sender, receiver);
+		return new JobGraph("Blocking test job", new ExecutionConfig(), sender, receiver);
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -25,7 +27,7 @@ import java.io.Serializable;
  * and operators. Each parallel instance creates and updates its own accumulator object,
  * and the different parallel instances of the accumulator are later merged.
  * merged by the system at the end of the job. The result can be obtained from the
- * result of a job execution, or from teh web runtime monitor.
+ * result of a job execution, or from the web runtime monitor.
  *
  * The accumulators are inspired by the Hadoop/MapReduce counters.
  * 
@@ -39,6 +41,7 @@ import java.io.Serializable;
  *            Type of the accumulator result as it will be reported to the
  *            client
  */
+@Public
 public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable {
 	/**
 	 * @param value

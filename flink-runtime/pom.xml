@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.1-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-runtime</artifactId>
+	<artifactId>flink-runtime_2.10</artifactId>
 	<name>flink-runtime</name>
 
 	<packaging>jar</packaging>
@@ -71,35 +71,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-server</artifactId>
-			<!-- version is derived from base module -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
-			<!-- version is derived from base module -->
-		</dependency>
-
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.8.1</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>commons-codec</artifactId>
-					<groupId>commons-codec</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<!-- Version is set in root POM -->
@@ -110,12 +81,6 @@ under the License.
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>
 			<!-- Version is set in root POM -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.codehaus.jettison</groupId>
-			<artifactId>jettison</artifactId>
-			<version>1.1</version>
 		</dependency>
 
 		<dependency>
@@ -198,9 +163,21 @@ under the License.
 			<artifactId>zookeeper</artifactId>
 		</dependency>
 
+		<!--
+		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
+		is in the classpath. Because we do not want to have transitive Scala dependencies
+		in Flink's API modules (such as flink-java) due to Chill, Chill is added to flink-runtime
+		to ensure that Chill is always present in the classpath.
+		-->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-curator</artifactId>
+			<artifactId>flink-shaded-curator-recipes</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
@@ -210,7 +187,6 @@ under the License.
 			<version>${curator.version}</version>
 			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -313,27 +289,12 @@ under the License.
 				</executions>
 			</plugin>
 
+			<!-- Scala Code Style, most of the configuration done via plugin management -->
 			<plugin>
 				<groupId>org.scalastyle</groupId>
 				<artifactId>scalastyle-maven-plugin</artifactId>
-				<version>0.5.0</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
 				<configuration>
-					<verbose>false</verbose>
-					<failOnViolation>true</failOnViolation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<failOnWarning>false</failOnWarning>
-					<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-					<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
 					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-					<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-					<outputEncoding>UTF-8</outputEncoding>
 				</configuration>
 			</plugin>
 
@@ -347,11 +308,6 @@ under the License.
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
 					</excludes>
-					<classpathDependencyExcludes>
-						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
-					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -365,11 +321,6 @@ under the License.
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 					</excludes>
-					<classpathDependencyExcludes>
-						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
-					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -419,6 +370,34 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+						
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-shaded-curator-recipes</include>
+								</includes>
+							</artifactSet>
+							<relocations combine.children="append">
+								<relocation>
+									<pattern>org.apache.curator</pattern>
+									<shadedPattern>org.apache.flink.shaded.org.apache.curator</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

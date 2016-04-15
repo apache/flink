@@ -28,7 +28,7 @@ public interface WebMonitor {
 	 * 
 	 * @throws Exception This method may forward exceptions, if it cannot bring up the web monitor.
 	 */
-	void start() throws Exception;
+	void start(String jobManagerAkkaUrl) throws Exception;
 
 	/**
 	 * Stops the web server.

@@ -19,18 +19,27 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SampleInCoordinator;
 import org.apache.flink.api.java.functions.SampleInPartition;
 import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
-import org.apache.flink.api.java.sampling.IntermediateSampleData;
+import org.apache.flink.api.java.operators.PartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import java.util.Collections;
@@ -41,7 +50,8 @@ import java.util.List;
  * This class provides simple utility methods for zipping elements in a data set with an index
  * or with a unique identifier.
  */
-public class DataSetUtils {
+@PublicEvolving
+public final class DataSetUtils {
 
 	/**
 	 * Method that goes over all the elements in each partition in order to retrieve
@@ -59,7 +69,7 @@ public class DataSetUtils {
 					counter++;
 				}
 
-				out.collect(new Tuple2<Integer, Long>(getRuntimeContext().getIndexOfThisSubtask(), counter));
+				out.collect(new Tuple2<>(getRuntimeContext().getIndexOfThisSubtask(), counter));
 			}
 		});
 	}
@@ -109,7 +119,7 @@ public class DataSetUtils {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Long, T>> out) throws Exception {
 				for (T value: values) {
-					out.collect(new Tuple2<Long, T>(start++, value));
+					out.collect(new Tuple2<>(start++, value));
 				}
 			}
 		}).withBroadcastSet(elementCount, "counts");
@@ -151,7 +161,7 @@ public class DataSetUtils {
 					label = (start << shifter) + taskId;
 
 					if (getBitSize(start) + shifter < maxBitSize) {
-						out.collect(new Tuple2<Long, T>(label, value));
+						out.collect(new Tuple2<>(label, value));
 						start++;
 					} else {
 						throw new Exception("Exceeded Long value range while generating labels");
@@ -206,18 +216,18 @@ public class DataSetUtils {
 	 * <p>
 	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * <p/>
+	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
-	 * @param numSample       The expected sample size.
+	 * @param numSamples       The expected sample size.
 	 * @return The sampled DataSet
 	 */
 	public static <T> DataSet<T> sampleWithSize(
 		DataSet <T> input,
 		final boolean withReplacement,
-		final int numSample) {
+		final int numSamples) {
 
-		return sampleWithSize(input, withReplacement, numSample, Utils.RNG.nextLong());
+		return sampleWithSize(input, withReplacement, numSamples, Utils.RNG.nextLong());
 	}
 
 	/**
@@ -225,27 +235,71 @@ public class DataSetUtils {
 	 * <p>
 	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * <p/>
+	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
-	 * @param numSample       The expected sample size.
+	 * @param numSamples       The expected sample size.
 	 * @param seed            Random number generator seed.
 	 * @return The sampled DataSet
 	 */
 	public static <T> DataSet<T> sampleWithSize(
 		DataSet <T> input,
 		final boolean withReplacement,
-		final int numSample,
+		final int numSamples,
 		final long seed) {
 
-		SampleInPartition sampleInPartition = new SampleInPartition<T>(withReplacement, numSample, seed);
+		SampleInPartition<T> sampleInPartition = new SampleInPartition<>(withReplacement, numSamples, seed);
 		MapPartitionOperator mapPartitionOperator = input.mapPartition(sampleInPartition);
 
 		// There is no previous group, so the parallelism of GroupReduceOperator is always 1.
 		String callLocation = Utils.getCallLocationName();
-		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<T>(withReplacement, numSample, seed);
-		return new GroupReduceOperator<IntermediateSampleData<T>, T>(mapPartitionOperator,
-			input.getType(), sampleInCoordinator, callLocation);
+		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<>(withReplacement, numSamples, seed);
+		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Partition
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Range-partitions a DataSet on the specified tuple field positions.
+	 */
+	public static <T> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, int... fields) {
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, input.getType(), false), distribution, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet on the specified fields.
+	 */
+	public static <T> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, String... fields) {
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, input.getType()), distribution, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet using the specified key selector function.
+	 */
+	public static <T, K extends Comparable<K>> PartitionOperator<T> partitionByRange(DataSet<T> input, DataDistribution distribution, KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, input.getType());
+		return new PartitionOperator<>(input, PartitionOperatorBase.PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<>(input.clean(keyExtractor), input.getType(), keyType), distribution, Utils.getCallLocationName());
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Checksum
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Convenience method to get the count (number of elements) of a DataSet
+	 * as well as the checksum (sum over element hashes).
+	 *
+	 * @return A ChecksumHashCode that represents the count and checksum of elements in the data set.
+	 */
+	public static <T> Utils.ChecksumHashCode checksumHashCode(DataSet<T> input) throws Exception {
+		final String id = new AbstractID().toString();
+
+		input.output(new Utils.ChecksumHashCodeHelper<T>(id)).name("ChecksumHashCode");
+
+		JobExecutionResult res = input.getExecutionEnvironment().execute();
+		return res.<Utils.ChecksumHashCode> getAccumulatorResult(id);
 	}
 
 
@@ -259,5 +313,12 @@ public class DataSetUtils {
 		} else {
 			return 32 - Integer.numberOfLeadingZeros((int)value);
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private DataSetUtils() {
+		throw new RuntimeException();
 	}
 }

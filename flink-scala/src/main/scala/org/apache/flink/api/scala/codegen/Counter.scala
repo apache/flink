@@ -17,6 +17,9 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.annotation.Internal
+
+@Internal
 private[flink] class Counter {
   private var value: Int = 0
 

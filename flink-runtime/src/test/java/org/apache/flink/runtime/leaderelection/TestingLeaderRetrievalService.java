@@ -29,11 +29,27 @@ import java.util.UUID;
  */
 public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
+	private final String leaderAddress;
+	private final UUID leaderSessionID;
+
 	private LeaderRetrievalListener listener;
+
+	public TestingLeaderRetrievalService() {
+		this(null, null);
+	}
+
+	public TestingLeaderRetrievalService(String leaderAddress, UUID leaderSessionID) {
+		this.leaderAddress = leaderAddress;
+		this.leaderSessionID = leaderSessionID;
+	}
 
 	@Override
 	public void start(LeaderRetrievalListener listener) throws Exception {
 		this.listener = listener;
+
+		if (leaderAddress != null) {
+			listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
+		}
 	}
 
 	@Override

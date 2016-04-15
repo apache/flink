@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * 
  * <p>Consider a job set up like this:</p>
  * 
- * <pre>
+ * <pre>{@code
  * +-------------- Slot Sharing Group --------------+
  * |                                                |
  * |            +-- Co Location Group --+           |
@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * |            |                       |           |
  * |            +-----------------------+           |
  * +------------------------------------------------+
- * </pre>
+ * }</pre>
  * 
  * <p>The slot hierarchy in the slot sharing group will look like the following</p> 
  * 

@@ -26,7 +26,7 @@ public class FullOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExtern
 	
 	
 	public FullOuterJoinTaskExternalITCase(ExecutionConfig config) {
-		super(config, DriverStrategy.FULL_OUTER_MERGE);
+		super(config);
 	}
 	
 	@Override
@@ -37,5 +37,10 @@ public class FullOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExtern
 	@Override
 	protected AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver() {
 		return new FullOuterJoinDriver<>();
+	}
+
+	@Override
+	protected DriverStrategy getSortStrategy() {
+		return DriverStrategy.FULL_OUTER_MERGE;
 	}
 }

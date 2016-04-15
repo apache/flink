@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.types.IntValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 
@@ -68,16 +68,12 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void registerInputOutput() {
-		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
-	}
-
-	@Override
 	public void invoke() throws Exception {
+		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
+
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// store all aggregators
@@ -204,7 +200,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	}
 
 	private String formatLogString(String message) {
-		return RegularPactTask.constructLogString(message, getEnvironment().getTaskName(), this);
+		return BatchTask.constructLogString(message, getEnvironment().getTaskInfo().getTaskName(), this);
 	}
 	
 	// --------------------------------------------------------------------------------------------

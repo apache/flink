@@ -24,11 +24,14 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-public class ExceptionUtils {
+@Internal
+public final class ExceptionUtils {
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
@@ -112,5 +115,12 @@ public class ExceptionUtils {
 		else if (t instanceof Error) {
 			throw (Error) t;
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ExceptionUtils() {
+		throw new RuntimeException();
 	}
 }

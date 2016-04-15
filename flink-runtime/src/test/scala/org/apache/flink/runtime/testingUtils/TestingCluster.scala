@@ -24,20 +24,21 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
-import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.runtime.testutils.TestingResourceManager
+import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
-import org.apache.flink.runtime.webmonitor.WebMonitor
 
 import scala.concurrent.{Await, Future}
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
- * in the same [[ActorSystem]].
+ * in the same or separate [[ActorSystem]]s.
  *
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
@@ -46,32 +47,27 @@ import scala.concurrent.{Await, Future}
 class TestingCluster(
     userConfiguration: Configuration,
     singleActorSystem: Boolean,
-    synchronousDispatcher: Boolean,
-    streamingMode: StreamingMode)
+    synchronousDispatcher: Boolean)
   extends FlinkMiniCluster(
     userConfiguration,
-    singleActorSystem,
-    streamingMode) {
-  
+    singleActorSystem) {
 
-  def this(userConfiguration: Configuration,
-           singleActorSystem: Boolean,
-           synchronousDispatcher: Boolean)
-       = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
-
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-       = this(userConfiguration, singleActorSystem, false)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) =
+    this(userConfiguration, singleActorSystem, false)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
-  
+
   // --------------------------------------------------------------------------
-  
+
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
-    cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort())
+    cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+    cfg.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, 0)
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
     cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+
+    setDefaultCiConfig(cfg)
 
     cfg.addAll(userConfig)
     cfg
@@ -101,20 +97,22 @@ class TestingCluster(
     }
 
     val (executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      _,
-      executionRetries,
-      delayBetweenRetries,
-      timeout,
-      archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(config)
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    restartStrategy,
+    timeout,
+    archiveCount,
+    leaderElectionService,
+    submittedJobsGraphs,
+    checkpointRecoveryFactory,
+    savepointStore,
+    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
+      config,
+      createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, archiveName)
-
-    val resolvedLeaderElectionService = createLeaderElectionService(leaderElectionService)
 
     val jobManagerProps = Props(
       new TestingJobManager(
@@ -124,11 +122,13 @@ class TestingCluster(
         scheduler,
         libraryCacheManager,
         archive,
-        executionRetries,
-        delayBetweenRetries,
+        restartStrategy,
         timeout,
-        streamingMode,
-        resolvedLeaderElectionService))
+        leaderElectionService,
+        submittedJobsGraphs,
+        checkpointRecoveryFactory,
+        savepointStore,
+        jobRecoveryTimeout))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)
@@ -140,24 +140,50 @@ class TestingCluster(
     actorSystem.actorOf(dispatcherJobManagerProps, jobManagerName)
   }
 
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = if(singleActorSystem) {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME
+    }
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val testResourceManagerProps = Props(
+      new TestingResourceManager(
+        config,
+        createLeaderRetrievalService()
+      ))
+
+    system.actorOf(testResourceManagerProps, resourceManagerName)
+  }
+
   override def startTaskManager(index: Int, system: ActorSystem) = {
 
     val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
     TaskManager.startTaskManagerComponentsAndActor(
       configuration,
+      ResourceID.generate(),
       system,
       hostname,
       Some(tmActorName),
-      Some(createLeaderRetrievalService),
+      Some(createLeaderRetrievalService()),
       numTaskManagers == 1,
-      streamingMode,
       classOf[TestingTaskManager])
   }
 
 
-  def createLeaderElectionService(electionService: LeaderElectionService): LeaderElectionService = {
-    electionService
+  def createLeaderElectionService(): Option[LeaderElectionService] = {
+    None
   }
 
   @throws(classOf[TimeoutException])

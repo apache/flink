@@ -277,6 +277,8 @@ public class NetworkEnvironment {
 			throw new IllegalStateException("Unequal number of writers and partitions.");
 		}
 
+		ResultPartitionConsumableNotifier jobManagerNotifier;
+
 		synchronized (lock) {
 			if (isShutdown) {
 				throw new IllegalStateException("NetworkEnvironment is shut down");
@@ -338,12 +340,23 @@ public class NetworkEnvironment {
 					}
 				}
 			}
+
+			// Copy the reference to prevent races with concurrent shut downs
+			jobManagerNotifier = partitionConsumableNotifier;
+		}
+
+		for (ResultPartition partition : producedPartitions) {
+			// Eagerly notify consumers if required.
+			if (partition.getEagerlyDeployConsumers()) {
+				jobManagerNotifier.notifyPartitionConsumable(
+						partition.getJobId(), partition.getPartitionId());
+			}
 		}
 	}
 
 	public void unregisterTask(Task task) {
 		LOG.debug("Unregister task {} from network environment (state: {}).",
-				task.getTaskNameWithSubtasks(), task.getExecutionState());
+				task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 

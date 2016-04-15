@@ -18,17 +18,20 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Map;
 import java.util.TreeMap;
 
 /**
  * Histogram accumulator, which builds a histogram in a distributed manner.
- * Implemented as a Integer->Integer TreeMap, so that the entries are sorted
+ * Implemented as a Integer-&gt;Integer TreeMap, so that the entries are sorted
  * according to the values.
  * 
  * This class does not extend to continuous values later, because it makes no
  * attempt to put the data in bins.
  */
+@Public
 public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>> {
 
 	private static final long serialVersionUID = 1L;

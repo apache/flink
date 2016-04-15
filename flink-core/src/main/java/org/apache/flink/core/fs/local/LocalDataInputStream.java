@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 /**
@@ -30,6 +31,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
  * input stream to the local file system.
  * 
  */
+@Internal
 public class LocalDataInputStream extends FSDataInputStream {
 
 	/**

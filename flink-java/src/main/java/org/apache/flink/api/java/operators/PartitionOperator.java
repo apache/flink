@@ -18,66 +18,74 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.MapFunction;
+import com.google.common.base.Preconditions;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import com.google.common.base.Preconditions;
+import java.util.Arrays;
 
 /**
  * This operator represents a partitioning.
  *
  * @param <T> The type of the data being partitioned.
  */
+@Public
 public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOperator<T>> {
 	
 	private final Keys<T> pKeys;
 	private final PartitionMethod pMethod;
 	private final String partitionLocationName;
 	private final Partitioner<?> customPartitioner;
-	
-	
+	private final DataDistribution distribution;
+
+
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, String partitionLocationName) {
-		this(input, pMethod, pKeys, null, null, partitionLocationName);
+		this(input, pMethod, pKeys, null, null, null, partitionLocationName);
 	}
-	
+
+	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, DataDistribution distribution, String partitionLocationName) {
+		this(input, pMethod, pKeys, null, null, distribution, partitionLocationName);
+	}
+
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, String partitionLocationName) {
-		this(input, pMethod, null, null, null, partitionLocationName);
+		this(input, pMethod, null, null, null, null, partitionLocationName);
 	}
 	
 	public PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<?> customPartitioner, String partitionLocationName) {
-		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, null, partitionLocationName);
+		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, null, null, partitionLocationName);
 	}
 	
-	public <P> PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<P> customPartitioner, 
+	public <P> PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<P> customPartitioner,
 			TypeInformation<P> partitionerTypeInfo, String partitionLocationName)
 	{
-		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, partitionerTypeInfo, partitionLocationName);
+		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, partitionerTypeInfo, null, partitionLocationName);
 	}
 	
-	private <P> PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, Partitioner<P> customPartitioner, 
-			TypeInformation<P> partitionerTypeInfo, String partitionLocationName)
+	private <P> PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, Partitioner<P> customPartitioner,
+			TypeInformation<P> partitionerTypeInfo, DataDistribution distribution, String partitionLocationName)
 	{
 		super(input, input.getType());
 		
 		Preconditions.checkNotNull(pMethod);
 		Preconditions.checkArgument(pKeys != null || pMethod == PartitionMethod.REBALANCE, "Partitioning requires keys");
 		Preconditions.checkArgument(pMethod != PartitionMethod.CUSTOM || customPartitioner != null, "Custom partioning requires a partitioner.");
-		Preconditions.checkArgument(pMethod != PartitionMethod.RANGE, "Range partitioning is not yet supported");
+		Preconditions.checkArgument(distribution == null || pMethod == PartitionMethod.RANGE, "Customized data distribution is only neccessary for range partition.");
 		
-		if (pKeys instanceof Keys.ExpressionKeys<?> && !(input.getType() instanceof CompositeType) ) {
-			throw new IllegalArgumentException("Hash Partitioning with key fields only possible on Tuple or POJO DataSets");
+		if (distribution != null) {
+			Preconditions.checkArgument(distribution.getNumberOfFields() == pKeys.getNumberOfKeyFields(), "The number of key fields in the distribution and range partitioner should be the same.");
+			Preconditions.checkArgument(Arrays.equals(distribution.getKeyTypes(), pKeys.getKeyFieldTypes()), "The types of key from the distribution and range partitioner are not equal.");
 		}
 		
 		if (customPartitioner != null) {
@@ -88,6 +96,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		this.pKeys = pKeys;
 		this.partitionLocationName = partitionLocationName;
 		this.customPartitioner = customPartitioner;
+		this.distribution = distribution;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -99,6 +108,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 	 * 
 	 * @return The custom partitioner.
 	 */
+	@Internal
 	public Partitioner<?> getCustomPartitioner() {
 		return customPartitioner;
 	}
@@ -114,75 +124,64 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		// distinguish between partition types
 		if (pMethod == PartitionMethod.REBALANCE) {
 			
-			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<T, T>(getType(), getType());
-			PartitionOperatorBase<T> noop = new PartitionOperatorBase<T>(operatorInfo, pMethod, name);
+			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<>(getType(), getType());
+			PartitionOperatorBase<T> rebalancedInput = new PartitionOperatorBase<>(operatorInfo, pMethod, name);
+			rebalancedInput.setInput(input);
+			rebalancedInput.setParallelism(getParallelism());
 			
-			noop.setInput(input);
-			noop.setParallelism(getParallelism());
-			
-			return noop;
+			return rebalancedInput;
 		} 
-		else if (pMethod == PartitionMethod.HASH || pMethod == PartitionMethod.CUSTOM) {
+		else if (pMethod == PartitionMethod.HASH || pMethod == PartitionMethod.CUSTOM || pMethod == PartitionMethod.RANGE) {
 			
 			if (pKeys instanceof Keys.ExpressionKeys) {
 				
 				int[] logicalKeyPositions = pKeys.computeLogicalKeyPositions();
-				UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<T, T>(getType(), getType());
-				PartitionOperatorBase<T> noop = new PartitionOperatorBase<T>(operatorInfo, pMethod, logicalKeyPositions, name);
+				UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<>(getType(), getType());
+				PartitionOperatorBase<T> partitionedInput = new PartitionOperatorBase<>(operatorInfo, pMethod, logicalKeyPositions, name);
+				partitionedInput.setInput(input);
+				partitionedInput.setParallelism(getParallelism());
+				partitionedInput.setDistribution(distribution);
+				partitionedInput.setCustomPartitioner(customPartitioner);
 				
-				noop.setInput(input);
-				noop.setParallelism(getParallelism());
-				noop.setCustomPartitioner(customPartitioner);
-				
-				return noop;
+				return partitionedInput;
 			}
 			else if (pKeys instanceof Keys.SelectorFunctionKeys) {
 				
 				@SuppressWarnings("unchecked")
 				Keys.SelectorFunctionKeys<T, ?> selectorKeys = (Keys.SelectorFunctionKeys<T, ?>) pKeys;
-				MapOperatorBase<?, T, ?> po = translateSelectorFunctionPartitioner(selectorKeys, pMethod, getType(), name, input, getParallelism(), customPartitioner);
-				return po;
+				return translateSelectorFunctionPartitioner(selectorKeys, pMethod, name, input, getParallelism(), customPartitioner);
 			}
 			else {
 				throw new UnsupportedOperationException("Unrecognized key type.");
 			}
 			
 		} 
-		else if (pMethod == PartitionMethod.RANGE) {
-			throw new UnsupportedOperationException("Range partitioning not yet supported");
-		}
 		else {
 			throw new UnsupportedOperationException("Unsupported partitioning method: " + pMethod.name());
 		}
 	}
-	
-	private static <T, K> MapOperatorBase<Tuple2<K, T>, T, ?> translateSelectorFunctionPartitioner(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			PartitionMethod pMethod, TypeInformation<T> inputType, String name, Operator<T> input, int partitionDop, Partitioner<?> customPartitioner)
-	{
-		@SuppressWarnings("unchecked")
-		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
-		
-		TypeInformation<Tuple2<K, T>> typeInfoWithKey = new TupleTypeInfo<Tuple2<K, T>>(keys.getKeyType(), inputType);
-		UnaryOperatorInformation<Tuple2<K, T>, Tuple2<K, T>> operatorInfo = new UnaryOperatorInformation<Tuple2<K, T>, Tuple2<K, T>>(typeInfoWithKey, typeInfoWithKey);
-		
-		KeyExtractingMapper<T, K> extractor = new KeyExtractingMapper<T, K>(keys.getKeyExtractor());
-		
-		MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>> keyExtractingMap = new MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>>(extractor, new UnaryOperatorInformation<T, Tuple2<K, T>>(inputType, typeInfoWithKey), "Key Extractor");
-		PartitionOperatorBase<Tuple2<K, T>> noop = new PartitionOperatorBase<Tuple2<K, T>>(operatorInfo, pMethod, new int[]{0}, name);
-		MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>> keyRemovingMap = new MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>>(new KeyRemovingMapper<T, K>(), new UnaryOperatorInformation<Tuple2<K, T>, T>(typeInfoWithKey, inputType), "Key Extractor");
 
-		keyExtractingMap.setInput(input);
-		noop.setInput(keyExtractingMap);
-		keyRemovingMap.setInput(noop);
-		
-		noop.setCustomPartitioner(customPartitioner);
-		
-		// set parallelism
-		keyExtractingMap.setParallelism(input.getParallelism());
-		noop.setParallelism(partitionDop);
-		keyRemovingMap.setParallelism(partitionDop);
-		
-		return keyRemovingMap;
+	@SuppressWarnings("unchecked")
+	private static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateSelectorFunctionPartitioner(
+		SelectorFunctionKeys<T, ?> rawKeys,
+		PartitionMethod pMethod,
+		String name,
+		Operator<T> input,
+		int partitionDop,
+		Partitioner<?> customPartitioner)
+	{
+		final SelectorFunctionKeys<T, K> keys = (SelectorFunctionKeys<T, K>) rawKeys;
+		TypeInformation<Tuple2<K, T>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
+
+		Operator<Tuple2<K, T>> keyedInput = KeyFunctions.appendKeyExtractor(input, keys);
+
+		PartitionOperatorBase<Tuple2<K, T>> keyedPartitionedInput =
+			new PartitionOperatorBase<>(new UnaryOperatorInformation<>(typeInfoWithKey, typeInfoWithKey), pMethod, new int[]{0}, name);
+		keyedPartitionedInput.setInput(keyedInput);
+		keyedPartitionedInput.setCustomPartitioner(customPartitioner);
+		keyedPartitionedInput.setParallelism(partitionDop);
+
+		return KeyFunctions.appendKeyRemover(keyedPartitionedInput, keys);
 	}
 
 	

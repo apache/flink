@@ -18,15 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.DataInputStream;
-import java.io.FilterInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -36,13 +28,22 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
  * configuration, these block sizes equal the native block sizes of the HDFS.
  */
+@Public
 public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	private static final long serialVersionUID = 1L;
 
@@ -63,9 +64,9 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	 */
 	private long blockSize = NATIVE_BLOCK_SIZE;
 
-	private DataInputStream dataInputStream;
+	private transient DataInputViewStreamWrapper dataInputStream;
 
-	private BlockInfo blockInfo;
+	private transient BlockInfo blockInfo;
 
 	private long readRecords;
 
@@ -116,7 +117,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			}
 		}
 
-		return inputSplits.toArray(new FileInputSplit[0]);
+		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
 	}
 
 	protected List<FileStatus> getFiles() throws IOException {
@@ -167,13 +168,17 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			return createStatistics(allFiles, stats);
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
-					this.filePath, StringUtils.stringifyException(ioex)));
+				LOG.warn(
+					String.format("Could not determine complete statistics for file '%s' due to an I/O error",
+						this.filePath),
+					ioex);
 			}
 		} catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(String.format("Unexpected problem while getting the file statistics for file '%s' due to %s",
-					this.filePath, StringUtils.stringifyException(t)));
+				LOG.error(
+					String.format("Unexpected problem while getting the file statistics for file '%s'",
+						this.filePath),
+					t);
 			}
 		}
 		// no stats available
@@ -190,7 +195,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 	/**
 	 * Fill in the statistics. The last modification time and the total input size are prefilled.
-	 * 
+	 *
 	 * @param files
 	 *        The files that are associated with this block input format.
 	 * @param stats
@@ -211,12 +216,13 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 				continue;
 			}
 
-			FSDataInputStream fdis = file.getPath().getFileSystem().open(file.getPath(), blockInfo.getInfoSize());
-			fdis.seek(file.getLen() - blockInfo.getInfoSize());
+			FileSystem fs = file.getPath().getFileSystem();
+			try (FSDataInputStream fdis = fs.open(file.getPath(), blockInfo.getInfoSize())) {
+				fdis.seek(file.getLen() - blockInfo.getInfoSize());
 
-			DataInputStream input = new DataInputStream(fdis);
-			blockInfo.read(new InputViewDataInputStreamWrapper(input));
-			totalCount += blockInfo.getAccumulatedRecordCount();
+				blockInfo.read(new DataInputViewStreamWrapper(fdis));
+				totalCount += blockInfo.getAccumulatedRecordCount();
+			}
 		}
 
 		final float avgWidth = totalCount == 0 ? 0 : ((float) stats.getTotalInputSize() / totalCount);
@@ -250,13 +256,12 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		if (this.splitLength > this.blockInfo.getInfoSize()) {
 			// TODO: seek not supported by compressed streams. Will throw exception
 			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
-			DataInputStream infoStream = new DataInputStream(this.stream);
-			this.blockInfo.read(new InputViewDataInputStreamWrapper(infoStream));
+			this.blockInfo.read(new DataInputViewStreamWrapper(this.stream));
 		}
 
 		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
 		BlockBasedInput blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
-		this.dataInputStream = new DataInputStream(blockBasedInput);
+		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
 		this.readRecords = 0;
 	}
 
@@ -270,8 +275,8 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		if (this.reachedEnd()) {
 			return null;
 		}
-		
-		record = this.deserialize(record, new InputViewDataInputStreamWrapper(this.dataInputStream));
+
+		record = this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
 		return record;
 	}

@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
 
@@ -146,7 +147,8 @@ public class SimpleSlotTest {
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 
-		Instance instance = new Instance(DummyActorGateway.INSTANCE, connection, new InstanceID(), hardwareDescription, 1);
+		Instance instance = new Instance(DummyActorGateway.INSTANCE, connection,
+			ResourceID.generate(), new InstanceID(), hardwareDescription, 1);
 		return instance.allocateSimpleSlot(new JobID());
 	}
 }

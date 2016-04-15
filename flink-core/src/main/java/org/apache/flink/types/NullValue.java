@@ -21,15 +21,15 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * Null base type for programs that implements the Key interface.
- * 
- * @see org.apache.flink.types.Key
  */
+@Public
 public final class NullValue implements NormalizableKey<NullValue>, CopyableValue<NullValue> {
 	private static final long serialVersionUID = 1L;
 	
@@ -110,9 +110,14 @@ public final class NullValue implements NormalizableKey<NullValue>, CopyableValu
 	public int getBinaryLength() {
 		return 1;
 	}
-	
+
 	@Override
 	public void copyTo(NullValue target) {
+	}
+
+	@Override
+	public NullValue copy() {
+		return NullValue.getInstance();
 	}
 
 	@Override

@@ -89,7 +89,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 	/** These strings are white-listed, overriding teh prohibited strings */
 	protected final static String[] WHITELISTED_STRINGS = {
-			"akka.remote.RemoteTransportExceptionNoStackTrace"
+			"akka.remote.RemoteTransportExceptionNoStackTrace",
+			// workaround for annoying InterruptedException logging:
+		    // https://issues.apache.org/jira/browse/YARN-1022
+			"java.lang.InterruptedException"
 	};
 
 	// Temp directory which is deleted after the unit test.
@@ -98,9 +101,17 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected static MiniYARNCluster yarnCluster = null;
 
+	/**
+	 * Uberjar (fat jar) file of Flink
+	 */
 	protected static File flinkUberjar;
 
 	protected static final Configuration yarnConfiguration;
+
+	/**
+	 * lib/ folder of the flink distribution.
+	 */
+	protected static File flinkLibFolder;
 
 	static {
 		yarnConfiguration = new YarnConfiguration();
@@ -110,6 +121,7 @@ public abstract class YarnTestBase extends TestLogger {
 		yarnConfiguration.setBoolean(YarnConfiguration.RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME, true);
 		yarnConfiguration.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
 		yarnConfiguration.setInt(YarnConfiguration.RM_MAX_COMPLETED_APPLICATIONS, 2);
+		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES, 4);
 		yarnConfiguration.setInt(YarnConfiguration.DEBUG_NM_DELETE_DELAY_SEC, 3600);
 		yarnConfiguration.setBoolean(YarnConfiguration.LOG_AGGREGATION_ENABLED, false);
 		yarnConfiguration.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
@@ -240,7 +252,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 *
 	 */
 	public static void ensureNoProhibitedStringInLogFiles(final String[] prohibited, final String[] whitelisted) {
-		File cwd = new File("target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+		File cwd = new File("target/" + yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
 		
@@ -329,6 +341,10 @@ public abstract class YarnTestBase extends TestLogger {
 		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
 		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
+		flinkLibFolder = flinkUberjar.getParentFile(); // the uberjar is located in lib/
+		Assert.assertNotNull("Flink flinkLibFolder not found", flinkLibFolder);
+		Assert.assertTrue("lib folder not found", flinkLibFolder.exists());
+		Assert.assertTrue("lib folder not found", flinkLibFolder.isDirectory());
 
 		if (!flinkUberjar.exists()) {
 			Assert.fail("Unable to locate yarn-uberjar.jar");
@@ -344,15 +360,23 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 
 			Map<String, String> map = new HashMap<String, String>(System.getenv());
-			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
-			Assert.assertNotNull(flinkConfFilePath);
-			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
+
+			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
+			Assert.assertNotNull(flinkConfDirPath);
+
+			map.put("FLINK_CONF_DIR", flinkConfDirPath.getParent());
+
 			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
 			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
+
+			// wait for the nodeManagers to connect
+			while(!yarnCluster.waitForNodeManagersToConnect(500)) {
+				LOG.info("Waiting for Nodemanagers to connect");
+			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			LOG.error("setup failure", ex);
@@ -568,17 +592,13 @@ public abstract class YarnTestBase extends TestLogger {
 	// -------------------------- Tear down -------------------------- //
 
 	@AfterClass
-	public static void tearDown() {
-		/*
-			We don't shut down the MiniCluster, as it is prone to blocking infinitely.
-		*/
-		
+	public static void copyOnTravis() {
 		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script
 		// to upload them to Amazon S3.
 		if(isOnTravis()) {
-			File target = new File("../target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+			File target = new File("../target" + yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
 			if(!target.mkdirs()) {
 				LOG.warn("Error creating dirs to {}", target);
 			}

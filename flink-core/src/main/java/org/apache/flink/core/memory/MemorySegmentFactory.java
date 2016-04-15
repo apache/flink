@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -29,6 +31,7 @@ import java.nio.ByteBuffer;
  * Note that this factory auto-initialized to use {@link org.apache.flink.core.memory.HeapMemorySegment},
  * if a request to create a segment comes before the initialization.
  */
+@Internal
 public class MemorySegmentFactory {
 
 	/** The factory to use */

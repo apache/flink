@@ -59,7 +59,7 @@ public class CheckpointMessagesTest {
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
 											new JobID(), new ExecutionAttemptID(), 87658976143L, 
-											new SerializedValue<StateHandle<?>>(new MyHandle()));
+											new SerializedValue<StateHandle<?>>(new MyHandle()), 0);
 			
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);
@@ -78,7 +78,7 @@ public class CheckpointMessagesTest {
 		assertNotNull(copy.toString());
 	}
 	
-	private static class MyHandle implements StateHandle<Serializable> {
+	public static class MyHandle implements StateHandle<Serializable> {
 
 		private static final long serialVersionUID = 8128146204128728332L;
 
@@ -99,6 +99,11 @@ public class CheckpointMessagesTest {
 
 		@Override
 		public void discardState() throws Exception {
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
 		}
 	}
 }

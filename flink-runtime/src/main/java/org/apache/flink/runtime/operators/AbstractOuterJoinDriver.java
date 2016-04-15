@@ -38,11 +38,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see FlatJoinFunction
  */
-public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractOuterJoinDriver.class);
 	
-	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
+	protected TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	protected volatile JoinTaskIterator<IT1, IT2, OT> outerJoinIterator; // the iterator that does the actual outer join
 	protected volatile boolean running;
@@ -50,7 +50,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -81,8 +81,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 		final IOManager ioManager = this.taskContext.getIOManager();
 		
 		// set up memory and I/O parameters
-		final double fractionAvailableMemory = config.getRelativeMemoryDriver();
-		final int numPages = memoryManager.computeNumberOfPages(fractionAvailableMemory);
+		final double driverMemFraction = config.getRelativeMemoryDriver();
 		
 		final DriverStrategy ls = config.getDriverStrategy();
 		
@@ -121,7 +120,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 					pairComparatorFactory,
 					memoryManager,
 					ioManager,
-					numPages
+					driverMemFraction
 			);
 		} else {
 			this.outerJoinIterator = getNonReusingOuterJoinIterator(
@@ -135,7 +134,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 					pairComparatorFactory,
 					memoryManager,
 					ioManager,
-					numPages
+					driverMemFraction
 			);
 		}
 		
@@ -183,7 +182,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception;
 	
 	protected abstract JoinTaskIterator<IT1, IT2, OT> getNonReusingOuterJoinIterator(
@@ -197,6 +196,6 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception;
 }
