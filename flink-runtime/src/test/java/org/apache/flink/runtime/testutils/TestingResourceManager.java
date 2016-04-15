@@ -85,6 +85,8 @@ public class TestingResourceManager extends StandaloneResourceManager {
 
 		} else if (message instanceof TestingMessages.NotifyOfComponentShutdown$) {
 			waitForShutdown.add(sender());
+		} else if (message instanceof TestingMessages.Alive$) {
+			sender().tell(Messages.getAcknowledge(), self());
 		} else {
 			super.handleMessage(message);
 		}

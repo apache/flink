@@ -211,11 +211,18 @@ class TestingCluster(
 
     val jmsAliveFutures = jobManagerActors map {
       _ map {
-        tm => (tm ? Alive)(timeout)
+        jm => (jm ? Alive)(timeout)
       }
     } getOrElse(Seq())
 
-    val combinedFuture = Future.sequence(tmsAliveFutures ++ jmsAliveFutures)
+    val resourceManagersAliveFutures = resourceManagerActors map {
+      _ map {
+        rm => (rm ? Alive)(timeout)
+      }
+    } getOrElse(Seq())
+
+    val combinedFuture = Future.sequence(tmsAliveFutures ++ jmsAliveFutures ++
+                                           resourceManagersAliveFutures)
 
     Await.ready(combinedFuture, timeout)
   }

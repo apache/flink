@@ -20,6 +20,7 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
@@ -45,7 +46,7 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
 	@Override
 	public void start(LeaderRetrievalListener listener) throws Exception {
-		this.listener = listener;
+		this.listener = Preconditions.checkNotNull(listener);
 
 		if (leaderAddress != null) {
 			listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
@@ -58,6 +59,10 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 	}
 
 	public void notifyListener(String address, UUID leaderSessionID) {
-		listener.notifyLeaderAddress(address, leaderSessionID);
+		if (listener != null) {
+			listener.notifyLeaderAddress(address, leaderSessionID);
+		} else {
+			throw new IllegalStateException("The retrieval service has not been started properly.");
+		}
 	}
 }
