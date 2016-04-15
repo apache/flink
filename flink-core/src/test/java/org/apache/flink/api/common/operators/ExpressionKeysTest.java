@@ -281,6 +281,81 @@ public class ExpressionKeysTest {
 		ek = new ExpressionKeys<>("*", ti);
 		Assert.assertArrayEquals(new int[] {0,1,2,3,4,5,6,7}, ek.computeLogicalKeyPositions());
 
+		ek = new ExpressionKeys<>("f2.p1.*", ti);
+		Assert.assertArrayEquals(new int[] {4,5}, ek.computeLogicalKeyPositions());
+	}
+
+	@Test
+	public void testOriginalTypes() {
+
+		TypeInformation<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>> ti =
+				new TupleTypeInfo<>(
+						BasicTypeInfo.INT_TYPE_INFO,
+						TypeExtractor.getForClass(Pojo1.class),
+						TypeExtractor.getForClass(PojoWithMultiplePojos.class)
+				);
+
+		ExpressionKeys<Tuple3<Integer, Pojo1, PojoWithMultiplePojos>> ek;
+
+		ek = new ExpressionKeys<>(0, ti);
+		Assert.assertArrayEquals(new TypeInformation[] {BasicTypeInfo.INT_TYPE_INFO}, ek.getOriginalKeyFieldTypes());
+
+		ek = new ExpressionKeys<>(1, ti);
+		Assert.assertArrayEquals(new TypeInformation[] {TypeExtractor.getForClass(Pojo1.class)}, ek.getOriginalKeyFieldTypes());
+
+		ek = new ExpressionKeys<>(2, ti);
+		Assert.assertArrayEquals(new TypeInformation[] {TypeExtractor.getForClass(PojoWithMultiplePojos.class)}, ek.getOriginalKeyFieldTypes());
+
+		ek = new ExpressionKeys<>(new int[]{}, ti, true);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { BasicTypeInfo.INT_TYPE_INFO,
+						TypeExtractor.getForClass(Pojo1.class),
+						TypeExtractor.getForClass(PojoWithMultiplePojos.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("*", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { ti },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f1", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(Pojo1.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f1.*", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(Pojo1.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f2.*", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(PojoWithMultiplePojos.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f2.p2", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(Pojo2.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f2.p2.*", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(Pojo2.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
+		ek = new ExpressionKeys<>("f2.p2._", ti);
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { TypeExtractor.getForClass(Pojo2.class) },
+				ek.getOriginalKeyFieldTypes()
+		);
+
 	}
 
 	@Test(expected = InvalidProgramException.class)

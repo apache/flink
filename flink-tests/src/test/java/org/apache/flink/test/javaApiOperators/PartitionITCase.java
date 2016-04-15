@@ -549,6 +549,8 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		result.collect(); // should fail
 	}
 
+
+
 	@Test
 	public void testRangePartitionerOnSequenceDataWithOrders() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -587,20 +589,160 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testHashPartitionWithOrders() throws Exception {
+	@Test
+	public void testRangePartitionerOnSequenceNestedDataWithOrders() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final DataSet<Tuple2<Tuple2<Long, Long>, Long>> dataSet = env.generateSequence(0, 10000)
+				.map(new MapFunction<Long, Tuple2<Tuple2<Long, Long>, Long>>() {
+					@Override
+					public Tuple2<Tuple2<Long, Long>, Long> map(Long value) throws Exception {
+						return new Tuple2<>(new Tuple2<>(value / 5000, value % 5000), value);
+					}
+				});
 
-		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-		ds.partitionByHash("number").withOrders(Order.ASCENDING);
+		final Tuple2Comparator<Long> tuple2Comparator = new Tuple2Comparator<>(new LongComparator(true),
+				new LongComparator(true));
+		MinMaxSelector<Tuple2<Long, Long>> minMaxSelector = new MinMaxSelector<>(tuple2Comparator);
+
+		final List<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>> collected = dataSet.partitionByRange(0)
+				.withOrders(Order.ASCENDING)
+				.mapPartition(new MapPartitionFunction<Tuple2<Tuple2<Long,Long>,Long>, Tuple2<Long, Long>>() {
+					@Override
+					public void mapPartition(Iterable<Tuple2<Tuple2<Long, Long>, Long>> values,
+											 Collector<Tuple2<Long, Long>> out) throws Exception {
+						for (Tuple2<Tuple2<Long, Long>, Long> value : values) {
+							out.collect(value.f0);
+						}
+					}
+				})
+				.mapPartition(minMaxSelector)
+				.collect();
+
+		Collections.sort(collected, new Tuple2Comparator<>(tuple2Comparator));
+
+		Tuple2<Long, Long> previousMax = null;
+		for (Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> tuple2 : collected) {
+			if (previousMax == null) {
+				assertTrue(tuple2Comparator.compare(tuple2.f0, tuple2.f1) < 0);
+				previousMax = tuple2.f1;
+			} else {
+				assertTrue(tuple2Comparator.compare(tuple2.f0, tuple2.f1) < 0);
+				if (previousMax.f0.equals(tuple2.f0.f0)) {
+					assertEquals(previousMax.f1 + 1, tuple2.f0.f1.longValue());
+				}
+				previousMax = tuple2.f1;
+			}
+		}
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testRebalanceWithOrders() throws Exception {
+	@Test
+	public void testRangePartitionerWithKeySelectorOnSequenceNestedDataWithOrders() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final DataSet<Tuple2<ComparablePojo, Long>> dataSet = env.generateSequence(0, 10000)
+				.map(new MapFunction<Long, Tuple2<ComparablePojo, Long>>() {
+					@Override
+					public Tuple2<ComparablePojo, Long> map(Long value) throws Exception {
+						return new Tuple2<>(new ComparablePojo(value / 5000, value % 5000), value);
+					}
+				});
 
-		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-		ds.rebalance().withOrders(Order.ASCENDING);
+		final List<Tuple2<ComparablePojo, ComparablePojo>> collected = dataSet
+				.partitionByRange(new KeySelector<Tuple2<ComparablePojo, Long>, ComparablePojo>() {
+					@Override
+					public ComparablePojo getKey(Tuple2<ComparablePojo, Long> value) throws Exception {
+						return value.f0;
+					}
+				})
+				.withOrders(Order.ASCENDING)
+				.mapPartition(new MinMaxSelector<>(new ComparablePojoComparator()))
+				.mapPartition(new ExtractComparablePojo())
+				.collect();
+
+		final Comparator<Tuple2<ComparablePojo, ComparablePojo>> pojoComparator =
+				new Comparator<Tuple2<ComparablePojo, ComparablePojo>>() {
+			@Override
+			public int compare(Tuple2<ComparablePojo, ComparablePojo> o1,
+							   Tuple2<ComparablePojo, ComparablePojo> o2) {
+				return o1.f0.compareTo(o2.f1);
+			}
+		};
+		Collections.sort(collected, pojoComparator);
+
+		ComparablePojo previousMax = null;
+		for (Tuple2<ComparablePojo, ComparablePojo> element : collected) {
+			if (previousMax == null) {
+				assertTrue(element.f0.compareTo(element.f1) < 0);
+				previousMax = element.f1;
+			} else {
+				assertTrue(element.f0.compareTo(element.f1) < 0);
+				if (previousMax.first.equals(element.f0.first)) {
+					assertEquals(previousMax.second - 1, element.f0.second.longValue());
+				}
+				previousMax = element.f1;
+			}
+		}
+	}
+
+	private static class ExtractComparablePojo implements MapPartitionFunction<
+			Tuple2<Tuple2<ComparablePojo, Long>, Tuple2<ComparablePojo, Long>>,
+			Tuple2<ComparablePojo, ComparablePojo>> {
+
+		@Override
+		public void mapPartition(Iterable<Tuple2<Tuple2<ComparablePojo, Long>, Tuple2<ComparablePojo, Long>>> values,
+								 Collector<Tuple2<ComparablePojo, ComparablePojo>> out) throws Exception {
+			for (Tuple2<Tuple2<ComparablePojo, Long>, Tuple2<ComparablePojo, Long>> value : values) {
+				out.collect(new Tuple2<>(value.f0.f0, value.f1.f0));
+			}
+		}
+	}
+
+    private static class ComparablePojoComparator implements Comparator<Tuple2<ComparablePojo, Long>>, Serializable {
+
+		@Override
+		public int compare(Tuple2<ComparablePojo, Long> o1,
+						   Tuple2<ComparablePojo, Long> o2) {
+			return o1.f0.compareTo(o2.f0);
+		}
+	}
+
+	private static class ComparablePojo implements Comparable<ComparablePojo> {
+		private Long first;
+		private Long second;
+
+		public Long getFirst() {
+			return first;
+		}
+
+		public void setFirst(Long first) {
+			this.first = first;
+		}
+
+		public Long getSecond() {
+			return second;
+		}
+
+		public void setSecond(Long second) {
+			this.second = second;
+		}
+
+		public ComparablePojo(Long first,
+							  Long second) {
+			this.first = first;
+			this.second = second;
+		}
+
+		public ComparablePojo() {
+		}
+
+		@Override
+		public int compareTo(ComparablePojo o) {
+			final int firstResult = Long.compare(this.first, o.first);
+			if (firstResult == 0) {
+				return (-1) * Long.compare(this.second, o.second);
+			}
+
+			return firstResult;
+		}
 	}
 
 	private static class ObjectSelfKeySelector implements KeySelector<Long, Long> {

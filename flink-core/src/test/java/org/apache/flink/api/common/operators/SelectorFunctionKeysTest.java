@@ -116,6 +116,45 @@ public class SelectorFunctionKeysTest {
 		Assert.assertTrue(sk2.areCompatible(ek1));
 	}
 
+	@Test
+	public void testOriginalTypes1() throws Keys.IncompatibleKeysException {
+		TypeInformation<Tuple2<Integer, String>> t2 = new TupleTypeInfo<>(
+				BasicTypeInfo.INT_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		Keys<Tuple2<Integer, String>> k = new Keys.SelectorFunctionKeys<>(
+				new KeySelector2(),
+				t2,
+				BasicTypeInfo.STRING_TYPE_INFO
+		);
+
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { BasicTypeInfo.STRING_TYPE_INFO },
+				k.getOriginalKeyFieldTypes()
+		);
+	}
+
+	@Test
+	public void testOriginalTypes2() throws Exception {
+		final TupleTypeInfo<Tuple2<Integer, String>> t1 = new TupleTypeInfo<>(
+				BasicTypeInfo.INT_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO
+		);
+		TypeInformation<PojoWithMultiplePojos> t2 = TypeExtractor.getForClass(PojoWithMultiplePojos.class);
+
+		Keys<PojoWithMultiplePojos> sk = new Keys.SelectorFunctionKeys<>(
+				new KeySelector3(),
+				t2,
+				t1
+		);
+
+		Assert.assertArrayEquals(
+				new TypeInformation<?>[] { t1 },
+				sk.getOriginalKeyFieldTypes()
+		);
+	}
+
 	@SuppressWarnings("serial")
 	public static class KeySelector1 implements KeySelector<Pojo2, String> {
 

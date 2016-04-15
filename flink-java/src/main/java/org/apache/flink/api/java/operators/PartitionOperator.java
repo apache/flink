@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Keys;
@@ -102,9 +103,18 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		this.distribution = distribution;
 	}
 
+	/**
+	 * Sets the order of keys for range partitioning.
+	 * NOTE: Only valid for {@link PartitionMethod.RANGE}.
+	 *
+	 * @param orders array of orders for each specified partition key
+	 * @return The partitioneOperator with properly set orders for given keys
+     */
+	@PublicEvolving
 	public PartitionOperator<T> withOrders(Order... orders) {
-		Preconditions.checkState(pMethod == PartitionMethod.RANGE, "Orders cannot be applied for {} partition " +
+		Preconditions.checkState(pMethod == PartitionMethod.RANGE, "Orders cannot be applied for %s partition " +
 				"method", pMethod);
+		Preconditions.checkArgument(pKeys.getOriginalKeyFieldTypes().length == orders.length);
 		this.orders = orders;
 
 		return this;
@@ -153,7 +163,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 				partitionedInput.setParallelism(getParallelism());
 				partitionedInput.setDistribution(distribution);
 				partitionedInput.setCustomPartitioner(customPartitioner);
-				partitionedInput.setOrdering(computeOrdering(logicalKeyPositions, orders));
+				partitionedInput.setOrdering(computeOrdering(pKeys, orders));
 				
 				return partitionedInput;
 			}
@@ -174,18 +184,26 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		}
 	}
 
-	private static Ordering computeOrdering(int[] logicalKeyPositions, Order[] orders) {
+	private static <T> Ordering computeOrdering(Keys<T> pKeys, Order[] orders) {
 		Ordering ordering = new Ordering();
-		if (orders != null) {
-			Preconditions.checkArgument(logicalKeyPositions.length == orders.length);
-			for (int i = 0; i < logicalKeyPositions.length; i++) {
-				ordering.appendOrdering(logicalKeyPositions[i], null, orders[i]);
-			}
-		} else {
+		final int[] logicalKeyPositions = pKeys.computeLogicalKeyPositions();
+
+		if (orders == null) {
 			for (int key : logicalKeyPositions) {
 				ordering.appendOrdering(key, null, Order.ASCENDING);
 			}
+		} else {
+			final TypeInformation<?>[] originalKeyFieldTypes = pKeys.getOriginalKeyFieldTypes();
+			int index = 0;
+			for (int i = 0; i < originalKeyFieldTypes.length; i++) {
+				final int typeTotalFields = originalKeyFieldTypes[i].getTotalFields();
+				for (int j = index; j < index + typeTotalFields; j++) {
+					ordering.appendOrdering(logicalKeyPositions[j], null, orders[i]);
+				}
+				index += typeTotalFields;
+			}
 		}
+
 		return ordering;
 	}
 
@@ -209,7 +227,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		keyedPartitionedInput.setInput(keyedInput);
 		keyedPartitionedInput.setCustomPartitioner(customPartitioner);
 		keyedPartitionedInput.setParallelism(partitionDop);
-		keyedPartitionedInput.setOrdering(computeOrdering(keys.computeLogicalKeyPositions(), orders));
+		keyedPartitionedInput.setOrdering(new Ordering(0, null, orders != null ? orders[0] : Order.ASCENDING));
 
 		return KeyFunctions.appendKeyRemover(keyedPartitionedInput, keys);
 	}
