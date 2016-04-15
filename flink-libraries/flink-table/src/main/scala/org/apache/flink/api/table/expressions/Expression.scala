@@ -22,8 +22,32 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.trees.TreeNode
+import org.apache.flink.api.table.validate.ExprValidationResult
+
 abstract class Expression extends TreeNode[Expression] {
   def name: String = Expression.freshName("expression")
+
+  /**
+    * Returns the [[TypeInformation]] for evaluating this expression.
+    * It is sometimes available until the expression is valid.
+    */
+  def dataType: TypeInformation[_]
+
+  /**
+    * One pass validation of the expression tree in post order.
+    */
+  lazy val valid: Boolean = childrenValid && validateInput().isSuccess
+
+  def childrenValid: Boolean = children.forall(_.valid)
+
+  /**
+    * Check input data types, inputs number or other properties specified by this expression.
+    * Return `ValidationSuccess` if it pass the check, or `ValidationFailure` with supplement message
+    * Note: we should only call this method until `childrenValidated == true`
+    */
+  def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
 
   /**
     * Convert Expression to its counterpart in Calcite, i.e. RexNode
@@ -47,10 +71,6 @@ abstract class UnaryExpression extends Expression {
 
 abstract class LeafExpression extends Expression {
   val children = Nil
-}
-
-case class NopExpression() extends LeafExpression {
-  override val name = Expression.freshName("nop")
 }
 
 object Expression {

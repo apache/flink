@@ -24,11 +24,26 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.NumericTypeInfo
+import org.apache.flink.api.table.validate.ExprValidationResult
+
 abstract class BinaryComparison extends BinaryExpression {
   def sqlOperator: SqlOperator
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
+  }
+
+  override def dataType = BOOLEAN_TYPE_INFO
+
+  // TODO: tighten this rule once we implemented type coercion rules during validation
+  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
+    case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ExprValidationResult.ValidationSuccess
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+    case (lType, rType) =>
+      ExprValidationResult.ValidationFailure(
+        s"Comparison is only supported for Strings and numeric types, get $lType and $rType")
   }
 }
 
@@ -36,12 +51,16 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
   override def toString = s"$left === $right"
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
+
+  override def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
 }
 
 case class NotEqualTo(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left !== $right"
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
+
+  override def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
 }
 
 case class GreaterThan(left: Expression, right: Expression) extends BinaryComparison {
@@ -74,6 +93,8 @@ case class IsNull(child: Expression) extends UnaryExpression {
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.isNull(child.toRexNode)
   }
+
+  override def dataType = BOOLEAN_TYPE_INFO
 }
 
 case class IsNotNull(child: Expression) extends UnaryExpression {
@@ -82,4 +103,6 @@ case class IsNotNull(child: Expression) extends UnaryExpression {
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.isNotNull(child.toRexNode)
   }
+
+  override def dataType = BOOLEAN_TYPE_INFO
 }

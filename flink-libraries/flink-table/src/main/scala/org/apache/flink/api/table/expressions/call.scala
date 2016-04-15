@@ -22,6 +22,8 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
+import org.apache.flink.api.table.validate.ExprValidationResult
+
 /**
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
@@ -45,6 +47,12 @@ case class Call(functionName: String, args: Expression*) extends Expression {
 
     copy.asInstanceOf[this.type]
   }
+
+  override def dataType =
+    throw new UnresolvedException(s"calling dataType on Unresolved Function $functionName")
+
+  override def validateInput(): ExprValidationResult =
+    ExprValidationResult.ValidationFailure(s"Unresolved function call: $functionName")
 }
 
 /**

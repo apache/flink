@@ -20,15 +20,26 @@ package org.apache.flink.api.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.validate.ExprValidationResult
+
 case class UnresolvedFieldReference(override val name: String) extends LeafExpression {
   override def toString = "\"" + name
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.field(name)
   }
+
+  override def dataType: TypeInformation[_] =
+    throw new UnresolvedException(s"calling dataType on ${this.getClass}")
+
+  override def validateInput(): ExprValidationResult =
+    ExprValidationResult.ValidationFailure(s"Unresolved reference $name")
 }
 
-case class ResolvedFieldReference(override val name: String) extends LeafExpression {
+case class ResolvedFieldReference(
+    override val name: String,
+    dataType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"'$name"
 }
 
@@ -38,6 +49,8 @@ case class Naming(child: Expression, override val name: String) extends UnaryExp
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.alias(child.toRexNode, name)
   }
+
+  override def dataType: TypeInformation[_] = child.dataType
 
   override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]

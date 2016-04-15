@@ -21,7 +21,22 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-abstract class BinaryPredicate extends BinaryExpression
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.validate.ExprValidationResult
+
+abstract class BinaryPredicate extends BinaryExpression {
+  override def dataType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+
+  override def validateInput(): ExprValidationResult = {
+    if (left.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        right.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ExprValidationResult.ValidationSuccess
+    } else {
+      ExprValidationResult.ValidationFailure(s"$this only accept child of Boolean Type, " +
+        s"get ${left.dataType} and ${right.dataType}")
+    }
+  }
+}
 
 case class Not(child: Expression) extends UnaryExpression {
 
@@ -31,6 +46,17 @@ case class Not(child: Expression) extends UnaryExpression {
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.not(child.toRexNode)
+  }
+
+  override def dataType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+
+  override def validateInput(): ExprValidationResult = {
+    if (child.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ExprValidationResult.ValidationSuccess
+    } else {
+      ExprValidationResult.ValidationFailure(s"Not only accept child of Boolean Type, " +
+        s"get ${child.dataType}")
+    }
   }
 }
 

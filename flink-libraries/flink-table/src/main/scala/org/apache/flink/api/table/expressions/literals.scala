@@ -39,11 +39,7 @@ object Literal {
   }
 }
 
-case class Literal(value: Any, tpe: TypeInformation[_])
-  extends LeafExpression with ImplicitExpressionOperations {
-  def expr = this
-  def typeInfo = tpe
-
+case class Literal(value: Any, dataType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"$value"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
