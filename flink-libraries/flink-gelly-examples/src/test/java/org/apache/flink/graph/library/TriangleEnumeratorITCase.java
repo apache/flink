@@ -47,10 +47,11 @@ public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 				env);
 
 		List<Tuple3<Long,Long,Long>> actualOutput = graph.run(new TriangleEnumerator<Long, NullValue, NullValue>()).collect();
-		List<Tuple3<Long,Long,Long>>  expectedResult = TriangleCountData.getListOfTriangles();
+		List<Tuple3<Long,Long,Long>> expectedResult = TriangleCountData.getListOfTriangles();
 
-		Assert.assertEquals(actualOutput.size(), expectedResult.size());
+		Assert.assertEquals(expectedResult.size(), actualOutput.size());
 		for(Tuple3<Long,Long,Long> resultTriangle:actualOutput)	{
+			System.out.println(resultTriangle);
 			Assert.assertTrue(expectedResult.indexOf(resultTriangle)>=0);
 		}
 	}

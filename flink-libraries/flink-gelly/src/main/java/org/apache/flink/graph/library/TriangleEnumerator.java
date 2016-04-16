@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -81,7 +82,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 				.groupBy(EdgeWithDegrees.V1).sortGroup(EdgeWithDegrees.V2, Order.ASCENDING)
 				.reduceGroup(new TriadBuilder<K>())
 				// filter triads
-				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(0, 1).with(new TriadFilter<K>());
+				.join(edgesById, JoinHint.REPARTITION_HASH_SECOND).where(Triad.V2, Triad.V3).equalTo(0, 1).with(new TriadFilter<K>());
 
 		return triangles;
 	}
@@ -165,7 +166,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 		public EdgeWithDegrees<K> reduce(EdgeWithDegrees<K> edge1, EdgeWithDegrees<K> edge2) throws Exception {
 
 			// copy first edge
-		/*\t*/outEdge.copyFrom(edge1);
+			outEdge.copyFrom(edge1);
 
 			// set missing degree
 			if (edge1.getFirstDegree() == 0 && edge1.getSecondDegree() != 0) {
@@ -173,6 +174,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 			} else if (edge1.getFirstDegree() != 0 && edge1.getSecondDegree() == 0) {
 				outEdge.setSecondDegree(edge2.getSecondDegree());
 			}
+
 			return outEdge;
 		}
 	}
@@ -183,7 +185,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 	@SuppressWarnings("serial")
 	private static final class EdgeByDegreeProjector<K> implements MapFunction<EdgeWithDegrees<K>, Edge<K, NullValue>> {
 
-		private final Edge<K, NullValue> outEdge = new Edge<>();
+		private Edge<K, NullValue> outEdge = new Edge<>();
 
 		@Override
 		public Edge<K, NullValue> map(EdgeWithDegrees<K> inEdge) throws Exception {
@@ -195,7 +197,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 
 			// flip vertices if first degree is larger than second degree.
 			if (inEdge.getFirstDegree() > inEdge.getSecondDegree()) {
-				outEdge.reverse();
+				outEdge = outEdge.reverse();
 			}
 
 			// return edge
@@ -214,8 +216,8 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 		public Edge<K, NullValue> map(Edge<K, NullValue> inEdge) throws Exception {
 
 			// flip vertices if necessary
-			if (inEdge.getSource().compareTo(inEdge.getTarget()) < 0) {
-				inEdge.reverse();
+			if (inEdge.getSource().compareTo(inEdge.getTarget()) > 0) {
+				inEdge = inEdge.reverse();
 			}
 
 			return inEdge;

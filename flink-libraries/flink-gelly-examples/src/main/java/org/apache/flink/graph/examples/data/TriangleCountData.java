@@ -57,7 +57,7 @@ public class TriangleCountData {
 		ArrayList<Tuple3<Long,Long,Long>> ret = new ArrayList<>(3);
 		ret.add(new Tuple3<>(1L,2L,3L));
 		ret.add(new Tuple3<>(2L,3L,6L));
-		ret.add(new Tuple3<>(3L,4L,5L));
+		ret.add(new Tuple3<>(4L,3L,5L));
 		return ret;
 	}
 
