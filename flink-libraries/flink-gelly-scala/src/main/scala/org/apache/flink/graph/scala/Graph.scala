@@ -407,6 +407,90 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
+   * Translate vertex and edge IDs using the given MapFunction.
+   *
+   * @param translator implements conversion from K to NEW
+   * @return graph with translated vertex and edge IDs
+   */
+  def translateGraphIds[NEW: TypeInformation : ClassTag](translator: MapFunction[K, NEW]):
+  Graph[NEW, VV, EV] = {
+    new Graph[NEW, VV, EV](jgraph.translateGraphIds(translator))
+  }
+
+  /**
+    * Translate vertex and edge IDs using the given function.
+    *
+    * @param fun implements conversion from K to NEW
+    * @return graph with translated vertex and edge IDs
+    */
+  def translateGraphIds[NEW: TypeInformation : ClassTag](fun: K => NEW):
+  Graph[NEW, VV, EV] = {
+    val mapper: MapFunction[K, NEW] = new MapFunction[K, NEW] {
+      val cleanFun = clean(fun)
+
+      def map(in: K): NEW = cleanFun(in)
+    }
+
+    new Graph[NEW, VV, EV](jgraph.translateGraphIds(mapper))
+  }
+
+  /**
+   * Translate vertex values using the given MapFunction.
+   *
+   * @param translator implements conversion from VV to NEW
+   * @return graph with translated vertex values
+   */
+  def translateVertexValues[NEW: TypeInformation : ClassTag](translator: MapFunction[VV, NEW]):
+  Graph[K, NEW, EV] = {
+    new Graph[K, NEW, EV](jgraph.translateVertexValues(translator))
+  }
+
+  /**
+    * Translate vertex values using the given function.
+    *
+    * @param fun implements conversion from VV to NEW
+    * @return graph with translated vertex values
+    */
+  def translateVertexValues[NEW: TypeInformation : ClassTag](fun: VV => NEW):
+  Graph[K, NEW, EV] = {
+    val mapper: MapFunction[VV, NEW] = new MapFunction[VV, NEW] {
+      val cleanFun = clean(fun)
+
+      def map(in: VV): NEW = cleanFun(in)
+    }
+
+    new Graph[K, NEW, EV](jgraph.translateVertexValues(mapper))
+  }
+
+  /**
+   * Translate edge values using the given MapFunction.
+   *
+   * @param translator implements conversion from EV to NEW
+   * @return graph with translated edge values
+   */
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](translator: MapFunction[EV, NEW]):
+  Graph[K, VV, NEW] = {
+    new Graph[K, VV, NEW](jgraph.translateEdgeValues(translator))
+  }
+
+  /**
+    * Translate edge values using the given function.
+    *
+    * @param fun implements conversion from EV to NEW
+    * @return graph with translated edge values
+    */
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](fun: EV => NEW):
+  Graph[K, VV, NEW] = {
+    val mapper: MapFunction[EV, NEW] = new MapFunction[EV, NEW] {
+      val cleanFun = clean(fun)
+
+      def map(in: EV): NEW = cleanFun(in)
+    }
+
+    new Graph[K, VV, NEW](jgraph.translateEdgeValues(mapper))
+  }
+
+  /**
    * Joins the vertex DataSet of this graph with an input Tuple2 DataSet and applies
    * a user-defined transformation on the values of the matched records.
    * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.

@@ -433,6 +433,42 @@ val updatedGraph = graph.mapVertices(v => v.getValue + 1)
 </div>
 </div>
 
+* <strong>Translate</strong>: Gelly provides specialized methods for translating the value and/or type of vertex and edge IDs (`translateGraphIDs`), vertex values (`translateVertexValues`), or edge values (`translateEdgeValues`). Translation is performed by the user-defined map function, several of which are provided in the `org.apache.flink.graph.asm.translate` package. The same `MapFunction` can be used for all the three translate methods.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
+
+// translate each vertex and edge ID to a String
+Graph<String, Long, Long> updatedGraph = graph.translateGraphIds(
+				new MapFunction<Long, String>() {
+					public String map(Long id) {
+						return id.toString();
+					}
+				});
+
+// translate vertex IDs, edge IDs, vertex values, and edge values to LongValue
+Graph<LongValue, LongValue, LongValue> updatedGraph = graph
+                .translateGraphIds(new LongToLongValue())
+                .translateVertexValues(new LongToLongValue())
+                .translateEdgeValues(new LongToLongValue())
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+val graph = Graph.fromDataSet(vertices, edges, env)
+
+// translate each vertex and edge ID to a String
+val updatedGraph = graph.translateGraphIds(id => id.toString)
+{% endhighlight %}
+</div>
+</div>
+
+
 * <strong>Filter</strong>: A filter transformation applies a user-defined filter function on the vertices or edges of the `Graph`. `filterOnEdges` will create a sub-graph of the original graph, keeping only the edges that satisfy the provided predicate. Note that the vertex dataset will not be modified. Respectively, `filterOnVertices` applies a filter on the vertices of the graph. Edges whose source and/or target do not satisfy the vertex predicate are removed from the resulting edge dataset. The `subgraph` method can be used to apply a filter function to the vertices and the edges at the same time.
 
 <div class="codetabs" markdown="1">
@@ -2010,6 +2046,57 @@ corresponding groupings.
 The algorithm takes a directed, vertex (and possibly edge) attributed graph as input and outputs a new graph where each
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
+
+{% top %}
+
+Graph Algorithms
+-----------
+
+The logic blocks with which the `Graph` API and top-level algorithms are assembled are accessible in Gelly as graph
+algorithms in the `org.apache.flink.graph.asm` package. These algorithms provide optimization and tuning through
+configuration parameters and may provide implicit runtime reuse when processing the same input with a similar
+configuration.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Algorithm</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>TranslateGraphIds</strong></td>
+      <td>
+        <p>Translate vertex and edge IDs using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateGraphIds(new LongValueToStringValue()));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>TranslateVertexValues</strong></td>
+      <td>
+        <p>Translate vertex values using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>TranslateEdgeValues</strong></td>
+      <td>
+        <p>Translate edge values using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateEdgeValues(new Nullify()));
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 {% top %}
 

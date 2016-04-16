@@ -46,6 +46,9 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
+import org.apache.flink.graph.asm.translate.TranslateGraphIds;
+import org.apache.flink.graph.asm.translate.TranslateVertexValues;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
@@ -544,6 +547,42 @@ public class Graph<K, VV, EV> {
 				Edge.class, keyType, keyType, valueType);
 
 		return mapEdges(mapper, returnType);
+	}
+
+	/**
+	 * Translate {@link Vertex} and {@link Edge} IDs using the given {@link MapFunction}.
+	 *
+	 * @param translator implements conversion from {@code K} to {@code NEW}
+	 * @param <NEW> new ID type
+	 * @return graph with translated vertex and edge IDs
+	 * @throws Exception
+	 */
+	public <NEW> Graph<NEW, VV, EV> translateGraphIds(MapFunction<K, NEW> translator) throws Exception {
+		return run(new TranslateGraphIds<K, NEW, VV, EV>(translator));
+	}
+
+	/**
+	 * Translate {@link Vertex} values using the given {@link MapFunction}.
+	 *
+	 * @param translator implements conversion from {@code VV} to {@code NEW}
+	 * @param <NEW> new vertex value type
+	 * @return graph with translated vertex values
+	 * @throws Exception
+	 */
+	public <NEW> Graph<K, NEW, EV> translateVertexValues(MapFunction<VV, NEW> translator) throws Exception {
+		return run(new TranslateVertexValues<K, VV, NEW, EV>(translator));
+	}
+
+	/**
+	 * Translate {@link Edge} values using the given {@link MapFunction}.
+	 *
+	 * @param translator implements conversion from {@code EV} to {@code NEW}
+	 * @param <NEW> new edge value type
+	 * @return graph with translated edge values
+	 * @throws Exception
+	 */
+	public <NEW> Graph<K, VV, NEW> translateEdgeValues(MapFunction<EV, NEW> translator) throws Exception {
+		return run(new TranslateEdgeValues<K, VV, EV, NEW>(translator));
 	}
 
 	/**
