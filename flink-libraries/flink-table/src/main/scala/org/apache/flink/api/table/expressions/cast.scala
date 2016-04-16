@@ -33,7 +33,7 @@ case class Cast(child: Expression, dataType: TypeInformation[_]) extends UnaryEx
     relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(dataType))
   }
 
-  override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
+  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, dataType).asInstanceOf[this.type]
   }

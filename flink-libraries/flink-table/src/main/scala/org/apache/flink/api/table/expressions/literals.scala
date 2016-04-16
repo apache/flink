@@ -47,13 +47,10 @@ case class Literal(value: Any, dataType: TypeInformation[_]) extends LeafExpress
   }
 }
 
-case class Null(tpe: TypeInformation[_]) extends LeafExpression {
-  def expr = this
-  def typeInfo = tpe
-
+case class Null(dataType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(tpe))
+    relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(dataType))
   }
 }

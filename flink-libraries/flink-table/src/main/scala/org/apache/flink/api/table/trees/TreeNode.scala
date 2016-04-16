@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.table.trees
 
+import org.apache.commons.lang.ClassUtils
+
 /**
  * Generic base class for trees that can be transformed and traversed.
  */
@@ -105,15 +107,37 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * if children change. This must be overridden by tree nodes that don't have the Constructor
    * arguments in the same order as the `children`.
    */
-  def makeCopy(newArgs: Seq[AnyRef]): this.type = {
-    val defaultCtor =
-      this.getClass.getConstructors.find { _.getParameterTypes.size > 0}.head
+  def makeCopy(newArgs: Array[AnyRef]): this.type = {
+    val ctors = getClass.getConstructors.filter(_.getParameterCount != 0)
+    if (ctors.isEmpty) {
+      sys.error(s"No valid constructor for ${getClass.getSimpleName}")
+    }
+
+    val defaultCtor = ctors.find { ctor =>
+      if (ctor.getParameterCount != newArgs.length) {
+        false
+      } else if (newArgs.contains(null)) {
+        // if there is a `null`, we can't figure out the class, therefore we should just fallback
+        // to older heuristic
+        false
+      } else {
+        val argsArray: Array[Class[_]] = newArgs.map(_.getClass)
+        ClassUtils.isAssignable(argsArray, ctor.getParameterTypes)
+      }
+    }.getOrElse(ctors.maxBy(_.getParameterCount))
+
     try {
       defaultCtor.newInstance(newArgs.toArray: _*).asInstanceOf[this.type]
     } catch {
-      case iae: IllegalArgumentException =>
-        println("IAE " + this)
-        throw new RuntimeException("Should never happen.")
+      case e: java.lang.IllegalArgumentException =>
+        throw new IllegalArgumentException(
+          s"""
+             |Failed to copy node.
+             |Exception message: ${e.getMessage}
+             |ctor: $defaultCtor
+             |types: ${newArgs.map(_.getClass).mkString(", ")}
+             |args: ${newArgs.mkString(", ")}
+           """.stripMargin)
     }
   }
 }

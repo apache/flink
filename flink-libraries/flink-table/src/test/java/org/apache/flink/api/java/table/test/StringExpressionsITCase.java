@@ -21,6 +21,7 @@ package org.apache.flink.api.java.table.test;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
+import org.apache.flink.api.table.validate.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
@@ -83,7 +84,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonWorkingSubstring1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -102,7 +103,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		resultSet.collect();
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonWorkingSubstring2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

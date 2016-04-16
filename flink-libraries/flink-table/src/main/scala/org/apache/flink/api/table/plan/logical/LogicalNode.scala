@@ -20,7 +20,6 @@ package org.apache.flink.api.table.plan.logical
 import org.apache.flink.api.table.trees.TreeNode
 
 abstract class LogicalNode extends TreeNode[LogicalNode] {
-  def output: Seq[]
 }
 
 abstract class LeafNode extends LogicalNode {

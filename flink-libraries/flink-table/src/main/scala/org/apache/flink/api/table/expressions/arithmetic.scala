@@ -25,7 +25,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeConverter}
 import org.apache.flink.api.table.validate.ExprValidationResult
 
@@ -71,7 +71,7 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
     }
   }
 
-  override def dataType = {
+  override def dataType: TypeInformation[_] = {
     if (left.dataType == BasicTypeInfo.STRING_TYPE_INFO ||
       right.dataType == BasicTypeInfo.STRING_TYPE_INFO) {
       BasicTypeInfo.STRING_TYPE_INFO
