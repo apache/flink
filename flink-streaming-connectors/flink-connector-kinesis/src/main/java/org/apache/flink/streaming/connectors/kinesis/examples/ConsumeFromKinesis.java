@@ -16,18 +16,19 @@
  */
 package org.apache.flink.streaming.connectors.kinesis.examples;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
+import java.util.Properties;
+
 /**
- * This is an example on how to produce data into Kinesis
+ * This is an example on how to consume data from Kinesis
  */
-public class ProduceIntoKinesis {
+public class ConsumeFromKinesis {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool pt = ParameterTool.fromArgs(args);
@@ -35,38 +36,19 @@ public class ProduceIntoKinesis {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
 
-		DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
+		Properties kinesisConsumerConfig = new Properties();
+		kinesisConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, pt.getRequired("region"));
+		kinesisConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, pt.getRequired("accesskey"));
+		kinesisConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, pt.getRequired("secretkey"));
 
-		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
-				pt.getRequired("region"),
-				pt.getRequired("accessKey"),
-				pt.getRequired("secretKey"),
-				new SimpleStringSchema());
+		DataStream<String> kinesis = see.addSource(new FlinkKinesisConsumer<>(
+			"flink-test",
+			new SimpleStringSchema(),
+			kinesisConsumerConfig));
 
-		kinesis.setFailOnError(true);
-		kinesis.setDefaultStream("flink-test");
-		kinesis.setDefaultPartition("0");
-
-		simpleStringStream.addSink(kinesis);
+		kinesis.print();
 
 		see.execute();
 	}
 
-	public static class EventsGenerator implements SourceFunction<String> {
-		private boolean running = true;
-
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			long seq = 0;
-			while(running) {
-				Thread.sleep(10);
-				ctx.collect((seq++) + "-" + RandomStringUtils.randomAlphabetic(12));
-			}
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
 }

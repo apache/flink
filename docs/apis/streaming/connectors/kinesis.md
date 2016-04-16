@@ -44,6 +44,44 @@ Linking to the flink-connector-kinesis will include ASL licensed code into your 
 Note that the streaming connectors are not part of the binary distribution. 
 See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
+#### Usage of Consumer
+
+The `FlinkKinesisConsumer` can be used to pull data from multiple Kinesis streams within the same AWS region in parallel.
+It participates with Flink's distributed snapshot checkpointing and provides exactly-once processing guarantees. Note
+that the current version can not handle resharding of Kinesis streams. When Kinesis streams are resharded, the consumer
+will fail and the Flink streaming job must be resubmitted.
+
+Before consuming data from Kinesis streams, make sure that all streams are created with the status "ACTIVE" in the AWS dashboard.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties kinesisConsumerConfig = new Properties();
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "BASIC");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisConsumerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "LATEST");
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getEnvironment();
+
+DataStream<String> kinesisRecords = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), kinesisConsumerConfig))
+{% endhighlight %}
+</div>
+</div>
+
+The above is a simple example of using the consumer. Configuration for the consumer is supplied with a `java.util.Properties`
+instance, with which the configuration setting keys used can be found in `KinesisConfigConstants`. The example
+demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials is supplied using the basic method in which
+the AWS access key ID and secret key are directly supplied in the configuration (other options are setting
+`KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE` to `ENV_VAR`, `SYS_PROP`, and `PROFILE`). Also, data is being consumed
+from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
+to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
 
 #### Usage of Producer
 
