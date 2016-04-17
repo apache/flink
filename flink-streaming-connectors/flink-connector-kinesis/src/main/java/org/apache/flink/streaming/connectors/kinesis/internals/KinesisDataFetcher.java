@@ -203,12 +203,12 @@ public class KinesisDataFetcher {
 		private volatile boolean running = true;
 
 		public ShardConsumerThread(KinesisDataFetcher ownerRef,
-								   Properties props,
-								   KinesisStreamShard assignedShard,
-								   String lastSequenceNum,
-								   SourceFunction.SourceContext<T> sourceContext,
-								   KinesisDeserializationSchema<T> deserializer,
-								   HashMap<KinesisStreamShard, String> seqNumState) {
+								Properties props,
+								KinesisStreamShard assignedShard,
+								String lastSequenceNum,
+								SourceFunction.SourceContext<T> sourceContext,
+								KinesisDeserializationSchema<T> deserializer,
+								HashMap<KinesisStreamShard, String> seqNumState) {
 			this.ownerRef = checkNotNull(ownerRef);
 			this.assignedShard = checkNotNull(assignedShard);
 			this.lastSequenceNum = checkNotNull(lastSequenceNum);

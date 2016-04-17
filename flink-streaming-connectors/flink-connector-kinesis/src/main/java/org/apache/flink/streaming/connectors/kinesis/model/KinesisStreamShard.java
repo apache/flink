@@ -61,8 +61,8 @@ public class KinesisStreamShard implements Serializable {
 	 *           the ID of the shard adjacent to the parent shard (will only exist if this shard is a result of a merge of 2 parent shards)
 	 */
 	public KinesisStreamShard(String regionName, String streamName, String shardId,
-							  String startingSequenceNumber, String endingSequenceNumber,
-							  String parentShardId, String adjacentParentShardId) {
+							String startingSequenceNumber, String endingSequenceNumber,
+							String parentShardId, String adjacentParentShardId) {
 		this.regionName = checkNotNull(regionName);
 		this.streamName = checkNotNull(streamName);
 		this.shardId = checkNotNull(shardId);
