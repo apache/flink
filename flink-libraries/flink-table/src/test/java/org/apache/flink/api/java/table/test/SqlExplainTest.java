@@ -51,10 +51,11 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 			.filter("a % 2 = 0");
 
 		String result = tableEnv.explain(table);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testFilter0.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testFilter0.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 
 	@Test
@@ -68,10 +69,11 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 			.filter("a % 2 = 0");
 
 		String result = tableEnv.explain(table, true);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testFilter1.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testFilter1.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 
 	@Test
@@ -89,10 +91,11 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 			.select("a, c");
 
 		String result = tableEnv.explain(table);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testJoin0.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testJoin0.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 
 	@Test
@@ -110,10 +113,11 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 			.select("a, c");
 
 		String result = tableEnv.explain(table, true);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testJoin1.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testJoin1.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 
 	@Test
@@ -128,10 +132,11 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 		Table table = table1.unionAll(table2);
 
 		String result = tableEnv.explain(table);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testUnion0.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testUnion0.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 
 	@Test
@@ -146,9 +151,10 @@ public class SqlExplainTest extends MultipleProgramsTestBase {
 		Table table = table1.unionAll(table2);
 
 		String result = tableEnv.explain(table, true);
-		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testUnion1.out"))
-				.useDelimiter("\\A").next();
-		assertEquals(source, result);
+		try (Scanner scanner = new Scanner(new File(testFilePath +
+			"../../src/test/scala/resources/testUnion1.out"))){
+			String source = scanner.useDelimiter("\\A").next();
+			assertEquals(source, result);
+		}
 	}
 }
