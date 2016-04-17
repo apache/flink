@@ -64,7 +64,6 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 	@Override
 	protected TypeSerializer<TestUserClass> createSerializer() {
 		TypeSerializer<TestUserClass> serializer = type.createSerializer(new ExecutionConfig());
-		assert(serializer instanceof PojoSerializer);
 		return serializer;
 	}
 

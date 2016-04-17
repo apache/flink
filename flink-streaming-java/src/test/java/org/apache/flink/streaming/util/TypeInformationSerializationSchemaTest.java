@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -70,7 +71,7 @@ public class TypeInformationSerializationSchemaTest {
 					new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
 
 			// this needs to succeed
-			CommonTestUtils.createCopySerializable(schema);
+			InstantiationUtil.clone(schema);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

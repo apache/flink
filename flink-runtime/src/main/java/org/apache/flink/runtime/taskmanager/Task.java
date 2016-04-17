@@ -70,6 +70,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.util.WrappingRuntimeException;
@@ -867,6 +868,7 @@ public class Task implements Runnable, TaskActions {
 		if (userCodeClassLoader == null) {
 			throw new Exception("No user code classloader available.");
 		}
+		InstantiationUtil.invalidateGeneratedClassesCache();
 		return userCodeClassLoader;
 	}
 

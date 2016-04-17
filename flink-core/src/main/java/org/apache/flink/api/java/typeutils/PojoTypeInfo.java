@@ -27,17 +27,24 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
+import org.apache.flink.api.java.typeutils.runtime.PojoComparatorGenerator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializerGenerator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.util.InstantiationUtil;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Public
 public class PojoTypeInfo<T> extends CompositeType<T> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
@@ -70,9 +77,42 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
+	private static final Map<Class<?>, Class<? extends TypeSerializer>> customSerializers = new HashMap<>();
+	private static final Map<Tuple2<ArrayList<Integer>, Class>, Class<? extends TypeComparator>> customComparators =
+		new HashMap<>();
+
 	private final PojoField[] fields;
 	
 	private final int totalFields;
+
+	/**
+	 * Register a custom serializer for a type. The precedence of the serializers
+	 * is the following (highest to lowest): Custom, Kryo, Avro, Generated, Flink.
+	 * The chosen serializer will be the first one from the list that is turned on.
+	 *
+	 */
+	@PublicEvolving
+	public static <C, S extends TypeSerializer<C>> void registerCustomSerializer(Class<C> clazz, Class<S> ser) {
+		Constructor<?>[] ctors = ser.getConstructors();
+		checkArgument(ctors.length == 1);
+		checkArgument(ctors[0].getParameterTypes().length == 0);
+		customSerializers.put(clazz, ser);
+	}
+
+	/**
+	 * Register a custom comparator for a type. The precedence of the comparators
+	 * is the following (highest to lowest): Custom, Generated, Flink.
+	 * The chosen comparator will be the first one from the list that is turned on.
+	 *
+	 */
+	@PublicEvolving
+	public static <S extends TypeComparator> void registerCustomComparator(ArrayList<Integer> keyIds,
+																			Class clazz, Class<S> comp) {
+		Constructor<?>[] ctors = comp.getConstructors();
+		checkArgument(ctors.length == 1);
+		checkArgument(ctors[0].getParameterTypes().length == 0);
+		customComparators.put(new Tuple2<>(keyIds, clazz), comp);
+	}
 
 	@PublicEvolving
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
@@ -269,7 +309,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return new PojoTypeComparatorBuilder();
 	}
 
-	// used for testing. Maybe use mockito here
 	@PublicEvolving
 	public PojoField getPojoFieldAt(int pos) {
 		if (pos < 0 || pos >= this.fields.length) {
@@ -301,6 +340,10 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	@Override
 	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+		if (customSerializers.containsKey(this.getTypeClass())) {
+			return InstantiationUtil.instantiate(customSerializers.get(this.getTypeClass()));
+		}
+
 		if(config.isForceKryoEnabled()) {
 			return new KryoSerializer<T>(getTypeClass(), config);
 		}
@@ -314,6 +357,11 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		for (int i = 0; i < fields.length; i++) {
 			fieldSerializers[i] = fields[i].getTypeInformation().createSerializer(config);
 			reflectiveFields[i] = fields[i].getField();
+		}
+
+		if(config.isCodeGenerationEnabled()) {
+			return new PojoSerializerGenerator<T>(getTypeClass(), fieldSerializers, reflectiveFields, config)
+				.createSerializer();
 		}
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
@@ -361,10 +409,12 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		private ArrayList<TypeComparator> fieldComparators;
 		private ArrayList<Field> keyFields;
+		private ArrayList<Integer> keyFieldIds;
 
 		public PojoTypeComparatorBuilder() {
 			fieldComparators = new ArrayList<TypeComparator>();
 			keyFields = new ArrayList<Field>();
+			keyFieldIds = new ArrayList<>();
 		}
 
 
@@ -378,6 +428,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		public void addComparatorField(int fieldId, TypeComparator<?> comparator) {
 			fieldComparators.add(comparator);
 			keyFields.add(fields[fieldId].getField());
+			keyFieldIds.add(fieldId);
 		}
 
 		@Override
@@ -393,6 +444,18 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			checkState(
 				keyFields.size() == fieldComparators.size(),
 				"Number of key fields and field comparators is not equal.");
+
+			Tuple2<ArrayList<Integer>, Class<T>> custCompKey = Tuple2.of(keyFieldIds, getTypeClass());
+			if (customComparators.containsKey(custCompKey)) {
+				return InstantiationUtil.instantiate(customComparators.get(custCompKey));
+			}
+
+			if (config.isCodeGenerationEnabled()) {
+				return new PojoComparatorGenerator<T>(keyFields.toArray(new Field[keyFields.size()]),
+					fieldComparators.toArray(new TypeComparator[fieldComparators.size()]), createSerializer
+					(config), getTypeClass(), keyFieldIds.toArray(new Integer[keyFields.size()]), config)
+					.createComparator();
+			}
 
 			return new PojoComparator<T>(
 				keyFields.toArray(new Field[keyFields.size()]),
@@ -419,5 +482,63 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		public String toString() {
 			return "NamedFlatFieldDescriptor [name="+fieldName+" position="+getPosition()+" typeInfo="+getType()+"]";
 		}
+	}
+
+	public static String accessStringForField(Field f) {
+		String fieldName = f.getName();
+		if (Modifier.isPublic(f.getModifiers())) {
+			return fieldName;
+		}
+		String getterName = "get" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+		Class<?> parentClazz = f.getDeclaringClass();
+		try {
+			parentClazz.getMethod(getterName);
+		} catch (NoSuchMethodException e) {
+			// No getter, it might be a scala class.
+			return fieldName + "()";
+		}
+		return getterName + "()";
+	}
+
+	public static String modifyStringForField(Field f, String arg) {
+		String fieldName = f.getName();
+		if (Modifier.isPublic(f.getModifiers())) {
+			if (f.getType().isPrimitive()) {
+				// Arg usually refers to an object.
+				return f.getName() + " = (" +
+					primitiveBoxedClasses.get(f.getType().getCanonicalName()).getCanonicalName() + ")" + arg;
+			} else {
+				return f.getName() + " = (" + f.getType().getCanonicalName() + ")" + arg;
+			}
+		}
+		String setterName = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+		Class<?> parentClazz = f.getDeclaringClass();
+		try {
+			parentClazz.getMethod(setterName, f.getType());
+		} catch (NoSuchMethodException e) {
+			// No getter, it might be a scala class.
+			setterName = fieldName + "_$eq";
+		}
+
+		if (f.getType().isPrimitive()) {
+			return  setterName + "(" +
+				"("+primitiveBoxedClasses.get(f.getType().getCanonicalName()).getCanonicalName() + ")" + arg + ")";
+		} else {
+			return setterName + "((" + f.getType().getCanonicalName() + ")" + arg + ")";
+		}
+	}
+
+	private static final HashMap<String, Class<?>> primitiveBoxedClasses = new HashMap<>(9);
+
+	static {
+		primitiveBoxedClasses.put("boolean", Boolean.class);
+		primitiveBoxedClasses.put("byte", Byte.class);
+		primitiveBoxedClasses.put("char", Character.class);
+		primitiveBoxedClasses.put("short", Short.class);
+		primitiveBoxedClasses.put("int", Integer.class);
+		primitiveBoxedClasses.put("long", Long.class);
+		primitiveBoxedClasses.put("float", Float.class);
+		primitiveBoxedClasses.put("double", Double.class);
+		primitiveBoxedClasses.put("void", Void.class);
 	}
 }

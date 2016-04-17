@@ -18,12 +18,17 @@
 
 package org.apache.flink.util;
 
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.codehaus.commons.compiler.CompileException;
+import org.codehaus.janino.SimpleCompiler;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,18 +39,83 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
 @Internal
 public final class InstantiationUtil {
-	
+	private static final HashMap<String, ClassLoader> loaderForGeneratedClasses = new HashMap<>();
+	private static final Map<String, Tuple2<Class, String>> generatedClasses = new HashMap<>();
+	private static final freemarker.template.Configuration cfg =
+		new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_24);
+
+	static {
+		cfg.setClassForTemplateLoading(InstantiationUtil.class, "/");
+		cfg.setDefaultEncoding("UTF-8");
+		cfg.setTemplateExceptionHandler(freemarker.template.TemplateExceptionHandler.RETHROW_HANDLER);
+		cfg.setLogTemplateExceptions(false);
+	}
+
+	public synchronized static <T> String getCodeFromTemplate(String name, Map<String, T> root) throws IOException {
+		Template temp = cfg.getTemplate(name);
+		Writer w = new StringWriter();
+		try {
+			temp.process(root, w);
+		} catch (TemplateException e) {
+			throw new RuntimeException("Unable to process template: " + name, e);
+		}
+		return w.toString();
+	}
+
+	// Each time the user class loader changes, the generated classes should be invalidated.
+	public synchronized static void invalidateGeneratedClassesCache() {
+		generatedClasses.clear();
+		loaderForGeneratedClasses.clear();
+	}
+
+	// In case a class with a given key exists in the cache, return the corresponding java code. Otherwise return null.
+	public synchronized static String getCodeForCachedClass(String name) {
+		if (generatedClasses.containsKey(name)) {
+			return generatedClasses.get(name).f1;
+		}
+		return null;
+	}
+
+	// The caching is name based. The caller should be sure that two separate generated class should not have the same
+	// name.
+	public synchronized static Class<?> compile(ClassLoader cl, String name, String code) throws
+		CompileException, ClassNotFoundException {
+		checkNotNull(cl);
+		Class generatedClazz;
+		if (generatedClasses.containsKey(name)) {
+			generatedClazz = generatedClasses.get(name).f0;
+		} else {
+			SimpleCompiler compiler = new SimpleCompiler();
+			compiler.setParentClassLoader(cl);
+			compiler.cook(code);
+			ClassLoader loader = compiler.getClassLoader();
+			generatedClazz = loader.loadClass(name);
+			assert !loaderForGeneratedClasses.containsKey(name);
+			loaderForGeneratedClasses.put(name, loader);
+			generatedClasses.put(name, new Tuple2<>(generatedClazz, code));
+		}
+		return generatedClazz;
+	}
+
 	/**
-	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
+	 * A custom ObjectInputStream that can load classes using a
+	 * a specific ClassLoader and generated code using the class loader
+	 * from Janino.
+	 *
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 
@@ -58,8 +128,8 @@ public final class InstantiationUtil {
 
 		@Override
 		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+			String name = desc.getName();
 			if (classLoader != null) {
-				String name = desc.getName();
 				try {
 					return Class.forName(name, false, classLoader);
 				} catch (ClassNotFoundException ex) {
@@ -69,13 +139,18 @@ public final class InstantiationUtil {
 						// return primitive class
 						return cl;
 					} else {
-						// throw ClassNotFoundException
-						throw ex;
+						// search among the compiled classes too
+						return Class.forName(name, false, loaderForGeneratedClasses.get(name));
 					}
 				}
 			}
 
-			return super.resolveClass(desc);
+			try {
+				return super.resolveClass(desc);
+			} catch (ClassNotFoundException ex) {
+				// It is possible the passed class loader is null but we still want to load generated classes.
+				return Class.forName(name, false, loaderForGeneratedClasses.get(name));
+			}
 		}
 		
 		// ------------------------------------------------
