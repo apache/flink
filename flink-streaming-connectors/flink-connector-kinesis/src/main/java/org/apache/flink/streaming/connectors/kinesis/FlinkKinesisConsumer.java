@@ -390,7 +390,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	/**
 	 * Utility function to assign shards to a specific consumer task in a round-robin fashion.
 	 */
-	private static List<KinesisStreamShard> assignShards(List<KinesisStreamShard> shards, int numFlinkConsumerTasks, int thisConsumerTaskIndex) {
+	protected static List<KinesisStreamShard> assignShards(List<KinesisStreamShard> shards, int numFlinkConsumerTasks, int thisConsumerTaskIndex) {
 		checkArgument(numFlinkConsumerTasks > 0);
 		checkArgument(thisConsumerTaskIndex < numFlinkConsumerTasks);
 
@@ -427,7 +427,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	/**
 	 * Checks that the values specified for config keys in the properties config is recognizable.
 	 */
-	private static void validatePropertiesConfig(Properties config) {
+	protected static void validatePropertiesConfig(Properties config) {
 		if (config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE)) {
 			String credentialsProviderType = config.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE);
 
