@@ -21,11 +21,26 @@ import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern, Pa
 
 import scala.reflect.ClassTag
 
-
 object FollowedByPattern {
+  /**
+    * Constructs a new Pattern by wrapping a given Java API Pattern
+    *
+    * @param jfbPattern Underlying Java API Pattern.
+    * @tparam T Base type of the elements appearing in the pattern
+    * @tparam F Subtype of T to which the current pattern operator is constrained
+    * @return New wrapping FollowedByPattern object
+    */
   def apply[T : ClassTag, F <: T : ClassTag]
   (jfbPattern: JFollowedByPattern[T, F]) = new FollowedByPattern[T, F](jfbPattern)
 }
 
+/**
+  * Pattern operator which signifies that the there is a non-strict temporal contiguity between
+  * itself and its preceding pattern operator. This means that there might be events in between
+  * two matching events. These events are then simply ignored.
+  *
+  * @tparam T Base type of the events
+  * @tparam F Subtype of T to which the operator is currently constrained
+  */
 class FollowedByPattern[T : ClassTag, F <: T : ClassTag]
 (jfbPattern: JFollowedByPattern[T, F]) extends Pattern[T, F](jfbPattern)
