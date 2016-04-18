@@ -51,7 +51,6 @@ public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 
 		Assert.assertEquals(expectedResult.size(), actualOutput.size());
 		for(Tuple3<Long,Long,Long> resultTriangle:actualOutput)	{
-			System.out.println(resultTriangle);
 			Assert.assertTrue(expectedResult.indexOf(resultTriangle)>=0);
 		}
 	}
