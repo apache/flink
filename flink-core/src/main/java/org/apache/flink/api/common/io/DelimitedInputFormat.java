@@ -434,7 +434,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		this.overLimit = false;
 		this.end = false;
 
-		if (this.splitStart != 0 && this.restoredOffset == null) {
+		if (this.splitStart != 0 && this.restoredSplit == null) {
 			this.stream.seek(this.splitStart);
 			this.offset = this.splitStart;
 			readLine();
@@ -444,7 +444,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			if (this.overLimit) {
 				this.end = true;
 			}
-		} else if (this.restoredOffset != null) {
+		} else if (this.restoredSplit != null) {
 
 			if (!this.restoredSplit.equals(split)) {
 				throw new RuntimeException("Tried to open at the wrong split after recovery.");
@@ -653,11 +653,14 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	@Override
 	public Tuple2<FileInputSplit, Long> getCurrentChannelState() throws IOException {
+		if (reachedEnd()) {
+			return new Tuple2<>(null, 0l);
+		}
 		return new Tuple2<>(this.currSplit, this.offset);
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Long state) throws IOException {
+	public void restore(FileInputSplit split, Long state) {
 		this.restoredSplit = split;
 		this.restoredOffset = state;
 	}
