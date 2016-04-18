@@ -72,7 +72,12 @@ class FlinkILoop(
     
     // create our environment that submits against the cluster (local or remote)
     val remoteBenv = new ScalaShellRemoteEnvironment(host, port, this, clientConfig)
-    val remoteSenv = new ScalaShellRemoteStreamEnvironment(host, port, this);
+    val remoteSenv = new ScalaShellRemoteStreamEnvironment(
+      host,
+      port,
+      this,
+      clientConfig,
+      getExternalJars(): _*);
     // prevent further instantiation of environments
     ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
     

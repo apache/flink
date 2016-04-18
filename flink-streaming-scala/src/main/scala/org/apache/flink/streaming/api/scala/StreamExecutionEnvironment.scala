@@ -42,6 +42,11 @@ import _root_.scala.language.implicitConversions
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
+    * @return the wrapped Java environment
+    */
+  def getJavaEnv: JavaEnv = javaEnv
+
+  /**
    * Gets the config object.
    */
   def getConfig = javaEnv.getConfig
