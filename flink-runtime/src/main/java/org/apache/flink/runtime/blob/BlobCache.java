@@ -71,13 +71,13 @@ public final class BlobCache implements BlobService {
 
 		// configure the number of fetch retries
 		final int fetchRetries = configuration.getInteger(
-				ConfigConstants.BLOB_FETCH_RETRIES_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_RETRIES);
+			ConfigConstants.BLOB_FETCH_RETRIES_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_RETRIES);
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
 		}
 		else {
 			LOG.warn("Invalid value for {}. System will attempt no retires on failed fetches of BLOBs.",
-					ConfigConstants.BLOB_FETCH_RETRIES_KEY);
+				ConfigConstants.BLOB_FETCH_RETRIES_KEY);
 			this.numFetchRetries = 0;
 		}
 
@@ -89,7 +89,7 @@ public final class BlobCache implements BlobService {
 	 * Returns the URL for the BLOB with the given key. The method will first attempt to serve
 	 * the BLOB from its local cache. If the BLOB is not in the cache, the method will try to download it
 	 * from this cache's BLOB server.
-	 * 
+	 *
 	 * @param requiredBlob The key of the desired BLOB.
 	 * @return URL referring to the local storage location of the BLOB.
 	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
@@ -163,7 +163,7 @@ public final class BlobCache implements BlobService {
 				}
 				catch (IOException e) {
 					String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
-							" and store it under " + localJarFile.getAbsolutePath();
+						" and store it under " + localJarFile.getAbsolutePath();
 					if (attempt < numFetchRetries) {
 						attempt++;
 						if (LOG.isDebugEnabled()) {
@@ -200,10 +200,14 @@ public final class BlobCache implements BlobService {
 	 * @param key referring to the file to be deleted
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
-		delete(key);
 		BlobClient bc = createClient();
-		bc.delete(key);
-		bc.close();
+		try {
+			delete(key);
+			bc.delete(key);
+		}
+		finally {
+			bc.close();
+		}
 	}
 
 	@Override
