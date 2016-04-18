@@ -41,5 +41,6 @@ under the License.
 		<module>flink-table</module>
 		<module>flink-ml</module>
 		<module>flink-cep</module>
+		<module>flink-cep-scala</module>
 	</modules>
 </project>

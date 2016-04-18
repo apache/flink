@@ -61,7 +61,8 @@ public class PatternStream<T> {
 	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
-		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+
+		TypeInformation<R> returnType = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
 			1,
@@ -70,8 +71,24 @@ public class PatternStream<T> {
 			null,
 			false);
 
+		return select(patternSelectFunction, returnType);
+	}
+
+	/**
+	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * @param patternSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param <R> Type of the resulting elements
+	 * @param outTypeInfo Explicit specification of output type.
+	 * @return {@link DataStream} which contains the resulting elements from the pattern select
+	 *         function.
+	 */
+	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
 		return patternStream.map(
-			new PatternSelectMapper<T, R>(
+			new PatternSelectMapper<>(
 				patternStream.getExecutionEnvironment().clean(patternSelectFunction)))
 			.returns(outTypeInfo);
 	}
@@ -99,8 +116,24 @@ public class PatternStream<T> {
 			null,
 			false);
 
+		return flatSelect(patternFlatSelectFunction, outTypeInfo);
+	}
+
+	/**
+	 * Applies a flat select function to the detected pattern sequence. For each pattern sequence
+	 * the provided {@link PatternFlatSelectFunction} is called. The pattern flat select function
+	 * can produce an arbitrary number of resulting elements.
+	 *
+	 * @param patternFlatSelectFunction The pattern flat select function which is called for each
+	 *                                  detected pattern sequence.
+	 * @param <R> Typ of the resulting elements
+	 * @param outTypeInfo Explicit specification of output type.
+	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
+	 *         function.
+	 */
+	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
 		return patternStream.flatMap(
-			new PatternFlatSelectMapper<T, R>(
+			new PatternFlatSelectMapper<>(
 				patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
 			)).returns(outTypeInfo);
 	}
