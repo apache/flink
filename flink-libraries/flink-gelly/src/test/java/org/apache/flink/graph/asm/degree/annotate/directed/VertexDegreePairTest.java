@@ -53,6 +53,29 @@ extends AsmTestBase {
 	}
 
 	@Test
+	public void testWithEmptyGraph()
+			throws Exception {
+		DataSet<Vertex<LongValue,Tuple2<LongValue,LongValue>>> vertexDegrees;
+
+		vertexDegrees = emptyGraph
+			.run(new VertexDegreePair<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(false));
+
+		assertEquals(0, vertexDegrees.collect().size());
+
+		vertexDegrees = emptyGraph
+			.run(new VertexDegreePair<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true));
+
+		String expectedResult =
+			"(0,(0,0))\n" +
+			"(1,(0,0))\n" +
+			"(2,(0,0))";
+
+		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
+	}
+
+	@Test
 	public void testWithRMatGraph()
 	throws Exception {
 		ChecksumHashCode degreePairChecksum = DataSetUtils.checksumHashCode(directedRMatGraph

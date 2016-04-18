@@ -22,6 +22,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.generator.CompleteGraph;
+import org.apache.flink.graph.generator.EmptyGraph;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.types.IntValue;
@@ -45,6 +46,9 @@ public class AsmTestBase {
 	protected final long completeGraphVertexCount = 47;
 
 	protected Graph<LongValue,NullValue,NullValue> completeGraph;
+
+	// empty graph
+	protected Graph<LongValue,NullValue,NullValue> emptyGraph;
 
 	// RMat graph
 	protected Graph<LongValue,NullValue,NullValue> directedRMatGraph;
@@ -81,6 +85,10 @@ public class AsmTestBase {
 
 		// complete graph
 		completeGraph = new CompleteGraph(env, completeGraphVertexCount)
+			.generate();
+
+		// empty graph
+		emptyGraph = new EmptyGraph(env, 3)
 			.generate();
 
 		// RMat graph

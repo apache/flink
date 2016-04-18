@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -26,6 +28,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
+import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceLabel;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetLabel;
 import org.apache.flink.types.LongValue;
@@ -41,9 +44,25 @@ public class VertexDegree<K, VV, EV>
 extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 
 	// Optional configuration
+	private boolean includeZeroDegreeVertices = false;
+
 	private boolean reduceOnTargetLabel = false;
 
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+
+	/**
+	 * When set to true an additional join is performed against the vertex
+	 * set in order to output vertices with zero degree.
+	 *
+	 * @param includeZeroDegreeVertices whether to output vertices with a
+	 *                                  degree of zero
+	 * @return this
+	 */
+	public VertexDegree<K,VV,EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
+
+		return this;
+	}
 
 	/**
 	 * The degree can be counted from either the edge source or target labels.
@@ -73,6 +92,22 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	}
 
 	@Override
+	protected void hashCodeInternal(HashCodeBuilder builder) {
+		builder.append(includeZeroDegreeVertices);
+	}
+
+	@Override
+	protected void equalsInternal(EqualsBuilder builder, CachingGraphAlgorithm obj) {
+		if (! VertexDegree.class.isAssignableFrom(obj.getClass())) {
+			builder.appendSuper(false);
+		}
+
+		VertexDegree rhs = (VertexDegree) obj;
+
+		builder.append(includeZeroDegreeVertices, rhs.includeZeroDegreeVertices);
+	}
+
+	@Override
 	protected String getAlgorithmName() {
 		return VertexDegree.class.getCanonicalName();
 	}
@@ -91,10 +126,23 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 				.name("Map edge to vertex label");
 
 		// v, deg(v)
-		return vertexLabels
+		DataSet<Vertex<K,LongValue>> degree = vertexLabels
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
 				.setParallelism(parallelism)
 				.name("Degree count");
+
+		if (includeZeroDegreeVertices) {
+			degree = input
+				.getVertices()
+				.leftOuterJoin(degree)
+				.where(0)
+				.equalTo(0)
+				.with(new JoinVertexWithVertexDegree<K,VV>())
+					.setParallelism(parallelism)
+					.name("Join zero degree vertices");
+		}
+
+		return degree;
 	}
 }

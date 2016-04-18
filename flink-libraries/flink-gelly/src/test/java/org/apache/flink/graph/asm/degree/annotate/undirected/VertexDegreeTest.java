@@ -20,9 +20,11 @@ package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegreePair;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -76,6 +78,29 @@ extends AsmTestBase {
 		for (Vertex<LongValue,LongValue> vertex : targetDegrees.collect()) {
 			assertEquals(expectedDegree, vertex.getValue().getValue());
 		}
+	}
+
+	@Test
+	public void testWithEmptyGraph()
+			throws Exception {
+		DataSet<Vertex<LongValue,LongValue>> vertexDegrees;
+
+		vertexDegrees = emptyGraph
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(false));
+
+		assertEquals(0, vertexDegrees.collect().size());
+
+		vertexDegrees = emptyGraph
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true));
+
+		String expectedResult =
+			"(0,0)\n" +
+			"(1,0)\n" +
+			"(2,0)";
+
+		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}
 
 	@Test

@@ -114,6 +114,35 @@ public class DegreeAnnotationFunctions {
 	}
 
 	/**
+	 * Performs a left outer join to apply a zero count for vertices with
+	 * out- and in-degree of zero.
+	 *
+	 * @param <K> label type
+	 * @param <VV> vertex value type
+	 */
+	@ForwardedFieldsFirst("0")
+	@ForwardedFieldsSecond("0")
+	public static final class JoinVertexWithVertexDegrees<K,VV>
+	implements JoinFunction<Vertex<K,VV>, Vertex<K,Tuple2<LongValue,LongValue>>, Vertex<K,Tuple2<LongValue,LongValue>>> {
+		private Tuple2<LongValue,LongValue> zeros;
+
+		private Vertex<K,Tuple2<LongValue,LongValue>> output = new Vertex<>();
+
+		public JoinVertexWithVertexDegrees() {
+			LongValue zero = new LongValue(0);
+			zeros = new Tuple2<>(zero, zero);
+		}
+		@Override
+		public Vertex<K,Tuple2<LongValue,LongValue>> join(Vertex<K,VV> vertex, Vertex<K,Tuple2<LongValue,LongValue>> vertexDegree)
+				throws Exception {
+			output.f0 = vertex.f0;
+			output.f1 = (vertexDegree == null) ? zeros : vertexDegree.f1;
+
+			return output;
+		}
+	}
+
+	/**
 	 * Performs a full outer join composing vertex out- and in-degree and
 	 * applying a zero count for vertices having an out- or in-degree of zero.
 	 *

@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.CachingGraphAlgorithm;
@@ -39,7 +41,23 @@ public class VertexInDegree<K, VV, EV>
 extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 
 	// Optional configuration
+	private boolean includeZeroDegreeVertices = true;
+
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+
+	/**
+	 * When set to true an additional join is performed against the vertex
+	 * set in order to output vertices with zero in-degree.
+	 *
+	 * @param includeZeroDegreeVertices whether to output vertices with an
+	 *                                  in-degree of zero
+	 * @return this
+	 */
+	public VertexInDegree<K,VV,EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
+
+		return this;
+	}
 
 	/**
 	 * Override the operator parallelism.
@@ -51,6 +69,22 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 		this.parallelism = parallelism;
 
 		return this;
+	}
+
+	@Override
+	protected void hashCodeInternal(HashCodeBuilder builder) {
+		builder.append(includeZeroDegreeVertices);
+	}
+
+	@Override
+	protected void equalsInternal(EqualsBuilder builder, CachingGraphAlgorithm obj) {
+		if (! VertexInDegree.class.isAssignableFrom(obj.getClass())) {
+			builder.appendSuper(false);
+		}
+
+		VertexInDegree rhs = (VertexInDegree) obj;
+
+		builder.append(includeZeroDegreeVertices, rhs.includeZeroDegreeVertices);
 	}
 
 	@Override
@@ -75,13 +109,17 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 				.setParallelism(parallelism)
 				.name("Degree count");
 
-		return input
-			.getVertices()
-			.leftOuterJoin(targetDegree)
-			.where(0)
-			.equalTo(0)
-			.with(new JoinVertexWithVertexDegree<K,VV>())
-				.setParallelism(parallelism)
-				.name("Join vertices");
+		if (includeZeroDegreeVertices) {
+			targetDegree = input
+				.getVertices()
+				.leftOuterJoin(targetDegree)
+				.where(0)
+				.equalTo(0)
+				.with(new JoinVertexWithVertexDegree<K,VV>())
+					.setParallelism(parallelism)
+					.name("Join zero degree vertices");
+		}
+
+		return targetDegree;
 	}
 }
