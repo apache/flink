@@ -45,7 +45,7 @@ public class Pattern<T, F extends T> {
 	private final String name;
 
 	// previous pattern operator
-	private final Pattern<T, ?> previous;
+	private final Pattern<T, ? extends T> previous;
 
 	// filter condition for an event to be matched
 	private FilterFunction<F> filterFunction;
@@ -53,7 +53,7 @@ public class Pattern<T, F extends T> {
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
-	protected Pattern(final String name, final Pattern<T, ?> previous) {
+	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
 	}
@@ -62,7 +62,7 @@ public class Pattern<T, F extends T> {
 		return name;
 	}
 
-	public Pattern<T, ?> getPrevious() {
+	public Pattern<T, ? extends T> getPrevious() {
 		return previous;
 	}
 
