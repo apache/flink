@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.util
-
 import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.api.common.JobID
 

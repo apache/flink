@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -177,7 +176,7 @@ public abstract class PlanExecutor {
 	 * @return A remote executor.
 	 */
 	public static PlanExecutor createRemoteExecutor(String hostname, int port, Configuration clientConfiguration,
-			URL[] jarFiles, URL[] globalClasspaths) {
+			List<URL> jarFiles, List<URL> globalClasspaths) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
 		}
@@ -187,10 +186,10 @@ public abstract class PlanExecutor {
 		
 		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
 		
-		List<URL> files = (jarFiles == null || jarFiles.length == 0) ?
-				Collections.<URL>emptyList() : Arrays.asList(jarFiles);
-		List<URL> paths = (globalClasspaths == null || globalClasspaths.length == 0) ?
-				Collections.<URL>emptyList() : Arrays.asList(globalClasspaths);
+		List<URL> files = (jarFiles == null) ?
+				Collections.<URL>emptyList() : jarFiles;
+		List<URL> paths = (globalClasspaths == null) ?
+				Collections.<URL>emptyList() : globalClasspaths;
 
 		try {
 			PlanExecutor executor = (clientConfiguration == null) ?

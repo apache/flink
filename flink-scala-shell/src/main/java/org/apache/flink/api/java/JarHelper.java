@@ -164,7 +164,7 @@ public class JarHelper
 		File f = new File(dirOrFile2jar, dirList[i]);
 		jarDir(f,jos,subPath);
 		}
-	} else {
+	} else if (dirOrFile2jar.exists()) {
 		if (dirOrFile2jar.getCanonicalPath().equals(mDestJarName))
 		{
 		if (mVerbose) {System.out.println("skipping " + dirOrFile2jar.getPath());}
