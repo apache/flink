@@ -138,7 +138,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		end = split.getStart() + split.getLength();
 		recordsReadSinceLastSync = 0;
 
-		if(this.restoredState == null) {
+		if(this.restoredSplit == null) {
 			dataFileReader.sync(split.getStart());
 			lastSync = dataFileReader.previousSync();
 		} else {
@@ -203,12 +203,16 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	@Override
 	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentChannelState() throws IOException {
+		if (this.reachedEnd()) {
+			return new Tuple2<>(null, new Tuple2<>(0L, 0L));
+		}
+
 		Tuple2<Long, Long> state = new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
 		return new Tuple2<>(currSplit, state);
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+	public void restore(FileInputSplit split, Tuple2<Long, Long> state) {
 		this.restoredSplit = split;
 		this.restoredState = state;
 	}

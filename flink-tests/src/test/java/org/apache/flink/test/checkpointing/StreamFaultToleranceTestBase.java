@@ -23,8 +23,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -104,8 +106,25 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			postSubmit();
 		}
 		catch (Exception e) {
+			Throwable th = e;
+			int depth = 0;
+
+			for (; depth < 20; depth++) {
+				if (th instanceof SuccessException) {
+					try {
+						postSubmit();
+					} catch (Exception e1) {
+						e1.printStackTrace();
+					}
+					return;
+				} else if (th.getCause() != null) {
+					th = th.getCause();
+				} else {
+					break;
+				}
+			}
 			e.printStackTrace();
-			fail(e.getMessage());
+			Assert.fail(e.getMessage());
 		}
 	}
 

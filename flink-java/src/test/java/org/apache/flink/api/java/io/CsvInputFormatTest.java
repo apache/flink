@@ -220,7 +220,8 @@ public class CsvInputFormatTest {
 
 			result = format.nextRecord(result);
 			assertNull(result);
-			assertEquals(fileContent.length(), (long) format.getCurrentChannelState().f1);
+			assertEquals(null, format.getCurrentChannelState().f0);
+			assertEquals(0, (long) format.getCurrentChannelState().f1);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();

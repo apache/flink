@@ -279,7 +279,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		// We set the size of the BlockBasedInput to splitLength as each split contains one block.
 		// After reading the block info, we seek in the file to the correct position.
 		
-		if(this.restoredState == null) {
+		if(this.restoredSplit == null) {
 			this.readRecords = 0;
 			this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
 			this.blockBasedInput = new BlockBasedInput(this.stream,
@@ -390,6 +390,10 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	@Override
 	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentChannelState() throws IOException {
+		if (this.reachedEnd()) {
+			return new Tuple2<>(null, new Tuple2<>(0L, 0L));
+		}
+
 		Tuple2<Long, Long> state = new Tuple2<>(
 			this.blockBasedInput.getCurrBlockPos(), 		// the last read index in the block
 			this.readRecords								// the number of records read
@@ -398,7 +402,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+	public void restore(FileInputSplit split, Tuple2<Long, Long> state) {
 		this.restoredSplit = split;
 		this.restoredState = state;
 	}

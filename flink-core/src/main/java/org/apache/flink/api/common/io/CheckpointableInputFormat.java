@@ -55,7 +55,6 @@ public interface CheckpointableInputFormat<S extends InputSplit, T extends Seria
 	 * @param split The split to be opened.
 	 * @param state The state from which to start from. This can contain the offset,
 	 *                 but also other data, depending on the input format.
-	 * @throws IOException Thrown, if the spit could not be opened due to an I/O problem.
 	 */
-	void restore(S split, T state) throws IOException;
+	void restore(S split, T state);
 }
