@@ -51,14 +51,20 @@ under the License.
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-scala_2.10</artifactId>
+            <artifactId>flink-cep_2.10</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java_2.10</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-cep_2.10</artifactId>
+            <artifactId>flink-streaming-scala_2.10</artifactId>
             <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -72,11 +78,6 @@ under the License.
             <artifactId>flink-test-utils_2.10</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
