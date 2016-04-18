@@ -56,13 +56,19 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     *
     * @return Window length in which the pattern match has to occur
     */
-  def getWindowTime: Time = jPattern.getWindowTime
+  def getWindowTime: Option[Time] = {
+    val time = jPattern.getWindowTime
+    if (time == null) None else Some(time)
+  }
 
   /**
     *
     * @return Filter condition for an event to be matched
     */
-  def getFilterFunction: FilterFunction[F] = jPattern.getFilterFunction
+  def getFilterFunction: Option[FilterFunction[F]] = {
+    val filterFun = jPattern.getFilterFunction
+    if (filterFun == null) None else Some(filterFun)
+  }
 
   /**
     * Applies a subtype constraint on the current pattern operator. This means that an event has
@@ -145,8 +151,10 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     *
     * @return The previous pattern operator
     */
-  def getPrevious: Pattern[T, _ <: T] = {
-    wrapPattern(jPattern.getPrevious)
+  def getPrevious: Option[Pattern[T, _ <: T]] = {
+    val prev = jPattern.getPrevious
+    if (prev == null) None else Some(wrapPattern(prev))
+
   }
 
 }

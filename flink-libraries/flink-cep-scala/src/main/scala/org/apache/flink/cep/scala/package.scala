@@ -37,7 +37,7 @@ package object scala {
   : scala.PatternStream[T] = {
     javaPatternStream match {
       case p: JPatternStream[T] => PatternStream[T](p)
-      case _ => null //TODO introduce Option?
+      case _ => null
     }
   }
 

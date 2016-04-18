@@ -31,12 +31,12 @@ class PatternTest {
   @Test
   def testStrictContiguity: Unit = {
     val pattern = Pattern.begin("start").next("next").next("end")
-    val previous = pattern.getPrevious
-    val preprevious = previous.getPrevious
+    val previous = pattern.getPrevious.orNull
+    val preprevious = previous.getPrevious.orNull
 
-    assertNotNull(previous)
-    assertNotNull(preprevious)
-    assertNull(preprevious.getPrevious)
+    assertTrue(pattern.getPrevious.isDefined)
+    assertTrue(previous.getPrevious.isDefined)
+    assertFalse(preprevious.getPrevious.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")
@@ -47,12 +47,12 @@ class PatternTest {
   @Test
   def testNonStrictContiguity: Unit = {
     val pattern  = Pattern.begin("start").followedBy("next").followedBy("end")
-    val previous = pattern.getPrevious
-    val preprevious = previous.getPrevious
+    val previous = pattern.getPrevious.orNull
+    val preprevious = previous.getPrevious.orNull
 
-    assertNotNull(pattern.getPrevious)
-    assertNotNull(previous.getPrevious)
-    assertNull(preprevious.getPrevious)
+    assertTrue(pattern.getPrevious.isDefined)
+    assertTrue(previous.getPrevious.isDefined)
+    assertFalse(preprevious.getPrevious.isDefined)
 
     assertTrue(pattern.isInstanceOf[FollowedByPattern[_, _]])
     assertTrue(previous.isInstanceOf[FollowedByPattern[_, _]])
@@ -70,16 +70,16 @@ class PatternTest {
       .next("end")
       .where((value : Event) => value.id == 42)
 
-    val previous = pattern.getPrevious
-    val preprevious = previous.getPrevious
+    val previous = pattern.getPrevious.orNull
+    val preprevious = previous.getPrevious.orNull
 
-    assertNotNull(pattern.getPrevious)
-    assertNotNull(previous.getPrevious)
-    assertNull(preprevious.getPrevious)
+    assertTrue(pattern.getPrevious.isDefined)
+    assertTrue(previous.getPrevious.isDefined)
+    assertFalse(preprevious.getPrevious.isDefined)
 
-    assertNotNull(pattern.getFilterFunction)
-    assertNotNull(previous.getFilterFunction)
-    assertNull(preprevious.getFilterFunction)
+    assertTrue(pattern.getFilterFunction.isDefined)
+    assertTrue(previous.getFilterFunction.isDefined)
+    assertFalse(preprevious.getFilterFunction.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")
@@ -93,15 +93,15 @@ class PatternTest {
       .subtype(classOf[SubEvent])
       .followedBy("end")
 
-    val previous = pattern.getPrevious
-    val preprevious = previous.getPrevious
+    val previous = pattern.getPrevious.orNull
+    val preprevious = previous.getPrevious.orNull
 
-    assertNotNull(pattern.getPrevious)
-    assertNotNull(previous.getPrevious)
-    assertNull(preprevious.getPrevious)
+    assertTrue(pattern.getPrevious.isDefined)
+    assertTrue(previous.getPrevious.isDefined)
+    assertFalse(preprevious.getPrevious.isDefined)
 
-    assertNotNull(previous.getFilterFunction)
-    assertTrue(previous.getFilterFunction.isInstanceOf[SubtypeFilterFunction[_]])
+    assertTrue(previous.getFilterFunction.isDefined)
+    assertTrue(previous.getFilterFunction.get.isInstanceOf[SubtypeFilterFunction[_]])
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
@@ -114,15 +114,15 @@ class PatternTest {
       .next("subevent")
       .subtype(classOf[SubEvent]).where((value: SubEvent) => false).followedBy("end")
 
-    val previous = pattern.getPrevious
-    val preprevious = previous.getPrevious
+    val previous = pattern.getPrevious.orNull
+    val preprevious = previous.getPrevious.orNull
 
-    assertNotNull(pattern.getPrevious)
-    assertNotNull(previous.getPrevious)
-    assertNull(preprevious.getPrevious)
+    assertTrue(pattern.getPrevious.isDefined)
+    assertTrue(previous.getPrevious.isDefined)
+    assertFalse(preprevious.getPrevious.isDefined)
 
     assertTrue(pattern.isInstanceOf[FollowedByPattern[_, _]])
-    assertNotNull(previous.getFilterFunction)
+    assertTrue(previous.getFilterFunction.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")

@@ -36,7 +36,7 @@ package object pattern {
   : Pattern[T, F] = javaPattern match {
     case f: JFollowedByPattern[T, F] => FollowedByPattern[T, F](f)
     case p: JPattern[T, F] => Pattern[T, F](p)
-    case _ => null //TODO ask: introduce Option or null-Pattern-Object?
+    case _ => null
   }
 }
 
