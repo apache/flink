@@ -97,7 +97,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data source operator"));
 
-		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
 			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
 		}
@@ -171,7 +171,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			// --------------------------------------------------------------------
 			// Closing
 			// --------------------------------------------------------------------
-			if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+			if(RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 				((RichInputFormat) this.format).closeInputFormat();
 				LOG.debug(getLogString("Rich Source detected. Closing..."));
 			}

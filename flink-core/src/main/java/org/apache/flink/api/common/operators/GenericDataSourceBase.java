@@ -213,7 +213,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 		//open the input format
 		inputFormat.configure(this.parameters);
 
-		if(inputFormat instanceof RichInputFormat){
+		if(inputFormat instanceof RichInputFormat) {
 			((RichInputFormat) inputFormat).setRuntimeContext(ctx);
 		}
 
@@ -237,7 +237,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 		}
 		
 		//close the input format
-		if(inputFormat instanceof RichInputFormat){
+		if(inputFormat instanceof RichInputFormat) {
 			((RichInputFormat) inputFormat).closeInputFormat();
 		}
 		
