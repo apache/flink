@@ -210,6 +210,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	protected List<OUT> executeOnCollections(RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		@SuppressWarnings("unchecked")
 		InputFormat<OUT, InputSplit> inputFormat = (InputFormat<OUT, InputSplit>) this.formatWrapper.getUserCodeObject();
+		//open the input format
 		inputFormat.configure(this.parameters);
 
 		if(inputFormat instanceof RichInputFormat){
@@ -233,6 +234,11 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 			}
 			
 			inputFormat.close();
+		}
+		
+		//close the input format
+		if(inputFormat instanceof RichInputFormat){
+			((RichInputFormat) inputFormat).closeInputFormat();
 		}
 		
 		return result;

@@ -49,4 +49,14 @@ public abstract class RichInputFormat<OT, T extends InputSplit> implements Input
 			"it in one of the other life cycle methods.");
 		}
 	}
+	
+	/**
+	 * This method is called once per InputFormat (on close). It should close
+	 * resources opened during {@link #configure()}
+	 * 
+	 * @see InputFormat
+	 */
+	public void closeInputFormat() {
+		//do nothing here, just for subclasses
+	}
 }

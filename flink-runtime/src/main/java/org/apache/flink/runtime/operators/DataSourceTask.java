@@ -167,6 +167,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 			// close the collector. if it is a chaining task collector, it will close its chained tasks
 			this.output.close();
+			
+			// --------------------------------------------------------------------
+			// Closing
+			// --------------------------------------------------------------------
+			if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+				((RichInputFormat) this.format).closeInputFormat();
+				LOG.debug(getLogString("Rich Source detected. Closing..."));
+			}
 
 			// close all chained tasks letting them report failure
 			BatchTask.closeChainedTasks(this.chainedTasks, this);
