@@ -463,7 +463,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * every 100 milliseconds.
    *
    */
-  def readFileStream(StreamPath: String, intervalMillis: Long = 100, 
+  def readFileStream(StreamPath: String, intervalMillis: Long = 100,
                      watchType: WatchType = WatchType.ONLY_NEW_FILES): DataStream[String] =
     asScalaStream(javaEnv.readFileStream(StreamPath, intervalMillis, watchType))
 
