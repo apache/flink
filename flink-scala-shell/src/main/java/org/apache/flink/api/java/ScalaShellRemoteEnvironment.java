@@ -19,14 +19,11 @@ package org.apache.flink.api.java;
  * limitations under the License.
  */
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
 
-import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,41 +50,36 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
 	 */
-	public ScalaShellRemoteEnvironment(String host, int port, FlinkILoop flinkILoop, Configuration clientConfig, String... jarFiles) {
+	public ScalaShellRemoteEnvironment(String host, int port, FlinkILoop flinkILoop, Configuration clientConfig, String... jarFiles) throws Exception {
 		super(host, port, clientConfig, jarFiles, null);
 		this.flinkILoop = flinkILoop;
 	}
 
-	/**
-	 * compiles jars from files in the shell virtual directory on the fly, sends and executes it in the remote environment
-	 *
-	 * @param jobName name of the job as string
-	 * @return Result of the computation
-	 * @throws Exception
-	 */
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-
-		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
-
-		// get "external jars, and add the shell command jar, pass to executor
-		List<URL> alljars = new ArrayList<>();
-		// get external (library) jars
-		String[] extJars = this.flinkILoop.getExternalJars();
-
-		for (String extJar : extJars) {
-			URL extJarUrl = new File(extJar).getAbsoluteFile().toURI().toURL();
-			alljars.add(extJarUrl);
+	protected PlanExecutor getExecutor() throws Exception {
+		// check if we had already started a PlanExecutor. If true, then stop it, because there will
+		// be a new jar file available for the user code classes
+		if (this.executor != null) {
+			this.executor.stop();
 		}
 
-		// add shell commands
-		alljars.add(jarUrl);
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, new Configuration(),
-				alljars.toArray(new URL[alljars.size()]), null);
+		// write generated classes to disk so that they can be shipped to the cluster
+		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 
-		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
-		return executor.executePlan(p);
+		List<URL> allJarFiles = new ArrayList<>(jarFiles);
+		allJarFiles.add(jarUrl);
+
+		this.executor = PlanExecutor.createRemoteExecutor(
+			host,
+			port,
+			clientConfiguration,
+			allJarFiles,
+			globalClasspaths
+		);
+
+		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+
+		return executor;
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {
