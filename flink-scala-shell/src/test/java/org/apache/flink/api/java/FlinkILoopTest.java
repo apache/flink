@@ -25,6 +25,8 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,6 +44,7 @@ import scala.tools.nsc.settings.MutableSettings;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PlanExecutor.class)
@@ -88,6 +91,24 @@ public class FlinkILoopTest extends TestLogger {
 		env.execute("Test job");
 
 		Configuration forwardedConfiguration = testPlanExecutor.getConfiguration();
+
+		assertEquals(configuration, forwardedConfiguration);
+	}
+
+	@Test
+	public void testConfigurationForwardingStreamEnvironment() {
+		Configuration configuration = new Configuration();
+		configuration.setString("foobar", "foobar");
+
+		FlinkILoop flinkILoop = new FlinkILoop("localhost", 6123, configuration, Option.<String[]>empty());
+
+		StreamExecutionEnvironment streamEnv = flinkILoop.scalaSenv().getJavaEnv();
+
+		assertTrue(streamEnv instanceof RemoteStreamEnvironment);
+
+		RemoteStreamEnvironment remoteStreamEnv = (RemoteStreamEnvironment) streamEnv;
+
+		Configuration forwardedConfiguration = remoteStreamEnv.getClientConfiguration();
 
 		assertEquals(configuration, forwardedConfiguration);
 	}

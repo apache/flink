@@ -77,7 +77,12 @@ class FlinkILoop(
       this,
       clientConfig,
       this.getExternalJars(): _*)
-    val remoteSenv = new ScalaShellRemoteStreamEnvironment(host, port, this);
+    val remoteSenv = new ScalaShellRemoteStreamEnvironment(
+      host,
+      port,
+      this,
+      clientConfig,
+      getExternalJars(): _*)
     // prevent further instantiation of environments
     ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
     
