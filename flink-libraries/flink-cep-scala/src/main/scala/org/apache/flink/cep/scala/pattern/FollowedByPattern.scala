@@ -27,8 +27,5 @@ object FollowedByPattern {
   (jfbPattern: JFollowedByPattern[T, F]) = new FollowedByPattern[T, F](jfbPattern)
 }
 
-/**
-  * Created by stefan on 16.04.16.
-  */
 class FollowedByPattern[T : ClassTag, F <: T : ClassTag]
 (jfbPattern: JFollowedByPattern[T, F]) extends Pattern[T, F](jfbPattern)

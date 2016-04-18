@@ -36,13 +36,6 @@ under the License.
             <version>${project.version}</version>
 			<scope>provided</scope>
         </dependency>
-        <!-- We need to add this explicitly because through shading the dependency on asm seems
-        to go away. -->
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>${asm.version}</version>
-        </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients_2.10</artifactId>
