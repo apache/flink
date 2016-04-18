@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -217,6 +219,12 @@ public class Task implements Runnable {
 
 	private volatile long recoveryTs;
 
+	/** The job specific execution configuration (see {@link ExecutionConfig}). */
+	private final ExecutionConfig executionConfig;
+
+	/** Interval between two successive task cancellation attempts */
+	private final long taskCancellationInterval;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
@@ -245,6 +253,7 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
+		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -261,6 +270,15 @@ public class Task implements Runnable {
 		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+
+		if (executionConfig.getTaskCancellationInterval() < 0) {
+			taskCancellationInterval = jobConfiguration.getLong(
+				ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
+				ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
+		} else {
+			taskCancellationInterval = executionConfig.getTaskCancellationInterval();
+		}
+
 
 		// create the reader and writer structures
 
@@ -451,6 +469,8 @@ public class Task implements Runnable {
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
 			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
 
+			executionConfig.deserializeUserCode(userCodeClassLoader);
+
 			// now load the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass);
 
@@ -493,8 +513,8 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
-			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId, taskInfo,
-					jobConfiguration, taskConfiguration,
+			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
+					executionConfig, taskInfo, jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
@@ -831,7 +851,14 @@ public class Task implements Runnable {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
-						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(
+								LOG,
+								invokable,
+								executingThread,
+								taskNameWithSubtask,
+								taskCancellationInterval,
+								producedPartitions,
+								inputGates);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.setDaemon(true);
@@ -1075,12 +1102,26 @@ public class Task implements Runnable {
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
+		private final long taskCancellationIntervalMillis;
+		private final ResultPartition[] producedPartitions;
+		private final SingleInputGate[] inputGates;
 
-		public TaskCanceler(Logger logger, AbstractInvokable invokable, Thread executer, String taskName) {
+		public TaskCanceler(
+				Logger logger,
+				AbstractInvokable invokable,
+				Thread executer,
+				String taskName,
+				long cancelationInterval,
+				ResultPartition[] producedPartitions,
+				SingleInputGate[] inputGates) {
+
 			this.logger = logger;
 			this.invokable = invokable;
 			this.executer = executer;
 			this.taskName = taskName;
+			this.taskCancellationIntervalMillis = cancelationInterval;
+			this.producedPartitions = producedPartitions;
+			this.inputGates = inputGates;
 		}
 
 		@Override
@@ -1095,10 +1136,32 @@ public class Task implements Runnable {
 					logger.error("Error while canceling the task", t);
 				}
 
+				// Early release of input and output buffer pools. We do this
+				// in order to unblock async Threads, which produce/consume the
+				// intermediate streams outside of the main Task Thread.
+				//
+				// Don't do this before cancelling the invokable. Otherwise we
+				// will get misleading errors in the logs.
+				for (ResultPartition partition : producedPartitions) {
+					try {
+						partition.destroyBufferPool();
+					} catch (Throwable t) {
+						LOG.error("Failed to release result partition buffer pool.", t);
+					}
+				}
+
+				for (SingleInputGate inputGate : inputGates) {
+					try {
+						inputGate.releaseAllResources();
+					} catch (Throwable t) {
+						LOG.error("Failed to release input gate.", t);
+					}
+				}
+
 				// interrupt the running thread initially
 				executer.interrupt();
 				try {
-					executer.join(30000);
+					executer.join(taskCancellationIntervalMillis);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
@@ -1121,7 +1184,7 @@ public class Task implements Runnable {
 
 					executer.interrupt();
 					try {
-						executer.join(30000);
+						executer.join(taskCancellationIntervalMillis);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this

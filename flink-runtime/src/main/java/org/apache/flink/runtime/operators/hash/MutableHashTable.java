@@ -1749,10 +1749,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		
 		public BT next(BT reuse) {
-			// search unprobed record in bucket, while found none, move to next bucket and search.
+			// search unprobed record in bucket, while none found move to next bucket and search.
 			while (true) {
 				BT result = nextInBucket(reuse);
 				if (result == null) {
+					// return null while there are no more buckets.
 					if (!moveToNextOnHeapBucket()) {
 						return null;
 					}
@@ -1763,11 +1764,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		
 		public BT next() {
-			// search unProbed record in bucket, while found none, move to next bucket and search.
+			// search unprobed record in bucket, while none found move to next bucket and search.
 			while (true) {
 				BT result = nextInBucket();
 				if (result == null) {
-					// return null while there is no more bucket.
+					// return null while there are no more buckets.
 					if (!moveToNextOnHeapBucket()) {
 						return null;
 					}

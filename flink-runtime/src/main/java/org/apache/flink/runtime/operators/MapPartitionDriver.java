@@ -55,7 +55,7 @@ public class MapPartitionDriver<IT, OT> implements Driver<MapPartitionFunction<I
 	}
 
 	@Override
-		public int getNumberOfInputs() {
+	public int getNumberOfInputs() {
 		return 1;
 	}
 

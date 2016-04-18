@@ -25,10 +25,12 @@ import akka.actor.UntypedActor;
 import akka.testkit.TestActorRef;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -58,6 +60,8 @@ import org.junit.Test;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -271,7 +275,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			// The task manager
 			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
 			TaskManager.startTaskManagerComponentsAndActor(
-					config, taskManagerSystem, "localhost",
+					config, ResourceID.generate(), taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
 					false, TaskManager.class);
 
@@ -295,6 +299,14 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 				ActorRef leaderRef = AkkaUtils.getActorRef(
 						leaderAddress, testSystem, deadline.timeLeft());
 				ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
+
+				int numSlots = 0;
+				while (numSlots == 0) {
+					Future<?> slotsFuture = leader.ask(JobManagerMessages
+							.getRequestTotalNumberOfSlots(), deadline.timeLeft());
+
+					numSlots = (Integer) Await.result(slotsFuture, deadline.timeLeft());
+				}
 
 				// Submit the job in non-detached mode
 				leader.tell(new SubmitJob(jobGraph,
@@ -428,7 +440,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 * Creates a simple blocking JobGraph.
 	 */
 	private static JobGraph createBlockingJobGraph() {
-		JobGraph jobGraph = new JobGraph("Blocking program");
+		JobGraph jobGraph = new JobGraph("Blocking program", new ExecutionConfig());
 
 		JobVertex jobVertex = new JobVertex("Blocking Vertex");
 		jobVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);

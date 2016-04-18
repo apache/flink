@@ -361,7 +361,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		}
 		
 		final long pointerI = segI.getLong(segmentOffsetI) & POINTER_MASK;
-		final long pointerJ = segJ.getLong(segmentOffsetJ)  & POINTER_MASK;
+		final long pointerJ = segJ.getLong(segmentOffsetJ) & POINTER_MASK;
 		
 		return compareRecords(pointerI, pointerJ);
 	}

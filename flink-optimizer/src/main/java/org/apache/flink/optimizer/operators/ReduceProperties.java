@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.costs.Costs;
+import org.apache.flink.optimizer.dag.PartitionNode;
 import org.apache.flink.optimizer.dag.ReduceNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -37,8 +38,11 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ReduceProperties extends OperatorDescriptorSingle {
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceProperties.class);
 	
 	private final Partitioner<?> customPartitioner;
 	
@@ -61,6 +65,9 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD ||
 				(node.getBroadcastConnections() != null && !node.getBroadcastConnections().isEmpty()))
 		{
+			if(in.getSource().getOptimizerNode() instanceof PartitionNode) {
+				LOG.warn("Cannot automatically inject combiner for ReduceFunction. Please add an explicit combiner with combineGroup() in front of the partition operator.");
+			}
 			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")", in,
 											DriverStrategy.SORTED_REDUCE, this.keyList);
 		}

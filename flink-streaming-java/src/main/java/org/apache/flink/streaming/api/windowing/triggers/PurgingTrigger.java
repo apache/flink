@@ -86,6 +86,24 @@ public class PurgingTrigger<T, W extends Window> extends Trigger<T, W> {
 	}
 
 	@Override
+	public boolean canMerge() {
+		return nestedTrigger.canMerge();
+	}
+
+	@Override
+	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+		TriggerResult triggerResult = nestedTrigger.onMerge(window, ctx);
+		switch (triggerResult) {
+			case FIRE:
+				return TriggerResult.FIRE_AND_PURGE;
+			case FIRE_AND_PURGE:
+				return TriggerResult.FIRE_AND_PURGE;
+			default:
+				return TriggerResult.CONTINUE;
+		}
+	}
+
+	@Override
 	public String toString() {
 		return "PurgingTrigger(" + nestedTrigger.toString() + ")";
 	}

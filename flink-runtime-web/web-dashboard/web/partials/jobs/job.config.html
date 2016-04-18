@@ -49,9 +49,9 @@ limitations under the License.
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="property in job['execution-config']['user-config']">
-      <td>{{property.name}}</td>
-      <td table-property="table-property" value="property.value"></td>
+    <tr ng-repeat="(propertyName, propertyValue) in job['execution-config']['user-config']">
+      <td>{{propertyName}}</td>
+      <td table-property="table-property" value="propertyValue"></td>
     </tr>
   </tbody>
 </table>

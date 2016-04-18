@@ -36,8 +36,8 @@ import org.apache.flink.core.memory.MemorySegment;
  * key length.
  */
 @Public
-public interface NormalizableKey<T> extends Key<T> {
-	
+public interface NormalizableKey<T> extends Comparable<T> {
+
 	/**
 	 * Gets the maximal length of normalized keys that the data type would produce to determine
 	 * the order of instances solely by the normalized key. A value of {@link java.lang.Integer}.MAX_VALUE

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.operators.translation.CombineToGroupCombineWrapper;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
@@ -36,6 +37,7 @@ import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduceGroupOperator;
+import org.apache.flink.api.java.operators.translation.RichCombineToGroupCombineWrapper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.DataSet;
@@ -211,9 +213,11 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		String name = getName() != null ? getName() : "GroupReduce at " + defaultName;
 
 		// wrap CombineFunction in GroupCombineFunction if combinable
-		this.function = (combinable && function instanceof CombineFunction<?,?>) ?
-							new CombineToGroupCombineWrapper((CombineFunction<?,?>) function) :
-							function;
+		if (combinable && function instanceof CombineFunction<?, ?>) {
+			this.function = function instanceof RichGroupReduceFunction<?, ?> ?
+				new RichCombineToGroupCombineWrapper((RichGroupReduceFunction<?, ?>) function) :
+				new CombineToGroupCombineWrapper((CombineFunction<?, ?>) function);
+		}
 
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {

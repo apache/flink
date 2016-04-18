@@ -29,8 +29,6 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * Boxed serializable and comparable long integer type, representing the primitive
  * type {@code long}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
 public class LongValue implements NormalizableKey<LongValue>, ResettableValue<LongValue>, CopyableValue<LongValue> {

@@ -110,7 +110,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.0.0</version>
+			<version>1.1-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
@@ -813,7 +813,7 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
 
-                        <!-- generated contents -->
+						<!-- generated contents -->
 						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
@@ -836,13 +836,14 @@ under the License.
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>
 						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
-                        <exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
+						<exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>CONTRIBUTING.md</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
+						<exclude>PULL_REQUEST_TEMPLATE.md</exclude>
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
@@ -1115,6 +1116,30 @@ under the License.
 								</pluginExecution>
 							</pluginExecutions>
 						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+
+				<!-- configure scala style -->
+				<plugin>
+					<groupId>org.scalastyle</groupId>
+					<artifactId>scalastyle-maven-plugin</artifactId>
+					<version>0.5.0</version>
+					<executions>
+						<execution>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<verbose>false</verbose>
+						<failOnViolation>true</failOnViolation>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<failOnWarning>false</failOnWarning>
+						<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
+						<outputEncoding>UTF-8</outputEncoding>
 					</configuration>
 				</plugin>
 			</plugins>

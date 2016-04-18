@@ -217,7 +217,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		for (Map.Entry<String, Integer> e : countPerTopic.entrySet()) {
 			sb.append(e.getKey()).append(" (").append(e.getValue()).append("), ");
 		}
-		LOG.info("Consumer is going to read the following topics (with number of partitions): ", sb.toString());
+		LOG.info("Consumer is going to read the following topics (with number of partitions): {}", sb.toString());
 	}
 
 

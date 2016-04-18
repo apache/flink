@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.table.test;
 
-import org.apache.flink.api.table.ExpressionException;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
@@ -27,7 +26,7 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.api.table.test.utils.TableProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,17 +34,16 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class ExpressionsITCase extends MultipleProgramsTestBase {
+public class ExpressionsITCase extends TableProgramsTestBase {
 
-
-	public ExpressionsITCase(TestExecutionMode mode){
-		super(mode);
+	public ExpressionsITCase(TestExecutionMode mode, TableConfigMode configMode) {
+		super(mode, configMode);
 	}
 
 	@Test
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<>(5, 10));
@@ -65,7 +63,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testLogic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<>(5, true));
@@ -85,7 +83,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testComparisons() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
 				env.fromElements(new Tuple3<>(5, 5, 4));
@@ -102,64 +100,5 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test
-	public void testBitwiseOperation() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
-
-		DataSource<Tuple2<Byte, Byte>> input =
-				env.fromElements(new Tuple2<>((byte) 3, (byte) 5));
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b");
-
-		Table result = table.select(
-				"a & b, a | b, a ^ b, ~a");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "1,7,6,-4";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testBitwiseWithAutocast() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
-
-		DataSource<Tuple2<Integer, Byte>> input =
-				env.fromElements(new Tuple2<>(3, (byte) 5));
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b");
-
-		Table result = table.select(
-				"a & b, a | b, a ^ b, ~a");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "1,7,6,-4";
-		compareResultAsText(results, expected);
-	}
-
-	@Test(expected = ExpressionException.class)
-	public void testBitwiseWithNonWorkingAutocast() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
-
-		DataSource<Tuple2<Float, Byte>> input =
-				env.fromElements(new Tuple2<>(3.0f, (byte) 5));
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b");
-
-		Table result =
-				table.select("a & b, a | b, a ^ b, ~a");
-
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
-	}
 }
 

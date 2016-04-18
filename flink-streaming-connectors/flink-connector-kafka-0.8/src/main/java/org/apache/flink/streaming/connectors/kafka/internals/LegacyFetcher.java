@@ -743,6 +743,8 @@ public class LegacyFetcher implements Fetcher {
 		/**
 		 * Request latest offsets for a set of partitions, via a Kafka consumer.
 		 *
+		 * This method retries three times if the response has an error
+		 *
 		 * @param consumer The consumer connected to lead broker
 		 * @param partitions The list of partitions we need offsets for
 		 * @param whichTime The type of time we are requesting. -1 and -2 are special constants (See OffsetRequest)
@@ -755,18 +757,29 @@ public class LegacyFetcher implements Fetcher {
 				requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
 			}
 
-			kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo, kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
-			OffsetResponse response = consumer.getOffsetsBefore(request);
+			int retries = 0;
+			OffsetResponse response;
+			while(true) {
+				kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo, kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
+				response = consumer.getOffsetsBefore(request);
 
-			if (response.hasError()) {
-				String exception = "";
-				for (FetchPartition fp: partitions) {
-					short code;
-					if ( (code=response.errorCode(fp.topic, fp.partition)) != ErrorMapping.NoError()) {
-						exception += "\nException for partition "+fp.partition+": "+ StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
+				if (response.hasError()) {
+					String exception = "";
+					for (FetchPartition fp : partitions) {
+						short code;
+						if ((code = response.errorCode(fp.topic, fp.partition)) != ErrorMapping.NoError()) {
+							exception += "\nException for topic=" + fp.topic + " partition=" + fp.partition + ": " + StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
+						}
 					}
+					if(++retries >= 3) {
+						throw new RuntimeException("Unable to get last offset for partitions " + partitions + ". " + exception);
+					} else {
+						LOG.warn("Unable to get last offset for partitions: Exception(s): {}", exception);
+					}
+
+				} else {
+					break; // leave retry loop
 				}
-				throw new RuntimeException("Unable to get last offset for partitions " + partitions + ". " + exception);
 			}
 
 			for (FetchPartition fp: partitions) {

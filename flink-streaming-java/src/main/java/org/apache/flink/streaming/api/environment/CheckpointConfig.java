@@ -153,23 +153,23 @@ public class CheckpointConfig implements java.io.Serializable {
 		return minPauseBetweenCheckpoints;
 	}
 
-//	/**
-//	 * Sets the minimal pause between checkpointing attempts. This setting defines how soon the
-//	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
-//	 * another checkpoint with respect to the maximum number of concurrent checkpoints
-//	 * (see {@link #setMaxConcurrentCheckpoints(int)}).
-//	 * 
-//	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
-//	 * that a minimum amount of time passes where no checkpoint is in progress at all.
-//	 * 
-//	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
-//	 */
-//	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
-//		if (minPauseBetweenCheckpoints < 0) {
-//			throw new IllegalArgumentException("Pause value must be zero or positive");
-//		}
-//		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
-//	}
+	/**
+	 * Sets the minimal pause between checkpointing attempts. This setting defines how soon the
+	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
+	 * another checkpoint with respect to the maximum number of concurrent checkpoints
+	 * (see {@link #setMaxConcurrentCheckpoints(int)}).
+	 * 
+	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
+	 * that a minimum amount of time passes where no checkpoint is in progress at all.
+	 * 
+	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
+	 */
+	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
+		if (minPauseBetweenCheckpoints < 0) {
+			throw new IllegalArgumentException("Pause value must be zero or positive");
+		}
+		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+	}
 
 	/**
 	 * Gets the maximum number of checkpoint attempts that may be in progress at the same time. If this

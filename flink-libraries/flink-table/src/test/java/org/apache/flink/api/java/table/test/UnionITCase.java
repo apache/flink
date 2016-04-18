@@ -23,7 +23,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.table.ExpressionException;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -36,7 +35,6 @@ import java.util.List;
 
 @RunWith(Parameterized.class)
 public class UnionITCase extends MultipleProgramsTestBase {
-
 
 	public UnionITCase(TestExecutionMode mode) {
 		super(mode);
@@ -54,9 +52,9 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c");
 
 		Table selected = in1.unionAll(in2).select("c");
+
 		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
 		List<Row> results = ds.collect();
-
 		String expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
 		compareResultAsText(results, expected);
 	}
@@ -73,15 +71,15 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d, c, e").select("a, b, c");
 
 		Table selected = in1.unionAll(in2).where("b < 2").select("c");
+
 		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
 		List<Row> results = ds.collect();
-
 		String expected = "Hi\n" + "Hallo\n";
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ExpressionException.class)
-	public void testUnionFieldsNameNotOverlap1() throws Exception {
+	@Test(expected = IllegalArgumentException.class)
+	public void testUnionIncompatibleNumberOfFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -91,16 +89,27 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
-		Table selected = in1.unionAll(in2);
-		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-		List<Row> results = ds.collect();
-
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Number of fields of union inputs do not match
+		in1.unionAll(in2);
 	}
 
-	@Test(expected = ExpressionException.class)
-	public void testUnionFieldsNameNotOverlap2() throws Exception {
+	@Test(expected = IllegalArgumentException.class)
+	public void testUnionIncompatibleFieldsName() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+
+		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
+		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d");
+
+		// Must fail. Field names of union inputs do not match
+		in1.unionAll(in2);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testUnionIncompatibleFieldTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -110,12 +119,8 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e").select("a, b, c");
 
-		Table selected = in1.unionAll(in2);
-		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-		List<Row> results = ds.collect();
-
-		String expected = "";
-		compareResultAsText(results, expected);
+		// Must fail. Field types of union inputs do not match
+		in1.unionAll(in2);
 	}
 
 	@Test
@@ -130,11 +135,34 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d, c, e").select("a, b, c");
 
 		Table selected = in1.unionAll(in2).select("c.count");
+
 		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
 		List<Row> results = ds.collect();
-
 		String expected = "18";
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testUnionWithJoin() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds3 = CollectionDataSets.getSmall5TupleDataSet(env);
+
+		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
+		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d, c, e").select("a, b, c");
+		Table in3 = tableEnv.fromDataSet(ds3, "a2, b2, d2, c2, e2").select("a2, b2, c2");
+
+	    Table joinDs = in1.unionAll(in2).join(in3).where("a === a2").select("c, c2");
+	    DataSet<Row> ds = tableEnv.toDataSet(joinDs, Row.class);
+	    List<Row> results = ds.collect();
+
+	    String expected = "Hi,Hallo\n" + "Hallo,Hallo\n" +
+	      "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
+	      "Hallo Welt,Hallo Welt\n" + "Hallo Welt wie,Hallo Welt\n" +
+	      "Hallo Welt,Hallo Welt wie\n" + "Hallo Welt wie,Hallo Welt wie\n";
+	    compareResultAsText(results, expected);
+	  }
 }

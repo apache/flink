@@ -37,4 +37,4 @@ import org.apache.flink.annotation.PublicEvolving;
  * @param <ACC> Type of the value in the state
  */
 @PublicEvolving
-public interface FoldingState<T, ACC> extends MergingState<T, ACC> {}
+public interface FoldingState<T, ACC> extends AppendingState<T, ACC> {}

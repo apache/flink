@@ -38,7 +38,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
@@ -289,19 +288,9 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
 		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
-			"The default parallelism must be positive, or -1 if the system should use the globally comfigured default.");
+			"The default parallelism must be positive, or -1 if the system should use the globally configured default.");
 		
 		this.defaultParallelism = defaultParallelism;
-	}
-
-	/**
-	 * Returns the specified restart strategy configuration. This configuration defines the used
-	 * restart strategy to be used at runtime.
-	 *
-	 * @return The specified restart strategy configuration
-	 */
-	public RestartStrategies.RestartStrategyConfiguration getRestartStrategyConfiguration() {
-		return getExecutionConfig().getRestartStrategy();
 	}
 
 	/**

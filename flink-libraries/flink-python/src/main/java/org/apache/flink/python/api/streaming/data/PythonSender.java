@@ -95,6 +95,7 @@ public class PythonSender<IN> implements Serializable {
 	 * @return size of the written buffer
 	 * @throws IOException
 	 */
+	@SuppressWarnings("unchecked")
 	public int sendRecord(Object value) throws IOException {
 		fileBuffer.clear();
 		int group = 0;
@@ -126,6 +127,7 @@ public class PythonSender<IN> implements Serializable {
 	 * @return size of the written buffer
 	 * @throws IOException
 	 */
+	@SuppressWarnings("unchecked")
 	public int sendBuffer(Iterator i, int group) throws IOException {
 		fileBuffer.clear();
 

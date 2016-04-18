@@ -163,7 +163,7 @@ under the License.
 			</includes>
 			<excludes>
 				<exclude>flink-examples-streaming*.jar</exclude>
-				<exclude>original-flink-examples-streaming*.jar</exclude>
+				<exclude>original-*.jar</exclude>
 			</excludes>
 		</fileSet>
 

@@ -18,13 +18,18 @@
 package org.apache.flink.api.table.expressions
 
 import java.util.Date
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala.table.ImplicitExpressionOperations
 
 object Literal {
   def apply(l: Any): Literal = l match {
-    case i:Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
-    case l:Long => Literal(l, BasicTypeInfo.LONG_TYPE_INFO)
+    case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
+    case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
+    case b: Byte => Literal(b, BasicTypeInfo.BYTE_TYPE_INFO)
+    case l: Long => Literal(l, BasicTypeInfo.LONG_TYPE_INFO)
     case d: Double => Literal(d, BasicTypeInfo.DOUBLE_TYPE_INFO)
     case f: Float => Literal(f, BasicTypeInfo.FLOAT_TYPE_INFO)
     case str: String => Literal(str, BasicTypeInfo.STRING_TYPE_INFO)
@@ -39,4 +44,8 @@ case class Literal(value: Any, tpe: TypeInformation[_])
   def typeInfo = tpe
 
   override def toString = s"$value"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.literal(value)
+  }
 }

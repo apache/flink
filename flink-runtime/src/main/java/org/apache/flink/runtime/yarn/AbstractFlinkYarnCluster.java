@@ -20,6 +20,7 @@ package org.apache.flink.runtime.yarn;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -56,7 +57,7 @@ public abstract class AbstractFlinkYarnCluster {
 	/**
 	 * Returns the latest cluster status, with number of Taskmanagers and slots
 	 */
-	public abstract FlinkYarnClusterStatus getClusterStatus();
+	public abstract GetClusterStatusResponse getClusterStatus();
 
 	/**
 	 * Boolean indicating whether the Flink YARN cluster is in an erronous state.

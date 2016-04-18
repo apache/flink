@@ -41,7 +41,7 @@ import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.UnrecoverableException;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -60,7 +60,6 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,6 +179,9 @@ public class ExecutionGraph implements Serializable {
 
 	// ------ Configuration of the Execution -------
 
+	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
+	private ExecutionConfig executionConfig;
+
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
 	private boolean allowQueuedScheduling = false;
@@ -234,8 +236,6 @@ public class ExecutionGraph implements Serializable {
 	private ExecutionContext executionContext;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-	private ExecutionConfig executionConfig;
-
 	private String jsonPlan;
 
 	// --------------------------------------------------------------------------------------------
@@ -250,6 +250,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
+			ExecutionConfig config,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy) {
 		this(
@@ -257,6 +258,7 @@ public class ExecutionGraph implements Serializable {
 			jobId,
 			jobName,
 			jobConfig,
+			config,
 			timeout,
 			restartStrategy,
 			new ArrayList<BlobKey>(),
@@ -270,6 +272,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
+			ExecutionConfig config,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
@@ -302,6 +305,8 @@ public class ExecutionGraph implements Serializable {
 
 		this.requiredJarFiles = requiredJarFiles;
 		this.requiredClasspaths = requiredClasspaths;
+
+		this.executionConfig = checkNotNull(config);
 
 		this.timeout = timeout;
 
@@ -942,12 +947,7 @@ public class ExecutionGraph implements Serializable {
 		if (!state.isTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
-		// "unpack" execution config before we throw away the usercode classloader.
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
-		} catch (Exception e) {
-			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
-		}
+
 		// clear the non-serializable fields
 		userClassLoader = null;
 		scheduler = null;
@@ -967,8 +967,13 @@ public class ExecutionGraph implements Serializable {
 		isArchived = true;
 	}
 
+	/**
+	 * Returns the {@link ExecutionConfig}.
+	 *
+	 * @return ExecutionConfig
+	 */
 	public ExecutionConfig getExecutionConfig() {
-		return this.executionConfig;
+		return executionConfig;
 	}
 
 	/**
@@ -1030,14 +1035,14 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						boolean isRecoverable = !(failureCause instanceof UnrecoverableException);
+						boolean allowRestart = !(failureCause instanceof SuppressRestartsException);
 
-						if (isRecoverable && restartStrategy.canRestart() &&
+						if (allowRestart && restartStrategy.canRestart() &&
 								transitionState(current, JobStatus.RESTARTING)) {
 							restartStrategy.restart(this);
 							break;
 
-						} else if ((!isRecoverable || !restartStrategy.canRestart()) &&
+						} else if ((!allowRestart || !restartStrategy.canRestart()) &&
 							transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;

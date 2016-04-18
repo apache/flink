@@ -18,7 +18,8 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.{Row, ExpressionException}
+import org.apache.flink.api.table.plan.PlanGenException
+import org.apache.flink.api.table.Row
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -27,8 +28,8 @@ import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import scala.collection.JavaConverters._
+import org.apache.flink.examples.scala.WordCountTable.{WC => MyWC}
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -37,35 +38,48 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable
-      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg).toDataSet[Row]
-    val results = ds.collect()
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable
+      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
+
+    val results = t.toDataSet[Row].collect()
     val expected = "231,1,21,21,11"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ExpressionException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testAggregationOnNonExistingField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable
-      .select('foo.avg).toDataSet[Row]
-    val expected = ""
-    val results = ds.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable
+      // Must fail. Field 'foo does not exist.
+      .select('foo.avg)
   }
 
   @Test
   def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(
+    val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
-      .toDataSet[Row]
+
     val expected = "1,1,1,1,1.5,1.5,2"
-    val results = ds.collect()
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testProjection(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(
+      (1: Byte, 1: Short),
+      (2: Byte, 2: Short)).toTable
+      .select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
+
+    val expected = "1,3,2,1,3"
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -73,10 +87,11 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
-      .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT").toDataSet[Row]
-    val expected = "5.5,2 THE COUNT"
-    val results = ds.collect()
+    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+      .select(('_1 + 2).avg + 2, '_2.count + 5)
+
+    val expected = "5.5,7"
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -84,34 +99,88 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
-      .select('_1.count, '_2.count).toDataSet[Row]
+    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+      .select('_1.count, '_2.count)
+
     val expected = "2,2"
-    val results = ds.collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ExpressionException])
+  @Test
+  def testAggregationAfterProjection(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = env.fromElements(
+      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
+      .select('_1, '_2, '_3)
+      .select('_1.avg, '_2.sum, '_3.count)
+
+    val expected = "1,3,2"
+    val result = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test(expected = classOf[PlanGenException])
   def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("Hello", 1)).toTable
-      .select('_1.sum).toDataSet[Row]
-    val expected = ""
-    val results = ds.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = env.fromElements(("Hello", 1)).toTable
+      // Must fail. Field '_1 is not a numeric type.
+      .select('_1.sum)
+
+    t.collect()
   }
 
-  @Test(expected = classOf[ExpressionException])
+  @Test(expected = classOf[UnsupportedOperationException])
   def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("Hello", 1)).toTable
-      .select('_2.sum.sum).toDataSet[Row]
-    val expected = ""
-    val results = ds.collect()
+    val t = env.fromElements(("Hello", 1)).toTable
+      // Must fail. Sum aggregation can not be chained.
+      .select('_2.sum.sum)
+  }
+
+  @Test
+  def testSQLStyleAggregations(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val t = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .select(
+        """Sum( a) as a1, a.sum as a2,
+          |Min (a) as b1, a.min as b2,
+          |Max (a ) as c1, a.max as c2,
+          |Avg ( a ) as d1, a.avg as d2,
+          |Count(a) as e1, a.count as e2
+        """.stripMargin)
+
+    val expected = "231,231,1,1,21,21,11,11,21,21"
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testPojoAggregation(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val input = env.fromElements(
+      MyWC("hello", 1),
+      MyWC("hello", 1),
+      MyWC("ciao", 1),
+      MyWC("hola", 1),
+      MyWC("hola", 1))
+    val expr = input.toTable
+    val result = expr
+      .groupBy('word)
+      .select('word, 'count.sum as 'count)
+      .filter('count === 2)
+      .toDataSet[MyWC]
+
+    val mappedResult = result.map(w => (w.word, w.count * 10)).collect()
+    val expected = "(hello,20)\n" + "(hola,20)"
+    TestBaseUtils.compareResultAsText(mappedResult.asJava, expected)
+  }
 
 }
+

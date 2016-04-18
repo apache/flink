@@ -53,13 +53,12 @@ public final class KeySelectorUtil {
 		
 		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
 		int numKeyFields = logicalKeyPositions.length;
-		
+
+		TypeInformation<?>[] typeInfos = keys.getKeyFieldTypes();
 		// use ascending order here, the code paths for that are usually a slight bit faster
 		boolean[] orders = new boolean[numKeyFields];
-		TypeInformation<?>[] typeInfos = new TypeInformation<?>[numKeyFields];
 		for (int i = 0; i < numKeyFields; i++) {
 			orders[i] = true;
-			typeInfos[i] = compositeType.getTypeAt(logicalKeyPositions[i]);
 		}
 
 		TypeComparator<X> comparator = compositeType.createComparator(logicalKeyPositions, orders, 0, executionConfig);

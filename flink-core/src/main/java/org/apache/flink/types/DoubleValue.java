@@ -28,11 +28,9 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * Boxed serializable and comparable double precision floating point type, representing the primitive
  * type {@code double}.
- * 
- * @see org.apache.flink.types.Key
  */
 @Public
-public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
+public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
 	private double value;

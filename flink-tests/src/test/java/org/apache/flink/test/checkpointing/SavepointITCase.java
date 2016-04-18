@@ -34,7 +34,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.StateForTask;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.UnrecoverableException;
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
@@ -726,7 +727,7 @@ public class SavepointITCase extends TestLogger {
 				flink.submitJobAndWait(jobGraph, false);
 			}
 			catch (Exception e) {
-				assertEquals(UnrecoverableException.class, e.getCause().getClass());
+				assertEquals(SuppressRestartsException.class, e.getCause().getClass());
 				assertEquals(IllegalArgumentException.class, e.getCause().getCause().getClass());
 			}
 		}
@@ -804,9 +805,17 @@ public class SavepointITCase extends TestLogger {
 			Future<Object> savepointPathFuture = jobManager.ask(
 					new TriggerSavepoint(jobGraph.getJobID()), deadline.timeLeft());
 
-			final String savepointPath = ((TriggerSavepointSuccess) Await
-					.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
-			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+			Object resp = Await.result(savepointPathFuture, deadline.timeLeft());
+
+			String savepointPath = null;
+			if (resp instanceof TriggerSavepointSuccess) {
+				savepointPath = ((TriggerSavepointSuccess) resp).savepointPath();
+				LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+			} else if (resp instanceof TriggerSavepointFailure) {
+				fail("Received TriggerSavepointFailure: " + ((TriggerSavepointFailure) resp).cause().getMessage());
+			} else {
+				fail("Unexpected response of type  " + resp.getClass() + " " + resp);
+			}
 
 			// Completed checkpoint
 			RestoreStateCountingAndFailingSource.checkpointCompleteLatch.await();
@@ -928,13 +937,11 @@ public class SavepointITCase extends TestLogger {
 
 		@Override
 		public byte[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			LOG.info("snapshotState (" + checkpointId + "): " + Arrays.toString(data));
 			return data;
 		}
 
 		@Override
 		public void restoreState(byte[] data) throws Exception {
-			LOG.info("restoreState: " + Arrays.toString(data));
 			this.data = data;
 		}
 	}

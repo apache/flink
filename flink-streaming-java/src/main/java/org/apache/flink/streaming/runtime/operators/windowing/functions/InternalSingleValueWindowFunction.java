@@ -32,7 +32,10 @@ import java.util.Collections;
  * Internal window function for wrapping a {@link WindowFunction} that takes an {@code Iterable}
  * when the window state is a single value.
  */
-public final class InternalSingleValueWindowFunction<IN, OUT, KEY, W extends Window> extends InternalWindowFunction<IN, OUT, KEY, W> implements RichFunction {
+public final class InternalSingleValueWindowFunction<IN, OUT, KEY, W extends Window>
+		extends InternalWindowFunction<IN, OUT, KEY, W>
+		implements RichFunction {
+
 	private static final long serialVersionUID = 1L;
 
 	protected WindowFunction<IN, OUT, KEY, W> wrappedFunction;

@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.codegen.CodeGenException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -35,43 +36,45 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   @Test
   def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
-      .select('a.substring(0, 'b)).toDataSet[Row]
+    val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
+      .select('a.substring(1, 'b))
+
     val expected = "AA\nB"
-    val results = ds.collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
-      .select('a.substring('b)).toDataSet[Row]
+    val t = env.fromElements(("ABCD", 3), ("ABCD", 2)).as('a, 'b)
+      .select('a.substring('b))
+
     val expected = "CD\nBCD"
-    val results = ds.collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ExpressionException])
+  @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
-      .select('a.substring(0, 'b)).toDataSet[Row]
-    val expected = "AAA\nBB"
-    val results = ds.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
+      // must fail, second argument of substring must be Integer not Double.
+      .select('a.substring(0, 'b))
+
+    t.toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[ExpressionException])
+  @Test(expected = classOf[CodeGenException])
   def testNonWorkingSubstring2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
-      .select('a.substring('b, 15)).toDataSet[Row]
-    val expected = "AAA\nBB"
-    val results = ds.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
+      // must fail, first argument of substring must be Integer not String.
+      .select('a.substring('b, 15))
+
+    t.toDataSet[Row].collect()
   }
 
 

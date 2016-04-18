@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KvState;
 
 import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -59,6 +60,12 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
+	 * We disable writes to the write-ahead-log here. We can't have these in the base class
+	 * because JNI segfaults for some reason if they are.
+	 */
+	protected final WriteOptions writeOptions;
+
+	/**
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
 	 * @param keySerializer The serializer for the keys.
@@ -81,6 +88,9 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	/**
@@ -108,6 +118,9 @@ public class RocksDBFoldingState<K, N, T, ACC>
 		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
 		this.foldFunction = stateDesc.getFoldFunction();
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	@Override
@@ -139,13 +152,13 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			if (valueBytes == null) {
 				baos.reset();
 				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
-				db.put(key, baos.toByteArray());
+				db.put(writeOptions, key, baos.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 				ACC newValue = foldFunction.fold(oldValue, value);
 				baos.reset();
 				valueSerializer.serialize(newValue, out);
-				db.put(key, baos.toByteArray());
+				db.put(writeOptions, key, baos.toByteArray());
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);

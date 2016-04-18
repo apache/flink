@@ -1,16 +1,10 @@
 ---
-title: "Basic Concepts"
+title: "Basic API Concepts"
 
 # Top-level navigation
 top-nav-group: apis
 top-nav-pos: 1
-top-nav-title: <strong>Basic Concepts</strong>
-
-# Sub-level navigation
-#sub-nav-group: common
-#sub-nav-group-title: Basic Concepts
-#sub-nav-pos: 1
-#sub-nav-title: Basic Concepts
+top-nav-title: <strong>Basic API Concepts</strong>
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -999,6 +993,8 @@ Note that types registered with `registerKryoType()` are not available to Flink'
 
 - `disableAutoTypeRegistration()` Automatic type registration is enabled by default. The automatic type registration is registering all types (including sub-types) used by usercode with Kryo and the POJO serializer.
 
+- `setTaskCancellationInterval(long interval)` Sets the the interval (in milliseconds) to wait between consecutive attempts to cancel a running task. When a task is canceled a new thread is created which periodically calls `interrupt()` on the task thread, if the task thread does not terminate within a certain time. This parameter refers to the time between consecutive calls to `interrupt()` and is set by default to **30000** milliseconds, or **30 seconds**.
+
 The `RuntimeContext` which is accessible in `Rich*` functions through the `getRuntimeContext()` method also allows to access the `ExecutionConfig` in all user defined functions.
 
 {% top %}
@@ -1346,11 +1342,12 @@ After these steps, a detailed execution plan will be visualized.
 
 __Web Interface__
 
-Flink offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.
+Flink offers a web interface for submitting and executing jobs. The interface is part of the JobManager's
+web interface for monitoring, per default running on port 8081. Job submission via this interfaces requires
+that you have set `jobmanager.web.submit.enable: true` in `flink-conf.yaml`.
 
-The script to start the webinterface is located under ```bin/start-webclient.sh```. After starting the webclient (per default on **port 8080**), your program can be uploaded and will be added to the list of available programs on the left side of the interface.
-
-You are able to specify program arguments in the textbox at the bottom of the page. Checking the plan visualization checkbox shows the execution plan before executing the actual program.
+You may specify program arguments before the job is executed. The plan visualization enables you to show
+the execution plan before executing the Flink job.
 
 {% top %}
 

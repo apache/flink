@@ -233,6 +233,7 @@ The Apache Flink project bundles the following files under the MIT License:
  - moment.js v2.10.6 (http://momentjs.com/docs/) - Copyright (c) 2011-2014 Tim Wood, Iskren Chernev, Moment.js contributors
  - moment-duration-format v1.3.0 (https://github.com/jsmreese/moment-duration-format) - Copyright (c) 2013 John Madhavan-Reese
  - qtip2 v2.2.1 (http://qtip2.com) - Copyright (c) 2012 Craig Michael Thompson
+ - AnchorJS (https://github.com/bryanbraun/anchorjs) - Copyright (c) 2013 Craig Michael Thompson
 
 All rights reserved.
 

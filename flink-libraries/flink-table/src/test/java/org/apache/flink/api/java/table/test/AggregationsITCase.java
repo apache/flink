@@ -35,26 +35,29 @@ package org.apache.flink.api.java.table.test;
  * limitations under the License.
  */
 
-import org.apache.flink.api.table.ExpressionException;
-import org.apache.flink.api.table.Table;
-import org.apache.flink.api.table.Row;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.table.ExpressionParserException;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.table.plan.PlanGenException;
+import org.apache.flink.examples.java.JavaTableExample;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.apache.flink.examples.java.JavaTableExample.WC;
 
 import java.util.List;
 
 @RunWith(Parameterized.class)
 public class AggregationsITCase extends MultipleProgramsTestBase {
-
 
 	public AggregationsITCase(TestExecutionMode mode){
 		super(mode);
@@ -75,7 +78,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ExpressionException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testAggregationOnNonExistingField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -102,8 +105,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 						new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
 						new Tuple7<>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Ciao"));
 
-		Table table =
-				tableEnv.fromDataSet(input);
+		Table table = tableEnv.fromDataSet(input);
 
 		Table result =
 				table.select("f0.avg, f1.avg, f2.avg, f3.avg, f4.avg, f5.avg, f6.count");
@@ -128,12 +130,11 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(input);
 
 		Table result =
-				table.select("(f0 + 2).avg + 2, f1.count + \" THE COUNT\"");
-
+				table.select("(f0 + 2).avg + 2, f1.count + 5");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "5.5,2 THE COUNT";
+		String expected = "5.5,7";
 		compareResultAsText(results, expected);
 	}
 
@@ -153,14 +154,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 			table.select("f0.count, f1.count");
 
-
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
 		String expected = "2,2";
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ExpressionException.class)
+	@Test(expected = PlanGenException.class)
 	public void testNonWorkingDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -171,8 +171,8 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(input);
 
 		Table result =
+				// Must fail. Cannot compute SUM aggregate on String field.
 				table.select("f1.sum");
-
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
@@ -180,7 +180,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = ExpressionException.class)
+	@Test(expected = ExpressionParserException.class)
 	public void testNoNestedAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -191,8 +191,8 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(input);
 
 		Table result =
+				// Must fail. Aggregation on aggregation not allowed.
 				table.select("f0.sum.sum");
-
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
@@ -200,5 +200,32 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testPojoAggregation() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+		DataSet<WC> input = env.fromElements(
+				new WC("Hello", 1),
+				new WC("Ciao", 1),
+				new WC("Hello", 1),
+				new WC("Hola", 1),
+				new WC("Hola", 1));
+
+		Table table = tableEnv.fromDataSet(input);
+
+		Table filtered = table
+				.groupBy("word")
+				.select("word.count as count, word")
+				.filter("count = 2");
+
+		List<String> result = tableEnv.toDataSet(filtered, WC.class)
+				.map(new MapFunction<WC, String>() {
+					public String map(WC value) throws Exception {
+						return value.word;
+					}
+				}).collect();
+		String expected = "Hello\n" + "Hola";
+		compareResultAsText(result, expected);
+	}
 }
 

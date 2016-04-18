@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -26,10 +24,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
-import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,8 +82,7 @@ public class SessionWindowing {
 		// We create sessions for each id with max timeout of 3 time units
 		DataStream<Tuple3<String, Long, Integer>> aggregated = source
 				.keyBy(0)
-				.window(GlobalWindows.create())
-				.trigger(new SessionTrigger(3L))
+				.window(EventTimeSessionWindows.withGap(Time.milliseconds(3L)))
 				.sum(2);
 
 		if (fileOutput) {
@@ -99,70 +94,4 @@ public class SessionWindowing {
 
 		env.execute();
 	}
-
-	private static class SessionTrigger extends Trigger<Tuple3<String, Long, Integer>, GlobalWindow> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final Long sessionTimeout;
-
-		private final ValueStateDescriptor<Long> stateDesc = 
-				new ValueStateDescriptor<>("last-seen", Long.class, -1L);
-
-
-		public SessionTrigger(Long sessionTimeout) {
-			this.sessionTimeout = sessionTimeout;
-
-		}
-
-		@Override
-		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) throws Exception {
-
-			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
-			Long lastSeen = lastSeenState.value();
-
-			Long timeSinceLastEvent = timestamp - lastSeen;
-
-			ctx.deleteEventTimeTimer(lastSeen + sessionTimeout);
-
-			// Update the last seen event time
-			lastSeenState.update(timestamp);
-
-			ctx.registerEventTimeTimer(timestamp + sessionTimeout);
-
-			if (lastSeen != -1 && timeSinceLastEvent > sessionTimeout) {
-				System.out.println("FIRING ON ELEMENT: " + element + " ts: " + timestamp + " last " + lastSeen);
-				return TriggerResult.FIRE_AND_PURGE;
-			} else {
-				return TriggerResult.CONTINUE;
-			}
-		}
-
-		@Override
-		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
-			Long lastSeen = lastSeenState.value();
-
-			if (time - lastSeen >= sessionTimeout) {
-				System.out.println("CTX: " + ctx + " Firing Time " + time + " last seen " + lastSeen);
-				return TriggerResult.FIRE_AND_PURGE;
-			}
-			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {
-			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
-			if (lastSeenState.value() != -1) {
-				ctx.deleteEventTimeTimer(lastSeenState.value() + sessionTimeout);
-			}
-			lastSeenState.clear();
-		}
-	}
-
 }

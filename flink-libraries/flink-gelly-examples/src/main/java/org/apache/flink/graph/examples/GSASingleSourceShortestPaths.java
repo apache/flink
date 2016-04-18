@@ -36,7 +36,8 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * This example shows how to use Gelly's Gather-Sum-Apply iterations.
  * 
  * It is an implementation of the Single-Source-Shortest-Paths algorithm.
- * For a vertex-centric implementation of the same algorithm, please refer to {@link SingleSourceShortestPaths}. 
+ * For a scatter-gather implementation of the same algorithm, please refer to {@link SingleSourceShortestPaths}
+ * and for a vertex-centric implementation, see {@link PregelSSSP}. 
  *
  * The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId, distance which are

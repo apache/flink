@@ -3,7 +3,7 @@ title: "Windows"
 
 sub-nav-id: windows
 sub-nav-group: streaming
-sub-nav-pos: 3
+sub-nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -57,7 +57,7 @@ to defining your own windows.
           <p>
           Defines a window of 5 seconds, that "tumbles". This means that elements are
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
-	  The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+	  The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
     {% highlight java %}
 keyedStream.timeWindow(Time.seconds(5));
     {% endhighlight %}
@@ -71,7 +71,7 @@ keyedStream.timeWindow(Time.seconds(5));
              Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
-             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
       {% highlight java %}
 keyedStream.timeWindow(Time.seconds(5), Time.seconds(1));
       {% endhighlight %}
@@ -127,7 +127,7 @@ keyedStream.countWindow(1000, 100)
           <p>
           Defines a window of 5 seconds, that "tumbles". This means that elements are
           grouped according to their timestamp in groups of 5 second duration, and every element belongs to exactly one window.
-          The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+          The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
     {% highlight scala %}
 keyedStream.timeWindow(Time.seconds(5))
     {% endhighlight %}
@@ -141,7 +141,7 @@ keyedStream.timeWindow(Time.seconds(5))
              Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
-             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/time.html">time</a>).
+             The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
       {% highlight scala %}
 keyedStream.timeWindow(Time.seconds(5), Time.seconds(1))
       {% endhighlight %}
@@ -247,7 +247,7 @@ stream.window(GlobalWindows.create());
         </td>
       </tr>
       <tr>
-        <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Tumbling event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (1 second below) based on
@@ -261,7 +261,7 @@ stream.window(TumblingEventTimeWindows.of(Time.seconds(1)));
         </td>
       </tr>
       <tr>
-        <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Sliding event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
@@ -302,6 +302,32 @@ stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
     {% endhighlight %}
         </td>
       </tr>
+          <tr>
+        <td><strong>Event-time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+          </p>
+    {% highlight scala %}
+keyedStream.window(EventTimeSessionWindows.withGap(Time.seconds(5)));
+    {% endhighlight %}
+        </td>
+      </tr>
+       <tr>
+        <td><strong>Processing time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+           This is similar to event-time session windows but works on the current processing
+           time instead of the timestamp of elements
+          </p>
+    {% highlight scala %}
+keyedStream.window(ProcessingTimeSessionWindows.withGap(Time.seconds(5)));
+    {% endhighlight %}
+        </td>
+      </tr>
   </tbody>
 </table>
 </div>
@@ -329,7 +355,7 @@ stream.window(GlobalWindows.create)
         </td>
       </tr>
       <tr>
-          <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td><strong>Tumbling event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>
              Incoming elements are assigned to a window of a certain size (1 second below) based on
@@ -343,7 +369,7 @@ stream.window(TumblingEventTimeWindows.of(Time.seconds(1)))
           </td>
         </tr>
       <tr>
-        <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Sliding event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
@@ -382,6 +408,32 @@ stream.window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
           </p>
     {% highlight scala %}
 stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+    {% endhighlight %}
+        </td>
+      </tr>
+         <tr>
+        <td><strong>Event-time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+          </p>
+    {% highlight scala %}
+keyedStream.window(EventTimeSessionWindows.withGap(Time.seconds(5)))
+    {% endhighlight %}
+        </td>
+      </tr>
+       <tr>
+        <td><strong>Processing time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+           This is similar to event-time session windows but works on the current processing
+           time instead of the timestamp of elements
+          </p>
+    {% highlight scala %}
+keyedStream.window(ProcessingTimeSessionWindows.withGap(Time.seconds(5)))
     {% endhighlight %}
         </td>
       </tr>

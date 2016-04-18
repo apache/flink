@@ -45,6 +45,8 @@ public class ClassLoaderITCase {
 
 	private static final String KMEANS_JAR_PATH = "kmeans-test-jar.jar";
 
+	private static final String USERCODETYPE_JAR_PATH = "usercodetype-test-jar.jar";
+
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
 
@@ -135,6 +137,16 @@ public class ClassLoaderITCase {
 										"25"
 									});
 				kMeansProg.invokeInteractiveModeForExecution();
+
+				// test FLINK-3633
+				PackagedProgram userCodeTypeProg = new PackagedProgram(
+					new File(USERCODETYPE_JAR_PATH),
+					new String[] { USERCODETYPE_JAR_PATH,
+						"localhost",
+						String.valueOf(port),
+					});
+
+				userCodeTypeProg.invokeInteractiveModeForExecution();
 			}
 			finally {
 				testCluster.shutdown();

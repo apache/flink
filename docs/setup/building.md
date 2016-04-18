@@ -1,8 +1,8 @@
 ---
-title: Building Flink
+title: Build Flink from Source
 top-nav-group: setup
 top-nav-pos: 1
-top-nav-title: Build Flink
+top-nav-title: Build Flink from Source
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -76,22 +76,23 @@ mvn clean install -DskipTests -Dhadoop.profile=1
 
 The `-Dhadoop.profile=1` flag instructs Maven to build Flink for Hadoop 1. Note that the features included in Flink change when using a different Hadoop profile. In particular, there is no support for YARN and HBase in Hadoop 1 builds.
 
-### Hadoop 2
+### Hadoop 2.x
 
+Hadoop 2.X versions are only supported from version 2.3.0 upwards.
 You can also specify a specific Hadoop version to build against:
 
 ~~~bash
-mvn clean install -DskipTests -Dhadoop.version=2.4.1
+mvn clean install -DskipTests -Dhadoop.version=2.6.1
 ~~~
 
-#### Before Hadoop 2.2.0
+#### Before Hadoop 2.3.0
 
-Maven will automatically build Flink with its YARN client. The 2.2.0 Hadoop release is *not* supported by Flink's YARN client. Therefore, you need to exclude the YARN client with the following string: `-P!include-yarn`.
+Hadoop 2.x versions are only supported with YARN features from version 2.3.0 upwards. If you want to use a version lower than 2.3.0, you can exclude the YARN support using the following extra build arguments: `-P!include-yarn`.
 
-So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command:
+For example, if you want to build Flink for Hadoop `2.2.0`, use the following command:
 
 ~~~bash
-mvn clean install -P!include-yarn -Dhadoop.version=2.0.0-alpha
+mvn clean install -Dhadoop.version=2.2.0 -P!include-yarn
 ~~~
 
 ### Vendor-specific Versions
@@ -99,7 +100,7 @@ mvn clean install -P!include-yarn -Dhadoop.version=2.0.0-alpha
 To build Flink against a vendor specific Hadoop version, issue the following command:
 
 ~~~bash
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.2.0-cdh5.0.0-beta-2
+mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.1-cdh5.0.0
 ~~~
 
 The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.

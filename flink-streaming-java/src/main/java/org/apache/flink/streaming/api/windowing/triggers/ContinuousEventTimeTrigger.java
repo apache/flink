@@ -21,9 +21,10 @@ package org.apache.flink.streaming.api.windowing.triggers;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -41,8 +42,9 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 
 	private final long interval;
 
-	private final ValueStateDescriptor<Boolean> stateDesc = 
-			new ValueStateDescriptor<>("first", BooleanSerializer.INSTANCE, true);
+	/** When merging we take the lowest of all fire timestamps as the new fire timestamp. */
+	private final ReducingStateDescriptor<Long> stateDesc =
+			new ReducingStateDescriptor<>("fire-time", new Min(), LongSerializer.INSTANCE);
 
 	private ContinuousEventTimeTrigger(long interval) {
 		this.interval = interval;
@@ -51,24 +53,32 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 
-		ValueState<Boolean> first = ctx.getPartitionedState(stateDesc);
+		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 
-		if (first.value()) {
+		if (fireTimestamp.get() == null) {
 			long start = timestamp - (timestamp % interval);
 			long nextFireTimestamp = start + interval;
 
 			ctx.registerEventTimeTimer(nextFireTimestamp);
 
-			first.update(false);
+			fireTimestamp.add(nextFireTimestamp);
 			return TriggerResult.CONTINUE;
 		}
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
-		ctx.registerEventTimeTimer(time + interval);
-		return TriggerResult.FIRE;
+	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
+		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+
+		if (fireTimestamp.get().equals(time)) {
+			fireTimestamp.clear();
+			fireTimestamp.add(time + interval);
+			ctx.registerEventTimeTimer(time + interval);
+			return TriggerResult.FIRE;
+
+		}
+		return TriggerResult.CONTINUE;
 	}
 
 	@Override
@@ -77,7 +87,21 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public void clear(W window, TriggerContext ctx) throws Exception {}
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+		fireTimestamp.clear();
+	}
+
+	@Override
+	public boolean canMerge() {
+		return true;
+	}
+
+	@Override
+	public TriggerResult onMerge(W window, OnMergeContext ctx) {
+		ctx.mergePartitionedState(stateDesc);
+		return TriggerResult.CONTINUE;
+	}
 
 	@Override
 	public String toString() {
@@ -97,5 +121,14 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	 */
 	public static <W extends Window> ContinuousEventTimeTrigger<W> of(Time interval) {
 		return new ContinuousEventTimeTrigger<>(interval.toMilliseconds());
+	}
+
+	private static class Min implements ReduceFunction<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long reduce(Long value1, Long value2) throws Exception {
+			return Math.min(value1, value2);
+		}
 	}
 }

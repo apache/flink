@@ -38,8 +38,9 @@ public class WriteIntoKafka {
 	public static void main(String[] args) throws Exception {
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
 		if(parameterTool.getNumberOfParameters() < 2) {
-			System.out.println("Missing parameters!\nUsage: Kafka --topic <topic> --bootstrap.servers <kafka brokers>");
-			System.exit(1);
+			System.out.println("Missing parameters!");
+			System.out.println("Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers>");
+			return;
 		}
 
 		StreamExecutionEnvironment env =StreamExecutionEnvironment.getExecutionEnvironment();

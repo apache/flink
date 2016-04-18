@@ -17,83 +17,60 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.aggregation.Aggregations
-
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.tools.RelBuilder.AggCall
 
 abstract sealed class Aggregation extends UnaryExpression { self: Product =>
-  def typeInfo = {
-    child.typeInfo match {
-      case BasicTypeInfo.LONG_TYPE_INFO => // ok
-      case BasicTypeInfo.INT_TYPE_INFO =>
-      case BasicTypeInfo.DOUBLE_TYPE_INFO =>
-      case BasicTypeInfo.FLOAT_TYPE_INFO =>
-      case BasicTypeInfo.BYTE_TYPE_INFO =>
-      case BasicTypeInfo.SHORT_TYPE_INFO =>
-      case _ =>
-      throw new ExpressionException(s"Unsupported type ${child.typeInfo} for " +
-        s"aggregation $this. Only numeric data types supported.")
-    }
-    child.typeInfo
-  }
 
   override def toString = s"Aggregate($child)"
 
-  def getIntermediateFields: Seq[Expression]
-  def getFinalField(inputs: Seq[Expression]): Expression
-  def getAggregations: Seq[Aggregations]
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode =
+    throw new UnsupportedOperationException("Aggregate cannot be transformed to RexNode")
+
+  /**
+    * Convert Aggregate to its counterpart in Calcite, i.e. AggCall
+    */
+  def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall
 }
 
 case class Sum(child: Expression) extends Aggregation {
   override def toString = s"($child).sum"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(child)
-  override def getFinalField(inputs: Seq[Expression]): Expression = inputs(0)
-  override def getAggregations = Seq(Aggregations.SUM)
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.SUM, false, null, name, child.toRexNode)
+  }
 }
 
 case class Min(child: Expression) extends Aggregation {
   override def toString = s"($child).min"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(child)
-  override def getFinalField(inputs: Seq[Expression]): Expression = inputs(0)
-  override def getAggregations = Seq(Aggregations.MIN)
-
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.MIN, false, null, name, child.toRexNode)
+  }
 }
 
 case class Max(child: Expression) extends Aggregation {
   override def toString = s"($child).max"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(child)
-  override def getFinalField(inputs: Seq[Expression]): Expression = inputs(0)
-  override def getAggregations = Seq(Aggregations.MAX)
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.MAX, false, null, name, child.toRexNode)
+  }
 }
 
 case class Count(child: Expression) extends Aggregation {
-  override def typeInfo = {
-    child.typeInfo match {
-      case _ => // we can count anything... :D
-    }
-    BasicTypeInfo.INT_TYPE_INFO
-  }
-
   override def toString = s"($child).count"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(Literal(Integer.valueOf(1)))
-  override def getFinalField(inputs: Seq[Expression]): Expression = inputs(0)
-  override def getAggregations = Seq(Aggregations.SUM)
-
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.COUNT, false, null, name, child.toRexNode)
+  }
 }
 
 case class Avg(child: Expression) extends Aggregation {
   override def toString = s"($child).avg"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(child, Literal(1))
-  // This is just sweet. Use our own AST representation and let the code generator do
-  // our dirty work.
-  override def getFinalField(inputs: Seq[Expression]): Expression =
-    Div(inputs(0), inputs(1))
-  override def getAggregations = Seq(Aggregations.SUM, Aggregations.SUM)
-
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.AVG, false, null, name, child.toRexNode)
+  }
 }

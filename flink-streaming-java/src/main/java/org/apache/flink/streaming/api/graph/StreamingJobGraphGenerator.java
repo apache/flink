@@ -24,7 +24,6 @@ import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -52,7 +51,6 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +110,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public JobGraph createJobGraph() {
-		jobGraph = new JobGraph(streamGraph.getJobName());
+		jobGraph = new JobGraph(streamGraph.getJobName(), streamGraph.getExecutionConfig());
 
 		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
@@ -131,14 +129,13 @@ public class StreamingJobGraphGenerator {
 		
 		configureCheckpointing();
 
-		configureRestartStrategy();
-
 		try {
-			InstantiationUtil.writeObjectToConfig(this.streamGraph.getExecutionConfig(), this.jobGraph.getJobConfiguration(), ExecutionConfig.CONFIG_KEY);
+			// make sure that we can send the ExecutionConfig without user code object problems
+			jobGraph.getExecutionConfig().serializeUserCode();
 		} catch (IOException e) {
-			throw new RuntimeException("Config object could not be written to Job Configuration: ", e);
+			throw new IllegalStateException("Could not serialize ExecutionConfig.", e);
 		}
-		
+
 		return jobGraph;
 	}
 
@@ -486,15 +483,11 @@ public class StreamingJobGraphGenerator {
 
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
 			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
-				// if the user enabled checkpointing, the default number of exec retries is infinitive.
+				// if the user enabled checkpointing, the default number of exec retries is infinite.
 				streamGraph.getExecutionConfig().setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		}
-	}
-
-	private void configureRestartStrategy() {
-		jobGraph.setRestartStrategyConfiguration(streamGraph.getExecutionConfig().getRestartStrategy());
 	}
 
 	// ------------------------------------------------------------------------

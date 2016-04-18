@@ -59,8 +59,8 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 		DataSet<MyPojo> result = myPojos.groupBy("groupMe")
 			.sortGroup("value", Order.DESCENDING)
 			.first(1);
-		List<MyPojo> resultList = result.collect();
 
+		List<MyPojo> resultList = result.collect();
 		compareResultAsText(resultList, "A,24.0,Y");
 	}
 

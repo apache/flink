@@ -51,14 +51,16 @@ public class SpoutSplitExample {
 
 	public static void main(final String[] args) throws Exception {
 
+		boolean useFile = SpoutSplitExample.parseParameters(args);
+
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		String[] rawOutputs = new String[] { RandomSpout.EVEN_STREAM, RandomSpout.ODD_STREAM };
 
 		final DataStream<SplitStreamType<Integer>> numbers = env.addSource(
-				new SpoutWrapper<SplitStreamType<Integer>>(new RandomSpout(true, 0),
-						rawOutputs), TypeExtractor.getForObject(new SplitStreamType<Integer>()));
+				new SpoutWrapper<SplitStreamType<Integer>>(new RandomSpout(true, seed), rawOutputs,
+						1000), TypeExtractor.getForObject(new SplitStreamType<Integer>()));
 
 		SplitStream<SplitStreamType<Integer>> splitStream = numbers
 				.split(new StormStreamSelector<Integer>());
@@ -66,12 +68,20 @@ public class SpoutSplitExample {
 		DataStream<SplitStreamType<Integer>> evenStream = splitStream.select(RandomSpout.EVEN_STREAM);
 		DataStream<SplitStreamType<Integer>> oddStream = splitStream.select(RandomSpout.ODD_STREAM);
 
-		evenStream.map(new SplitStreamMapper<Integer>()).returns(Integer.class).map(new Enrich("even")).print();
-		oddStream.transform("oddBolt",
-				TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
-				new BoltWrapper<SplitStreamType<Integer>, Tuple2<String, Integer>>(
-						new VerifyAndEnrichBolt(false)))
-						.print();
+		DataStream<Tuple2<String, Integer>> evenResult = evenStream
+				.map(new SplitStreamMapper<Integer>()).returns(Integer.class).map(new Enrich(true));
+		DataStream<Tuple2<String, Integer>> oddResult = oddStream.map(
+				new SplitStreamMapper<Integer>()).transform("oddBolt",
+						TypeExtractor.getForObject(new Tuple2<String, Integer>("", 0)),
+						new BoltWrapper<Integer, Tuple2<String, Integer>>(new VerifyAndEnrichBolt(false)));
+
+		if (useFile) {
+			evenResult.writeAsText(outputPath + "/even");
+			oddResult.writeAsText(outputPath + "/odd");
+		} else {
+			evenResult.print();
+			oddResult.print();
+		}
 
 		// execute program
 		env.execute("Spout split stream example");
@@ -84,19 +94,57 @@ public class SpoutSplitExample {
 	/**
 	 * Same as {@link VerifyAndEnrichBolt}.
 	 */
-	private final static class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
+	public final static class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 5213888269197438892L;
 		private final Tuple2<String, Integer> out;
+		private final boolean isEven;
 
-		public Enrich(String token) {
-			this.out = new Tuple2<String, Integer>(token, 0);
+		public static boolean errorOccured = false;
+
+		public Enrich(boolean isEven) {
+			this.isEven = isEven;
+			if (isEven) {
+				this.out = new Tuple2<String, Integer>("even", 0);
+			} else {
+				this.out = new Tuple2<String, Integer>("odd", 0);
+			}
 		}
 
 		@Override
 		public Tuple2<String, Integer> map(Integer value) throws Exception {
+			if ((value.intValue() % 2 == 0) != this.isEven) {
+				errorOccured = true;
+			}
 			this.out.setField(value, 1);
 			return this.out;
 		}
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static long seed = System.currentTimeMillis();
+	private static String outputPath = null;
+
+	static boolean parseParameters(final String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			if (args.length == 2) {
+				seed = Long.parseLong(args[0]);
+				outputPath = args[1];
+				return true;
+			} else {
+				throw new IllegalArgumentException(
+						"Usage: SplitStreamBoltLocal <seed> <result path>");
+			}
+		} else {
+			System.out.println("Executing SplitBoltTopology example with random data");
+			System.out.println("  Usage: SplitStreamBoltLocal <seed> <result path>");
+		}
+
+		return false;
 	}
 
 }

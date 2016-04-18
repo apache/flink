@@ -18,15 +18,15 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.hadoop.mapreduce.Job;
+
+import java.io.IOException;
 
 /**
  * InputFormat implementation allowing to use Hadoop (mapreduce) InputFormats with Flink.
@@ -49,10 +49,10 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if(!this.fetched) {
+		if (!this.fetched) {
 			fetchNext();
 		}
-		if(!this.hasNext) {
+		if (!this.hasNext) {
 			return null;
 		}
 		try {

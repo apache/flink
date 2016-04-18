@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
@@ -32,6 +33,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.util.Arrays;
 
 /**
  * This operator represents a partitioning.
@@ -45,35 +48,46 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 	private final PartitionMethod pMethod;
 	private final String partitionLocationName;
 	private final Partitioner<?> customPartitioner;
-	
-	
+	private final DataDistribution distribution;
+
+
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, String partitionLocationName) {
-		this(input, pMethod, pKeys, null, null, partitionLocationName);
+		this(input, pMethod, pKeys, null, null, null, partitionLocationName);
 	}
-	
+
+	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, DataDistribution distribution, String partitionLocationName) {
+		this(input, pMethod, pKeys, null, null, distribution, partitionLocationName);
+	}
+
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, String partitionLocationName) {
-		this(input, pMethod, null, null, null, partitionLocationName);
+		this(input, pMethod, null, null, null, null, partitionLocationName);
 	}
 	
 	public PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<?> customPartitioner, String partitionLocationName) {
-		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, null, partitionLocationName);
+		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, null, null, partitionLocationName);
 	}
 	
-	public <P> PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<P> customPartitioner, 
+	public <P> PartitionOperator(DataSet<T> input, Keys<T> pKeys, Partitioner<P> customPartitioner,
 			TypeInformation<P> partitionerTypeInfo, String partitionLocationName)
 	{
-		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, partitionerTypeInfo, partitionLocationName);
+		this(input, PartitionMethod.CUSTOM, pKeys, customPartitioner, partitionerTypeInfo, null, partitionLocationName);
 	}
 	
-	private <P> PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, Partitioner<P> customPartitioner, 
-			TypeInformation<P> partitionerTypeInfo, String partitionLocationName)
+	private <P> PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, Partitioner<P> customPartitioner,
+			TypeInformation<P> partitionerTypeInfo, DataDistribution distribution, String partitionLocationName)
 	{
 		super(input, input.getType());
 		
 		Preconditions.checkNotNull(pMethod);
 		Preconditions.checkArgument(pKeys != null || pMethod == PartitionMethod.REBALANCE, "Partitioning requires keys");
 		Preconditions.checkArgument(pMethod != PartitionMethod.CUSTOM || customPartitioner != null, "Custom partioning requires a partitioner.");
-
+		Preconditions.checkArgument(distribution == null || pMethod == PartitionMethod.RANGE, "Customized data distribution is only neccessary for range partition.");
+		
+		if (distribution != null) {
+			Preconditions.checkArgument(distribution.getNumberOfFields() == pKeys.getNumberOfKeyFields(), "The number of key fields in the distribution and range partitioner should be the same.");
+			Preconditions.checkArgument(Arrays.equals(distribution.getKeyTypes(), pKeys.getKeyFieldTypes()), "The types of key from the distribution and range partitioner are not equal.");
+		}
+		
 		if (customPartitioner != null) {
 			pKeys.validateCustomPartitioner(customPartitioner, partitionerTypeInfo);
 		}
@@ -82,6 +96,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		this.pKeys = pKeys;
 		this.partitionLocationName = partitionLocationName;
 		this.customPartitioner = customPartitioner;
+		this.distribution = distribution;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -125,6 +140,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 				PartitionOperatorBase<T> partitionedInput = new PartitionOperatorBase<>(operatorInfo, pMethod, logicalKeyPositions, name);
 				partitionedInput.setInput(input);
 				partitionedInput.setParallelism(getParallelism());
+				partitionedInput.setDistribution(distribution);
 				partitionedInput.setCustomPartitioner(customPartitioner);
 				
 				return partitionedInput;

@@ -26,6 +26,7 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +42,7 @@ public class Instance {
 	/** The lock on which to synchronize allocations and failure state changes */
 	private final Object instanceLock = new Object();
 
-	/** The instacne gateway to communicate with the instance */
+	/** The instance gateway to communicate with the instance */
 	private final ActorGateway actorGateway;
 
 	/** The instance connection information for the data transfer. */
@@ -49,6 +50,9 @@ public class Instance {
 
 	/** A description of the resources of the task manager */
 	private final HardwareDescription resources;
+
+	/** The ID identifies the resource the task manager runs on */
+	private final ResourceID resourceId;
 
 	/** The ID identifying the taskManager. */
 	private final InstanceID instanceId;
@@ -81,6 +85,7 @@ public class Instance {
 	 *
 	 * @param actorGateway The actor gateway to communicate with the remote instance
 	 * @param connectionInfo The remote connection where the task manager receives requests.
+	 * @param resourceId The resource id which denotes the resource the task manager uses.
 	 * @param id The id under which the taskManager is registered.
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
@@ -88,11 +93,13 @@ public class Instance {
 	public Instance(
 			ActorGateway actorGateway,
 			InstanceConnectionInfo connectionInfo,
+			ResourceID resourceId,
 			InstanceID id,
 			HardwareDescription resources,
 			int numberOfSlots) {
 		this.actorGateway = actorGateway;
 		this.connectionInfo = connectionInfo;
+		this.resourceId = resourceId;
 		this.instanceId = id;
 		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
@@ -106,6 +113,10 @@ public class Instance {
 	// --------------------------------------------------------------------------------------------
 	// Properties
 	// --------------------------------------------------------------------------------------------
+
+	public ResourceID getResourceId() {
+		return resourceId;
+	}
 
 	public InstanceID getId() {
 		return instanceId;

@@ -17,77 +17,69 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo}
+import scala.collection.JavaConversions._
+
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.tools.RelBuilder
 
 abstract class BinaryComparison extends BinaryExpression { self: Product =>
-  def typeInfo = {
-    if (!left.typeInfo.isInstanceOf[NumericTypeInfo[_]]) {
-      throw new ExpressionException(s"Non-numeric operand ${left} in $this")
-    }
-    if (!right.typeInfo.isInstanceOf[NumericTypeInfo[_]]) {
-      throw new ExpressionException(s"Non-numeric operand ${right} in $this")
-    }
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
+  def sqlOperator: SqlOperator
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(sqlOperator, children.map(_.toRexNode))
   }
 }
 
 case class EqualTo(left: Expression, right: Expression) extends BinaryComparison {
-  override def typeInfo = {
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
-
   override def toString = s"$left === $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 }
 
 case class NotEqualTo(left: Expression, right: Expression) extends BinaryComparison {
-  override def typeInfo = {
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
-
   override def toString = s"$left !== $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 }
 
 case class GreaterThan(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left > $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN
 }
 
 case class GreaterThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left >= $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
 }
 
 case class LessThan(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left < $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN
 }
 
 case class LessThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left <= $right"
+
+  val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN_OR_EQUAL
 }
 
 case class IsNull(child: Expression) extends UnaryExpression {
-  def typeInfo = {
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
-
   override def toString = s"($child).isNull"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.isNull(child.toRexNode)
+  }
 }
 
 case class IsNotNull(child: Expression) extends UnaryExpression {
-  def typeInfo = {
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
-
   override def toString = s"($child).isNotNull"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.isNotNull(child.toRexNode)
+  }
 }

@@ -55,6 +55,18 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
+	public boolean canMerge() {
+		return true;
+	}
+
+	@Override
+	public TriggerResult onMerge(TimeWindow window,
+			OnMergeContext ctx) {
+		ctx.registerEventTimeTimer(window.maxTimestamp());
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
 	public String toString() {
 		return "EventTimeTrigger()";
 	}

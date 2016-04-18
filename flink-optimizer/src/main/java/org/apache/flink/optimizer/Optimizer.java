@@ -473,12 +473,12 @@ public class Optimizer {
 		}
 
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
-		// guaranteed memory, for further cost estimations. we assume an equal distribution of memory among consumer tasks
+		// guaranteed memory, for further cost estimations. We assume an equal distribution of memory among consumer tasks
 		rootNode.accept(new IdAndEstimatesVisitor(this.statistics));
 
 		// We are dealing with operator DAGs, rather than operator trees.
 		// That requires us to deviate at some points from the classical DB optimizer algorithms.
-		// This step build some auxiliary structures to help track branches and joins in the DAG
+		// This step builds auxiliary structures to help track branches and joins in the DAG
 		BranchesVisitor branchingVisitor = new BranchesVisitor();
 		rootNode.accept(branchingVisitor);
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.table.test;
 
-import org.apache.flink.api.table.ExpressionException;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
@@ -36,28 +35,36 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
-
 	public GroupedAggregationsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
-	@Test(expected = ExpressionException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testGroupingOnNonExistentField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		tableEnv
+			.fromDataSet(input, "a, b, c")
+			// must fail. Field foo is not in input
+			.groupBy("foo")
+			.select("a.avg");
+	}
 
-		Table result = table
-				.groupBy("foo").select("a.avg");
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupingInvalidSelection() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "";
-		compareResultAsText(results, expected);
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+
+		tableEnv
+			.fromDataSet(input, "a, b, c")
+			.groupBy("a, b")
+			// must fail. Field c is not a grouping key or aggregation
+			.select("c");
 	}
 
 	@Test
@@ -66,9 +73,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.groupBy("b").select("b, a.sum");
@@ -81,17 +86,11 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testGroupingKeyForwardIfNotUsed() throws Exception {
-
-		// the grouping key needs to be forwarded to the intermediate DataSet, even
-		// if we don't want the key in the output
-
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-				tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 				.groupBy("b").select("a.sum");
@@ -109,15 +108,12 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-
-		Table table =
-			tableEnv.fromDataSet(input, "a, b, c");
+		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
 		Table result = table
 			.groupBy("b").select("a.sum as d, b").groupBy("b, d").select("b");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-
 		String expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n";
 		List<Row> results = ds.collect();
 		compareResultAsText(results, expected);

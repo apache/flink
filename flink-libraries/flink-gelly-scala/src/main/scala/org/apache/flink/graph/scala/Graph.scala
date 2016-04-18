@@ -31,6 +31,9 @@ import org.apache.flink.{graph => jg}
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
 import org.apache.flink.types.NullValue
+import org.apache.flink.graph.pregel.ComputeFunction
+import org.apache.flink.graph.pregel.MessageCombiner
+import org.apache.flink.graph.pregel.VertexCentricConfiguration
 
 object Graph {
 
@@ -1102,6 +1105,43 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   SumFunction[VV, EV, M], applyFunction: ApplyFunction[K, VV, M], maxIterations: Int,
                                     parameters: GSAConfiguration): Graph[K, VV, EV] = {
     wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
+      maxIterations, parameters))
+  }
+
+   /**
+   * Runs a vertex-centric iteration on the graph.
+   * No configuration options are provided.
+   *
+   * @param computeFunction the compute function
+   * @param combineFunction the optional message combiner function
+   * @param maxIterations maximum number of iterations to perform
+   *
+   * @return the updated Graph after the vertex-centric iteration has converged or
+   *         after maximumNumberOfIterations.
+   */
+  def runVertexCentricIteration[M](computeFunction: ComputeFunction[K, VV, EV, M],
+                                   combineFunction: MessageCombiner[K, M],
+                                   maxIterations: Int): Graph[K, VV, EV] = {
+    wrapGraph(jgraph.runVertexCentricIteration(computeFunction, combineFunction,
+      maxIterations))
+  }
+
+  /**
+   * Runs a vertex-centric iteration on the graph with configuration options.
+   *
+   * @param computeFunction the compute function
+   * @param combineFunction the optional message combiner function
+   * @param maxIterations maximum number of iterations to perform
+   * @param parameters the iteration configuration parameters
+   *
+   * @return the updated Graph after the vertex-centric iteration has converged or
+   *         after maximumNumberOfIterations.
+   */
+  def runVertexCentricIteration[M](computeFunction: ComputeFunction[K, VV, EV, M],
+                                   combineFunction: MessageCombiner[K, M],
+                                   maxIterations: Int, parameters: VertexCentricConfiguration):
+  Graph[K, VV, EV] = {
+    wrapGraph(jgraph.runVertexCentricIteration(computeFunction, combineFunction,
       maxIterations, parameters))
   }
 

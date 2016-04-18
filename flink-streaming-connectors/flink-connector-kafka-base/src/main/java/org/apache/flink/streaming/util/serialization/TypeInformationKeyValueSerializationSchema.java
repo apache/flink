@@ -177,6 +177,11 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 		return res;
 	}
 
+	@Override
+	public String getTargetTopic(Tuple2<K, V> element) {
+		return null; // we are never overriding the topic
+	}
+
 
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {

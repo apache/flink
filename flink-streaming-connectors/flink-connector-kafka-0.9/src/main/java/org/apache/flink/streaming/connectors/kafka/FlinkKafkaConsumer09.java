@@ -387,6 +387,10 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 	@Override
 	protected void commitOffsets(HashMap<KafkaTopicPartition, Long> checkpointOffsets) {
+		if(!running) {
+			LOG.warn("Unable to commit offsets on closed consumer");
+			return;
+		}
 		Map<TopicPartition, OffsetAndMetadata> kafkaCheckpointOffsets = convertToCommitMap(checkpointOffsets);
 		synchronized (this.consumer) {
 			this.consumer.commitSync(kafkaCheckpointOffsets);

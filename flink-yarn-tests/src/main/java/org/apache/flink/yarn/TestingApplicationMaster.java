@@ -20,13 +20,18 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
+import org.apache.flink.runtime.testutils.TestingResourceManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.SignalHandler;
 
 /**
- * Yarn application master which starts the {@link TestingYarnJobManager} and the
- * {@link TestingMemoryArchivist}.
+ * Yarn application master which starts the {@link TestingYarnJobManager},
+ * {@link TestingResourceManager}, and the {@link TestingMemoryArchivist}.
  */
-public class TestingApplicationMaster extends ApplicationMasterBase {
+public class TestingApplicationMaster extends YarnApplicationMasterRunner {
+
 	@Override
 	public Class<? extends JobManager> getJobManagerClass() {
 		return TestingYarnJobManager.class;
@@ -37,9 +42,23 @@ public class TestingApplicationMaster extends ApplicationMasterBase {
 		return TestingMemoryArchivist.class;
 	}
 
-	public static void main(String[] args) {
-		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
-
-		applicationMaster.run(args);
+	@Override
+	protected Class<? extends TaskManager> getTaskManagerClass() {
+		return TestingYarnTaskManager.class;
 	}
+
+	@Override
+	public Class<? extends YarnFlinkResourceManager> getResourceManagerClass() {
+		return TestingYarnFlinkResourceManager.class;
+	}
+
+	public static void main(String[] args) {
+		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster / JobManager", args);
+		SignalHandler.register(LOG);
+
+		// run and exit with the proper return code
+		int returnCode = new TestingApplicationMaster().run(args);
+		System.exit(returnCode);
+	}
+
 }

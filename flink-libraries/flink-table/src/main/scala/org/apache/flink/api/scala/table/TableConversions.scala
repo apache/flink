@@ -21,27 +21,40 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.api.table._
-
 import org.apache.flink.streaming.api.scala.DataStream
 
 /**
- * Methods for converting a [[Table]] to a [[DataSet]] or [[DataStream]]. A [[Table]] is
+ * Methods for converting a [[Table]] to a [[DataSet]] or a [[DataStream]]. A [[Table]] is
  * wrapped in this by the implicit conversions in [[org.apache.flink.api.scala.table]].
  */
 class TableConversions(table: Table) {
 
   /**
-   * Converts the [[Table]] to a [[DataSet]].
+   * Converts the [[Table]] to a [[DataSet]] using the default configuration.
    */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
-     new ScalaBatchTranslator().translate[T](table.operation)
+     new ScalaBatchTranslator().translate[T](table.relNode)
   }
 
   /**
-   * Converts the [[Table]] to a [[DataStream]].
+   * Converts the [[Table]] to a [[DataSet]] using a custom configuration.
+   */
+  def toDataSet[T: TypeInformation](config: TableConfig): DataSet[T] = {
+     new ScalaBatchTranslator(config).translate[T](table.relNode)
+  }
+
+  /**
+   * Converts the [[Table]] to a [[DataStream]] using the default configuration.
    */
   def toDataStream[T: TypeInformation]: DataStream[T] = {
-    new ScalaStreamingTranslator().translate[T](table.operation)
+     new ScalaStreamTranslator().translate[T](table.relNode)
+  }
+
+  /**
+   * Converts the [[Table]] to a [[DataStream]] using a custom configuration.
+   */
+  def toDataStream[T: TypeInformation](config: TableConfig): DataStream[T] = {
+     new ScalaStreamTranslator(config).translate[T](table.relNode)
   }
 }
 

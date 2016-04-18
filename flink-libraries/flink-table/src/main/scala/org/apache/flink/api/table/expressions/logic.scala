@@ -17,42 +17,40 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 
-abstract class BinaryPredicate extends BinaryExpression { self: Product =>
-  def typeInfo = {
-    if (left.typeInfo != BasicTypeInfo.BOOLEAN_TYPE_INFO ||
-      right.typeInfo != BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      throw new ExpressionException(s"Non-boolean operand types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
-}
+abstract class BinaryPredicate extends BinaryExpression { self: Product => }
 
 case class Not(child: Expression) extends UnaryExpression {
-  def typeInfo = {
-    if (child.typeInfo != BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      throw new ExpressionException(s"Non-boolean operand type ${child.typeInfo} in $this")
-    }
-    BasicTypeInfo.BOOLEAN_TYPE_INFO
-  }
 
   override val name = Expression.freshName("not-" + child.name)
 
   override def toString = s"!($child)"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.not(child.toRexNode)
+  }
 }
 
 case class And(left: Expression, right: Expression) extends BinaryPredicate {
+
   override def toString = s"$left && $right"
 
   override val name = Expression.freshName(left.name + "-and-" + right.name)
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.and(left.toRexNode, right.toRexNode)
+  }
 }
 
 case class Or(left: Expression, right: Expression) extends BinaryPredicate {
+
   override def toString = s"$left || $right"
 
   override val name = Expression.freshName(left.name + "-or-" + right.name)
 
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.or(left.toRexNode, right.toRexNode)
+  }
 }

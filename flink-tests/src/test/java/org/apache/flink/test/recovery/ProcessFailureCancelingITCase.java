@@ -100,7 +100,7 @@ public class ProcessFailureCancelingITCase {
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 10);
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
-			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
+			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,

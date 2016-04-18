@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -70,7 +71,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the savepoint coordinator.
  */
-public class SavepointCoordinatorTest {
+public class SavepointCoordinatorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	// Trigger and acknowledge
@@ -478,9 +479,10 @@ public class SavepointCoordinatorTest {
 		ExecutionVertex commitVertex = mockExecutionVertex(jobId);
 		MockCheckpointIdCounter checkpointIdCounter = new MockCheckpointIdCounter();
 
+		long checkpointTimeout = 1000;
 		SavepointCoordinator coordinator = createSavepointCoordinator(
 				jobId,
-				20,
+				checkpointTimeout,
 				vertices,
 				vertices,
 				new ExecutionVertex[] { commitVertex },
@@ -492,19 +494,14 @@ public class SavepointCoordinatorTest {
 		assertFalse(savepointPathFuture.isCompleted());
 
 		long checkpointId = checkpointIdCounter.getLastReturnedCount();
-
-		// Acknowledge single task
-		coordinator.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(
-				jobId, vertices[0].getCurrentExecutionAttempt().getAttemptId(),
-				checkpointId, createSerializedStateHandle(vertices[0]), 0));
-
 		PendingCheckpoint pendingCheckpoint = coordinator.getPendingCheckpoints()
 				.get(checkpointId);
 
-		assertFalse(pendingCheckpoint.isDiscarded());
+		assertNotNull("Checkpoint not pending (test race)", pendingCheckpoint);
+		assertFalse("Checkpoint already discarded (test race)", pendingCheckpoint.isDiscarded());
 
 		// Wait for savepoint to timeout
-		Deadline deadline = FiniteDuration.apply(5, "s").fromNow();
+		Deadline deadline = FiniteDuration.apply(60, "s").fromNow();
 		while (deadline.hasTimeLeft()
 				&& !pendingCheckpoint.isDiscarded()
 				&& coordinator.getNumberOfPendingCheckpoints() > 0) {
@@ -513,7 +510,7 @@ public class SavepointCoordinatorTest {
 		}
 
 		// Verify discarded
-		assertTrue(pendingCheckpoint.isDiscarded());
+		assertTrue("Savepoint not discarded within timeout", pendingCheckpoint.isDiscarded());
 		assertEquals(0, coordinator.getNumberOfPendingCheckpoints());
 		assertEquals(0, coordinator.getNumberOfRetainedSuccessfulCheckpoints());
 

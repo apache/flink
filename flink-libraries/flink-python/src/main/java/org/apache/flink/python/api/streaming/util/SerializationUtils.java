@@ -244,9 +244,10 @@ public class SerializationUtils {
 			}
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public byte[] serializeWithoutTypeInfo(Tuple value) {
-			ArrayList<byte[]> bits = new ArrayList();
+			ArrayList<byte[]> bits = new ArrayList<>();
 
 			int totalSize = 0;
 			for (int x = 0; x < serializer.length; x++) {
