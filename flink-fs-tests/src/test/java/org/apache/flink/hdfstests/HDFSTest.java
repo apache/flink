@@ -115,7 +115,7 @@ public class HDFSTest {
 			}
 			
 			Assert.assertTrue("No result file present", hdfs.exists(result));
-			
+
 			// validate output:
 			org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
 			StringWriter writer = new StringWriter();
