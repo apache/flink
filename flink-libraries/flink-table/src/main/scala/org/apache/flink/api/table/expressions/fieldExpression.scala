@@ -23,7 +23,24 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.validate.ExprValidationResult
 
-case class UnresolvedFieldReference(override val name: String) extends LeafExpression {
+object NamedExpression {
+  private val curId = new java.util.concurrent.atomic.AtomicInteger()
+  def newExprId: Int = curId.getAndIncrement()
+}
+
+trait NamedExpression extends Expression {
+  def name: String
+  def exprId: Int
+  def toAttribute: Attribute
+}
+
+abstract class Attribute extends LeafExpression with NamedExpression {
+  override def toAttribute: Attribute = this
+}
+
+case class UnresolvedFieldReference(name: String) extends Attribute {
+  override def exprId: Int = throw new UnresolvedException(s"calling exprId on ${this.getClass}")
+
   override def toString = "\"" + name
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -38,12 +55,17 @@ case class UnresolvedFieldReference(override val name: String) extends LeafExpre
 }
 
 case class ResolvedFieldReference(
-    override val name: String,
-    dataType: TypeInformation[_]) extends LeafExpression {
+    name: String,
+    dataType: TypeInformation[_])(
+    val exprId: Int = NamedExpression.newExprId) extends Attribute {
+
   override def toString = s"'$name"
 }
 
-case class Naming(child: Expression, override val name: String) extends UnaryExpression {
+case class Alias(child: Expression, name: String)
+    extends UnaryExpression with NamedExpression {
+  val exprId: Int = NamedExpression.newExprId
+
   override def toString = s"$child as '$name"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -56,4 +78,28 @@ case class Naming(child: Expression, override val name: String) extends UnaryExp
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, name).asInstanceOf[this.type]
   }
+
+  override def toAttribute: Attribute = {
+    if (valid) {
+      ResolvedFieldReference(name, child.dataType)(exprId)
+    } else {
+      UnresolvedFieldReference(name)
+    }
+  }
+}
+
+case class UnresolvedAlias(
+    child: Expression,
+    aliasName: Option[String] = None) extends UnaryExpression with NamedExpression {
+
+  override def name: String =
+    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
+  override def toAttribute: Attribute =
+    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+  override def exprId: Int =
+    throw new UnresolvedException("Invalid call to exprId on UnresolvedAlias")
+  override def dataType: TypeInformation[_] =
+    throw new UnresolvedException("Invalid call to dataType on UnresolvedAlias")
+
+  override lazy val valid = false
 }

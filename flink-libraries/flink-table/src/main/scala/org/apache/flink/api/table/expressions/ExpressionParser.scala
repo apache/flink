@@ -94,8 +94,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       stringLiteralFlink | singleQuoteStringLiteral |
       boolLiteral
 
-  lazy val fieldReference: PackratParser[Expression] = ident ^^ {
-    case sym => UnresolvedFieldReference(sym)
+  lazy val fieldReference: PackratParser[NamedExpression] = ident ^^ {
+    sym => UnresolvedFieldReference(sym)
   }
 
   lazy val atom: PackratParser[Expression] =
@@ -131,7 +131,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     atom <~ ".cast(DATE)" ^^ { e => Cast(e, BasicTypeInfo.DATE_TYPE_INFO) }
 
   lazy val as: PackratParser[Expression] = atom ~ ".as(" ~ fieldReference ~ ")" ^^ {
-    case e ~ _ ~ target ~ _ => Naming(e, target.name)
+    case e ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
   lazy val eval: PackratParser[Expression] = atom ~
@@ -261,7 +261,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   // alias
 
   lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
-    case e ~ _ ~ name => Naming(e, name.name)
+    case e ~ _ ~ name => Alias(e, name.name)
   } | logic
 
   lazy val expression: PackratParser[Expression] = alias

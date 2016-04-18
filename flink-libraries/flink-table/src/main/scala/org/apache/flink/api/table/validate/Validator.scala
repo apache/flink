@@ -15,30 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.logical
+package org.apache.flink.api.table.validate
 
-import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.table.expressions.Attribute
-import org.apache.flink.api.table.trees.TreeNode
+import org.apache.flink.api.table.plan.logical.LogicalNode
 
-abstract class LogicalNode extends TreeNode[LogicalNode] {
-  def output: Seq[Attribute]
-  def toRelNode(relBuilder: RelBuilder): RelBuilder
-}
+class Validator {
 
-abstract class LeafNode extends LogicalNode {
-  override def children: Seq[LogicalNode] = Nil
-}
+  def resolve(logical: LogicalNode): LogicalNode = ???
 
-abstract class UnaryNode extends LogicalNode {
-  def child: LogicalNode
+  /**
+    * This would throw ValidationException on failure
+    */
+  def validate(resolved: LogicalNode): Unit = ???
 
-  override def children: Seq[LogicalNode] = child :: Nil
-}
-
-abstract class BinaryNode extends LogicalNode {
-  def left: LogicalNode
-  def right: LogicalNode
-
-  override def children: Seq[LogicalNode] = left :: right :: Nil
 }

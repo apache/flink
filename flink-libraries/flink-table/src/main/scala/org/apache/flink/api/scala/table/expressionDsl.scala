@@ -63,7 +63,7 @@ trait ImplicitExpressionOperations {
 
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)
 
-  def as(name: Symbol) = Naming(expr, name.name)
+  def as(name: Symbol) = Alias(expr, name.name)
 
   /**
     * Conditional operator that decides which of two other expressions should be evaluated

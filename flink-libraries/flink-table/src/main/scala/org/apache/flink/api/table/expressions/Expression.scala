@@ -17,8 +17,6 @@
  */
 package org.apache.flink.api.table.expressions
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
@@ -27,8 +25,6 @@ import org.apache.flink.api.table.trees.TreeNode
 import org.apache.flink.api.table.validate.ExprValidationResult
 
 abstract class Expression extends TreeNode[Expression] {
-  def name: String = Expression.freshName("expression")
-
   /**
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It is sometimes available until the expression is valid.
@@ -71,12 +67,4 @@ abstract class UnaryExpression extends Expression {
 
 abstract class LeafExpression extends Expression {
   val children = Nil
-}
-
-object Expression {
-  def freshName(prefix: String): String = {
-    s"$prefix-${freshNameCounter.getAndIncrement}"
-  }
-
-  val freshNameCounter = new AtomicInteger
 }

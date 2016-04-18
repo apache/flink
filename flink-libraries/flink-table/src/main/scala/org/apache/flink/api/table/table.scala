@@ -21,21 +21,19 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
-import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.util.NlsString
+import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggCalls
-import org.apache.flink.api.table.expressions.{ExpressionParser, Naming,
-          UnresolvedFieldReference, Expression}
+import org.apache.flink.api.table.plan.RexNodeTranslator.{extractAggCalls, extractAggregations}
+import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.plan.logical._
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
-
-case class BaseTable(
-  private[flink] val relNode: RelNode,
-  private[flink] val tableEnv: TableEnvironment)
 
 /**
   * A Table is the core component of the Table API.
@@ -64,18 +62,22 @@ case class BaseTable(
   * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
   * syntax.
   *
-  * @param relNode The root node of the relational Calcite [[RelNode]] tree.
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
+  * @param planPreparation
   */
 class Table(
-  private[flink] override val relNode: RelNode,
-  private[flink] override val tableEnv: TableEnvironment)
-  extends BaseTable(relNode, tableEnv)
-{
+    private[flink] val tableEnv: TableEnvironment,
+    private[flink] val planPreparation: PlanPreparation) {
+
+  def this(tableEnv: TableEnvironment, logicalPlan: LogicalNode) = {
+    this(tableEnv, new PlanPreparation(tableEnv, logicalPlan))
+  }
 
   def relBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = relNode
+  def getRelNode: RelNode = planPreparation.relNode
+
+  def logicalPlan: LogicalNode = planPreparation.resolvedPlan
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -88,38 +90,49 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    withPlan {
+      val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
+      val aggregations = projectionOnAggregates.flatMap(_._2)
 
-    checkUniqueNames(fields)
-
-    relBuilder.push(relNode)
-
-    // separate aggregations and selection expressions
-    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-      .map(extractAggCalls(_, tableEnv)).toList
-
-    // get aggregation calls
-    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
-
-    // apply aggregations
-    if (aggCalls.nonEmpty) {
-      val emptyKey: GroupKey = relBuilder.groupKey()
-      relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
+      if (aggregations.nonEmpty) {
+        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+          Aggregate(Nil, aggregations, logicalPlan)
+        )
+      } else {
+        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan)
+      }
     }
-
-    // get selection expressions
-    val exprs: List[RexNode] = extractedAggCalls.map(_._1.toRexNode(relBuilder))
-
-    relBuilder.project(exprs.toIterable.asJava)
-    val projected = relBuilder.build()
-
-    if(relNode == projected) {
-      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
-      //   Add a projection ourselves (will be automatically removed by translation rules).
-      new Table(createRenamingProject(exprs), tableEnv)
-    } else {
-      new Table(projected, tableEnv)
-    }
-
+//
+//    checkUniqueNames(fields)
+//
+//    relBuilder.push(relNode)
+//
+//    // separate aggregations and selection expressions
+//    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
+//      .map(extractAggCalls(_, tableEnv)).toList
+//
+//    // get aggregation calls
+//    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
+//
+//    // apply aggregations
+//    if (aggCalls.nonEmpty) {
+//      val emptyKey: GroupKey = relBuilder.groupKey()
+//      relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
+//    }
+//
+//    // get selection expressions
+//    val exprs: List[RexNode] = extractedAggCalls.map(_._1.toRexNode(relBuilder))
+//
+//    relBuilder.project(exprs.toIterable.asJava)
+//    val projected = relBuilder.build()
+//
+//    if(relNode == projected) {
+//      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
+//      //   Add a projection ourselves (will be automatically removed by translation rules).
+//      new Table(createRenamingProject(exprs), tableEnv)
+//    } else {
+//      new Table(projected, tableEnv)
+//    }
   }
 
   /**
@@ -163,7 +176,8 @@ class Table(
     val curFields = curNames.map(new UnresolvedFieldReference(_))
 
     val renamings = fields.zip(curFields).map {
-      case (newName, oldName) => new Naming(oldName, newName.name)
+      case (newName, oldName) =>
+        new Alias(oldName, newName.asInstanceOf[UnresolvedFieldReference].name)
     }
     val remaining = curFields.drop(fields.size)
 
@@ -199,12 +213,11 @@ class Table(
     *   tab.filter('name === "Fred")
     * }}}
     */
-  def filter(predicate: Expression): Table = {
-
-    relBuilder.push(relNode)
-    relBuilder.filter(predicate.toRexNode(relBuilder))
-    
-    new Table(relBuilder.build(), tableEnv)
+  def filter(predicate: Expression): Table = withPlan {
+    logicalPlan match {
+      case j: Join => j.copy(condition = Some(predicate))
+      case o => Filter(predicate, logicalPlan)
+    }
   }
 
   /**
@@ -326,12 +339,19 @@ class Table(
       throw new IllegalArgumentException("Overlapping fields names on join input.")
     }
 
+
+
     relBuilder.push(relNode)
     relBuilder.push(right.relNode)
 
     relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
     val join = relBuilder.build()
     new Table(join, tableEnv)
+
+
+    withPlan {
+      Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None)
+    }
   }
 
   /**
@@ -373,6 +393,8 @@ class Table(
 
     relBuilder.union(true)
     new Table(relBuilder.build(), tableEnv)
+
+    withPlan(Union(logicalPlan, right.logicalPlan))
   }
 
   private def createRenamingProject(exprs: Seq[RexNode]): LogicalProject = {
@@ -397,7 +419,7 @@ class Table(
     val names: mutable.Set[String] = mutable.Set()
 
     exprs.foreach {
-      case n: Naming =>
+      case n: Alias =>
         // explicit name
         if (names.contains(n.name)) {
           throw new IllegalArgumentException(s"Duplicate field name $n.name.")
@@ -415,21 +437,17 @@ class Table(
     }
   }
 
+  @inline protected def withPlan(logicalNode: => LogicalNode): Table = {
+    new Table(tableEnv, logicalNode)
+  }
 }
 
 /**
   * A table that has been grouped on a set of grouping keys.
-  *
-  * @param relNode The root node of the relational Calcite [[RelNode]] tree.
-  * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param groupKey The Calcite [[GroupKey]] of this table.
   */
 class GroupedTable(
-  private[flink] override val relNode: RelNode,
-  private[flink] override val tableEnv: TableEnvironment,
-  private[flink] val groupKey: GroupKey) extends BaseTable(relNode, tableEnv) {
-
-  def relBuilder = tableEnv.getRelBuilder
+  private[flink] val table: Table,
+  private[flink] val groupKey: Seq[Expression]) {
 
   /**
     * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
@@ -443,31 +461,44 @@ class GroupedTable(
     */
   def select(fields: Expression*): Table = {
 
-    relBuilder.push(relNode)
+    val projectionOnAggregates = fields.map(extractAggregations(_, table.tableEnv))
+    val aggregations = projectionOnAggregates.flatMap(_._2)
 
-    // separate aggregations and selection expressions
-    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-      .map(extractAggCalls(_, tableEnv)).toList
-
-    // get aggregation calls
-    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
-
-    // apply aggregations
-    relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
-
-    // get selection expressions
-    val exprs: List[RexNode] = try {
-      extractedAggCalls.map(_._1.toRexNode(relBuilder))
-    } catch {
-      case iae: IllegalArgumentException  =>
-        throw new IllegalArgumentException(
-          "Only grouping fields and aggregations allowed after groupBy.", iae)
-      case e: Exception => throw e
+    val logical = if (aggregations.nonEmpty) {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        Aggregate(groupKey, aggregations, table.logicalPlan) // TODO: remove groupKey from aggregation
+      )
+    } else {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), table.logicalPlan)
     }
 
-    relBuilder.project(exprs.toIterable.asJava)
+    new Table(table.tableEnv, logical)
 
-    new Table(relBuilder.build(), tableEnv)
+//    relBuilder.push(relNode)
+//
+//    // separate aggregations and selection expressions
+//    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
+//      .map(extractAggCalls(_, tableEnv)).toList
+//
+//    // get aggregation calls
+//    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
+//
+//    // apply aggregations
+//    relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
+//
+//    // get selection expressions
+//    val exprs: List[RexNode] = try {
+//      extractedAggCalls.map(_._1.toRexNode(relBuilder))
+//    } catch {
+//      case iae: IllegalArgumentException  =>
+//        throw new IllegalArgumentException(
+//          "Only grouping fields and aggregations allowed after groupBy.", iae)
+//      case e: Exception => throw e
+//    }
+//
+//    relBuilder.project(exprs.toIterable.asJava)
+//
+//    new Table(relBuilder.build(), tableEnv)
   }
 
   /**

@@ -20,4 +20,4 @@ package org.apache.flink.api.table
 /**
  * General Exception for all errors during table handling.
  */
-class TableException(msg: String) extends RuntimeException(msg)
+class XTableException(msg: String) extends RuntimeException(msg)
