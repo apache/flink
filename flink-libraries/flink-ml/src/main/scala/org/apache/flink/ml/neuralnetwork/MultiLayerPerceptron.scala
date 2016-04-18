@@ -50,11 +50,6 @@ class MultiLayerPerceptron extends Predictor[MultiLayerPerceptron] {
 
   var networkArchitecture = List(0)
 
-  def setIterations(iterations: Int): MultiLayerPerceptron = {
-    parameters.add(Iterations, iterations)
-    this
-  }
-
   def setHiddenLayerArchitecture(arch: List[Int]): MultiLayerPerceptron = {
     parameters.add(HiddenLayerNetworkArchitecture, arch)
     this
@@ -95,11 +90,6 @@ class MultiLayerPerceptron extends Predictor[MultiLayerPerceptron] {
 object MultiLayerPerceptron {
 
   val WEIGHTVECTOR_BROADCAST = "weights_broadcast"
-
-
-  case object Iterations extends Parameter[Int] {
-    val defaultValue = Some(10)
-  }
 
   case object HiddenLayerNetworkArchitecture extends Parameter[List[Int]] {
     val defaultValue = Some(List(5,5))
