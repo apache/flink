@@ -23,7 +23,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.*;
+
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,9 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class BlobCache implements BlobService {
 
-	/**
-	 * The log object used for debugging.
-	 */
+	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobCache.class);
 
 	private final InetSocketAddress serverAddress;
@@ -46,14 +50,10 @@ public final class BlobCache implements BlobService {
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/**
-	 * Shutdown hook thread to ensure deletion of the storage directory.
-	 */
+	/** Shutdown hook thread to ensure deletion of the storage directory. */
 	private final Thread shutdownHook;
 
-	/**
-	 * The number of retries when the transfer fails
-	 */
+	/** The number of retries when the transfer fails */
 	private final int numFetchRetries;
 
 
@@ -74,7 +74,8 @@ public final class BlobCache implements BlobService {
 			ConfigConstants.BLOB_FETCH_RETRIES_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_RETRIES);
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
-		} else {
+		}
+		else {
 			LOG.warn("Invalid value for {}. System will attempt no retires on failed fetches of BLOBs.",
 				ConfigConstants.BLOB_FETCH_RETRIES_KEY);
 			this.numFetchRetries = 0;
@@ -145,7 +146,8 @@ public final class BlobCache implements BlobService {
 
 						// success, we finished
 						break;
-					} catch (Throwable t) {
+					}
+					catch (Throwable t) {
 						// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
 						// it would be replaced by any exception thrown in the finally block
 						closeSilently(os);
@@ -158,7 +160,8 @@ public final class BlobCache implements BlobService {
 							throw new IOException(t.getMessage(), t);
 						}
 					}
-				} catch (IOException e) {
+				}
+				catch (IOException e) {
 					String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
 						" and store it under " + localJarFile.getAbsolutePath();
 					if (attempt < numFetchRetries) {
@@ -168,7 +171,8 @@ public final class BlobCache implements BlobService {
 						} else {
 							LOG.error(message + " Retrying...");
 						}
-					} else {
+					}
+					else {
 						LOG.error(message + " No retries left.", e);
 						throw new IOException(message, e);
 					}
@@ -181,10 +185,9 @@ public final class BlobCache implements BlobService {
 
 	/**
 	 * Deletes the file associated with the given key from the BLOB cache.
-	 *
 	 * @param key referring to the file to be deleted
 	 */
-	public void delete(BlobKey key) throws IOException {
+	public void delete(BlobKey key) throws IOException{
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
 		if (localFile.exists() && !localFile.delete()) {
@@ -194,15 +197,15 @@ public final class BlobCache implements BlobService {
 
 	/**
 	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
-	 *
 	 * @param key referring to the file to be deleted
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
-		delete(key);
 		BlobClient bc = createClient();
+		delete(key);
 		try {
 			bc.delete(key);
-		} finally {
+		}
+		finally {
 			bc.close();
 		}
 	}
@@ -220,7 +223,8 @@ public final class BlobCache implements BlobService {
 			// Clean up the storage directory
 			try {
 				FileUtils.deleteDirectory(storageDir);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				LOG.error("BLOB cache failed to properly clean up its storage directory.");
 			}
 
@@ -228,9 +232,11 @@ public final class BlobCache implements BlobService {
 			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
 				try {
 					Runtime.getRuntime().removeShutdownHook(shutdownHook);
-				} catch (IllegalStateException e) {
+				}
+				catch (IllegalStateException e) {
 					// race, JVM is in shutdown already, we can safely ignore this
-				} catch (Throwable t) {
+				}
+				catch (Throwable t) {
 					LOG.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
 				}
 			}
