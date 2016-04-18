@@ -132,25 +132,29 @@ class ExpressionsITCase(
   @Test
   def testEval(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((5, true)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env.fromElements((5, true)).toTable(tEnv, 'a, 'b)
       .select(
         ('b && true).eval("true", "false"),
         false.eval("true", "false"),
         true.eval(true.eval(true.eval(10, 4), 4), 4))
 
     val expected = "true,false,10"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
   def testEvalInvalidTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val t = env.fromElements((5, true)).as('a, 'b)
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env.fromElements((5, true)).toTable(tEnv, 'a, 'b)
       .select(('b && true).eval(5, "false"))
 
     val expected = "true,false,3,10"
-    val results = t.toDataSet[Row](getConfig).collect()
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

@@ -56,9 +56,9 @@ object RexNodeTranslator {
         val r = extractAggCalls(b.right, tableEnv)
         (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
       case e: Eval =>
-        val c = extractAggCalls(e.condition, relBuilder)
-        val t = extractAggCalls(e.ifTrue, relBuilder)
-        val f = extractAggCalls(e.ifFalse, relBuilder)
+        val c = extractAggCalls(e.condition, tableEnv)
+        val t = extractAggCalls(e.ifTrue, tableEnv)
+        val f = extractAggCalls(e.ifFalse, tableEnv)
         (e.makeCopy(List(c._1, t._1, f._1)), c._2 ::: t._2 ::: f._2)
 
       // Scalar functions

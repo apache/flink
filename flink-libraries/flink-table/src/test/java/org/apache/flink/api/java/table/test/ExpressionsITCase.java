@@ -135,7 +135,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test
 	public void testEval() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<>(5, true));
@@ -157,7 +157,7 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 	@Test(expected = IllegalArgumentException.class)
 	public void testEvalInvalidTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = getJavaTableEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<>(5, true));
