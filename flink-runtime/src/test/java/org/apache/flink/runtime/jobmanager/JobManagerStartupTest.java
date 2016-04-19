@@ -22,8 +22,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.common.io.Files;
 
@@ -67,9 +70,10 @@ public class JobManagerStartupTest {
 	/**
 	 * Verifies that the JobManager fails fast (and with expressive error message)
 	 * when the port to listen is already in use.
+	 * @throws Throwable 
 	 */
-	@Test
-	public void testStartupWithPortInUse() {
+	@Test( expected = BindException.class )
+	public void testStartupWithPortInUse() throws BindException {
 		
 		ServerSocket portOccupier;
 		final int portNum;
@@ -89,10 +93,13 @@ public class JobManagerStartupTest {
 		}
 		catch (Exception e) {
 			// expected
-			if(!e.getMessage().contains("Address already in use")) {
-				e.printStackTrace();
-				fail("Received wrong exception");
+			List<Throwable> causes = getExceptionCauses(e,new ArrayList<Throwable>());
+			for(Throwable cause:causes){
+				if(cause instanceof BindException){
+					throw (BindException) cause;
+				}	
 			}
+			fail("this should throw a BindException");
 		}
 		finally {
 			try {
@@ -102,6 +109,22 @@ public class JobManagerStartupTest {
 				// ignore
 			}
 		}
+	}
+	
+	/**
+	 * A utility method to analyze the exceptions and collect the clauses
+	 * @param e the root exception (Throwable) object
+	 * @param causes the list of exceptions that caused the root exceptions
+	 * @return
+	 */
+	private List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes){
+		if(e.getCause()==null) {
+			return causes;
+		}else{
+			causes.add(e.getCause());
+			getExceptionCauses(e.getCause(),causes);
+		}
+		return causes;
 	}
 
 	/**
