@@ -113,7 +113,7 @@ public class NFAITCase extends TestLogger {
 		events.add(new StreamEvent<Event>(startEvent = new Event(2, "start", 1.0), 2));
 		events.add(new StreamEvent<Event>(middleEvent = new Event(3, "middle", 1.0), 3));
 		events.add(new StreamEvent<Event>(new Event(4, "foobar", 1.0), 4));
-		events.add(new StreamEvent<Event>(endEvent = new Event(5, "end", 1.0), 12));
+		events.add(new StreamEvent<Event>(endEvent = new Event(5, "end", 1.0), 11));
 		events.add(new StreamEvent<Event>(new Event(6, "end", 1.0), 13));
 
 
