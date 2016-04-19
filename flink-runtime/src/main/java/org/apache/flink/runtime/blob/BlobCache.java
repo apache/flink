@@ -201,8 +201,8 @@ public final class BlobCache implements BlobService {
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
 		BlobClient bc = createClient();
-		delete(key);
 		try {
+			delete(key);
 			bc.delete(key);
 		}
 		finally {
