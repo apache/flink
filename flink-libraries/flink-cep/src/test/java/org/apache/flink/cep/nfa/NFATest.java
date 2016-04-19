@@ -31,6 +31,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -109,7 +110,7 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testTimeoutWindowPruning() {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 2);
+		NFA<Event> nfa = createStartEndNFA(2);
 		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
@@ -117,50 +118,56 @@ public class NFATest extends TestLogger {
 		streamEvents.add(StreamEvent.of(new Event(3, "start", 3.0), 3L));
 		streamEvents.add(StreamEvent.of(new Event(4, "end", 4.0), 4L));
 
-		State<Event> startingState = new State<>("", State.StateType.Start);
-		State<Event> startState = new State<>("start", State.StateType.Normal);
-		State<Event> endState = new State<>("end", State.StateType.Final);
-		StateTransition<Event> starting2Start = new StateTransition<>(
-			StateTransitionAction.TAKE,
-			startState,
-			new FilterFunction<Event>() {
-				private static final long serialVersionUID = -4869589195918650396L;
-
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getName().equals("start");
-				}
-		});
-
-		StateTransition<Event> start2End = new StateTransition<>(
-			StateTransitionAction.TAKE,
-			endState,
-			new FilterFunction<Event>() {
-				private static final long serialVersionUID = 2979804163709590673L;
-
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getName().equals("end");
-				}
-		});
-
-		StateTransition<Event> start2Start = new StateTransition<>(
-			StateTransitionAction.IGNORE,
-			startState,
-			null);
-
-		startingState.addStateTransition(starting2Start);
-		startState.addStateTransition(start2End);
-		startState.addStateTransition(start2Start);
-
-		nfa.addState(startingState);
-		nfa.addState(startState);
-		nfa.addState(endState);
-
 		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
 
 		Map<String, Event> secondPattern = new HashMap<>();
 		secondPattern.put("start", new Event(3, "start", 3.0));
+		secondPattern.put("end", new Event(4, "end", 4.0));
+
+		expectedPatterns.add(secondPattern);
+
+		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+
+		assertEquals(expectedPatterns, actualPatterns);
+	}
+
+	/**
+	 * Tests that elements whose timestamp difference is exactly the window length are not matched.
+	 * The reaon is that the right window side (later elements) is exclusive.
+	 */
+	@Test
+	public void testWindowBorders() {
+		NFA<Event> nfa = createStartEndNFA(2);
+		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+
+		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(StreamEvent.of(new Event(2, "end", 2.0), 3L));
+
+		Set<Map<String, Event>> expectedPatterns = Collections.emptySet();
+
+		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+
+		assertEquals(expectedPatterns, actualPatterns);
+	}
+
+	/**
+	 * Tests that pruning shared buffer elements and computations state use the same window border
+	 * semantics (left side inclusive and right side exclusive)
+	 */
+	@Test
+	public void testTimeoutWindowPruningWindowBorders() {
+		NFA<Event> nfa = createStartEndNFA(2);
+		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
+
+		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
+		streamEvents.add(StreamEvent.of(new Event(2, "start", 2.0), 2L));
+		streamEvents.add(StreamEvent.of(new Event(3, "foobar", 3.0), 3L));
+		streamEvents.add(StreamEvent.of(new Event(4, "end", 4.0), 3L));
+
+		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
+
+		Map<String, Event> secondPattern = new HashMap<>();
+		secondPattern.put("start", new Event(2, "start", 2.0));
 		secondPattern.put("end", new Event(4, "end", 4.0));
 
 		expectedPatterns.add(secondPattern);
@@ -241,6 +248,52 @@ public class NFATest extends TestLogger {
 		NFA<Event> copy = (NFA<Event>) ois.readObject();
 
 		assertEquals(nfa, copy);
+	}
+
+	private NFA<Event> createStartEndNFA(long windowLength) {
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength);
+
+		State<Event> startingState = new State<>("", State.StateType.Start);
+		State<Event> startState = new State<>("start", State.StateType.Normal);
+		State<Event> endState = new State<>("end", State.StateType.Final);
+		StateTransition<Event> starting2Start = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			startState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = -4869589195918650396L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
+			});
+
+		StateTransition<Event> start2End = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			endState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = 2979804163709590673L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
+
+		StateTransition<Event> start2Start = new StateTransition<>(
+			StateTransitionAction.IGNORE,
+			startState,
+			null);
+
+		startingState.addStateTransition(starting2Start);
+		startState.addStateTransition(start2End);
+		startState.addStateTransition(start2Start);
+
+		nfa.addState(startingState);
+		nfa.addState(startState);
+		nfa.addState(endState);
+
+		return nfa;
 	}
 
 	private static class NameFilter implements FilterFunction<Event> {
