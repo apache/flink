@@ -47,6 +47,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+		
 		<!-- Note:
 			This dependency is licenced under the Amazon Software License.
 			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
@@ -90,15 +91,6 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
-					<forkCount>1</forkCount>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
