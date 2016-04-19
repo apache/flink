@@ -167,6 +167,11 @@ object FlinkShell {
   def startShell(config: Config): Unit = {
     println("Starting Flink Shell:")
 
+    // load global configuration
+    val confDirPath = CliFrontend.getConfigurationDirectoryFromEnv
+    val configDirectory = new File(confDirPath)
+    GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
+
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(config)
       val conf = cluster match {
@@ -216,13 +221,11 @@ object FlinkShell {
     val jarPath = new Path("file://" +
       s"${yarnClient.getClass.getProtectionDomain.getCodeSource.getLocation.getPath}")
     yarnClient.setLocalJarPath(jarPath)
-
-    // load configuration
+    
     val confDirPath = CliFrontend.getConfigurationDirectoryFromEnv
     val flinkConfiguration = GlobalConfiguration.getConfiguration
     val confFile = new File(confDirPath + File.separator + "flink-conf.yaml")
     val confPath = new Path(confFile.getAbsolutePath)
-    GlobalConfiguration.loadConfiguration(confDirPath)
     yarnClient.setFlinkConfiguration(flinkConfiguration)
     yarnClient.setConfigurationDirectory(confDirPath)
     yarnClient.setConfigurationFilePath(confPath)
