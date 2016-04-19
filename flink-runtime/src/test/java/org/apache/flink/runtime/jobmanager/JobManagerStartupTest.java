@@ -22,13 +22,17 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.common.io.Files;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.OperatingSystem;
@@ -48,6 +52,7 @@ public class JobManagerStartupTest {
 
 	@Before
 	public void before() {
+		
 		// Prepare test directory
 		blobStorageDirectory = Files.createTempDir();
 
@@ -67,9 +72,10 @@ public class JobManagerStartupTest {
 	/**
 	 * Verifies that the JobManager fails fast (and with expressive error message)
 	 * when the port to listen is already in use.
+	 * @throws Throwable 
 	 */
-	@Test
-	public void testStartupWithPortInUse() {
+	@Test( expected = BindException.class )
+	public void testStartupWithPortInUse() throws BindException {
 		
 		ServerSocket portOccupier;
 		final int portNum;
@@ -89,10 +95,13 @@ public class JobManagerStartupTest {
 		}
 		catch (Exception e) {
 			// expected
-			if(!e.getMessage().contains("Address already in use")) {
-				e.printStackTrace();
-				fail("Received wrong exception");
+			List<Throwable> causes = StartupUtils.getExceptionCauses(e,new ArrayList<Throwable>());
+			for(Throwable cause:causes) {
+				if(cause instanceof BindException) {
+					throw (BindException) cause;
+				}	
 			}
+			fail("this should throw a BindException");
 		}
 		finally {
 			try {
@@ -103,7 +112,7 @@ public class JobManagerStartupTest {
 			}
 		}
 	}
-
+	
 	/**
 	 * Verifies that the JobManager fails fast (and with expressive error message)
 	 * when one of its components (here the BLOB server) fails to start properly.
