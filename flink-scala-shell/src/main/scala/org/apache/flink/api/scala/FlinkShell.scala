@@ -42,7 +42,8 @@ object FlinkShell {
     port: Option[Int] = None,
     externalJars: Option[Array[String]] = None,
     executionMode: ExecutionMode.Value = ExecutionMode.UNDEFINED,
-    yarnConfig: Option[YarnConfig] = None
+    yarnConfig: Option[YarnConfig] = None,
+    configDir: Option[String] = None
   )
 
   /** YARN configuration object */
@@ -64,62 +65,68 @@ object FlinkShell {
 
       cmd("local") action {
         (_, c) => c.copy(executionMode = ExecutionMode.LOCAL)
-      } text("Starts Flink scala shell with a local Flink cluster") children(
+      } text "Starts Flink scala shell with a local Flink cluster" children(
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-          } text("Specifies additional jars to be used in Flink")
+          } text "Specifies additional jars to be used in Flink"
         )
 
       cmd("remote") action { (_, c) =>
         c.copy(executionMode = ExecutionMode.REMOTE)
-      } text("Starts Flink scala shell connecting to a remote cluster") children(
+      } text "Starts Flink scala shell connecting to a remote cluster" children(
         arg[String]("<host>") action { (h, c) =>
           c.copy(host = Some(h)) }
-          text("Remote host name as string"),
+          text "Remote host name as string",
         arg[Int]("<port>") action { (p, c) =>
           c.copy(port = Some(p)) }
-          text("Remote port as integer\n"),
-        opt[(String)]("addclasspath") abbr("a") valueName("<path/to/jar>") action {
+          text "Remote port as integer\n",
+        opt[String]("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-        } text ("Specifies additional jars to be used in Flink")
+        } text "Specifies additional jars to be used in Flink"
       )
 
       cmd("yarn") action {
         (_, c) => c.copy(executionMode = ExecutionMode.YARN, yarnConfig = None)
-      } text ("Starts Flink scala shell connecting to a yarn cluster") children(
+      } text "Starts Flink scala shell connecting to a yarn cluster" children(
         opt[Int]("container") abbr ("n") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
-        } text ("Number of YARN container to allocate (= Number of TaskManagers)"),
+        } text "Number of YARN container to allocate (= Number of TaskManagers)",
         opt[Int]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
-        } text ("Memory for JobManager container [in MB]"),
+        } text "Memory for JobManager container [in MB]",
         opt[String]("name") abbr ("nm") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(name = Some(x))))
-        } text ("Set a custom name for the application on YARN"),
+        } text "Set a custom name for the application on YARN",
         opt[String]("queue") abbr ("qu") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(queue = Some(x))))
-        } text ("Specifies YARN queue"),
+        } text "Specifies YARN queue",
         opt[Int]("slots") abbr ("s") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(slots = Some(x))))
-        } text ("Number of slots per TaskManager"),
+        } text "Number of slots per TaskManager",
         opt[Int]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(taskManagerMemory = Some(x))))
-        } text ("Memory per TaskManager container [in MB]"),
+        } text "Memory per TaskManager container [in MB]",
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-        } text("Specifies additional jars to be used in Flink")
+        } text "Specifies additional jars to be used in Flink"
       )
 
-      help("help") abbr ("h") text ("Prints this usage text")
+      opt[String]("configDir").optional().action {
+        (arg, conf) => conf.copy(configDir = Option(arg))
+      } text {
+        "The configuration directory."
+      }
+
+      help("help") abbr ("h") text "Prints this usage text"
     }
 
     // parse arguments
@@ -166,6 +173,15 @@ object FlinkShell {
 
   def startShell(config: Config): Unit = {
     println("Starting Flink Shell:")
+
+    // load global configuration
+    val confDirPath = config.configDir match {
+      case Some(confDir) => confDir
+      case None => CliFrontend.getConfigurationDirectoryFromEnv
+    }
+
+    val configDirectory = new File(confDirPath)
+    GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
 
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(config)
@@ -216,13 +232,11 @@ object FlinkShell {
     val jarPath = new Path("file://" +
       s"${yarnClient.getClass.getProtectionDomain.getCodeSource.getLocation.getPath}")
     yarnClient.setLocalJarPath(jarPath)
-
-    // load configuration
+    
     val confDirPath = CliFrontend.getConfigurationDirectoryFromEnv
     val flinkConfiguration = GlobalConfiguration.getConfiguration
     val confFile = new File(confDirPath + File.separator + "flink-conf.yaml")
     val confPath = new Path(confFile.getAbsolutePath)
-    GlobalConfiguration.loadConfiguration(confDirPath)
     yarnClient.setFlinkConfiguration(flinkConfiguration)
     yarnClient.setConfigurationDirectory(confDirPath)
     yarnClient.setConfigurationFilePath(confPath)

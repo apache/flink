@@ -71,12 +71,18 @@ class ScalaShellLocalStartupITCase extends TestLogger {
         |
         |:q
       """.stripMargin
-      val in: BufferedReader = new BufferedReader(new StringReader(input + "\n"))
-      val out: StringWriter = new StringWriter
-      val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-      val oldOut: PrintStream = System.out
-      System.setOut(new PrintStream(baos))
-      val args: Array[String] = Array("local")
+    val in: BufferedReader = new BufferedReader(new StringReader(input + "\n"))
+    val out: StringWriter = new StringWriter
+    val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+    val oldOut: PrintStream = System.out
+    System.setOut(new PrintStream(baos))
+
+    val confFile: String = classOf[ScalaShellLocalStartupITCase]
+      .getResource("/flink-conf.yaml")
+      .getFile
+    val confDir = new File(confFile).getAbsoluteFile.getParent
+
+    val args: Array[String] = Array("local", "--configDir", confDir)
 
     //start flink scala shell
     FlinkShell.bufferedReader = Some(in);

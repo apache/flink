@@ -287,11 +287,18 @@ class ScalaShellITCase extends TestLogger {
     val oldOut: PrintStream = System.out
     System.setOut(new PrintStream(baos))
 
+    val confFile: String = classOf[ScalaShellLocalStartupITCase]
+      .getResource("/flink-conf.yaml")
+      .getFile
+    val confDir = new File(confFile).getAbsoluteFile.getParent
+
     val (c, args) = cluster match{
       case Some(cl) =>
         val arg = Array("remote",
           cl.hostname,
-          Integer.toString(cl.getLeaderRPCPort))
+          Integer.toString(cl.getLeaderRPCPort),
+          "--configDir",
+          confDir)
         (cl, arg)
       case None =>
         throw new AssertionError("Cluster creation failed.")
