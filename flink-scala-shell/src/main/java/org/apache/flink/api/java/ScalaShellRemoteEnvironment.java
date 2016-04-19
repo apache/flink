@@ -57,13 +57,19 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 
 	@Override
 	protected PlanExecutor getExecutor() throws Exception {
+		// check if we had already started a PlanExecutor. If true, then stop it, because there will
+		// be a new jar file available for the user code classes
+		if (this.executor != null) {
+			this.executor.stop();
+		}
+
 		// write generated classes to disk so that they can be shipped to the cluster
 		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 
 		List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(
+		this.executor = PlanExecutor.createRemoteExecutor(
 			host,
 			port,
 			clientConfiguration,

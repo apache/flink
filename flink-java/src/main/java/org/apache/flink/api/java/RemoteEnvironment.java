@@ -61,7 +61,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	protected Configuration clientConfiguration;
 	
 	/** The remote executor lazily created upon first use */
-	private PlanExecutor executor;
+	protected PlanExecutor executor;
 	
 	/** Optional shutdown hook, used in session mode to eagerly terminate the last session */
 	private Thread shutdownHook;
@@ -137,10 +137,10 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		this.port = port;
 		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
 		if (jarFiles != null) {
-			this.jarFiles = new ArrayList<URL>(jarFiles.length);
-			for (int i = 0; i < jarFiles.length; i++) {
+			this.jarFiles = new ArrayList<>(jarFiles.length);
+			for(String jarFile : jarFiles) {
 				try {
-					this.jarFiles.add(new File(jarFiles[i]).getAbsoluteFile().toURI().toURL());
+					this.jarFiles.add(new File(jarFile).getAbsoluteFile().toURI().toURL());
 				} catch (MalformedURLException e) {
 					throw new IllegalArgumentException("JAR file path invalid", e);
 				}
@@ -187,7 +187,11 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		}
 		else {
 			PlanExecutor le = PlanExecutor.createLocalExecutor(null);
-			return le.getOptimizerPlanAsJSON(p);
+			String plan = le.getOptimizerPlanAsJSON(p);
+
+			le.stop();
+
+			return plan;
 		}
 	}
 
