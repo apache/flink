@@ -36,7 +36,7 @@ public interface KinesisSerializationSchema<T> extends Serializable {
 
 	/**
 	 * Optional method to determine the target stream based on the element.
-	 * Return "null" to use the default stream
+	 * Return <code>null</code> to use the default stream
 	 *
 	 * @param element The element to determine the target stream from
 	 * @return target stream name

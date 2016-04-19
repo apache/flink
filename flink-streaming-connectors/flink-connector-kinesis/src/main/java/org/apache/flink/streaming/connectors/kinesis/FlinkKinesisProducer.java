@@ -80,7 +80,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	private transient FutureCallback<UserRecordResult> callback;
 
 	/* Field for async exception */
-	private transient Throwable thrownException;
+	private transient volatile Throwable thrownException;
 
 
 	// --------------------------- Initialization and configuration  ---------------------------
@@ -166,7 +166,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
 			public void onSuccess(UserRecordResult result) {
-				if(!result.isSuccessful()) {
+				if (!result.isSuccessful()) {
 					if(failOnError) {
 						thrownException = new RuntimeException("Record was not sent successful");
 					} else {
@@ -177,7 +177,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 			@Override
 			public void onFailure(Throwable t) {
-				if(failOnError) {
+				if (failOnError) {
 					thrownException = t;
 				} else {
 					LOG.warn("An exception occurred while processing a record", t);
@@ -185,7 +185,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 			}
 		};
 
-		if(this.customPartitioner != null) {
+		if (this.customPartitioner != null) {
 			this.customPartitioner.initialize(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks());
 		}
 
@@ -194,20 +194,20 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 	@Override
 	public void invoke(OUT value) throws Exception {
-		if(this.producer == null) {
+		if (this.producer == null) {
 			throw new RuntimeException("Kinesis producer has been closed");
 		}
-		if(thrownException != null) {
+		if (thrownException != null) {
 			String errorMessages = "";
-			if(thrownException instanceof UserRecordFailedException) {
+			if (thrownException instanceof UserRecordFailedException) {
 				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
-				for(Attempt attempt: attempts) {
-					if(attempt.getErrorMessage() != null) {
+				for (Attempt attempt: attempts) {
+					if (attempt.getErrorMessage() != null) {
 						errorMessages += attempt.getErrorMessage() +"\n";
 					}
 				}
 			}
-			if(failOnError) {
+			if (failOnError) {
 				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
 			} else {
 				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
@@ -222,19 +222,19 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 		// maybe set custom stream
 		String customStream = schema.getTargetStream(value);
-		if(customStream != null) {
+		if (customStream != null) {
 			stream = customStream;
 		}
 
 		String explicitHashkey = null;
 		// maybe set custom partition
-		if(customPartitioner != null) {
+		if (customPartitioner != null) {
 			partition = customPartitioner.getPartitionId(value);
 			explicitHashkey = customPartitioner.getExplicitHashKey(value);
 		}
 
-		if(stream == null) {
-			if(failOnError) {
+		if (stream == null) {
+			if (failOnError) {
 				throw new RuntimeException("No target stream set");
 			} else {
 				LOG.warn("No target stream set. Skipping record");
@@ -248,11 +248,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 	@Override
 	public void close() throws Exception {
+		LOG.info("Closing producer");
 		super.close();
 		KinesisProducer kp = this.producer;
 		this.producer = null;
-		if(kp != null) {
-			LOG.info("Closing producer. Flushing outstanding {} records", kp.getOutstandingRecordsCount());
+		if (kp != null) {
+			LOG.info("Flushing outstanding {} records", kp.getOutstandingRecordsCount());
 			// try to flush all outstanding records
 			while (kp.getOutstandingRecordsCount() > 0) {
 				kp.flush();

@@ -26,7 +26,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Kinesis connector allows to produce data into an [Amazon AWS Kinesis Stream](http://aws.amazon.com/kinesis/streams/).
+The Kinesis connector allows to produce data into an [Amazon AWS Kinesis Stream](http://aws.amazon.com/kinesis/streams/). 
 
 To use the connector, add the following Maven dependency to your project:
 
@@ -46,6 +46,10 @@ See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster
 
 
 #### Usage of Producer
+
+The `FlinkKinesisProducer` is used for sending data from a Flink stream into a Kinesis stream. Note that the producer is not participating in 
+Flink's checkpointing and doesn't provide exactly-once processing guarantees. In case of a failure, data will be written again
+to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
 To produce data into a Kinesis stream, make sure that you have a stream created with the status "ACTIVE" in the AWS dashboard.
 

@@ -41,12 +41,14 @@ public class ProduceIntoKinesis {
 
 		DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
 
-		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(pt.getRequired("region"),
+		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
+				pt.getRequired("region"),
 				pt.getRequired("accessKey"),
-				pt.getRequired("secretKey"), new SimpleStringSchema());
+				pt.getRequired("secretKey"),
+				new SimpleStringSchema());
 
 		kinesis.setFailOnError(true);
-		kinesis.setDefaultStream("test-flink");
+		kinesis.setDefaultStream("flink-test");
 		kinesis.setDefaultPartition("0");
 
 		simpleStringStream.addSink(kinesis);
@@ -61,7 +63,6 @@ public class ProduceIntoKinesis {
 		public void run(SourceContext<String> ctx) throws Exception {
 			long seq = 0;
 			while(running) {
-
 				Thread.sleep(10);
 				ctx.collect((seq++) + "-" + RandomStringUtils.randomAlphabetic(12));
 			}
