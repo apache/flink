@@ -32,6 +32,7 @@ under the License.
 
     <artifactId>flink-cep_2.10</artifactId>
     <name>flink-cep</name>
+    <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
@@ -72,9 +73,11 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils_2.10</artifactId>
             <version>${project.version}</version>
+			<type>test-jar</type>
             <scope>test</scope>
         </dependency>
     </dependencies>
+    
     <build>
         <plugins>
             <plugin>
@@ -90,6 +93,4 @@ under the License.
             </plugin>
         </plugins>
     </build>
-
-    <packaging>jar</packaging>
 </project>
