@@ -28,7 +28,8 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
+import org.apache.flink.api.table.plan.logical.CatalogNode
+import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataStreamTable
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -85,8 +86,7 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
   def ingest(tableName: String): Table = {
 
     if (isRegistered(tableName)) {
-      relBuilder.scan(tableName)
-      new Table(relBuilder.build(), this)
+      new Table(this, CatalogNode(tableName, getTable(tableName), getTypeFactory))
     }
     else {
       throw new TableException(s"Table \'$tableName\' was not found in the registry.")
@@ -163,7 +163,7 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
-    val relNode = table.relNode
+    val relNode = table.getRelNode
 
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)

@@ -17,23 +17,16 @@
  */
 package org.apache.flink.api.table
 
+import scala.collection.mutable
+
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataTypeField
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.logical.LogicalProject
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
-import org.apache.calcite.util.NlsString
+
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.TableEnvironment.PlanPreparation
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.RexNodeTranslator.{extractAggCalls, extractAggregations}
+import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
-
-import scala.collection.mutable
-import scala.collection.JavaConverters._
+import org.apache.flink.api.table.validate.ValidationException
 
 /**
   * A Table is the core component of the Table API.
@@ -89,50 +82,19 @@ class Table(
     *   tab.select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
-  def select(fields: Expression*): Table = {
-    withPlan {
-      val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
-      val aggregations = projectionOnAggregates.flatMap(_._2)
+  def select(fields: Expression*): Table = withPlan {
+    checkUniqueNames(fields)
 
-      if (aggregations.nonEmpty) {
-        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-          Aggregate(Nil, aggregations, logicalPlan)
-        )
-      } else {
-        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan)
-      }
+    val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
+    val aggregations = projectionOnAggregates.flatMap(_._2)
+
+    if (aggregations.nonEmpty) {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        Aggregate(Nil, aggregations, logicalPlan)
+      )
+    } else {
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan)
     }
-//
-//    checkUniqueNames(fields)
-//
-//    relBuilder.push(relNode)
-//
-//    // separate aggregations and selection expressions
-//    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-//      .map(extractAggCalls(_, tableEnv)).toList
-//
-//    // get aggregation calls
-//    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
-//
-//    // apply aggregations
-//    if (aggCalls.nonEmpty) {
-//      val emptyKey: GroupKey = relBuilder.groupKey()
-//      relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
-//    }
-//
-//    // get selection expressions
-//    val exprs: List[RexNode] = extractedAggCalls.map(_._1.toRexNode(relBuilder))
-//
-//    relBuilder.project(exprs.toIterable.asJava)
-//    val projected = relBuilder.build()
-//
-//    if(relNode == projected) {
-//      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
-//      //   Add a projection ourselves (will be automatically removed by translation rules).
-//      new Table(createRenamingProject(exprs), tableEnv)
-//    } else {
-//      new Table(projected, tableEnv)
-//    }
   }
 
   /**
@@ -160,32 +122,13 @@ class Table(
     *   tab.as('a, 'b)
     * }}}
     */
-  def as(fields: Expression*): Table = {
-
-    val curNames = relNode.getRowType.getFieldNames.asScala
-
-    // validate that AS has only field references
-    if (! fields.forall( _.isInstanceOf[UnresolvedFieldReference] )) {
-      throw new IllegalArgumentException("All expressions must be field references.")
+  def as(fields: Expression*): Table = withPlan {
+    try {
+      AliasNode(fields.map(_.asInstanceOf[UnresolvedFieldReference]), logicalPlan)
+    } catch {
+      case e: ClassCastException =>
+        throw new ValidationException("All inputs must be scala symbol or string")
     }
-    // validate that we have not more field references than fields
-    if ( fields.length > curNames.size) {
-      throw new IllegalArgumentException("More field references than fields.")
-    }
-
-    val curFields = curNames.map(new UnresolvedFieldReference(_))
-
-    val renamings = fields.zip(curFields).map {
-      case (newName, oldName) =>
-        new Alias(oldName, newName.asInstanceOf[UnresolvedFieldReference].name)
-    }
-    val remaining = curFields.drop(fields.size)
-
-    relBuilder.push(relNode)
-
-    val exprs = (renamings ++ remaining).map(_.toRexNode(relBuilder))
-
-    new Table(createRenamingProject(exprs), tableEnv)
   }
 
   /**
@@ -274,12 +217,7 @@ class Table(
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
-
-    relBuilder.push(relNode)
-    val groupExpr = fields.map(_.toRexNode(relBuilder)).toIterable.asJava
-    val groupKey = relBuilder.groupKey(groupExpr)
-
-    new GroupedTable(relBuilder.build(), tableEnv, groupKey)
+    new GroupedTable(this, fields)
   }
 
   /**
@@ -306,10 +244,8 @@ class Table(
     *   tab.select("key, value").distinct()
     * }}}
     */
-  def distinct(): Table = {
-    relBuilder.push(relNode)
-    relBuilder.distinct()
-    new Table(relBuilder.build(), tableEnv)
+  def distinct(): Table = withPlan {
+    Distinct(logicalPlan)
   }
 
   /**
@@ -325,33 +261,12 @@ class Table(
     *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
     * }}}
     */
-  def join(right: Table): Table = {
-
+  def join(right: Table): Table = withPlan {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new TableException("Only tables from the same TableEnvironment can be joined.")
+      throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
-
-    // check that join inputs do not have overlapping field names
-    val leftFields = relNode.getRowType.getFieldNames.asScala.toSet
-    val rightFields = right.relNode.getRowType.getFieldNames.asScala.toSet
-    if (leftFields.intersect(rightFields).nonEmpty) {
-      throw new IllegalArgumentException("Overlapping fields names on join input.")
-    }
-
-
-
-    relBuilder.push(relNode)
-    relBuilder.push(right.relNode)
-
-    relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
-    val join = relBuilder.build()
-    new Table(join, tableEnv)
-
-
-    withPlan {
-      Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None)
-    }
+    Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None)
   }
 
   /**
@@ -366,53 +281,12 @@ class Table(
     *   left.unionAll(right)
     * }}}
     */
-  def unionAll(right: Table): Table = {
-
+  def unionAll(right: Table): Table = withPlan {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
-      throw new TableException("Only tables from the same TableEnvironment can be unioned.")
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-
-    val leftRowType: List[RelDataTypeField] = relNode.getRowType.getFieldList.asScala.toList
-    val rightRowType: List[RelDataTypeField] = right.relNode.getRowType.getFieldList.asScala.toList
-
-    if (leftRowType.length != rightRowType.length) {
-      throw new IllegalArgumentException("Unioned tables have varying row schema.")
-    }
-    else {
-      val zipped: List[(RelDataTypeField, RelDataTypeField)] = leftRowType.zip(rightRowType)
-      zipped.foreach { case (x, y) =>
-        if (!x.getName.equals(y.getName) || x.getType != y.getType) {
-          throw new IllegalArgumentException("Unioned tables have varying row schema.")
-        }
-      }
-    }
-
-    relBuilder.push(relNode)
-    relBuilder.push(right.relNode)
-
-    relBuilder.union(true)
-    new Table(relBuilder.build(), tableEnv)
-
-    withPlan(Union(logicalPlan, right.logicalPlan))
-  }
-
-  private def createRenamingProject(exprs: Seq[RexNode]): LogicalProject = {
-
-    val names = exprs.map{ e =>
-      e.getKind match {
-        case SqlKind.AS =>
-          e.asInstanceOf[RexCall].getOperands.get(1)
-            .asInstanceOf[RexLiteral].getValue
-            .asInstanceOf[NlsString].getValue
-        case SqlKind.INPUT_REF =>
-          relNode.getRowType.getFieldNames.get(e.asInstanceOf[RexInputRef].getIndex)
-        case _ =>
-          throw new PlanGenException("Unexpected expression type encountered.")
-      }
-
-    }
-    LogicalProject.create(relNode, exprs.toList.asJava, names.toList.asJava)
+    Union(logicalPlan, right.logicalPlan)
   }
 
   private def checkUniqueNames(exprs: Seq[Expression]): Unit = {
@@ -422,14 +296,14 @@ class Table(
       case n: Alias =>
         // explicit name
         if (names.contains(n.name)) {
-          throw new IllegalArgumentException(s"Duplicate field name $n.name.")
+          throw new ValidationException(s"Duplicate field name $n.name.")
         } else {
           names.add(n.name)
         }
       case u: UnresolvedFieldReference =>
         // simple field forwarding
         if (names.contains(u.name)) {
-          throw new IllegalArgumentException(s"Duplicate field name $u.name.")
+          throw new ValidationException(s"Duplicate field name $u.name.")
         } else {
           names.add(u.name)
         }
@@ -473,32 +347,6 @@ class GroupedTable(
     }
 
     new Table(table.tableEnv, logical)
-
-//    relBuilder.push(relNode)
-//
-//    // separate aggregations and selection expressions
-//    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
-//      .map(extractAggCalls(_, tableEnv)).toList
-//
-//    // get aggregation calls
-//    val aggCalls: List[AggCall] = extractedAggCalls.flatMap(_._2)
-//
-//    // apply aggregations
-//    relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
-//
-//    // get selection expressions
-//    val exprs: List[RexNode] = try {
-//      extractedAggCalls.map(_._1.toRexNode(relBuilder))
-//    } catch {
-//      case iae: IllegalArgumentException  =>
-//        throw new IllegalArgumentException(
-//          "Only grouping fields and aggregations allowed after groupBy.", iae)
-//      case e: Exception => throw e
-//    }
-//
-//    relBuilder.project(exprs.toIterable.asJava)
-//
-//    new Table(relBuilder.build(), tableEnv)
   }
 
   /**
@@ -515,5 +363,4 @@ class GroupedTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
-
 }

@@ -34,7 +34,7 @@ import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.logical.CatalogNode
+import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
@@ -107,7 +107,16 @@ abstract class BatchTableEnvironment(config: TableConfig) extends TableEnvironme
     * @return The result of the query as Table.
     */
   override def sql(query: String): Table = {
-    new Table(this, new PlanPreparation(this, query))
+
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner)
+    // parse the sql query
+    val parsed = planner.parse(query)
+    // validate the sql query
+    val validated = planner.validate(parsed)
+    // transform to a relational tree
+    val relational = planner.rel(validated)
+
+    new Table(this, new PlanPreparation(this, LogicalRelNode(relational.rel)))
   }
 
   /**

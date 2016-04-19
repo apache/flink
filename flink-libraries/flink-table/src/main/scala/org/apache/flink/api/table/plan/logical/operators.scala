@@ -20,6 +20,7 @@ package org.apache.flink.api.table.plan.logical
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.schema.{Table => CTable}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.java.operators.join.JoinType
@@ -31,10 +32,41 @@ import scala.collection.JavaConverters._
 
 case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    child.toRelNode(relBuilder)
+    relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
+  }
+}
+
+case class AliasNode(aliasList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    child.toRelNode(relBuilder)
+    relBuilder.push(
+      LogicalProject.create(relBuilder.build(),
+        aliasList.map(_.toRexNode(relBuilder)).asJava,
+        aliasList.map(_.name).asJava))
+  }
+}
+
+case class Distinct(child: LogicalNode) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    child.toRelNode(relBuilder)
+    relBuilder.distinct()
+  }
 }
 
 case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    child.toRelNode(relBuilder)
+    relBuilder.filter(condition.toRexNode(relBuilder))
+  }
 }
 
 case class Aggregate(
@@ -43,12 +75,24 @@ case class Aggregate(
     child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    aggregateExpressions.map { agg =>
+    (groupingExpressions ++ aggregateExpressions) map { agg =>
       agg match {
-        case ne: NamedExpression => ne
-        case e => Alias(e, e.toString)
+        case ne: NamedExpression => ne.toAttribute
+        case e => Alias(e, e.toString).toAttribute
       }
     }
+  }
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    child.toRelNode(relBuilder)
+    relBuilder.aggregate(
+      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
+      aggregateExpressions.filter(_.isInstanceOf[Alias]).map { e =>
+        e match {
+          case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+          case _ => null // this should never happen since we would report validationException here
+        }
+      }.asJava)
   }
 }
 

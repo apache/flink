@@ -21,11 +21,11 @@ import org.apache.flink.api.table.plan.logical.LogicalNode
 
 class Validator {
 
-  def resolve(logical: LogicalNode): LogicalNode = ???
+  def resolve(logical: LogicalNode): LogicalNode = logical
 
   /**
     * This would throw ValidationException on failure
     */
-  def validate(resolved: LogicalNode): Unit = ???
+  def validate(resolved: LogicalNode): Unit = {}
 
 }
