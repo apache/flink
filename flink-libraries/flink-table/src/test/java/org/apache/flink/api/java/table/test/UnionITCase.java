@@ -27,6 +27,7 @@ import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.TableException;
+import org.apache.flink.api.table.validate.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -80,7 +81,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleNumberOfFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -92,10 +93,11 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
 		// Must fail. Number of fields of union inputs do not match
-		in1.unionAll(in2);
+		Table result = in1.unionAll(in2);
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleFieldsName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -107,10 +109,11 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d");
 
 		// Must fail. Field names of union inputs do not match
-		in1.unionAll(in2);
+		Table result = in1.unionAll(in2);
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionIncompatibleFieldTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -122,7 +125,8 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e").select("a, b, c");
 
 		// Must fail. Field types of union inputs do not match
-		in1.unionAll(in2);
+		Table result = in1.unionAll(in2);
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test
@@ -168,7 +172,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	    compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testUnionTablesFromDifferentEnvs() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv1 = TableEnvironment.getTableEnvironment(env);

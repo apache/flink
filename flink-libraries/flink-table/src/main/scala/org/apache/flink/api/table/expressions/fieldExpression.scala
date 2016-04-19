@@ -36,6 +36,8 @@ trait NamedExpression extends Expression {
 
 abstract class Attribute extends LeafExpression with NamedExpression {
   override def toAttribute: Attribute = this
+
+  def withName(newName: String): Attribute
 }
 
 case class UnresolvedFieldReference(name: String) extends Attribute {
@@ -43,9 +45,7 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
 
   override def toString = "\"" + name
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.field(name)
-  }
+  override def withName(newName: String): Attribute = UnresolvedFieldReference(newName)
 
   override def dataType: TypeInformation[_] =
     throw new UnresolvedException(s"calling dataType on ${this.getClass}")
@@ -60,6 +60,18 @@ case class ResolvedFieldReference(
     val exprId: Int = NamedExpression.newExprId) extends Attribute {
 
   override def toString = s"'$name"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.field(name)
+  }
+
+  override def withName(newName: String): Attribute = {
+    if (newName == name) {
+      this
+    } else {
+      ResolvedFieldReference(newName, dataType)(exprId)
+    }
+  }
 }
 
 case class Alias(child: Expression, name: String)

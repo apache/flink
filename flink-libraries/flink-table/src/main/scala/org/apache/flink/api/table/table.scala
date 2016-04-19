@@ -123,12 +123,7 @@ class Table(
     * }}}
     */
   def as(fields: Expression*): Table = withPlan {
-    try {
-      AliasNode(fields.map(_.asInstanceOf[UnresolvedFieldReference]), logicalPlan)
-    } catch {
-      case e: ClassCastException =>
-        throw new ValidationException("All inputs must be scala symbol or string")
-    }
+    AliasNode(fields.map(_.asInstanceOf[UnresolvedFieldReference]), logicalPlan)
   }
 
   /**
@@ -157,10 +152,11 @@ class Table(
     * }}}
     */
   def filter(predicate: Expression): Table = withPlan {
-    logicalPlan match {
-      case j: Join => j.copy(condition = Some(predicate))
-      case o => Filter(predicate, logicalPlan)
-    }
+//    logicalPlan match {
+//      case j: Join => j.copy(condition = Some(predicate))
+//      case o => Filter(predicate, logicalPlan)
+//    }
+    Filter(predicate, logicalPlan)
   }
 
   /**

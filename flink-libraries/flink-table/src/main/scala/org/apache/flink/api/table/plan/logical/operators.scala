@@ -17,18 +17,20 @@
  */
 package org.apache.flink.api.table.plan.logical
 
+import scala.collection.JavaConverters._
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.schema.{Table => CTable}
 import org.apache.calcite.tools.RelBuilder
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.validate.ValidationException
-
-import scala.collection.JavaConverters._
 
 case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
@@ -40,7 +42,10 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 }
 
 case class AliasNode(aliasList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] =
+    child.output.zip(aliasList).map { case (attr, alias) =>
+      attr.withName(alias.name)
+    } ++ child.output.drop(aliasList.length)
 
   override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
     child.toRelNode(relBuilder)
@@ -49,6 +54,10 @@ case class AliasNode(aliasList: Seq[NamedExpression], child: LogicalNode) extend
         aliasList.map(_.toRexNode(relBuilder)).asJava,
         aliasList.map(_.name).asJava))
   }
+
+  override lazy val resolved: Boolean =
+    childrenResolved &&
+      aliasList.length <= child.output.length
 }
 
 case class Distinct(child: LogicalNode) extends UnaryNode {
@@ -71,7 +80,7 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
 
 case class Aggregate(
     groupingExpressions: Seq[Expression],
-    aggregateExpressions: Seq[Expression],
+    aggregateExpressions: Seq[NamedExpression],
     child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
@@ -90,7 +99,7 @@ case class Aggregate(
       aggregateExpressions.filter(_.isInstanceOf[Alias]).map { e =>
         e match {
           case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
-          case _ => null // this should never happen since we would report validationException here
+          case _ => null // this should never happen
         }
       }.asJava)
   }
@@ -104,6 +113,12 @@ case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
     right.toRelNode(relBuilder)
     relBuilder.union(true)
   }
+
+  override lazy val resolved: Boolean =
+    childrenResolved &&
+      left.output.length == right.output.length &&
+      left.output.zip(right.output).forall { case (l, r) =>
+        l.dataType == r.dataType && l.name == r.name }
 }
 
 case class Join(
@@ -129,6 +144,16 @@ case class Join(
       case _ =>
         throw new ValidationException(s"Unsupported JoinType: $joinType")
     }
+  }
+
+  def noAmbiguousName: Boolean =
+    left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet).isEmpty
+
+  // Joins are only resolved if they don't introduce ambiguous names.
+  override lazy val resolved: Boolean = {
+    childrenResolved &&
+      noAmbiguousName &&
+      condition.forall(_.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 }
 

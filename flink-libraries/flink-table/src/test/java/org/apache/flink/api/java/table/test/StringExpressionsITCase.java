@@ -144,7 +144,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForIntegerGreaterComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.TableException;
+import org.apache.flink.api.table.validate.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -121,7 +122,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testJoinNonExistingKey() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -133,10 +134,11 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
 		// Must fail. Field foo does not exist.
-		in1.join(in2).where("foo === e").select("c, g");
+		Table reuslt = in1.join(in2).where("foo === e").select("c, g");
+		tableEnv.toDataSet(reuslt, Row.class).collect();
 	}
 
-	@Test(expected = TableException.class)
+	@Test//(expected = TableException.class)
 	public void testJoinWithNonMatchingKeyTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -154,7 +156,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testJoinWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -166,7 +168,8 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, c");
 
 		// Must fail. Join input have overlapping field names.
-		in1.join(in2).where("a === d").select("c, g");
+		Table result = in1.join(in2).where("a === d").select("c, g");
+		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test
@@ -189,7 +192,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testJoinTablesFromDifferentEnvs() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv1 = TableEnvironment.getTableEnvironment(env);

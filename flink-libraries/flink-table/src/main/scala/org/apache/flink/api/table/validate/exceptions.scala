@@ -17,4 +17,4 @@
  */
 package org.apache.flink.api.table.validate
 
-case class ValidationException(msg: String) extends Exception
+case class ValidationException(msg: String) extends RuntimeException(msg)

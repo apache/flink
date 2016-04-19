@@ -28,7 +28,6 @@ import org.apache.calcite.schema.{SchemaPlus, Table => CTable}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
-
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaBatchTableEnv}
@@ -38,15 +37,13 @@ import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.logical.LogicalNode
 import org.apache.flink.api.table.plan.schema.TableTable
-import org.apache.flink.api.table.validate.{ValidationException, Validator}
+import org.apache.flink.api.table.validate.{FunctionCatalog, ValidationException, Validator}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import org.apache.flink.util.Preconditions
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -86,7 +83,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
 
-  private val validator: Validator = new Validator
+  private val validator: Validator = new Validator(FunctionCatalog.builtin)
 
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -390,6 +387,7 @@ object TableEnvironment {
     lazy val relNode: RelNode = {
       env match {
         case _: BatchTableEnvironment =>
+          validate()
           resolvedPlan.toRelNode(env.getRelBuilder).build()
         case _: StreamTableEnvironment =>
           ???

@@ -35,36 +35,18 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    */
   def fastEquals(other: TreeNode[_]): Boolean = this.eq(other) || this == other
 
-  def transformPre(rule: PartialFunction[A, A]): A = {
+  def transformDown(rule: PartialFunction[A, A]): A = {
     val afterTransform = rule.applyOrElse(this, identity[A])
 
     if (afterTransform fastEquals this) {
-      this.transformChildrenPre(rule)
+      transformChildren(rule, (t, r) => t.transformDown(r))
     } else {
-      afterTransform.transformChildrenPre(rule)
+      afterTransform.transformChildren(rule, (t, r) => t.transformDown(r))
     }
   }
 
-  def transformChildrenPre(rule: PartialFunction[A, A]): A = {
-    var changed = false
-    val newArgs = productIterator map {
-      case child: A if children.contains(child) =>
-        val newChild = child.transformPre(rule)
-        if (newChild fastEquals child) {
-          child
-        } else {
-          changed = true
-          newChild
-        }
-      case other: AnyRef => other
-      case null => null
-    } toArray
-
-    if (changed) makeCopy(newArgs) else this
-  }
-
-  def transformPost(rule: PartialFunction[A, A]): A = {
-    val afterChildren = transformChildrenPost(rule)
+  def transformUp(rule: PartialFunction[A, A]): A = {
+    val afterChildren = transformChildren(rule, (t, r) => t.transformUp(r))
     if (afterChildren fastEquals this) {
       rule.applyOrElse(this, identity[A])
     } else {
@@ -72,34 +54,59 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
     }
   }
 
-  def transformChildrenPost(rule: PartialFunction[A, A]): A = {
+  /**
+    * Returns a copy of this node where `rule` has been recursively applied to all the children of
+    * this node.  When `rule` does not apply to a given node it is left unchanged.
+    * @param rule the function used to transform this nodes children
+    */
+  protected def transformChildren(
+      rule: PartialFunction[A, A],
+      nextOperation: (A, PartialFunction[A, A]) => A): A = {
     var changed = false
-    val newArgs = productIterator map {
-      case child: A if children.contains(child) =>
-        val newChild = child.transformPost(rule)
-        if (newChild fastEquals child) {
-          child
-        } else {
+    val newArgs = productIterator.map {
+      case arg: TreeNode[_] if containsChild(arg) =>
+        val newChild = nextOperation(arg.asInstanceOf[A], rule)
+        if (!(newChild fastEquals arg)) {
           changed = true
           newChild
+        } else {
+          arg
         }
-      case other: AnyRef => other
+      case args: Traversable[_] => args.map {
+        case arg: TreeNode[_] if containsChild(arg) =>
+          val newChild = nextOperation(arg.asInstanceOf[A], rule)
+          if (!(newChild fastEquals arg)) {
+            changed = true
+            newChild
+          } else {
+            arg
+          }
+        case other => other
+      }
+      case nonChild: AnyRef => nonChild
       case null => null
-    } toArray
-    // toArray forces evaluation, toSeq does not seem to work here
-
+    }.toArray
     if (changed) makeCopy(newArgs) else this
   }
 
   def exists(predicate: A => Boolean): Boolean = {
     var exists = false
-    this.transformPre {
-      case e: A => if (predicate(e)) {
+    this.transformDown {
+      case e: TreeNode[_] => if (predicate(e.asInstanceOf[A])) {
         exists = true
       }
-        e
+      e.asInstanceOf[A]
     }
     exists
+  }
+
+  /**
+    * Runs the given function recursively on [[children]] then on this node.
+    * @param f the function to be applied to each node in the tree.
+    */
+  def foreachUp(f: A => Unit): Unit = {
+    children.foreach(_.foreachUp(f))
+    f(this)
   }
 
   /**
@@ -107,7 +114,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * if children change. This must be overridden by tree nodes that don't have the Constructor
    * arguments in the same order as the `children`.
    */
-  def makeCopy(newArgs: Array[AnyRef]): this.type = {
+  def makeCopy(newArgs: Array[AnyRef]): A = {
     val ctors = getClass.getConstructors.filter(_.getParameterCount != 0)
     if (ctors.isEmpty) {
       sys.error(s"No valid constructor for ${getClass.getSimpleName}")
@@ -127,7 +134,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
     }.getOrElse(ctors.maxBy(_.getParameterCount))
 
     try {
-      defaultCtor.newInstance(newArgs.toArray: _*).asInstanceOf[this.type]
+      defaultCtor.newInstance(newArgs.toArray: _*).asInstanceOf[A]
     } catch {
       case e: java.lang.IllegalArgumentException =>
         throw new IllegalArgumentException(
@@ -140,5 +147,57 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
            """.stripMargin)
     }
   }
-}
 
+  lazy val containsChild: Set[TreeNode[_]] = children.toSet
+
+  /** Returns a string representing the arguments to this node, minus any children */
+  def argString: String = productIterator.flatMap {
+    case tn: TreeNode[_] if containsChild(tn) => Nil
+    case tn: TreeNode[_] => s"${tn.simpleString}" :: Nil
+    case seq: Seq[A] if seq.toSet.subsetOf(children.toSet) => Nil
+    case seq: Seq[_] => seq.mkString("[", ",", "]") :: Nil
+    case set: Set[_] => set.mkString("{", ",", "}") :: Nil
+    case other => other :: Nil
+  }.mkString(", ")
+
+  /** Returns the name of this type of TreeNode.  Defaults to the class name. */
+  def nodeName: String = getClass.getSimpleName
+
+  /** String representation of this node without any children */
+  def simpleString: String = s"$nodeName $argString".trim
+
+  override def toString: String = treeString
+
+  /** Returns a string representation of the nodes in this tree */
+  def treeString: String = generateTreeString(0, Nil, new StringBuilder).toString
+
+  /**
+    * Appends the string represent of this node and its children to the given StringBuilder.
+    *
+    * The `i`-th element in `lastChildren` indicates whether the ancestor of the current node at
+    * depth `i + 1` is the last child of its own parent node.  The depth of the root node is 0, and
+    * `lastChildren` for the root node should be empty.
+    */
+  protected def generateTreeString(
+    depth: Int, lastChildren: Seq[Boolean], builder: StringBuilder): StringBuilder = {
+    if (depth > 0) {
+      lastChildren.init.foreach { isLast =>
+        val prefixFragment = if (isLast) "   " else ":  "
+        builder.append(prefixFragment)
+      }
+
+      val branch = if (lastChildren.last) "+- " else ":- "
+      builder.append(branch)
+    }
+
+    builder.append(simpleString)
+    builder.append("\n")
+
+    if (children.nonEmpty) {
+      children.init.foreach(_.generateTreeString(depth + 1, lastChildren :+ false, builder))
+      children.last.generateTreeString(depth + 1, lastChildren :+ true, builder)
+    }
+
+    builder
+  }
+}
