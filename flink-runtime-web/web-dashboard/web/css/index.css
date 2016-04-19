@@ -228,6 +228,7 @@
   overflow: hidden;
   padding: 2px 4px;
   font-size: 14px;
+  -webkit-border-radius: 2px;
   border-radius: 2px;
   margin-top: -3px;
 }
@@ -495,6 +496,7 @@ pre {
 }
 .nav-tabs.tabs-vertical li > a {
   margin-right: 0;
+  -webkit-border-radius: 0;
   border-radius: 0;
   border-bottom: none;
   border-left: 2px solid transparent;
@@ -539,6 +541,7 @@ livechart {
   padding-right: 0.4em;
   margin: 0;
   border-right: 1px solid #fff;
+  -webkit-border-radius: 0;
   border-radius: 0;
 }
 .label-group .label.label-black {
@@ -635,6 +638,92 @@ svg.graph .node-label {
 .qtip-timeline-bar {
   font-size: 14px;
   line-height: 1.4;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 {
+  margin: -10px -10px 10px -10px;
+  padding: 0;
+  border-bottom: 1px solid #e4e4e4;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 .navbar-info {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 .add-metrics {
+  margin-right: 15px;
+  float: right;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 .add-metrics .btn {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 .add-metrics a {
+  cursor: pointer;
+}
+#content .navbar-secondary-additional.navbar-secondary-additional-2 .metric-menu {
+  max-height: 300px;
+  overflow-y: scroll;
+}
+.metric-row {
+  margin: 0px;
+  min-height: 275px;
+  padding: 0;
+  list-style-type: none;
+}
+.metric-row .metric-col {
+  background-color: transparent;
+  width: 33.33%;
+  float: left;
+}
+.metric-row .metric-col.big {
+  width: 100%;
+}
+.metric-row .metric-col .panel {
+  margin-left: 5px;
+  margin-right: 5px;
+  min-height: 265px;
+  margin-bottom: 10px;
+}
+.metric-row .metric-col .panel .panel-body {
+  background-color: transparent;
+  height: 265px;
+  position: relative;
+}
+.metric-row .metric-col .panel .panel-heading {
+  padding: 0px 10px;
+  background-color: transparent;
+  height: 41px;
+  line-height: 41px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.metric-row .metric-col .panel .panel-heading .metric-title {
+  padding: 10px 0;
+}
+.metric-row .metric-col .panel .panel-heading .buttons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0 10px;
+  background-color: #fff;
+}
+.metric-row .metric-col.dndDraggingSource {
+  display: none;
+}
+.metric-row .dndPlaceholder {
+  position: relative;
+  background-color: #f0f0f0;
+  min-height: 305px;
+  display: block;
+  width: 33.33%;
+  float: left;
+  margin-bottom: 10px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+}
+.p-info {
+  padding-left: 5px;
+  padding-right: 5px;
 }
 @media (min-width: 1024px) and (max-width: 1279px) {
   #sidebar {
