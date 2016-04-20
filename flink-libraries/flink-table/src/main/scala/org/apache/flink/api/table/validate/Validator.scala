@@ -19,8 +19,27 @@ package org.apache.flink.api.table.validate
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.plan.logical.{Filter, Join, LogicalNode, Project}
+import org.apache.flink.api.table.plan.logical._
 
+/**
+  * Entry point for validating logical plan constructed from Table API.
+  * The main validation procedure is separated into two phases:
+  * - Resolve and Transformation:
+  *   translate [[UnresolvedFieldReference]] into [[ResolvedFieldReference]]
+  *     using child operator's output
+  *   translate [[Call]](UnresolvedFunction) into solid Expression
+  *   generate alias names for query output
+  *   ....
+  * - One pass validation of the resolved logical plan
+  *   check no [[UnresolvedFieldReference]] exists any more
+  *   check if all expressions have children of needed type
+  *   check each logical operator have desired input
+  *
+  * Once we pass the validation phase, we can safely convert
+  * logical operator into Calcite's RelNode.
+  *
+  * Note: the main idea of validation is adapted from Spark's Analyzer.
+  */
 class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNode] {
 
   val fixedPoint = FixedPoint(100)
@@ -29,9 +48,13 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
     Batch("Resolution", fixedPoint,
       ResolveReferences ::
       ResolveFunctions ::
-      ResolveAliases :: Nil : _*)
+      ResolveAliases ::
+      AliasNodeTransformation :: Nil : _*)
   )
 
+  /**
+    * Resolve [[UnresolvedFieldReference]] using children's output.
+    */
   object ResolveReferences extends Rule[LogicalNode] {
     def apply(plan: LogicalNode): LogicalNode = plan transformUp {
       case p: LogicalNode if !p.childrenResolved => p
@@ -45,6 +68,10 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
     }
   }
 
+  /**
+    * Look up [[Call]] (Unresolved Functions) in function catalog and
+    * transform them into concrete expressions.
+    */
   object ResolveFunctions extends Rule[LogicalNode] {
     def apply(plan: LogicalNode): LogicalNode = plan transformUp {
       case p: LogicalNode =>
@@ -55,6 +82,30 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
     }
   }
 
+  /**
+    * Replace AliasNode (generated from `as("a, b, c")`) into Project operator
+    */
+  object AliasNodeTransformation extends Rule[LogicalNode] {
+    def apply(plan: LogicalNode): LogicalNode = plan transformUp {
+      case l: LogicalNode if !l.childrenResolved => l
+      case a @ AliasNode(aliases, child) =>
+        if (aliases.length > child.output.length) {
+          failValidation("Aliasing more fields than we actually have")
+        } else if (!aliases.forall(_.isInstanceOf[UnresolvedFieldReference])) {
+          failValidation("`as` only allow string arguments")
+        } else {
+          val names = aliases.map(_.asInstanceOf[UnresolvedFieldReference].name)
+          val input = child.output
+          Project(
+            names.zip(input).map { case (name, attr) =>
+              Alias(attr, name)} ++ input.drop(names.length), child)
+        }
+    }
+  }
+
+  /**
+    * Replace unnamed alias into concrete ones.
+    */
   object ResolveAliases extends Rule[LogicalNode] {
     private def assignAliases(exprs: Seq[NamedExpression]) = {
       exprs.zipWithIndex.map {
@@ -97,9 +148,6 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
               case ExprValidationResult.ValidationFailure(message) =>
                 failValidation(s"Expression $e failed on input check: $message")
             }
-
-          case c: Cast if !c.valid =>
-            failValidation(s"invalid cast from ${c.child.dataType} to ${c.dataType}")
         }
 
         p match {
@@ -112,14 +160,60 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
               failValidation(
                 s"filter expression ${condition} of ${condition.dataType} is not a boolean")
             }
-          case _ =>
+
+          case Union(left, right) =>
+            if (left.output.length != right.output.length) {
+              failValidation(s"Union two table of different column sizes:" +
+                s" ${left.output.size} and ${right.output.size}")
+            }
+            val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
+              l.dataType == r.dataType && l.name == r.name }
+            if (!sameSchema) {
+              failValidation(s"Union two table of different schema:" +
+                s" [${left.output.map(a => (a.name, a.dataType)).mkString(", ")}] and" +
+                s" [${right.output.map(a => (a.name, a.dataType)).mkString(", ")}]")
+            }
+
+          case Aggregate(groupingExprs, aggregateExprs, child) =>
+            def validateAggregateExpression(expr: Expression): Unit = expr match {
+              // check no nested aggregation exists.
+              case aggExpr: Aggregation =>
+                aggExpr.children.foreach { child =>
+                  child.foreach {
+                    case agg: Aggregation =>
+                      failValidation(
+                        "It's not allowed to use an aggregate function as " +
+                          "input of another aggregate function")
+                    case _ => // OK
+                  }
+                }
+              case a: Attribute if !groupingExprs.exists(_.semanticEquals(a)) =>
+                failValidation(
+                  s"expression '$a' is invalid because it is neither" +
+                    " present in group by nor an aggregate function")
+              case e if groupingExprs.exists(_.semanticEquals(e)) => // OK
+              case e => e.children.foreach(validateAggregateExpression)
+            }
+
+            def validateGroupingExpression(expr: Expression): Unit = {
+              if (!expr.dataType.isKeyType) {
+                failValidation(
+                  s"expression $expr cannot be used as a grouping expression " +
+                    "because it's not a valid key type")
+              }
+            }
+
+            aggregateExprs.foreach(validateAggregateExpression)
+            groupingExprs.foreach(validateGroupingExpression)
+
+          case _ => // fall back to following checks
         }
 
         p match {
           case o if !o.resolved =>
             failValidation(s"unresolved operator ${o.simpleString}")
 
-          case _ =>
+          case _ => // Validation successful
         }
     }
   }
@@ -127,5 +221,4 @@ class Validator(functionCatalog: FunctionCatalog) extends RuleExecutor[LogicalNo
   protected def failValidation(msg: String): Nothing = {
     throw new ValidationException(msg)
   }
-
 }

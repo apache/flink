@@ -17,4 +17,4 @@
  */
 package org.apache.flink.api.table.expressions
 
-case class UnresolvedException(msg: String) extends Exception
+case class UnresolvedException(msg: String) extends RuntimeException(msg)

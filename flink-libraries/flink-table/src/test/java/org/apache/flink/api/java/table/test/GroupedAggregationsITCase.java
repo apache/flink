@@ -56,7 +56,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testGroupingInvalidSelection() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

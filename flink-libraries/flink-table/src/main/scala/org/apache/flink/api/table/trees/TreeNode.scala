@@ -101,6 +101,15 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
   }
 
   /**
+    * Runs the given function on this node and then recursively on [[children]].
+    * @param f the function to be applied to each node in the tree.
+    */
+  def foreach(f: A => Unit): Unit = {
+    f(this)
+    children.foreach(_.foreach(f))
+  }
+
+  /**
     * Runs the given function recursively on [[children]] then on this node.
     * @param f the function to be applied to each node in the tree.
     */
@@ -115,13 +124,13 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * arguments in the same order as the `children`.
    */
   def makeCopy(newArgs: Array[AnyRef]): A = {
-    val ctors = getClass.getConstructors.filter(_.getParameterCount != 0)
+    val ctors = getClass.getConstructors.filter(_.getParameterTypes.size != 0)
     if (ctors.isEmpty) {
       sys.error(s"No valid constructor for ${getClass.getSimpleName}")
     }
 
     val defaultCtor = ctors.find { ctor =>
-      if (ctor.getParameterCount != newArgs.length) {
+      if (ctor.getParameterTypes.size != newArgs.length) {
         false
       } else if (newArgs.contains(null)) {
         // if there is a `null`, we can't figure out the class, therefore we should just fallback
@@ -131,7 +140,7 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
         val argsArray: Array[Class[_]] = newArgs.map(_.getClass)
         ClassUtils.isAssignable(argsArray, ctor.getParameterTypes)
       }
-    }.getOrElse(ctors.maxBy(_.getParameterCount))
+    }.getOrElse(ctors.maxBy(_.getParameterTypes.size))
 
     try {
       defaultCtor.newInstance(newArgs.toArray: _*).asInstanceOf[A]

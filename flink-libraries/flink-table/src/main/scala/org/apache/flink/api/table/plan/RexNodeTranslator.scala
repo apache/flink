@@ -53,7 +53,7 @@ object RexNodeTranslator {
       // Scalar functions
       case c @ Call(name, args) =>
         val newArgs = args.map(extractAggregations(_, tableEnv))
-        (c.makeCopy((name +: args).toArray), newArgs.flatMap(_._2).toList)
+        (c.makeCopy((name :: newArgs.map(_._1) :: Nil).toArray), newArgs.flatMap(_._2).toList)
 
       case e: Expression =>
         val newArgs = e.productIterator.map {

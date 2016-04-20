@@ -123,7 +123,7 @@ class Table(
     * }}}
     */
   def as(fields: Expression*): Table = withPlan {
-    AliasNode(fields.map(_.asInstanceOf[UnresolvedFieldReference]), logicalPlan)
+    AliasNode(fields, logicalPlan)
   }
 
   /**
@@ -336,10 +336,11 @@ class GroupedTable(
 
     val logical = if (aggregations.nonEmpty) {
       Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-        Aggregate(groupKey, aggregations, table.logicalPlan) // TODO: remove groupKey from aggregation
+        Aggregate(groupKey, aggregations, table.logicalPlan)
       )
     } else {
-      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), table.logicalPlan)
+      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+        Aggregate(groupKey, Nil, table.logicalPlan))
     }
 
     new Table(table.tableEnv, logical)

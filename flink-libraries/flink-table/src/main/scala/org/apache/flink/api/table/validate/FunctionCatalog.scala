@@ -57,7 +57,7 @@ class SimpleFunctionCatalog extends FunctionCatalog {
 
   override def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val func = functionBuilders.get(name).getOrElse {
-      throw new ValidationException("undefined function $name")
+      throw new ValidationException(s"undefined function $name")
     }
     func(children)
   }
@@ -83,18 +83,19 @@ object FunctionCatalog {
     expression[CharLength]("charLength"),
     expression[InitCap]("initCap"),
     expression[Like]("like"),
-    expression[Lower]("lower"),
+    expression[Lower]("lowerCase"),
     expression[Similar]("similar"),
     expression[SubString]("subString"),
     expression[Trim]("trim"),
-    expression[Upper]("upper"),
+    expression[Upper]("upperCase"),
 
     // math functions
     expression[Abs]("abs"),
     expression[Exp]("exp"),
     expression[Log10]("log10"),
     expression[Ln]("ln"),
-    expression[Power]("power")
+    expression[Power]("power"),
+    expression[Mod]("mod")
   )
 
   val builtin: SimpleFunctionCatalog = {

@@ -36,14 +36,6 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
 
-  override def makeCopy(newArgs: Array[AnyRef]): this.type = {
-    val copy = Call(
-      newArgs(0).asInstanceOf[String],
-      newArgs.tail.map(_.asInstanceOf[Expression]))
-
-    copy.asInstanceOf[this.type]
-  }
-
   override def dataType =
     throw new UnresolvedException(s"calling dataType on Unresolved Function $functionName")
 

@@ -52,7 +52,16 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 
-  override def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
+  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+    case (lType, rType) =>
+      if (lType != rType) {
+        ExprValidationResult.ValidationFailure(
+          s"Equality predicate on incompatible types: $lType and $rType")
+      } else {
+        ExprValidationResult.ValidationSuccess
+      }
+  }
 }
 
 case class NotEqualTo(left: Expression, right: Expression) extends BinaryComparison {
@@ -60,7 +69,16 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 
-  override def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
+  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+    case (lType, rType) =>
+      if (lType != rType) {
+        ExprValidationResult.ValidationFailure(
+          s"Equality predicate on incompatible types: $lType and $rType")
+      } else {
+        ExprValidationResult.ValidationSuccess
+      }
+  }
 }
 
 case class GreaterThan(left: Expression, right: Expression) extends BinaryComparison {

@@ -122,7 +122,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		resultSet.collect();
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForStringComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -133,7 +133,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForIntegerEqualsComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

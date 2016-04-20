@@ -26,7 +26,8 @@ object TypeCheckUtils {
     if (dataType.isInstanceOf[NumericTypeInfo[_]]) {
       ExprValidationResult.ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(s"$caller requires numeric types, get $dataType here")
+      ExprValidationResult.ValidationFailure(
+        s"$caller requires numeric types, get $dataType here")
     }
   }
 
@@ -34,7 +35,8 @@ object TypeCheckUtils {
     if (dataType.isSortKeyType) {
       ExprValidationResult.ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(s"$caller requires orderable types, get $dataType here")
+      ExprValidationResult.ValidationFailure(
+        s"$caller requires orderable types, get $dataType here")
     }
   }
 }

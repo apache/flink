@@ -176,12 +176,14 @@ abstract class TableEnvironment(val config: TableConfig) {
     planner
   }
 
-  /** Returns the Calcite [[org.apache.calcite.rel.`type`.RelDataTypeFactory]] of this TableEnvironment. */
-  protected def getTypeFactory: RelDataTypeFactory = {
+  /**
+    * Returns the Calcite [[org.apache.calcite.rel.`type`.RelDataTypeFactory]]
+    * of this TableEnvironment. */
+  private[flink] def getTypeFactory: RelDataTypeFactory = {
     typeFactory
   }
 
-  protected def getValidator: Validator = {
+  private[flink] def getValidator: Validator = {
     validator
   }
 
@@ -378,6 +380,11 @@ object TableEnvironment {
     new ScalaStreamTableEnv(executionEnvironment, tableConfig)
   }
 
+  /**
+    * The primary workflow for executing plan validation for that generated from Table API.
+    * The validation is intentionally designed as a lazy procedure and triggered when we
+    * are going to run on Flink core.
+    */
   class PlanPreparation(val env: TableEnvironment, val logical: LogicalNode) {
 
     lazy val resolvedPlan: LogicalNode = env.getValidator.resolve(logical)
@@ -390,7 +397,8 @@ object TableEnvironment {
           validate()
           resolvedPlan.toRelNode(env.getRelBuilder).build()
         case _: StreamTableEnvironment =>
-          ???
+          validate()
+          resolvedPlan.toRelNode(env.getRelBuilder).build()
       }
     }
   }

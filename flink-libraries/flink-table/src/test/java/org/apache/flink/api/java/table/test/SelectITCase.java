@@ -117,7 +117,7 @@ public class SelectITCase extends TableProgramsTestBase {
 		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
-	@Test//(expected = IllegalArgumentException.class)
+	@Test(expected = ValidationException.class)
 	public void testSelectAmbiguousFieldNames() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());

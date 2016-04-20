@@ -83,15 +83,25 @@ case class Eval(
   extends Expression {
   def children = Seq(condition, ifTrue, ifFalse)
 
-  override def toString = s"($condition)? $ifTrue : $ifFalse"
+  override def dataType = ifTrue.dataType
 
-  override val name = Expression.freshName("if-" + condition.name +
-    "-then-" + ifTrue.name + "-else-" + ifFalse.name)
+  override def toString = s"($condition)? $ifTrue : $ifFalse"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val c = condition.toRexNode
     val t = ifTrue.toRexNode
     val f = ifFalse.toRexNode
     relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
+  }
+
+  override def validateInput(): ExprValidationResult = {
+    if (condition.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        ifTrue.dataType == ifFalse.dataType) {
+      ExprValidationResult.ValidationSuccess
+    } else {
+      ExprValidationResult.ValidationFailure(
+        s"Eval should have boolean condition and same type of ifTrue and ifFalse, get " +
+          s"(${condition.dataType}, ${ifTrue.dataType}, ${ifFalse.dataType})")
+    }
   }
 }

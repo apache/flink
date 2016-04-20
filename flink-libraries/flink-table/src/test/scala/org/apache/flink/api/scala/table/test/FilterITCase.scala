@@ -21,10 +21,11 @@ package org.apache.flink.api.scala.table.test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{TableEnvironment, Row}
+import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
 import TableProgramsTestBase.TableConfigMode
+import org.apache.flink.api.table.validate.ValidationException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -174,7 +175,7 @@ class FilterITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testFilterInvalidFieldName(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -182,7 +183,7 @@ class FilterITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     // must fail. Field 'foo does not exist
-    ds.filter( 'foo === 2 )
+    ds.filter( 'foo === 2 ).collect()
   }
 
 }

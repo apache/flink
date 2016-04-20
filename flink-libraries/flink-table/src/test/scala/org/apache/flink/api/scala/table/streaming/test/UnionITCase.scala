@@ -20,16 +20,15 @@ package org.apache.flink.api.scala.table.streaming.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{TableException, TableEnvironment, Row}
+import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.JavaConversions._
 import org.junit.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamITCase
 import org.apache.flink.api.scala.table.streaming.test.utils.StreamTestData
+import org.apache.flink.api.table.validate.ValidationException
 
 class UnionITCase extends StreamingMultipleProgramsTestBase {
 
@@ -72,7 +71,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -90,7 +89,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(true, StreamITCase.testResults.isEmpty)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -110,7 +109,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(true, StreamITCase.testResults.isEmpty)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = TableEnvironment.getTableEnvironment(env)

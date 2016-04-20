@@ -36,28 +36,34 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    def allAlias: Boolean = {
+      projectList.forall { proj =>
+        proj match {
+          case Alias(r: ResolvedFieldReference, name) => true
+          case _ => false
+        }
+      }
+    }
     child.toRelNode(relBuilder)
-    relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
+    if (allAlias) {
+      relBuilder.push(
+        LogicalProject.create(relBuilder.peek(),
+          projectList.map(_.toRexNode(relBuilder)).asJava,
+          projectList.map(_.name).asJava))
+    } else {
+      relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
+    }
   }
 }
 
-case class AliasNode(aliasList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
+case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] =
-    child.output.zip(aliasList).map { case (attr, alias) =>
-      attr.withName(alias.name)
-    } ++ child.output.drop(aliasList.length)
+    throw new UnresolvedException("Invalid call to output on AliasNode")
 
-  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
-    child.toRelNode(relBuilder)
-    relBuilder.push(
-      LogicalProject.create(relBuilder.build(),
-        aliasList.map(_.toRexNode(relBuilder)).asJava,
-        aliasList.map(_.name).asJava))
-  }
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder =
+    throw new UnresolvedException("Invalid call to toRelNode on AliasNode")
 
-  override lazy val resolved: Boolean =
-    childrenResolved &&
-      aliasList.length <= child.output.length
+  override lazy val resolved: Boolean = false
 }
 
 case class Distinct(child: LogicalNode) extends UnaryNode {
@@ -113,12 +119,6 @@ case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
     right.toRelNode(relBuilder)
     relBuilder.union(true)
   }
-
-  override lazy val resolved: Boolean =
-    childrenResolved &&
-      left.output.length == right.output.length &&
-      left.output.zip(right.output).forall { case (l, r) =>
-        l.dataType == r.dataType && l.name == r.name }
 }
 
 case class Join(

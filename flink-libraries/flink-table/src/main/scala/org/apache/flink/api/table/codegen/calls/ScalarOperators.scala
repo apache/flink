@@ -340,9 +340,6 @@ object ScalarOperators {
           (operandTerm) => s""" "" + $operandTerm"""
         }
 
-      // TODO: remove the following CodeGenExceptions once we plug in validation rules
-      // into Calcite's Validator
-
       // * -> Date
       case DATE_TYPE_INFO =>
         throw new CodeGenException("Date type not supported yet.")

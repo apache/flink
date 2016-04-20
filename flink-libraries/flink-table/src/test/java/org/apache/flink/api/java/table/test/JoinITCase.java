@@ -138,7 +138,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		tableEnv.toDataSet(reuslt, Row.class).collect();
 	}
 
-	@Test//(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testJoinWithNonMatchingKeyTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

@@ -42,7 +42,8 @@ case class Cast(child: Expression, dataType: TypeInformation[_]) extends UnaryEx
     if (Cast.canCast(child.dataType, dataType)) {
       ExprValidationResult.ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(s"Unsupported cast from ${child.dataType} to $dataType")
+      ExprValidationResult.ValidationFailure(
+        s"Unsupported cast from ${child.dataType} to $dataType")
     }
   }
 }
