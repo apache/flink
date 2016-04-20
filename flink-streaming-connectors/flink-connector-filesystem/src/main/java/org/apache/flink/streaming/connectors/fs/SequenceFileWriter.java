@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.io.SequenceFile;
@@ -91,9 +92,11 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 		this.outputStream = outStream;
 
 		CompressionCodec codec = null;
+		
+		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
 
 		if (!compressionCodecName.equals("None")) {
-			CompressionCodecFactory codecFactory = new CompressionCodecFactory(new Configuration());
+			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
 			codec = codecFactory.getCodecByName(compressionCodecName);
 			if (codec == null) {
 				throw new RuntimeException("Codec " + compressionCodecName + " not found.");
@@ -101,7 +104,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> implemen
 		}
 
 		// the non-deprecated constructor syntax is only available in recent hadoop versions...
-		writer = SequenceFile.createWriter(new Configuration(),
+		writer = SequenceFile.createWriter(conf,
 				outStream,
 				keyClass,
 				valueClass,
