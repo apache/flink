@@ -21,8 +21,7 @@ package org.apache.flink.api.java.io.jdbc;
 import java.io.IOException;
 import java.sql.ResultSet;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.io.GenericRow;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -66,19 +65,8 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.finish();
 	}
 
-	@Test(expected = IOException.class)
-	public void testIncompatibleTuple() throws IOException {
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(DRIVER_CLASS)
-				.setDBUrl(DB_URL)
-				.setQuery(SELECT_ALL_BOOKS)
-				.finish();
-		jdbcInputFormat.open(null);
-		jdbcInputFormat.nextRecord(new Tuple2());
-	}
-
 	@Test
-	public void testJDBCInputFormatWithoutParallelism() throws IOException {
+	public void testJDBCInputFormatWithoutParallelism() throws IOException, InstantiationException, IllegalAccessException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -86,7 +74,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
-		Tuple5 tuple = new Tuple5();
+		GenericRow tuple =  GenericRow.class.newInstance();
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			jdbcInputFormat.nextRecord(tuple);
@@ -97,8 +85,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 			if(tuple.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, tuple.getField(4).getClass());}
 
 			for (int x = 0; x < 5; x++) {
-				//TODO how to handle null for double???
-				if(testData[recordCount][x]!=null){
+				if(testData[recordCount][x]!=null) {
 					Assert.assertEquals(testData[recordCount][x], tuple.getField(x));
 				}
 			}
@@ -108,7 +95,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 	
 	@Test
-	public void testEmptyResults() throws IOException {
+	public void testEmptyResults() throws IOException, InstantiationException, IllegalAccessException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -116,7 +103,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
-		Tuple5 tuple = new Tuple5();
+		GenericRow tuple = GenericRow.class.newInstance();
 		int loopCnt = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			Assert.assertNull(jdbcInputFormat.nextRecord(tuple));

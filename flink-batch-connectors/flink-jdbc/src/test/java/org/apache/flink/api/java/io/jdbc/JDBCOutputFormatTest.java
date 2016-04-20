@@ -19,22 +19,17 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.ResultSet;
 
-import org.junit.Assert;
-
+import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class JDBCOutputFormatTest extends JDBCTestBase {
 
+	Tuple5<Integer,String, String, Double, String> tuple5 = new Tuple5<>();
+	
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidDriver() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
@@ -83,19 +78,19 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		Tuple5 tuple5 = new Tuple5();
 		tuple5.setField(4, 0);
 		tuple5.setField("hello", 1);
 		tuple5.setField("world", 2);
 		tuple5.setField(0.99, 3);
 		tuple5.setField("imthewrongtype", 4);
 
-		jdbcOutputFormat.writeRecord(tuple5);
+		GenericRow row = new GenericRow(tuple5.getArity()).fromTuple(tuple5);
+		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.close();
 	}
 
 	@Test
-	public void testJDBCOutputFormat() throws IOException {
+	public void testJDBCOutputFormat() throws IOException, InstantiationException, IllegalAccessException {
 
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -112,10 +107,10 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcInputFormat.open(null);
 
-		Tuple5 tuple = new Tuple5();
+		GenericRow row = new GenericRow(tuple5.getArity());
 		while (!jdbcInputFormat.reachedEnd()) {
-			if(jdbcInputFormat.nextRecord(tuple)!=null){
-				jdbcOutputFormat.writeRecord(tuple);
+			if(jdbcInputFormat.nextRecord(row)!=null) {
+				jdbcOutputFormat.writeRecord(row);
 			}
 		}
 
@@ -132,17 +127,16 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
-			jdbcInputFormat.nextRecord(tuple);
-			if(tuple.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, tuple.getField(0).getClass());}
-			if(tuple.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, tuple.getField(1).getClass());}
-			if(tuple.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, tuple.getField(2).getClass());}
-			if(tuple.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, tuple.getField(3).getClass());}
-			if(tuple.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, tuple.getField(4).getClass());}
+			jdbcInputFormat.nextRecord(row);
+			if(row.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.getField(0).getClass());}
+			if(row.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.getField(1).getClass());}
+			if(row.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.getField(2).getClass());}
+			if(row.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, row.getField(3).getClass());}
+			if(row.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, row.getField(4).getClass());}
 
 			for (int x = 0; x < 5; x++) {
-				//TODO how to handle null for double???
-				if(JDBCTestBase.testData[recordCount][x]!=null){
-					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], tuple.getField(x));
+				if(JDBCTestBase.testData[recordCount][x]!=null) {
+					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.getField(x));
 				}
 			}
 
