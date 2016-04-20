@@ -86,7 +86,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		if (distribution != null) {
 			Preconditions.checkArgument(pKeys.getNumberOfKeyFields() <= distribution.getNumberOfFields(), "The distribution must provide at least as many fields as flat key fields are specified.");
 			Preconditions.checkArgument(Arrays.equals(pKeys.getKeyFieldTypes(), Arrays.copyOfRange(distribution.getKeyTypes(), 0, pKeys.getNumberOfKeyFields())),
-					"The types of the flat key fields must be a equal of the types of the fields of the distribution.");
+					"The types of the flat key fields must be equal to the types of the fields of the distribution.");
 		}
 		
 		if (customPartitioner != null) {

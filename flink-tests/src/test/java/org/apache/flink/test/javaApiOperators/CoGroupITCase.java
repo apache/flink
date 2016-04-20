@@ -18,8 +18,12 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -28,7 +32,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
@@ -40,6 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -290,6 +298,51 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 
 		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
 		
+		String expected = "1,1,Hallo\n" +
+				"2,2,Hallo Welt\n" +
+				"3,2,Hallo Welt wie gehts?\n" +
+				"3,2,ABC\n" +
+				"5,3,HIJ\n" +
+				"5,3,IJK\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testCoGroupWithMultipleKeyFieldsWithFieldSelector2() throws Exception {
+		/*
+		 * UDF Join on tuples with multiple key field positions and same customized distribution
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Integer>> ds1 = CollectionDataSets.get5TupleDataSet(env)
+				.map(new MapFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Integer>>() {
+					@Override
+					public Tuple5<Integer, Long, Integer, String, Integer> map(Tuple5<Integer, Long, Integer, String, Long> value) throws Exception {
+						return new Tuple5<>(value.f0, value.f1, value.f2, value.f3, value.f4.intValue());
+					}
+				});
+
+		DataSet<Tuple3<Integer, Integer, String>> ds2 = CollectionDataSets.get3TupleDataSet(env)
+				.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Integer, String>>() {
+					@Override
+					public Tuple3<Integer, Integer, String> map(Tuple3<Integer, Long, String> value) throws Exception {
+						return new Tuple3<>(value.f0, value.f1.intValue(), value.f2);
+					}
+				});
+		
+		env.setParallelism(4);
+		TestDistribution testDis = new TestDistribution();
+		DataSet<Tuple3<Integer, Long, String>> coGrouped =
+				DataSetUtils.partitionByRange(ds1, testDis, 0, 4)
+				.coGroup(DataSetUtils.partitionByRange(ds2, testDis, 0, 1))
+				.where(0, 4)
+				.equalTo(0, 1)
+				.with(new Tuple5Tuple3CoGroup2());
+
+		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
+
 		String expected = "1,1,Hallo\n" +
 				"2,2,Hallo Welt\n" +
 				"3,2,Hallo Welt wie gehts?\n" +
@@ -754,6 +807,29 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	public static class Tuple5Tuple3CoGroup2 implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Integer>, Tuple3<Integer, Integer, String>, Tuple3<Integer, Long, String>> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(Iterable<Tuple5<Integer, Long, Integer, String, Integer>> first,
+							Iterable<Tuple3<Integer, Integer, String>> second,
+							Collector<Tuple3<Integer, Long, String>> out)
+		{
+			List<String> strs = new ArrayList<String>();
+
+			for (Tuple5<Integer, Long, Integer, String, Integer> t : first) {
+				strs.add(t.f3);
+			}
+
+			for(Tuple3<Integer, Integer, String> t : second) {
+				for(String s : strs) {
+					out.collect(new Tuple3<>(t.f0, t.f1.longValue(), s));
+				}
+			}
+		}
+	}
+
 	public static class CoGroupAtomic1 implements CoGroupFunction<Tuple3<Integer, Long, String>, Integer, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
@@ -795,6 +871,48 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 					}
 				}
 			}
+		}
+	}
+
+	public static class TestDistribution implements DataDistribution {
+		public Integer boundaries[][] = new Integer[][]{
+				new Integer[]{2, 2},
+				new Integer[]{5, 4},
+				new Integer[]{10, 12},
+				new Integer[]{21, 6}
+		};
+
+		public TestDistribution() {}
+
+		@Override
+		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+			return boundaries[bucketNum];
+		}
+
+		@Override
+		public int getNumberOfFields() {
+			return 2;
+		}
+
+		@Override
+		public TypeInformation[] getKeyTypes() {
+			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			// The test is running with same distribution, so return true directly
+			return true; 
 		}
 	}
 }
