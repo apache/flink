@@ -58,6 +58,8 @@ public class TypeInfoParserTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeInfoParser.parse("Boolean"));
 		Assert.assertEquals(BasicTypeInfo.VOID_TYPE_INFO, TypeInfoParser.parse("Void"));
 		Assert.assertEquals(BasicTypeInfo.DATE_TYPE_INFO, TypeInfoParser.parse("Date"));
+		Assert.assertEquals(BasicTypeInfo.BIG_INT_TYPE_INFO, TypeInfoParser.parse("BigInteger"));
+		Assert.assertEquals(BasicTypeInfo.BIG_DEC_TYPE_INFO, TypeInfoParser.parse("BigDecimal"));
 		
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, TypeInfoParser.parse("java.lang.Integer"));
 		Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, TypeInfoParser.parse("java.lang.Double"));
@@ -70,6 +72,8 @@ public class TypeInfoParserTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeInfoParser.parse("java.lang.Boolean"));
 		Assert.assertEquals(BasicTypeInfo.VOID_TYPE_INFO, TypeInfoParser.parse("java.lang.Void"));
 		Assert.assertEquals(BasicTypeInfo.DATE_TYPE_INFO, TypeInfoParser.parse("java.util.Date"));
+		Assert.assertEquals(BasicTypeInfo.BIG_INT_TYPE_INFO, TypeInfoParser.parse("java.math.BigInteger"));
+		Assert.assertEquals(BasicTypeInfo.BIG_DEC_TYPE_INFO, TypeInfoParser.parse("java.math.BigDecimal"));
 		
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, TypeInfoParser.parse("int"));
 		Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, TypeInfoParser.parse("double"));

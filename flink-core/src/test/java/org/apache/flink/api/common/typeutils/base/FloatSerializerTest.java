@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 /**
- * A test for the {@link FloatSerializerTest}.
+ * A test for the {@link FloatSerializer}.
  */
 public class FloatSerializerTest extends SerializerTestBase<Float> {
 	

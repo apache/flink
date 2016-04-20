@@ -334,7 +334,7 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 			// Get the normKeyLen on which we are testing
 			int normKeyLen = getNormKeyLen(halfLength, data, comparator);
 
-			// Write the data into different 2 memory segements
+			// Write the data into different 2 memory segments
 			MemorySegment memSegLow = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 			MemorySegment memSegHigh = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 

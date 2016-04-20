@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 /**
- * A test for the {@link IntSerializerTest}.
+ * A test for the {@link IntSerializer}.
  */
 public class IntSerializerTest extends SerializerTestBase<Integer> {
 	

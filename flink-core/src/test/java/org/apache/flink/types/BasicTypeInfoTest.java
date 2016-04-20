@@ -18,6 +18,8 @@
 
 package org.apache.flink.types;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -30,7 +32,7 @@ public class BasicTypeInfoTest extends TestLogger {
 
 	static Class<?>[] classes = {String.class, Integer.class, Boolean.class, Byte.class,
 		Short.class, Long.class, Float.class, Double.class, Character.class, Date.class,
-		Void.class};
+		Void.class, BigInteger.class, BigDecimal.class};
 
 	@Test
 	public void testBasicTypeInfoEquality() {
