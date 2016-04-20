@@ -49,6 +49,15 @@ object LinearPrediction extends PredictionFunction {
 
 }
 
+/**
+ * Prediction Function for MultiLayerPerceptron. Calculates Feed-forward for prediction and
+ * back propogation
+ *
+ * https://en.wikipedia.org/wiki/Multilayer_perceptron
+ *
+ * @param arch Architecture of the Neural Network [[List [[Int]]]]
+ * @param f activationFunction [[ActivationFunction]]
+ */
 case class MultiLayerPerceptronPrediction(
                                          arch: List[Int],
                                          f: ActivationFunction

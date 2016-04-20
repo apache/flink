@@ -33,12 +33,31 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
 
 
-/** Multi-layer Perceptron regression.
-  *
-  * docs
-  *
-  */
-
+/**
+ * Multi-Layer Perceptron to estimate data point
+ *
+ * Neural networks use a directed graph consisting of activation functions (nodes) and parameter
+ * weights (edges) to solve complex problems with interdependent variables.
+ * One of the simplest types of neural networks (sometimes referred to as Artificial Neural
+ * Networks or *ANN*s) is the multiple-layer perceptron (or *MLP*).  The Multi-Layer Perceptron is
+ * a feed forward neural network that has multiple layers which are fully connected with
+ * *non-linear* activation function at each node and weights at each layer.
+ *
+ *
+ *
+ * =Parameters=
+ *
+ * - [[org.apache.flink.ml.neuralnetwork.MultiLayerPerceptron.HiddenLayerNetworkArchitecture]]
+ *  A list of integer specifying the number of nodes to have in each hidden layer of the network
+ *
+ *  - [[org.apache.flink.ml.neuralnetwork.MultiLayerPerceptron.Optimizer]]
+ *  An [[IterativeSolver]] to be used in optimizing the multi-layer perceptron
+ *
+ *  - [[org.apache.flink.ml.neuralnetwork.MultiLayerPerceptron.ActivationFunc]]
+ *  An [[ActivationFunction]] that is continuous and differentiable to be used at each node in the
+ *  network
+ *
+ */
 class MultiLayerPerceptron extends Predictor[MultiLayerPerceptron] {
   import MultiLayerPerceptron._
 

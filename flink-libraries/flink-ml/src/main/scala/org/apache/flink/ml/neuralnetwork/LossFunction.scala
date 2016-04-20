@@ -27,25 +27,34 @@ import org.apache.flink.ml.optimization.{ PartialLossFunction,
                                           MultiLayerPerceptronPrediction,
                                           LossFunction}
 
+/**
+ * A special LossFunction for [[MultiLayerPerceptron]]
+ * @param partialLossFunction [[PartialLossFunction]]
+ * @param predictionFunction [[MultiLayerPerceptronPrediction]]
+ * @param arch [[List[[Int]]]]
+ */
 case class GenericMLPLossFunction(
                                    partialLossFunction: PartialLossFunction,
                                    predictionFunction: MultiLayerPerceptronPrediction,
                                    arch: List[Int]) extends LossFunction {
 
-  /** Calculates the gradient as well as the loss given a data point and the weight vector
-    *
-    * @param dataPoint
-    * @param weightVector
-    * @return
-    */
-
-  // Make this spit out / take weight vectors, not reg vetors and you're gtg
+  /**
+   * Flattens an array of weights into a [[WeightVector]]
+   * @param U:  [[Array[[BreezeDenseMatrix[[Double]]]]]]
+   * @return [[WeightVector]]
+   */
   def makeWeightVector(U: Array[BreezeDenseMatrix[Double]]): WeightVector = {
     val fVector = DenseVector( U.map(_.toDenseVector)
                                 .reduceLeft(BreezeDenseVector.vertcat(_,_)).data )
     WeightVector( fVector, 0)
   }
 
+  /**
+   * Converts [[WeightVector]] into a weight array for use by [[GenericMLPLossFunction]]
+   * @param v [[WeightVector]]
+   * @param arch network architecture [[List[[Int]]]]
+   * @return [[Array[[BreezeDenseMatrix[[Double]]]]]]
+   */
   def makeWeightArray(v: WeightVector, arch: List[Int]): Array[BreezeDenseMatrix[Double]] = {
     val weightVector = Vector2BreezeConverter(v.weights).asBreeze.toDenseVector
     val breakPoints = arch.iterator.sliding(2).toList.map(o => o(0) * o(1)).scanLeft(0)(_ + _)
@@ -59,6 +68,13 @@ case class GenericMLPLossFunction(
     U
   }
 
+  /**
+   * Performs feed-forward and back-propegatoin algorithm at specified data point. Return gradient
+   * for [[org.apache.flink.ml.optimization.IterativeSolver]]
+   * @param dataPoint [[LabeledVector]]
+   * @param weightVector [[WeightVector]]
+   * @return A new tuple object of the loss ([[Double]]) and gradient vector [[WeightVector]]
+   */
   def lossGradient(dataPoint: LabeledVector, weightVector: WeightVector): (Double, WeightVector) = {
     val ffr = predictionFunction.feedForward(weightVector, dataPoint.vector)
     val L = arch.length - 1
