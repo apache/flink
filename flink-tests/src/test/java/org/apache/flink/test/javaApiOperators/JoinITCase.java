@@ -25,7 +25,6 @@ import java.util.List;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -98,51 +97,6 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				.where(0, 1)
 				.equalTo(0, 4)
 				.with(new T3T5FlatJoin());
-
-		List<Tuple2<String, String>> result = joinDs.collect();
-
-		String expected = "Hi,Hallo\n" +
-				"Hello,Hallo Welt\n" +
-				"Hello world,Hallo Welt wie gehts?\n" +
-				"Hello world,ABC\n" +
-				"I am fine.,HIJ\n" +
-				"I am fine.,IJK\n";
-
-		compareResultAsTuples(result, expected);
-	}
-
-	@Test
-	public void testeUDFJoinOnTuplesWithMultipleKeyFieldPositions2() throws Exception {
-		/*
-		 * UDF Join on tuples with multiple key field positions and same customized distribution
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Tuple3<Integer, Integer, String>> ds1 = CollectionDataSets.get3TupleDataSet(env)
-				.map(new MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Integer, String>>() {
-					@Override
-					public Tuple3<Integer, Integer, String> map(Tuple3<Integer, Long, String> value) throws Exception {
-						return new Tuple3<>(value.f0, value.f1.intValue(), value.f2);
-					}
-				});
-
-		DataSet<Tuple5<Integer, Long, Integer, String, Integer>> ds2 = CollectionDataSets.get5TupleDataSet(env)
-				.map(new MapFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Integer>>() {
-					@Override
-					public Tuple5<Integer, Long, Integer, String, Integer> map(Tuple5<Integer, Long, Integer, String, Long> value) throws Exception {
-						return new Tuple5<>(value.f0, value.f1, value.f2, value.f3, value.f4.intValue());
-					}
-				});
-
-		env.setParallelism(4);
-		TestDistribution testDis = new TestDistribution();
-		DataSet<Tuple2<String, String>> joinDs =
-				DataSetUtils.partitionByRange(ds1, testDis, 0, 1)
-				.join(DataSetUtils.partitionByRange(ds2, testDis, 0, 4))
-				.where(0, 1)
-				.equalTo(0, 4)
-				.with(new T3T5FlatJoin2());
 
 		List<Tuple2<String, String>> result = joinDs.collect();
 
@@ -733,6 +687,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	@Test
 	public void testJoinWithAtomicType2() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -749,6 +704,38 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	@Test
+	public void testJoinWithRangePartitioning() throws Exception {
+		/*
+		 * Test Join on tuples with multiple key field positions and same customized distribution
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+
+		env.setParallelism(4);
+		TestDistribution testDis = new TestDistribution();
+		DataSet<Tuple2<String, String>> joinDs =
+				DataSetUtils.partitionByRange(ds1, testDis, 0, 1)
+						.join(DataSetUtils.partitionByRange(ds2, testDis, 0, 4))
+						.where(0, 1)
+						.equalTo(0, 4)
+						.with(new T3T5FlatJoin());
+
+		List<Tuple2<String, String>> result = joinDs.collect();
+
+		String expected = "Hi,Hallo\n" +
+				"Hello,Hallo Welt\n" +
+				"Hello world,Hallo Welt wie gehts?\n" +
+				"Hello world,ABC\n" +
+				"I am fine.,HIJ\n" +
+				"I am fine.,IJK\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
 	public static class T3T5FlatJoin implements FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
 
 		@Override
@@ -760,20 +747,6 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		}
 
 	}
-
-	public static class T3T5FlatJoin2 implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple5<Integer, Long, Integer, String, Integer>, Tuple2<String, String>> {
-
-		@Override
-		public void join(Tuple3<Integer, Integer, String> first,
-						 Tuple5<Integer, Long, Integer, String, Integer> second,
-						 Collector<Tuple2<String,String>> out)  {
-
-			out.collect (new Tuple2<String,String> (first.f2, second.f3));
-		}
-
-	}
-	
-	
 
 	public static class LeftReturningJoin implements JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
 
@@ -847,11 +820,11 @@ public class JoinITCase extends MultipleProgramsTestBase {
 	}
 	
 	public static class TestDistribution implements DataDistribution {
-		public Integer boundaries[][] = new Integer[][]{
-				new Integer[]{2, 2},
-				new Integer[]{5, 4},
-				new Integer[]{10, 12},
-				new Integer[]{21, 6}
+		public Object boundaries[][] = new Object[][]{
+				new Object[]{2, 2L},
+				new Object[]{5, 4L},
+				new Object[]{10, 12L},
+				new Object[]{21, 6L}
 		};
 
 		public TestDistribution() {}
@@ -868,7 +841,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public TypeInformation[] getKeyTypes() {
-			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
+			return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO};
 		}
 
 		@Override
@@ -883,8 +856,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		
 		@Override
 		public boolean equals(Object obj) {
-			// The test is running with same distribution, so return true directly
-			return true;
+			return obj instanceof TestDistribution;
 		}
 	}
 }
