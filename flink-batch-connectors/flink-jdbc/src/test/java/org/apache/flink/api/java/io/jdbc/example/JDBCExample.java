@@ -18,22 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc.example;
 
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
+import java.sql.Types;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
+import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
 
 public class JDBCExample {
 	
@@ -48,7 +41,7 @@ public class JDBCExample {
 				.setDBUrl(JDBCTestBase.DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS);
 		
-		if(exploitParallelism){
+		if(exploitParallelism) {
 			final String splitColumnName = "id";
 			final int fetchSize = 1;
 			final Long min = new Long(JDBCTestBase.testData[0][0]+"");
@@ -59,19 +52,18 @@ public class JDBCExample {
 					//.setQuery(SELECT_ALL_BOOKS + " WHERE " +JDBCInputFormat.CONDITIONS)
 					.setSplitConfig(splitColumnName, fetchSize, min, max);
 		}
-		DataSet<Tuple5> source
-				= environment.createInput(
-						inputBuilder.finish(),
-						new TupleTypeInfo(Tuple5.class, INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO, DOUBLE_TYPE_INFO, INT_TYPE_INFO)
-				);
+		DataSet<GenericRow> source = environment.createInput(inputBuilder.finish());
 
+		//NOTE: in this case (with Derby driver) setSqlTypes could be skipped, but
+		//some database, doens't handle correctly null values when no column type specified
+		//in PreparedStatement.setObject (see its javadoc for more details)
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername(JDBCTestBase.DRIVER_CLASS)
-				.setDBUrl(JDBCTestBase.DB_URL)
-				.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-				.finish());
+			.setDrivername(JDBCTestBase.DRIVER_CLASS)
+			.setDBUrl(JDBCTestBase.DB_URL)
+			.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
+			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
+			.finish());
 		environment.execute();
 	}
-
 
 }
