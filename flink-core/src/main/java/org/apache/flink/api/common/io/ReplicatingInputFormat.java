@@ -133,4 +133,11 @@ public final class ReplicatingInputFormat<OT, S extends InputSplit> extends Rich
 			throw new RuntimeException("The underlying input format to this ReplicatingInputFormat isn't context aware");
 		}
 	}
+	
+	@Override
+	public void closeInputFormat() {
+		if(this.replicatedIF instanceof RichInputFormat){
+			((RichInputFormat)this.replicatedIF).closeInputFormat();
+		}
+	}
 }

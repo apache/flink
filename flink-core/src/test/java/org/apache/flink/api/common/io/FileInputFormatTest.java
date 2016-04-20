@@ -399,6 +399,8 @@ public class FileInputFormatTest {
 				}
 			}
 		}
+		
+		inputFormat.closeInputFormat();
 	}
 	
 	// ------------------------------------------------------------------------
