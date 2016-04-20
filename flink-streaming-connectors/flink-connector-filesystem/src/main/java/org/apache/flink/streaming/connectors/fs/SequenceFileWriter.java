@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -86,9 +87,11 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 		}
 
 		CompressionCodec codec = null;
+		
+		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
 
 		if (!compressionCodecName.equals("None")) {
-			CompressionCodecFactory codecFactory = new CompressionCodecFactory(new Configuration());
+			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
 			codec = codecFactory.getCodecByName(compressionCodecName);
 			if (codec == null) {
 				throw new RuntimeException("Codec " + compressionCodecName + " not found.");
@@ -96,7 +99,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 		}
 
 		// the non-deprecated constructor syntax is only available in recent hadoop versions...
-		writer = SequenceFile.createWriter(new Configuration(),
+		writer = SequenceFile.createWriter(conf,
 				getStream(),
 				keyClass,
 				valueClass,
@@ -119,7 +122,6 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
 		if (!type.isTupleType()) {
 			throw new IllegalArgumentException("Input TypeInformation is not a tuple type.");

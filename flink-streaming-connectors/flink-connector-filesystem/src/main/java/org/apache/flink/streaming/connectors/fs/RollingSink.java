@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -279,7 +280,9 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	 * current part file path, the valid length of the in-progress files and pending part files.
 	 */
 	private transient BucketState bucketState;
-
+	
+	private transient org.apache.hadoop.conf.Configuration hadoopConf;
+	
 	/**
 	 * Creates a new {@code RollingSink} that writes files to the given base directory.
 	 *
@@ -317,7 +320,8 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 			bucketState = new BucketState();
 		}
 
-		FileSystem fs = new Path(basePath).getFileSystem(new org.apache.hadoop.conf.Configuration());
+		hadoopConf = HadoopFileSystem.getHadoopConfiguration();
+		FileSystem fs = new Path(basePath).getFileSystem(hadoopConf);
 		refTruncate = reflectTruncate(fs);
 
 		// delete pending/in-progress files that might be left if we fail while
@@ -412,9 +416,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 	private void openNewPartFile() throws Exception {
 		closeCurrentPartFile();
 
-		org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-
-		FileSystem fs = new Path(basePath).getFileSystem(conf);
+		FileSystem fs = new Path(basePath).getFileSystem(hadoopConf);
 
 		Path newBucketDirectory = bucketer.getNextBucketPath(new Path(basePath));
 
@@ -466,7 +468,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		if (currentPartPath != null) {
 			Path inProgressPath = new Path(currentPartPath.getParent(), inProgressPrefix + currentPartPath.getName()).suffix(inProgressSuffix);
 			Path pendingPath = new Path(currentPartPath.getParent(), pendingPrefix + currentPartPath.getName()).suffix(pendingSuffix);
-			FileSystem fs = inProgressPath.getFileSystem(new org.apache.hadoop.conf.Configuration());
+			FileSystem fs = inProgressPath.getFileSystem(hadoopConf);
 			fs.rename(inProgressPath, pendingPath);
 			LOG.debug("Moving in-progress bucket {} to pending file {}",
 					inProgressPath,
@@ -541,7 +543,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 						Path pendingPath = new Path(finalPath.getParent(),
 								pendingPrefix + finalPath.getName()).suffix(pendingSuffix);
 
-						FileSystem fs = pendingPath.getFileSystem(new org.apache.hadoop.conf.Configuration());
+						FileSystem fs = pendingPath.getFileSystem(hadoopConf);
 						fs.rename(pendingPath, finalPath);
 						LOG.debug(
 								"Moving pending file {} to final location after complete checkpoint {}.",
@@ -579,7 +581,7 @@ public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConf
 		bucketState.pendingFiles.clear();
 		FileSystem fs = null;
 		try {
-			fs = new Path(basePath).getFileSystem(new org.apache.hadoop.conf.Configuration());
+			fs = new Path(basePath).getFileSystem(HadoopFileSystem.getHadoopConfiguration());
 		} catch (IOException e) {
 			LOG.error("Error while creating FileSystem in checkpoint restore.", e);
 			throw new RuntimeException("Error while creating FileSystem in checkpoint restore.", e);
