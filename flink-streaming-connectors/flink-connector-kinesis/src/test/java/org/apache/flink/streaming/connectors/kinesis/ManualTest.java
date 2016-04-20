@@ -20,6 +20,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.examples.ProduceIntoKinesis;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 
 import java.nio.ByteBuffer;
 

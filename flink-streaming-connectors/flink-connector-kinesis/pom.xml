@@ -47,7 +47,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<!-- Note:
 			This dependency is licenced under the Amazon Software License.
 			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
