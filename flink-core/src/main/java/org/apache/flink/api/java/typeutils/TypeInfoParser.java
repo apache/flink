@@ -43,6 +43,8 @@ public class TypeInfoParser {
 	private static final Pattern basicTypePattern = Pattern
 			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean|Void))(,|>|$|\\[)");
 	private static final Pattern basicTypeDatePattern = Pattern.compile("^((java\\.util\\.)?Date)(,|>|$|\\[)");
+	private static final Pattern basicTypeBigIntPattern = Pattern.compile("^((java\\.math\\.)?BigInteger)(,|>|$|\\[)");
+	private static final Pattern basicTypeBigDecPattern = Pattern.compile("^((java\\.math\\.)?BigDecimal)(,|>|$|\\[)");
 	private static final Pattern primitiveTypePattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean|void)(,|>|$|\\[)");
 	private static final Pattern valueTypePattern = Pattern.compile("^((" + VALUE_PACKAGE.replaceAll("\\.", "\\\\.")
 			+ "\\.)?(String|Int|Byte|Short|Char|Double|Float|Long|Boolean|List|Map|Null))Value(,|>|$|\\[)");
@@ -109,6 +111,8 @@ public class TypeInfoParser {
 
 		final Matcher basicTypeMatcher = basicTypePattern.matcher(infoString);
 		final Matcher basicTypeDateMatcher = basicTypeDatePattern.matcher(infoString);
+		final Matcher basicTypeBigIntMatcher = basicTypeBigIntPattern.matcher(infoString);
+		final Matcher basicTypeBigDecMatcher = basicTypeBigDecPattern.matcher(infoString);
 
 		final Matcher primitiveTypeMatcher = primitiveTypePattern.matcher(infoString);
 
@@ -197,6 +201,32 @@ public class TypeInfoParser {
 				clazz = loadClass(className);
 			} else {
 				clazz = loadClass("java.util." + className);
+			}
+			returnType = BasicTypeInfo.getInfoFor(clazz);
+		}
+		// special basic type "BigInteger"
+		else if (basicTypeBigIntMatcher.find()) {
+			String className = basicTypeBigIntMatcher.group(1);
+			sb.delete(0, className.length());
+			Class<?> clazz;
+			// check if fully qualified
+			if (className.startsWith("java.math")) {
+				clazz = loadClass(className);
+			} else {
+				clazz = loadClass("java.math." + className);
+			}
+			returnType = BasicTypeInfo.getInfoFor(clazz);
+		}
+		// special basic type "BigDecimal"
+		else if (basicTypeBigDecMatcher.find()) {
+			String className = basicTypeBigDecMatcher.group(1);
+			sb.delete(0, className.length());
+			Class<?> clazz;
+			// check if fully qualified
+			if (className.startsWith("java.math")) {
+				clazz = loadClass(className);
+			} else {
+				clazz = loadClass("java.math." + className);
 			}
 			returnType = BasicTypeInfo.getInfoFor(clazz);
 		}

@@ -18,38 +18,37 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import java.math.BigInteger;
+import org.apache.flink.api.common.typeutils.ComparatorTestBase;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-/**
- * A test for the {@link LongSerializer}.
- */
-public class LongSerializerTest extends SerializerTestBase<Long> {
-	
+
+public class BigIntComparatorTest extends ComparatorTestBase<BigInteger> {
+
 	@Override
-	protected TypeSerializer<Long> createSerializer() {
-		return new LongSerializer();
+	protected TypeComparator<BigInteger> createComparator(boolean ascending) {
+		return new BigIntComparator(ascending);
 	}
-	
+
 	@Override
-	protected int getLength() {
-		return 8;
+	protected TypeSerializer<BigInteger> createSerializer() {
+		return new BigIntSerializer();
 	}
-	
+
 	@Override
-	protected Class<Long> getTypeClass() {
-		return Long.class;
+	protected BigInteger[] getSortedTestData() {
+		return new BigInteger[] {
+			new BigInteger("-8745979691234123413478523984729447"),
+			BigInteger.valueOf(-10000),
+			BigInteger.valueOf(-1),
+			BigInteger.ZERO,
+			BigInteger.ONE,
+			BigInteger.TEN,
+			new BigInteger("127"),
+			new BigInteger("128"),
+			new BigInteger("129"),
+			new BigInteger("130"),
+			new BigInteger("8745979691234123413478523984729447")
+		};
 	}
-	
-	@Override
-	protected Long[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		long rndLong = rnd.nextLong();
-		
-		return new Long[] {Long.valueOf(0L), Long.valueOf(1L), Long.valueOf(-1L),
-							Long.valueOf(Long.MAX_VALUE), Long.valueOf(Long.MIN_VALUE),
-							Long.valueOf(rndLong), Long.valueOf(-rndLong)};
-	}
-}	
+}

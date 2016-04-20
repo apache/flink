@@ -21,6 +21,8 @@ package org.apache.flink.api.java.typeutils;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -2015,5 +2018,36 @@ public class TypeExtractorTest {
 
 		TypeExtractor.getMapReturnTypes(function,
 			(TypeInformation) new TupleTypeInfo<Tuple1<Object>>(customTypeInfo));
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testBigBasicTypes() {
+		MapFunction<?, ?> function = new MapFunction<Tuple2<BigInteger, BigDecimal>, Tuple2<BigInteger, BigDecimal>>() {
+			@Override
+			public Tuple2<BigInteger, BigDecimal> map(Tuple2<BigInteger, BigDecimal> value) throws Exception {
+				return null;
+			}
+		};
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+			function,
+			(TypeInformation) TypeInformation.of(new TypeHint<Tuple2<BigInteger, BigDecimal>>() {
+		}));
+
+		Assert.assertTrue(ti.isTupleType());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.BIG_INT_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.BIG_DEC_TYPE_INFO, tti.getTypeAt(1));
+
+		// use getForClass()
+		Assert.assertTrue(TypeExtractor.getForClass(BigInteger.class).isBasicType());
+		Assert.assertTrue(TypeExtractor.getForClass(BigDecimal.class).isBasicType());
+		Assert.assertEquals(tti.getTypeAt(0), TypeExtractor.getForClass(BigInteger.class));
+		Assert.assertEquals(tti.getTypeAt(1), TypeExtractor.getForClass(BigDecimal.class));
+
+		// use getForObject()
+		Assert.assertEquals(BasicTypeInfo.BIG_INT_TYPE_INFO, TypeExtractor.getForObject(new BigInteger("42")));
+		Assert.assertEquals(BasicTypeInfo.BIG_DEC_TYPE_INFO, TypeExtractor.getForObject(new BigDecimal("42.42")));
 	}
 }

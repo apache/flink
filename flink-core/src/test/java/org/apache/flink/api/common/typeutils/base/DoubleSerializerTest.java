@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 /**
- * A test for the {@link DoubleSerializerTest}.
+ * A test for the {@link DoubleSerializer}.
  */
 public class DoubleSerializerTest extends SerializerTestBase<Double> {
 	

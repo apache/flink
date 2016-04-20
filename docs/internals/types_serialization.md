@@ -64,7 +64,7 @@ and, in specializations, comparators for the types.
 
 Internally, Flink makes the following distinctions between types:
 
-* Basic types: All Java primitives and their boxed form, plus `void`, `String`, and `Date`.
+* Basic types: All Java primitives and their boxed form, plus `void`, `String`, `Date`, `BigDecimal`, and `BigInteger`.
 
 * Primitive arrays and Object arrays
 
