@@ -17,7 +17,7 @@
  */
 package org.apache.flink.cep.scala.pattern
 
-import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern, Pattern => JPattern}
+import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern}
 
 import scala.reflect.ClassTag
 
@@ -30,8 +30,8 @@ object FollowedByPattern {
     * @tparam F Subtype of T to which the current pattern operator is constrained
     * @return New wrapping FollowedByPattern object
     */
-  def apply[T : ClassTag, F <: T : ClassTag]
-  (jfbPattern: JFollowedByPattern[T, F]) = new FollowedByPattern[T, F](jfbPattern)
+  def apply[T: ClassTag, F <: T](jfbPattern: JFollowedByPattern[T, F]) =
+    new FollowedByPattern[T, F](jfbPattern)
 }
 
 /**
@@ -42,5 +42,5 @@ object FollowedByPattern {
   * @tparam T Base type of the events
   * @tparam F Subtype of T to which the operator is currently constrained
   */
-class FollowedByPattern[T : ClassTag, F <: T : ClassTag]
-(jfbPattern: JFollowedByPattern[T, F]) extends Pattern[T, F](jfbPattern)
+class FollowedByPattern[T: ClassTag, F <: T](jfbPattern: JFollowedByPattern[T, F])
+  extends Pattern[T, F](jfbPattern)

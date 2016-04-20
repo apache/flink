@@ -21,23 +21,20 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.cep.{PatternStream => JPatternStream}
 
-import _root_.scala.reflect.ClassTag
-
 package object scala {
 
   /**
-    * Utility method to wrap { @link org.apache.flink.cep.PatternStream}
-    * for usage with the Scala API.
+    * Utility method to wrap [[org.apache.flink.cep.PatternStream]] for usage with the Scala API.
     *
     * @param javaPatternStream The underlying pattern stream from the Java API
     * @tparam T Type of the events
     * @return A pattern stream from the Scala API which wraps a pattern stream from the Java API
     */
-  private[flink] def wrapPatternStream[T: TypeInformation : ClassTag](javaPatternStream: JPatternStream[T])
+  private[flink] def wrapPatternStream[T: TypeInformation](javaPatternStream: JPatternStream[T])
   : scala.PatternStream[T] = {
-    javaPatternStream match {
-      case p: JPatternStream[T] => PatternStream[T](p)
-      case _ => null
+    Option(javaPatternStream) match {
+      case Some(p) => PatternStream[T](p)
+      case None => throw new IllegalArgumentException("PatternStream from Java API must not be null.")
     }
   }
 

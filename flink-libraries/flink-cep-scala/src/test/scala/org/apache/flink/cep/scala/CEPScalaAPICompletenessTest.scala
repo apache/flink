@@ -27,7 +27,7 @@ import scala.language.existentials
 
 /**
  * This checks whether the CEP Scala API is up to feature parity with the Java API.
- * Implements the {@link ScalaAPICompletenessTest} for CEP.
+ * Implements the [[ScalaAPICompletenessTestBase]] for CEP.
  */
 class CEPScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 

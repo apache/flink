@@ -63,13 +63,13 @@ public class PatternStream<T> {
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 
 		TypeInformation<R> returnType = TypeExtractor.getUnaryOperatorReturnType(
-					patternSelectFunction,
-					PatternSelectFunction.class,
-					1,
-					-1,
-					inputType,
-					null,
-					false);
+            patternSelectFunction,
+            PatternSelectFunction.class,
+            1,
+            -1,
+            inputType,
+            null,
+            false);
 
 		return select(patternSelectFunction, returnType);
 	}
@@ -88,9 +88,9 @@ public class PatternStream<T> {
 	 */
 	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
 		return patternStream.map(
-				new PatternSelectMapper<T, R>(
-						patternStream.getExecutionEnvironment().clean(patternSelectFunction)))
-				.returns(outTypeInfo);
+            new PatternSelectMapper<>(
+                patternStream.getExecutionEnvironment().clean(patternSelectFunction)))
+            .returns(outTypeInfo);
 	}
 
 	/**
@@ -133,9 +133,9 @@ public class PatternStream<T> {
 	 */
 	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
 		return patternStream.flatMap(
-				new PatternFlatSelectMapper<T, R>(
-						patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
-				)).returns(outTypeInfo);
+            new PatternFlatSelectMapper<>(
+                    patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
+            )).returns(outTypeInfo);
 	}
 
 	/**

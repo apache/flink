@@ -22,16 +22,14 @@ import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.cep.{CEP => JCEP}
 import org.apache.flink.streaming.api.scala.DataStream
 
-import scala.reflect.ClassTag
-
 /**
-  * Utility method to transform a { @link DataStream} into a { @link PatternStream} to do CEP.
+  * Utility method to transform a [[DataStream]] into a [[PatternStream]] to do CEP.
   */
 
 object CEP {
   /**
-    * Transforms a { @link DataStream[T]} into a { @link PatternStream[T]} in the Scala API.
-    * See { @link org.apache.flink.cep.CEP} for a more detailed description how the underlying
+    * Transforms a [[DataStream]] into a [[PatternStream]] in the Scala API.
+    * See [[org.apache.flink.cep.CEP}]]for a more detailed description how the underlying
     * Java API works.
     *
     * @param input   DataStream containing the input events
@@ -39,7 +37,7 @@ object CEP {
     * @tparam T Type of the input events
     * @return Resulting pattern stream
     */
-  def pattern[T: TypeInformation : ClassTag](input: DataStream[T], pattern: Pattern[T, _]): PatternStream[T] = {
+  def pattern[T: TypeInformation](input: DataStream[T], pattern: Pattern[T, _]): PatternStream[T] = {
     wrapPatternStream(JCEP.pattern(input.javaStream, pattern.getWrappedPattern))
   }
 }

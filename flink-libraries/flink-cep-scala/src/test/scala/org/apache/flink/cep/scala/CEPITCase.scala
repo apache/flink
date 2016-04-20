@@ -17,8 +17,6 @@
  */
 package org.apache.flink.cep.scala
 
-import java.util.{Map => JMap}
-
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.core.fs.FileSystem
@@ -31,8 +29,10 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 
+import scala.collection.mutable
 
-@SuppressWarnings(Array("serial")) class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
+@SuppressWarnings(Array("serial"))
+class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
   private var resultPath: String = null
   private var expected: String = null
   val _tempFolder = new TemporaryFolder
@@ -75,13 +75,13 @@ import org.junit.rules.TemporaryFolder
       .followedBy("end")
       .where((value: Event) => value.name == "end")
     val result: DataStream[String] = CEP.pattern(input, pattern)
-      .select((pattern: JMap[String, Event]) => {
+      .select((pattern: mutable.Map[String, Event]) => {
         val builder: StringBuilder = new StringBuilder
-        builder.append(pattern.get("start").id)
+        builder.append(pattern.get("start").get.id)
           .append(",")
-          .append(pattern.get("middle").id)
+          .append(pattern.get("middle").get.id)
           .append(",")
-          .append(pattern.get("end").id)
+          .append(pattern.get("end").get.id)
           .toString
       })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -118,14 +118,14 @@ import org.junit.rules.TemporaryFolder
       .where((value: SubEvent) => value.name == "middle")
       .followedBy("end")
       .where((value: Event) => value.name == "end")
-    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: JMap[String, Event]) => {
+    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: mutable.Map[String, Event]) => {
       val builder: StringBuilder = new StringBuilder
       builder
-        .append(pattern.get("start").id)
+        .append(pattern.get("start").get.id)
         .append(",")
-        .append(pattern.get("middle").id)
+        .append(pattern.get("middle").get.id)
         .append(",")
-        .append(pattern.get("end").id)
+        .append(pattern.get("end").get.id)
         .toString
     })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -163,14 +163,14 @@ import org.junit.rules.TemporaryFolder
       .where((value: Event) => value.name == "end")
 
     val result: DataStream[String] = CEP.pattern(input, pattern)
-      .select((pattern: JMap[String, Event]) => {
+      .select((pattern: mutable.Map[String, Event]) => {
         val builder: StringBuilder = new StringBuilder
         builder
-          .append(pattern.get("start").id)
+          .append(pattern.get("start").get.id)
           .append(",")
-          .append(pattern.get("middle").id)
+          .append(pattern.get("middle").get.id)
           .append(",")
-          .append(pattern.get("end").id)
+          .append(pattern.get("end").get.id)
           .toString
       })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -212,14 +212,14 @@ import org.junit.rules.TemporaryFolder
       .where((value: Event) => value.name == "middle")
       .followedBy("end")
       .where((value: Event) => value.name == "end")
-    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: JMap[String, Event]) => {
+    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: mutable.Map[String, Event]) => {
       val builder: StringBuilder = new StringBuilder
       builder
-        .append(pattern.get("start").id)
+        .append(pattern.get("start").get.id)
         .append(",")
-        .append(pattern.get("middle").id)
+        .append(pattern.get("middle").get.id)
         .append(",")
-        .append(pattern.get("end").id)
+        .append(pattern.get("end").get.id)
         .toString
     })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -233,9 +233,11 @@ import org.junit.rules.TemporaryFolder
   def testSimplePatternWithSingleState {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val input: DataStream[Tuple2[Int, Int]] = env.fromElements(new Tuple2[Int, Int](0, 1), new Tuple2[Int, Int](0, 2))
-    val pattern: Pattern[Tuple2[Int, Int], _] = Pattern.begin[Tuple2[Int, Int]]("start").where((rec: Tuple2[Int, Int]) => rec.f1 equals 1)
+    val pattern: Pattern[Tuple2[Int, Int], _] = Pattern.begin[Tuple2[Int, Int]]("start")
+      .where((rec: Tuple2[Int, Int]) => rec.f1 equals 1)
     val pStream: PatternStream[Tuple2[Int, Int]] = CEP.pattern(input, pattern)
-    val result: DataStream[Tuple2[Int, Int]] = pStream.select((pattern: JMap[String, Tuple2[Int, Int]]) => pattern.get("start"))
+    val result: DataStream[Tuple2[Int, Int]] = pStream
+      .select((pattern: mutable.Map[String, Tuple2[Int, Int]]) => pattern.get("start").get)
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "(0,1)"
     env.execute
@@ -250,7 +252,7 @@ import org.junit.rules.TemporaryFolder
     val input: DataStream[Int] = env.fromElements(1, 2)
     val pattern: Pattern[Int, _] = Pattern.begin[Int]("start").followedBy("end").within(Time.days(1))
     val result: DataStream[Int] = CEP.pattern(input, pattern)
-      .select[Int]((pattern: JMap[String, Int]) => pattern.get("start") + pattern.get("end"))
+      .select[Int]((pattern: mutable.Map[String, Int]) => pattern.get("start").get + pattern.get("end").get)
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "3"
     env.execute

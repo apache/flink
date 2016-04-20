@@ -19,11 +19,11 @@ package org.apache.flink.cep.scala
 
 import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern, Pattern => JPattern}
 
-import _root_.scala.reflect.ClassTag
+import scala.reflect.ClassTag
 
 package object pattern {
   /**
-    * Utility method to wrap { @link org.apache.flink.cep.pattern.Pattern} and its subclasses
+    * Utility method to wrap [[org.apache.flink.cep.pattern.Pattern]] and its subclasses
     * for usage with the Scala API.
     *
     * @param javaPattern The underlying pattern from the Java API
@@ -31,8 +31,7 @@ package object pattern {
     * @tparam F Subtype of T to which the current pattern operator is constrained
     * @return A pattern from the Scala API which wraps the pattern from the Java API
     */
-  private[flink] def wrapPattern[
-  T: ClassTag, F <: T : ClassTag](javaPattern: JPattern[T, F])
+  private[flink] def wrapPattern[T: ClassTag, F <: T](javaPattern: JPattern[T, F])
   : Pattern[T, F] = javaPattern match {
     case f: JFollowedByPattern[T, F] => FollowedByPattern[T, F](f)
     case p: JPattern[T, F] => Pattern[T, F](p)

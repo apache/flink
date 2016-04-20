@@ -26,25 +26,24 @@ import scala.reflect.ClassTag
 
 /**
   * Base class for a pattern definition.
-  * <p>
-  * A pattern definition is used by { @link org.apache.flink.cep.nfa.compiler.NFACompiler} to create
-  * a { @link NFA}.
   *
-  * <pre>{ @code
+  * A pattern definition is used by [[org.apache.flink.cep.nfa.compiler.NFACompiler]] to create
+  * a [[org.apache.flink.cep.nfa.NFA]].
+  *
+  * {{{
   * Pattern<T, F> pattern = Pattern.<T>begin("start")
   * .next("middle").subtype(F.class)
   * .followedBy("end").where(new MyFilterFunction());
   * }
-  * </pre>
+  * }}}
   *
   * @param jPattern Underlying Java API Pattern
   * @tparam T Base type of the elements appearing in the pattern
   * @tparam F Subtype of T to which the current pattern operator is constrained
   */
-class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
+class Pattern[T: ClassTag, F <: T](jPattern: JPattern[T, F]) {
 
   private[flink] def getWrappedPattern = jPattern
-
 
   /**
     *
@@ -57,8 +56,7 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     * @return Window length in which the pattern match has to occur
     */
   def getWindowTime: Option[Time] = {
-    val time = jPattern.getWindowTime
-    if (time == null) None else Some(time)
+    Option(jPattern.getWindowTime)
   }
 
   /**
@@ -66,8 +64,7 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     * @return Filter condition for an event to be matched
     */
   def getFilterFunction: Option[FilterFunction[F]] = {
-    val filterFun = jPattern.getFilterFunction
-    if (filterFun == null) None else Some(filterFun)
+    Option(jPattern.getFilterFunction)
   }
 
   /**
@@ -78,7 +75,7 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     * @tparam S Type of the subtype
     * @return The same pattern operator with the new subtype constraint
     */
-  def subtype[S <: F : ClassTag](clazz: Class[S]): Pattern[T, S] = {
+  def subtype[S <: F](clazz: Class[S]): Pattern[T, S] = {
     jPattern.subtype(clazz)
     this.asInstanceOf[Pattern[T, S]]
   }
@@ -105,7 +102,7 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     * @return A new pattern operator which is appended to this pattern operator
     */
   def next(name: String): Pattern[T, T] = {
-    wrapPattern(jPattern.next(name))
+    Pattern[T, T](jPattern.next(name))
   }
 
   /**
@@ -146,15 +143,12 @@ class Pattern[T: ClassTag, F <: T : ClassTag](jPattern: JPattern[T, F]) {
     where(filter)
   }
 
-  //TODO ask about java api change <?> -> <? extends T> and creating a new object vs caching object. equals/hashcode?
   /**
     *
     * @return The previous pattern operator
     */
   def getPrevious: Option[Pattern[T, _ <: T]] = {
-    val prev = jPattern.getPrevious
-    if (prev == null) None else Some(wrapPattern(prev))
-
+    Option(wrapPattern(jPattern.getPrevious))
   }
 
 }
@@ -169,8 +163,7 @@ object Pattern {
     * @tparam F Subtype of T to which the current pattern operator is constrained
     * @return New wrapping Pattern object
     */
-  def apply[T: ClassTag, F <: T : ClassTag]
-  (jPattern: JPattern[T, F]) = new Pattern[T, F](jPattern)
+  def apply[T: ClassTag, F <: T](jPattern: JPattern[T, F]) = new Pattern[T, F](jPattern)
 
   /**
     * Starts a new pattern with the initial pattern operator whose name is provided. Furthermore,
@@ -180,7 +173,6 @@ object Pattern {
     * @tparam X Base type of the event pattern
     * @return The first pattern operator of a pattern
     */
-  def begin[X: ClassTag]
-  (name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
+  def begin[X: ClassTag](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
 
 }
