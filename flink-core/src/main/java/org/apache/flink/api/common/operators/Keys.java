@@ -195,8 +195,8 @@ public abstract class Keys<T> {
 		public static final String SELECT_ALL_CHAR = "*";
 		public static final String SELECT_ALL_CHAR_SCALA = "_";
 		private static final Pattern WILD_CARD_REGEX = Pattern.compile("[\\.]?("
-				+ "\\" + SELECT_ALL_CHAR + "\\B|"
-				+ "\\" + SELECT_ALL_CHAR_SCALA +"\\b)");
+				+ "\\" + SELECT_ALL_CHAR + "|"
+				+ "\\" + SELECT_ALL_CHAR_SCALA +")$");
 
 		// Flattened fields representing keys fields
 		private List<FlatFieldDescriptor> keyFields;

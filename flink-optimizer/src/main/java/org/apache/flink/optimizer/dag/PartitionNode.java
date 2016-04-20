@@ -39,6 +39,7 @@ import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The optimizer's internal representation of a <i>Partition</i> operator node.
@@ -92,13 +93,13 @@ public class PartitionNode extends SingleInputNode {
 		private final DataDistribution distribution;
 		private final Ordering ordering;
 
-		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Partitioner<?> customPartitioner, DataDistribution distribution) {
-			this(pMethod, pKeys, null, customPartitioner, distribution);
-		}
-
 		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Ordering ordering, Partitioner<?>
 				customPartitioner, DataDistribution distribution) {
 			super(pKeys);
+
+			Preconditions.checkArgument(pMethod != PartitionMethod.RANGE
+					|| pKeys.toFieldList().isExactMatch(ordering.getInvolvedIndexes()),
+					"Partition keys must match the given ordering.");
 
 			this.pMethod = pMethod;
 			this.customPartitioner = customPartitioner;

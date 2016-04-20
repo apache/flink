@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
@@ -36,6 +35,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
@@ -114,7 +114,8 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 	public PartitionOperator<T> withOrders(Order... orders) {
 		Preconditions.checkState(pMethod == PartitionMethod.RANGE, "Orders cannot be applied for %s partition " +
 				"method", pMethod);
-		Preconditions.checkArgument(pKeys.getOriginalKeyFieldTypes().length == orders.length);
+		Preconditions.checkArgument(pKeys.getOriginalKeyFieldTypes().length == orders.length, "The number of key " +
+				"fields and orders should be the same.");
 		this.orders = orders;
 
 		return this;
