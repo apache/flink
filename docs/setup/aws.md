@@ -86,6 +86,30 @@ Note that these examples are *not* exhaustive and you can use S3 in other places
 
 S3 is treated by Flink as a regular FileSystem. Interaction with S3 happens via a Hadoop [S3 FileSystem client](https://wiki.apache.org/hadoop/AmazonS3).
 
+There are two popular S3 file system implementations available:
+
+1. `S3AFileSystem` (**recommended**): file system for reading and writing regular files using Amazon's SDK internally. No maximum file size and works with IAM roles.
+2. `NativeS3FileSystem`: file system for reading and writing regular files. Maximum object size is 5GB and does not work with IAM roles.
+
+#### `S3AFileSystem` (Recommended)
+
+This is the recommended S3 FileSystem implementation to use. It uses Amazon's SDK internally and works with IAM roles (see [Configure Access Credential](#configure-access-credentials)).
+
+You need to point Flink to a valid Hadoop configuration, which contains the following property in `core-site.xml`:
+
+```xml
+<property>
+  <name>fs.s3.impl</name>
+  <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+</property>
+```
+
+This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3://` scheme.
+
+#### `NativeS3FileSystem`
+
+This file system is limited to files up to 5GB in size and it does not work IAM roles (see [Configure Access Credential](#configure-access-credentials)), meaning that you have to manually configure your AWS credentials in the Hadoop config file.
+
 You need to point Flink to a valid Hadoop configuration, which contains the following property in `core-site.xml`:
 
 ```xml
@@ -96,6 +120,8 @@ You need to point Flink to a valid Hadoop configuration, which contains the foll
 ```
 
 This registers `NativeS3FileSystem` as the default FileSystem for URIs with the `s3://` scheme.
+
+#### Hadoop Configuration
 
 You can specify the [Hadoop configuration]({{ site.baseurl }}/setup/config.html#hdfs) in various ways, for examples by configuring the path to the Hadoop configuration directory in `flink-conf.yaml`:
 
@@ -119,9 +145,11 @@ The recommended way of setting up credentials on AWS is via [Identity and Access
 
 If you set this up correctly, you can manage access to S3 within AWS and don't need to distribute any access keys to Flink.
 
+Note that this only works with `S3AFileSystem` and not `NativeS3FileSystem`.
+
 {% top %}
 
-#### Access Keys (Not Recommended)
+#### Access Keys (Discouraged)
 
 Access to S3 can be granted via your **access and secret key pair**. Please note that this is discouraged since the [introduction of IAM roles](https://blogs.aws.amazon.com/security/post/Tx1XG3FX6VMU6O5/A-safer-way-to-distribute-AWS-credentials-to-EC2).
 
@@ -145,11 +173,45 @@ You need to configure both `fs.s3.awsAccessKeyId` and `fs.s3.awsSecretAccessKey`
 
 {% panel **Note:** You don't have to configure this manually if you are running [Flink on EMR](#emr-elastic-mapreduce). %}
 
-Hadoop's S3 FileSystem clients are packaged in the `hadoop-aws`. This JAR and all its dependencies need to be added to Flink's classpath, i.e. the class path of both Job and TaskManagers.
+Hadoop's S3 FileSystem clients are packaged in the `hadoop-aws`. This JAR and all its dependencies need to be added to Flink's classpath, i.e. the class path of both Job and TaskManagers. Depending on which FileSystem implementation and which Flink and Hadoop version you use, you need to provide different dependencies (see below).
 
-There are multiple ways of adding JARs to Flink's class path, the easiest being simply to drop the JARs in Flink's `/lib` folder. You need to copy the `hadoop-aws` JAR with all its dependencies (for Hadoop 2.6 that would be `hadoop-aws-2.6.2.jar` and `guava-11.0.2.jar` found in `share/hadoop/tools/lib`).
+There are multiple ways of adding JARs to Flink's class path, the easiest being simply to drop the JARs in Flink's `/lib` folder. You need to copy the `hadoop-aws` JAR with all its dependencies. You can also export the directory containing these JARs as part of the `HADOOP_CLASSPATH` environment variable on all machines.
 
-You can also export the directory containing these JARs (e.g. `hadoop-2.6.2/share/hadoop/tools/lib`) as part of the `HADOOP_CLASSPATH` environment variable on all machines.
+#### Flink for Hadoop 2.7
+
+Depending on which file system you use, please add the following dependencies. You can find these as part of the Hadoop binaries in `hadoop-2.7/share/hadoop/tools/lib`:
+
+- `S3AFileSystem`:
+  - `hadoop-aws-2.7.2.jar`
+  - `aws-java-sdk-1.7.4.jar`
+  - `httpcore-4.2.5.jar`
+  - `httpclient-4.2.5.jar`
+
+- `NativeS3FileSystem`:
+  - `hadoop-aws-2.7.2.jar`
+  - `guava-11.0.2.jar`
+
+Note that `hadoop-common` is available as part of Flink, but Guava is shaded by Flink.
+
+#### Flink for Hadoop 2.6
+
+Depending on which file system you use, please add the following dependencies. You can find these as part of the Hadoop binaries in `hadoop-2.6/share/hadoop/tools/lib`:
+
+- `S3AFileSystem`:
+  - `hadoop-aws-2.6.4.jar`
+  - `aws-java-sdk-1.7.4.jar`
+  - `httpcore-4.2.5.jar`
+  - `httpclient-4.2.5.jar`
+
+- `NativeS3FileSystem`:
+  - `hadoop-aws-2.6.4.jar`
+  - `guava-11.0.2.jar`
+
+Note that `hadoop-common` is available as part of Flink, but Guava is shaded by Flink.
+
+#### Flink for Hadoop 2.4 and earlier
+
+These Hadoop versions only have support for `NativeS3FileSystem`. This comes pre-packaged with Flink for Hadoop 2 as part of `hadoop-common`. You don't need to add anything to the classpath.
 
 {% top %}
 
@@ -207,9 +269,9 @@ Caused by: java.lang.IllegalArgumentException: AWS Access Key ID and Secret Acce
 
 {% top %}
 
-### ClassNotFoundException: NativeS3FileSystem Not Found
+### ClassNotFoundException: NativeS3FileSystem/S3AFileSystem Not Found
 
-If you see this Exception, the S3 FileSystem client is not part of the class path of Flink. Please refer to [S3 FileSystem dependency section](#provide-s3-filesystem-dependency) for details on how to configure this properly.
+If you see this Exception, the S3 FileSystem is not part of the class path of Flink. Please refer to [S3 FileSystem dependency section](#provide-s3-filesystem-dependency) for details on how to configure this properly.
 
 ```
 Caused by: java.lang.RuntimeException: java.lang.RuntimeException: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native.NativeS3FileSystem not found
@@ -238,7 +300,7 @@ Caused by: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native
 
 If you you have configured everything properly, but get a `Bad Request` Exception **and** your S3 bucket is located in region `eu-central-1`, you might be running an S3 client, which does not support [Amazon's signature version 4](http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html).
 
-Currently, this includes all Hadoop versions up to 2.7.2, which depend on `JetS3t 0.9.0` instead of a version [>= 0.9.4](http://www.jets3t.org/RELEASE_NOTES.html).
+Currently, this includes all Hadoop versions up to 2.7.2 running `NativeS3FileSystem`, which depend on `JetS3t 0.9.0` instead of a version [>= 0.9.4](http://www.jets3t.org/RELEASE_NOTES.html).
 
 The only workaround is to change the bucket region.
 
