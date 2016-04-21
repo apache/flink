@@ -20,8 +20,8 @@ package org.apache.flink.api.scala.table.test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{TableEnvironment, Row}
-import org.apache.flink.api.table.codegen.CodeGenException
+import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.validate.ValidationException
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
@@ -59,7 +59,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test(expected = classOf[ValidationException])
   def testNonWorkingSubstring1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -71,7 +71,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     t.toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test(expected = classOf[ValidationException])
   def testNonWorkingSubstring2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

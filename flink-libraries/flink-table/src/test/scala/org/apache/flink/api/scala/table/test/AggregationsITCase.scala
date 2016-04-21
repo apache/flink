@@ -19,15 +19,17 @@
 package org.apache.flink.api.scala.table.test
 
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.{TableEnvironment, Row}
+import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.api.table.validate.ValidationException
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import scala.collection.JavaConverters._
 import org.apache.flink.examples.scala.WordCountTable.{WC => MyWC}
 
@@ -48,7 +50,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[ValidationException])
   def testAggregationOnNonExistingField(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -57,6 +59,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       // Must fail. Field 'foo does not exist.
       .select('foo.avg)
+    t.collect()
   }
 
   @Test
@@ -136,7 +139,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[ValidationException])
   def testNonWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -149,7 +152,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     t.collect()
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[ValidationException])
   def testNoNestedAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -158,6 +161,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Sum aggregation can not be chained.
       .select('_2.sum.sum)
+    t.collect()
   }
 
   @Test

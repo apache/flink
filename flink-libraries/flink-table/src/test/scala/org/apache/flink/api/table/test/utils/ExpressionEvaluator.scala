@@ -27,9 +27,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.java.{DataSet => JDataSet}
-import org.apache.flink.api.table.{TableEnvironment, TableConfig}
+import org.apache.flink.api.table.{BatchTableEnvironment, Table, TableConfig, TableEnvironment}
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.plan.logical.Project
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.mockito.Mockito._
 
@@ -82,8 +83,12 @@ object ExpressionEvaluator {
   }
 
   def evaluate(data: Any, typeInfo: TypeInformation[Any], expr: Expression): String = {
-    val relBuilder = prepareTable(typeInfo)._2
-    evaluate(data, typeInfo, relBuilder, expr.toRexNode(relBuilder))
+    val table = prepareTable(typeInfo)
+    val env = table._3
+    val resolvedExpr =
+      env.asInstanceOf[BatchTableEnvironment].scan("myTable").select(expr).
+        getRelNode.asInstanceOf[LogicalProject].getChildExps.get(0)
+    evaluate(data, typeInfo, table._2, resolvedExpr)
   }
 
   def evaluate(
