@@ -269,12 +269,13 @@ public class DataSink<T> {
 	 * @return This data sink with set parallelism.
 	 */
 	public DataSink<T> setParallelism(int parallelism) {
-		
-		if(parallelism < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
+		if (parallelism != ExecutionConfig.PARALLELISM_UNKNOWN) {
+			if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
+				throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
+			}
+			this.parallelism = parallelism;
 		}
-		this.parallelism = parallelism;
-		
+
 		return this;
 	}
 }
