@@ -90,7 +90,8 @@ class StreamTableEnvironment(
     * [[org.apache.flink.api.table.TableEnvironment]]'s catalog.
     * Registered tables can be referenced in SQL queries.
     *
-    * The field names of the [[Table]] are automatically derived from the type of the [[DataStream]].
+    * The field names of the [[Table]] are automatically derived
+    * from the type of the [[DataStream]].
     *
     * @param name The name under which the [[DataStream]] is registered in the catalog.
     * @param dataStream The [[DataStream]] to register.
