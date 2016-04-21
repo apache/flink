@@ -71,7 +71,7 @@ class RocksDBListState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
 	 */
-	RocksDBListState(ColumnFamilyHandle columnFamily,
+	public RocksDBListState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<V> stateDesc,
 			RocksDBStateBackend backend) {
