@@ -24,7 +24,7 @@ import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
@@ -46,7 +46,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param scheduler Scheduler to schedule Flink jobs
   * @param libraryCacheManager Manager to manage uploaded jar files
   * @param archive Archive for finished Flink jobs
-  * @param restartStrategy Default restart strategy for job restarts
+  * @param restartStrategyFactory Default restart strategy for job restarts
   * @param timeout Timeout for futures
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
@@ -57,7 +57,7 @@ class TestingYarnJobManager(
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
-    restartStrategy: RestartStrategy,
+    restartStrategyFactory: RestartStrategyFactory,
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
@@ -71,7 +71,7 @@ class TestingYarnJobManager(
     scheduler,
     libraryCacheManager,
     archive,
-    restartStrategy,
+    restartStrategyFactory,
     timeout,
     leaderElectionService,
     submittedJobGraphs,
