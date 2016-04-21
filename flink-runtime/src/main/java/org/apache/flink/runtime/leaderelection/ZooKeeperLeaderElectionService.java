@@ -25,6 +25,8 @@ import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -67,6 +69,13 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	private final Object lock = new Object();
 
+	private final ConnectionStateListener listener = new ConnectionStateListener() {
+		@Override
+		public void stateChanged(CuratorFramework client, ConnectionState newState) {
+			handleStateChange(newState);
+		}
+	};
+
 	/**
 	 * Creates a ZooKeeperLeaderElectionService object.
 	 *
@@ -105,11 +114,15 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		cache.getListenable().addListener(this);
 		cache.start();
+
+		client.getConnectionStateListenable().addListener(listener);
 	}
 
 	@Override
 	public void stop() throws Exception{
 		LOG.info("Stopping ZooKeeperLeaderElectionService.");
+
+		client.getConnectionStateListenable().removeListener(listener);
 
 		cache.close();
 		leaderLatch.close();
@@ -314,6 +327,22 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			leaderContender.handleError(
 					new Exception("Could not write leader address and leader session ID to " +
 							"ZooKeeper.", e));
+		}
+	}
+
+	protected void handleStateChange(ConnectionState newState) {
+		switch (newState) {
+			case CONNECTED:
+				LOG.debug("Connected to ZooKeeper quorum. Leader election can start.");
+			case SUSPENDED:
+				LOG.warn("Connection to ZooKeeper suspended. The contender " + leaderContender.getAddress()
+					+ "no longer participates in the leader election.");
+			case RECONNECTED:
+				LOG.info("Connection to ZooKeeper was reconnected. Leader election can be restarted.");
+			case LOST:
+				// Maybe we have to throw an exception here to terminate the JobManager
+				LOG.warn("Connection to ZooKeeper lost. The contender " + leaderContender.getAddress()
+					+ "no longer participates in the leader election.");
 		}
 	}
 }

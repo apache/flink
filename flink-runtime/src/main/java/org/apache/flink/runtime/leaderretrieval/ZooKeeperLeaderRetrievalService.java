@@ -23,6 +23,8 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,13 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	private String lastLeaderAddress;
 	private UUID lastLeaderSessionID;
 
+	private final ConnectionStateListener connectionStateListener = new ConnectionStateListener() {
+		@Override
+		public void stateChanged(CuratorFramework client, ConnectionState newState) {
+			handleStateChange(newState);
+		}
+	};
+
 	/**
 	 * Creates a leader retrieval service which uses ZooKeeper to retrieve the leader information.
 	 *
@@ -76,11 +85,15 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 		cache.getListenable().addListener(this);
 		cache.start();
+
+		client.getConnectionStateListenable().addListener(connectionStateListener);
 	}
 
 	@Override
 	public void stop() throws Exception {
 		LOG.info("Stopping ZooKeeperLeaderRetrievalService.");
+
+		client.getConnectionStateListenable().removeListener(connectionStateListener);
 
 		cache.close();
 		client.close();
@@ -128,6 +141,21 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 		} catch (Exception e) {
 			leaderListener.handleError(new Exception("Could not handle node changed event.", e));
 			throw e;
+		}
+	}
+
+	protected void handleStateChange(ConnectionState newState) {
+		switch (newState) {
+			case CONNECTED:
+				LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
+			case SUSPENDED:
+				LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
+					"ZooKeeper.");
+			case RECONNECTED:
+				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
+			case LOST:
+				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
+					"ZooKeeper.");
 		}
 	}
 }
