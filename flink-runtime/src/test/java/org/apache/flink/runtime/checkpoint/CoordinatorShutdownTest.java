@@ -61,7 +61,7 @@ public class CoordinatorShutdownTest {
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
-			JobGraph testGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
+			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList, 
 					5000, 60000, 0L, Integer.MAX_VALUE));
 			
@@ -113,7 +113,7 @@ public class CoordinatorShutdownTest {
 			vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
-			JobGraph testGraph = new JobGraph("test job", new ExecutionConfig(), vertex);
+			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
 					5000, 60000, 0L, Integer.MAX_VALUE));
 			

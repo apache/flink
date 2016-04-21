@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import akka.actor.ActorRef;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -135,7 +135,8 @@ public class StreamTaskTest {
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
-				new ExecutionConfig(), "Test Task", 0, 1, 0,
+				ExecutionConfigTest.getSerializedConfig(),
+				"Test Task", 0, 1, 0,
 				new Configuration(),
 				taskConfig.getConfiguration(),
 				invokable.getName(),

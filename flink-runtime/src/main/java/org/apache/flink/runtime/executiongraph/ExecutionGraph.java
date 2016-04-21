@@ -175,7 +175,7 @@ public class ExecutionGraph implements Serializable {
 	// ------ Configuration of the Execution -------
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
-	private ExecutionConfig executionConfig;
+	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
@@ -245,7 +245,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
-			ExecutionConfig config,
+			SerializedValue<ExecutionConfig> serializedConfig,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy) {
 		this(
@@ -253,7 +253,7 @@ public class ExecutionGraph implements Serializable {
 			jobId,
 			jobName,
 			jobConfig,
-			config,
+			serializedConfig,
 			timeout,
 			restartStrategy,
 			new ArrayList<BlobKey>(),
@@ -267,7 +267,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
-			ExecutionConfig config,
+			SerializedValue<ExecutionConfig> serializedConfig,
 			FiniteDuration timeout,
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
@@ -301,7 +301,7 @@ public class ExecutionGraph implements Serializable {
 		this.requiredJarFiles = requiredJarFiles;
 		this.requiredClasspaths = requiredClasspaths;
 
-		this.executionConfig = checkNotNull(config);
+		this.serializedExecutionConfig = checkNotNull(serializedConfig);
 
 		this.timeout = timeout;
 
@@ -962,12 +962,12 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the {@link ExecutionConfig}.
+	 * Returns the serialized {@link ExecutionConfig}.
 	 *
 	 * @return ExecutionConfig
 	 */
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
+	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
+		return serializedExecutionConfig;
 	}
 
 	/**

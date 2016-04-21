@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -64,7 +64,7 @@ public class PointwisePatternTest {
 			jobId, 
 			jobName, 
 			cfg,
-			new ExecutionConfig(),
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -105,8 +105,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -148,8 +148,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -192,8 +192,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName,
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -234,8 +234,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -296,8 +296,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -349,8 +349,8 @@ public class PointwisePatternTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
-			new ExecutionConfig(),
+			cfg,
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {

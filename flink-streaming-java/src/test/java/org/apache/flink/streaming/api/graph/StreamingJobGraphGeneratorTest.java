@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -80,17 +82,19 @@ public class StreamingJobGraphGeneratorTest {
 
 		final String EXEC_CONFIG_KEY = "runtime.config";
 
-		InstantiationUtil.writeObjectToConfig(jobGraph.getExecutionConfig(),
+		InstantiationUtil.writeObjectToConfig(jobGraph.getSerializedExecutionConfig(),
 			jobGraph.getJobConfiguration(),
 			EXEC_CONFIG_KEY);
 
-		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
+		SerializedValue<ExecutionConfig> serializedExecutionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),
 				EXEC_CONFIG_KEY,
 				Thread.currentThread().getContextClassLoader());
-		
-		assertNotNull(executionConfig);
-		
+
+		assertNotNull(serializedExecutionConfig);
+
+		ExecutionConfig executionConfig = ExecutionConfigTest.deserializeConfig(serializedExecutionConfig);
+
 		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
 		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
 		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());

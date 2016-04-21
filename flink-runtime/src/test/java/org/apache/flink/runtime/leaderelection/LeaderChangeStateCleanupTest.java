@@ -269,6 +269,6 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		return new JobGraph("Blocking test job", new ExecutionConfig(), sender, receiver);
+		return new JobGraph("Blocking test job", sender, receiver);
 	}
 }

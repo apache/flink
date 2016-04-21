@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 public class JobClientActorTest extends TestLogger {
 
 	private static ActorSystem system;
-	private static JobGraph testJobGraph = new JobGraph("Test Job", new ExecutionConfig());
+	private static JobGraph testJobGraph = new JobGraph("Test Job");
 
 	@BeforeClass
 	public static void setup() {

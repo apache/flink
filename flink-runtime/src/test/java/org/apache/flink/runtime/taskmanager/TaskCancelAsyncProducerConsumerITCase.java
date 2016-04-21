@@ -97,7 +97,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			producer.setSlotSharingGroup(slot);
 			consumer.setSlotSharingGroup(slot);
 
-			JobGraph jobGraph = new JobGraph(new ExecutionConfig(), producer, consumer);
+			JobGraph jobGraph = new JobGraph(producer, consumer);
 
 			// Submit job and wait until running
 			ActorGateway jobManager = flink.getLeaderGateway(deadline.timeLeft());

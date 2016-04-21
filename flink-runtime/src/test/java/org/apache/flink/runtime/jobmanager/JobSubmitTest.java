@@ -109,7 +109,7 @@ public class JobSubmitTest {
 			// create a simple job graph
 			JobVertex jobVertex = new JobVertex("Test Vertex");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
+			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// request the blob port from the job manager
 			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
@@ -173,7 +173,7 @@ public class JobSubmitTest {
 			};
 
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", new ExecutionConfig(), jobVertex);
+			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

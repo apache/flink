@@ -113,7 +113,6 @@ public class ScheduleOrUpdateConsumersTest {
 
 		final JobGraph jobGraph = new JobGraph(
 				"Mixed pipelined and blocking result",
-				new ExecutionConfig(),
 				sender,
 				pipelinedReceiver,
 				blockingReceiver);

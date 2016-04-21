@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -62,7 +63,7 @@ public class TaskStopTest {
 		when(tddMock.getExecutionId()).thenReturn(mock(ExecutionAttemptID.class));
 		when(tddMock.getJobConfiguration()).thenReturn(mock(Configuration.class));
 		when(tddMock.getTaskConfiguration()).thenReturn(mock(Configuration.class));
-		when(tddMock.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
+		when(tddMock.getSerializedExecutionConfig()).thenReturn(mock(SerializedValue.class));
 		when(tddMock.getInvokableClassName()).thenReturn("className");
 
 		task = new Task(tddMock, mock(MemoryManager.class), mock(IOManager.class), mock(NetworkEnvironment.class),

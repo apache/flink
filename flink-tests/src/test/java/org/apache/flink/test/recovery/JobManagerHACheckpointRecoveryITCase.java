@@ -21,7 +21,6 @@ package org.apache.flink.test.recovery;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -368,7 +367,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 			// BLocking JobGraph
 			JobVertex blockingVertex = new JobVertex("Blocking vertex");
 			blockingVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
-			JobGraph jobGraph = new JobGraph(new ExecutionConfig(), blockingVertex);
+			JobGraph jobGraph = new JobGraph(blockingVertex);
 
 			// Submit the job in detached mode
 			leader.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
