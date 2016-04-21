@@ -102,8 +102,14 @@ class Table(
 
     // apply aggregations
     if (aggCalls.nonEmpty) {
-      val emptyKey: GroupKey = relBuilder.groupKey()
-      relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
+      // aggregation on stream table is not currently supported
+      tableEnv match {
+        case _: StreamTableEnvironment =>
+          throw new TableException("Aggregation on stream tables is currently not supported.")
+        case _ =>
+          val emptyKey: GroupKey = relBuilder.groupKey()
+          relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
+      }
     }
 
     // get selection expressions
@@ -262,11 +268,18 @@ class Table(
     */
   def groupBy(fields: Expression*): GroupedTable = {
 
-    relBuilder.push(relNode)
-    val groupExpr = fields.map(_.toRexNode(relBuilder)).toIterable.asJava
-    val groupKey = relBuilder.groupKey(groupExpr)
+    // group by on stream tables is currently not supported
+    tableEnv match {
+      case _: StreamTableEnvironment =>
+        throw new TableException("Group by on stream tables is currently not supported.")
+      case _ => {
+        relBuilder.push(relNode)
+        val groupExpr = fields.map(_.toRexNode(relBuilder)).toIterable.asJava
+        val groupKey = relBuilder.groupKey(groupExpr)
 
-    new GroupedTable(relBuilder.build(), tableEnv, groupKey)
+        new GroupedTable(relBuilder.build(), tableEnv, groupKey)
+      }
+    }
   }
 
   /**
@@ -294,9 +307,15 @@ class Table(
     * }}}
     */
   def distinct(): Table = {
-    relBuilder.push(relNode)
-    relBuilder.distinct()
-    new Table(relBuilder.build(), tableEnv)
+    // distinct on stream table is not currently supported
+    tableEnv match {
+      case _: StreamTableEnvironment =>
+        throw new TableException("Distinct on stream tables is currently not supported.")
+      case _ =>
+        relBuilder.push(relNode)
+        relBuilder.distinct()
+        new Table(relBuilder.build(), tableEnv)
+    }
   }
 
   /**
@@ -314,24 +333,31 @@ class Table(
     */
   def join(right: Table): Table = {
 
-    // check that right table belongs to the same TableEnvironment
-    if (right.tableEnv != this.tableEnv) {
-      throw new TableException("Only tables from the same TableEnvironment can be joined.")
+    // join on stream tables is currently not supported
+    tableEnv match {
+      case _: StreamTableEnvironment =>
+        throw new TableException("Join on stream tables is currently not supported.")
+      case _ => {
+        // check that right table belongs to the same TableEnvironment
+        if (right.tableEnv != this.tableEnv) {
+          throw new TableException("Only tables from the same TableEnvironment can be joined.")
+        }
+
+        // check that join inputs do not have overlapping field names
+        val leftFields = relNode.getRowType.getFieldNames.asScala.toSet
+        val rightFields = right.relNode.getRowType.getFieldNames.asScala.toSet
+        if (leftFields.intersect(rightFields).nonEmpty) {
+          throw new IllegalArgumentException("Overlapping fields names on join input.")
+        }
+
+        relBuilder.push(relNode)
+        relBuilder.push(right.relNode)
+
+        relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
+        val join = relBuilder.build()
+        new Table(join, tableEnv)
+      }
     }
-
-    // check that join inputs do not have overlapping field names
-    val leftFields = relNode.getRowType.getFieldNames.asScala.toSet
-    val rightFields = right.relNode.getRowType.getFieldNames.asScala.toSet
-    if (leftFields.intersect(rightFields).nonEmpty) {
-      throw new IllegalArgumentException("Overlapping fields names on join input.")
-    }
-
-    relBuilder.push(relNode)
-    relBuilder.push(right.relNode)
-
-    relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
-    val join = relBuilder.build()
-    new Table(join, tableEnv)
   }
 
   /**
