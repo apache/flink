@@ -25,12 +25,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public class RestartStrategyFactory {
+public abstract class RestartStrategyFactory implements Serializable {
+	private static final long serialVersionUID = 7320252552640522191L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(RestartStrategyFactory.class);
-	private static final String CREATE_METHOD = "create";
+	private static final String CREATE_METHOD = "createFactory";
+
+	/**
+	 * Factory method to create a restart strategy
+	 * @return The created restart strategy
+	 */
+	public abstract RestartStrategy createRestartStrategy();
 
 	/**
 	 * Creates a {@link RestartStrategy} instance from the given {@link org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration}.
@@ -58,11 +67,10 @@ public class RestartStrategyFactory {
 	/**
 	 * Creates a {@link RestartStrategy} instance from the given {@link Configuration}.
 	 *
-	 * @param configuration Configuration object containing the configuration values.
 	 * @return RestartStrategy instance
 	 * @throws Exception which indicates that the RestartStrategy could not be instantiated.
 	 */
-	public static RestartStrategy createFromConfig(Configuration configuration) throws Exception {
+	public static RestartStrategyFactory createRestartStrategyFactory(Configuration configuration) throws Exception {
 		String restartStrategyName = configuration.getString(ConfigConstants.RESTART_STRATEGY, "none").toLowerCase();
 
 		switch (restartStrategyName) {
@@ -92,16 +100,16 @@ public class RestartStrategyFactory {
 				}
 
 				if (numberExecutionRetries > 0 && delay >= 0) {
-					return new FixedDelayRestartStrategy(numberExecutionRetries, delay);
+					return new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(numberExecutionRetries, delay);
 				} else {
-					return NoRestartStrategy.create(configuration);
+					return NoRestartStrategy.createFactory(configuration);
 				}
 			case "off":
 			case "disable":
-				return NoRestartStrategy.create(configuration);
+				return NoRestartStrategy.createFactory(configuration);
 			case "fixeddelay":
 			case "fixed-delay":
-				return FixedDelayRestartStrategy.create(configuration);
+				return FixedDelayRestartStrategy.createFactory(configuration);
 			default:
 				try {
 					Class<?> clazz = Class.forName(restartStrategyName);
@@ -113,7 +121,7 @@ public class RestartStrategyFactory {
 							Object result = method.invoke(null, configuration);
 
 							if (result != null) {
-								return (RestartStrategy) result;
+								return (RestartStrategyFactory) result;
 							}
 						}
 					}
@@ -128,7 +136,7 @@ public class RestartStrategyFactory {
 				}
 
 				// fallback in case of an error
-				return NoRestartStrategy.create(configuration);
+				return NoRestartStrategy.createFactory(configuration);
 		}
 	}
 }

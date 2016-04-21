@@ -41,6 +41,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	private final int maxNumberRestartAttempts;
 	private final long delayBetweenRestartAttempts;
 	private int currentRestartAttempt;
+	private boolean disabled = false;
 
 	public FixedDelayRestartStrategy(
 		int maxNumberRestartAttempts,
@@ -60,7 +61,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 
 	@Override
 	public boolean canRestart() {
-		return currentRestartAttempt < maxNumberRestartAttempts;
+		return !disabled && currentRestartAttempt < maxNumberRestartAttempts;
 	}
 
 	@Override
@@ -83,6 +84,11 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		}, executionGraph.getExecutionContext());
 	}
 
+	@Override
+	public void disable() {
+		disabled = true;
+	}
+
 	/**
 	 * Creates a FixedDelayRestartStrategy from the given Configuration.
 	 *
@@ -90,7 +96,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	 * @return Initialized instance of FixedDelayRestartStrategy
 	 * @throws Exception
 	 */
-	public static FixedDelayRestartStrategy create(Configuration configuration) throws Exception {
+	public static FixedDelayRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
 		int maxAttempts = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 
 		String timeoutString = configuration.getString(
@@ -118,7 +124,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 			}
 		}
 
-		return new FixedDelayRestartStrategy(maxAttempts, delay);
+		return new FixedDelayRestartStrategyFactory(maxAttempts, delay);
 	}
 
 	@Override
@@ -127,5 +133,23 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 				"maxNumberRestartAttempts=" + maxNumberRestartAttempts +
 				", delayBetweenRestartAttempts=" + delayBetweenRestartAttempts +
 				')';
+	}
+
+	public static class FixedDelayRestartStrategyFactory extends RestartStrategyFactory {
+
+		private static final long serialVersionUID = 6642934067762271950L;
+
+		private final int maxAttempts;
+		private final long delay;
+
+		public FixedDelayRestartStrategyFactory(int maxAttempts, long delay) {
+			this.maxAttempts = maxAttempts;
+			this.delay = delay;
+		}
+
+		@Override
+		public RestartStrategy createRestartStrategy() {
+			return new FixedDelayRestartStrategy(maxAttempts, delay);
+		}
 	}
 }

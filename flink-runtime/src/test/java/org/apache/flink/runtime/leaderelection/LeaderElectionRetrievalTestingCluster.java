@@ -20,6 +20,7 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import scala.Option;
@@ -38,6 +39,7 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	private final Configuration userConfiguration;
 	private final boolean useSingleActorSystem;
+	private final RestartStrategy restartStrategy;
 
 	public List<TestingLeaderElectionService> leaderElectionServices;
 	public List<TestingLeaderRetrievalService> leaderRetrievalServices;
@@ -47,7 +49,8 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	public LeaderElectionRetrievalTestingCluster(
 			Configuration userConfiguration,
 			boolean singleActorSystem,
-			boolean synchronousDispatcher) {
+			boolean synchronousDispatcher,
+			RestartStrategy restartStrategy) {
 		super(userConfiguration, singleActorSystem, synchronousDispatcher);
 
 		this.userConfiguration = userConfiguration;
@@ -55,6 +58,8 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 		leaderElectionServices = new ArrayList<TestingLeaderElectionService>();
 		leaderRetrievalServices = new ArrayList<TestingLeaderRetrievalService>();
+
+		this.restartStrategy = restartStrategy;
 	}
 
 	@Override
@@ -90,6 +95,15 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 				ConfigConstants.DEFAULT_LOCAL_NUMBER_JOB_MANAGER);
 	}
 
+	@Override
+	public RestartStrategy getRestartStrategy(RestartStrategy other) {
+		if (this.restartStrategy != null) {
+			return this.restartStrategy;
+		} else {
+			return other;
+		}
+	}
+
 	public void grantLeadership(int index, UUID leaderSessionID) {
 		if(leaderIndex >= 0) {
 			// first revoke leadership
@@ -107,6 +121,13 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 		for(TestingLeaderRetrievalService service: leaderRetrievalServices) {
 			service.notifyListener(address, leaderSessionID);
+		}
+	}
+
+	public void revokeLeadership() {
+		if (leaderIndex >= 0) {
+			leaderElectionServices.get(leaderIndex).notLeader();
+			leaderIndex = -1;
 		}
 	}
 }

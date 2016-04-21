@@ -192,7 +192,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				new Scheduler(TestingUtils.defaultExecutionContext()),
 				new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
 				ActorRef.noSender(),
-				new NoRestartStrategy(),
+				new NoRestartStrategy.NoRestartStrategyFactory(),
 				AkkaUtils.getDefaultTimeout(),
 				leaderElectionService,
 				submittedJobGraphStore,
