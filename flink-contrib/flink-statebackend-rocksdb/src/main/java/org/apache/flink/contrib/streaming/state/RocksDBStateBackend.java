@@ -155,7 +155,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * to store state. The different k/v states that we have don't each have their own RocksDB
 	 * instance. They all write to this instance but to their own column family.
 	 */
-	transient RocksDB db;
+	protected transient RocksDB db;
 
 	/**
 	 * Information about the k/v states as we create them. This is used to retrieve the
@@ -807,7 +807,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * <p>This also checks whether the {@link StateDescriptor} for a state matches the one
 	 * that we checkpointed, i.e. is already in the map of column families.
 	 */
-	private ColumnFamilyHandle getColumnFamily(StateDescriptor descriptor)  {
+	protected ColumnFamilyHandle getColumnFamily(StateDescriptor descriptor)  {
 
 		Tuple2<ColumnFamilyHandle, StateDescriptor> stateInfo = kvStateInformation.get(descriptor.getName());
 
@@ -832,14 +832,14 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/**
 	 * Used by k/v states to access the current key.
 	 */
-	Object currentKey() {
+	public Object currentKey() {
 		return currentKey;
 	}
 
 	/**
 	 * Used by k/v states to access the key serializer.
 	 */
-	TypeSerializer keySerializer() {
+	public TypeSerializer keySerializer() {
 		return keySerializer;
 	}
 

@@ -68,7 +68,7 @@ class RocksDBReducingState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
 	 */
-	RocksDBReducingState(ColumnFamilyHandle columnFamily,
+	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<V> stateDesc,
 			RocksDBStateBackend backend) {

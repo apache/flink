@@ -60,14 +60,14 @@ abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescr
 	protected RocksDBStateBackend backend;
 
 	/** The column family of this particular instance of state */
-	ColumnFamilyHandle columnFamily;
+	protected ColumnFamilyHandle columnFamily;
 
 	/**
 	 * Creates a new RocksDB backed state.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
 	 */
-	AbstractRocksDBState(ColumnFamilyHandle columnFamily,
+	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			RocksDBStateBackend backend) {
 
@@ -80,7 +80,7 @@ abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescr
 	// ------------------------------------------------------------------------
 
 	@Override
-	final public void clear() {
+	public void clear() {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
@@ -92,19 +92,19 @@ abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescr
 		}
 	}
 
-	void writeKeyAndNamespace(DataOutputView out) throws IOException {
+	protected void writeKeyAndNamespace(DataOutputView out) throws IOException {
 		backend.keySerializer().serialize(backend.currentKey(), out);
 		out.writeByte(42);
 		namespaceSerializer.serialize(currentNamespace, out);
 	}
 
 	@Override
-	final public void setCurrentNamespace(N namespace) {
+	public void setCurrentNamespace(N namespace) {
 		this.currentNamespace = namespace;
 	}
 
 	@Override
-	final public void dispose() {
+	public void dispose() {
 		// ignore because we don't hold any state ourselves
 	}
 

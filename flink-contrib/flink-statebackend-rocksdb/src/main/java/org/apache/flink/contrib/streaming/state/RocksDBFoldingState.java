@@ -69,7 +69,7 @@ class RocksDBFoldingState<K, N, T, ACC>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                     and can create a default state value.
 	 */
-	RocksDBFoldingState(ColumnFamilyHandle columnFamily,
+	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
 			RocksDBStateBackend backend) {
