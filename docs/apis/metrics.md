@@ -407,7 +407,7 @@ Flink exposes the following system metrics:
     </tr>
     <tr>
       <td>CPU.Load</td>
-      <td>The recent CPu usage of the JVM.</td>
+      <td>The recent CPU usage of the JVM.</td>
     </tr>
     <tr>
       <td>CPU.Time</td>

@@ -77,7 +77,7 @@ public class StreamingRuntimeContextTest {
 	}
 
 	@Test
-	public void testReduceingStateInstantiation() throws Exception {
+	public void testReducingStateInstantiation() throws Exception {
 
 		final ExecutionConfig config = new ExecutionConfig();
 		config.registerKryoType(Path.class);

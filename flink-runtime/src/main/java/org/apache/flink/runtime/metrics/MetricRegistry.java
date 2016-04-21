@@ -138,7 +138,7 @@ public class MetricRegistry {
 				}
 				catch (Throwable t) {
 					shutdownExecutor();
-					LOG.error("Could not instantiate metrics reporter" + namedReporter + ". Metrics might not be exposed/reported.", t);
+					LOG.error("Could not instantiate metrics reporter " + namedReporter + ". Metrics might not be exposed/reported.", t);
 				}
 			}
 		}

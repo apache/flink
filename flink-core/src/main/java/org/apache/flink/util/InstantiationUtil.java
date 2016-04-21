@@ -230,7 +230,7 @@ public final class InstantiationUtil {
 		} else if (clazz.isArray()) {
 			return "The class is an array. An array cannot be simply instantiated, as with a parameterless constructor.";
 		} else if (!isProperClass(clazz)) {
-			return "The class is no proper class, it is either abstract, an interface, or a primitive type.";
+			return "The class is not a proper class. It is either abstract, an interface, or a primitive type.";
 		} else if (isNonStaticInnerClass(clazz)) {
 			return "The class is an inner class, but not statically accessible.";
 		} else if (!hasPublicNullaryConstructor(clazz)) {

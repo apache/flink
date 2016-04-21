@@ -227,7 +227,7 @@ The code sample below explains (with comments) how to create a descriptor for th
 To make the operation available to the higher-level APIs, it needs to be added to the Common API. The simplest way to do this is to add a
 base operator. Create a class `MapPartitionOperatorBase`, after the pattern of the {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/MapOperatorBase.java "MapOperatorBase" %}.
 
-In addition, the optimizer needs to know which OptimizerNode how to create an OptimizerNode from the OperatorBase. This happens in the class
+In addition, the optimizer needs to know how to create an OptimizerNode from the OperatorBase. This happens in the class
 `GraphCreatingVisitor` in the {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/Optimizer.java "Optimizer" %}.
 
 *Note:* A pending idea is to allow to skip this step by unifying the OptimizerNode and the Common API operator. They essentially fulfill the
