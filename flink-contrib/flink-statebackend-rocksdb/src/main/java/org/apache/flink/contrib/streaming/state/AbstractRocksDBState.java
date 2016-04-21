@@ -45,7 +45,7 @@ import java.io.IOException;
  * @param <S> The type of {@link State}.
  * @param <SD> The type of {@link StateDescriptor}.
  */
-abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
+public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
 		implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);

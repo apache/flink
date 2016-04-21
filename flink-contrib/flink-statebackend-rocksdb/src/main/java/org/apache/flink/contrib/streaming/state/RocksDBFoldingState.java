@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-class RocksDBFoldingState<K, N, T, ACC>
+public class RocksDBFoldingState<K, N, T, ACC>
 	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 	implements FoldingState<T, ACC> {
 

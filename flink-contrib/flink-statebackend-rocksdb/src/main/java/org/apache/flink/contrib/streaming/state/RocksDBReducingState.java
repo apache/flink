@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-class RocksDBReducingState<K, N, V>
+public class RocksDBReducingState<K, N, V>
 	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>>
 	implements ReducingState<V> {
 

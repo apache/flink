@@ -41,7 +41,7 @@ import static java.util.Objects.requireNonNull;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-class RocksDBValueState<K, N, V>
+public class RocksDBValueState<K, N, V>
 	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>>
 	implements ValueState<V> {
 
