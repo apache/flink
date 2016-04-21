@@ -32,10 +32,10 @@ package object pattern {
     * @return A pattern from the Scala API which wraps the pattern from the Java API
     */
   private[flink] def wrapPattern[T: ClassTag, F <: T](javaPattern: JPattern[T, F])
-  : Pattern[T, F] = javaPattern match {
-    case f: JFollowedByPattern[T, F] => FollowedByPattern[T, F](f)
-    case p: JPattern[T, F] => Pattern[T, F](p)
-    case _ => null
+  : Option[Pattern[T, F]] = javaPattern match {
+    case f: JFollowedByPattern[T, F] => Some(FollowedByPattern[T, F](f))
+    case p: JPattern[T, F] => Some(Pattern[T, F](p))
+    case _ => None
   }
 }
 

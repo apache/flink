@@ -17,7 +17,6 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -28,6 +27,8 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
+import org.apache.flink.cep.Event;
+import org.apache.flink.cep.SubEvent;
 
 import scala.collection.mutable
 
@@ -68,20 +69,20 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
       new Event(42, "42", 42.0),
       new Event(8, "end", 1.0))
     val pattern: Pattern[Event, _] = Pattern.begin[Event]("start")
-      .where((value: Event) => value.name == "start")
+      .where((value: Event) => value.getName == "start")
       .followedBy("middle")
       .subtype(classOf[SubEvent])
-      .where((value: SubEvent) => value.name == "middle")
+      .where((value: SubEvent) => value.getName == "middle")
       .followedBy("end")
-      .where((value: Event) => value.name == "end")
+      .where((value: Event) => value.getName == "end")
     val result: DataStream[String] = CEP.pattern(input, pattern)
       .select((pattern: mutable.Map[String, Event]) => {
         val builder: StringBuilder = new StringBuilder
-        builder.append(pattern.get("start").get.id)
+        builder.append(pattern.get("start").get.getId)
           .append(",")
-          .append(pattern.get("middle").get.id)
+          .append(pattern.get("middle").get.getId)
           .append(",")
-          .append(pattern.get("end").get.id)
+          .append(pattern.get("end").get.getId)
           .toString
       })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -110,24 +111,25 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
       new Event(3, "end", 2.0),
       new Event(2, "end", 1.0),
       new Event(42, "end", 42.0))
-      .keyBy((value: Event) => value.id)
+      .keyBy((value: Event) => value.getId)
     val pattern: Pattern[Event, _] = Pattern.begin[Event]("start")
-      .where((value: Event) => value.name == "start")
+      .where((value: Event) => value.getName == "start")
       .followedBy("middle")
       .subtype(classOf[SubEvent])
-      .where((value: SubEvent) => value.name == "middle")
+      .where((value: SubEvent) => value.getName == "middle")
       .followedBy("end")
-      .where((value: Event) => value.name == "end")
-    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: mutable.Map[String, Event]) => {
-      val builder: StringBuilder = new StringBuilder
-      builder
-        .append(pattern.get("start").get.id)
-        .append(",")
-        .append(pattern.get("middle").get.id)
-        .append(",")
-        .append(pattern.get("end").get.id)
-        .toString
-    })
+      .where((value: Event) => value.getName == "end")
+    val result: DataStream[String] = CEP.pattern(input, pattern)
+      .select((pattern: mutable.Map[String, Event]) => {
+        val builder: StringBuilder = new StringBuilder
+        builder
+          .append(pattern.get("start").get.getId)
+          .append(",")
+          .append(pattern.get("middle").get.getId)
+          .append(",")
+          .append(pattern.get("end").get.getId)
+          .toString
+      })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "2,2,2\n3,3,3\n42,42,42"
     env.execute
@@ -139,38 +141,39 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val input: DataStream[Event] = env.fromElements(
-      Tuple2.of(new Event(1, "start", 1.0), 5L),
-      Tuple2.of(new Event(2, "middle", 2.0), 1L),
-      Tuple2.of(new Event(3, "end", 3.0), 3L),
-      Tuple2.of(new Event(4, "end", 4.0), 10L),
-      Tuple2.of(new Event(5, "middle", 5.0), 7L),
-      Tuple2.of(new Event(5, "middle", 5.0), 100L))
-      .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[Tuple2[Event, Long]] {
-        def extractTimestamp(element: Tuple2[Event, Long], previousTimestamp: Long): Long = {
-          element.f1
+      (new Event(1, "start", 1.0), 5L),
+      (new Event(2, "middle", 2.0), 1L),
+      (new Event(3, "end", 3.0), 3L),
+      (new Event(4, "end", 4.0), 10L),
+      (new Event(5, "middle", 5.0), 7L),
+      (new Event(5, "middle", 5.0), 100L))
+      .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[(Event, Long)] {
+        def extractTimestamp(element: (Event, Long), previousTimestamp: Long): Long = {
+          element._2
         }
 
-        def checkAndGetNextWatermark(lastElement: Tuple2[Event, Long], extractedTimestamp: Long): Watermark = {
-          new Watermark(lastElement.f1 - 5)
+        def checkAndGetNextWatermark(lastElement: (Event, Long),
+                                     extractedTimestamp: Long): Watermark = {
+          new Watermark(lastElement._2 - 5)
         }
-      }).map((value: Tuple2[Event, Long]) => value.f0)
+      }).map((value: (Event, Long)) => value._1)
 
     val pattern: Pattern[Event, _] = Pattern.begin[Event]("start")
-      .where((value: Event) => value.name == "start")
+      .where((value: Event) => value.getName == "start")
       .followedBy("middle")
-      .where((value: Event) => value.name == "middle")
+      .where((value: Event) => value.getName == "middle")
       .followedBy("end")
-      .where((value: Event) => value.name == "end")
+      .where((value: Event) => value.getName == "end")
 
     val result: DataStream[String] = CEP.pattern(input, pattern)
       .select((pattern: mutable.Map[String, Event]) => {
         val builder: StringBuilder = new StringBuilder
         builder
-          .append(pattern.get("start").get.id)
+          .append(pattern.get("start").get.getId)
           .append(",")
-          .append(pattern.get("middle").get.id)
+          .append(pattern.get("middle").get.getId)
           .append(",")
-          .append(pattern.get("end").get.id)
+          .append(pattern.get("end").get.getId)
           .toString
       })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -185,41 +188,43 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(2)
     val input: DataStream[Event] = env.fromElements(
-      Tuple2.of(new Event(1, "start", 1.0), 5L),
-      Tuple2.of(new Event(1, "middle", 2.0), 1L),
-      Tuple2.of(new Event(2, "middle", 2.0), 4L),
-      Tuple2.of(new Event(2, "start", 2.0), 3L),
-      Tuple2.of(new Event(1, "end", 3.0), 3L),
-      Tuple2.of(new Event(3, "start", 4.1), 5L),
-      Tuple2.of(new Event(1, "end", 4.0), 10L),
-      Tuple2.of(new Event(2, "end", 2.0), 8L),
-      Tuple2.of(new Event(1, "middle", 5.0), 7L),
-      Tuple2.of(new Event(3, "middle", 6.0), 9L),
-      Tuple2.of(new Event(3, "end", 7.0), 7L))
-      .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[Tuple2[Event, Long]] {
-        def extractTimestamp(element: Tuple2[Event, Long], currentTimestamp: Long): Long = {
-          element.f1
+      (new Event(1, "start", 1.0), 5L),
+      (new Event(1, "middle", 2.0), 1L),
+      (new Event(2, "middle", 2.0), 4L),
+      (new Event(2, "start", 2.0), 3L),
+      (new Event(1, "end", 3.0), 3L),
+      (new Event(3, "start", 4.1), 5L),
+      (new Event(1, "end", 4.0), 10L),
+      (new Event(2, "end", 2.0), 8L),
+      (new Event(1, "middle", 5.0), 7L),
+      (new Event(3, "middle", 6.0), 9L),
+      (new Event(3, "end", 7.0), 7L))
+      .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[(Event, Long)] {
+        def extractTimestamp(element: (Event, Long), currentTimestamp: Long): Long = {
+          element._2
         }
 
-        def checkAndGetNextWatermark(lastElement: Tuple2[Event, Long], extractedTimestamp: Long): Watermark = {
-          new Watermark(lastElement.f1 - 5)
+        def checkAndGetNextWatermark(lastElement: (Event, Long),
+                                     extractedTimestamp: Long): Watermark = {
+          new Watermark(lastElement._2 - 5)
         }
-      }).map((value: Tuple2[Event, Long]) => value.f0)
-      .keyBy((value: Event) => value.id)
+      }).map((value: (Event, Long)) => value._1)
+      .keyBy((value: Event) => value.getId)
     val pattern: Pattern[Event, _] = Pattern.begin[Event]("start")
-      .where((value: Event) => value.name == "start")
+      .where((value: Event) => value.getName == "start")
       .followedBy("middle")
-      .where((value: Event) => value.name == "middle")
+      .where((value: Event) => value.getName == "middle")
       .followedBy("end")
-      .where((value: Event) => value.name == "end")
-    val result: DataStream[String] = CEP.pattern(input, pattern).select((pattern: mutable.Map[String, Event]) => {
+      .where((value: Event) => value.getName == "end")
+    val result: DataStream[String] = CEP.pattern(input, pattern)
+      .select((pattern: mutable.Map[String, Event]) => {
       val builder: StringBuilder = new StringBuilder
       builder
-        .append(pattern.get("start").get.id)
+        .append(pattern.get("start").get.getId)
         .append(",")
-        .append(pattern.get("middle").get.id)
+        .append(pattern.get("middle").get.getId)
         .append(",")
-        .append(pattern.get("end").get.id)
+        .append(pattern.get("end").get.getId)
         .toString
     })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
@@ -227,22 +232,23 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
     env.execute
   }
 
-
   @Test
   @throws[Exception]
   def testSimplePatternWithSingleState {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val input: DataStream[Tuple2[Int, Int]] = env.fromElements(new Tuple2[Int, Int](0, 1), new Tuple2[Int, Int](0, 2))
-    val pattern: Pattern[Tuple2[Int, Int], _] = Pattern.begin[Tuple2[Int, Int]]("start")
-      .where((rec: Tuple2[Int, Int]) => rec.f1 equals 1)
-    val pStream: PatternStream[Tuple2[Int, Int]] = CEP.pattern(input, pattern)
-    val result: DataStream[Tuple2[Int, Int]] = pStream
-      .select((pattern: mutable.Map[String, Tuple2[Int, Int]]) => pattern.get("start").get)
+    val input: DataStream[(Int, Int)] = env.fromElements((0, 1), (0, 2))
+    val pattern: Pattern[(Int, Int), _] = Pattern.begin[(Int, Int)]("start")
+      .where((rec: (Int, Int)) => rec._2 equals 1)
+    val pStream: PatternStream[(Int, Int)] = CEP.pattern(input, pattern)
+    val result: DataStream[(Int, Int)] = pStream
+      .select((pattern: mutable.Map[String, (Int, Int)]) => {
+        println(pattern)
+        pattern.get("start").get
+      })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "(0,1)"
     env.execute
   }
-
 
   @Test
   @throws[Exception]
@@ -250,9 +256,12 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val input: DataStream[Int] = env.fromElements(1, 2)
-    val pattern: Pattern[Int, _] = Pattern.begin[Int]("start").followedBy("end").within(Time.days(1))
+    val pattern: Pattern[Int, _] = Pattern.begin[Int]("start")
+      .followedBy("end").within(Time.days(1))
     val result: DataStream[Int] = CEP.pattern(input, pattern)
-      .select[Int]((pattern: mutable.Map[String, Int]) => pattern.get("start").get + pattern.get("end").get)
+      .select[Int]((pattern: mutable.Map[String, Int]) => {
+      pattern.get("start").get + pattern.get("end").get
+    })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "3"
     env.execute

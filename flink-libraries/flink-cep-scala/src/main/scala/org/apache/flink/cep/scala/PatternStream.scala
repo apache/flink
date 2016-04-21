@@ -18,18 +18,19 @@
 package org.apache.flink.cep.scala
 
 import java.util.{Map => JMap}
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction, PatternStream => JPatternStream}
+import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction,
+PatternStream => JPatternStream}
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.scala.asScalaStream
 import org.apache.flink.util.Collector
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
-  * pattern sequences as a map of events associated with their names. The pattern is detected using a
-  * [[org.apache.flink.cep.nfa.NFA]]. In order to process the detected sequences, the user has to
+  * pattern sequences as a map of events associated with their names. The pattern is detected using
+  * a [[org.apache.flink.cep.nfa.NFA]]. In order to process the detected sequences, the user has to
   * specify a [[PatternSelectFunction]] or a [[PatternFlatSelectFunction]].
   *
   * @param jPatternStream Underlying pattern stream from Java API
@@ -49,7 +50,8 @@ class PatternStream[T: TypeInformation](jPatternStream: JPatternStream[T]) {
     * @tparam R Type of the resulting elements
     * @return [[DataStream]] which contains the resulting elements from the pattern select function.
     */
-  def select[R: TypeInformation](patternSelectFunction: PatternSelectFunction[T, R]): DataStream[R] = {
+  def select[R: TypeInformation](patternSelectFunction: PatternSelectFunction[T, R])
+  : DataStream[R] = {
     asScalaStream(jPatternStream.select(patternSelectFunction, implicitly[TypeInformation[R]]))
   }
 
@@ -64,8 +66,10 @@ class PatternStream[T: TypeInformation](jPatternStream: JPatternStream[T]) {
     * @return [[DataStream]] which contains the resulting elements from the pattern flat select
     *         function.
     */
-  def flatSelect[R: TypeInformation](patternFlatSelectFunction: PatternFlatSelectFunction[T, R]): DataStream[R] = {
-    asScalaStream(jPatternStream.flatSelect(patternFlatSelectFunction, implicitly[TypeInformation[R]]))
+  def flatSelect[R: TypeInformation](patternFlatSelectFunction: PatternFlatSelectFunction[T, R])
+  : DataStream[R] = {
+    asScalaStream(jPatternStream
+      .flatSelect(patternFlatSelectFunction, implicitly[TypeInformation[R]]))
   }
 
   /**
@@ -78,16 +82,15 @@ class PatternStream[T: TypeInformation](jPatternStream: JPatternStream[T]) {
     * @tparam R Type of the resulting elements
     * @return [[DataStream]] which contains the resulting elements from the pattern select function.
     */
-   def select[R: TypeInformation](patternSelectFun: scala.collection.mutable.Map[String, T] => R): DataStream[R] = {
-      val patternSelectFunction: PatternSelectFunction[T, R] = new PatternSelectFunction[T, R] {
-        val cleanFun = cleanClosure(patternSelectFun)
+  def select[R: TypeInformation](patternSelectFun: mutable.Map[String, T] => R): DataStream[R] = {
+    val patternSelectFunction: PatternSelectFunction[T, R] = new PatternSelectFunction[T, R] {
+      val cleanFun = cleanClosure(patternSelectFun)
 
-        def select(in: JMap[String, T]): R = cleanFun(in.asScala)
-      }
-      select(patternSelectFunction)
+      def select(in: JMap[String, T]): R = cleanFun(in.asScala)
     }
+    select(patternSelectFunction)
+  }
 
-  //TODO ask about implicit conversion between Java Map and Scala Map
   /**
     * Applies a flat select function to the detected pattern sequence. For each pattern sequence
     * the provided [[PatternFlatSelectFunction]] is called. The pattern flat select function
@@ -99,14 +102,17 @@ class PatternStream[T: TypeInformation](jPatternStream: JPatternStream[T]) {
     * @return [[DataStream]] which contains the resulting elements from the pattern flat select
     *         function.
     */
-    def flatSelect[R: TypeInformation](patternFlatSelectFun: (scala.collection.mutable.Map[String, T], Collector[R]) => Unit): DataStream[R] = {
-      val patternFlatSelectFunction: PatternFlatSelectFunction[T, R] = new PatternFlatSelectFunction[T, R] {
+  def flatSelect[R: TypeInformation](patternFlatSelectFun: (mutable.Map[String, T],
+    Collector[R]) => Unit): DataStream[R] = {
+    val patternFlatSelectFunction: PatternFlatSelectFunction[T, R] =
+      new PatternFlatSelectFunction[T, R] {
         val cleanFun = cleanClosure(patternFlatSelectFun)
 
-        def flatSelect(pattern: JMap[String, T], out: Collector[R]): Unit = cleanFun(pattern.asScala, out)
+        def flatSelect(pattern: JMap[String, T], out: Collector[R]): Unit =
+          cleanFun(pattern.asScala, out)
       }
-      flatSelect(patternFlatSelectFunction)
-    }
+    flatSelect(patternFlatSelectFunction)
+  }
 
 }
 

@@ -34,7 +34,8 @@ package object scala {
   : scala.PatternStream[T] = {
     Option(javaPatternStream) match {
       case Some(p) => PatternStream[T](p)
-      case None => throw new IllegalArgumentException("PatternStream from Java API must not be null.")
+      case None =>
+        throw new IllegalArgumentException("PatternStream from Java API must not be null.")
     }
   }
 

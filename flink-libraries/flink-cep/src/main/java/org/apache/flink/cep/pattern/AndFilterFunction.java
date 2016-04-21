@@ -41,4 +41,12 @@ public class AndFilterFunction<T> implements FilterFunction<T> {
 	public boolean filter(T value) throws Exception {
 		return left.filter(value) && right.filter(value);
 	}
+
+	public FilterFunction<T> getLeft() {
+		return left;
+	}
+
+	public FilterFunction<T> getRight() {
+		return right;
+	}
 }

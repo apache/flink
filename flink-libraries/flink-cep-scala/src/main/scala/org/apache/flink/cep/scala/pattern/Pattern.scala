@@ -148,7 +148,7 @@ class Pattern[T: ClassTag, F <: T](jPattern: JPattern[T, F]) {
     * @return The previous pattern operator
     */
   def getPrevious: Option[Pattern[T, _ <: T]] = {
-    Option(wrapPattern(jPattern.getPrevious))
+    wrapPattern(jPattern.getPrevious)
   }
 
 }
