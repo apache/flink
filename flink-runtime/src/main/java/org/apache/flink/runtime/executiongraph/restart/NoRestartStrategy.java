@@ -36,18 +36,31 @@ public class NoRestartStrategy implements RestartStrategy {
 		throw new RuntimeException("NoRestartStrategy does not support restart.");
 	}
 
+	@Override
+	public void disable() {}
+
 	/**
 	 * Creates a NoRestartStrategy instance.
 	 *
 	 * @param configuration Configuration object which is ignored
 	 * @return NoRestartStrategy instance
 	 */
-	public static NoRestartStrategy create(Configuration configuration) {
-		return new NoRestartStrategy();
+	public static NoRestartStrategyFactory createFactory(Configuration configuration) {
+		return new NoRestartStrategyFactory();
 	}
 
 	@Override
 	public String toString() {
 		return "NoRestartStrategy";
+	}
+
+	public static class NoRestartStrategyFactory extends RestartStrategyFactory {
+
+		private static final long serialVersionUID = -1809462525812787862L;
+
+		@Override
+		public RestartStrategy createRestartStrategy() {
+			return new NoRestartStrategy();
+		}
 	}
 }

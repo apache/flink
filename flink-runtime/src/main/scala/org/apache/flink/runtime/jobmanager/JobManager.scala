@@ -28,6 +28,7 @@ import akka.actor._
 import akka.pattern.ask
 
 import grizzled.slf4j.Logger
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
@@ -118,7 +119,7 @@ class JobManager(
     protected val scheduler: FlinkScheduler,
     protected val libraryCacheManager: BlobLibraryCacheManager,
     protected val archive: ActorRef,
-    protected val defaultRestartStrategy: RestartStrategy,
+    protected val restartStrategyFactory: RestartStrategyFactory,
     protected val timeout: FiniteDuration,
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
@@ -210,7 +211,7 @@ class JobManager(
     log.info(s"Stopping JobManager $getAddress.")
 
     val newFuturesToComplete = cancelAndClearEverything(
-      new Exception("The JobManager is shutting down."),
+      new SuppressRestartsException(new Exception("The JobManager is shutting down.")),
       removeJobFromStateBackend = true)
 
     implicit val executionContext = context.dispatcher
@@ -307,7 +308,7 @@ class JobManager(
       log.info(s"JobManager ${self.path.toSerializationFormat} was revoked leadership.")
 
       val newFuturesToComplete = cancelAndClearEverything(
-        new Exception("JobManager is no longer the leader."),
+        new SuppressRestartsException(new Exception("JobManager is no longer the leader.")),
         removeJobFromStateBackend = false)
 
       futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
@@ -1071,7 +1072,7 @@ class JobManager(
         val restartStrategy = Option(jobGraph.getExecutionConfig().getRestartStrategy())
           .map(RestartStrategyFactory.createRestartStrategy(_)) match {
             case Some(strategy) => strategy
-            case None => defaultRestartStrategy
+            case None => restartStrategyFactory.createRestartStrategy()
           }
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
@@ -1629,7 +1630,7 @@ class JobManager(
     * @param cause Cause for the cancelling.
     */
   private def cancelAndClearEverything(
-      cause: Throwable,
+      cause: SuppressRestartsException,
       removeJobFromStateBackend: Boolean)
     : Seq[Future[Unit]] = {
     val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
@@ -2265,7 +2266,7 @@ object JobManager {
     InstanceManager,
     FlinkScheduler,
     BlobLibraryCacheManager,
-    RestartStrategy,
+    RestartStrategyFactory,
     FiniteDuration, // timeout
     Int, // number of archived jobs
     LeaderElectionService,
@@ -2281,8 +2282,7 @@ object JobManager {
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
-    val restartStrategy = RestartStrategyFactory
-      .createFromConfig(configuration)
+    val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
