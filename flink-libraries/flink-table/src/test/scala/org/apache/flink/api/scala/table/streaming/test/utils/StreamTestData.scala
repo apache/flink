@@ -19,13 +19,9 @@
 package org.apache.flink.api.scala.table.streaming.test.utils
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.Row
 import scala.collection.mutable
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 
 object StreamTestData {
 

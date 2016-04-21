@@ -33,5 +33,4 @@ class DataStreamTable[T](
       .foreach( f => builder.add(f._1, f._2).nullable(true) )
     builder.build
   }
-
 }

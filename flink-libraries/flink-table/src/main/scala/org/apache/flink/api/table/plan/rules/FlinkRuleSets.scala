@@ -19,9 +19,12 @@
 package org.apache.flink.api.table.plan.rules
 
 import org.apache.calcite.rel.rules._
+import org.apache.calcite.rel.stream.StreamRules
 import org.apache.calcite.tools.{RuleSets, RuleSet}
 import org.apache.flink.api.table.plan.rules.dataSet._
 import org.apache.flink.api.table.plan.rules.datastream._
+import org.apache.flink.api.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
+import scala.collection.JavaConversions._
 
 object FlinkRuleSets {
 
@@ -105,36 +108,43 @@ object FlinkRuleSets {
   /**
   * RuleSet to optimize plans for batch / DataSet execution
   */
-  val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
+  val DATASTREAM_OPT_RULES: RuleSet = {
 
-    // calc rules
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
+    val rules = List(
 
-    // prune empty results rules
-    PruneEmptyRules.FILTER_INSTANCE,
-    PruneEmptyRules.PROJECT_INSTANCE,
-    PruneEmptyRules.UNION_INSTANCE,
+      EnumerableToLogicalTableScan.INSTANCE,
+      LogicalScanToStreamable.INSTANCE,
 
-    // simplify expressions rules
-    ReduceExpressionsRule.CALC_INSTANCE,
+      // calc rules
+      FilterToCalcRule.INSTANCE,
+      ProjectToCalcRule.INSTANCE,
+      FilterCalcMergeRule.INSTANCE,
+      ProjectCalcMergeRule.INSTANCE,
+      CalcMergeRule.INSTANCE,
 
-    // push and merge projection rules
-    ProjectFilterTransposeRule.INSTANCE,
-    FilterProjectTransposeRule.INSTANCE,
-    ProjectRemoveRule.INSTANCE,
+      // prune empty results rules
+      PruneEmptyRules.FILTER_INSTANCE,
+      PruneEmptyRules.PROJECT_INSTANCE,
+      PruneEmptyRules.UNION_INSTANCE,
 
-    // merge and push unions rules
-    UnionEliminatorRule.INSTANCE,
+      // push and merge projection rules
+      ProjectFilterTransposeRule.INSTANCE,
+      FilterProjectTransposeRule.INSTANCE,
+      ProjectRemoveRule.INSTANCE,
 
-    // translate to DataStream nodes
-    DataStreamCalcRule.INSTANCE,
-    DataStreamScanRule.INSTANCE,
-    DataStreamUnionRule.INSTANCE,
-    DataStreamValuesRule.INSTANCE
+      // simplify expressions rules
+      ReduceExpressionsRule.CALC_INSTANCE,
+
+      // merge and push unions rules
+      UnionEliminatorRule.INSTANCE,
+
+      // translate to DataStream nodes
+      DataStreamCalcRule.INSTANCE,
+      DataStreamScanRule.INSTANCE,
+      DataStreamUnionRule.INSTANCE,
+      DataStreamValuesRule.INSTANCE
   )
 
+    RuleSets.ofList(rules ++ StreamRules.RULES.asList.take(7))
+  }
 }
