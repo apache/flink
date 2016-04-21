@@ -18,14 +18,27 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * An accumulator that finds the maximum {@code integer} value.
  */
+@PublicEvolving
 public class IntMaximum implements SimpleAccumulator<Integer> {
 
 	private static final long serialVersionUID = 1L;
 
 	private int max = Integer.MIN_VALUE;
+
+	public IntMaximum() {}
+
+	public IntMaximum(int value) {
+		this.max = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Consider using {@link #add(int)} instead for primitive integer values
@@ -35,18 +48,9 @@ public class IntMaximum implements SimpleAccumulator<Integer> {
 		this.max = Math.max(this.max, value);
 	}
 
-	public void add(int value) {
-		this.max = Math.max(this.max, value);
-	}
-
 	@Override
 	public Integer getLocalValue() {
 		return this.max;
-	}
-
-	@Override
-	public void resetLocal() {
-		this.max = Integer.MIN_VALUE;
 	}
 
 	@Override
@@ -55,11 +59,32 @@ public class IntMaximum implements SimpleAccumulator<Integer> {
 	}
 
 	@Override
+	public void resetLocal() {
+		this.max = Integer.MIN_VALUE;
+	}
+
+	@Override
 	public IntMaximum clone() {
 		IntMaximum clone = new IntMaximum();
 		clone.max = this.max;
 		return clone;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(int value) {
+		this.max = Math.max(this.max, value);
+	}
+
+	public int getLocalValuePrimitive() {
+		return this.max;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

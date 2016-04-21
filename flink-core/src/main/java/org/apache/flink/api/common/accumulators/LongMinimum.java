@@ -18,14 +18,27 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * An accumulator that finds the minimum {@code long} value.
  */
+@PublicEvolving
 public class LongMinimum implements SimpleAccumulator<Long> {
 
 	private static final long serialVersionUID = 1L;
 
 	private long min = Long.MAX_VALUE;
+
+	public LongMinimum() {}
+
+	public LongMinimum(long value) {
+		this.min = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Consider using {@link #add(long)} instead for primitive long values
@@ -35,18 +48,9 @@ public class LongMinimum implements SimpleAccumulator<Long> {
 		this.min = Math.min(this.min, value);
 	}
 
-	public void add(long value) {
-		this.min = Math.min(this.min, value);
-	}
-
 	@Override
 	public Long getLocalValue() {
 		return this.min;
-	}
-
-	@Override
-	public void resetLocal() {
-		this.min = Long.MAX_VALUE;
 	}
 
 	@Override
@@ -55,11 +59,32 @@ public class LongMinimum implements SimpleAccumulator<Long> {
 	}
 
 	@Override
+	public void resetLocal() {
+		this.min = Long.MAX_VALUE;
+	}
+
+	@Override
 	public LongMinimum clone() {
 		LongMinimum clone = new LongMinimum();
 		clone.min = this.min;
 		return clone;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(long value) {
+		this.min = Math.min(this.min, value);
+	}
+
+	public long getLocalValuePrimitive() {
+		return this.min;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

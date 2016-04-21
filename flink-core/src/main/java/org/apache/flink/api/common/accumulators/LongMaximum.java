@@ -18,14 +18,27 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * An accumulator that finds the maximum {@code long} value.
  */
+@PublicEvolving
 public class LongMaximum implements SimpleAccumulator<Long> {
 
 	private static final long serialVersionUID = 1L;
 
 	private long max = Long.MIN_VALUE;
+
+	public LongMaximum() {}
+
+	public LongMaximum(long value) {
+		this.max = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Consider using {@link #add(long)} instead for primitive long values
@@ -35,18 +48,9 @@ public class LongMaximum implements SimpleAccumulator<Long> {
 		this.max = Math.max(this.max, value);
 	}
 
-	public void add(long value) {
-		this.max = Math.max(this.max, value);
-	}
-
 	@Override
 	public Long getLocalValue() {
 		return this.max;
-	}
-
-	@Override
-	public void resetLocal() {
-		this.max = Long.MIN_VALUE;
 	}
 
 	@Override
@@ -55,11 +59,32 @@ public class LongMaximum implements SimpleAccumulator<Long> {
 	}
 
 	@Override
+	public void resetLocal() {
+		this.max = Long.MIN_VALUE;
+	}
+
+	@Override
 	public LongMaximum clone() {
 		LongMaximum clone = new LongMaximum();
 		clone.max = this.max;
 		return clone;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(long value) {
+		this.max = Math.max(this.max, value);
+	}
+
+	public long getLocalValuePrimitive() {
+		return this.max;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

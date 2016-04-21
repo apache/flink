@@ -18,14 +18,27 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * An accumulator that finds the minimum {@code integer} value.
  */
+@PublicEvolving
 public class IntMinimum implements SimpleAccumulator<Integer> {
 
 	private static final long serialVersionUID = 1L;
 
 	private int min = Integer.MAX_VALUE;
+
+	public IntMinimum() {}
+
+	public IntMinimum(int value) {
+		this.min = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Consider using {@link #add(int)} instead for primitive integer values
@@ -35,18 +48,9 @@ public class IntMinimum implements SimpleAccumulator<Integer> {
 		this.min = Math.min(this.min, value);
 	}
 
-	public void add(int value) {
-		this.min = Math.min(this.min, value);
-	}
-
 	@Override
 	public Integer getLocalValue() {
 		return this.min;
-	}
-
-	@Override
-	public void resetLocal() {
-		this.min = Integer.MAX_VALUE;
 	}
 
 	@Override
@@ -55,11 +59,32 @@ public class IntMinimum implements SimpleAccumulator<Integer> {
 	}
 
 	@Override
+	public void resetLocal() {
+		this.min = Integer.MAX_VALUE;
+	}
+
+	@Override
 	public IntMinimum clone() {
 		IntMinimum clone = new IntMinimum();
 		clone.min = this.min;
 		return clone;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(int value) {
+		this.min = Math.min(this.min, value);
+	}
+
+	public int getLocalValuePrimitive() {
+		return this.min;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

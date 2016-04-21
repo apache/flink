@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
-
 
 import org.apache.flink.annotation.PublicEvolving;
 
@@ -32,15 +30,21 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 
 	private int localValue = 0;
 
+	public IntCounter() {}
+
+	public IntCounter(int value) {
+		this.localValue = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Consider using {@link #add(int)} instead for primitive int values
 	 */
 	@Override
 	public void add(Integer value) {
-		localValue += value;
-	}
-
-	public void add(int value){
 		localValue += value;
 	}
 
@@ -60,11 +64,27 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 	}
 
 	@Override
-	public Accumulator<Integer, Integer> clone() {
+	public IntCounter clone() {
 		IntCounter result = new IntCounter();
 		result.localValue = localValue;
 		return result;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(int value){
+		localValue += value;
+	}
+
+	public int getLocalValuePrimitive() {
+		return this.localValue;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

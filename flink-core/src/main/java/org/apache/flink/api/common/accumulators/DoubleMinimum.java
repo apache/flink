@@ -18,14 +18,27 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * An accumulator that finds the minimum {@code double} value.
  */
+@PublicEvolving
 public class DoubleMinimum implements SimpleAccumulator<Double> {
 
 	private static final long serialVersionUID = 1L;
 
 	private double min = Double.POSITIVE_INFINITY;
+
+	public DoubleMinimum() {}
+
+	public DoubleMinimum(double value) {
+		this.min = value;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Accumulator
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Consider using {@link #add(double)} instead for primitive double values
@@ -35,18 +48,9 @@ public class DoubleMinimum implements SimpleAccumulator<Double> {
 		this.min = Math.min(this.min, value);
 	}
 
-	public void add(double value) {
-		this.min = Math.min(this.min, value);
-	}
-
 	@Override
 	public Double getLocalValue() {
 		return this.min;
-	}
-
-	@Override
-	public void resetLocal() {
-		this.min = Double.POSITIVE_INFINITY;
 	}
 
 	@Override
@@ -55,11 +59,32 @@ public class DoubleMinimum implements SimpleAccumulator<Double> {
 	}
 
 	@Override
+	public void resetLocal() {
+		this.min = Double.POSITIVE_INFINITY;
+	}
+
+	@Override
 	public DoubleMinimum clone() {
 		DoubleMinimum clone = new DoubleMinimum();
 		clone.min = this.min;
 		return clone;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Primitive Specializations
+	// ------------------------------------------------------------------------
+
+	public void add(double value) {
+		this.min = Math.min(this.min, value);
+	}
+
+	public double getLocalValuePrimitive() {
+		return this.min;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
