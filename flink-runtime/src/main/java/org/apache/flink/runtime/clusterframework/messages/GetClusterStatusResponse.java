@@ -21,7 +21,7 @@ package org.apache.flink.runtime.clusterframework.messages;
 import java.io.Serializable;
 
 /**
- * The reply to a {@code GetClusterStatus} message sent by the resource manager. Sends over the
+ * The reply to a {@code GetClusterStatus} message sent by the job manager. Sends over the
  * current number of task managers and the available task slots.
  */
 public class GetClusterStatusResponse implements Serializable {

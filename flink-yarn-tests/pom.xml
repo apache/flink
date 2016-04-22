@@ -92,11 +92,16 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
-					<forkCount>1</forkCount>
-					<workingDirectory>../</workingDirectory>
-				</configuration>
+				<executions>
+					<execution>
+						<id>integration-tests</id>
+						<configuration>
+							<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
+							<forkCount>1</forkCount>
+							<workingDirectory>../</workingDirectory>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 
 			<plugin>

@@ -538,7 +538,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	}
 
 	// ------------------------------------------------------------------------
-	//  Cluster Shutdown
+	//  ClusterClient Shutdown
 	// ------------------------------------------------------------------------
 
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {

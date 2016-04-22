@@ -36,9 +36,10 @@ import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -205,9 +206,9 @@ public class FlinkClient {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
@@ -245,9 +246,9 @@ public class FlinkClient {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerPort);
 
-		final Client client;
+		final ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}

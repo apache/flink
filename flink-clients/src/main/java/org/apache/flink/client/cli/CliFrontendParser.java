@@ -24,8 +24,16 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
-import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command
@@ -33,9 +41,17 @@ import org.apache.flink.client.FlinkYarnSessionCli;
  */
 public class CliFrontendParser {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendParser.class);
+
+
 	/** command line interface of the YARN session, with a special initialization here
 	 *  to prefix all options with y/yarn. */
-	private static final FlinkYarnSessionCli yarnSessionCLi = new FlinkYarnSessionCli("y", "yarn", true);
+	private static final Map<String, CustomCommandLine> customCommandLine = new HashMap<>(1);
+
+	static {
+		// we could easily add more here in the future
+		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
+	}
 
 
 	static final Option HELP_OPTION = new Option("h", "help", false,
@@ -43,7 +59,7 @@ public class CliFrontendParser {
 
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
-	public static final Option CLASS_OPTION = new Option("c", "class", true,
+	static final Option CLASS_OPTION = new Option("c", "class", true,
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
@@ -53,23 +69,23 @@ public class CliFrontendParser {
 					"times for specifying more than one URL. The protocol must be supported by the " +
 					"{@link java.net.URLClassLoader}.");
 
-	static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
+	public static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 			"specified in the configuration.");
 
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"supress logging output to standard out.");
 
-	static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
+	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
-			"Address of the JobManager (master) to which to connect. Specify '" + CliFrontend.YARN_DEPLOY_JOBMANAGER +
-			"' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a " +
-			"different JobManager than the one specified in the configuration.");
+			"Address of the JobManager (master) to which to connect. " +
+			"Specify " + getCliIdentifierString() +" as the JobManager to deploy a cluster for the job. " +
+			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
@@ -143,8 +159,10 @@ public class CliFrontendParser {
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
 
-		// also add the YARN options so that the parser can parse them
-		yarnSessionCLi.getYARNSessionCLIOptions(options);
+		for (CustomCommandLine customCLI : customCommandLine.values()) {
+			customCLI.addOptions(options);
+		}
+
 		return options;
 	}
 
@@ -240,10 +258,16 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: run [OPTIONS] <jar-file> <arguments>");
 		formatter.setSyntaxPrefix("  \"run\" action options:");
 		formatter.printHelp(" ", getRunOptionsWithoutDeprecatedOptions(new Options()));
-		formatter.setSyntaxPrefix("  Additional arguments if -m " + CliFrontend.YARN_DEPLOY_JOBMANAGER + " is set:");
-		Options yarnOpts = new Options();
-		yarnSessionCLi.getYARNSessionCLIOptions(yarnOpts);
-		formatter.printHelp(" ", yarnOpts);
+
+		// prints options from all available command-line classes
+		for (Map.Entry<String, CustomCommandLine> entry: customCommandLine.entrySet()) {
+			formatter.setSyntaxPrefix("  Additional arguments if -m " + entry.getKey() + " is set:");
+			Options customOpts = new Options();
+			entry.getValue().addOptions(customOpts);
+			formatter.printHelp(" ", customOpts);
+			System.out.println();
+		}
+
 		System.out.println();
 	}
 
@@ -376,7 +400,63 @@ public class CliFrontendParser {
 		}
 	}
 
-	public static FlinkYarnSessionCli getFlinkYarnSessionCli() {
-		return yarnSessionCLi;
+	public static Map<String, CustomCommandLine> getAllCustomCommandLine() {
+		if (customCommandLine.isEmpty()) {
+			LOG.warn("No custom command-line classes were loaded.");
+		}
+		return Collections.unmodifiableMap(customCommandLine);
 	}
+
+	private static String getCliIdentifierString() {
+		StringBuilder builder = new StringBuilder();
+		boolean first = true;
+		for (String identifier : customCommandLine.keySet()) {
+			if (!first) {
+				builder.append(", ");
+			}
+			first = false;
+			builder.append("'").append(identifier).append("'");
+		}
+		return builder.toString();
+	}
+
+	/**
+	 * Gets the custom command-line for this identifier.
+	 * @param identifier The unique identifier for this command-line implementation.
+	 * @return CustomCommandLine or null if none was found
+	 */
+	public static CustomCommandLine getActiveCustomCommandLine(String identifier) {
+		return CliFrontendParser.getAllCustomCommandLine().get(identifier);
+	}
+
+	private static void loadCustomCommandLine(String className, Object... params) {
+
+		try {
+			Class<? extends CustomCommandLine> customCliClass =
+				Class.forName(className).asSubclass(CustomCommandLine.class);
+
+			// construct class types from the parameters
+			Class<?>[] types = new Class<?>[params.length];
+			for (int i = 0; i < params.length; i++) {
+				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
+				types[i] = params[i].getClass();
+			}
+
+			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
+			final CustomCommandLine cli = constructor.newInstance(params);
+
+			String cliIdentifier = Preconditions.checkNotNull(cli.getIdentifier());
+			CustomCommandLine existing = customCommandLine.put(cliIdentifier, cli);
+
+			if (existing != null) {
+				throw new IllegalStateException("Attempted to register " + cliIdentifier +
+					" but there is already a command-line with this identifier.");
+			}
+		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
+			| InvocationTargetException e) {
+			LOG.warn("Unable to locate custom CLI class {}. " +
+				"Flink is not compiled with support for this class.", className, e);
+		}
+	}
+
 }

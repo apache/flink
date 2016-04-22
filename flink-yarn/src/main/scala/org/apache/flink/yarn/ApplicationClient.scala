@@ -23,12 +23,10 @@ import java.util.UUID
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.yarn.YarnMessages._
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import scala.collection.mutable
 import scala.concurrent.duration._
 
@@ -36,7 +34,7 @@ import scala.language.postfixOps
 
 /** Actor which is responsible to repeatedly poll the Yarn cluster status from the ResourceManager.
   *
-  * This class represents the bridge between the [[FlinkYarnCluster]] and the
+  * This class represents the bridge between the [[YarnClusterClient]] and the
   * [[YarnApplicationMasterRunner]].
   *
   * @param flinkConfig Configuration object
@@ -135,9 +133,9 @@ class ApplicationClient(
       }
 
     case msg: RegisterInfoMessageListenerSuccessful =>
+      // The job manager acts as a proxy between the client and the resource managert
       val jm = sender()
-
-      log.info(s"Successfully registered at the ResourceManager $jm")
+      log.info(s"Successfully registered at the ResourceManager using JobManager $jm")
 
       yarnJobManager = Some(jm)
 

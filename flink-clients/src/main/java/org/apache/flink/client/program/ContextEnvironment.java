@@ -34,7 +34,7 @@ import java.util.List;
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final Client client;
+	protected final ClusterClient client;
 
 	protected final List<URL> jarFilesToAttach;
 
@@ -44,8 +44,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	protected final String savepointPath;
 	
-	public ContextEnvironment(Client remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-			ClassLoader userCodeClassLoader, String savepointPath) {
+	public ContextEnvironment(ClusterClient remoteConnection, List<URL> jarFiles, List<URL> classpaths,
+				ClassLoader userCodeClassLoader, String savepointPath) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
@@ -58,7 +58,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
 				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism(), savepointPath);
+		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointPath).getJobExecutionResult();
 		return this.lastJobExecutionResult;
 	}
 
@@ -66,7 +66,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		Plan plan = createProgramPlan("unnamed job");
 
-		OptimizedPlan op = Client.getOptimizedPlan(client.compiler, plan, getParallelism());
+		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);
 	}
@@ -83,7 +83,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 				+ ") : " + getIdString();
 	}
 	
-	public Client getClient() {
+	public ClusterClient getClient() {
 		return this.client;
 	}
 	
