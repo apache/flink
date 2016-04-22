@@ -65,19 +65,6 @@ class SortITCase(
   }
 
   @Test
-  def testOrderByMultipleFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, 1, "First"), (2, 3, "Fourth"), (1, 2, "Second"),
-      (2, 1, "Third")).toTable(tEnv).orderBy('_1.desc, '_2.desc)
-
-    val expected = "2,3,Fourth\n2,1,Third\n1,2,Second\n1,1,First"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
-  }
-
-  @Test
   def testOrderByMultipleFieldsDifferentDirections(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -96,6 +83,24 @@ class SortITCase(
     val result = results.sortBy(p => p.min).reduceLeft(_ ++ _)
 
     compareOrderedResultAsText(expected, result)
+  }
+
+  @Test
+  def testOrderByMultipleFieldsWithSql(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
+
+    val t = env.fromElements((1, 1, "First"), (2, 3, "Fourth"), (1, 2, "Second"),
+      (2, 1, "Third")).toTable(tEnv)
+    tEnv.registerDataSet("MyTable", t)
+
+    val queryResult = tEnv.sql(sqlQuery)
+
+    val expected = "2,3,Fourth\n2,1,Third\n1,2,Second\n1,1,First"
+    val results = queryResult.toDataSet[Row].setParallelism(1).collect()
+    compareOrderedResultAsText(expected, results)
   }
 
   private def compareOrderedResultAsText[T](expected: String, results: Seq[T]) = {
