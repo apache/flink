@@ -70,7 +70,8 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTM);
 
 		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false, new FixedDelayRestartStrategy(9999, 100));
-		cluster.start(true);
+		cluster.start(false);
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 	}
 
 	/**
