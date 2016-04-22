@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
-	private final Client client;
+	private final ClusterClient client;
 
 	private final List<URL> jarFilesToAttach;
 
@@ -42,34 +42,34 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final int defaultParallelism;
 
-	private final boolean wait;
+	private final boolean isDetached;
 
 	private ExecutionEnvironment lastEnvCreated;
 
 	private String savepointPath;
 
-	public ContextEnvironmentFactory(Client client, List<URL> jarFilesToAttach,
+	public ContextEnvironmentFactory(ClusterClient client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean wait, String savepointPath)
+			boolean isDetached, String savepointPath)
 	{
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.defaultParallelism = defaultParallelism;
-		this.wait = wait;
+		this.isDetached = isDetached;
 		this.savepointPath = savepointPath;
 	}
 
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
-		if (!wait && lastEnvCreated != null) {
+		if (isDetached && lastEnvCreated != null) {
 			throw new InvalidProgramException("Multiple enviornments cannot be created in detached mode");
 		}
 
-		lastEnvCreated = wait ?
-				new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath) :
-				new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
+		lastEnvCreated = isDetached ?
+				new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath):
+				new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
 		if (defaultParallelism > 0) {
 			lastEnvCreated.setParallelism(defaultParallelism);
 		}

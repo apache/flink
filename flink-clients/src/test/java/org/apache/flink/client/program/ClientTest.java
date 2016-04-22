@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Simple and maybe stupid test to check the {@link Client} class.
+ * Simple and maybe stupid test to check the {@link ClusterClient} class.
  */
 public class ClientTest {
 
@@ -127,11 +127,12 @@ public class ClientTest {
 	@Test
 	public void testDetachedMode() throws Exception{
 		jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
-		Client out = new Client(config);
+		ClusterClient out = new StandaloneClusterClient(config);
+		out.setDetached(true);
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -141,7 +142,7 @@ public class ClientTest {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -151,7 +152,7 @@ public class ClientTest {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -161,7 +162,7 @@ public class ClientTest {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -171,7 +172,7 @@ public class ClientTest {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -181,7 +182,7 @@ public class ClientTest {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			out.runDetached(prg, 1);
+			out.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -198,8 +199,9 @@ public class ClientTest {
 		try {
 			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
 
-			Client out = new Client(config);
-			JobSubmissionResult result = out.runDetached(program.getPlanWithJars(), 1);
+			ClusterClient out = new StandaloneClusterClient(config);
+			out.setDetached(true);
+			JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
 
 			assertNotNull(result);
 
@@ -219,10 +221,11 @@ public class ClientTest {
 		try {
 			jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
 
-			Client out = new Client(config);
+			ClusterClient out = new StandaloneClusterClient(config);
+			out.setDetached(true);
 
 			try {
-				out.runDetached(program.getPlanWithJars(), 1);
+				out.run(program.getPlanWithJars(), 1);
 				fail("This should fail with an exception");
 			}
 			catch (ProgramInvocationException e) {
@@ -258,7 +261,9 @@ public class ClientTest {
 			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
 			try {
-				new Client(config).runBlocking(packagedProgramMock, 1);
+				ClusterClient client = new StandaloneClusterClient(config);
+				client.setDetached(true);
+				client.run(packagedProgramMock, 1);
 				fail("Creating the local execution environment should not be possible");
 			}
 			catch (InvalidProgramException e) {
@@ -280,7 +285,7 @@ public class ClientTest {
 			assertNotNull(prg.getPreviewPlan());
 			
 			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			OptimizedPlan op = (OptimizedPlan) Client.getOptimizedPlan(optimizer, prg, 1);
+			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
 			assertNotNull(op);
 
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

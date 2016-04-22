@@ -117,11 +117,14 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
+
 	/**
 	 * Returns a dummy object for wrapping a JobSubmissionResult
 	 * @param result The SubmissionResult
 	 * @return a JobExecutionResult
+	 * @deprecated Will be removed in future versions.
 	 */
+	@Deprecated
 	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
 		return new JobExecutionResult(result.getJobID(), -1, null);
 	}

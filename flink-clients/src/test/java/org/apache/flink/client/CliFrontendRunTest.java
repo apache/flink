@@ -25,11 +25,10 @@ import static org.junit.Assert.*;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.RunOptions;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 
 public class CliFrontendRunTest {
@@ -75,7 +74,7 @@ public class CliFrontendRunTest {
 			// test detached mode
 			{
 				String[] parameters = {"-p", "2", "-d", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, true);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, true, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 
@@ -96,9 +95,6 @@ public class CliFrontendRunTest {
 			// test configure savepoint path
 			{
 				String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(1, false, false);
-				assertEquals(0, testFrontend.run(parameters));
-
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				assertEquals("expectedSavepointPath", options.getSavepointPath());
 			}
@@ -125,22 +121,16 @@ public class CliFrontendRunTest {
 		}
 
 		@Override
-		protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
-			assertTrue(isDetached);
-			assertEquals(this.expectedParallelism, parallelism);
-			assertEquals(this.sysoutLogging, client.getPrintStatusDuringExecution());
+		protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+			assertEquals(isDetached, client.isDetached());
+			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
+			assertEquals(expectedParallelism, parallelism);
 			return 0;
 		}
 
 		@Override
-		protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
-			assertTrue(!isDetached);
-			return 0;
-		}
-
-		@Override
-		protected Client getClient(CommandLineOptions options, String programName, int userParallelism, boolean detached) throws Exception {
-			return Mockito.mock(Client.class);
+		protected ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
+			return TestingClusterClientWithoutActorSystem.create();
 		}
 	}
 }

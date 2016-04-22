@@ -27,8 +27,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.ConfigConstants;
@@ -57,7 +58,7 @@ public class RemoteExecutor extends PlanExecutor {
 
 	private final Configuration clientConfiguration;
 
-	private Client client;
+	private ClusterClient client;
 
 	private int defaultParallelism = 1;
 
@@ -149,7 +150,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public void start() throws Exception {
 		synchronized (lock) {
 			if (client == null) {
-				client = new Client(clientConfiguration);
+				client = new StandaloneClusterClient(clientConfiguration);
 				client.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
 			}
 			else {
@@ -207,7 +208,7 @@ public class RemoteExecutor extends PlanExecutor {
 			}
 
 			try {
-				return client.runBlocking(program, defaultParallelism);
+				return client.run(program, defaultParallelism).getJobExecutionResult();
 			}
 			finally {
 				if (shutDownAtEnd) {

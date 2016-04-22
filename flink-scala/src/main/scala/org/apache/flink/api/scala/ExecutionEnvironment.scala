@@ -775,7 +775,7 @@ object ExecutionEnvironment {
    * configuration parameters for the Client only; Program parallelism can be set via
    * [[ExecutionEnvironment.setParallelism]].
    *
-   * Cluster configuration has to be done in the remotely running Flink instance.
+   * ClusterClient configuration has to be done in the remotely running Flink instance.
    *
    * @param host The host name or address of the master (JobManager), where the program should be
    *             executed.

@@ -98,7 +98,7 @@ public class ClientConnectionTest {
 				@Override
 				public void run() {
 					try {
-						new Client(config);
+						new StandaloneClusterClient(config);
 						fail("This should fail with an exception since the JobManager is unreachable.");
 					}
 					catch (Throwable t) {

@@ -16,40 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework;
+package org.apache.flink.client.deployment;
+
+
+import org.apache.flink.client.program.ClusterClient;
 
 /**
- * The status of an application.
+ * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster communication.
  */
-public enum ApplicationStatus {
-
-	/** Application finished successfully */
-	SUCCEEDED(0),
-
-	/** Application encountered an unrecoverable failure or error */
-	FAILED(1443),
-	
-	/** Application was canceled or killed on request */
-	CANCELED(1444),
-
-	/** Application status is not known */
-	UNKNOWN(1445);
-	
-	// ------------------------------------------------------------------------
-
-	/** The associated process exit code */
-	private final int processExitCode;
-	
-	private ApplicationStatus(int exitCode) {
-		this.processExitCode = exitCode;
-	}
+public interface ClusterDescriptor<ClientType extends ClusterClient> {
 
 	/**
-	 * Gets the process exit code associated with this status
-	 * @return The associated process exit code.
+	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...)
+	 *
 	 */
-	public int processExitCode() {
-		return processExitCode;
-	}
+	String getClusterDescription() throws Exception;
 
+	/**
+	 * Triggers deployment of a cluster
+	 * @return Client for the cluster
+	 * @throws Exception
+	 */
+	ClientType deploy() throws Exception;
 }
