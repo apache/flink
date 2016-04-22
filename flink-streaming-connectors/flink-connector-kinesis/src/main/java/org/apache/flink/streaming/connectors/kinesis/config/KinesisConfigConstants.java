@@ -59,8 +59,6 @@ public class KinesisConfigConstants {
 	//  Default configuration values
 	// ------------------------------------------------------------------------
 
-	public static final String DEFAULT_AWS_REGION = "us-east-1";
-
 	public static final int DEFAULT_STREAM_DESCRIBE_RETRY_TIMES = 3;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF = 1000L;

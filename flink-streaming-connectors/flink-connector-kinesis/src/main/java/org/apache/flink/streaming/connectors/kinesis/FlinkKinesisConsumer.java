@@ -452,7 +452,9 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			}
 		}
 
-		if (config.containsKey(KinesisConfigConstants.CONFIG_AWS_REGION)) {
+		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_REGION)) {
+			throw new IllegalArgumentException("The AWS region must be set in the config.");
+		} else {
 			// specified AWS Region name must be recognizable
 			if (!AWSUtil.isValidRegion(config.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))) {
 				StringBuilder sb = new StringBuilder();

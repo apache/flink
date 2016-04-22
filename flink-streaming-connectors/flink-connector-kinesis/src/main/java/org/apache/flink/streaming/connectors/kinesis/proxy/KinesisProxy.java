@@ -67,7 +67,7 @@ public class KinesisProxy {
 	public KinesisProxy(Properties configProps) {
 		this.configProps = checkNotNull(configProps);
 
-		this.regionId = configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION, KinesisConfigConstants.DEFAULT_AWS_REGION);
+		this.regionId = configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION);
 		AmazonKinesisClient client = new AmazonKinesisClient(AWSUtil.getCredentialsProvider(configProps).getCredentials());
 		client.setRegion(Region.getRegion(Regions.fromName(this.regionId)));
 
