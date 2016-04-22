@@ -37,7 +37,7 @@ import org.apache.flink.api.common.InvalidProgramException;
  * For example, a <i>ForwardedFields</i> assertion for a map-type function can be declared as:
  *
  * <pre>{@code
- * {@literal @}ForwardedFields({"f0; f1->f2"})
+ * {@literal @}ForwardedFields({"f0; f2->f1"})
  * public class MyMapper extends MapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>>
  * {
  *     public Tuple3<String, Integer, Integer> map(Tuple3<String, String, Integer> val) {
