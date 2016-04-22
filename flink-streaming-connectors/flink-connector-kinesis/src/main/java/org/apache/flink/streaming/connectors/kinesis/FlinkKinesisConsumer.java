@@ -428,7 +428,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	 * Checks that the values specified for config keys in the properties config is recognizable.
 	 */
 	protected static void validatePropertiesConfig(Properties config) {
-		if (config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE)) {
+		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE)) {
+			// if the credential provider type is not specified, it will default to BASIC later on,
+			// so the Access Key ID and Secret Key must be given
+			if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
+				|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
+				throw new IllegalArgumentException("Need to set values for AWS Access Key ID and Secret Key when using the BASIC AWS credential provider type.");
+			}
+		} else {
 			String credentialsProviderType = config.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE);
 
 			// value specified for KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE needs to be recognizable
