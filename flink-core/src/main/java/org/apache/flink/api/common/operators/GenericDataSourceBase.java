@@ -215,6 +215,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 
 		if(inputFormat instanceof RichInputFormat) {
 			((RichInputFormat) inputFormat).setRuntimeContext(ctx);
+			((RichInputFormat) inputFormat).openInputFormat();
 		}
 
 		List<OUT> result = new ArrayList<OUT>();

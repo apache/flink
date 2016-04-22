@@ -100,6 +100,8 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
 			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
+			((RichInputFormat) this.format).openInputFormat();
+			LOG.debug(getLogString("Rich Source detected. Opening the InputFormat."));
 		}
 
 		ExecutionConfig executionConfig = getExecutionConfig();
@@ -173,7 +175,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			// --------------------------------------------------------------------
 			if(RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 				((RichInputFormat) this.format).closeInputFormat();
-				LOG.debug(getLogString("Rich Source detected. Closing..."));
+				LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
 			}
 
 			// close all chained tasks letting them report failure

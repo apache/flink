@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
@@ -72,12 +71,6 @@ public class InputFormatVertex extends JobVertex {
 		catch (Throwable t) {
 			throw new Exception("Instantiating the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
-		finally{
-			// close the instantiated resources before returning
-			if(inputFormat != null && inputFormat instanceof RichInputFormat) {
-				((RichInputFormat)inputFormat).closeInputFormat();
-			}
-		}
 
 		Thread thread = Thread.currentThread();
 		ClassLoader original = thread.getContextClassLoader();
@@ -88,13 +81,6 @@ public class InputFormatVertex extends JobVertex {
 		}
 		catch (Throwable t) {
 			throw new Exception("Configuring the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-		finally {
-			thread.setContextClassLoader(original);
-			// close the instantiated resources before returning
-			if(inputFormat != null && inputFormat instanceof RichInputFormat) {
-				((RichInputFormat)inputFormat).closeInputFormat();
-			}
 		}
 		
 		setInputSplitSource(inputFormat);

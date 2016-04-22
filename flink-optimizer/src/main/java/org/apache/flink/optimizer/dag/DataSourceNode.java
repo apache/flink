@@ -27,7 +27,6 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.ReplicatingInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -151,12 +150,6 @@ public class DataSourceNode extends OptimizerNode {
 				}
 				return;
 			}
-			finally {
-				// close the instantiated resources before returning
-				if(format != null && format instanceof RichInputFormat) {
-					((RichInputFormat)format).closeInputFormat();
-				}
-			}
 			try {
 				inFormatDescription = format.toString();
 			}
@@ -193,10 +186,6 @@ public class DataSourceNode extends OptimizerNode {
 				if (card != BaseStatistics.NUM_RECORDS_UNKNOWN) {
 					this.estimatedNumRecords = card;
 				}
-			}
-			// close the instantiated resources
-			if(format != null && format instanceof RichInputFormat) {
-				((RichInputFormat)format).closeInputFormat();
 			}
 		}
 	}
