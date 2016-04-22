@@ -65,6 +65,9 @@ trait ImplicitExpressionOperations {
 
   def as(name: Symbol) = Naming(expr, name.name)
 
+  def asc = Asc(expr)
+  def desc = Desc(expr)
+
   /**
     * Conditional operator that decides which of two other expressions should be evaluated
     * based on a evaluated boolean condition.
