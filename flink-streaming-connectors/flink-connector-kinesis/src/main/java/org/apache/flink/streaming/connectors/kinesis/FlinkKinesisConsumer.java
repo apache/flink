@@ -21,7 +21,6 @@ import com.amazonaws.regions.Regions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -70,7 +69,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @param <T> the type of data emitted
  */
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
-	implements CheckpointListener, CheckpointedAsynchronously<HashMap<KinesisStreamShard, String>>, ResultTypeQueryable<T> {
+	implements CheckpointedAsynchronously<HashMap<KinesisStreamShard, String>>, ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -337,7 +336,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	}
 
 	// ------------------------------------------------------------------------
-	//  Checkpoint and restore
+	//  State Snapshot & Restore
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -364,23 +363,6 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	@Override
 	public void restoreState(HashMap<KinesisStreamShard, String> restoredState) throws Exception {
 		sequenceNumsToRestore = restoredState;
-	}
-
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		if (fetcher == null) {
-			LOG.debug("notifyCheckpointComplete() called on uninitialized source");
-			return;
-		}
-
-		if (!running) {
-			LOG.debug("notifyCheckpointComplete() called on closed source");
-			return;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Checkpointing completed for checkpoint id {}", checkpointId);
-		}
 	}
 
 	// ------------------------------------------------------------------------
