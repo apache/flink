@@ -39,19 +39,6 @@ class SortITCase(
   extends TableProgramsTestBase(mode, configMode) {
 
   @Test
-  def testSimpleOrderBy(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-      .orderBy('_1)
-
-    val expected = "1,First\n2,Second\n3,Third"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
-  }
-
-  @Test
   def testOrderByDesc(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -73,45 +60,6 @@ class SortITCase(
       .orderBy('_1.asc)
 
     val expected = "1,First\n2,Second\n3,Third"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
-  }
-
-  @Test
-  def testOrderByFieldName(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-        .as('id, 'name).orderBy("id")
-
-    val expected = "1,First\n2,Second\n3,Third"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
-  }
-
-  @Test
-  def testOrderByDescStringExpression(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-      .as('id, 'name).orderBy("id.desc")
-
-    val expected = "3,Third\n2,Second\n1,First"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
-  }
-
-  @Test
-  def testOrderByDescStringExpressionKeyword(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-      .as('id, 'name).orderBy("id DESC")
-
-    val expected = "3,Third\n2,Second\n1,First"
     val results = t.toDataSet[Row].setParallelism(1).collect()
     compareOrderedResultAsText(expected, results)
   }
