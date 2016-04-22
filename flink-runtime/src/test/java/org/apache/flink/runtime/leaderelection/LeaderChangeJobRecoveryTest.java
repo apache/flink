@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 
 public class LeaderChangeJobRecoveryTest extends TestLogger {
 
-	private static FiniteDuration timeout = FiniteDuration.apply(10, TimeUnit.SECONDS);
+	private static FiniteDuration timeout = FiniteDuration.apply(30, TimeUnit.SECONDS);
 
 	private int numTMs = 1;
 	private int numSlotsPerTM = 1;
