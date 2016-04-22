@@ -21,10 +21,13 @@ package org.apache.flink.api.table.plan.nodes.dataset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.{BatchTableEnvironment, TableEnvironment, TableConfig}
+import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.api.table.plan.nodes.FlinkRel
+import org.apache.flink.api.table.runtime.MapRunner
 
 import scala.collection.JavaConversions._
 
@@ -61,6 +64,40 @@ trait DataSetRel extends RelNode with FlinkRel {
         case _ => throw new IllegalArgumentException("Unsupported data type encountered")
       }
     }
+
+  }
+
+  private[dataset] def getConversionMapper(
+      config: TableConfig,
+      inputType: TypeInformation[Any],
+      expectedType: TypeInformation[Any],
+      conversionOperatorName: String,
+      fieldNames: Seq[String],
+      inputPojoFieldMapping: Option[Array[Int]] = None): MapFunction[Any, Any] = {
+
+    val generator = new CodeGenerator(
+      config,
+      inputType,
+      None,
+      inputPojoFieldMapping)
+    val conversion = generator.generateConverterResultExpression(expectedType, fieldNames)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateFunction(
+      conversionOperatorName,
+      classOf[MapFunction[Any, Any]],
+      body,
+      expectedType)
+
+    new MapRunner[Any, Any](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
 
   }
 

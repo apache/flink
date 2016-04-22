@@ -430,14 +430,23 @@ public class TestBaseUtils extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 
 	public static <T> void compareResultAsTuples(List<T> result, String expected) {
-		compareResult(result, expected, true);
+		compareResult(result, expected, true, true);
 	}
 
 	public static <T> void compareResultAsText(List<T> result, String expected) {
-		compareResult(result, expected, false);
+		compareResult(result, expected,
+				false, true);
+	}
+
+	public static <T> void compareOrderedResultAsText(List<T> result, String expected) {
+		compareResult(result, expected, false, false);
+	}
+
+	public static <T> void compareOrderedResultAsText(List<T> result, String expected, boolean asTuples) {
+		compareResult(result, expected, asTuples, false);
 	}
 	
-	private static <T> void compareResult(List<T> result, String expected, boolean asTuples) {
+	private static <T> void compareResult(List<T> result, String expected, boolean asTuples, boolean sort) {
 		String[] expectedStrings = expected.split("\n");
 		String[] resultStrings = new String[result.size()];
 		
@@ -466,8 +475,10 @@ public class TestBaseUtils extends TestLogger {
 		
 		assertEquals("Wrong number of elements result", expectedStrings.length, resultStrings.length);
 
-		Arrays.sort(expectedStrings);
-		Arrays.sort(resultStrings);
+		if (sort) {
+			Arrays.sort(expectedStrings);
+			Arrays.sort(resultStrings);
+		}
 		
 		for (int i = 0; i < expectedStrings.length; i++) {
 			assertEquals(expectedStrings[i], resultStrings[i]);
