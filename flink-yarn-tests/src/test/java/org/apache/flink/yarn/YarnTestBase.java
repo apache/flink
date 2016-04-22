@@ -20,7 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
@@ -368,7 +368,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
-			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
+			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);

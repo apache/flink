@@ -328,7 +328,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void testNonexistingQueue() {
 		LOG.info("Starting testNonexistingQueue()");
-		addTestAppender(FlinkYarnClient.class, Level.WARN);
+		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
@@ -432,7 +432,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
 				"-ytm", "1024",
 				"-ys", "2", // test requesting slots from YARN.
-				"--yarndetached", job, "--input", tmpInFile.getAbsoluteFile().toString(), "--output", tmpOutFolder.getAbsoluteFile().toString()},
+				"--yarndetached", job,
+				"--input", tmpInFile.getAbsoluteFile().toString(),
+				"--output", tmpOutFolder.getAbsoluteFile().toString()},
 			"Job has been submitted with JobID",
 			RunTypes.CLI_FRONTEND);
 

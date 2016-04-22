@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -92,7 +92,7 @@ public abstract class JarActionHandler implements RequestHandler {
 		ClassLoader classLoader = program.getUserCodeClassLoader();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		FlinkPlan plan = Client.getOptimizedPlan(optimizer, program, parallelism);
+		FlinkPlan plan = ClusterClient.getOptimizedPlan(optimizer, program, parallelism);
 
 		if (plan instanceof StreamingPlan) {
 			graph = ((StreamingPlan) plan).getJobGraph();
