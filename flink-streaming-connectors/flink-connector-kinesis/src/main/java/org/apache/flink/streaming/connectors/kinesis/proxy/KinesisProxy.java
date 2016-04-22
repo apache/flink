@@ -194,7 +194,7 @@ public class KinesisProxy {
 					LOG.debug("Stream " + streamName + " : Sleep  was interrupted ", ie);
 				}
 			} catch (ResourceNotFoundException re) {
-				throw new RuntimeException("No stream name");
+				throw new RuntimeException("Error while getting stream details", re);
 			}
 			remainingRetryTimes--;
 		}
