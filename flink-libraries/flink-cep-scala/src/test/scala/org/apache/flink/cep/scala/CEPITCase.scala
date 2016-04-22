@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
-import org.apache.flink.cep.Event;
-import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.Event
+import org.apache.flink.cep.SubEvent
 
 import scala.collection.mutable
 
@@ -218,15 +218,15 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
       .where((value: Event) => value.getName == "end")
     val result: DataStream[String] = CEP.pattern(input, pattern)
       .select((pattern: mutable.Map[String, Event]) => {
-      val builder: StringBuilder = new StringBuilder
-      builder
-        .append(pattern.get("start").get.getId)
-        .append(",")
-        .append(pattern.get("middle").get.getId)
-        .append(",")
-        .append(pattern.get("end").get.getId)
-        .toString
-    })
+        val builder: StringBuilder = new StringBuilder
+        builder
+          .append(pattern.get("start").get.getId)
+          .append(",")
+          .append(pattern.get("middle").get.getId)
+          .append(",")
+          .append(pattern.get("end").get.getId)
+          .toString
+      })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "1,1,1\n2,2,2"
     env.execute
@@ -234,7 +234,7 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
 
   @Test
   @throws[Exception]
-  def testSimplePatternWithSingleState {
+  def testSimplePatternWithScalaTuple {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val input: DataStream[(Int, Int)] = env.fromElements((0, 1), (0, 2))
     val pattern: Pattern[(Int, Int), _] = Pattern.begin[(Int, Int)]("start")
@@ -242,11 +242,27 @@ class CEPITCase extends ScalaStreamingMultipleProgramsTestBase {
     val pStream: PatternStream[(Int, Int)] = CEP.pattern(input, pattern)
     val result: DataStream[(Int, Int)] = pStream
       .select((pattern: mutable.Map[String, (Int, Int)]) => {
-        println(pattern)
         pattern.get("start").get
       })
     result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
     expected = "(0,1)"
+    env.execute
+  }
+
+  @Test
+  @throws[Exception]
+  def testSimplePatternWithScalaCollection {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+    val input: DataStream[List[Int]] = env.fromElements(List(0, 1, 7), List(2, 9), List(1))
+    val pattern: Pattern[List[Int], _] = Pattern.begin[List[Int]]("start")
+      .where((rec: List[Int]) => rec.contains(1))
+    val pStream: PatternStream[List[Int]] = CEP.pattern(input, pattern)
+    val result: DataStream[List[Int]] = pStream
+      .select((pattern: mutable.Map[String, List[Int]]) => {
+        pattern.get("start").get
+      })
+    result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE)
+    expected = "List(1)\nList(0, 1, 7)"
     env.execute
   }
 
