@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * Util class to help generate example shard topologies for testing.
  */
 public class ReferenceKinesisShardTopologies {
 

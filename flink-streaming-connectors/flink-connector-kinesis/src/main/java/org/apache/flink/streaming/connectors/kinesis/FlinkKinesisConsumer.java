@@ -57,10 +57,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>To leverage Flink's checkpointing mechanics for exactly-once streaming processing guarantees, the Flink Kinesis
  * consumer is implemented with the AWS Java SDK, instead of the officially recommended AWS Kinesis Client Library, for
  * low-level control on the management of stream state. The Flink Kinesis Connector also supports setting the initial
- * starting points of Kinesis streams, namely TRIM_HORIZON and LATEST:</p>
- *
- * <ul>
- * </ul>
+ * starting points of Kinesis streams, namely TRIM_HORIZON and LATEST.</p>
  *
  * <p><b>NOTE:</b> The current implementation does not correctly handle resharding of AWS Kinesis streams.</p>
  * <p><b>NOTE:</b> Since Kinesis and Kafka share many common abstractions, the implementation is heavily based on

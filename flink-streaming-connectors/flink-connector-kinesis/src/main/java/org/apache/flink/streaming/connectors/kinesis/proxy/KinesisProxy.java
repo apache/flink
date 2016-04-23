@@ -45,6 +45,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * A utility class that is used as a proxy to make calls to AWS Kinesis
  * for several functions, such as getting a list of shards and fetching
  * a batch of data records starting from a specified record sequence number.
+ *
+ * NOTE:
+ * In the AWS KCL library, there is a similar implementation - {@link com.amazonaws.services.kinesis.clientlibrary.proxies.KinesisProxy}.
+ * This implementation differs mainly in that we can make operations to arbitrary Kinesis streams, which is a needed
+ * functionality for the Flink Kinesis Connecter since the consumer may simultaneously read from multiple Kinesis streams.
  */
 public class KinesisProxy {
 

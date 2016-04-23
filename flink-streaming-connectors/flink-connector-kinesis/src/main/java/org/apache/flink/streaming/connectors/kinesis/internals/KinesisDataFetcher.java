@@ -176,11 +176,6 @@ public class KinesisDataFetcher {
 		}
 	}
 
-	/**
-	 *
-	 *
-	 * @param <T>
-	 */
 	private static class ShardConsumerThread<T> extends Thread {
 
 		private final SourceFunction.SourceContext<T> sourceContext;

@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.config;
 
 /**
- *
+ * Keys and default values used to configure the Kinesis consumer.
  */
 public class KinesisConfigConstants {
 
