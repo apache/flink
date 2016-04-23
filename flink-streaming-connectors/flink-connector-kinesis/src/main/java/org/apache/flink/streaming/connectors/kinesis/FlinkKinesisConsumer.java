@@ -71,7 +71,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	implements CheckpointedAsynchronously<HashMap<KinesisStreamShard, String>>, ResultTypeQueryable<T> {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 4724006128720664870L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisConsumer.class);
 

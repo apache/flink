@@ -30,7 +30,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class KinesisStreamShard implements Serializable {
 
-	//private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -6004217801761077536L;
 
 	private final String streamName;
 	private final Shard shard;

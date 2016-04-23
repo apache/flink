@@ -28,7 +28,7 @@ import java.io.IOException;
  * @param <T> The type created by the deserialization schema.
  */
 public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializationSchema<T> {
-	private static final long serialVersionUID = 2651665280744549932L;
+	private static final long serialVersionUID = 9143148962928375886L;
 
 	private final DeserializationSchema<T> deserializationSchema;
 
