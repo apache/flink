@@ -233,8 +233,6 @@ public class KinesisDataFetcher {
 					nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum);
 				}
 
-				long lastNextShardItrUpdateMillis = System.currentTimeMillis();
-				boolean noRecordsOnLastFetch = false;
 				while(running) {
 					if (nextShardItr == null) {
 						lastSequenceNum = SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.toString();
@@ -245,49 +243,36 @@ public class KinesisDataFetcher {
 
 						break;
 					} else {
-						if (noRecordsOnLastFetch) {
-							if (System.currentTimeMillis() - lastNextShardItrUpdateMillis >= 290000) {
-								nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum);
-								lastNextShardItrUpdateMillis = System.currentTimeMillis();
-							}
-						}
-
 						GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, 100);
 
 						List<Record> fetchedRecords = getRecordsResult.getRecords();
 
-						if (fetchedRecords.size() == 0) {
-							noRecordsOnLastFetch = true;
-						} else {
-							// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-							fetchedRecords = (List<Record>) (List<?>) UserRecord.deaggregate(
-								fetchedRecords,
-								new BigInteger(this.assignedShard.getStartingHashKey()),
-								new BigInteger(this.assignedShard.getEndingHashKey()));
+						// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
+						fetchedRecords = (List<Record>) (List<?>) UserRecord.deaggregate(
+							fetchedRecords,
+							new BigInteger(this.assignedShard.getStartingHashKey()),
+							new BigInteger(this.assignedShard.getEndingHashKey()));
 
-							for (Record record : fetchedRecords) {
-								ByteBuffer recordData = record.getData();
+						for (Record record : fetchedRecords) {
+							ByteBuffer recordData = record.getData();
 
-								byte[] dataBytes = new byte[recordData.remaining()];
-								recordData.get(dataBytes);
+							byte[] dataBytes = new byte[recordData.remaining()];
+							recordData.get(dataBytes);
 
-								byte[] keyBytes = record.getPartitionKey().getBytes();
+							byte[] keyBytes = record.getPartitionKey().getBytes();
 
-								final T value = deserializer.deserialize(keyBytes, dataBytes,assignedShard.getStreamName(),
-									record.getSequenceNumber());
+							final T value = deserializer.deserialize(keyBytes, dataBytes,assignedShard.getStreamName(),
+								record.getSequenceNumber());
 
-								synchronized (sourceContext.getCheckpointLock()) {
-									sourceContext.collect(value);
-									seqNoState.put(assignedShard, record.getSequenceNumber());
-								}
-
-								lastSequenceNum = record.getSequenceNumber();
+							synchronized (sourceContext.getCheckpointLock()) {
+								sourceContext.collect(value);
+								seqNoState.put(assignedShard, record.getSequenceNumber());
 							}
 
-							nextShardItr = getRecordsResult.getNextShardIterator();
-							lastNextShardItrUpdateMillis = System.currentTimeMillis();
-							noRecordsOnLastFetch = false;
+							lastSequenceNum = record.getSequenceNumber();
 						}
+
+						nextShardItr = getRecordsResult.getNextShardIterator();
 					}
 				}
 			} catch (Throwable t) {
