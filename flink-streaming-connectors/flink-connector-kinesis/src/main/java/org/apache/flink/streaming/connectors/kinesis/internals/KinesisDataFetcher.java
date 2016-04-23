@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
@@ -26,7 +25,6 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,9 +50,6 @@ public class KinesisDataFetcher {
 	/** Config properties for the Flink Kinesis Consumer */
 	private final Properties configProps;
 
-	/** The AWS credentials provider as specified in config properties */
-	private final AWSCredentialsProvider credentials;
-
 	/** The name of the consumer task that this fetcher was instantiated */
 	private final String taskName;
 
@@ -78,7 +73,6 @@ public class KinesisDataFetcher {
 	 */
 	public KinesisDataFetcher(List<KinesisStreamShard> assignedShards, Properties configProps, String taskName) {
 		this.configProps = checkNotNull(configProps);
-		this.credentials = AWSUtil.getCredentialsProvider(configProps);
 		this.assignedShardsWithStartingSequenceNum = new HashMap<>();
 		for (KinesisStreamShard shard : assignedShards) {
 			assignedShardsWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.toString());
