@@ -34,7 +34,7 @@ import java.nio.ByteBuffer;
  * Invocation:
  * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
  */
-public class ManualTest {
+public class ManualProducerTest {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool pt = ParameterTool.fromArgs(args);
