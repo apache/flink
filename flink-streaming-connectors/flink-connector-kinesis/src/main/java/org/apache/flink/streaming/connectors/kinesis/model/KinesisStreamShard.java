@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import com.amazonaws.services.kinesis.model.Shard;
+
 import java.io.Serializable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -30,58 +32,24 @@ public class KinesisStreamShard implements Serializable {
 
 	//private static final long serialVersionUID = 1L;
 
-	private final String regionName;
 	private final String streamName;
-	private final String shardId;
-
-	private String startingSequenceNumber;
-	private String endingSequenceNumber;
-
-	private String parentShardId;
-	private String adjacentParentShardId;
+	private final Shard shard;
 
 	private final int cachedHash;
 
 	/**
 	 * Create a new KinesisStreamShard
 	 *
-	 * @param regionName
-	 *           the AWS service of this shard
 	 * @param streamName
 	 *           the name of the Kinesis stream that this shard belongs to
-	 * @param shardId
-	 *           unique ID of this shard
-	 * @param startingSequenceNumber
-	 *           the starting sequence number of this shard
-	 * @param endingSequenceNumber
-	 *           the ending sequence number of this shard (may be null if the shard isn't closed yet)
-	 * @param parentShardId
-	 *           the ID of the parent shard (will only exist if this shard is a result of a parent shard split or merge)
-	 * @param adjacentParentShardId
-	 *           the ID of the shard adjacent to the parent shard (will only exist if this shard is a result of a merge of 2 parent shards)
+	 * @param shard
+	 *           the actual AWS Shard instance that will be wrapped within this KinesisStreamShard
 	 */
-	public KinesisStreamShard(String regionName, String streamName, String shardId,
-							String startingSequenceNumber, String endingSequenceNumber,
-							String parentShardId, String adjacentParentShardId) {
-		this.regionName = checkNotNull(regionName);
+	public KinesisStreamShard(String streamName, Shard shard) {
 		this.streamName = checkNotNull(streamName);
-		this.shardId = checkNotNull(shardId);
-		this.startingSequenceNumber = checkNotNull(startingSequenceNumber);
-		this.endingSequenceNumber = endingSequenceNumber; // can be null if the shard is not closed
-		this.parentShardId = parentShardId; // can be null if the shard is not a result of a parent shard split or merge
-		this.adjacentParentShardId = adjacentParentShardId; // can be null if the shard is not a result of a parent merge
+		this.shard = checkNotNull(shard);
 
-		int hash = 0;
-		hash += regionName.hashCode() + streamName.hashCode() + shardId.hashCode() + startingSequenceNumber.hashCode();
-		hash += (endingSequenceNumber != null) ? endingSequenceNumber.hashCode() : 0;
-		hash += (parentShardId != null) ? parentShardId.hashCode() : 0;
-		hash += (adjacentParentShardId != null) ? adjacentParentShardId.hashCode() : 0;
-		hash *= 37;
-		this.cachedHash = hash;
-	}
-
-	public String getRegionName() {
-		return regionName;
+		this.cachedHash = 37 * (streamName.hashCode() + shard.hashCode());
 	}
 
 	public String getStreamName() {
@@ -89,47 +57,60 @@ public class KinesisStreamShard implements Serializable {
 	}
 
 	public String getShardId() {
-		return shardId;
+		return shard.getShardId();
 	}
 
 	public String getStartingSequenceNumber() {
-		return startingSequenceNumber;
+		return shard.getSequenceNumberRange().getStartingSequenceNumber();
 	}
 
 	public String getEndingSequenceNumber() {
-		return endingSequenceNumber;
+		return shard.getSequenceNumberRange().getEndingSequenceNumber();
+	}
+
+	public String getStartingHashKey() {
+		return shard.getHashKeyRange().getStartingHashKey();
+	}
+
+	public String getEndingHashKey() {
+		return shard.getHashKeyRange().getEndingHashKey();
 	}
 
 	public boolean isClosed() {
-		return (endingSequenceNumber != null);
+		return (getEndingSequenceNumber() != null);
 	}
 
 	public String getParentShardId() {
-		return parentShardId;
+		return shard.getParentShardId();
 	}
 
 	public String getAdjacentParentShardId() {
-		return adjacentParentShardId;
+		return shard.getAdjacentParentShardId();
 	}
 
 	public boolean isSplitShard() {
-		return (parentShardId != null && adjacentParentShardId == null);
+		return (getParentShardId() != null && getAdjacentParentShardId() == null);
 	}
 
 	public boolean isMergedShard() {
-		return (parentShardId != null && adjacentParentShardId != null);
+		return (getParentShardId() != null && getAdjacentParentShardId() != null);
+	}
+
+	public Shard getShard() {
+		return shard;
 	}
 
 	@Override
 	public String toString() {
 		return "KinesisStreamShard{" +
-			"regionName='" + regionName + "'" +
-			", streamName='" + streamName + "'" +
-			", shardId='" + shardId + "'" +
-			", parentShardId='" + parentShardId + "'" +
-			", adjacentParentShardId='" + adjacentParentShardId + "'" +
-			", startingSequenceNumber='" + startingSequenceNumber + "'" +
-			", endingSequenceNumber='" + endingSequenceNumber + "}";
+			"streamName='" + streamName + "'" +
+			", shardId='" + getShardId() + "'" +
+			", parentShardId='" + getParentShardId() + "'" +
+			", adjacentParentShardId='" + getAdjacentParentShardId() + "'" +
+			", startingSequenceNumber='" + getStartingSequenceNumber() + "'" +
+			", endingSequenceNumber='" + getEndingSequenceNumber() + "'" +
+			", startingHashKey='" + getStartingHashKey() + "'" +
+			", endingHashKey='" + getEndingHashKey() + "'}";
 	}
 
 	@Override
@@ -144,13 +125,7 @@ public class KinesisStreamShard implements Serializable {
 
 		KinesisStreamShard other = (KinesisStreamShard) obj;
 
-		return regionName.equals(other.getRegionName()) &&
-			shardId.equals(other.getShardId()) &&
-			parentShardId.equals(other.getParentShardId()) &&
-			adjacentParentShardId.equals(other.getAdjacentParentShardId()) &&
-			streamName.equals(other.getStreamName()) &&
-			startingSequenceNumber.equals(other.getStartingSequenceNumber()) &&
-			endingSequenceNumber.equals(other.getEndingSequenceNumber());
+		return streamName.equals(other.getStreamName()) && shard.equals(other.getShard());
 	}
 
 	@Override

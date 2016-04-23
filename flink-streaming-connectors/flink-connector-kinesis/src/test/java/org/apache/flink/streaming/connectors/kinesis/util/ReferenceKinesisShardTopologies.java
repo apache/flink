@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 
 import java.util.ArrayList;
@@ -27,7 +29,6 @@ import java.util.List;
  */
 public class ReferenceKinesisShardTopologies {
 
-	private static final String DEFAULT_REGION = "us-east-1";
 	private static final String DEFAULT_STREAM = "flink-kinesis-test";
 
 	/**
@@ -49,21 +50,25 @@ public class ReferenceKinesisShardTopologies {
 		int shardCount = 4;
 		List<KinesisStreamShard> topology = new ArrayList<>(shardCount);
 		topology.add(new KinesisStreamShard(
-			DEFAULT_REGION, DEFAULT_STREAM,
-			KinesisShardIdGenerator.generateFromShardOrder(0),
-			"0", null, null, null));
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("0"))));
 		topology.add(new KinesisStreamShard(
-			DEFAULT_REGION, DEFAULT_STREAM,
-			KinesisShardIdGenerator.generateFromShardOrder(1),
-			"250", null, null, null));
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("250"))));
 		topology.add(new KinesisStreamShard(
-			DEFAULT_REGION, DEFAULT_STREAM,
-			KinesisShardIdGenerator.generateFromShardOrder(2),
-			"500", null, null, null));
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("500"))));
 		topology.add(new KinesisStreamShard(
-			DEFAULT_REGION, DEFAULT_STREAM,
-			KinesisShardIdGenerator.generateFromShardOrder(3),
-			"750", null, null, null));
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(3))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("750"))));
 		return topology;
 	}
 
@@ -83,16 +88,27 @@ public class ReferenceKinesisShardTopologies {
 	public static List<KinesisStreamShard> topologyWithThreeInitialShardsAndFirstTwoMerged() {
 		int shardCount = 4;
 
-		String firstShardId = KinesisShardIdGenerator.generateFromShardOrder(0);
-		String secondShardId = KinesisShardIdGenerator.generateFromShardOrder(1);
-		String thirdShardId = KinesisShardIdGenerator.generateFromShardOrder(2);
-		String fourthShardId = KinesisShardIdGenerator.generateFromShardOrder(3);
-
 		List<KinesisStreamShard> topology = new ArrayList<>(shardCount);
-		topology.add(new KinesisStreamShard(DEFAULT_REGION, DEFAULT_STREAM, firstShardId, "0", "120", null, null));
-		topology.add(new KinesisStreamShard(DEFAULT_REGION, DEFAULT_STREAM, secondShardId, "250", "289", null, null));
-		topology.add(new KinesisStreamShard(DEFAULT_REGION, DEFAULT_STREAM, thirdShardId, "500", null, null, null));
-		topology.add(new KinesisStreamShard(DEFAULT_REGION, DEFAULT_STREAM, fourthShardId, "750", null, firstShardId, secondShardId));
+		topology.add(new KinesisStreamShard(
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("0").withEndingSequenceNumber("120"))));
+		topology.add(new KinesisStreamShard(
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("250").withEndingSequenceNumber("289"))));
+		topology.add(new KinesisStreamShard(
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("500"))));
+		topology.add(new KinesisStreamShard(
+			DEFAULT_STREAM,
+			new Shard()
+				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(3))
+				.withSequenceNumberRange(new SequenceNumberRange().withStartingSequenceNumber("750"))));
 
 		return topology;
 	}

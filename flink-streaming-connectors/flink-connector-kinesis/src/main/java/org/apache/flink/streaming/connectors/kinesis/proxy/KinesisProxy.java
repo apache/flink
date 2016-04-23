@@ -134,14 +134,7 @@ public class KinesisProxy {
 
 				List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 				for (Shard shard : shards) {
-					shardList.add(new KinesisStreamShard(
-						regionId,
-						stream,
-						shard.getShardId(),
-						shard.getSequenceNumberRange().getStartingSequenceNumber(),
-						shard.getSequenceNumberRange().getEndingSequenceNumber(),
-						shard.getParentShardId(),
-						shard.getAdjacentParentShardId()));
+					shardList.add(new KinesisStreamShard(stream, shard));
 				}
 				lastSeenShardId = shards.get(shards.size() - 1).getShardId();
 			} while (describeStreamResult.getStreamDescription().isHasMoreShards());
