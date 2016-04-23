@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
@@ -29,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.HashMap;
@@ -212,6 +214,7 @@ public class KinesisDataFetcher {
 			this.kinesisProxy = new KinesisProxy(props);
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
 			try {
@@ -251,11 +254,17 @@ public class KinesisDataFetcher {
 
 						GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, 100);
 
-						final List<Record> fetchedRecords = getRecordsResult.getRecords();
+						List<Record> fetchedRecords = getRecordsResult.getRecords();
 
 						if (fetchedRecords.size() == 0) {
 							noRecordsOnLastFetch = true;
 						} else {
+							// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
+							fetchedRecords = (List<Record>) (List<?>) UserRecord.deaggregate(
+								fetchedRecords,
+								new BigInteger(this.assignedShard.getStartingHashKey()),
+								new BigInteger(this.assignedShard.getEndingHashKey()));
+
 							for (Record record : fetchedRecords) {
 								ByteBuffer recordData = record.getData();
 
