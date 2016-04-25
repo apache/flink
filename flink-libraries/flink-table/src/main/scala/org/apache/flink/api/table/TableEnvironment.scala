@@ -37,7 +37,7 @@ import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.schema.{TransStreamTable, TableTable}
+import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -100,7 +100,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     table.tableEnv match {
       case e: BatchTableEnvironment =>
-        val tableTable = new TableTable(table.getRelNode)
+        val tableTable = new RelTable(table.getRelNode)
         registerTableInternal(name, tableTable)
       case e: StreamTableEnvironment =>
         val sTableTable = new TransStreamTable(table.getRelNode, true)

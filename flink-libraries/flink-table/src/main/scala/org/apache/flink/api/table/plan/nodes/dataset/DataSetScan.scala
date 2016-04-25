@@ -16,42 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.datastream
+package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
-import org.apache.flink.api.table.StreamTableEnvironment
+import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
-import org.apache.flink.api.table.plan.schema.DataStreamTable
+import org.apache.flink.api.table.typeutils.TypeConverter
+import TypeConverter.determineReturnType
+import org.apache.flink.api.table.plan.schema.DataSetTable
 import org.apache.flink.api.table.runtime.MapRunner
+
+import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
-import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
-  * Flink RelNode which matches along with DataStreamSource.
+  * Flink RelNode which matches along with DataSource.
   * It ensures that types without deterministic field order (e.g. POJOs) are not part of
   * the plan translation.
   */
-class DataStreamSource(
+class DataSetScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
     rowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
-  with DataStreamRel {
+  with DataSetRel {
 
-  val dataStreamTable: DataStreamTable[Any] = table.unwrap(classOf[DataStreamTable[Any]])
+  val dataSetTable: DataSetTable[Any] = table.unwrap(classOf[DataSetTable[Any]])
 
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamSource(
+    new DataSetScan(
       cluster,
       traitSet,
       table,
@@ -59,24 +63,33 @@ class DataStreamSource(
     )
   }
 
+  override def toString: String = {
+    s"Source(from: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+
+    val rowCnt = metadata.getRowCount(this)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
+  }
+
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]])
-    : DataStream[Any] = {
+      tableEnv: BatchTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
 
-    val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
-    val inputType = inputDataStream.getType
+    val inputDataSet: DataSet[Any] = dataSetTable.dataSet
+    val inputType = inputDataSet.getType
 
     expectedType match {
 
       // special case:
       // if efficient type usage is enabled and no expected type is set
-      // we can simply forward the DataStream to the next operator.
+      // we can simply forward the DataSet to the next operator.
       // however, we cannot forward PojoTypes as their fields don't have an order
       case None if config.getEfficientTypeUsage && !inputType.isInstanceOf[PojoTypeInfo[_]] =>
-        inputDataStream
+        inputDataSet
 
       case _ =>
         val determinedType = determineReturnType(
@@ -89,8 +102,8 @@ class DataStreamSource(
         if (determinedType != inputType) {
           val generator = new CodeGenerator(
             config,
-            inputDataStream.getType,
-            dataStreamTable.fieldIndexes)
+            inputDataSet.getType,
+            dataSetTable.fieldIndexes)
 
           val conversion = generator.generateConverterResultExpression(
             determinedType,
@@ -113,11 +126,13 @@ class DataStreamSource(
             genFunction.code,
             genFunction.returnType)
 
-          inputDataStream.map(mapFunc)
+          val opName = s"from: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
+
+          inputDataSet.map(mapFunc).name(opName)
         }
         // no conversion necessary, forward
         else {
-          inputDataStream
+          inputDataSet
         }
     }
   }

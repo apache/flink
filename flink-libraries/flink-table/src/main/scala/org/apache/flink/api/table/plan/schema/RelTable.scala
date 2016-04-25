@@ -34,7 +34,7 @@ import org.apache.calcite.schema.TranslatableTable
  *
  * @see [[DataSetTable]]
  */
-class TableTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
+class RelTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
 
   override def getJdbcTableType: TableType = ???
 
