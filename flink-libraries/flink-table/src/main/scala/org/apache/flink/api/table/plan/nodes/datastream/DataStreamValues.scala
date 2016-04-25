@@ -25,12 +25,13 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.StreamTableEnvironment
-import org.apache.flink.api.table.plan.nodes.dataset.ValuesInputFormat
+import org.apache.flink.api.table.{Row, StreamTableEnvironment}
+import org.apache.flink.api.table.runtime.ValuesInputFormat
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
 import org.apache.flink.streaming.api.datastream.DataStream
 
+import scala.collection.JavaConversions._
 
 /**
   * DataStream RelNode for LogicalValues.
@@ -66,10 +67,15 @@ class DataStreamValues(
       config.getNullCheck,
       config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
 
-    val inputFormat = new ValuesInputFormat(tuples)
+    // convert List[RexLiteral] to Row
+    val rows: Seq[Row] = tuples.asList.map { t =>
+      val row = new Row(t.size())
+      t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
+      row
+    }
 
-    tableEnv.createDataStreamSource(inputFormat, returnType).asInstanceOf[DataStream[Any]]
-
+    val inputFormat = new ValuesInputFormat(rows)
+    tableEnv.getExecEnv.createInput(inputFormat, returnType).asInstanceOf[DataStream[Any]]
   }
 
 }

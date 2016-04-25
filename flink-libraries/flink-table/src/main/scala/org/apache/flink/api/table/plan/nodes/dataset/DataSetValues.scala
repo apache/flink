@@ -24,13 +24,12 @@ import org.apache.calcite.rel.{RelWriter, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.scala._
+import org.apache.flink.api.table.runtime.ValuesInputFormat
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.typeutils.TypeConverter._
-import org.apache.flink.api.table.{BatchTableEnvironment, Row, TableConfig}
+import org.apache.flink.api.table.{BatchTableEnvironment, Row}
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -78,41 +77,21 @@ class DataSetValues(
       config.getNullCheck,
       config.getEfficientTypeUsage).asInstanceOf[RowTypeInfo]
 
-    val inputFormat = new ValuesInputFormat(tuples)
+    // convert List[RexLiteral] to Row
+    val rows: Seq[Row] = tuples.asList.map { t =>
+      val row = new Row(t.size())
+      t.zipWithIndex.foreach( x => row.setField(x._2, x._1.getValue.asInstanceOf[Any]) )
+      row
+    }
 
-    tableEnv.createDataSetSource(inputFormat, returnType).asInstanceOf[DataSet[Any]]
+    val inputFormat = new ValuesInputFormat(rows)
+    tableEnv.getExecEnv.createInput(inputFormat, returnType).asInstanceOf[DataSet[Any]]
   }
 
   private def valuesFieldsToString: String = {
     rowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
-}
-
-class ValuesInputFormat(val tuples: ImmutableList[ImmutableList[RexLiteral]])
-  extends GenericInputFormat[Row]
-  with NonParallelInput {
-
-  var readIdx = 0
-
-  override def reachedEnd(): Boolean = readIdx == tuples.size()
-
-  override def nextRecord(reuse: Row): Row = {
-
-    if (readIdx == tuples.size()) {
-      return null
-    }
-
-    val t = tuples.get(readIdx)
-    readIdx += 1
-
-    var i = 0
-    for(f <- t) {
-      reuse.setField(i, f.getValue)
-      i += 1
-    }
-    reuse
-  }
 }
 
 

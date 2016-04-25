@@ -24,7 +24,6 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
-import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
@@ -32,6 +31,7 @@ import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStre
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.{TransStreamTable, DataStreamTable}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
 /**
   * The base class for stream TableEnvironments.
@@ -44,9 +44,14 @@ import org.apache.flink.streaming.api.datastream.DataStream
   * - specify a SQL query on registered tables to obtain a [[Table]]
   * - convert a [[Table]] into a [[DataStream]]
   *
-  * @param config The configuration of the TableEnvironment.
+  * @param execEnv The [[StreamExecutionEnvironment]] which is wrapped in this
+  *                [[StreamTableEnvironment]].
+  * @param config The [[TableConfig]] of this [[StreamTableEnvironment]].
   */
-abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironment(config) {
+abstract class StreamTableEnvironment(
+    execEnv: StreamExecutionEnvironment,
+    config: TableConfig)
+  extends TableEnvironment(config) {
 
   // a counter for unique table names
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
@@ -113,6 +118,9 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
 
     new Table(relational.rel, this)
   }
+
+  /** Returns the [[StreamExecutionEnvironment]] of this [[StreamTableEnvironment]]. */
+  private[flink] def getExecEnv: StreamExecutionEnvironment = execEnv
 
   /**
     * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
@@ -225,16 +233,5 @@ abstract class StreamTableEnvironment(config: TableConfig) extends TableEnvironm
     }
 
   }
-
-  /**
-    * Creates a [[Row]] [[DataStream]] from an [[InputFormat]].
-    *
-    * @param inputFormat [[InputFormat]] from which the [[DataStream]] is created.
-    * @param typeInfo [[TypeInformation]] of the type of the [[DataStream]].
-    * @return A [[Row]] [[DataStream]] created from the [[InputFormat]].
-    */
-  private[flink] def createDataStreamSource(
-      inputFormat: InputFormat[Row, _],
-      typeInfo: TypeInformation[Row]): DataStream[Row]
 
 }

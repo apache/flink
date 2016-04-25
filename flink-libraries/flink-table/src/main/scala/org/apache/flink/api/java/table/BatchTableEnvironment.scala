@@ -41,9 +41,9 @@ import org.apache.flink.api.table.{Row, TableConfig, Table}
   * @param config The configuration of the TableEnvironment.
   */
 class BatchTableEnvironment(
-    protected val execEnv: ExecutionEnvironment,
+    execEnv: ExecutionEnvironment,
     config: TableConfig)
-  extends org.apache.flink.api.table.BatchTableEnvironment(config) {
+  extends org.apache.flink.api.table.BatchTableEnvironment(execEnv, config) {
 
   /**
     * Converts the given [[DataSet]] into a [[Table]].
@@ -161,20 +161,6 @@ class BatchTableEnvironment(
     */
   def toDataSet[T](table: Table, typeInfo: TypeInformation[T]): DataSet[T] = {
     translate[T](table)(typeInfo)
-  }
-
-  /**
-    * Creates a [[Row]] [[DataSet]] from an [[InputFormat]].
-    *
-    * @param inputFormat [[InputFormat]] from which the [[DataSet]] is created.
-    * @param typeInfo [[TypeInformation]] of the type of the [[DataSet]].
-    * @return A [[Row]] [[DataSet]] created from the [[InputFormat]].
-    */
-  override private[flink] def createDataSetSource(
-      inputFormat: InputFormat[Row, _],
-      typeInfo: TypeInformation[Row]): DataSet[Row] = {
-
-    execEnv.createInput(inputFormat, typeInfo)
   }
 
 }

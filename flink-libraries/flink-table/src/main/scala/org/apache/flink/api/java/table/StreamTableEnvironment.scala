@@ -17,10 +17,9 @@
  */
 package org.apache.flink.api.java.table
 
-import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.{Row, TableConfig, Table}
+import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -41,9 +40,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
   * @param config The configuration of the TableEnvironment.
   */
 class StreamTableEnvironment(
-    protected val execEnv: StreamExecutionEnvironment,
+    execEnv: StreamExecutionEnvironment,
     config: TableConfig)
-  extends org.apache.flink.api.table.StreamTableEnvironment(config) {
+  extends org.apache.flink.api.table.StreamTableEnvironment(execEnv, config) {
 
   /**
     * Converts the given [[DataStream]] into a [[Table]].
@@ -163,20 +162,6 @@ class StreamTableEnvironment(
     */
   def toDataStream[T](table: Table, typeInfo: TypeInformation[T]): DataStream[T] = {
     translate[T](table)(typeInfo)
-  }
-
-  /**
-    * Creates a [[Row]] [[DataStream]] from an [[InputFormat]].
-    *
-    * @param inputFormat [[InputFormat]] from which the [[DataStream]] is created.
-    * @param typeInfo [[TypeInformation]] of the type of the [[DataStream]].
-    * @return A [[Row]] [[DataStream]] created from the [[InputFormat]].
-    */
-  override private[flink] def createDataStreamSource(
-      inputFormat: InputFormat[Row, _],
-      typeInfo: TypeInformation[Row]): DataStream[Row] = {
-
-    execEnv.createInput(inputFormat, typeInfo)
   }
 
 }
