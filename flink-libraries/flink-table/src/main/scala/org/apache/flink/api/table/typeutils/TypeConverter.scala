@@ -116,7 +116,7 @@ object TypeConverter {
       TypeConverter.sqlTypeToTypeInfo(relDataType.getType.getSqlTypeName)
     }
     // field names
-    val logicalFieldNames = logicalRowType.getFieldNames
+    val logicalFieldNames = logicalRowType.getFieldNames.toList
 
     val returnType = expectedPhysicalType match {
       // a certain physical type is expected (but not Row)

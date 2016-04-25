@@ -24,9 +24,8 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
-import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.explain.PlanJsonParser
@@ -35,7 +34,6 @@ import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetRel, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
-import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
   * The abstract base class for batch TableEnvironments.
@@ -49,9 +47,13 @@ import org.apache.flink.streaming.api.datastream.DataStream
   * - convert a [[Table]] into a [[DataSet]]
   * - explain the AST and execution plan of a [[Table]]
   *
-  * @param config The configuration of the TableEnvironment.
+  * @param execEnv The [[ExecutionEnvironment]] which is wrapped in this [[BatchTableEnvironment]].
+  * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
   */
-abstract class BatchTableEnvironment(config: TableConfig) extends TableEnvironment(config) {
+abstract class BatchTableEnvironment(
+    execEnv: ExecutionEnvironment,
+    config: TableConfig)
+  extends TableEnvironment(config) {
 
   // a counter for unique table names.
   private val nameCntr: AtomicInteger = new AtomicInteger(0)
@@ -118,6 +120,12 @@ abstract class BatchTableEnvironment(config: TableConfig) extends TableEnvironme
 
     new Table(relational.rel, this)
   }
+
+  /**
+    * Returns the [[org.apache.flink.api.java.ExecutionEnvironment]] which is wrapped in this
+    * [[BatchTableEnvironment]].
+    */
+  private[flink] def getExecEnv: ExecutionEnvironment = execEnv
 
   /**
     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
@@ -234,16 +242,5 @@ abstract class BatchTableEnvironment(config: TableConfig) extends TableEnvironme
       case _ => ???
     }
   }
-
-  /**
-    * Creates a [[Row]] [[DataSet]] from an [[InputFormat]].
-    *
-    * @param inputFormat [[InputFormat]] from which the [[DataSet]] is created.
-    * @param typeInfo [[TypeInformation]] of the type of the [[DataSet]].
-    * @return A [[Row]] [[DataSet]] created from the [[InputFormat]].
-    */
-  private[flink] def createDataSetSource(
-      inputFormat: InputFormat[Row, _],
-      typeInfo: TypeInformation[Row]): DataSet[Row]
 
 }
