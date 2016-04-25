@@ -37,6 +37,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import scala.Option;
 import scala.tools.nsc.Settings;
+import scala.tools.nsc.settings.MutableSettings;
 
 import java.util.List;
 
@@ -74,7 +75,10 @@ public class FlinkILoopTest extends TestLogger {
 			}
 		});
 
-		flinkILoop.settings_$eq(new Settings());
+		Settings settings = new Settings();
+		((MutableSettings.BooleanSetting)settings.usejavacp()).value_$eq(true);
+
+		flinkILoop.settings_$eq(settings);
 		flinkILoop.createInterpreter();
 
 		ExecutionEnvironment env = flinkILoop.scalaBenv().getJavaEnv();
