@@ -17,10 +17,12 @@
  */
 package org.apache.flink.yarn;
 
+
 /**
  * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
 public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+
 	@Override
 	protected Class<?> getApplicationMasterClass() {
 		return YarnApplicationMasterRunner.class;

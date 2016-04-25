@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -55,6 +56,7 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,9 +79,6 @@ public class YarnClusterClient extends ClusterClient {
 	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
 	private final Path sessionFilesDir;
 
-	/** The leader retrieval service for connecting to the cluster and finding the active leader. */
-	private final LeaderRetrievalService leaderRetrievalService;
-
 	//---------- Class internal fields -------------------
 
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
@@ -92,6 +91,7 @@ public class YarnClusterClient extends ClusterClient {
 
 	private boolean isConnected = false;
 
+	private final boolean perJobCluster;
 
 	/**
 	 * Create a new Flink on YARN cluster.
@@ -101,6 +101,7 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
 	 * @param sessionFilesDir Location of files required for YARN session
+	 * @param perJobCluster Indicator whether this cluster is only created for a single job and then shutdown
 	 * @throws IOException
 	 * @throws YarnException
 	 */
@@ -109,7 +110,8 @@ public class YarnClusterClient extends ClusterClient {
 		final YarnClient yarnClient,
 		final ApplicationReport appReport,
 		org.apache.flink.configuration.Configuration flinkConfig,
-		Path sessionFilesDir) throws IOException, YarnException {
+		Path sessionFilesDir,
+		boolean perJobCluster) throws IOException, YarnException {
 
 		super(flinkConfig);
 
@@ -122,16 +124,14 @@ public class YarnClusterClient extends ClusterClient {
 		this.applicationId = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
+		this.perJobCluster = perJobCluster;
 
+		/* The leader retrieval service for connecting to the cluster and finding the active leader. */
+		LeaderRetrievalService leaderRetrievalService;
 		try {
 			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
 		} catch (Exception e) {
 			throw new IOException("Could not create the leader retrieval service.", e);
-		}
-
-
-		if (isConnected) {
-			throw new IllegalStateException("Already connected to the cluster.");
 		}
 
 		// start application client
@@ -182,28 +182,31 @@ public class YarnClusterClient extends ClusterClient {
 
 		isConnected = true;
 
-		logAndSysout("Waiting until all TaskManagers have connected");
+		if (perJobCluster) {
 
-		while(true) {
-			GetClusterStatusResponse status = getClusterStatus();
-			if (status != null) {
-				if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
-					logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-						+ clusterDescriptor.getTaskManagerCount() + ")");
+			logAndSysout("Waiting until all TaskManagers have connected");
+
+			while (true) {
+				GetClusterStatusResponse status = getClusterStatus();
+				if (status != null) {
+					if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
+						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
+							+ clusterDescriptor.getTaskManagerCount() + ")");
+					} else {
+						logAndSysout("All TaskManagers are connected");
+						break;
+					}
 				} else {
-					logAndSysout("All TaskManagers are connected");
-					break;
+					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
 				}
-			} else {
-				logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
-			}
 
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				LOG.error("Interrupted while waiting for TaskManagers");
-				System.err.println("Thread is interrupted");
-				throw new IOException("Interrupted while waiting for TaskManagers", e);
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					LOG.error("Interrupted while waiting for TaskManagers");
+					System.err.println("Thread is interrupted");
+					throw new IOException("Interrupted while waiting for TaskManagers", e);
+				}
 			}
 		}
 	}
@@ -214,9 +217,12 @@ public class YarnClusterClient extends ClusterClient {
 		}
 		LOG.info("Disconnecting YarnClusterClient from ApplicationMaster");
 
-		if(!Runtime.getRuntime().removeShutdownHook(clientShutdownHook)) {
-			LOG.warn("Error while removing the shutdown hook. The YARN session might be killed unintentionally");
+		try {
+			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
+		} catch (IllegalStateException e) {
+			// we are already in the shutdown hook
 		}
+
 		// tell the actor to shut down.
 		applicationClient.tell(PoisonPill.getInstance(), applicationClient);
 
@@ -265,12 +271,30 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		if (isDetached()) {
-			JobSubmissionResult result = super.runDetached(jobGraph, classLoader);
+		if (perJobCluster) {
 			stopAfterJob(jobGraph.getJobID());
-			return result;
+		}
+
+		if (isDetached()) {
+			return super.runDetached(jobGraph, classLoader);
 		} else {
-			return super.run(jobGraph, classLoader);
+			try {
+				return super.run(jobGraph, classLoader);
+			} finally {
+				// show cluster status
+				List<String> msgs = getNewMessages();
+				if (msgs != null && msgs.size() > 1) {
+
+					logAndSysout("The following messages were created by the YARN cluster while running the Job:");
+					for (String msg : msgs) {
+						logAndSysout(msg);
+					}
+				}
+				if (getApplicationStatus() != ApplicationStatus.SUCCEEDED) {
+					logAndSysout("YARN cluster is in non-successful state " + getApplicationStatus());
+					logAndSysout("YARN Diagnostics: " + getDiagnostics());
+				}
+			}
 		}
 	}
 
@@ -298,8 +322,9 @@ public class YarnClusterClient extends ClusterClient {
 			throw new IllegalStateException("The cluster is not connected to the ApplicationMaster.");
 		}
 		if(hasBeenShutdown()) {
-			throw new RuntimeException("The YarnClusterClient has already been stopped");
+			return null;
 		}
+
 		Future<Object> clusterStatusOption = ask(applicationClient, YarnMessages.getLocalGetyarnClusterStatus(), akkaTimeout);
 		Object clusterStatus;
 		try {
@@ -417,31 +442,19 @@ public class YarnClusterClient extends ClusterClient {
 	@Override
 	public void finalizeCluster() {
 
+		if (isDetached() || !perJobCluster) {
+			// only disconnect if we are not running a per job cluster
+			disconnect();
+		} else {
+			shutdownCluster();
+		}
+	}
+
+	public void shutdownCluster() {
+
 		if (!isConnected) {
 			throw new IllegalStateException("The cluster has been not been connected to the ApplicationMaster.");
 		}
-
-		if (isDetached()) {
-			// only disconnect if we are running detached
-			disconnect();
-			return;
-		}
-
-		// show cluster status
-
-		List<String> msgs = getNewMessages();
-		if (msgs != null && msgs.size() > 1) {
-
-			logAndSysout("The following messages were created by the YARN cluster while running the Job:");
-			for (String msg : msgs) {
-				logAndSysout(msg);
-			}
-		}
-		if (getApplicationStatus() != ApplicationStatus.SUCCEEDED) {
-			logAndSysout("YARN cluster is in non-successful state " + getApplicationStatus());
-			logAndSysout("YARN Diagnostics: " + getDiagnostics());
-		}
-
 
 		if(hasBeenShutDown.getAndSet(true)) {
 			return;
@@ -471,13 +484,30 @@ public class YarnClusterClient extends ClusterClient {
 			actorSystem.awaitTermination();
 		}
 
-		LOG.info("Deleting files in " + sessionFilesDir);
 		try {
-			FileSystem shutFS = FileSystem.get(hadoopConfig);
-			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
-			shutFS.close();
-		}catch(IOException e){
-			LOG.error("Could not delete the Flink jar and configuration files in HDFS..", e);
+			File propertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(flinkConfig);
+			if (propertiesFile.isFile()) {
+				if (propertiesFile.delete()) {
+					LOG.info("Deleted Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
+				} else {
+					LOG.warn("Couldn't delete Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Exception while deleting the JobManager address file", e);
+		}
+
+		if (sessionFilesDir != null) {
+			LOG.info("Deleting files in " + sessionFilesDir);
+			try {
+				FileSystem shutFS = FileSystem.get(hadoopConfig);
+				shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
+				shutFS.close();
+			} catch (IOException e) {
+				LOG.error("Could not delete the Flink jar and configuration files in HDFS..", e);
+			}
+		} else {
+			LOG.warn("Session file directory not set. Not deleting session files");
 		}
 
 		try {
@@ -571,7 +601,6 @@ public class YarnClusterClient extends ClusterClient {
 
 	@Override
 	public boolean isDetached() {
-		// either we have set detached mode using the general '-d' flag or using the Yarn CLI flag 'yd'
 		return super.isDetached() || clusterDescriptor.isDetachedMode();
 	}
 }

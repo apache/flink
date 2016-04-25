@@ -29,29 +29,47 @@ import org.apache.flink.configuration.Configuration;
 public interface CustomCommandLine<ClusterType extends ClusterClient> {
 
 	/**
-	 * Returns a unique identifier for this custom command-line.
-	 * @return An unique identifier string
+	 * Signals whether the custom command-line wants to execute or not
+	 * @param commandLine The command-line options
+	 * @param configuration The Flink configuration
+	 * @return True if the command-line wants to run, False otherwise
 	 */
-	String getIdentifier();
+	boolean isActive(CommandLine commandLine, Configuration configuration);
 
 	/**
-	 * Adds custom options to the existing options.
+	 * Gets the unique identifier of this CustomCommandLine
+	 * @return A unique identifier
+	 */
+	String getId();
+
+	/**
+	 * Adds custom options to the existing run options.
 	 * @param baseOptions The existing options.
 	 */
-	void addOptions(Options baseOptions);
+	void addRunOptions(Options baseOptions);
+
+	/**
+	 * Adds custom options to the existing general options.
+	 * @param baseOptions The existing options.
+	 */
+	void addGeneralOptions(Options baseOptions);
 
 	/**
 	 * Retrieves a client for a running cluster
+	 * @param commandLine The command-line parameters from the CliFrontend
 	 * @param config The Flink config
-	 * @return Client if a cluster could be retrieve, null otherwise
+	 * @return Client if a cluster could be retrieved
+	 * @throws UnsupportedOperationException if the operation is not supported
 	 */
-	ClusterClient retrieveCluster(Configuration config) throws Exception;
+	ClusterType retrieveCluster(CommandLine commandLine, Configuration config) throws UnsupportedOperationException;
 
 	/**
 	 * Creates the client for the cluster
 	 * @param applicationName The application name to use
 	 * @param commandLine The command-line options parsed by the CliFrontend
+	 * @param config The Flink config to use
 	 * @return The client to communicate with the cluster which the CustomCommandLine brought up.
+	 * @throws UnsupportedOperationException if the operation is not supported
 	 */
-	ClusterType createClient(String applicationName, CommandLine commandLine) throws Exception;
+	ClusterType createCluster(String applicationName, CommandLine commandLine, Configuration config) throws UnsupportedOperationException;
 }

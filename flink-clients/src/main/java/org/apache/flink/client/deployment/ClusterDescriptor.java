@@ -30,12 +30,20 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...)
 	 *
 	 */
-	String getClusterDescription() throws Exception;
+	String getClusterDescription();
+
+	/**
+	 * Retrieves an existing Flink Cluster.
+	 * @param applicationID The unique application identifier of the running cluster
+	 * @return Client for the cluster
+	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
+	 */
+	ClientType retrieve(String applicationID) throws UnsupportedOperationException;
 
 	/**
 	 * Triggers deployment of a cluster
 	 * @return Client for the cluster
-	 * @throws Exception
+	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType deploy() throws Exception;
+	ClientType deploy() throws UnsupportedOperationException;
 }

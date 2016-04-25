@@ -20,6 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.commons.cli.CommandLine
 import org.apache.flink.client.cli.CliFrontendParser
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.client.CliFrontend
@@ -245,11 +246,13 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val customCLI = CliFrontendParser.getAllCustomCommandLine.get("yarn-cluster")
 
     val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.createClient("Flink Scala Shell", options.getCommandLine)
+    val cluster = customCLI.createCluster("Flink Scala Shell", options.getCommandLine, config)
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort
@@ -259,12 +262,21 @@ object FlinkShell {
 
   def fetchDeployedYarnClusterInfo() = {
 
-    // load configuration
-    val globalConfig = GlobalConfiguration.getConfiguration
 
-    val customCLI = CliFrontendParser.getAllCustomCommandLine.get("yarn-cluster")
+    val args = ArrayBuffer[String](
+      "-m", "yarn-cluster"
+    )
 
-    val cluster = customCLI.retrieveCluster(globalConfig)
+    val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
+
+    val cluster = customCLI.retrieveCluster(options.getCommandLine, config)
+
+    if (cluster == null) {
+      throw new RuntimeException("Yarn Cluster could not be retrieved.")
+    }
 
     val jobManager = cluster.getJobManagerAddress
 

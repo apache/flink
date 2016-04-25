@@ -76,7 +76,7 @@ import akka.actor.ActorSystem;
  */
 public abstract class ClusterClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClusterClient.class);
+	private final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	/** The optimizer used in the optimization of batch programs */
 	final Optimizer compiler;
@@ -203,9 +203,9 @@ public abstract class ClusterClient {
 	 */
 	public InetSocketAddress getJobManagerAddressFromConfig() {
 		try {
-		String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-		return new InetSocketAddress(hostName, port);
+			String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+			return new InetSocketAddress(hostName, port);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to retrieve JobManager address", e);
 		}
@@ -255,11 +255,13 @@ public abstract class ClusterClient {
 	}
 
 	public static OptimizedPlan getOptimizedPlan(Optimizer compiler, Plan p, int parallelism) throws CompilerException {
+		Logger log = LoggerFactory.getLogger(ClusterClient.class);
+
 		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
-			LOG.debug("Changing plan default parallelism from {} to {}", p.getDefaultParallelism(), parallelism);
+			log.debug("Changing plan default parallelism from {} to {}", p.getDefaultParallelism(), parallelism);
 			p.setDefaultParallelism(parallelism);
 		}
-		LOG.debug("Set parallelism {}, plan default parallelism {}", parallelism, p.getDefaultParallelism());
+		log.debug("Set parallelism {}, plan default parallelism {}", parallelism, p.getDefaultParallelism());
 
 		return compiler.compile(p);
 	}
@@ -603,7 +605,7 @@ public abstract class ClusterClient {
 	 * @return ActorGateway of the current job manager leader
 	 * @throws Exception
 	 */
-	protected ActorGateway getJobManagerGateway() throws Exception {
+	public ActorGateway getJobManagerGateway() throws Exception {
 		LOG.info("Looking up JobManager");
 
 		return LeaderRetrievalUtils.retrieveLeaderGateway(

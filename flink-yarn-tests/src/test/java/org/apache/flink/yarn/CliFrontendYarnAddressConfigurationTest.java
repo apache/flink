@@ -18,27 +18,45 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.cli.CommandLine;
 import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.junit.*;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
+import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.LinkedList;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that verify that the CLI client picks up the correct address for the JobManager
@@ -80,8 +98,10 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 	private static final String TEST_YARN_JOB_MANAGER_ADDRESS = "22.33.44.55";
 	private static final int TEST_YARN_JOB_MANAGER_PORT = 6655;
+	private static final ApplicationId TEST_YARN_APPLICATION_ID =
+		ApplicationId.newInstance(System.currentTimeMillis(), 42);
 
-	private static final String propertiesFile =
+	private static final String validPropertiesFile =
 		"jobManager=" + TEST_YARN_JOB_MANAGER_ADDRESS + ":" + TEST_YARN_JOB_MANAGER_PORT;
 
 
@@ -101,110 +121,292 @@ public class CliFrontendYarnAddressConfigurationTest {
 	 * Test that the CliFrontend is able to pick up the .yarn-properties file from a specified location.
 	 */
 	@Test
-	public void testYarnConfig() {
-		try {
-			File tmpFolder = temporaryFolder.newFolder();
-			String currentUser = System.getProperty("user.name");
+	public void testResumeFromYarnPropertiesFile() throws Exception {
 
-			// copy .yarn-properties-<username>
-			File testPropertiesFile = new File(tmpFolder, ".yarn-properties-"+currentUser);
-			Files.write(testPropertiesFile.toPath(), propertiesFile.getBytes(), StandardOpenOption.CREATE);
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
-			// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
-			String confFile = flinkConf + "\nyarn.properties-file.location: " + tmpFolder;
-			File testConfFile = new File(tmpFolder.getAbsolutePath(), "flink-conf.yaml");
-			Files.write(testConfFile.toPath(), confFile.getBytes(), StandardOpenOption.CREATE);
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
 
-			// start CLI Frontend
-			TestCLI frontend = new TestCLI(tmpFolder.getAbsolutePath());
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
 
-			CommandLineOptions options = mock(CommandLineOptions.class);
+		frontend.retrieveClient(options);
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
 
-			frontend.getClient(options, "Program name");
-
-			frontend.updateConfig(options);
-			Configuration config = frontend.getConfiguration();
-
- 			checkJobManagerAddress(
-					config,
-					TEST_YARN_JOB_MANAGER_ADDRESS,
-					TEST_YARN_JOB_MANAGER_PORT);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
-	public static class TestCLI extends CliFrontend {
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testResumeFromYarnPropertiesFileWithFinishedApplication() throws Exception {
+
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
+
+		frontend.retrieveClient(options);
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testInvalidYarnPropertiesFile() throws Exception {
+
+		File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
+
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
+
+		frontend.retrieveClient(options);
+		Configuration config = frontend.getConfiguration();
+
+		checkJobManagerAddress(
+			config,
+			TEST_JOB_MANAGER_ADDRESS,
+			TEST_JOB_MANAGER_PORT);
+	}
+
+
+	@Test
+	public void testResumeFromYarnID() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+
+		RunOptions options =
+			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+
+		frontend.retrieveClient(options);
+
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testResumeFromInvalidYarnID() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+
+		RunOptions options =
+			CliFrontendParser.parseRunCommand(new String[] {"-yid", ApplicationId.newInstance(0, 666).toString()});
+
+		frontend.retrieveClient(options);
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+	@Test(expected = IllegalConfigurationException.class)
+	public void testResumeFromYarnIDWithFinishedApplication() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+
+		RunOptions options =
+			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+
+		frontend.retrieveClient(options);
+
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+
+	@Test
+	public void testYarnIDOverridesPropertiesFile() throws Exception {
+		File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+
+		RunOptions options =
+			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+
+		frontend.retrieveClient(options);
+
+		checkJobManagerAddress(
+			frontend.getConfiguration(),
+			TEST_YARN_JOB_MANAGER_ADDRESS,
+			TEST_YARN_JOB_MANAGER_PORT);
+	}
+
+
+	@Test
+	public void testManualOptionsOverridesYarn() throws Exception {
+
+		File emptyFolder = temporaryFolder.newFolder();
+		File testConfFile = new File(emptyFolder.getAbsolutePath(), "flink-conf.yaml");
+		Files.createFile(testConfFile.toPath());
+
+		TestCLI frontend = new TestCLI(emptyFolder.getAbsolutePath());
+
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "10.221.130.22:7788"});
+
+		frontend.retrieveClient(options);
+
+		Configuration config = frontend.getConfiguration();
+
+		InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
+
+		checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
+
+	}
+
+
+	///////////
+	// Utils //
+	///////////
+
+	private File writeYarnPropertiesFile(String contents) throws IOException {
+		File tmpFolder = temporaryFolder.newFolder();
+		String currentUser = System.getProperty("user.name");
+
+		// copy .yarn-properties-<username>
+		File testPropertiesFile = new File(tmpFolder, ".yarn-properties-"+currentUser);
+		Files.write(testPropertiesFile.toPath(), contents.getBytes(), StandardOpenOption.CREATE);
+
+		// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
+		String confFile = flinkConf + "\nyarn.properties-file.location: " + tmpFolder;
+		File testConfFile = new File(tmpFolder.getAbsolutePath(), "flink-conf.yaml");
+		Files.write(testConfFile.toPath(), confFile.getBytes(), StandardOpenOption.CREATE);
+
+		return tmpFolder.getAbsoluteFile();
+	}
+
+	private static class TestCLI extends CliFrontend {
 		TestCLI(String configDir) throws Exception {
 			super(configDir);
 		}
 
 		@Override
+		// make method public
 		public ClusterClient getClient(CommandLineOptions options, String programName) throws Exception {
 			return super.getClient(options, programName);
 		}
 
 		@Override
-		public void updateConfig(CommandLineOptions options) {
-			super.updateConfig(options);
-		}
-	}
-
-	@Test
-	public void testInvalidYarnConfig() {
-		try {
-			File tmpFolder = temporaryFolder.newFolder();
-
-			// copy invalid .yarn-properties-<username>
-			File testPropertiesFile = new File(tmpFolder, ".yarn-properties");
-			Files.write(testPropertiesFile.toPath(), invalidPropertiesFile.getBytes(), StandardOpenOption.CREATE);
-
-			// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
-			String confFile = flinkConf + "\nyarn.properties-file.location: " + tmpFolder;
-			File testConfFile = new File(tmpFolder.getAbsolutePath(), "flink-conf.yaml");
-			Files.write(testConfFile.toPath(), confFile.getBytes(), StandardOpenOption.CREATE);
-
-			TestCLI cli = new TestCLI(tmpFolder.getAbsolutePath());
-
-			CommandLineOptions options = mock(CommandLineOptions.class);
-
-			cli.updateConfig(options);
-
-			Configuration config = cli.getConfiguration();
-
-			checkJobManagerAddress(
-				config,
-				TEST_JOB_MANAGER_ADDRESS,
-				TEST_JOB_MANAGER_PORT);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		// make method public
+		public ClusterClient retrieveClient(CommandLineOptions options) {
+			return super.retrieveClient(options);
 		}
 	}
 
 
-	@Test
-	public void testManualOptionsOverridesYarn() {
-		try {
-			File emptyFolder = temporaryFolder.newFolder();
-			TestCLI frontend = new TestCLI(emptyFolder.getAbsolutePath());
+	/**
+	 * Injects an extended FlinkYarnSessionCli that deals with mocking Yarn communication
+	 */
+	private static class CustomYarnTestCLI extends TestCLI {
 
-			CommandLineOptions options = mock(CommandLineOptions.class);
-			when(options.getJobManagerAddress()).thenReturn("10.221.130.22:7788");
+		// the default application status for yarn applications to be retrieved
+		private final FinalApplicationStatus finalApplicationStatus;
 
-			frontend.updateConfig(options);
-
-			Configuration config = frontend.getConfiguration();
-
-			InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
-
-			checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
+		CustomYarnTestCLI(String configDir) throws Exception {
+			this(configDir, FinalApplicationStatus.UNDEFINED);
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		CustomYarnTestCLI(String configDir, FinalApplicationStatus finalApplicationStatus) throws Exception {
+			super(configDir);
+			this.finalApplicationStatus = finalApplicationStatus;
+		}
+
+		@Override
+		public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+			// inject the testing FlinkYarnSessionCli
+			return new TestingYarnSessionCli();
+		}
+
+		/**
+		 * Testing FlinkYarnSessionCli which returns a modified cluster descriptor for testing.
+		 */
+		private class TestingYarnSessionCli extends FlinkYarnSessionCli {
+			TestingYarnSessionCli() {
+				super("y", "yarn");
+			}
+
+			@Override
+			// override cluster descriptor to replace the YarnClient
+			protected AbstractYarnClusterDescriptor getClusterDescriptor() {
+				return new TestingYarnClusterDescriptor();
+			}
+
+			/**
+			 * Replace the YarnClient for this test.
+			 */
+			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
+
+				@Override
+				protected YarnClient getYarnClient() {
+					return new TestYarnClient();
+				}
+
+				@Override
+				protected YarnClusterClient createYarnClusterClient(
+						AbstractYarnClusterDescriptor descriptor,
+						YarnClient yarnClient,
+						ApplicationReport report,
+						Configuration flinkConfiguration,
+						Path sessionFilesDir,
+						boolean perJobCluster) throws IOException, YarnException {
+
+					return Mockito.mock(YarnClusterClient.class);
+				}
+
+
+				private class TestYarnClient extends YarnClientImpl {
+
+					private final List<ApplicationReport> reports = new LinkedList<>();
+
+					TestYarnClient() {
+						{   // a report that of our Yarn application we want to resume from
+							ApplicationReport report = Mockito.mock(ApplicationReport.class);
+							Mockito.when(report.getHost()).thenReturn(TEST_YARN_JOB_MANAGER_ADDRESS);
+							Mockito.when(report.getRpcPort()).thenReturn(TEST_YARN_JOB_MANAGER_PORT);
+							Mockito.when(report.getApplicationId()).thenReturn(TEST_YARN_APPLICATION_ID);
+							Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
+							this.reports.add(report);
+						}
+						{   // a second report, just for noise
+							ApplicationReport report = Mockito.mock(ApplicationReport.class);
+							Mockito.when(report.getHost()).thenReturn("1.2.3.4");
+							Mockito.when(report.getRpcPort()).thenReturn(-123);
+							Mockito.when(report.getApplicationId()).thenReturn(ApplicationId.newInstance(0, 0));
+							Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
+							this.reports.add(report);
+						}
+					}
+
+					@Override
+					public List<ApplicationReport> getApplications() throws YarnException, IOException {
+						return reports;
+					}
+
+					@Override
+					public ApplicationReport getApplicationReport(ApplicationId appId) throws YarnException, IOException {
+						for (ApplicationReport report : reports) {
+							if (report.getApplicationId().equals(appId)) {
+								return report;
+							}
+						}
+						throw new YarnException();
+					}
+				}
+			}
 		}
 	}
 

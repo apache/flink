@@ -23,7 +23,6 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 
@@ -36,8 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 public class FlinkYarnSessionCliTest {
 
@@ -53,9 +50,10 @@ public class FlinkYarnSessionCliTest {
 		fakeConf.createNewFile();
 		map.put("FLINK_CONF_DIR", tmpFolder.getAbsolutePath());
 		TestBaseUtils.setEnv(map);
-		Options options = new Options();
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", false);
-		cli.addOptions(options);
+		Options options = new Options();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
 
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
@@ -66,7 +64,7 @@ public class FlinkYarnSessionCliTest {
 			Assert.fail("Parsing failed with " + e.getMessage());
 		}
 
-		YarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
+		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
 
 		Assert.assertNotNull(flinkYarnDescriptor);
 
