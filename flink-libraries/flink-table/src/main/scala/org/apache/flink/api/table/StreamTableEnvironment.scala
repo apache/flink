@@ -29,7 +29,8 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.plan.schema.{TransStreamTable, DataStreamTable}
+import org.apache.flink.api.table.plan.schema.{TableSourceTable, TransStreamTable, DataStreamTable}
+import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
@@ -49,7 +50,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
   * @param config The [[TableConfig]] of this [[StreamTableEnvironment]].
   */
 abstract class StreamTableEnvironment(
-    execEnv: StreamExecutionEnvironment,
+    private[flink] val execEnv: StreamExecutionEnvironment,
     config: TableConfig)
   extends TableEnvironment(config) {
 
@@ -99,6 +100,19 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[StreamTableSource]] is registered.
+    * @param tableSource The [[org.apache.flink.api.table.sources.StreamTableSource]] to register.
+    */
+  def registerTableSource(name: String, tableSource: StreamTableSource[_]): Unit = {
+
+    checkValidTableName(name)
+    registerTableInternal(name, new TableSourceTable(tableSource))
+  }
+
+  /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment.
@@ -118,9 +132,6 @@ abstract class StreamTableEnvironment(
 
     new Table(relational.rel, this)
   }
-
-  /** Returns the [[StreamExecutionEnvironment]] of this [[StreamTableEnvironment]]. */
-  private[flink] def getExecEnv: StreamExecutionEnvironment = execEnv
 
   /**
     * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
