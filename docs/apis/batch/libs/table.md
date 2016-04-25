@@ -67,6 +67,167 @@ The central concept of the Table API is a `Table` which represents a table with 
 
 The following sections show by example how to use the Table API embedded in the Scala and Java DataSet APIs.
 
+### Registering Tables to and Accessing Tables from TableEnvironments
+
+`TableEnvironment`s have an internal table catalog to which tables can be registered with a unique name. After registration, a table can be accessed from the `TableEnvironment` by its name. Tables can be registered in different ways.
+
+*Note that it is not required to register a `DataSet` or `DataStream` as a table in a `TableEnvironment` in order to process it a with the Table API.* 
+
+#### Register a DataSet
+
+A `DataSet` is registered as a `Table` in a `BatchTableEnvironment` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// register the DataSet cust as table "Customers" with fields derived from the dataset
+tableEnv.registerDataSet("Customers", cust)
+
+// register the DataSet ord as table "Orders" with fields user, product, and amount
+tableEnv.registerDataSet("Orders", ord, "user, product, amount");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// register the DataSet cust as table "Customers" with fields derived from the dataset
+tableEnv.registerDataSet("Customers", cust)
+
+// register the DataSet ord as table "Orders" with fields user, product, and amount
+tableEnv.registerDataSet("Orders", ord, 'user, 'product, 'amount)
+{% endhighlight %}
+</div>
+</div>
+
+*Note: DataSet table names are not allowed to follow the `^_DataSetTable_[0-9]+` pattern, as these are reserved for internal use only.*
+
+#### Register a DataStream
+
+A `DataStream` is registered as a `Table` in a `StreamTableEnvironment` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// register the DataStream cust as table "Customers" with fields derived from the datastream
+tableEnv.registerDataStream("Customers", cust)
+
+// register the DataStream ord as table "Orders" with fields user, product, and amount
+tableEnv.registerDataStream("Orders", ord, "user, product, amount");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// register the DataStream cust as table "Customers" with fields derived from the datastream
+tableEnv.registerDataStream("Customers", cust)
+
+// register the DataStream ord as table "Orders" with fields user, product, and amount
+tableEnv.registerDataStream("Orders", ord, 'user, 'product, 'amount)
+{% endhighlight %}
+</div>
+</div>
+
+*Note: DataStream table names are not allowed to follow the `^_DataStreamTable_[0-9]+` pattern, as these are reserved for internal use only.*
+
+#### Register a Table
+
+A `Table` that originates from a Table API operation or a SQL query is registered in a `TableEnvironemnt` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// works for StreamExecutionEnvironment identically
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// convert a DataSet into a Table
+Table custT = tableEnv
+  .toTable(custDs, "name, zipcode")
+  .where("zipcode = '12345'")
+  .select("name")
+
+// register the Table custT as table "custNames"
+tableEnv.registerTable("custNames", custT)
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// works for StreamExecutionEnvironment identically
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// convert a DataSet into a Table
+val custT = custDs
+  .toTable(tableEnv, 'name, 'zipcode)
+  .where('zipcode === "12345")
+  .select('name)
+
+// register the Table custT as table "custNames"
+tableEnv.registerTable("custNames", custT)
+{% endhighlight %}
+</div>
+</div>
+
+A registered `Table` that originates from a Table API operation or SQL query is treated similarly as a view as known from relational DBMS, i.e., it can be inlined when optimizing the query.
+
+#### Register an external Table using a TableSource
+
+An external table is registered in a `TableEnvironment` using a `TableSource` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// works for StreamExecutionEnvironment identically
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+TableSource custTS = new CsvTableSource("/path/to/file", ...)
+
+// register a `TableSource` as external table "Customers"
+tableEnv.registerTableSource("Customers", custTS)
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// works for StreamExecutionEnvironment identically
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val custTS: TableSource = new CsvTableSource("/path/to/file", ...)
+
+// register a `TableSource` as external table "Customers"
+tableEnv.registerTableSource("Customers", custTS)
+
+{% endhighlight %}
+</div>
+</div>
+
+A `TableSource` can provide access to data stored in various storage systems such as databases (MySQL, HBase, ...), file formats (CSV, Apache Parquet, Avro, ORC, ...), or messaging systems (Apache Kafka, RabbitMQ, ...).
+
+Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. 
+
+#### Access a registered Table
+
+A registered table can be accessed from a `TableEnvironment` as follows:
+
+- `tEnv.scan("tName")` scans a `Table` that was registered as `"tName"` in a `BatchTableEnvironment`.
+- `tEnv.ingest("tName")` ingests a `Table` that was registered as `"tName"` in a `StreamTableEnvironment`.
+- `tEnv.sql(SELECT * FROM tName)` executes the SQL query on the corresponding tables which were registered in a `TableEnvironment`.
+
 ### Scala Table API
 
 The Table API is enabled by importing `org.apache.flink.api.scala.table._`. This enables
@@ -448,82 +609,7 @@ column names and function names follow Java identifier syntax. Expressions speci
 SQL
 ----
 The Table API also supports embedded SQL queries.
-In order to use a `Table`, `DataSet`, or `DataStream` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name.
-A registered Dataset `Table` can be retrieved back from the `TableEnvironment` using the `scan()` method and a registered DataStream `Table` can be retrieved using the `ingest()` method.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-// create a Table environment
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-DataSet<Tuple2<Integer, Long>> ds = env.readCsvFile(...);
-// register the DataSet as table "MyTable"
-tableEnv.registerDataSet("MyTable", ds);
-// retrieve "MyTable" into a new Table
-Table t = tableEnv.scan("MyTable");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = ExecutionEnvironment.getExecutionEnvironment
-// create a Table environment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
-
-val ds = env.readCsvFile(...)
-// register the DataSet as table "MyTable"
-tableEnv.registerDataSet("MyTable", ds)
-// retrieve "MyTable" into a new Table
-val t = tableEnv.scan("MyTable")
-{% endhighlight %}
-</div>
-</div>
-
-A DataStream `Table` can be registered in the `StreamTableEnvironment` using the correponding `registerDataStream` method.
-
-*Note: DataSet Table names are not allowed to follow the `^_DataSetTable_[0-9]+` pattern and DataStream Tables are not allowed to follow the `^_DataStreamTable_[0-9]+` pattern, as these are reserved for internal use only.*
-
-When registering a `DataSet` or `DataStream`, one can also specify the field names of the table:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-// register the DataSet as table "Orders" with fields user, product, and amount
-tableEnv.registerDataSet("Orders", ds, "user, product, amount");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// register the DataSet as table "Orders" with fields user, product, and amount
-tableEnv.registerDataSet("Orders", ds, 'user, 'product, 'amount)
-{% endhighlight %}
-</div>
-</div>
-
-A `Table` can be registered in a similar way:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-Table t = tableEnv.fromDataSet(ds).as("user, product, amount");
-// register the Table as table "Orders"
-tableEnv.registerTable("Orders", t);
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val t = ds.toTable(tableEnv, 'user, 'product, 'amount)
-// register the Table as table "Orders"
-tableEnv.registerTable("Orders", t)
-{% endhighlight %}
-</div>
-</div>
-
-Registered tables can be used in SQL queries. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet`, or `DataStream`, or used in subsequent Table API queries.
+In order to use a `Table`, `DataSet`, `DataStream`, or external `TableSource` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name as shown above. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet`, or `DataStream`, or used in subsequent Table API queries.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

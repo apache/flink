@@ -24,24 +24,22 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
-import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.plan.schema.TableSourceTable
+import org.apache.flink.api.table.sources.BatchTableSource
 
-/**
-  * Flink RelNode which matches along with DataSource.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
-  */
-class DataSetScan(
+/** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
+class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
     rowType: RelDataType)
   extends BatchScan(cluster, traitSet, table, rowType) {
 
-  val dataSetTable: DataSetTable[Any] = table.unwrap(classOf[DataSetTable[Any]])
+  val tableSourceTable = table.unwrap(classOf[TableSourceTable])
+  val tableSource = tableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataSetScan(
+    new BatchTableSourceScan(
       cluster,
       traitSet,
       table,
@@ -54,9 +52,8 @@ class DataSetScan(
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val inputDataSet: DataSet[Any] = dataSetTable.dataSet
+    val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
 
-    convertToExpectedType(inputDataSet, dataSetTable, expectedType, config)
+    convertToExpectedType(inputDataSet, tableSourceTable, expectedType, config)
   }
-
 }

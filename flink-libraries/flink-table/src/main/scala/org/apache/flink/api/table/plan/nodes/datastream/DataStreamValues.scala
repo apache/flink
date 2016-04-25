@@ -75,7 +75,7 @@ class DataStreamValues(
     }
 
     val inputFormat = new ValuesInputFormat(rows)
-    tableEnv.getExecEnv.createInput(inputFormat, returnType).asInstanceOf[DataStream[Any]]
+    tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataStream[Any]]
   }
 
 }

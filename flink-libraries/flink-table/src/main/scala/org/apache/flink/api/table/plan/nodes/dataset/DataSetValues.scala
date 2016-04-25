@@ -85,7 +85,7 @@ class DataSetValues(
     }
 
     val inputFormat = new ValuesInputFormat(rows)
-    tableEnv.getExecEnv.createInput(inputFormat, returnType).asInstanceOf[DataSet[Any]]
+    tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataSet[Any]]
   }
 
   private def valuesFieldsToString: String = {

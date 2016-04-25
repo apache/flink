@@ -33,7 +33,8 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetRel, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataSetTable}
+import org.apache.flink.api.table.sources.BatchTableSource
 
 /**
   * The abstract base class for batch TableEnvironments.
@@ -51,7 +52,7 @@ import org.apache.flink.api.table.plan.schema.DataSetTable
   * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
   */
 abstract class BatchTableEnvironment(
-    execEnv: ExecutionEnvironment,
+    private[flink] val execEnv: ExecutionEnvironment,
     config: TableConfig)
   extends TableEnvironment(config) {
 
@@ -101,6 +102,19 @@ abstract class BatchTableEnvironment(
   }
 
   /**
+    * Registers an external [[BatchTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name The name under which the [[BatchTableSource]] is registered.
+    * @param tableSource The [[BatchTableSource]] to register.
+    */
+  def registerTableSource(name: String, tableSource: BatchTableSource[_]): Unit = {
+
+    checkValidTableName(name)
+    registerTableInternal(name, new TableSourceTable(tableSource))
+  }
+
+  /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment.
@@ -120,12 +134,6 @@ abstract class BatchTableEnvironment(
 
     new Table(relational.rel, this)
   }
-
-  /**
-    * Returns the [[org.apache.flink.api.java.ExecutionEnvironment]] which is wrapped in this
-    * [[BatchTableEnvironment]].
-    */
-  private[flink] def getExecEnv: ExecutionEnvironment = execEnv
 
   /**
     * Returns the AST of the specified Table API and SQL queries and the execution plan to compute

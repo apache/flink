@@ -102,7 +102,8 @@ object FlinkRuleSets {
     DataSetJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
     DataSetUnionRule.INSTANCE,
-    DataSetValuesRule.INSTANCE
+    DataSetValuesRule.INSTANCE,
+    BatchTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -142,7 +143,8 @@ object FlinkRuleSets {
       DataStreamCalcRule.INSTANCE,
       DataStreamScanRule.INSTANCE,
       DataStreamUnionRule.INSTANCE,
-      DataStreamValuesRule.INSTANCE
+      DataStreamValuesRule.INSTANCE,
+      StreamTableSourceScanRule.INSTANCE
   )
 
     RuleSets.ofList(rules ++ StreamRules.RULES.asList.take(7))
