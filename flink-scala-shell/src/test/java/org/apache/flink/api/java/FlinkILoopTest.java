@@ -30,7 +30,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.BDDMockito;
 import org.mockito.Matchers;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
@@ -39,7 +38,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import scala.Option;
 import scala.tools.nsc.Settings;
 
-import java.io.File;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;

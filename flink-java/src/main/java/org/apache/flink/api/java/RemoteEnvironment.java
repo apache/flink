@@ -138,7 +138,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
 		if (jarFiles != null) {
 			this.jarFiles = new ArrayList<>(jarFiles.length);
-			for(String jarFile : jarFiles) {
+			for (String jarFile : jarFiles) {
 				try {
 					this.jarFiles.add(new File(jarFile).getAbsoluteFile().toURI().toURL());
 				} catch (MalformedURLException e) {
