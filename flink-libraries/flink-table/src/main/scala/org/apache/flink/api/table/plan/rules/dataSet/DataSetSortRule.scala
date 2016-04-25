@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalSort
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rel.logical.{LogicalJoin, LogicalSort}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSort}
 
 class DataSetSortRule
@@ -30,6 +31,15 @@ class DataSetSortRule
     Convention.NONE,
     DataSetConvention.INSTANCE,
     "FlinkSortRule") {
+
+  /**
+    * Only translate when no OFFSET or LIMIT specified
+    */
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val sort = call.rel(0).asInstanceOf[LogicalSort]
+    sort.offset == null && sort.fetch == null
+  }
+
   override def convert(rel: RelNode): RelNode = {
 
     val sort: LogicalSort = rel.asInstanceOf[LogicalSort]

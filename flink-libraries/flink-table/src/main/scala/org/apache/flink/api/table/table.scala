@@ -401,23 +401,21 @@ class Table(
   }
 
   /**
-    * Sorts the given [[Table]]. Similar to SQL ORDER BY. The sorting is performed locally across
-    * all partitions with keys equal to the given fields.
+    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
+    * The resulting Table is sorted globally sorted across all parallel partitions.
     *
     * Example:
     *
     * {{{
-    *   tab.orderBy('name)
+    *   tab.orderBy('name.desc)
     * }}}
     */
   def orderBy(fields: Expression*): Table = {
     relBuilder.push(relNode)
 
     if (! fields.forall {
-      case x: UnresolvedFieldReference => true
-      case x@(_: Asc | _: Desc) => x.asInstanceOf[UnaryExpression]
-        .child
-        .isInstanceOf[UnresolvedFieldReference]
+      case x : UnresolvedFieldReference => true
+      case x : Ordering => x.child.isInstanceOf[UnresolvedFieldReference]
       case _ => false
     }) {
       throw new IllegalArgumentException("All expressions must be field references " +
@@ -432,13 +430,13 @@ class Table(
   }
 
   /**
-    * Sorts the given [[Table]]. Similar to SQL ORDER BY. The sorting is performed locally across
-    * all partitions with keys equal to the given fields.
+    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
+    * The resulting Table is sorted globally sorted across all parallel partitions.
     *
     * Example:
     *
     * {{{
-    *   tab.orderBy("name")
+    *   tab.orderBy("name DESC")
     * }}}
     */
   def orderBy(fields: String): Table = {

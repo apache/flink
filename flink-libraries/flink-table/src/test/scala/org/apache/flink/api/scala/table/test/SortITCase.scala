@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.scala.table._
+import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
@@ -38,84 +38,108 @@ class SortITCase(
     configMode: TableConfigMode)
   extends TableProgramsTestBase(mode, configMode) {
 
+  def getExecutionEnvironment = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    env
+  }
+
+  val tupleDataSetStrings = List((1, 1L, "Hi")
+    ,(2, 2L, "Hello")
+    ,(3, 2L, "Hello world")
+    ,(4, 3L, "Hello world, how are you?")
+    ,(5, 3L, "I am fine.")
+    ,(6, 3L, "Luke Skywalker")
+    ,(7, 4L, "Comment#1")
+    ,(8, 4L, "Comment#2")
+    ,(9, 4L, "Comment#3")
+    ,(10, 4L, "Comment#4")
+    ,(11, 5L, "Comment#5")
+    ,(12, 5L, "Comment#6")
+    ,(13, 5L, "Comment#7")
+    ,(14, 5L, "Comment#8")
+    ,(15, 5L, "Comment#9")
+    ,(16, 6L, "Comment#10")
+    ,(17, 6L, "Comment#11")
+    ,(18, 6L, "Comment#12")
+    ,(19, 6L, "Comment#13")
+    ,(20, 6L, "Comment#14")
+    ,(21, 6L, "Comment#15"))
+
   @Test
   def testOrderByDesc(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-      .orderBy('_1.desc)
 
-    val expected = "3,Third\n2,Second\n1,First"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val t = ds.toTable(tEnv).orderBy('_1.desc)
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => - x.productElement(0).asInstanceOf[Int])
+
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
   def testOrderByAsc(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    val t = env.fromElements((1, "First"), (3, "Third"), (2, "Second")).toTable(tEnv)
-      .orderBy('_1.asc)
 
-    val expected = "1,First\n2,Second\n3,Third"
-    val results = t.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val t = ds.toTable(tEnv).orderBy('_1.asc)
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => x.productElement(0).asInstanceOf[Int])
+
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
   def testOrderByMultipleFieldsDifferentDirections(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    
-    env.setParallelism(2)
-    val t = env.fromElements((1, 3, "Third"), (1, 2, "Fourth"), (1, 4, "Second"),
-      (2, 1, "Sixth"), (1, 5, "First"), (1, 1, "Fifth"))
-      .toTable(tEnv).orderBy('_1.asc, '_2.desc)
 
-    val expected = "1,5,First\n1,4,Second\n1,3,Third\n1,2,Fourth\n1,1,Fifth\n2,1,Sixth"
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val t = ds.toTable(tEnv).orderBy('_1.asc, '_2.desc)
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => (x.productElement(0).asInstanceOf[Int],
+      - x.productElement(1).asInstanceOf[Long]))
+
+    val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    implicit def rowOrdering = Ordering.by((x : Row) => (x.productElement(0).asInstanceOf[Int],
-      - x.productElement(1).asInstanceOf[Int]))
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
 
-    val result = results.sortBy(p => p.min).reduceLeft(_ ++ _)
-
-    compareOrderedResultAsText(expected, result)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
   def testOrderByMultipleFieldsWithSql(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => (- x.productElement(0).asInstanceOf[Int],
+      - x.productElement(1).asInstanceOf[Long]))
 
-    val t = env.fromElements((1, 1, "First"), (2, 3, "Fourth"), (1, 2, "Second"),
-      (2, 1, "Third")).toTable(tEnv)
-    tEnv.registerDataSet("MyTable", t)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
 
-    val queryResult = tEnv.sql(sqlQuery)
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val expected = "2,3,Fourth\n2,1,Third\n1,2,Second\n1,1,First"
-    val results = queryResult.toDataSet[Row].setParallelism(1).collect()
-    compareOrderedResultAsText(expected, results)
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
-  private def compareOrderedResultAsText[T](expected: String, results: Seq[T]) = {
-    if (configMode == TableConfigMode.EFFICIENT) {
-      results match {
-        case x if x.exists(_.isInstanceOf[Tuple]) =>
-          TestBaseUtils.compareOrderedResultAsText(results.asJava, expected, true)
-        case x if x.exists(_.isInstanceOf[Product]) =>
-          TestBaseUtils.compareOrderedResultAsText(results.asInstanceOf[Seq[Product]]
-            .map(_.productIterator.mkString(",")).asJava, expected)
-        case _ => TestBaseUtils.compareOrderedResultAsText(results.asJava, expected)
-      }
-    } else {
-      TestBaseUtils.compareOrderedResultAsText(results.asJava, expected)
-    }
+  def sortExpectedly(dataSet: List[Product])(implicit ordering: Ordering[Product]): String = {
+    dataSet.sorted(ordering).mkString("\n").replaceAll("[\\(\\)]", "")
   }
 
 }

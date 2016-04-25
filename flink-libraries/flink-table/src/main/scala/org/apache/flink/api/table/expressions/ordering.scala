@@ -19,7 +19,10 @@ package org.apache.flink.api.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
-case class Asc(child: Expression) extends UnaryExpression {
+abstract class Ordering extends UnaryExpression { self: Product =>
+}
+
+case class Asc(child: Expression) extends Ordering{
   override def toString: String = s"($child).asc"
 
   override def name: String = child.name + "-asc"
@@ -29,7 +32,7 @@ case class Asc(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Desc(child: Expression) extends UnaryExpression {
+case class Desc(child: Expression) extends Ordering {
   override def toString: String = s"($child).desc"
 
   override def name: String = child.name + "-desc"

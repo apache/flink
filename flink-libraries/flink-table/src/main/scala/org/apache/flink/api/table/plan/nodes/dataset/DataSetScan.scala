@@ -26,6 +26,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
+
 /**
   * Flink RelNode which matches along with DataSource.
   * It ensures that types without deterministic field order (e.g. POJOs) are not part of

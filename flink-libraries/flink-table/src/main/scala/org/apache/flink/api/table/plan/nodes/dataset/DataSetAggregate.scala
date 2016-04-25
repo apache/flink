@@ -143,7 +143,12 @@ class DataSetAggregate(
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
         val mapName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
-        result.map(typeConversion(config, rowTypeInfo, expectedType.get))
+        result.map(getConversionMapper(config,
+          rowTypeInfo.asInstanceOf[TypeInformation[Any]],
+          expectedType.get,
+          "AggregateOutputConversion",
+          rowType.getFieldNames.asScala
+        ))
         .name(mapName)
       case _ => result
     }
@@ -178,34 +183,6 @@ class DataSetAggregate(
         s"$f AS $o"
       }
     }.mkString(", ")
-  }
-
-  private def typeConversion(
-      config: TableConfig,
-      rowTypeInfo: RowTypeInfo,
-      expectedType: TypeInformation[Any]): MapFunction[Any, Any] = {
-
-    val generator = new CodeGenerator(config, rowTypeInfo.asInstanceOf[TypeInformation[Any]])
-    val conversion = generator.generateConverterResultExpression(
-      expectedType, rowType.getFieldNames.asScala)
-
-    val body =
-      s"""
-          |${conversion.code}
-          |return ${conversion.resultTerm};
-          |""".stripMargin
-
-    val genFunction = generator.generateFunction(
-      "AggregateOutputConversion",
-      classOf[MapFunction[Any, Any]],
-      body,
-      expectedType)
-
-    new MapRunner[Any, Any](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
-
   }
 
 }

@@ -23,13 +23,12 @@ import java.util
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelCollation, RelNode, SingleRel}
+import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.operators.{DataSource, Operator, PartitionOperator}
-import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
-import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.java.typeutils.PojoTypeInfo
+import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.typeutils.TypeConverter._
 
 import scala.collection.JavaConverters._
@@ -39,10 +38,9 @@ class DataSetSort(
     traitSet: RelTraitSet,
     inp: RelNode,
     collations: RelCollation,
-    rowType: RelDataType)
+    rowType2: RelDataType)
   extends SingleRel(cluster, traitSet, inp)
   with DataSetRel{
-
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode ={
     new DataSetSort(
@@ -50,7 +48,7 @@ class DataSetSort(
       traitSet,
       inputs.get(0),
       collations,
-      rowType
+      rowType2
     )
   }
 
@@ -60,37 +58,50 @@ class DataSetSort(
 
     val config = tableEnv.getConfig
 
-    val inputDS = wrapDataSet(inp.asInstanceOf[DataSetRel].translateToPlan(tableEnv))
+    val inputDS = inp.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage
-    )
-
-    val fieldCollations = collations.getFieldCollations.asScala
-      .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
-
-    val currentParallelism = if (inputDS.getParallelism >= 1) {
-      inputDS.getParallelism
-    } else {
-      inputDS.getExecutionEnvironment.getParallelism
-    }
-
+    val currentParallelism = inputDS.getExecutionEnvironment.getParallelism
     var partitionedDs = if (currentParallelism == 1) {
-      inputDS.setParallelism(1)
+      inputDS
     } else {
-      wrapDataSet(inputDS.partitionByRange(fieldCollations.map(_._1): _*).javaSet
-        .asInstanceOf[PartitionOperator[Any]]
-        .withOrders(fieldCollations.map(_._2): _*))
+      inputDS.partitionByRange(fieldCollations.map(_._1): _*)
+        .withOrders(fieldCollations.map(_._2): _*)
     }
 
     fieldCollations.foreach { fieldCollation =>
       partitionedDs = partitionedDs.sortPartition(fieldCollation._1, fieldCollation._2)
     }
 
-    partitionedDs.javaSet
+    val inputType = partitionedDs.getType
+    expectedType match {
+
+      case None if config.getEfficientTypeUsage =>
+        partitionedDs
+
+      case _ =>
+        val determinedType = determineReturnType(
+          getRowType,
+          expectedType,
+          config.getNullCheck,
+          config.getEfficientTypeUsage)
+
+        // conversion
+        if (determinedType != inputType) {
+
+          val mapFunc = getConversionMapper(config,
+            partitionedDs.getType,
+            determinedType,
+            "DataSetSortConversion",
+            getRowType.getFieldNames.asScala
+          )
+
+          partitionedDs.map(mapFunc)
+        }
+        // no conversion necessary, forward
+        else {
+          partitionedDs
+        }
+    }
   }
 
   private def directionToOrder(direction: Direction) = {
@@ -101,8 +112,16 @@ class DataSetSort(
 
   }
 
-  private def wrapDataSet(dataSet: DataSet[Any]) = {
-    new org.apache.flink.api.scala.DataSet(dataSet)
-  }
+  private val fieldCollations = collations.getFieldCollations.asScala
+    .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
 
+  private val sortFieldsToString = fieldCollations
+    .map(col => s"${rowType2.getFieldNames.get(col._1)} ${col._2.getShortName}" ).mkString(", ")
+
+  override def toString: String = s"Sort(by: $sortFieldsToString)"
+
+  override def explainTerms(pw: RelWriter) : RelWriter = {
+    super.explainTerms(pw)
+      .item("by", sortFieldsToString)
+  }
 }
