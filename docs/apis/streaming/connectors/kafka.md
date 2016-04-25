@@ -95,7 +95,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 
 #### Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09`). It provides access to one or more Kafka topics.
+Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
@@ -136,6 +136,11 @@ stream = env
 </div>
 </div>
 
+The current FlinkKafkaConsumer implementation will establish a connection from the client (when calling the constructor)
+for querying the list of topics and partitions.
+
+For this to work, the consumer needs to be able to access the consumers from the machine submitting the job to the Flink cluster.
+If you experience any issues with the Kafka consumer on the client side, the client log might contain information about failed requests, etc.
 
 ##### The `DeserializationSchema`
 

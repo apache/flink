@@ -123,11 +123,15 @@ Flink on YARN will overwrite the following configuration parameters `jobmanager.
 
 If you don't want to change the configuration file to set configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.network.numberOfBuffers=16368`.
 
-The example invocation starts 11 containers, since there is one additional container for the ApplicationMaster and Job Manager.
+The example invocation starts 11 containers (even though only 10 containers were requested), since there is one additional container for the ApplicationMaster and Job Manager.
 
 Once Flink is deployed in your YARN cluster, it will show you the connection details of the Job Manager.
 
 Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
+
+Flink on YARN will only start all requested containers if enough resources are available on the cluster. Most YARN schedulers account for the requested memory of the containers,
+some account also for the number of vcores. By default, the number of vcores is equal to the processing slots (`-s`) argument. The `yarn.containers.vcores` allows overwriting the
+number of vcores with a custom value.
 
 #### Detached YARN Session
 
@@ -288,6 +292,6 @@ When starting a new Flink YARN session, the client first checks if the requested
 
 The next step of the client is to request (step 2) a YARN container to start the *ApplicationMaster* (step 3). Since the client registered the configuration and jar-file as a resource for the container, the NodeManager of YARN running on that particular machine will take care of preparing the container (e.g. downloading the files). Once that has finished, the *ApplicationMaster* (AM) is started.
 
-The *JobManager* and AM are running in the same container. Once they successfully started, the AM knows the address of the JobManager (its own host). It is generating a new Flink configuration file for the TaskManagers (so that they can connect to the JobManager). The file is also uploaded to HDFS. Additionally, the *AM* container is also serving Flink's web interface. The ports Flink is using for its services are the standard ports configured by the user + the application id as an offset. This allows users to execute multiple Flink YARN sessions in parallel.
+The *JobManager* and AM are running in the same container. Once they successfully started, the AM knows the address of the JobManager (its own host). It is generating a new Flink configuration file for the TaskManagers (so that they can connect to the JobManager). The file is also uploaded to HDFS. Additionally, the *AM* container is also serving Flink's web interface. All ports the YARN code is allocating are *ephemeral ports*. This allows users to execute multiple Flink YARN sessions in parallel.
 
 After that, the AM starts allocating the containers for Flink's TaskManagers, which will download the jar file and the modified configuration from the HDFS. Once these steps are completed, Flink is set up and ready to accept Jobs.
