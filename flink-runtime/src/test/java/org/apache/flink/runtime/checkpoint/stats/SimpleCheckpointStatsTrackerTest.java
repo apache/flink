@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StateForTask;
+import org.apache.flink.runtime.checkpoint.StateForTaskGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
@@ -29,12 +30,13 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -115,9 +117,19 @@ public class SimpleCheckpointStatsTrackerTest {
 
 		tracker.onCompletedCheckpoint(checkpoints[0]);
 
-		JobVertexID operatorId = checkpoints[0].getStates().get(0).getOperatorId();
+		Set<JobVertexID> jobVerticesID = checkpoints[0].getTaskGroupStates().keySet();
 
-		assertNotNull(tracker.getOperatorStats(checkpoints[0].getStates().get(0).getOperatorId()));
+		Iterator<JobVertexID> jobVertexIDIterator = jobVerticesID.iterator();
+
+		JobVertexID operatorId = null;
+
+		if (jobVertexIDIterator.hasNext()) {
+			operatorId = jobVertexIDIterator.next();
+		}
+
+		assertNotNull(operatorId);
+
+		assertNotNull(tracker.getOperatorStats(operatorId));
 
 		// Get the cache
 		Field f = tracker.getClass().getDeclaredField("operatorStatsCache");
@@ -162,10 +174,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 			CompletedCheckpoint checkpoint = checkpoints[checkpoints.length - 1 - i];
 
-			long stateSize = 0;
-			for (StateForTask state : checkpoint.getStates()) {
-				stateSize += state.getStateSize();
-			}
+			long stateSize = checkpoint.getStateSize();
 
 			CheckpointStats expectedStats = new CheckpointStats(
 					checkpoint.getCheckpointID(),
@@ -201,10 +210,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 			totalDuration += checkpoint.getDuration();
 
-			long stateSize = 0;
-			for (StateForTask state : checkpoint.getStates()) {
-				stateSize += state.getStateSize();
-			}
+			long stateSize = checkpoint.getStateSize();
 
 			// State size
 			if (stateSize < minStateSize) {
@@ -236,6 +242,9 @@ public class SimpleCheckpointStatsTrackerTest {
 		for (ExecutionVertex vertex : tasksToWaitFor) {
 			JobVertexID operatorId = vertex.getJobvertexId();
 			int parallelism = vertex.getTotalNumberOfParallelSubtasks();
+			StateForTaskGroup stateForTaskGroup = checkpoint.getTaskGroupState(operatorId);
+
+			assertNotNull(stateForTaskGroup);
 
 			OperatorCheckpointStats actualStats = tracker.getOperatorStats(operatorId).get();
 
@@ -245,20 +254,10 @@ public class SimpleCheckpointStatsTrackerTest {
 			long[][] expectedSubTaskStats = new long[parallelism][2];
 
 			for (int i = 0; i < parallelism; i++) {
-				long duration = -1;
-				long stateSize = -1;
+				StateForTask stateForTask = stateForTaskGroup.getState(i);
 
-				for (StateForTask state : checkpoint.getStates()) {
-					if (state.getOperatorId().equals(operatorId) &&
-							state.getSubtask() == i) {
-
-						duration = state.getDuration();
-						stateSize = state.getStateSize();
-					}
-				}
-
-				expectedSubTaskStats[i][0] = duration;
-				expectedSubTaskStats[i][1] = stateSize;
+				expectedSubTaskStats[i][0] = stateForTask.getDuration();
+				expectedSubTaskStats[i][1] = stateForTask.getStateSize();
 			}
 
 			OperatorCheckpointStats expectedStats = new OperatorCheckpointStats(
@@ -305,7 +304,7 @@ public class SimpleCheckpointStatsTrackerTest {
 			long triggerTimestamp = System.currentTimeMillis();
 			int maxDuration = RAND.nextInt(128 + 1);
 
-			ArrayList<StateForTask> states = new ArrayList<>();
+			Map<JobVertexID, StateForTaskGroup> taskGroupStates = new HashMap<>();
 
 			// The maximum random duration is used as time to completion
 			int completionDuration = 0;
@@ -315,6 +314,10 @@ public class SimpleCheckpointStatsTrackerTest {
 				JobVertexID operatorId = operatorIds[operatorIndex];
 				int parallelism = operatorParallelism[operatorIndex];
 
+				StateForTaskGroup stateForTaskGroup = new StateForTaskGroup(operatorId, parallelism);
+
+				taskGroupStates.put(operatorId, stateForTaskGroup);
+
 				for (int subtaskIndex = 0; subtaskIndex < parallelism; subtaskIndex++) {
 					int duration = RAND.nextInt(maxDuration + 1);
 
@@ -322,12 +325,12 @@ public class SimpleCheckpointStatsTrackerTest {
 						completionDuration = duration;
 					}
 
-					states.add(new StateForTask(
-							new SerializedValue<StateHandle<?>>(null),
-							minStateSize + ((long) (RAND.nextDouble() * (maxStateSize - minStateSize))),
-							operatorId,
-							subtaskIndex,
-							duration));
+					StateForTask stateForTask = new StateForTask(
+						new SerializedValue<StateHandle<?>>(null),
+						minStateSize + ((long) (RAND.nextDouble() * (maxStateSize - minStateSize))),
+						duration);
+
+					stateForTaskGroup.putState(subtaskIndex, stateForTask);
 				}
 			}
 
@@ -335,33 +338,22 @@ public class SimpleCheckpointStatsTrackerTest {
 			final long completionTimestamp = triggerTimestamp + completionDuration + RAND.nextInt(10);
 
 			checkpoints[i] = new CompletedCheckpoint(
-					jobId, i, triggerTimestamp, completionTimestamp, states);
+					jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates);
 		}
 
 		return checkpoints;
 	}
 
 	private ExecutionVertex[] createTasksToWaitFor(CompletedCheckpoint checkpoint) {
-		Map<JobVertexID, Integer> operators = new HashMap<>();
-
-		for (StateForTask state : checkpoint.getStates()) {
-			Integer parallelism = operators.get(state.getOperatorId());
-
-			if (parallelism == null) {
-				operators.put(state.getOperatorId(), state.getSubtask() + 1);
-			}
-			else if (parallelism < state.getSubtask() + 1) {
-				operators.put(state.getOperatorId(), state.getSubtask() + 1);
-			}
-		}
-
-		ExecutionVertex[] tasksToWaitFor = new ExecutionVertex[operators.size()];
+		ExecutionVertex[] tasksToWaitFor = new ExecutionVertex[checkpoint.getTaskGroupStates().size()];
 
 		int i = 0;
-		for (JobVertexID operatorId : operators.keySet()) {
+		for (Map.Entry<JobVertexID, StateForTaskGroup> entry : checkpoint.getTaskGroupStates().entrySet()) {
+			JobVertexID operatorId = entry.getKey();
+			int parallelism = entry.getValue().getParallelism();
 			tasksToWaitFor[i] = mock(ExecutionVertex.class);
 			when(tasksToWaitFor[i].getJobvertexId()).thenReturn(operatorId);
-			when(tasksToWaitFor[i].getTotalNumberOfParallelSubtasks()).thenReturn(operators.get(operatorId));
+			when(tasksToWaitFor[i].getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
 
 			i++;
 		}

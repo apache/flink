@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * A successful checkpoint describes a checkpoint after all required tasks acknowledged it (with their state)
@@ -42,20 +44,21 @@ public class CompletedCheckpoint implements Serializable {
 	/** The duration of the checkpoint (completion timestamp - trigger timestamp). */
 	private final long duration;
 
-	private final ArrayList<StateForTask> states;
+	/** States of the different task groups belonging to this checkpoint */
+	private final Map<JobVertexID, StateForTaskGroup> taskGroupStates;
 
 	public CompletedCheckpoint(
-			JobID job,
-			long checkpointID,
-			long timestamp,
-			long completionTimestamp,
-			ArrayList<StateForTask> states) {
+		JobID job,
+		long checkpointID,
+		long timestamp,
+		long completionTimestamp,
+		Map<JobVertexID, StateForTaskGroup> taskGroupStates) {
 
 		this.job = job;
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
-		this.states = states;
+		this.taskGroupStates = Preconditions.checkNotNull(taskGroupStates);
 	}
 
 	public JobID getJobId() {
@@ -74,20 +77,56 @@ public class CompletedCheckpoint implements Serializable {
 		return duration;
 	}
 
-	public List<StateForTask> getStates() {
-		return states;
+	public long getStateSize() {
+		long result = 0L;
+
+		for (StateForTaskGroup stateForTaskGroup: taskGroupStates.values()) {
+			result  += stateForTaskGroup.getStateSize();
+		}
+
+		return result;
+	}
+
+	public Map<JobVertexID, StateForTaskGroup> getTaskGroupStates() {
+		return taskGroupStates;
+	}
+
+	public StateForTaskGroup getTaskGroupState(JobVertexID jobVertexID) {
+		return taskGroupStates.get(jobVertexID);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public void discard(ClassLoader userClassLoader) {
-		for(StateForTask state: states){
+		for (StateForTaskGroup state: taskGroupStates.values()) {
 			state.discard(userClassLoader);
 		}
-		states.clear();
+
+		taskGroupStates.clear();
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof CompletedCheckpoint) {
+			CompletedCheckpoint other = (CompletedCheckpoint) obj;
+
+			return job.equals(other.job) && checkpointID == other.checkpointID &&
+				timestamp == other.timestamp && duration == other.duration &&
+				taskGroupStates.equals(other.taskGroupStates);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return (int) (this.checkpointID ^ this.checkpointID >>> 32) +
+			31 * ((int) (this.timestamp ^ this.timestamp >>> 32) +
+				31 * ((int) (this.duration ^ this.duration >>> 32) +
+					31 * Objects.hash(job, taskGroupStates)));
+	}
 	
 	@Override
 	public String toString() {

@@ -137,6 +137,8 @@ public class Execution implements Serializable {
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 
 	private SerializedValue<StateHandle<?>> operatorState;
+
+	private Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState;
 	
 	private long recoveryTimestamp;
 
@@ -235,11 +237,16 @@ public class Execution implements Serializable {
 		partialInputChannelDeploymentDescriptors = null;
 	}
 
-	public void setInitialState(SerializedValue<StateHandle<?>> initialState, long recoveryTimestamp) {
+	public void setInitialState(
+		SerializedValue<StateHandle<?>> initialState,
+		Map<Integer, SerializedValue<StateHandle<?>>> initialKvState,
+		long recoveryTimestamp) {
+
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 		this.operatorState = initialState;
+		this.operatorKvState = initialKvState;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
@@ -364,7 +371,13 @@ public class Execution implements Serializable {
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState, recoveryTimestamp, attemptNumber);
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
+				attemptId,
+				slot,
+				operatorState,
+				operatorKvState,
+				recoveryTimestamp,
+				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
