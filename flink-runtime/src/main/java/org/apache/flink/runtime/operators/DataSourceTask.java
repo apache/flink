@@ -170,14 +170,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			// close the collector. if it is a chaining task collector, it will close its chained tasks
 			this.output.close();
 			
-			// --------------------------------------------------------------------
-			// Closing
-			// --------------------------------------------------------------------
-			if(RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
-				((RichInputFormat) this.format).closeInputFormat();
-				LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
-			}
-
 			// close all chained tasks letting them report failure
 			BatchTask.closeChainedTasks(this.chainedTasks, this);
 
@@ -202,6 +194,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			}
 		} finally {
 			BatchTask.clearWriters(eventualOutputs);
+			// --------------------------------------------------------------------
+			// Closing
+			// --------------------------------------------------------------------
+			if(this.format!=null && RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
+				((RichInputFormat) this.format).closeInputFormat();
+				LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
+			}
 		}
 
 		if (!this.taskCanceled) {
@@ -210,6 +209,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		else {
 			LOG.debug(getLogString("Data source operator cancelled"));
 		}
+		
 	}
 
 	@Override
