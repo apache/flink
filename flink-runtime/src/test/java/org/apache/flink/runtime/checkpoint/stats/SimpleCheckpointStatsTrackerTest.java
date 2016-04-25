@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StateForTask;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@Test
 	public void testNoCompletedCheckpointYet() throws Exception {
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(
-				0, new ExecutionVertex[0]);
+				0, Collections.<ExecutionJobVertex>emptyList());
 
 		assertFalse(tracker.getJobStats().isDefined());
 		assertFalse(tracker.getOperatorStats(new JobVertexID()).isDefined());
@@ -59,7 +60,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@Test
 	public void testRandomStats() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(16);
-		ExecutionVertex[] tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
+		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
 
 		for (int i = 0; i < checkpoints.length; i++) {
@@ -75,7 +76,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@Test
 	public void testIllegalOperatorId() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(16);
-		ExecutionVertex[] tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
+		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
 
 		for (CompletedCheckpoint checkpoint : checkpoints) {
@@ -90,7 +91,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@Test
 	public void testCompletedCheckpointReordering() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(2);
-		ExecutionVertex[] tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
+		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
 
 		// First the second checkpoint notifies
@@ -110,7 +111,7 @@ public class SimpleCheckpointStatsTrackerTest {
 	@SuppressWarnings("unchecked")
 	public void testOperatorStateCachedClearedOnNewCheckpoint() throws Exception {
 		CompletedCheckpoint[] checkpoints = generateRandomCheckpoints(2);
-		ExecutionVertex[] tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
+		List<ExecutionJobVertex> tasksToWaitFor = createTasksToWaitFor(checkpoints[0]);
 		CheckpointStatsTracker tracker = new SimpleCheckpointStatsTracker(10, tasksToWaitFor);
 
 		tracker.onCompletedCheckpoint(checkpoints[0]);
@@ -230,12 +231,12 @@ public class SimpleCheckpointStatsTrackerTest {
 
 	private static void verifySubtaskStats(
 			CheckpointStatsTracker tracker,
-			ExecutionVertex[] tasksToWaitFor,
+			List<ExecutionJobVertex> tasksToWaitFor,
 			CompletedCheckpoint checkpoint) {
 
-		for (ExecutionVertex vertex : tasksToWaitFor) {
-			JobVertexID operatorId = vertex.getJobvertexId();
-			int parallelism = vertex.getTotalNumberOfParallelSubtasks();
+		for (ExecutionJobVertex vertex : tasksToWaitFor) {
+			JobVertexID operatorId = vertex.getJobVertexId();
+			int parallelism = vertex.getParallelism();
 
 			OperatorCheckpointStats actualStats = tracker.getOperatorStats(operatorId).get();
 
@@ -341,7 +342,8 @@ public class SimpleCheckpointStatsTrackerTest {
 		return checkpoints;
 	}
 
-	private ExecutionVertex[] createTasksToWaitFor(CompletedCheckpoint checkpoint) {
+	private List<ExecutionJobVertex> createTasksToWaitFor(CompletedCheckpoint checkpoint) {
+
 		Map<JobVertexID, Integer> operators = new HashMap<>();
 
 		for (StateForTask state : checkpoint.getStates()) {
@@ -355,17 +357,14 @@ public class SimpleCheckpointStatsTrackerTest {
 			}
 		}
 
-		ExecutionVertex[] tasksToWaitFor = new ExecutionVertex[operators.size()];
-
-		int i = 0;
-		for (JobVertexID operatorId : operators.keySet()) {
-			tasksToWaitFor[i] = mock(ExecutionVertex.class);
-			when(tasksToWaitFor[i].getJobvertexId()).thenReturn(operatorId);
-			when(tasksToWaitFor[i].getTotalNumberOfParallelSubtasks()).thenReturn(operators.get(operatorId));
-
-			i++;
+		List<ExecutionJobVertex> jobVertices = new ArrayList<>(checkpoint.getStates().size());
+		for (JobVertexID vertexId : operators.keySet()) {
+			ExecutionJobVertex v = mock(ExecutionJobVertex.class);
+			when(v.getJobVertexId()).thenReturn(vertexId);
+			when(v.getParallelism()).thenReturn(operators.get(vertexId));
+			jobVertices.add(v);
 		}
 
-		return tasksToWaitFor;
+		return jobVertices;
 	}
 }

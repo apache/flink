@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -72,7 +73,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 					new StandaloneCheckpointIDCounter(),
 					new StandaloneCompletedCheckpointStore(1, ClassLoader.getSystemClassLoader()),
 					RecoveryMode.STANDALONE,
-					new HeapStateStore<CompletedCheckpoint>());
+					new HeapStateStore<CompletedCheckpoint>(),
+					new DisabledCheckpointStatsTracker());
 
 			CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 			SavepointCoordinator savepointCoordinator = executionGraph.getSavepointCoordinator();
