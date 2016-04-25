@@ -850,6 +850,15 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	/**
+	 * Groups the available set of key groups into key group partitions. A key group partition is
+	 * the set of key groups which is assigned to the same task. Each set of the returned list
+	 * constitutes a key group partition.
+	 *
+	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
+	 * @param parallelism Parallelism to generate the key group partitioning for
+	 * @return List of key group partitions
+	 */
 	protected List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
 		ArrayList<Set<Integer>> result = new ArrayList<>(parallelism);
 

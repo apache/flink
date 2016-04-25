@@ -115,6 +115,6 @@ public class StateForTask implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("StateForTask(%s)", state);
+		return String.format("StateForTask(Size: %d, Duration: %d, State: %s)", stateSize, duration, state);
 	}
 }
