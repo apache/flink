@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,7 +72,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false, new FixedDelayRestartStrategy(9999, 100));
 		cluster.start(false);
-		cluster.waitForTaskManagersToBeRegistered(timeout);
+		cluster.waitForTaskManagersToBeRegistered(TestingUtils.TESTING_DURATION());
 	}
 
 	/**
