@@ -18,7 +18,7 @@
 
 package org.apache.flink.graph.scala
 
-import com.google.common.base.Preconditions
+import org.apache.flink.util.Preconditions
 import org.apache.flink.api.common.functions.{FilterFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
