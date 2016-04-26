@@ -334,15 +334,19 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		switch (newState) {
 			case CONNECTED:
 				LOG.debug("Connected to ZooKeeper quorum. Leader election can start.");
+				break;
 			case SUSPENDED:
 				LOG.warn("Connection to ZooKeeper suspended. The contender " + leaderContender.getAddress()
 					+ "no longer participates in the leader election.");
+				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader election can be restarted.");
+				break;
 			case LOST:
 				// Maybe we have to throw an exception here to terminate the JobManager
 				LOG.warn("Connection to ZooKeeper lost. The contender " + leaderContender.getAddress()
 					+ "no longer participates in the leader election.");
+				break;
 		}
 	}
 }
