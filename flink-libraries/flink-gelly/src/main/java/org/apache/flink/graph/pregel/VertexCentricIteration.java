@@ -48,8 +48,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.

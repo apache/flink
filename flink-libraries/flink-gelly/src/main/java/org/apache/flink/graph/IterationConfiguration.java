@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This is used as a base class for vertex-centric iteration or gather-sum-apply iteration configuration.
