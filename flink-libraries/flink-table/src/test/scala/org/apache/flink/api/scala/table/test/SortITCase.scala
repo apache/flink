@@ -73,7 +73,8 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.desc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => - x.productElement(0).asInstanceOf[Int])
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+      - x.productElement(0).asInstanceOf[Int])
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
@@ -90,7 +91,8 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => x.productElement(0).asInstanceOf[Int])
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+      x.productElement(0).asInstanceOf[Int])
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
@@ -107,8 +109,8 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc, '_2.desc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => (x.productElement(0).asInstanceOf[Int],
-      - x.productElement(1).asInstanceOf[Long]))
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+      (x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
 
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
@@ -124,8 +126,8 @@ class SortITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) => (- x.productElement(0).asInstanceOf[Int],
-      - x.productElement(1).asInstanceOf[Long]))
+    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+      (- x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
