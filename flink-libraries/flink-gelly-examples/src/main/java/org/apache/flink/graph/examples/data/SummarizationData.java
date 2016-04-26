@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.examples.data;
 
-import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,6 +25,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.NullValue;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -83,7 +82,7 @@ public class SummarizationData {
 	 * @return vertex data set with string values
 	 */
 	public static DataSet<Vertex<Long, String>> getVertices(ExecutionEnvironment env) {
-		List<Vertex<Long, String>> vertices = Lists.newArrayListWithExpectedSize(6);
+		List<Vertex<Long, String>> vertices = new ArrayList<>(6);
 		vertices.add(new Vertex<>(0L, "A"));
 		vertices.add(new Vertex<>(1L, "A"));
 		vertices.add(new Vertex<>(2L, "B"));
@@ -101,7 +100,7 @@ public class SummarizationData {
 	 * @return edge data set with string values
 	 */
 	public static DataSet<Edge<Long, String>> getEdges(ExecutionEnvironment env) {
-		List<Edge<Long, String>> edges = Lists.newArrayListWithExpectedSize(10);
+		List<Edge<Long, String>> edges = new ArrayList<>(10);
 		edges.add(new Edge<>(0L, 1L, "A"));
 		edges.add(new Edge<>(1L, 0L, "A"));
 		edges.add(new Edge<>(1L, 2L, "A"));
