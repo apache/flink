@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +44,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertTrue;
 
@@ -61,7 +61,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	private JobGraph job = createBlockingJob(parallelism);
 
 	@Before
-	public void before() throws Exception {
+	public void before() throws TimeoutException, InterruptedException {
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
 		configuration = new Configuration();
@@ -72,7 +72,9 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false, new FixedDelayRestartStrategy(9999, 100));
 		cluster.start(false);
-		cluster.waitForTaskManagersToBeRegistered(TestingUtils.TESTING_DURATION());
+
+		// wait for actors to be alive so that they have started their leader retrieval service
+		cluster.waitForActorsToBeAlive();
 	}
 
 	/**
@@ -88,7 +90,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		cluster.submitJobDetached(job);
 
