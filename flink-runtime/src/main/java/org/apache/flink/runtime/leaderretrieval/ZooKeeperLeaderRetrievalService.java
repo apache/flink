@@ -148,14 +148,18 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 		switch (newState) {
 			case CONNECTED:
 				LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
+				break;
 			case SUSPENDED:
 				LOG.warn("Connection to ZooKeeper suspended. Can no longer retrieve the leader from " +
 					"ZooKeeper.");
+				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
+				break;
 			case LOST:
 				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
 					"ZooKeeper.");
+				break;
 		}
 	}
 }
