@@ -119,18 +119,32 @@ public final class ReplicatingInputFormat<OT, S extends InputSplit> extends Rich
 	}
 
 	@Override
-	public void setRuntimeContext(RuntimeContext context){
-		if(this.replicatedIF instanceof RichInputFormat){
+	public void setRuntimeContext(RuntimeContext context) {
+		if (this.replicatedIF instanceof RichInputFormat) {
 			((RichInputFormat)this.replicatedIF).setRuntimeContext(context);
 		}
 	}
 
 	@Override
 	public RuntimeContext getRuntimeContext(){
-		if(this.replicatedIF instanceof RichInputFormat){
+		if (this.replicatedIF instanceof RichInputFormat) {
 			return ((RichInputFormat)this.replicatedIF).getRuntimeContext();
 		} else{
 			throw new RuntimeException("The underlying input format to this ReplicatingInputFormat isn't context aware");
+		}
+	}
+
+	@Override
+	public void openInputFormat() {
+		if (this.replicatedIF instanceof RichInputFormat) {
+			((RichInputFormat)this.replicatedIF).openInputFormat();
+		}
+	}
+
+	@Override
+	public void closeInputFormat() {
+		if (this.replicatedIF instanceof RichInputFormat) {
+			((RichInputFormat)this.replicatedIF).closeInputFormat();
 		}
 	}
 }

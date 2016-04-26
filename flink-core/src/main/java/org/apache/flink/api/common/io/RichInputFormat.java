@@ -49,4 +49,24 @@ public abstract class RichInputFormat<OT, T extends InputSplit> implements Input
 			"it in one of the other life cycle methods.");
 		}
 	}
+
+	/**
+	 * Opens this InputFormat instance. This method is called once per parallel instance.
+	 * Resources should be allocated in this method. (e.g. database connections, cache, etc.)
+	 * 
+	 * @see InputFormat
+	 */
+	public void openInputFormat() {
+		//do nothing here, just for subclasses
+	}
+
+	/**
+	 * Closes this InputFormat instance. This method is called once per parallel instance.
+	 * Resources allocated during {@link #openInputFormat()} should be closed in this method.
+	 * 
+	 * @see InputFormat
+	 */
+	public void closeInputFormat() {
+		//do nothing here, just for subclasses
+	}
 }

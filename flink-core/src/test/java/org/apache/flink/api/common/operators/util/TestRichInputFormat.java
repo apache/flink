@@ -33,6 +33,8 @@ public class TestRichInputFormat extends GenericInputFormat<String> implements N
 	private static final int NUM = 5;
 	private static final String[] NAMES = TestIOData.NAMES;
 	private int count = 0;
+	private boolean openCalled = false;
+	private boolean closeCalled = false;
 
 	@Override
 	public boolean reachedEnd() throws IOException {
@@ -46,7 +48,27 @@ public class TestRichInputFormat extends GenericInputFormat<String> implements N
 				getRuntimeContext().getNumberOfParallelSubtasks();
 	}
 
-	public void reset(){
+	public void reset() {
 		count = 0;
+		openCalled = false;
+		closeCalled = false;
+	}
+
+	@Override
+	public void openInputFormat() {
+		openCalled = true;
+	}
+
+	@Override
+	public void closeInputFormat() {
+		closeCalled = true;
+	}
+
+	public boolean hasBeenOpened() {
+		return openCalled;
+	}
+
+	public boolean hasBeenClosed() {
+		return closeCalled;
 	}
 }

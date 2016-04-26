@@ -387,6 +387,7 @@ public class FileInputFormatTest {
 		inputFormat.setFilePath(tempFile.toURI().toString());
 
 		inputFormat.configure(config);
+		inputFormat.openInputFormat();
 
 		FileInputSplit[] inputSplits = inputFormat.createInputSplits(3);
 
@@ -399,6 +400,8 @@ public class FileInputFormatTest {
 				}
 			}
 		}
+
+		inputFormat.closeInputFormat();
 	}
 	
 	// ------------------------------------------------------------------------

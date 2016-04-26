@@ -97,9 +97,11 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data source operator"));
 
-		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
+		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
 			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
+			((RichInputFormat) this.format).openInputFormat();
+			LOG.debug(getLogString("Rich Source detected. Opening the InputFormat."));
 		}
 
 		ExecutionConfig executionConfig = getExecutionConfig();
@@ -192,6 +194,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			}
 		} finally {
 			BatchTask.clearWriters(eventualOutputs);
+			// --------------------------------------------------------------------
+			// Closing
+			// --------------------------------------------------------------------
+			if (this.format != null && RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
+				((RichInputFormat) this.format).closeInputFormat();
+				LOG.debug(getLogString("Rich Source detected. Closing the InputFormat."));
+			}
 		}
 
 		if (!this.taskCanceled) {

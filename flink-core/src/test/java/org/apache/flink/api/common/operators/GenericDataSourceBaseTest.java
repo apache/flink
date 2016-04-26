@@ -81,11 +81,19 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.disableObjectReuse();
+			assertEquals(false, in.hasBeenClosed());
+			assertEquals(false, in.hasBeenOpened());
 			List<String> resultMutableSafe = source.executeOnCollections(new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			assertEquals(true, in.hasBeenClosed());
+			assertEquals(true, in.hasBeenOpened());
 
 			in.reset();
 			executionConfig.enableObjectReuse();
+			assertEquals(false, in.hasBeenClosed());
+			assertEquals(false, in.hasBeenOpened());
 			List<String> resultRegular = source.executeOnCollections(new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			assertEquals(true, in.hasBeenClosed());
+			assertEquals(true, in.hasBeenOpened());
 
 			assertEquals(asList(TestIOData.RICH_NAMES), resultMutableSafe);
 			assertEquals(asList(TestIOData.RICH_NAMES), resultRegular);
