@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
+import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +64,11 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	protected ColumnFamilyHandle columnFamily;
 
 	/**
+	 * We disable writes to the write-ahead-log here.
+	 */
+	private final WriteOptions writeOptions;
+
+	/**
 	 * Creates a new RocksDB backed state.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
@@ -75,6 +81,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		this.backend = backend;
 
 		this.columnFamily = columnFamily;
+
+		writeOptions = new WriteOptions();
+		writeOptions.setDisableWAL(true);
 	}
 
 	// ------------------------------------------------------------------------
@@ -86,7 +95,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		try {
 			writeKeyAndNamespace(out);
 			byte[] key = baos.toByteArray();
-			backend.db.remove(columnFamily, key);
+			backend.db.remove(columnFamily, writeOptions, key);
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
