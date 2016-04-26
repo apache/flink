@@ -18,85 +18,52 @@
 
 package org.apache.flink.api.java.io.jdbc.example;
 
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
+import java.sql.Types;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
+import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
 
 public class JDBCExample {
-
+	
+	public static final boolean exploitParallelism = true;
+	
 	public static void main(String[] args) throws Exception {
-		prepareTestDb();
+		JDBCTestBase.prepareTestDb();
 
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5> source
-				= environment.createInput(JDBCInputFormat.buildJDBCInputFormat()
-						.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-						.setDBUrl("jdbc:derby:memory:ebookshop")
-						.setQuery("select * from books")
-						.finish(),
-						new TupleTypeInfo(Tuple5.class, INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO, DOUBLE_TYPE_INFO, INT_TYPE_INFO)
-				);
+		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
+				.setDrivername(JDBCTestBase.DRIVER_CLASS)
+				.setDBUrl(JDBCTestBase.DB_URL)
+				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS);
+		
+		if(exploitParallelism) {
+			final String splitColumnName = "id";
+			final int fetchSize = 1;
+			final Long min = new Long(JDBCTestBase.testData[0][0]+"");
+			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length-fetchSize][0]+"");
+			//rewrite query and add $CONDITIONS token to generate splits (sqoop-like)
+			inputBuilder = inputBuilder
+					// WARNING: ONLY when query does not contains the  WHERE clause we can keep the next line commented
+					//.setQuery(SELECT_ALL_BOOKS + " WHERE " +JDBCInputFormat.CONDITIONS)
+					.setSplitConfig(splitColumnName, fetchSize, min, max);
+		}
+		DataSet<GenericRow> source = environment.createInput(inputBuilder.finish());
 
+		//NOTE: in this case (with Derby driver) setSqlTypes could be skipped, but
+		//some database, doens't handle correctly null values when no column type specified
+		//in PreparedStatement.setObject (see its javadoc for more details)
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-				.setDBUrl("jdbc:derby:memory:ebookshop")
-				.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-				.finish());
+			.setDrivername(JDBCTestBase.DRIVER_CLASS)
+			.setDBUrl(JDBCTestBase.DB_URL)
+			.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
+			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
+			.finish());
 		environment.execute();
 	}
 
-	private static void prepareTestDb() throws Exception {
-		System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.io.jdbc.DerbyUtil.DEV_NULL");
-		String dbURL = "jdbc:derby:memory:ebookshop;create=true";
-		Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
-		Connection conn = DriverManager.getConnection(dbURL);
-
-		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE books (");
-		sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
-		sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("author VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("price FLOAT DEFAULT NULL,");
-		sqlQueryBuilder.append("qty INT DEFAULT NULL,");
-		sqlQueryBuilder.append("PRIMARY KEY (id))");
-
-		Statement stat = conn.createStatement();
-		stat.executeUpdate(sqlQueryBuilder.toString());
-		stat.close();
-
-		sqlQueryBuilder = new StringBuilder("CREATE TABLE newbooks (");
-		sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
-		sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("author VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("price FLOAT DEFAULT NULL,");
-		sqlQueryBuilder.append("qty INT DEFAULT NULL,");
-		sqlQueryBuilder.append("PRIMARY KEY (id))");
-
-		stat = conn.createStatement();
-		stat.executeUpdate(sqlQueryBuilder.toString());
-		stat.close();
-
-		sqlQueryBuilder = new StringBuilder("INSERT INTO books (id, title, author, price, qty) VALUES ");
-		sqlQueryBuilder.append("(1001, 'Java for dummies', 'Tan Ah Teck', 11.11, 11),");
-		sqlQueryBuilder.append("(1002, 'More Java for dummies', 'Tan Ah Teck', 22.22, 22),");
-		sqlQueryBuilder.append("(1003, 'More Java for more dummies', 'Mohammad Ali', 33.33, 33),");
-		sqlQueryBuilder.append("(1004, 'A Cup of Java', 'Kumar', 44.44, 44),");
-		sqlQueryBuilder.append("(1005, 'A Teaspoon of Java', 'Kevin Jones', 55.55, 55)");
-
-		stat = conn.createStatement();
-		stat.execute(sqlQueryBuilder.toString());
-		stat.close();
-
-		conn.close();
-	}
 }

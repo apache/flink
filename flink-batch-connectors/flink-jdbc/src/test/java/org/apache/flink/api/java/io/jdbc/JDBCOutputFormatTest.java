@@ -19,116 +19,23 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.ResultSet;
 
-import org.junit.Assert;
-
+import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Assert;
 import org.junit.Test;
 
-public class JDBCOutputFormatTest {
-	private JDBCInputFormat jdbcInputFormat;
-	private JDBCOutputFormat jdbcOutputFormat;
+public class JDBCOutputFormatTest extends JDBCTestBase {
 
-	private static Connection conn;
-
-	static final Object[][] dbData = {
-		{1001, ("Java for dummies"), ("Tan Ah Teck"), 11.11, 11},
-		{1002, ("More Java for dummies"), ("Tan Ah Teck"), 22.22, 22},
-		{1003, ("More Java for more dummies"), ("Mohammad Ali"), 33.33, 33},
-		{1004, ("A Cup of Java"), ("Kumar"), 44.44, 44},
-		{1005, ("A Teaspoon of Java"), ("Kevin Jones"), 55.55, 55}};
-
-	@BeforeClass
-	public static void setUpClass() throws SQLException {
-		try {
-			System.setProperty("derby.stream.error.field", "org.apache.flink.api.java.io.jdbc.DerbyUtil.DEV_NULL");
-			prepareDerbyDatabase();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-			Assert.fail();
-		}
-	}
-
-	private static void prepareDerbyDatabase() throws ClassNotFoundException, SQLException {
-		String dbURL = "jdbc:derby:memory:ebookshop;create=true";
-		Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
-		conn = DriverManager.getConnection(dbURL);
-		createTable("books");
-		createTable("newbooks");
-		insertDataToSQLTables();
-		conn.close();
-	}
-
-	private static void createTable(String tableName) throws SQLException {
-		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE ");
-		sqlQueryBuilder.append(tableName);
-		sqlQueryBuilder.append(" (");
-		sqlQueryBuilder.append("id INT NOT NULL DEFAULT 0,");
-		sqlQueryBuilder.append("title VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("author VARCHAR(50) DEFAULT NULL,");
-		sqlQueryBuilder.append("price FLOAT DEFAULT NULL,");
-		sqlQueryBuilder.append("qty INT DEFAULT NULL,");
-		sqlQueryBuilder.append("PRIMARY KEY (id))");
-
-		Statement stat = conn.createStatement();
-		stat.executeUpdate(sqlQueryBuilder.toString());
-		stat.close();
-	}
-
-	private static void insertDataToSQLTables() throws SQLException {
-		StringBuilder sqlQueryBuilder = new StringBuilder("INSERT INTO books (id, title, author, price, qty) VALUES ");
-		sqlQueryBuilder.append("(1001, 'Java for dummies', 'Tan Ah Teck', 11.11, 11),");
-		sqlQueryBuilder.append("(1002, 'More Java for dummies', 'Tan Ah Teck', 22.22, 22),");
-		sqlQueryBuilder.append("(1003, 'More Java for more dummies', 'Mohammad Ali', 33.33, 33),");
-		sqlQueryBuilder.append("(1004, 'A Cup of Java', 'Kumar', 44.44, 44),");
-		sqlQueryBuilder.append("(1005, 'A Teaspoon of Java', 'Kevin Jones', 55.55, 55)");
-
-		Statement stat = conn.createStatement();
-		stat.execute(sqlQueryBuilder.toString());
-		stat.close();
-	}
-
-	@AfterClass
-	public static void tearDownClass() {
-		cleanUpDerbyDatabases();
-	}
-
-	private static void cleanUpDerbyDatabases() {
-		try {
-			String dbURL = "jdbc:derby:memory:ebookshop;create=true";
-			Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
-
-			conn = DriverManager.getConnection(dbURL);
-			Statement stat = conn.createStatement();
-			stat.executeUpdate("DROP TABLE books");
-			stat.executeUpdate("DROP TABLE newbooks");
-			stat.close();
-			conn.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail();
-		}
-	}
-
-	@After
-	public void tearDown() {
-		jdbcOutputFormat = null;
-	}
-
+	Tuple5<Integer,String, String, Double, String> tuple5 = new Tuple5<>();
+	
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidDriver() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername("org.apache.derby.jdbc.idontexist")
-				.setDBUrl("jdbc:derby:memory:ebookshop")
-				.setQuery("insert into books (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setDBUrl(DB_URL)
+				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 	}
@@ -136,9 +43,9 @@ public class JDBCOutputFormatTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidURL() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+				.setDrivername(DRIVER_CLASS)
 				.setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
-				.setQuery("insert into books (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 	}
@@ -146,8 +53,8 @@ public class JDBCOutputFormatTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidQuery() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-				.setDBUrl("jdbc:derby:memory:ebookshop")
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
 				.setQuery("iamnotsql")
 				.finish();
 		jdbcOutputFormat.open(0, 1);
@@ -156,8 +63,8 @@ public class JDBCOutputFormatTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testIncompleteConfiguration() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-				.setQuery("insert into books (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setDrivername(DRIVER_CLASS)
+				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 	}
 
@@ -165,78 +72,77 @@ public class JDBCOutputFormatTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testIncompatibleTypes() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
-				.setDBUrl("jdbc:derby:memory:ebookshop")
-				.setQuery("insert into books (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		Tuple5 tuple5 = new Tuple5();
 		tuple5.setField(4, 0);
 		tuple5.setField("hello", 1);
 		tuple5.setField("world", 2);
 		tuple5.setField(0.99, 3);
 		tuple5.setField("imthewrongtype", 4);
 
-		jdbcOutputFormat.writeRecord(tuple5);
+		GenericRow row = new GenericRow(tuple5.getArity()).fromTuple(tuple5);
+		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.close();
 	}
 
 	@Test
-	public void testJDBCOutputFormat() throws IOException {
-		String sourceTable = "books";
-		String targetTable = "newbooks";
-		String driverPath = "org.apache.derby.jdbc.EmbeddedDriver";
-		String dbUrl = "jdbc:derby:memory:ebookshop";
+	public void testJDBCOutputFormat() throws IOException, InstantiationException, IllegalAccessException {
 
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
-				.setDBUrl(dbUrl)
-				.setDrivername(driverPath)
-				.setQuery("insert into " + targetTable + " (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(driverPath)
-				.setDBUrl(dbUrl)
-				.setQuery("select * from " + sourceTable)
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(SELECT_ALL_BOOKS)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
 
-		Tuple5 tuple = new Tuple5();
+		GenericRow row = new GenericRow(tuple5.getArity());
 		while (!jdbcInputFormat.reachedEnd()) {
-			jdbcInputFormat.nextRecord(tuple);
-			jdbcOutputFormat.writeRecord(tuple);
+			if(jdbcInputFormat.nextRecord(row)!=null) {
+				jdbcOutputFormat.writeRecord(row);
+			}
 		}
 
 		jdbcOutputFormat.close();
 		jdbcInputFormat.close();
 
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(driverPath)
-				.setDBUrl(dbUrl)
-				.setQuery("select * from " + targetTable)
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(SELECT_ALL_NEWBOOKS)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
 
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
-			jdbcInputFormat.nextRecord(tuple);
-			Assert.assertEquals("Field 0 should be int", Integer.class, tuple.getField(0).getClass());
-			Assert.assertEquals("Field 1 should be String", String.class, tuple.getField(1).getClass());
-			Assert.assertEquals("Field 2 should be String", String.class, tuple.getField(2).getClass());
-			Assert.assertEquals("Field 3 should be float", Double.class, tuple.getField(3).getClass());
-			Assert.assertEquals("Field 4 should be int", Integer.class, tuple.getField(4).getClass());
+			jdbcInputFormat.nextRecord(row);
+			if(row.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.getField(0).getClass());}
+			if(row.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.getField(1).getClass());}
+			if(row.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.getField(2).getClass());}
+			if(row.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, row.getField(3).getClass());}
+			if(row.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, row.getField(4).getClass());}
 
 			for (int x = 0; x < 5; x++) {
-				Assert.assertEquals(dbData[recordCount][x], tuple.getField(x));
+				if(JDBCTestBase.testData[recordCount][x]!=null) {
+					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.getField(x));
+				}
 			}
 
 			recordCount++;
 		}
-		Assert.assertEquals(5, recordCount);
+		Assert.assertEquals(JDBCTestBase.testData.length, recordCount);
 
 		jdbcInputFormat.close();
 	}

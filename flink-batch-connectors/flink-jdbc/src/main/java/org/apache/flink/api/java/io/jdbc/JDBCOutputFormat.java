@@ -27,6 +27,7 @@ import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
@@ -38,10 +39,9 @@ import org.apache.flink.configuration.Configuration;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
+public class JDBCOutputFormat extends RichOutputFormat<GenericRow> {
 	private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
 	private String username;
@@ -54,9 +54,9 @@ public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 	private Connection dbConn;
 	private PreparedStatement upload;
 
-	private SupportedTypes[] types = null;
-
 	private int batchCount = 0;
+
+	public int[] typesArray;
 
 	public JDBCOutputFormat() {
 	}
@@ -95,32 +95,32 @@ public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 		}
 	}
 
-	private enum SupportedTypes {
-		BOOLEAN,
-		BYTE,
-		SHORT,
-		INTEGER,
-		LONG,
-		STRING,
-		FLOAT,
-		DOUBLE
-	}
-
 	/**
 	 * Adds a record to the prepared statement.
 	 * <p>
 	 * When this method is called, the output format is guaranteed to be opened.
+	 * 
+	 * WARNING: this may fail if the JDBC driver doesn't handle null correctly and no column types specified in the SqlRow
 	 *
 	 * @param tuple The records to add to the output.
 	 * @throws IOException Thrown, if the records could not be added due to an I/O problem.
 	 */
 	@Override
-	public void writeRecord(OUT tuple) throws IOException {
+	public void writeRecord(GenericRow tuple) throws IOException {
 		try {
-			if (types == null) {
-				extractTypes(tuple);
+			for (int index = 0; index < tuple.getArity(); index++) {
+				if(tuple.getField(index) ==null && typesArray != null && typesArray.length > 0) {
+					if(typesArray.length == tuple.getArity()) {
+						upload.setNull(index + 1, typesArray[index]);
+					} else {
+						LOG.warn("Column SQL types array doesn't match arity of SqlRow! Check the passed array...");
+					}
+				} else {
+					//try generic set if no column type available
+					//WARNING: this may fail if the JDBC driver doesn't handle null correctly
+					upload.setObject(index + 1, tuple.getField(index));
+				}
 			}
-			addValues(tuple);
 			upload.addBatch();
 			batchCount++;
 			if (batchCount >= batchInterval) {
@@ -133,44 +133,6 @@ public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 		} catch (IllegalArgumentException iae) {
 			close();
 			throw new IllegalArgumentException("writeRecord() failed", iae);
-		}
-	}
-
-	private void extractTypes(OUT tuple) {
-		types = new SupportedTypes[tuple.getArity()];
-		for (int x = 0; x < tuple.getArity(); x++) {
-			types[x] = SupportedTypes.valueOf(tuple.getField(x).getClass().getSimpleName().toUpperCase());
-		}
-	}
-
-	private void addValues(OUT tuple) throws SQLException {
-		for (int index = 0; index < tuple.getArity(); index++) {
-			switch (types[index]) {
-				case BOOLEAN:
-					upload.setBoolean(index + 1, (Boolean) tuple.getField(index));
-					break;
-				case BYTE:
-					upload.setByte(index + 1, (Byte) tuple.getField(index));
-					break;
-				case SHORT:
-					upload.setShort(index + 1, (Short) tuple.getField(index));
-					break;
-				case INTEGER:
-					upload.setInt(index + 1, (Integer) tuple.getField(index));
-					break;
-				case LONG:
-					upload.setLong(index + 1, (Long) tuple.getField(index));
-					break;
-				case STRING:
-					upload.setString(index + 1, (String) tuple.getField(index));
-					break;
-				case FLOAT:
-					upload.setFloat(index + 1, (Float) tuple.getField(index));
-					break;
-				case DOUBLE:
-					upload.setDouble(index + 1, (Double) tuple.getField(index));
-					break;
-			}
 		}
 	}
 
@@ -242,6 +204,11 @@ public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 			format.batchInterval = batchInterval;
 			return this;
 		}
+		
+		public JDBCOutputFormatBuilder setSqlTypes(int[] typesArray) {
+			format.typesArray = typesArray;
+			return this;
+		}
 
 		/**
 		Finalizes the configuration and checks validity.
@@ -263,6 +230,7 @@ public class JDBCOutputFormat<OUT extends Tuple> extends RichOutputFormat<OUT> {
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
+			
 			return format;
 		}
 	}
