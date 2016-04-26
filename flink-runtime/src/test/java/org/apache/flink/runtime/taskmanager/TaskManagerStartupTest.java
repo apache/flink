@@ -25,6 +25,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.util.StartupUtils;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -41,6 +43,16 @@ import java.util.UUID;
  * problems.
  */
 public class TaskManagerStartupTest {
+	
+	private StartupUtils utils;
+
+	@Before
+	public void before() {
+		
+		utils = new StartupUtils();
+		
+	}
+	
 
 	/**
 	 * Tests that the TaskManager fails synchronously when the actor system port
@@ -63,19 +75,22 @@ public class TaskManagerStartupTest {
 					TaskManager.class);
 			fail("This should fail with an IOException");
 
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			// expected. validate the error messagex
-			List<Throwable> causes = getExceptionCauses(e, new ArrayList<Throwable>());
+			List<Throwable> causes = utils.getExceptionCauses(e, new ArrayList<Throwable>());
 			for (Throwable cause : causes) {
 				if (cause instanceof BindException) {
 					throw (BindException) cause;
 				}
 			}
 			fail("This should fail with an exception caused by BindException");
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} finally {
+		}
+		finally {
 			if (blocker != null) {
 				try {
 					blocker.close();
@@ -86,24 +101,7 @@ public class TaskManagerStartupTest {
 		}
 	}
 
-	/**
-	 * A utility method to analyze the exceptions and collect the clauses
-	 * 
-	 * @param e
-	 *            the root exception (Throwable) object
-	 * @param causes
-	 *            the list of exceptions that caused the root exceptions
-	 * @return
-	 */
-	private List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes) {
-		if (e.getCause() == null) {
-			return causes;
-		} else {
-			causes.add(e.getCause());
-			getExceptionCauses(e.getCause(), causes);
-		}
-		return causes;
-	}
+
 
 	/**
 	 * Tests that the TaskManager startup fails synchronously when the I/O
@@ -129,26 +127,30 @@ public class TaskManagerStartupTest {
 			try {
 				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				// splendid!
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} finally {
+		}
+		finally {
 			// noinspection ResultOfMethodCallIgnored
 			nonWritable.setWritable(true, false);
 			try {
 				FileUtils.deleteDirectory(nonWritable);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				// best effort
 			}
 		}
 	}
 
 	/**
-	 * Tests that the TaskManager startup fails synchronously when the I/O
-	 * directories are not writable.
+	 * Tests that the TaskManager startup fails synchronously when the I/O directories are
+	 * not writable.
 	 */
 	@Test
 	public void testMemoryConfigWrong() {
@@ -163,22 +165,25 @@ public class TaskManagerStartupTest {
 			try {
 				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
-			} catch (IllegalConfigurationException e) {
+			}
+			catch (IllegalConfigurationException e) {
 				// splendid!
 			}
 
 			// something ridiculously high
-			final long memSize = (((long) Integer.MAX_VALUE - 1)
-					* ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
+			final long memSize = (((long) Integer.MAX_VALUE - 1) *
+					ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
 			cfg.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memSize);
 			try {
 				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
 				fail("Should fail synchronously with an exception");
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				// splendid!
 				assertTrue(e.getCause() instanceof OutOfMemoryError);
 			}
-		} catch (Exception e) {
+		} 
+		catch(Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}

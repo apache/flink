@@ -32,6 +32,7 @@ import com.google.common.io.Files;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.OperatingSystem;
@@ -48,9 +49,13 @@ public class JobManagerStartupTest {
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
 
 	private File blobStorageDirectory;
+	private StartupUtils utils;
 
 	@Before
 	public void before() {
+		
+		utils = new StartupUtils();
+		
 		// Prepare test directory
 		blobStorageDirectory = Files.createTempDir();
 
@@ -93,9 +98,9 @@ public class JobManagerStartupTest {
 		}
 		catch (Exception e) {
 			// expected
-			List<Throwable> causes = getExceptionCauses(e,new ArrayList<Throwable>());
-			for(Throwable cause:causes){
-				if(cause instanceof BindException){
+			List<Throwable> causes = utils.getExceptionCauses(e,new ArrayList<Throwable>());
+			for(Throwable cause:causes) {
+				if(cause instanceof BindException) {
 					throw (BindException) cause;
 				}	
 			}
@@ -111,22 +116,6 @@ public class JobManagerStartupTest {
 		}
 	}
 	
-	/**
-	 * A utility method to analyze the exceptions and collect the clauses
-	 * @param e the root exception (Throwable) object
-	 * @param causes the list of exceptions that caused the root exceptions
-	 * @return
-	 */
-	private List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes){
-		if(e.getCause()==null) {
-			return causes;
-		}else{
-			causes.add(e.getCause());
-			getExceptionCauses(e.getCause(),causes);
-		}
-		return causes;
-	}
-
 	/**
 	 * Verifies that the JobManager fails fast (and with expressive error message)
 	 * when one of its components (here the BLOB server) fails to start properly.
