@@ -97,6 +97,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 			Field formatField = DataSourceTask.class.getDeclaredField("format");
 			formatField.setAccessible(true);
 			MockInputFormat inputFormat = (MockInputFormat) formatField.get(testTask);
+			Assert.assertTrue("Invalid status of the input format. Expected for opened: true, Actual: " + inputFormat.opened, inputFormat.opened);
 			Assert.assertTrue("Invalid status of the input format. Expected for closed: true, Actual: " + inputFormat.closed, inputFormat.closed);
 		} catch (Exception e) {
 			System.err.println(e);
