@@ -16,42 +16,51 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.dataproperties;
-
-import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Key;
+package org.apache.flink.api.common.distributions;
 
 import java.io.IOException;
 
-@SuppressWarnings("serial")
-public class MockDistribution implements DataDistribution {
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.IntValue;
+
+@PublicEvolving
+public class UniformIntegerDistribution implements DataDistribution {
+
+	private static final long serialVersionUID = 1L;
+	
+	private int min, max; 
+
+	
+	public UniformIntegerDistribution() {}
+	
+	public UniformIntegerDistribution(int min, int max) {
+		this.min = min;
+		this.max = max;
+	}
 
 	@Override
-	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Key<?>[0];
+	public IntValue[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+		long diff = ((long) max) - ((long) min) + 1;
+		double bucketSize = diff / ((double) totalNumBuckets);
+		return new IntValue[] {new IntValue(min + (int) ((bucketNum+1) * bucketSize)) };
 	}
 
 	@Override
 	public int getNumberOfFields() {
-		return 0;
-	}
-
-	@Override
-	public TypeInformation[] getKeyTypes() {
-		return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
+		return 1;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
+		out.writeInt(min);
+		out.writeInt(max);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
+		min = in.readInt();
+		max = in.readInt();
 	}
 }
