@@ -135,7 +135,7 @@ public class GenericRow implements java.io.Serializable {
 
 	@Override
 	public String toString() {
-		return "SqlRow [" + Arrays.toString(fields) + "]";
+		return "GenericRow [" + Arrays.toString(fields) + "]";
 	}
 	
 }
