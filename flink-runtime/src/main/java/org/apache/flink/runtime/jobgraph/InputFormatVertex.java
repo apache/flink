@@ -64,7 +64,7 @@ public class InputFormatVertex extends JobVertex {
 		}
 		
 		// instantiate, if necessary
-		InputFormat<?, ?> inputFormat;
+		InputFormat<?, ?> inputFormat = null;
 		try {
 			inputFormat = wrapper.getUserCodeObject(InputFormat.class, loader);
 		}

@@ -135,7 +135,7 @@ public class DataSourceNode extends OptimizerNode {
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {
 			// instantiate the input format, as this is needed by the statistics 
-			InputFormat<?, ?> format;
+			InputFormat<?, ?> format = null;
 			String inFormatDescription = "<unknown>";
 			
 			try {
