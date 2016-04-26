@@ -436,21 +436,21 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 			@Override
 			public void onComplete(Throwable failure, Object msg) {
-				if (msg != null) {
-					if (msg instanceof LeaderSessionMessage &&
-						((LeaderSessionMessage) msg).message() instanceof RegisterResourceManagerSuccessful)
-					{
-						self().tell(msg, ActorRef.noSender());
-					}
-					else {
-						LOG.error("Invalid response type to registration at JobManager: {}", msg);
+				// only process if we haven't been connected in the meantime
+				if (jobManager == null) {
+					if (msg != null) {
+						if (msg instanceof LeaderSessionMessage &&
+							((LeaderSessionMessage) msg).message() instanceof RegisterResourceManagerSuccessful) {
+							self().tell(msg, ActorRef.noSender());
+						} else {
+							LOG.error("Invalid response type to registration at JobManager: {}", msg);
+							self().tell(retryMessage, ActorRef.noSender());
+						}
+					} else {
+						// no success
+						LOG.error("Resource manager could not register at JobManager", failure);
 						self().tell(retryMessage, ActorRef.noSender());
 					}
-				}
-				else {
-					// no success
-					LOG.error("Resource manager could not register at JobManager", failure);
-					self().tell(retryMessage, ActorRef.noSender());
 				}
 			}
 
