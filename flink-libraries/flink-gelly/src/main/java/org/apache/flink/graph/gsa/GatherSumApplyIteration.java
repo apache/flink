@@ -42,9 +42,9 @@ import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
-import java.util.Map;
+import org.apache.flink.util.Preconditions;
 
-import com.google.common.base.Preconditions;
+import java.util.Map;
 
 /**
  * This class represents iterative graph computations, programmed in a gather-sum-apply perspective.

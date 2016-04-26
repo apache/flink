@@ -17,7 +17,6 @@
  */
 
 package org.apache.flink.graph;
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A class to build a Graph using path(s) provided to CSV file(s) with optional vertex and edge data.
