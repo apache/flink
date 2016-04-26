@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StateForTask;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import scala.Option;
 
@@ -108,22 +108,19 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 
 	public SimpleCheckpointStatsTracker(
 			int historySize,
-			ExecutionVertex[] tasksToWaitFor) {
+			List<ExecutionJobVertex> tasksToWaitFor) {
 
 		checkArgument(historySize >= 0);
 		this.historySize = historySize;
 
-		// We know upfront, which tasks will ack the checkpoints.
-		if (tasksToWaitFor != null && tasksToWaitFor.length > 0) {
-			taskParallelism = new HashMap<>();
+		// We know upfront which tasks will ack the checkpoints
+		if (tasksToWaitFor != null && !tasksToWaitFor.isEmpty()) {
+			taskParallelism = new HashMap<>(tasksToWaitFor.size());
 
-			for (ExecutionVertex vertex : tasksToWaitFor) {
-				taskParallelism.put(
-						vertex.getJobvertexId(),
-						vertex.getTotalNumberOfParallelSubtasks());
+			for (ExecutionJobVertex vertex : tasksToWaitFor) {
+				taskParallelism.put(vertex.getJobVertexId(), vertex.getParallelism());
 			}
-		}
-		else {
+		} else {
 			taskParallelism = Collections.emptyMap();
 		}
 	}

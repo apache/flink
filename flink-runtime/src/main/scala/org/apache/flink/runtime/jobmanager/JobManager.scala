@@ -37,6 +37,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
+import org.apache.flink.runtime.checkpoint.stats.{SimpleCheckpointStatsTracker, DisabledCheckpointStatsTracker, CheckpointStatsTracker}
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.UnrecoverableException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -1057,6 +1058,22 @@ class JobManager(
 
           val checkpointIdCounter = checkpointRecoveryFactory.createCheckpointIDCounter(jobId)
 
+          // Checkpoint stats tracker
+          val isStatsDisabled: Boolean = flinkConfiguration.getBoolean(
+            ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
+            ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE)
+
+          val checkpointStatsTracker: CheckpointStatsTracker =
+            if (isStatsDisabled) {
+              new DisabledCheckpointStatsTracker()
+            } else {
+              val historySize: Int = flinkConfiguration.getInteger(
+                ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
+                ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
+
+              new SimpleCheckpointStatsTracker(historySize, ackVertices)
+            }
+
           executionGraph.enableSnapshotCheckpointing(
             snapshotSettings.getCheckpointInterval,
             snapshotSettings.getCheckpointTimeout,
@@ -1070,7 +1087,8 @@ class JobManager(
             checkpointIdCounter,
             completedCheckpoints,
             recoveryMode,
-            savepointStore)
+            savepointStore,
+            checkpointStatsTracker)
         }
 
         // get notified about job status changes
