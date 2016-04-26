@@ -17,7 +17,6 @@
  */
 package org.apache.flink.cep
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.cep.{PatternStream => JPatternStream}
 
@@ -30,7 +29,7 @@ package object scala {
     * @tparam T Type of the events
     * @return A pattern stream from the Scala API which wraps a pattern stream from the Java API
     */
-  private[flink] def wrapPatternStream[T: TypeInformation](javaPatternStream: JPatternStream[T])
+  private[flink] def wrapPatternStream[T](javaPatternStream: JPatternStream[T])
   : scala.PatternStream[T] = {
     Option(javaPatternStream) match {
       case Some(p) => PatternStream[T](p)

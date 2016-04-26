@@ -17,7 +17,6 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.cep.{CEP => JCEP}
 import org.apache.flink.streaming.api.scala.DataStream
@@ -37,9 +36,9 @@ object CEP {
     * @tparam T Type of the input events
     * @return Resulting pattern stream
     */
-  def pattern[T: TypeInformation](input: DataStream[T],
+  def pattern[T](input: DataStream[T],
                                   pattern: Pattern[T, _]): PatternStream[T] = {
-    wrapPatternStream(JCEP.pattern(input.javaStream, pattern.getWrappedPattern))
+    wrapPatternStream(JCEP.pattern(input.javaStream, pattern.wrappedPattern))
   }
 }
 

@@ -22,8 +22,6 @@ import org.apache.flink.cep
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
 
-import scala.reflect.ClassTag
-
 /**
   * Base class for a pattern definition.
   *
@@ -41,30 +39,30 @@ import scala.reflect.ClassTag
   * @tparam T Base type of the elements appearing in the pattern
   * @tparam F Subtype of T to which the current pattern operator is constrained
   */
-class Pattern[T: ClassTag, F <: T](jPattern: JPattern[T, F]) {
+class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
 
-  private[flink] def getWrappedPattern = jPattern
+  private[flink] def wrappedPattern = jPattern
 
   /**
     *
     * @return Name of the pattern operator
     */
-  def getName: String = jPattern.getName
+  def getName(): String = jPattern.getName()
 
   /**
     *
     * @return Window length in which the pattern match has to occur
     */
-  def getWindowTime: Option[Time] = {
-    Option(jPattern.getWindowTime)
+  def getWindowTime(): Option[Time] = {
+    Option(jPattern.getWindowTime())
   }
 
   /**
     *
     * @return Filter condition for an event to be matched
     */
-  def getFilterFunction: Option[FilterFunction[F]] = {
-    Option(jPattern.getFilterFunction)
+  def getFilterFunction(): Option[FilterFunction[F]] = {
+    Option(jPattern.getFilterFunction())
   }
 
   /**
@@ -147,8 +145,8 @@ class Pattern[T: ClassTag, F <: T](jPattern: JPattern[T, F]) {
     *
     * @return The previous pattern operator
     */
-  def getPrevious: Option[Pattern[T, _ <: T]] = {
-    wrapPattern(jPattern.getPrevious)
+  def getPrevious(): Option[Pattern[T, _ <: T]] = {
+    wrapPattern(jPattern.getPrevious())
   }
 
 }
@@ -163,7 +161,7 @@ object Pattern {
     * @tparam F Subtype of T to which the current pattern operator is constrained
     * @return New wrapping Pattern object
     */
-  def apply[T: ClassTag, F <: T](jPattern: JPattern[T, F]) = new Pattern[T, F](jPattern)
+  def apply[T, F <: T](jPattern: JPattern[T, F]) = new Pattern[T, F](jPattern)
 
   /**
     * Starts a new pattern with the initial pattern operator whose name is provided. Furthermore,
@@ -173,6 +171,6 @@ object Pattern {
     * @tparam X Base type of the event pattern
     * @return The first pattern operator of a pattern
     */
-  def begin[X: ClassTag](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
+  def begin[X](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
 
 }

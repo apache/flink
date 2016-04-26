@@ -31,7 +31,6 @@ import org.junit.Test
 
 class PatternStreamScalaJavaAPIInteroperabiliyTest extends TestLogger {
 
-
   @Test
   @throws[Exception]
   def testScalaJavaAPISelectFunForwarding {

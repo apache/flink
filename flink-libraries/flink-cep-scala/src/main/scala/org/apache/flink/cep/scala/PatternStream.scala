@@ -36,9 +36,9 @@ import scala.collection.mutable
   * @param jPatternStream Underlying pattern stream from Java API
   * @tparam T Type of the events
   */
-class PatternStream[T: TypeInformation](jPatternStream: JPatternStream[T]) {
+class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
-  private[flink] def getWrappedPatternStream = jPatternStream
+  private[flink] def wrappedPatternStream = jPatternStream
 
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
@@ -123,7 +123,7 @@ object PatternStream {
     * @tparam T Type of the events
     * @return A new pattern stream wrapping the pattern stream from Java APU
     */
-  def apply[T: TypeInformation](jPatternStream: JPatternStream[T]) = {
+  def apply[T](jPatternStream: JPatternStream[T]) = {
     new PatternStream[T](jPatternStream)
   }
 }

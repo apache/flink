@@ -24,8 +24,6 @@ import org.junit.Test
 import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent
 
-import scala.reflect.ClassTag;
-
 class PatternTest {
 
   /**
@@ -42,7 +40,7 @@ class PatternTest {
     assertTrue(checkCongruentRepresentations(pattern, jPattern))
     assertTrue(checkCongruentRepresentations(wrapPattern(jPattern).get, jPattern))
 
-    assertTrue(checkCongruentRepresentations(pattern, pattern.getWrappedPattern))
+    assertTrue(checkCongruentRepresentations(pattern, pattern.wrappedPattern))
     val previous = pattern.getPrevious.orNull
     val preprevious = previous.getPrevious.orNull
 
@@ -82,22 +80,22 @@ class PatternTest {
   def testStrictContiguityWithCondition: Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("next")
-      .where((value: Event) => value.getName == "foobar")
+      .where((value: Event) => value.getName() == "foobar")
       .next("end")
-      .where((value: Event) => value.getId == 42)
+      .where((value: Event) => value.getId() == 42)
 
     val jPattern = JPattern.begin[Event]("start")
       .next("next")
       .where(new FilterFunction[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
-          return value.getName == "foobar"
+          return value.getName() == "foobar"
         }
       }).next("end")
       .where(new FilterFunction[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
-          return value.getId == 42
+          return value.getId() == 42
         }
       })
 
@@ -187,33 +185,33 @@ class PatternTest {
     assertEquals(preprevious.getName, "start")
   }
 
-  def checkCongruentRepresentations[T: ClassTag, _ <: T](pattern: Pattern[T, _ <: T],
-                                                         jPattern: JPattern[T, _ <: T]): Boolean = {
+  def checkCongruentRepresentations[T, _ <: T](pattern: Pattern[T, _ <: T],
+                                               jPattern: JPattern[T, _ <: T]): Boolean = {
     ((pattern == null && jPattern == null)
       || (pattern != null && jPattern != null)
       //check equal pattern names
       && threeWayEquals(
       pattern.getName,
-      pattern.getWrappedPattern.getName,
-      jPattern.getName)
+      pattern.wrappedPattern.getName,
+      jPattern.getName())
       //check equal time windows
       && threeWayEquals(
       pattern.getWindowTime.orNull,
-      pattern.getWrappedPattern.getWindowTime,
-      jPattern.getWindowTime)
+      pattern.wrappedPattern.getWindowTime,
+      jPattern.getWindowTime())
       //check congruent class names / types
       && threeWayEquals(
       pattern.getClass.getSimpleName,
-      pattern.getWrappedPattern.getClass.getSimpleName,
-      jPattern.getClass.getSimpleName)
+      pattern.wrappedPattern.getClass.getSimpleName,
+      jPattern.getClass().getSimpleName())
       //best effort to confirm congruent filter functions
       && compareFilterFunctions(
       pattern.getFilterFunction.orNull,
-      jPattern.getFilterFunction)
+      jPattern.getFilterFunction())
       //recursively check previous patterns
       && checkCongruentRepresentations(
       pattern.getPrevious.orNull,
-      jPattern.getPrevious))
+      jPattern.getPrevious()))
   }
 
   def threeWayEquals(a: AnyRef, b: AnyRef, c: AnyRef): Boolean = {
@@ -233,8 +231,8 @@ class PatternTest {
     (sFilter, jFilter) match {
       //matching types: and-filter; branch and recurse for inner filters
       case (saf: AndFilterFunction[_], jaf: AndFilterFunction[_])
-      => (compareFilterFunctions(saf.getLeft, jaf.getLeft)
-        && compareFilterFunctions(saf.getRight, jaf.getRight))
+      => (compareFilterFunctions(saf.getLeft(), jaf.getLeft())
+        && compareFilterFunctions(saf.getRight(), jaf.getRight()))
       //matching types: subtype-filter
       case (saf: SubtypeFilterFunction[_], jaf: SubtypeFilterFunction[_]) => true
       //mismatch: one-sided and/subtype-filter

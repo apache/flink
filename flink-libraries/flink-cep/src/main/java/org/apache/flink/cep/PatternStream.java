@@ -134,7 +134,7 @@ public class PatternStream<T> {
 	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
 		return patternStream.flatMap(
 			new PatternFlatSelectMapper<>(
-					patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
+				patternStream.getExecutionEnvironment().clean(patternFlatSelectFunction)
 			)).returns(outTypeInfo);
 	}
 

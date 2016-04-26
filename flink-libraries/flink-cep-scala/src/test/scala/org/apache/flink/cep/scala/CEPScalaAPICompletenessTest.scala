@@ -32,7 +32,7 @@ import scala.language.existentials
 class CEPScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
   override def isExcludedByName(method: Method): Boolean = {
-    val name = method.getDeclaringClass.getName + "." + method.getName
+    val name = method.getDeclaringClass().getName() + "." + method.getName()
     val excludedNames = Seq()
     excludedNames.contains(name)
   }
