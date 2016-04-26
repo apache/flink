@@ -24,9 +24,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+
+import static javafx.scene.input.KeyCode.V;
 
 /**
  * Methods for translation of the type or modification of the data of graph
@@ -108,7 +111,7 @@ public class Translate {
 	@SuppressWarnings("unchecked")
 	public static <OLD,NEW,VV> DataSet<Vertex<NEW,VV>> translateVertexLabels(DataSet<Vertex<OLD,VV>> vertices, Translator<OLD,NEW> translator, int parallelism) {
 		Class<Vertex<NEW,VV>> vertexClass = (Class<Vertex<NEW,VV>>)(Class<? extends Vertex>) Vertex.class;
-		TypeInformation<NEW> newType = translator.getTypeHint().getTypeInfo();
+		TypeInformation<NEW> newType = TypeExtractor.createTypeInfo(Translator.class, translator.getClass(), 1, null, null);
 		TypeInformation<VV> vertexValueType = ((TupleTypeInfo<Vertex<OLD,VV>>) vertices.getType()).getTypeAt(1);
 
 		TupleTypeInfo<Vertex<NEW,VV>> returnType = new TupleTypeInfo<>(vertexClass, newType, vertexValueType);
@@ -180,7 +183,7 @@ public class Translate {
 	@SuppressWarnings("unchecked")
 	public static <OLD,NEW,EV> DataSet<Edge<NEW,EV>> translateEdgeLabels(DataSet<Edge<OLD,EV>> edges, Translator<OLD,NEW> translator, int parallelism) {
 		Class<Edge<NEW,EV>> edgeClass = (Class<Edge<NEW,EV>>)(Class<? extends Edge>) Edge.class;
-		TypeInformation<NEW> newType = translator.getTypeHint().getTypeInfo();
+		TypeInformation<NEW> newType = TypeExtractor.createTypeInfo(Translator.class, translator.getClass(), 1, null, null);
 		TypeInformation<EV> edgeValueType = ((TupleTypeInfo<Edge<OLD,EV>>) edges.getType()).getTypeAt(2);
 
 		TupleTypeInfo<Edge<NEW,EV>> returnType = new TupleTypeInfo<>(edgeClass, newType, newType, edgeValueType);
@@ -197,7 +200,7 @@ public class Translate {
 	 *
 	 * @param <OLD> old edge label type
 	 * @param <NEW> new edge label type
-	 * @param <EV> edge label type
+	 * @param <EV> edge value type
 	 */
 	@ForwardedFields("2")
 	private static class TranslateEdgeLabel<OLD,NEW,EV>
@@ -228,7 +231,40 @@ public class Translate {
 	/**
 	 * Translate {@link Vertex} values using the given {@link Translator}.
 	 *
+	 * @param graph input graph
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
+	 * @param <K> vertex label type
+	 * @param <OLD> old vertex value type
+	 * @param <NEW> new vertex value type
+	 * @param <EV> edge value type
+	 * @return translated graph
+	 */
+	public static <K,OLD,NEW,EV> Graph<K,NEW,EV> translateVertexValues(Graph<K,OLD,EV> graph, Translator<OLD,NEW> translator) {
+		return translateVertexValues(graph, translator, ExecutionConfig.PARALLELISM_UNKNOWN);
+	}
+
+	/**
+	 * Translate {@link Vertex} values using the given {@link Translator}.
+	 *
+	 * @param graph input graph
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
+	 * @param <K> vertex label type
+	 * @param <OLD> old vertex value type
+	 * @param <NEW> new vertex value type
+	 * @param <EV> edge value type
+	 * @return translated graph
+	 */
+	public static <K,OLD,NEW,EV> Graph<K,NEW,EV> translateVertexValues(Graph<K,OLD,EV> graph, Translator<OLD,NEW> translator, int parallelism) {
+		DataSet<Vertex<K,NEW>> translatedVertices = translateVertexValues(graph.getVertices(), translator, parallelism);
+
+		return Graph.fromDataSet(translatedVertices, graph.getEdges(), graph.getContext());
+	}
+
+	/**
+	 * Translate {@link Vertex} values using the given {@link Translator}.
+	 *
 	 * @param vertices input vertices
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 * @param <K> vertex label type
 	 * @param <OLD> old vertex value type
 	 * @param <NEW> new vertex value type
@@ -241,7 +277,8 @@ public class Translate {
 	/**
 	 * Translate {@link Vertex} values using the given {@link Translator}.
 	 *
-	 * @param vertices source vertices
+	 * @param vertices input vertices
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 * @param parallelism operator parallelism
 	 * @param <K> vertex label type
 	 * @param <OLD> old vertex value type
@@ -252,7 +289,7 @@ public class Translate {
 	public static <K,OLD,NEW> DataSet<Vertex<K,NEW>> translateVertexValues(DataSet<Vertex<K,OLD>> vertices, Translator<OLD,NEW> translator, int parallelism) {
 		Class<Vertex<K,NEW>> vertexClass = (Class<Vertex<K,NEW>>)(Class<? extends Vertex>) Vertex.class;
 		TypeInformation<K> labelType = ((TupleTypeInfo<Vertex<K,OLD>>) vertices.getType()).getTypeAt(0);
-		TypeInformation<NEW> newType = translator.getTypeHint().getTypeInfo();
+		TypeInformation<NEW> newType = TypeExtractor.createTypeInfo(Translator.class, translator.getClass(), 1, null, null);
 
 		TupleTypeInfo<Vertex<K,NEW>> returnType = new TupleTypeInfo<>(vertexClass, labelType, newType);
 
@@ -298,7 +335,40 @@ public class Translate {
 	/**
 	 * Translate {@link Edge} values using the given {@link Translator}.
 	 *
-	 * @param edges source edges
+	 * @param graph input graph
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
+	 * @param <K> vertex label type
+	 * @param <VV> vertex value type
+	 * @param <OLD> old edge value type
+	 * @param <NEW> new edge value type
+	 * @return translated graph
+	 */
+	public static <K,VV,OLD,NEW> Graph<K,VV,NEW> translateEdgeValues(Graph<K,VV,OLD> graph, Translator<OLD,NEW> translator) {
+		return translateEdgeValues(graph, translator, ExecutionConfig.PARALLELISM_UNKNOWN);
+	}
+
+	/**
+	 * Translate {@link Edge} values using the given {@link Translator}.
+	 *
+	 * @param graph input graph
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
+	 * @param <K> vertex label type
+	 * @param <VV> vertex value type
+	 * @param <OLD> old edge value type
+	 * @param <NEW> new edge value type
+	 * @return translated graph
+	 */
+	public static <K,VV,OLD,NEW> Graph<K,VV,NEW> translateEdgeValues(Graph<K,VV,OLD> graph, Translator<OLD,NEW> translator, int parallelism) {
+		DataSet<Edge<K,NEW>> translatedEdges = translateEdgeValues(graph.getEdges(), translator, parallelism);
+
+		return Graph.fromDataSet(graph.getVertices(), translatedEdges, graph.getContext());
+	}
+
+	/**
+	 * Translate {@link Edge} values using the given {@link Translator}.
+	 *
+	 * @param edges input edges
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 * @param <K> edge label type
 	 * @param <OLD> old edge value type
 	 * @param <NEW> new edge value type
@@ -311,16 +381,19 @@ public class Translate {
 	/**
 	 * Translate {@link Edge} values using the given {@link Translator}.
 	 *
-	 * @param edges source edges
+	 * @param edges input edges
+	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 * @param parallelism operator parallelism
 	 * @param <K> vertex label type
+	 * @param <OLD> old edge value type
+	 * @param <NEW> new edge value type
 	 * @return relabeled edges
 	 */
 	@SuppressWarnings("unchecked")
 	public static <K,OLD,NEW> DataSet<Edge<K,NEW>> translateEdgeValues(DataSet<Edge<K,OLD>> edges, Translator<OLD,NEW> translator, int parallelism) {
 		Class<Edge<K,NEW>> edgeClass = (Class<Edge<K,NEW>>)(Class<? extends Edge>) Edge.class;
 		TypeInformation<K> labelType = ((TupleTypeInfo<Edge<K,OLD>>) edges.getType()).getTypeAt(0);
-		TypeInformation<NEW> newType = translator.getTypeHint().getTypeInfo();
+		TypeInformation<NEW> newType = TypeExtractor.createTypeInfo(Translator.class, translator.getClass(), 1, null, null);
 
 		TupleTypeInfo<Edge<K,NEW>> returnType = new TupleTypeInfo<>(edgeClass, labelType, labelType, newType);
 

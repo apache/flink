@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.translate;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
@@ -26,7 +25,7 @@ import org.apache.flink.types.StringValue;
  * Translate {@link LongValue} to {@link StringValue}.
  */
 public class LongValueToStringValue
-implements Translator<LongValue,StringValue> {
+implements Translator<LongValue, StringValue> {
 
 	@Override
 	public StringValue translate(LongValue value, StringValue reuse) {
@@ -36,10 +35,5 @@ implements Translator<LongValue,StringValue> {
 
 		reuse.setValue(Long.toString(value.getValue()));
 		return reuse;
-	}
-
-	@Override
-	public TypeHint<StringValue> getTypeHint() {
-		return new TypeHint<StringValue>(){};
 	}
 }

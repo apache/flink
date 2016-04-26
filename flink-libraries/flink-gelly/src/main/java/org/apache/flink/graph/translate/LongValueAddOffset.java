@@ -18,14 +18,13 @@
 
 package org.apache.flink.graph.translate;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.types.LongValue;
 
 /**
  * Translate {@link LongValue} by adding a constant offset value.
  */
 public class LongValueAddOffset
-implements Translator<LongValue,LongValue> {
+implements Translator<LongValue, LongValue> {
 
 	private final long offset;
 
@@ -44,9 +43,4 @@ implements Translator<LongValue,LongValue> {
 
 		return value;
 	}
-
-	@Override
-	public TypeHint<LongValue> getTypeHint() {
-			return new TypeHint<LongValue>(){};
-		}
 }

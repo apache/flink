@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.translate;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
@@ -28,7 +27,7 @@ import org.apache.flink.types.LongValue;
  * Throws {@link RuntimeException} for integer overflow.
  */
 public class LongValueToIntValue
-implements Translator<LongValue,IntValue> {
+implements Translator<LongValue, IntValue> {
 
 	@Override
 	public IntValue translate(LongValue value, IntValue reuse) {
@@ -45,9 +44,4 @@ implements Translator<LongValue,IntValue> {
 		reuse.setValue((int) val);
 		return reuse;
 	}
-
-	@Override
-	public TypeHint<IntValue> getTypeHint() {
-			return new TypeHint<IntValue>(){};
-		}
 }

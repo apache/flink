@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.translate;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
-
 import java.io.Serializable;
 
 /**
@@ -33,7 +31,7 @@ import java.io.Serializable;
  *
  * @see Translate
  */
-public interface Translator<OLD,NEW>
+public interface Translator<OLD, NEW>
 extends Serializable {
 
 	/**
@@ -45,12 +43,4 @@ extends Serializable {
 	 * @return new value
 	 */
 	NEW translate(OLD value, NEW reuse);
-
-	/**
-	 * The type hint is required by the translation functions
-	 * due to Java type erasure.
-	 *
-	 * @return type hint for the new type
-	 */
-	TypeHint<NEW> getTypeHint();
 }
