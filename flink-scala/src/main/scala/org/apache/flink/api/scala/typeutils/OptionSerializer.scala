@@ -28,7 +28,15 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   extends TypeSerializer[Option[A]] {
 
-  override def duplicate: OptionSerializer[A] = this
+  override def duplicate: OptionSerializer[A] = {
+    val duplicatedElemSerializer = elemSerializer.duplicate()
+
+    if (duplicatedElemSerializer.eq(elemSerializer)) {
+      this
+    } else {
+      new OptionSerializer[A](duplicatedElemSerializer)
+    }
+  }
 
   override def createInstance: Option[A] = {
     None
