@@ -45,7 +45,7 @@ public class TableSourceITCase extends TableProgramsTestBase {
 	}
 
 	@Test
-	public void testStreamTableSourceTableAPI() throws Exception {
+	public void testBatchTableSourceTableAPI() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
@@ -65,7 +65,7 @@ public class TableSourceITCase extends TableProgramsTestBase {
 	}
 
 	@Test
-	public void testStreamTableSourceSQL() throws Exception {
+	public void testBatchTableSourceSQL() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 

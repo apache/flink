@@ -71,6 +71,8 @@ The following sections show by example how to use the Table API embedded in the 
 
 `TableEnvironment`s have an internal table catalog to which tables can be registered with a unique name. After registration, a table can be accessed from the `TableEnvironment` by its name. Tables can be registered in different ways.
 
+*Note that it is not required to register a `DataSet` or `DataStream` as a table in a `TableEnvironment` in order to process it a with the Table API.* 
+
 #### Register a DataSet
 
 A `DataSet` is registered as a `Table` in a `BatchTableEnvironment` as follows:
@@ -181,7 +183,7 @@ tableEnv.registerTable("custNames", custT)
 
 A registered `Table` that originates from a Table API operation or SQL query is treated similarly as a view as known from relational DBMS, i.e., it can be inlined when optimizing the query.
 
-#### Register an external table using a TableSource
+#### Register an external Table using a TableSource
 
 An external table is registered in a `TableEnvironment` using a `TableSource` as follows:
 
@@ -218,7 +220,7 @@ A `TableSource` can provide access to data stored in various storage systems suc
 
 Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. 
 
-#### Accessing registered Tables
+#### Access a registered Table
 
 A registered table can be accessed from a `TableEnvironment` as follows:
 

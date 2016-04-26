@@ -18,13 +18,15 @@
 
 package org.apache.flink.api.scala.table.test
 
+import java.io.{FileOutputStream, OutputStreamWriter, File}
+
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{TypeInformation, BasicTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaExecEnv, DataSet => JavaSet}
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.table.sources.BatchTableSource
+import org.apache.flink.api.table.sources.{CsvTableSource, BatchTableSource}
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.api.table.test.utils.TableProgramsTestBase
@@ -44,7 +46,7 @@ class TableSourceITCase(
   extends TableProgramsTestBase(mode, configMode) {
 
   @Test
-  def testStreamTableSourceTableAPI(): Unit = {
+  def testBatchTableSourceTableAPI(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -63,7 +65,7 @@ class TableSourceITCase(
   }
 
   @Test
-  def testStreamTableSourceSQL(): Unit = {
+  def testBatchTableSourceSQL(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -76,6 +78,59 @@ class TableSourceITCase(
     val expected = Seq(
       "0,Record_0", "0,Record_16", "0,Record_32", "1,Record_1", "17,Record_17",
       "36,Record_18", "4,Record_2", "57,Record_19", "9,Record_3").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCsvTableSource(): Unit = {
+
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2#45.6#Taylor",
+      "Sam#3#7.89#Miller",
+      "Peter#4#0.12#Smith",
+      "% Just a comment",
+      "Liz#5#34.5#Williams",
+      "Sally#6#6.78#Miller",
+      "Alice#7#90.1#Smith",
+      "Kelly#8#2.34#Williams"
+    )
+
+    val tempFile = File.createTempFile("csv-test", "tmp")
+    tempFile.deleteOnExit()
+    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), "UTF-8")
+    tmpWriter.write(csvRecords.mkString("$"))
+    tmpWriter.close()
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val csvTable = new CsvTableSource(
+      tempFile.getAbsolutePath,
+      Array("first", "id", "score", "last"),
+      Array(
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.INT_TYPE_INFO,
+        BasicTypeInfo.DOUBLE_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO
+      ),
+      fieldDelim = "#",
+      rowDelim = "$",
+      ignoreFirstLine = true,
+      ignoreComments = "%"
+    )
+
+    tEnv.registerTableSource("csvTable", csvTable)
+    val results = tEnv.sql(
+      "SELECT last, sum(score), max(id) FROM csvTable GROUP BY last")
+      .toDataSet[Row].collect()
+
+    val expected = Seq(
+      "Smith,102.52,7",
+      "Taylor,45.6,2",
+      "Miller,14.67,6",
+      "Williams,36.84,8").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
