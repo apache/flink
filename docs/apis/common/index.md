@@ -1076,7 +1076,7 @@ interface.
 - {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Histogram.java "__Histogram__" %}:
   A histogram implementation for a discrete number of bins. Internally it is just a map from Integer
   to Integer. You can use this to compute distributions of values, e.g. the distribution of
-  words-per-line for a word count program.
+  words-per-line for a word count program. (Alternatively use the {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/LongHistogram.java "__LongHistogram__" %} if needed.)
 
 __How to use accumulators:__
 
@@ -1350,4 +1350,3 @@ You may specify program arguments before the job is executed. The plan visualiza
 the execution plan before executing the Flink job.
 
 {% top %}
-

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongHistogram;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -84,7 +85,11 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		Map<Integer, Integer> dist = Maps.newHashMap();
 		dist.put(1, 1); dist.put(2, 1); dist.put(3, 1);
 		Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
-		
+
+		Map<Integer, Long> distLong = Maps.newHashMap();
+		distLong.put(1, 1L); distLong.put(2, 1L); distLong.put(3, 1L);
+		Assert.assertEquals(distLong, res.getAccumulatorResult("words-per-line-long"));
+
 		// Test distinct words (custom accumulator)
 		Set<StringValue> distinctWords = Sets.newHashSet();
 		distinctWords.add(new StringValue("one"));
@@ -113,6 +118,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		// initialized at this place
 		private IntCounter cntNumLines;
 		private Histogram wordsPerLineDistribution;
+		private LongHistogram wordsPerLineDistributionLong;
 
 		// This counter will be added without convenience functions
 		private DoubleCounter openCloseCounter = new DoubleCounter();
@@ -124,6 +130,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 			// Add counters using convenience functions
 			this.cntNumLines = getRuntimeContext().getIntCounter("num-lines");
 			this.wordsPerLineDistribution = getRuntimeContext().getHistogram("words-per-line");
+			this.wordsPerLineDistributionLong = getRuntimeContext().getLongHistogram("words-per-line-long");
 
 			// Add built-in accumulator without convenience function
 			getRuntimeContext().addAccumulator("open-close-counter", this.openCloseCounter);
@@ -169,6 +176,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 				++ wordsPerLine;
 			}
 			wordsPerLineDistribution.add(wordsPerLine);
+			wordsPerLineDistributionLong.add(wordsPerLine);
 		}
 		
 		@Override

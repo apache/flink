@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.util.MathUtils;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,7 +28,7 @@ import java.util.TreeMap;
  * Histogram accumulator, which builds a histogram in a distributed manner.
  * Implemented as a Integer-&gt;Integer TreeMap, so that the entries are sorted
  * according to the values.
- * 
+ *
  * This class does not extend to continuous values later, because it makes no
  * attempt to put the data in bins.
  */
@@ -36,47 +37,62 @@ public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>
 
 	private static final long serialVersionUID = 1L;
 
-	private TreeMap<Integer, Integer> treeMap = new TreeMap<Integer, Integer>();
+	private LongHistogram internalHistogram = new LongHistogram();
 
 	@Override
 	public void add(Integer value) {
-		Integer current = treeMap.get(value);
-		Integer newValue = (current != null ? current : 0) + 1;
-		this.treeMap.put(value, newValue);
+		internalHistogram.add(value);
 	}
 
 	@Override
 	public TreeMap<Integer, Integer> getLocalValue() {
-		return this.treeMap;
+		final TreeMap<Integer, Long> longTreeMap = internalHistogram.getLocalValue();
+		return convertToIntMap(longTreeMap);
+	}
+
+	private TreeMap<Integer, Integer> convertToIntMap(final TreeMap<Integer, Long> longTreeMap) {
+		final TreeMap<Integer, Integer> intTreeMap = new TreeMap<>();
+		for (final Map.Entry<Integer, Long> entry : longTreeMap.entrySet()) {
+			intTreeMap.put(entry.getKey(), checkedCast(entry.getValue()));
+		}
+		return intTreeMap;
+	}
+
+	private int checkedCast(final Long l) {
+		try {
+			return MathUtils.checkedDownCast(l);
+		} catch (final IllegalArgumentException e) {
+			throw new IllegalArgumentException("Histogram can only deal with int values, consider using LongHistogram.", e);
+		}
 	}
 
 	@Override
 	public void merge(Accumulator<Integer, TreeMap<Integer, Integer>> other) {
 		// Merge the values into this map
 		for (Map.Entry<Integer, Integer> entryFromOther : other.getLocalValue().entrySet()) {
-			Integer ownValue = this.treeMap.get(entryFromOther.getKey());
+			Long ownValue = internalHistogram.getLocalValue().get(entryFromOther.getKey());
 			if (ownValue == null) {
-				this.treeMap.put(entryFromOther.getKey(), entryFromOther.getValue());
+				internalHistogram.getLocalValue().put(entryFromOther.getKey(), entryFromOther.getValue().longValue());
 			} else {
-				this.treeMap.put(entryFromOther.getKey(), entryFromOther.getValue() + ownValue);
+				internalHistogram.getLocalValue().put(entryFromOther.getKey(), entryFromOther.getValue() + ownValue);
 			}
 		}
 	}
 
 	@Override
 	public void resetLocal() {
-		this.treeMap.clear();
+		internalHistogram.resetLocal();
 	}
 
 	@Override
 	public String toString() {
-		return this.treeMap.toString();
+		return internalHistogram.toString();
 	}
 
 	@Override
 	public Accumulator<Integer, TreeMap<Integer, Integer>> clone() {
-		Histogram result = new Histogram();
-		result.treeMap = new TreeMap<Integer, Integer>(treeMap);
+		final Histogram result = new Histogram();
+		result.internalHistogram = internalHistogram;
 		return result;
 	}
 }
