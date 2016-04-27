@@ -90,7 +90,7 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  [[LearningRateMethod]] for all supported methods.
   *
   */
-class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
+class MultipleLinearRegression extends Regressor[MultipleLinearRegression]  {
   import org.apache.flink.ml._
   import MultipleLinearRegression._
 
