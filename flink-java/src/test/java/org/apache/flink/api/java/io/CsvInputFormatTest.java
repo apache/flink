@@ -19,8 +19,6 @@
 
 package org.apache.flink.api.java.io;
 
-import com.google.common.base.Charsets;
-
 import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.*;
@@ -38,6 +36,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -692,7 +691,7 @@ public class CsvInputFormatTest {
 		tempFile.deleteOnExit();
 
 		OutputStreamWriter wrt = new OutputStreamWriter(
-				new FileOutputStream(tempFile), Charsets.UTF_8
+				new FileOutputStream(tempFile), StandardCharsets.UTF_8
 		);
 		wrt.write(content);
 		wrt.close();

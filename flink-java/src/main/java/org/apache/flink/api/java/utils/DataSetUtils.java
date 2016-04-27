@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.utils;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -48,6 +47,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -104,7 +104,10 @@ public final class DataSetUtils {
 							@Override
 							public List<Tuple2<Integer, Long>> initializeBroadcastVariable(Iterable<Tuple2<Integer, Long>> data) {
 								// sort the list by task id to calculate the correct offset
-								List<Tuple2<Integer, Long>> sortedData = Lists.newArrayList(data);
+								List<Tuple2<Integer, Long>> sortedData = new ArrayList<>();
+								for (Tuple2<Integer, Long> datum : data) {
+									sortedData.add(datum);
+								}
 								Collections.sort(sortedData, new Comparator<Tuple2<Integer, Long>>() {
 									@Override
 									public int compare(Tuple2<Integer, Long> o1, Tuple2<Integer, Long> o2) {

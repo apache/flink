@@ -18,12 +18,11 @@
 
 package org.apache.flink.api.java.io;
 
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import org.apache.flink.core.fs.Path;
@@ -133,13 +132,15 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	protected static boolean[] toBooleanMask(int[] sourceFieldIndices) {
 		Preconditions.checkNotNull(sourceFieldIndices);
 
+		int max = 0;
 		for (int i : sourceFieldIndices) {
 			if (i < 0) {
 				throw new IllegalArgumentException("Field indices must not be smaller than zero.");
 			}
+			max = Math.max(i, max);
 		}
 
-		boolean[] includedMask = new boolean[Ints.max(sourceFieldIndices) + 1];
+		boolean[] includedMask = new boolean[max + 1];
 
 		// check if we support parsers for these types
 		for (int i = 0; i < sourceFieldIndices.length; i++) {
