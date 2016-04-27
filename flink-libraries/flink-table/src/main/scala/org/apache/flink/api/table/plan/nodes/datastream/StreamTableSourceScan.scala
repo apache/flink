@@ -16,32 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.dataset
+package org.apache.flink.api.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.BatchTableEnvironment
-import org.apache.flink.api.table.plan.schema.DataSetTable
+import org.apache.flink.api.table.StreamTableEnvironment
+import org.apache.flink.api.table.plan.schema.TableSourceTable
+import org.apache.flink.api.table.sources.StreamTableSource
+import org.apache.flink.streaming.api.datastream.DataStream
 
-/**
-  * Flink RelNode which matches along with DataSource.
-  * It ensures that types without deterministic field order (e.g. POJOs) are not part of
-  * the plan translation.
-  */
-class DataSetScan(
+/** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
+class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
     rowType: RelDataType)
-  extends BatchScan(cluster, traitSet, table, rowType) {
+  extends StreamScan(cluster, traitSet, table, rowType) {
 
-  val dataSetTable: DataSetTable[Any] = table.unwrap(classOf[DataSetTable[Any]])
+  val tableSourceTable = table.unwrap(classOf[TableSourceTable])
+  val tableSource = tableSourceTable.tableSource.asInstanceOf[StreamTableSource[_]]
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataSetScan(
+    new StreamTableSourceScan(
       cluster,
       traitSet,
       table,
@@ -50,13 +48,14 @@ class DataSetScan(
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+      tableEnv: StreamTableEnvironment,
+      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
 
     val config = tableEnv.getConfig
-    val inputDataSet: DataSet[Any] = dataSetTable.dataSet
+    val inputDataStream: DataStream[Any] = tableSource
+      .getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
 
-    convertToExpectedType(inputDataSet, dataSetTable, expectedType, config)
+    convertToExpectedType(inputDataStream, tableSourceTable, expectedType, config)
   }
 
 }
