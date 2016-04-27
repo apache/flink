@@ -17,16 +17,15 @@
  */
 package org.apache.flink.api.java.sampling;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
+import org.apache.flink.util.Preconditions;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;

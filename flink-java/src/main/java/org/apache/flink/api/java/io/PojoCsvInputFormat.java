@@ -17,11 +17,11 @@
  */
 package org.apache.flink.api.java.io;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.lang.reflect.Field;

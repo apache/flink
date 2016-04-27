@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -48,8 +49,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Base class shared between the Java and Scala API of Flink
@@ -81,10 +80,10 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	protected boolean hasNext;
 
 	public HadoopInputFormatBase(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
-		super(checkNotNull(job, "Job can not be null").getCredentials());
-		this.mapreduceInputFormat = checkNotNull(mapreduceInputFormat);
-		this.keyClass = checkNotNull(key);
-		this.valueClass = checkNotNull(value);
+		super(Preconditions.checkNotNull(job, "Job can not be null").getCredentials());
+		this.mapreduceInputFormat = Preconditions.checkNotNull(mapreduceInputFormat);
+		this.keyClass = Preconditions.checkNotNull(key);
+		this.valueClass = Preconditions.checkNotNull(value);
 		this.configuration = job.getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
 	}

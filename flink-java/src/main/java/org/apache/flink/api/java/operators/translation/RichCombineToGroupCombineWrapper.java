@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.java.operators.translation;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -25,6 +24,7 @@ import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A wrapper the wraps a function that implements both {@link CombineFunction} and {@link GroupReduceFunction} interfaces
