@@ -63,12 +63,9 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient long end;
 	
-	private boolean isGenericRecord = false;
-	
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
-		this.isGenericRecord = org.apache.avro.generic.GenericRecord.class == avroValueType;
 	}
 	
 	
@@ -108,14 +105,11 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 		DatumReader<E> datumReader;
 		
-		if (isGenericRecord) {
+		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
 			datumReader = new GenericDatumReader<E>();
 		} else {
-			if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
-				datumReader = new SpecificDatumReader<E>(avroValueType);
-			} else {
-				datumReader = new ReflectDatumReader<E>(avroValueType);
-			}
+			datumReader = org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)
+					? new SpecificDatumReader<E>(avroValueType) : new ReflectDatumReader<E>(avroValueType);
 		}
 
 		if (LOG.isInfoEnabled()) {
@@ -144,12 +138,8 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		if (reachedEnd()) {
 			return null;
 		}
-		if (isGenericRecord) {
-			if (reuseAvroValue) {
-				reuseValue = dataFileReader.next(reuseValue);
-			} else {
-				reuseValue = dataFileReader.next();
-			}
+		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
+			return reuseAvroValue ? dataFileReader.next(reuseValue) : dataFileReader.next();
 		} else {
 			if (!reuseAvroValue) {
 				reuseValue = InstantiationUtil.instantiate(avroValueType, Object.class);
