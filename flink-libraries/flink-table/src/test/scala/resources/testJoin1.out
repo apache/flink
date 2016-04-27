@@ -100,7 +100,7 @@ Stage 6 : Data Source
 			content : where: (=(b, d)), join: (a, b, c, d)
 			ship_strategy : Hash Partition on [1]
 			exchange_mode : PIPELINED
-			driver_strategy : Hybrid Hash (build: from: (a, b))
+			driver_strategy : Hybrid Hash (build: from: (a, b) (id: 3))
 			Partitioning : RANDOM_PARTITIONED
 			Partitioning Order : (none)
 			Uniqueness : not unique
