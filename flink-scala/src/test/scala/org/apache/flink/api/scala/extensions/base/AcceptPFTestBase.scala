@@ -29,7 +29,7 @@ private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUni
 
   private val env = ExecutionEnvironment.getExecutionEnvironment
 
-  protected val tuples = env.fromElements(1 -> "hello", 2 -> "world")
+  protected val tuples = env.fromElements(new Integer(1) -> "hello", new Integer(2) -> "world")
   protected val caseObjects = env.fromElements(KeyValuePair(1, "hello"), KeyValuePair(2, "world"))
 
   protected val groupedTuples = tuples.groupBy(_._1)
