@@ -173,5 +173,30 @@ public class ExpressionsITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testComplexExpression() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSource<Tuple3<Integer, Integer, Integer>> input =
+				env.fromElements(new Tuple3<>(5, 5, 4));
+
+		Table table =
+				tableEnv.fromDataSet(input, "a, b, c");
+
+		Table result = table.select(
+				"a.isNull().isNull," +
+					"a.abs() + a.abs().abs().abs().abs()," +
+					"a.cast(STRING) + a.cast(STRING)," +
+					"CAST(ISNULL(b), INT)," +
+					"ISNULL(CAST(b, INT).abs()) === false," +
+					"((((true) === true) || false).cast(STRING) + 'X ').trim");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "false,10,55,0,true,trueX";
+		compareResultAsText(results, expected);
+	}
+
 }
 

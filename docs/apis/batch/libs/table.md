@@ -396,42 +396,52 @@ val result = in.distinct();
 ### Expression Syntax
 Some of the operators in previous sections expect one or more expressions. Expressions can be specified using an embedded Scala DSL or as Strings. Please refer to the examples above to learn how expressions can be specified.
 
-This is the complete EBNF grammar for expressions:
+This is the EBNF grammar for expressions:
 
 {% highlight ebnf %}
 
-expression = single expression , { "," , single expression } ;
+expressionList = expression , { "," , expression } ;
 
-single expression = alias | logic ;
+expression = alias ;
 
-alias = logic | logic , "AS" , field reference ;
+alias = logic | ( logic , "AS" , fieldReference ) ;
 
 logic = comparison , [ ( "&&" | "||" ) , comparison ] ;
 
-comparison = term , [ ( "=" | "!=" | ">" | ">=" | "<" | "<=" ) , term ] ;
+comparison = term , [ ( "=" | "===" | "!=" | "!==" | ">" | ">=" | "<" | "<=" ) , term ] ;
 
 term = product , [ ( "+" | "-" ) , product ] ;
 
-unary = [ "!" | "-" ] , suffix ;
+product = unary , [ ( "*" | "/" | "%") , unary ] ;
 
-suffix = atom | aggregation | cast | as ;
+unary = [ "!" | "-" ] , composite ;
 
-aggregation = atom , [ ".sum" | ".min" | ".max" | ".count" | ".avg" ] ;
+composite = suffixed | atom ;
 
-cast = atom , ".cast(" , data type , ")" ;
+suffixed = cast | as | aggregation | nullCheck | evaluate | functionCall ;
 
-data type = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOL" | "BOOLEAN" | "STRING" | "DATE" ;
+cast = composite , ".cast(" , dataType , ")" ;
 
-as = atom , ".as(" , field reference , ")" ;
+dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOL" | "BOOLEAN" | "STRING" | "DATE" ;
 
-atom = ( "(" , single expression , ")" ) | literal | field reference ;
+as = composite , ".as(" , fieldReference , ")" ;
+
+aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" ) , [ "()" ] ;
+
+nullCheck = composite , ( ".isNull" | ".isNotNull" ) , [ "()" ] ;
+
+evaluate = composite , ".eval(" , expression , "," , expression , ")" ;
+
+functionCall = composite , "." , functionIdentifier , "(" , [ expression , { "," , expression } ] , ")"
+
+atom = ( "(" , expression , ")" ) | literal | nullLiteral | fieldReference ;
+
+nullLiteral = "Null(" , dataType , ")" ;
 
 {% endhighlight %}
 
-Here, `literal` is a valid Java literal and `field reference` specifies a column in the data. The
-column names follow Java identifier syntax.
-
-Only the types `LONG` and `STRING` can be casted to `DATE` and vice versa. A `LONG` casted to `DATE` must be a milliseconds timestamp. A `STRING` casted to `DATE` must have the format "`yyyy-MM-dd HH:mm:ss.SSS`", "`yyyy-MM-dd`", "`HH:mm:ss`", or a milliseconds timestamp. By default, all timestamps refer to the UTC timezone beginning from January 1, 1970, 00:00:00 in milliseconds.
+Here, `literal` is a valid Java literal, `fieldReference` specifies a column in the data, and `functionIdentifier` specifies a supported scalar function. The
+column names and function names follow Java identifier syntax. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions. 
 
 {% top %}
 
