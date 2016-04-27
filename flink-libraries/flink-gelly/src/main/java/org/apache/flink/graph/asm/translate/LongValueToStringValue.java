@@ -16,31 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.translate;
+package org.apache.flink.graph.asm.translate;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.StringValue;
 
 /**
- * Translate {@link LongValue} by adding a constant offset value.
+ * Translate {@link LongValue} to {@link StringValue}.
  */
-public class LongValueAddOffset
-implements Translator<LongValue, LongValue> {
+public class LongValueToStringValue
+implements MapFunction<LongValue, StringValue> {
 
-	private final long offset;
-
-	/**
-	 * Translate {@link LongValue} by adding a constant offset value.
-	 *
-	 * @param offset value to be added to each element
-	 */
-	public LongValueAddOffset(long offset) {
-		this.offset = offset;
-	}
+	private StringValue output = new StringValue();
 
 	@Override
-	public LongValue translate(LongValue value, LongValue reuse) {
-		value.setValue(offset + value.getValue());
-
-		return value;
+	public StringValue map(LongValue value)
+			throws Exception {
+		output.setValue(Long.toString(value.getValue()));
+		return output;
 	}
 }

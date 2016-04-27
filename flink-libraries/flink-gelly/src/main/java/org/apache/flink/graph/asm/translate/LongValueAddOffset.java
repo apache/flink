@@ -16,31 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.translate;
+package org.apache.flink.graph.asm.translate;
 
-import java.io.Serializable;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.types.LongValue;
 
 /**
- * A {@code Translator} provides a modular mapping of values.
- * <br/>
- * Possible translations include translating the value type and modifying
- * the value data.
- *
- * @param <OLD> old type
- * @param <NEW> new type
- *
- * @see Translate
+ * Translate {@link LongValue} by adding a constant offset value.
  */
-public interface Translator<OLD, NEW>
-extends Serializable {
+public class LongValueAddOffset
+implements MapFunction<LongValue, LongValue> {
+
+	private final long offset;
+
+	private LongValue output = new LongValue();
 
 	/**
-	 * Translate a value between types.
+	 * Translate {@link LongValue} by adding a constant offset value.
 	 *
-	 * @param value old value
-	 * @param reuse optionally reuseable value; if null then create
-	 *				and return a new object
-	 * @return new value
+	 * @param offset value to be added to each element
 	 */
-	NEW translate(OLD value, NEW reuse);
+	public LongValueAddOffset(long offset) {
+		this.offset = offset;
+	}
+
+	@Override
+	public LongValue map(LongValue value)
+			throws Exception {
+		output.setValue(offset + value.getValue());
+
+		return output;
+	}
 }

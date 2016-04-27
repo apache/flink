@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.translate;
+package org.apache.flink.graph.asm.translate;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,6 +32,7 @@ import org.junit.Test;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.apache.flink.graph.asm.translate.Translate.translateVertexValues;
 import static org.junit.Assert.assertEquals;
 
 public class TranslateTest {
@@ -83,8 +84,8 @@ public class TranslateTest {
 	@Test
 	public void testTranslateGraphLabels()
 			throws Exception {
-		Graph<StringValue,LongValue,LongValue> stringLabelGraph = Translate
-			.translateGraphLabels(graph, new LongValueToStringValue());
+		Graph<StringValue,LongValue,LongValue> stringLabelGraph = graph
+			.run(new TranslateGraphLabels<LongValue,StringValue,LongValue,LongValue>(new LongValueToStringValue()));
 
 		for (Vertex<StringValue,LongValue> vertex : stringLabelGraph.getVertices().collect()) {
 			assertEquals(StringValue.class, vertex.f0.getClass());
@@ -104,8 +105,9 @@ public class TranslateTest {
 	@Test
 	public void testTranslateVertexValues()
 			throws Exception {
-		DataSet<Vertex<LongValue,StringValue>> vertexSet = Translate
-			.translateVertexValues(graph.getVertices(), new LongValueToStringValue());
+		DataSet<Vertex<LongValue,StringValue>> vertexSet = graph
+			.run(new TranslateVertexValues<LongValue,LongValue,StringValue,LongValue>(new LongValueToStringValue()))
+			.getVertices();
 
 		for (Vertex<LongValue,StringValue> vertex : vertexSet.collect()) {
 			assertEquals(LongValue.class, vertex.f0.getClass());
@@ -118,8 +120,9 @@ public class TranslateTest {
 	@Test
 	public void testTranslateEdgeValues()
 			throws Exception {
-		DataSet<Edge<LongValue,StringValue>> edgeSet = Translate
-				.translateEdgeValues(graph.getEdges(), new LongValueToStringValue());
+		DataSet<Edge<LongValue,StringValue>> edgeSet = graph
+			.run(new TranslateEdgeValues<LongValue,LongValue,LongValue,StringValue>(new LongValueToStringValue()))
+			.getEdges();
 
 		for (Edge<LongValue,StringValue> edge : edgeSet.collect()) {
 			assertEquals(LongValue.class, edge.f0.getClass());
