@@ -71,10 +71,11 @@ public class DbStateBackendTest {
 	private static DbBackendConfig conf;
 	private static String url1;
 	private static String url2;
+	private static final int DERBY_PORT = 1550;
 
 	@BeforeClass
 	public static void startDerbyServer() throws UnknownHostException, Exception {
-		server = new NetworkServerControl(InetAddress.getByName("localhost"), 1527, "flink", "flink");
+		server = new NetworkServerControl(InetAddress.getByName("localhost"), DERBY_PORT, "flink", "flink");
 
 		// Async call, we need to ensure that the server starts before leaving
 		// the method
@@ -82,12 +83,12 @@ public class DbStateBackendTest {
 
 		tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		conf = new DbBackendConfig("flink", "flink",
-				"jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
+				"jdbc:derby://localhost:" + DERBY_PORT + "/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
 		conf.setDbAdapter(new DerbyAdapter());
 		conf.setKvStateCompactionFrequency(1);
 
-		url1 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true";
-		url2 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true";
+		url1 = "jdbc:derby://localhost:" + DERBY_PORT + "/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true";
+		url2 = "jdbc:derby://localhost:" + DERBY_PORT + "/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true";
 
 		// We need to ensure that the Derby server starts properly before
 		// beginning the tests

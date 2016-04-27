@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,15 +61,21 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 	final static int NUM_KEYS = 100;
 	private static NetworkServerControl server;
 	private static File tempDir;
+	private static final int DERBY_PORT = 1550;
 
 	@Before
 	public void startDerbyServer() throws UnknownHostException, Exception {
-		server = new NetworkServerControl(InetAddress.getByName("localhost"), 1526, "flink", "flink");
-		server.start(null);
-		tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		// We need to ensure that the Derby server starts properly before
-		// beginning the tests
-		DbStateBackendTest.ensureServerStarted(server);
+		try {
+			server = new NetworkServerControl(InetAddress.getByName("localhost"),  DERBY_PORT, "flink", "flink");
+			server.start(null);
+			tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+			// We need to ensure that the Derby server starts properly before
+			// beginning the tests
+			DbStateBackendTest.ensureServerStarted(server);
+		} catch (Throwable t) {
+			t.printStackTrace();
+			fail("FAILED");
+		}
 	}
 
 	@After
@@ -86,7 +93,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		env.enableCheckpointing(500);
 
 		DbBackendConfig conf = new DbBackendConfig("flink", "flink",
-				"jdbc:derby://localhost:1526/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
+				"jdbc:derby://localhost:" + DERBY_PORT + "/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
 		conf.setDbAdapter(new DerbyAdapter());
 		conf.setKvStateCompactionFrequency(2);
 
