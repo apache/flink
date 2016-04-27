@@ -290,11 +290,13 @@ public class PlanJSONDumpGenerator {
 				final DumpableNode<?> source = inConn.getSource();
 				writer.print(inputNum == 0 ? "\n" : ",\n");
 				if (inputNum == 0) {
-					child1name += child1name.length() > 0 ? ", " : ""; 
-					child1name += source.getOptimizerNode().getOperator().getName();
+					child1name += child1name.length() > 0 ? ", " : "";
+					child1name += source.getOptimizerNode().getOperator().getName() +
+						" (id: " + this.nodeIds.get(source) + ")";
 				} else if (inputNum == 1) {
-					child2name += child2name.length() > 0 ? ", " : ""; 
-					child2name = source.getOptimizerNode().getOperator().getName();
+					child2name += child2name.length() > 0 ? ", " : "";
+					child2name += source.getOptimizerNode().getOperator().getName() +
+						" (id: " + this.nodeIds.get(source) + ")";
 				}
 
 				// output predecessor id

@@ -28,7 +28,7 @@ Stage 5 : Data Source
 			content : Join at 'b === 'd
 			ship_strategy : Hash Partition on [1]
 			exchange_mode : PIPELINED
-			driver_strategy : Hybrid Hash (build: Map at select('count as 'count,'word as 'word))
+			driver_strategy : Hybrid Hash (build: Map at select('count as 'count,'word as 'word) (id: 2))
 			Partitioning : RANDOM_PARTITIONED
 
 			Stage 0 : Data Sink
