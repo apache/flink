@@ -36,8 +36,7 @@ import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 @Public
 public class UnsortedGrouping<T> extends Grouping<T> {

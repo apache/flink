@@ -30,12 +30,11 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Preconditions;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
-
-import com.google.common.base.Preconditions;
 
 /**
  * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,

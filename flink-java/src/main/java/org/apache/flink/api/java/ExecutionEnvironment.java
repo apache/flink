@@ -20,9 +20,6 @@ package org.apache.flink.api.java;
 
 import com.esotericsoftware.kryo.Serializer;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
@@ -60,6 +57,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.Visitor;
 
@@ -1090,12 +1088,12 @@ public abstract class ExecutionEnvironment {
 		}
 
 		if(LOG.isDebugEnabled()) {
-			LOG.debug("Registered Kryo types: {}", Joiner.on(',').join(config.getRegisteredKryoTypes()));
-			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers().entrySet()));
-			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses().entrySet()));
-			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers().entrySet()));
-			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses().entrySet()));
-			LOG.debug("Registered POJO types: {}", Joiner.on(',').join(config.getRegisteredPojoTypes()));
+			LOG.debug("Registered Kryo types: {}", config.getRegisteredKryoTypes().toString());
+			LOG.debug("Registered Kryo with Serializers types: {}", config.getRegisteredTypesWithKryoSerializers().entrySet().toString());
+			LOG.debug("Registered Kryo with Serializer Classes types: {}", config.getRegisteredTypesWithKryoSerializerClasses().entrySet().toString());
+			LOG.debug("Registered Kryo default Serializers: {}", config.getDefaultKryoSerializers().entrySet().toString());
+			LOG.debug("Registered Kryo default Serializers Classes {}", config.getDefaultKryoSerializerClasses().entrySet().toString());
+			LOG.debug("Registered POJO types: {}", config.getRegisteredPojoTypes().toString());
 
 			// print information about static code analysis
 			LOG.debug("Static code analysis mode: {}", config.getCodeAnalysisMode());

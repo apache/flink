@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.java.sampling;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;

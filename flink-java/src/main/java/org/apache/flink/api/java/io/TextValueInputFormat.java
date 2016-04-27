@@ -23,9 +23,9 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import com.google.common.base.Charsets;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -85,7 +85,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
 
-		if (charsetName.equalsIgnoreCase(Charsets.US_ASCII.name())) {
+		if (charsetName.equalsIgnoreCase(StandardCharsets.US_ASCII.name())) {
 			ascii = true;
 		}
 		
