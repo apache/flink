@@ -404,6 +404,33 @@ class ScalarFunctionsTest {
       "4.6")
   }
 
+  @Test
+  def testArithmeticFloorCeil(): Unit = {
+    testFunction(
+      'f5.floor(),
+      "f5.floor()",
+      "FLOOR(f5)",
+      "4.0")
+
+    testFunction(
+     'f5.ceil(),
+      "f5.ceil()",
+      "CEIL(f5)",
+      "5.0")
+
+    testFunction(
+      'f3.floor(),
+      "f3.floor()",
+      "FLOOR(f3)",
+      "43")
+
+    testFunction(
+      'f3.ceil(),
+      "f3.ceil()",
+      "CEIL(f3)",
+      "43")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testFunction(

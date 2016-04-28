@@ -18,36 +18,27 @@
 
 package org.apache.flink.api.table.codegen.calls
 
-import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
-import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO
+import java.lang.reflect.Method
+
 import org.apache.flink.api.table.codegen.calls.CallGenerator._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
-  * Generates a TRIM function call. The first operand determines the type of trimming
-  * (see [[org.apache.calcite.sql.fun.SqlTrimFunction.Flag]]). Second operand determines
-  * the String to be removed. Third operand is the String to be trimmed.
+  * Generates a function call that calls a method which returns the same type that it
+  * takes as first argument.
   */
-class TrimCallGenerator() extends CallGenerator {
+class MultiTypeMethodCallGen(method: Method) extends CallGenerator {
 
   override def generate(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    val method = BuiltInMethod.TRIM.method
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
+    generateCallIfArgsNotNull(codeGenerator.nullCheck, operands.head.resultType, operands) {
       (operandResultTerms) =>
         s"""
-          |${method.getDeclaringClass.getCanonicalName}.${method.getName}(
-          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
-          |    ${operandResultTerms.head} == ${LEADING.ordinal()},
-          |  ${operandResultTerms.head} == ${BOTH.ordinal()} ||
-          |    ${operandResultTerms.head} == ${TRAILING.ordinal()},
-          |  ${operandResultTerms(1)},
-          |  ${operandResultTerms(2)})
-          |""".stripMargin
+          |${method.getDeclaringClass.getCanonicalName}.
+          |  ${method.getName}(${operandResultTerms.mkString(", ")})
+         """.stripMargin
     }
   }
-
 }
