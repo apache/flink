@@ -407,6 +407,36 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
+   * Relabels vertices and edges using the given MapFunction.
+   *
+   * @param translator implements conversion from K to NEW
+   * @return relabeled graph
+   */
+  def translateGraphLabels[NEW: TypeInformation : ClassTag](translator: MapFunction[K, NEW]): Graph[NEW,VV,EV] = {
+    new Graph[NEW, VV, EV](jgraph.translateGraphLabels(translator))
+  }
+
+  /**
+   * Translate vertex values using the given MapFunction.
+   *
+   * @param translator implements conversion from VV to NEW
+   * @return relabeled graph
+   */
+  def translateVertexValues[NEW: TypeInformation : ClassTag](translator: MapFunction[VV, NEW]): Graph[K,NEW,EV] = {
+    new Graph[K, NEW, EV](jgraph.translateVertexValues(translator))
+  }
+
+  /**
+   * Translate edge values using the given MapFunction.
+   *
+   * @param translator implements conversion from EV to NEW
+   * @return relabeled graph
+   */
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](translator: MapFunction[EV, NEW]): Graph[K,VV,NEW] = {
+    new Graph[K, VV, NEW](jgraph.translateEdgeValues(translator))
+  }
+
+  /**
    * Joins the vertex DataSet of this graph with an input Tuple2 DataSet and applies
    * a user-defined transformation on the values of the matched records.
    * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.

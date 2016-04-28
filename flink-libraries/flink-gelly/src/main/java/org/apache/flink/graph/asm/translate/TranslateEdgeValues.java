@@ -23,7 +23,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
@@ -48,7 +47,7 @@ implements GraphAlgorithm<K, VV, OLD, Graph<K,VV,NEW>> {
 	private int parallelism = PARALLELISM_UNKNOWN;
 
 	/**
-	 * Translate {@link Vertex} values using the given {@link MapFunction}.
+	 * Translate {@link Edge} values using the given {@link MapFunction}.
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */

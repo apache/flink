@@ -85,7 +85,7 @@ public class TranslateTest {
 	public void testTranslateGraphLabels()
 			throws Exception {
 		Graph<StringValue,LongValue,LongValue> stringLabelGraph = graph
-			.run(new TranslateGraphLabels<LongValue,StringValue,LongValue,LongValue>(new LongValueToStringValue()));
+			.translateGraphLabels(new LongValueToStringValue());
 
 		for (Vertex<StringValue,LongValue> vertex : stringLabelGraph.getVertices().collect()) {
 			assertEquals(StringValue.class, vertex.f0.getClass());
@@ -106,7 +106,7 @@ public class TranslateTest {
 	public void testTranslateVertexValues()
 			throws Exception {
 		DataSet<Vertex<LongValue,StringValue>> vertexSet = graph
-			.run(new TranslateVertexValues<LongValue,LongValue,StringValue,LongValue>(new LongValueToStringValue()))
+			.translateVertexValues(new LongValueToStringValue())
 			.getVertices();
 
 		for (Vertex<LongValue,StringValue> vertex : vertexSet.collect()) {
@@ -121,7 +121,7 @@ public class TranslateTest {
 	public void testTranslateEdgeValues()
 			throws Exception {
 		DataSet<Edge<LongValue,StringValue>> edgeSet = graph
-			.run(new TranslateEdgeValues<LongValue,LongValue,LongValue,StringValue>(new LongValueToStringValue()))
+			.translateEdgeValues(new LongValueToStringValue())
 			.getEdges();
 
 		for (Edge<LongValue,StringValue> edge : edgeSet.collect()) {
