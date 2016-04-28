@@ -82,7 +82,7 @@ class DataStreamCalc(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    val generator = new CodeGenerator(config, inputDataStream.getType)
+    val generator = new CodeGenerator(config, false, inputDataStream.getType)
 
     val body = functionBody(
       generator,

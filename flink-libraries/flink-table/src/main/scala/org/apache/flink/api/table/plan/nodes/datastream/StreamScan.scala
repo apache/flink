@@ -72,6 +72,7 @@ abstract class StreamScan(
         if (determinedType != inputType) {
           val generator = new CodeGenerator(
             config,
+            false,
             input.getType,
             flinkTable.fieldIndexes)
 

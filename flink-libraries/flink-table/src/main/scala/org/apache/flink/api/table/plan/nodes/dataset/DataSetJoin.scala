@@ -159,7 +159,11 @@ class DataSetJoin(
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val generator = new CodeGenerator(config, leftDataSet.getType, Some(rightDataSet.getType))
+    val generator = new CodeGenerator(
+      config,
+      false,
+      leftDataSet.getType,
+      Some(rightDataSet.getType))
     val conversion = generator.generateConverterResultExpression(
       returnType,
       joinRowType.getFieldNames)
