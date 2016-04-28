@@ -3,9 +3,9 @@ If your changes take all of the items into account, feel free to open your pull 
 In addition to going through the list, please provide a meaningful description of your changes.
 
 - [ ] General
-  - The pull request references the related JIRA issue
+  - The pull request references the related JIRA issue ("[FLINK-XXX] Jira title text")
   - The pull request addresses only one issue
-  - Each commit in the PR has a meaningful commit message
+  - Each commit in the PR has a meaningful commit message (including the JIRA id)
 
 - [ ] Documentation
   - Documentation has been added for new functionality

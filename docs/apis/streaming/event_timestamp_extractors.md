@@ -28,9 +28,9 @@ under the License.
 {:toc}
 
 As described in the [timestamps and watermark handling]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html) page,
-Flink provides abstractions that allow the programmer to assign her own timestamps and emit her own watermarks. More specifically, 
-she can do so by implementing one of the `AssignerWithPeriodicWatermarks` and `AssignerWithPunctuatedWatermarks` interfaces, depending 
-on her use-case. In a nutshell, the first will emit watermarks periodically, while the second does so based on some property of 
+Flink provides abstractions that allow the programmer to assign their own timestamps and emit their own watermarks. More specifically, 
+one can do so by implementing one of the `AssignerWithPeriodicWatermarks` and `AssignerWithPunctuatedWatermarks` interfaces, depending 
+on their use-case. In a nutshell, the first will emit watermarks periodically, while the second does so based on some property of 
 the incoming records, e.g. whenever a special element is encountered in the stream.
 
 In order to further ease the programming effort for such tasks, Flink comes with some pre-implemented timestamp assigners. 

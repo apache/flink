@@ -25,12 +25,13 @@ import org.apache.flink.annotation.PublicEvolving;
  * ascending. In this case, the local watermarks for the streams are easy to generate, because
  * they strictly follow the timestamps.
  *
- * <b>Note:</b> This is just a stub class. The actual code for this has moved to
+ * <b>Note:</b> This is just a deprecated stub class. The actual code for this has moved to
  * {@link org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor}.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  */
 @PublicEvolving
+@Deprecated
 public abstract class AscendingTimestampExtractor<T>
 	extends org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor<T> {
 
