@@ -17,21 +17,14 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -173,111 +166,6 @@ public class KinesisDataFetcher {
 			if (mainThread != null) {
 				mainThread.interrupt();
 			}
-		}
-	}
-
-	private static class ShardConsumerThread<T> extends Thread {
-
-		private final SourceFunction.SourceContext<T> sourceContext;
-		private final KinesisDeserializationSchema<T> deserializer;
-		private final HashMap<KinesisStreamShard, String> seqNoState;
-
-		private final KinesisProxy kinesisProxy;
-
-		private final KinesisDataFetcher ownerRef;
-
-		private final KinesisStreamShard assignedShard;
-
-		private String lastSequenceNum;
-		private String nextShardItr;
-
-		private volatile boolean running = true;
-
-		public ShardConsumerThread(KinesisDataFetcher ownerRef,
-								Properties props,
-								KinesisStreamShard assignedShard,
-								String lastSequenceNum,
-								SourceFunction.SourceContext<T> sourceContext,
-								KinesisDeserializationSchema<T> deserializer,
-								HashMap<KinesisStreamShard, String> seqNumState) {
-			this.ownerRef = checkNotNull(ownerRef);
-			this.assignedShard = checkNotNull(assignedShard);
-			this.lastSequenceNum = checkNotNull(lastSequenceNum);
-			this.sourceContext = checkNotNull(sourceContext);
-			this.deserializer = checkNotNull(deserializer);
-			this.seqNoState = checkNotNull(seqNumState);
-			this.kinesisProxy = new KinesisProxy(props);
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void run() {
-			try {
-				if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.toString())) {
-					// if the shard is already closed, there will be no latest next record to get for this shard
-					if (assignedShard.isClosed()) {
-						nextShardItr = null;
-					} else {
-						nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.LATEST.toString(), null);
-					}
-				} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.toString())) {
-					nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
-				} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.toString())) {
-					nextShardItr = null;
-				} else {
-					nextShardItr = kinesisProxy.getShardIterator(assignedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum);
-				}
-
-				while(running) {
-					if (nextShardItr == null) {
-						lastSequenceNum = SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.toString();
-
-						synchronized (sourceContext.getCheckpointLock()) {
-							seqNoState.put(assignedShard, lastSequenceNum);
-						}
-
-						break;
-					} else {
-						GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, 100);
-
-						List<Record> fetchedRecords = getRecordsResult.getRecords();
-
-						// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-						fetchedRecords = (List<Record>) (List<?>) UserRecord.deaggregate(
-							fetchedRecords,
-							new BigInteger(this.assignedShard.getStartingHashKey()),
-							new BigInteger(this.assignedShard.getEndingHashKey()));
-
-						for (Record record : fetchedRecords) {
-							ByteBuffer recordData = record.getData();
-
-							byte[] dataBytes = new byte[recordData.remaining()];
-							recordData.get(dataBytes);
-
-							byte[] keyBytes = record.getPartitionKey().getBytes();
-
-							final T value = deserializer.deserialize(keyBytes, dataBytes,assignedShard.getStreamName(),
-								record.getSequenceNumber());
-
-							synchronized (sourceContext.getCheckpointLock()) {
-								sourceContext.collect(value);
-								seqNoState.put(assignedShard, record.getSequenceNumber());
-							}
-
-							lastSequenceNum = record.getSequenceNumber();
-						}
-
-						nextShardItr = getRecordsResult.getNextShardIterator();
-					}
-				}
-			} catch (Throwable t) {
-				ownerRef.stopWithError(t);
-			}
-		}
-
-		public void cancel() {
-			this.running = false;
-			this.interrupt();
 		}
 	}
 }
