@@ -30,7 +30,7 @@ class DataSetSortRule
     classOf[LogicalSort],
     Convention.NONE,
     DataSetConvention.INSTANCE,
-    "FlinkSortRule") {
+    "DataSetSortRule") {
 
   /**
     * Only translate when no OFFSET or LIMIT specified

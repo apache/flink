@@ -22,7 +22,7 @@ import org.apache.calcite.tools.RelBuilder
 abstract class Ordering extends UnaryExpression { self: Product =>
 }
 
-case class Asc(child: Expression) extends Ordering{
+case class Asc(child: Expression) extends Ordering {
   override def toString: String = s"($child).asc"
 
   override def name: String = child.name + "-asc"

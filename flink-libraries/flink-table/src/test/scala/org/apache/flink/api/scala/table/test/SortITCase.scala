@@ -79,7 +79,7 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -97,7 +97,7 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -115,7 +115,7 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -135,7 +135,7 @@ class SortITCase(
     val expected = sortExpectedly(tupleDataSetStrings)
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
-    val result = results.filterNot(_.isEmpty).sortBy(p => p.min).reduceLeft(_ ++ _)
+    val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }

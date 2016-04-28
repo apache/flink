@@ -122,6 +122,6 @@ class DataSetSort(
 
   override def explainTerms(pw: RelWriter) : RelWriter = {
     super.explainTerms(pw)
-      .item("by", sortFieldsToString)
+      .item("orderBy", sortFieldsToString)
   }
 }
