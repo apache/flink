@@ -61,7 +61,7 @@ the progress in event time.
 There are two ways to assign timestamps and generate Watermarks:
 
   1. Directly in the data stream source
-  2. Via a *TimestampAssigner / WatermarkGenerator*
+  2. Via a timestamp assigner / watermark generator: in Flink timestamp assigners also define the watermarks to be emitted
 
 
 ### Source Functions with Timestamps and Watermarks
@@ -116,10 +116,15 @@ those timestamps will be overwritten by the TimestampAssigner. Similarly, Waterm
 Timestamp Assigners take a stream and produce a new stream with timestamped elements and watermarks. If the
 original stream had timestamps or watermarks already, the timestamp assigner overwrites those.
 
-The timestamp assigners occur usually direct after the data source, but it is not strictly required to. A
+The timestamp assigners occur usually immediately after the data source, but it is not strictly required to. A
 common pattern is for example to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
 In any case, the timestamp assigner needs to occur before the first operation on event time
-(such as the first window operation).
+(such as the first window operation). 
+
+**NOTE:** The remainder of this section presents the main interfaces a programmer has
+to implement in order to create her own timestamp extractors/watermark emitters. 
+To see the pre-implemented extractors that ship with Flink, please refer to the 
+[Pre-defined Timestamp Extractors / Watermark Emitters]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html) page.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -159,45 +164,6 @@ withTimestampsAndWatermarks
 {% endhighlight %}
 </div>
 </div>
-
-
-#### **With Ascending timestamps**
-
-The simplest case for generating watermarks is the case where timestamps within one source occur in ascending order.
-In that case, the current timestamp can always act as a watermark, because no lower timestamps will occur any more.
-
-Note that it is only necessary that timestamps are ascending *per parallel data source instance*. For example, if
-in a specific setup one Kafka partition is read by one parallel data source instance, then it is only necessary that
-timestamps are ascending within each Kafka partition. Flink's Watermark merging mechanism will generate correct
-whenever parallel streams are shuffled, unioned, connected, or merged.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<MyEvent> stream = ...
-
-DataStream<MyEvent> withTimestampsAndWatermarks = 
-    stream.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<MyEvent>() {
-
-        @Override
-        public long extractAscendingTimestamp(MyEvent element) {
-            return element.getCreationTime();
-        }
-});
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val stream: DataStream[MyEvent] = ...
-
-val withTimestampsAndWatermarks = stream.assignAscendingTimestamps( _.getCreationTime )
-{% endhighlight %}
-</div>
-</div>
-
-
-*Note:* The generation of watermarks on ascending timestamps is a special case of the periodic watermark
-generation described in the next section.
 
 
 #### **With Periodic Watermarks**
@@ -306,7 +272,6 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 {% endhighlight %}
 </div>
 </div>
-
 
 #### **With Punctuated Watermarks**
 
