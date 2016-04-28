@@ -65,6 +65,8 @@ object BuiltInFunctionNames {
   val POWER = "POWER"
   val LN = "LN"
   val ABS = "ABS"
+  val FLOOR = "FLOOR"
+  val CEIL = "CEIL"
 
   def toSqlOperator(name: String): SqlOperator = {
     name match {
@@ -82,6 +84,8 @@ object BuiltInFunctionNames {
       case BuiltInFunctionNames.LN => SqlStdOperatorTable.LN
       case BuiltInFunctionNames.ABS => SqlStdOperatorTable.ABS
       case BuiltInFunctionNames.MOD => SqlStdOperatorTable.MOD
+      case BuiltInFunctionNames.FLOOR => SqlStdOperatorTable.FLOOR
+      case BuiltInFunctionNames.CEIL => SqlStdOperatorTable.CEIL
       case _ => ???
     }
   }

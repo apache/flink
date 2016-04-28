@@ -114,6 +114,16 @@ trait ImplicitExpressionOperations {
   def abs() = Call(BuiltInFunctionNames.ABS, expr)
 
   /**
+    * Calculates the largest integer less than or equal to a given number.
+    */
+  def floor() = Call(BuiltInFunctionNames.FLOOR, expr)
+
+  /**
+    * Calculates the smallest integer greater than or equal to a given number.
+    */
+  def ceil() = Call(BuiltInFunctionNames.CEIL, expr)
+
+  /**
     * Creates a substring of the given string between the given indices.
     *
     * @param beginIndex first character of the substring (starting at 1, inclusive)

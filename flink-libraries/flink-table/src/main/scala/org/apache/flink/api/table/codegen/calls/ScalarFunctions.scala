@@ -52,10 +52,10 @@ object ScalarFunctions {
     STRING_TYPE_INFO,
     BuiltInMethod.SUBSTRING.method)
 
-  addSqlFunctionTrim(
+  addSqlFunction(
     TRIM,
     Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
-    STRING_TYPE_INFO)
+    new TrimCallGenerator())
 
   addSqlFunctionMethod(
     CHAR_LENGTH,
@@ -109,7 +109,9 @@ object ScalarFunctions {
     Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
     BuiltInMethod.SIMILAR.method)
 
+  // ----------------------------------------------------------------------------------------------
   // arithmetic functions
+  // ----------------------------------------------------------------------------------------------
 
   addSqlFunctionMethod(
     LOG10,
@@ -135,41 +137,20 @@ object ScalarFunctions {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER)
 
-  addSqlFunctionMethod(
-    ABS,
-    Seq(BYTE_TYPE_INFO),
-    BYTE_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(SHORT_TYPE_INFO),
-    SHORT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(INT_TYPE_INFO),
-    INT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(LONG_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
-    ABS,
-    Seq(FLOAT_TYPE_INFO),
-    FLOAT_TYPE_INFO,
-    BuiltInMethods.ABS)
-
-  addSqlFunctionMethod(
+  addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),
-    DOUBLE_TYPE_INFO,
-    BuiltInMethods.ABS)
+    new MultiTypeMethodCallGen(BuiltInMethods.ABS))
+
+  addSqlFunction(
+    FLOOR,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
 
 
   // ----------------------------------------------------------------------------------------------
@@ -209,12 +190,12 @@ object ScalarFunctions {
       new NotCallGenerator(new MethodCallGenerator(BOOLEAN_TYPE_INFO, method))
   }
 
-  private def addSqlFunctionTrim(
+  private def addSqlFunction(
       sqlOperator: SqlOperator,
       operandTypes: Seq[TypeInformation[_]],
-      returnType: TypeInformation[_])
+      callGenerator: CallGenerator)
     : Unit = {
-    sqlFunctions((sqlOperator, operandTypes)) = new TrimCallGenerator(returnType)
+    sqlFunctions((sqlOperator, operandTypes)) = callGenerator
   }
 
 }
