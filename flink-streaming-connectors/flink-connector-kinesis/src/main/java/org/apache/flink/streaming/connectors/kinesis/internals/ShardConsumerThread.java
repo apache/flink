@@ -55,12 +55,12 @@ public class ShardConsumerThread<T> extends Thread {
 	private volatile boolean running = true;
 
 	public ShardConsumerThread(KinesisDataFetcher ownerRef,
-							   Properties props,
-							   KinesisStreamShard assignedShard,
-							   String lastSequenceNum,
-							   SourceFunction.SourceContext<T> sourceContext,
-							   KinesisDeserializationSchema<T> deserializer,
-							   HashMap<KinesisStreamShard, String> seqNumState) {
+							Properties props,
+							KinesisStreamShard assignedShard,
+							String lastSequenceNum,
+							SourceFunction.SourceContext<T> sourceContext,
+							KinesisDeserializationSchema<T> deserializer,
+							HashMap<KinesisStreamShard, String> seqNumState) {
 		this.ownerRef = checkNotNull(ownerRef);
 		this.assignedShard = checkNotNull(assignedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
@@ -104,10 +104,7 @@ public class ShardConsumerThread<T> extends Thread {
 					List<Record> fetchedRecords = getRecordsResult.getRecords();
 
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-					fetchedRecords = (List<Record>) (List<?>) UserRecord.deaggregate(
-						fetchedRecords,
-						new BigInteger(this.assignedShard.getStartingHashKey()),
-						new BigInteger(this.assignedShard.getEndingHashKey()));
+					fetchedRecords = deaggregateRecords(fetchedRecords, assignedShard.getStartingHashKey(), assignedShard.getEndingHashKey());
 
 					for (Record record : fetchedRecords) {
 						ByteBuffer recordData = record.getData();
@@ -139,5 +136,10 @@ public class ShardConsumerThread<T> extends Thread {
 	public void cancel() {
 		this.running = false;
 		this.interrupt();
+	}
+
+	@SuppressWarnings("unchecked")
+	protected static List<Record> deaggregateRecords(List<Record> records, String startingHashKey, String endingHashKey) {
+		return (List<Record>) (List<?>) UserRecord.deaggregate(records, new BigInteger(startingHashKey), new BigInteger(endingHashKey));
 	}
 }
