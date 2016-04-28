@@ -66,7 +66,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <K> PartitionedStateBackend<K> createKeyedStateBackend(TypeSerializer<K> keySerializer) {
+	public <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) {
 		return new PartitionedMemoryStateBackend<K>(keySerializer, classLoader);
 	}
 

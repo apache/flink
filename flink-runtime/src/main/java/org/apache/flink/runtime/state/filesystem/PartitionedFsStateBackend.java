@@ -65,8 +65,9 @@ public class PartitionedFsStateBackend<KEY> extends AbstractPartitionedStateBack
 	}
 
 	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-																  FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(
+		TypeSerializer<N> namespaceSerializer,
+		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
 	}
 

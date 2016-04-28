@@ -39,6 +39,10 @@ public class PartitionedStateSnapshot implements Serializable {
 		return namedKvStateSnapshots.get(key);
 	}
 
+	public boolean containsKey(String key) {
+		return namedKvStateSnapshots.containsKey(key);
+	}
+
 	public void put(String name, KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot) {
 		namedKvStateSnapshots.put(name, kvStateSnapshot);
 	}

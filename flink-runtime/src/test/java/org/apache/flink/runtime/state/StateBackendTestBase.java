@@ -34,131 +34,128 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.types.IntValue;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.HashMap;
 
 import static org.junit.Assert.*;
 
 /**
  * Generic tests for the partitioned state part of {@link AbstractStateBackend}.
  */
-public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
+public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Integer>> extends TestLogger {
 
-	protected B backend;
+	/**
+	 * Creates a state backend for the testing base. Every call should create a fresh state backend.
+	 *
+	 * @return Fresh state backend
+	 * @throws Exception
+	 */
+	protected abstract B createStateBackend() throws Exception;
 
-	protected abstract B getStateBackend() throws Exception;
+	protected abstract void setup() throws Exception;
 
 	protected abstract void cleanup() throws Exception;
 
 	@Before
-	public void setup() throws Exception {
-		this.backend = getStateBackend();
+	public void setupTest() throws Exception {
+		setup();
 	}
 
 	@After
 	public void teardown() throws Exception {
-		this.backend.dispose();
 		cleanup();
 	}
 
 	@Test
 	public void testValueState() throws Exception {
+		try(B backend = createStateBackend();
+			B backend2 = createStateBackend();
+			B backend3 = createStateBackend()) {
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+			ValueState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
-		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+			// some modifications to the state
+			backend.setCurrentKey(1);
+			assertNull(state.value());
+			state.update("1");
+			backend.setCurrentKey(2);
+			assertNull(state.value());
+			state.update("2");
+			backend.setCurrentKey(1);
+			assertEquals("1", state.value());
 
-		ValueState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			// draw a snapshot
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
-		// some modifications to the state
-		backend.setCurrentKey(1);
-		assertNull(state.value());
-		state.update("1");
-		backend.setCurrentKey(2);
-		assertNull(state.value());
-		state.update("2");
-		backend.setCurrentKey(1);
-		assertEquals("1", state.value());
-
-		// draw a snapshot
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
-
-		for (String key: snapshot1.keySet()) {
-			if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-				snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot1.get(key)).materialize());
+			for (String key : snapshot1.keySet()) {
+				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot1.get(key)).materialize());
+				}
 			}
-		}
 
-		// make some more modifications
-		backend.setCurrentKey(1);
-		state.update("u1");
-		backend.setCurrentKey(2);
-		state.update("u2");
-		backend.setCurrentKey(3);
-		state.update("u3");
+			// make some more modifications
+			backend.setCurrentKey(1);
+			state.update("u1");
+			backend.setCurrentKey(2);
+			state.update("u2");
+			backend.setCurrentKey(3);
+			state.update("u3");
 
-		// draw another snapshot
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
+			// draw another snapshot
+			PartitionedStateSnapshot snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
 
-		for (String key: snapshot2.keySet()) {
-			if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
-				snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot2.get(key)).materialize());
+			for (String key : snapshot2.keySet()) {
+				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
+					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot2.get(key)).materialize());
+				}
 			}
+
+			// validate the original state
+			backend.setCurrentKey(1);
+			assertEquals("u1", state.value());
+			backend.setCurrentKey(2);
+			assertEquals("u2", state.value());
+			backend.setCurrentKey(3);
+			assertEquals("u3", state.value());
+
+			backend2.restorePartitionedState(snapshot1, 100);
+
+			for (String key : snapshot1.keySet()) {
+				snapshot1.get(key).discardState();
+			}
+
+			ValueState<String> restored1 = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+			backend2.setCurrentKey(1);
+			assertEquals("1", restored1.value());
+			backend2.setCurrentKey(2);
+			assertEquals("2", restored1.value());
+
+			backend3.restorePartitionedState(snapshot2, 100);
+
+			for (String key : snapshot2.keySet()) {
+				snapshot2.get(key).discardState();
+			}
+
+			ValueState<String> restored2 = backend3.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+			backend3.setCurrentKey(1);
+			assertEquals("u1", restored2.value());
+			backend3.setCurrentKey(2);
+			assertEquals("u2", restored2.value());
+			backend3.setCurrentKey(3);
+			assertEquals("u3", restored2.value());
 		}
-
-		// validate the original state
-		backend.setCurrentKey(1);
-		assertEquals("u1", state.value());
-		backend.setCurrentKey(2);
-		assertEquals("u2", state.value());
-		backend.setCurrentKey(3);
-		assertEquals("u3", state.value());
-
-		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-
-		backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
-
-		for (String key: snapshot1.keySet()) {
-			snapshot1.get(key).discardState();
-		}
-
-		ValueState<String> restored1 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
-
-		backend.setCurrentKey(1);
-		assertEquals("1", restored1.value());
-		backend.setCurrentKey(2);
-		assertEquals("2", restored1.value());
-
-		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-
-		backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
-
-		for (String key: snapshot2.keySet()) {
-			snapshot2.get(key).discardState();
-		}
-
-		ValueState<String> restored2 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
-
-		backend.setCurrentKey(1);
-		assertEquals("u1", restored2.value());
-		backend.setCurrentKey(2);
-		assertEquals("u2", restored2.value());
-		backend.setCurrentKey(3);
-		assertEquals("u3", restored2.value());
 	}
 
 	/**
@@ -180,61 +177,59 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			// alrighty
 		}
 
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		try(B backend = createStateBackend();
+			B backend2 = createStateBackend()) {
+			ValueStateDescriptor<Long> kvId = new ValueStateDescriptor<>("id", LongSerializer.INSTANCE, 42L);
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
-		ValueStateDescriptor<Long> kvId = new ValueStateDescriptor<>("id", LongSerializer.INSTANCE, 42L);
-		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+			ValueState<Long> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-		ValueState<Long> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			// some modifications to the state
+			backend.setCurrentKey(1);
 
-		// some modifications to the state
-		backend.setCurrentKey(1);
+			// verify default value
+			assertEquals(42L, (long) state.value());
+			state.update(1L);
+			assertEquals(1L, (long) state.value());
 
-		// verify default value
-		assertEquals(42L, (long) state.value());
-		state.update(1L);
-		assertEquals(1L, (long) state.value());
+			backend.setCurrentKey(2);
+			assertEquals(42L, (long) state.value());
 
-		backend.setCurrentKey(2);
-		assertEquals(42L, (long) state.value());
+			backend.setCurrentKey(1);
+			state.clear();
+			assertEquals(42L, (long) state.value());
 
-		backend.setCurrentKey(1);
-		state.clear();
-		assertEquals(42L, (long) state.value());
+			state.update(17L);
+			assertEquals(17L, (long) state.value());
 
-		state.update(17L);
-		assertEquals(17L, (long) state.value());
+			state.update(null);
+			assertEquals(42L, (long) state.value());
 
-		state.update(null);
-		assertEquals(42L, (long) state.value());
+			// draw a snapshot
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
-		// draw a snapshot
-		HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
-
-		for (String key: snapshot1.keySet()) {
-			if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-				snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot1.get(key)).materialize());
+			for (String key : snapshot1.keySet()) {
+				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?, ?>) snapshot1.get(key)).materialize());
+				}
 			}
+
+			backend2.restorePartitionedState(snapshot1, 100);
+
+			for (String key : snapshot1.keySet()) {
+				snapshot1.get(key).discardState();
+			}
+
+			backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 		}
-
-
-		backend.dispose();
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-
-		backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
-
-		for (String key: snapshot1.keySet()) {
-			snapshot1.get(key).discardState();
-		}
-
-		backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 	}
 
 	@Test
 	@SuppressWarnings("unchecked,rawtypes")
-	public void testListState() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+	public void testListState() throws Exception {
+		try(B backend = createStateBackend();
+			B backend2 = createStateBackend();
+			B backend3 = createStateBackend()) {
 
 			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 			ListState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
@@ -251,7 +246,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("1", joiner.join(state.get()));
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -268,7 +263,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			state.add("u3");
 
 			// draw another snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
+			PartitionedStateSnapshot snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -284,43 +279,36 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(3);
 			assertEquals("u3", joiner.join(state.get()));
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
 
-			ListState<String> restored1 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			ListState<String> restored1 = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-			backend.setCurrentKey(1);
+			backend2.setCurrentKey(1);
 			assertEquals("1", joiner.join(restored1.get()));
-			backend.setCurrentKey(2);
+			backend2.setCurrentKey(2);
 			assertEquals("2", joiner.join(restored1.get()));
 
-			backend.dispose();
-
 			// restore the second snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
+			backend3.restorePartitionedState(snapshot2, 100);
 
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
 
-			ListState<String> restored2 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			ListState<String> restored2 = backend3.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-			backend.setCurrentKey(1);
+			backend3.setCurrentKey(1);
 			assertEquals("1,u1", joiner.join(restored2.get()));
-			backend.setCurrentKey(2);
+			backend3.setCurrentKey(2);
 			assertEquals("2,u2", joiner.join(restored2.get()));
-			backend.setCurrentKey(3);
+			backend3.setCurrentKey(3);
 			assertEquals("u3", joiner.join(restored2.get()));
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -328,9 +316,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@Test
 	public void testReducingState() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-
+		try(B backend = createStateBackend();
+			B backend2 = createStateBackend();
+			B backend3 = createStateBackend()) {
 			ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), String.class);
 
 			ReducingState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
@@ -346,7 +334,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("1", state.get());
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -363,7 +351,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			state.add("u3");
 
 			// draw another snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
+			PartitionedStateSnapshot snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -379,44 +367,37 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(3);
 			assertEquals("u3", state.get());
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
 
-			ReducingState<String> restored1 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			ReducingState<String> restored1 = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-			backend.setCurrentKey(1);
+			backend2.setCurrentKey(1);
 			assertEquals("1", restored1.get());
-			backend.setCurrentKey(2);
+			backend2.setCurrentKey(2);
 			assertEquals("2", restored1.get());
 
-			backend.dispose();
-
 			// restore the second snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
+			backend3.restorePartitionedState(snapshot2, 100);
 
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
 
-			ReducingState<String> restored2 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			ReducingState<String> restored2 = backend3.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 
-			backend.setCurrentKey(1);
+			backend3.setCurrentKey(1);
 			assertEquals("1,u1", restored2.get());
-			backend.setCurrentKey(2);
+			backend3.setCurrentKey(2);
 			assertEquals("2,u2", restored2.get());
-			backend.setCurrentKey(3);
+			backend3.setCurrentKey(3);
 			assertEquals("u3", restored2.get());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -425,8 +406,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 	@Test
 	@SuppressWarnings("unchecked,rawtypes")
 	public void testFoldingState() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+		try (B backend = createStateBackend();
+			 B backend2 = createStateBackend();
+			 B backend3 = createStateBackend()) {
 
 			FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
 					"Fold-Initial:",
@@ -446,7 +429,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			assertEquals("Fold-Initial:,1", state.get());
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -464,7 +447,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			state.add(103);
 
 			// draw another snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
+			PartitionedStateSnapshot snapshot2 = backend.snapshotPartitionedState(682375462379L, 4);
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -480,44 +463,37 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			backend.setCurrentKey(3);
 			assertEquals("Fold-Initial:,103", state.get());
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
 			}
 
-			FoldingState<Integer, String> restored1 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			FoldingState<Integer, String> restored1 = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-			backend.setCurrentKey(1);
+			backend2.setCurrentKey(1);
 			assertEquals("Fold-Initial:,1", restored1.get());
-			backend.setCurrentKey(2);
+			backend2.setCurrentKey(2);
 			assertEquals("Fold-Initial:,2", restored1.get());
 
-			backend.dispose();
-
 			// restore the second snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot2, 100);
+			backend3.restorePartitionedState(snapshot2, 100);
 
 			for (String key: snapshot2.keySet()) {
 				snapshot2.get(key).discardState();
 			}
 
 			@SuppressWarnings("unchecked")
-			FoldingState<Integer, String> restored2 = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			FoldingState<Integer, String> restored2 = backend3.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-			backend.setCurrentKey(1);
+			backend3.setCurrentKey(1);
 			assertEquals("Fold-Initial:,101", restored2.get());
-			backend.setCurrentKey(2);
+			backend3.setCurrentKey(2);
 			assertEquals("Fold-Initial:,2,102", restored2.get());
-			backend.setCurrentKey(3);
+			backend3.setCurrentKey(3);
 			assertEquals("Fold-Initial:,103", restored2.get());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -525,10 +501,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@Test
 	public void testValueStateRestoreWithWrongSerializers() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0),
-				"test_op",
-				IntSerializer.INSTANCE);
+		try (B backend = createStateBackend();
+			 B backend2 = createStateBackend()){
 
 			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
 			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
@@ -541,7 +515,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			state.update("2");
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -549,11 +523,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
@@ -566,7 +537,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			try {
 				kvId = new ValueStateDescriptor<>("id", fakeStringSerializer, null);
 
-				state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+				state = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 				state.value();
 
@@ -579,8 +550,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			} catch (Exception e) {
 				fail("wrong exception " + e);
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -588,8 +558,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@Test
 	public void testListStateRestoreWithWrongSerializers() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		try (B backend = createStateBackend();
+			 B backend2 = createStateBackend()){
 
 			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 			ListState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
@@ -600,7 +570,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			state.add("2");
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -608,11 +578,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
@@ -625,7 +592,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			try {
 				kvId = new ListStateDescriptor<>("id", fakeStringSerializer);
 
-				state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+				state = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 				state.get();
 
@@ -638,8 +605,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			} catch (Exception e) {
 				fail("wrong exception " + e);
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -647,8 +613,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {
-		try {
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		try (B backend = createStateBackend();
+			 B backend2 = createStateBackend()) {
 
 			ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id",
 					new AppendingReduce(),
@@ -662,7 +628,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 
 			// draw a snapshot
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
+			PartitionedStateSnapshot snapshot1 = backend.snapshotPartitionedState(682375462378L, 2);
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
@@ -670,11 +636,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				}
 			}
 
-			backend.dispose();
-
 			// restore the first snapshot and validate it
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
-			backend.injectKeyValueStateSnapshots((HashMap) snapshot1, 100);
+			backend2.restorePartitionedState(snapshot1, 100);
 
 			for (String key: snapshot1.keySet()) {
 				snapshot1.get(key).discardState();
@@ -687,7 +650,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 			try {
 				kvId = new ReducingStateDescriptor<>("id", new AppendingReduce(), fakeStringSerializer);
 
-				state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+				state = backend2.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 				state.get();
 
@@ -709,26 +672,29 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 	@Test
 	public void testCopyDefaultValue() throws Exception {
-		backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+		try (B backend = createStateBackend()) {
 
-		ValueStateDescriptor<IntValue> kvId = new ValueStateDescriptor<>("id", IntValue.class, new IntValue(-1));
-		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+			ValueStateDescriptor<IntValue> kvId = new ValueStateDescriptor<>("id", IntValue.class, new IntValue(-1));
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
-		ValueState<IntValue> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+			ValueState<IntValue> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
-		backend.setCurrentKey(1);
-		IntValue default1 = state.value();
+			backend.setCurrentKey(1);
+			IntValue default1 = state.value();
 
-		backend.setCurrentKey(2);
-		IntValue default2 = state.value();
+			backend.setCurrentKey(2);
+			IntValue default2 = state.value();
 
-		assertNotNull(default1);
-		assertNotNull(default2);
-		assertEquals(default1, default2);
-		assertFalse(default1 == default2);
+			assertNotNull(default1);
+			assertNotNull(default2);
+			assertEquals(default1, default2);
+			assertFalse(default1 == default2);
+		}
 	}
 
 	private static class AppendingReduce implements ReduceFunction<String> {
+		private static final long serialVersionUID = 6860242820044380228L;
+
 		@Override
 		public String reduce(String value1, String value2) throws Exception {
 			return value1 + "," + value2;

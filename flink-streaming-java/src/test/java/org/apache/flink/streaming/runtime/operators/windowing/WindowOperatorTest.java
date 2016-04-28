@@ -53,7 +53,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
@@ -114,7 +114,7 @@ public class WindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -251,7 +251,7 @@ public class WindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -402,7 +402,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), initialTime + 1000));
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -475,7 +475,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 3), initialTime + 2500));
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -557,7 +557,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), initialTime + 1000));
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -592,6 +592,8 @@ public class WindowOperatorTest {
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {
+					private static final long serialVersionUID = -887743259776124087L;
+
 					@Override
 					public String getKey(String value) throws Exception {
 						return value;
@@ -657,7 +659,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), initialTime + 1000));
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);
@@ -819,7 +821,7 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1999));
 
 		// do a snapshot, close and restore again
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
+		StreamOperatorState snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
 		testHarness.setup();
 		testHarness.restore(snapshot, 10L);

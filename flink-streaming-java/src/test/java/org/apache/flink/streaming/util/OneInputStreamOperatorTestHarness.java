@@ -30,13 +30,11 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -95,21 +93,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-
-		try {
-			doAnswer(new Answer<AbstractStateBackend>() {
-				@Override
-				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
-					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					MemoryStateBackend backend = MemoryStateBackend.create();
-					backend.initializeForJob(env, operatorIdentifier, keySerializer);
-					return backend;
-				}
-			}).when(mockTask).createStateBackend(any(String.class), any(TypeSerializer.class));
-		} catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
 		
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -180,14 +163,14 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#snapshotOperatorState(long, long)} ()}
 	 */
-	public StreamTaskState snapshot(long checkpointId, long timestamp) throws Exception {
+	public StreamOperatorState snapshot(long checkpointId, long timestamp) throws Exception {
 		return operator.snapshotOperatorState(checkpointId, timestamp);
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamTaskState, long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#restoreState(StreamOperatorState, long)} ()}
 	 */
-	public void restore(StreamTaskState snapshot, long recoveryTimestamp) throws Exception {
+	public void restore(StreamOperatorState snapshot, long recoveryTimestamp) throws Exception {
 		operator.restoreState(snapshot, recoveryTimestamp);
 	}
 

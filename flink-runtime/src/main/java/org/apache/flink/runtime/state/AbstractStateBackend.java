@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 
-public abstract class AbstractStateBackend implements Serializable {
+public abstract class AbstractStateBackend implements AutoCloseable, Serializable {
 	private static final long serialVersionUID = 274476799538194350L;
 
 	protected transient ClassLoader classLoader;
@@ -40,15 +40,13 @@ public abstract class AbstractStateBackend implements Serializable {
 		classLoader = environment.getUserClassLoader();
 	}
 
-	public abstract <K> PartitionedStateBackend<K> createKeyedStateBackend(TypeSerializer<K> keySerializer);
+	public abstract <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) throws Exception;
 
 	public <K> GenericKeyGroupStateBackend createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
 		return null;
 	}
 
 	public abstract void disposeAllStateForCurrentJob() throws Exception;
-
-	public abstract void close() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  storing state for a checkpoint

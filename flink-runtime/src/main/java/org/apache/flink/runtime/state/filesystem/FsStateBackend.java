@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.PartitionedStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
@@ -63,7 +62,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 	
 	/** Default size for the write buffer */
-	private static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
+	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 	
 
 	/** The path to the directory for the checkpoint data, including the file system
@@ -244,7 +243,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public <K> PartitionedStateBackend<K> createKeyedStateBackend(TypeSerializer<K> keySerializer) {
+	public <K> PartitionedFsStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) {
 		return new PartitionedFsStateBackend<K>(keySerializer, classLoader, this);
 	}
 

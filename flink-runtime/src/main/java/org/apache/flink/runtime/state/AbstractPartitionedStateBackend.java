@@ -55,7 +55,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	private KvState<KEY, ?, ?, ?, ?>[] keyValueStates;
 
 	/** So that we can give out state when the user uses the same key. */
-	private HashMap<String, KvState<KEY, ?, ?, ?, ?>> keyValueStatesByName;
+	protected HashMap<String, KvState<KEY, ?, ?, ?, ?>> keyValueStatesByName;
 
 	/** For caching the last accessed partitioned state */
 	private String lastName;
@@ -79,8 +79,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	 */
 	public abstract void disposeAllStateForCurrentJob() throws Exception;
 
-
-	public void dispose() {
+	public void close() throws Exception {
 		if (keyValueStates != null) {
 			for (KvState<?, ?, ?, ?, ?> state : keyValueStates) {
 				state.dispose();
@@ -326,7 +325,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	 * @param partitionedStateSnapshot The assigned key groups and their associated states
 	 */
 	@SuppressWarnings("unchecked,rawtypes")
-	public final void restorePartitionedState(PartitionedStateSnapshot partitionedStateSnapshot, long recoveryTimestamp) throws Exception {
+	public void restorePartitionedState(PartitionedStateSnapshot partitionedStateSnapshot, long recoveryTimestamp) throws Exception {
 		if (keyValueStatesByName == null) {
 			keyValueStatesByName = new HashMap<>();
 		}

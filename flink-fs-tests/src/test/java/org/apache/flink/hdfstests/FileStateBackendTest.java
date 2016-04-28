@@ -105,7 +105,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	private URI stateBaseURI;
 
 	@Override
-	protected FsStateBackend getStateBackend() throws Exception {
+	protected FsStateBackend createStateBackend() throws Exception {
 		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
 		return new FsStateBackend(stateBaseURI);
 

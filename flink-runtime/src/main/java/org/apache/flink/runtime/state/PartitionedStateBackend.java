@@ -25,17 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Collection;
 
-public interface PartitionedStateBackend<KEY> {
-	/**
-	 * Closes the state backend, releasing all internal resources, but does not delete any persistent
-	 * checkpoint data.
-	 *
-	 * @throws Exception Exceptions can be forwarded and will be logged by the system
-	 */
-	void close() throws Exception;
-
-	void dispose();
-
+public interface PartitionedStateBackend<KEY> extends AutoCloseable {
 	<S extends PartitionedState> void dispose(StateDescriptor<S, ?> stateDescriptor);
 
 	void setCurrentKey(KEY key);

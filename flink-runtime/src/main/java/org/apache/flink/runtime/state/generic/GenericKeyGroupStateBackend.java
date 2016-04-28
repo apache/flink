@@ -77,7 +77,13 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 		if (partitionedStateBackends.containsKey(keyGroupIndex)) {
 			return partitionedStateBackends.get(keyGroupIndex);
 		} else {
-			PartitionedStateBackend partitionedStateBackend = stateBackend.createKeyedStateBackend(keySerializer);
+			PartitionedStateBackend partitionedStateBackend = null;
+			try {
+				partitionedStateBackend = stateBackend.createPartitionedStateBackend(keySerializer);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not create the partitioned state backend for " +
+					"key group index " + keyGroupIndex + ".", e);
+			}
 
 			partitionedStateBackends.put(keyGroupIndex, partitionedStateBackend);
 
@@ -89,13 +95,6 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 	public void close() throws Exception {
 		for (PartitionedStateBackend<KEY> partitionedStateBackend: partitionedStateBackends.values()) {
 			partitionedStateBackend.close();
-		}
-	}
-
-	@Override
-	public void dispose() {
-		for (PartitionedStateBackend<KEY> partitionedStateBackend: partitionedStateBackends.values()) {
-			partitionedStateBackend.dispose();
 		}
 	}
 

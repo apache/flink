@@ -26,10 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Collection;
 import java.util.Map;
 
-public interface KeyGroupStateBackend<KEY> {
-	void close() throws Exception;
-
-	void dispose();
+public interface KeyGroupStateBackend<KEY> extends AutoCloseable {
 
 	<S extends PartitionedState> void dispose(StateDescriptor<S, ?> stateDescriptor);
 

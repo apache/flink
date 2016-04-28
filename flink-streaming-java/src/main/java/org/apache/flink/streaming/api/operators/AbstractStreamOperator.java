@@ -189,7 +189,6 @@ public abstract class AbstractStreamOperator<OUT>
 		if (keyGroupStateBackend != null) {
 			try {
 				keyGroupStateBackend.close();
-				keyGroupStateBackend.dispose();
 			} catch (Exception e) {
 				throw new RuntimeException("Error while closing/disposing key group state backend.", e);
 			}
@@ -230,10 +229,6 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
-		if (stateBackend != null) {
-			stateBackend.notifyCompletedCheckpoint(checkpointId);
-		}
-
 		if (keyGroupStateBackend != null) {
 			keyGroupStateBackend.notifyCompletedCheckpoint(checkpointId);
 		}
@@ -279,7 +274,12 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	public KeyGroupStateBackend<?> getKeyGroupStateBackend() {
-		return keyGroupStateBackend;
+		if (keyGroupStateBackend != null) {
+			return keyGroupStateBackend;
+		} else {
+			throw new RuntimeException("KeyGroupStateBackend has not been set. This indicates that" +
+				"the AbstractStreamOperator is non-partitioned.");
+		}
 	}
 
 	/**
@@ -346,7 +346,11 @@ public abstract class AbstractStreamOperator<OUT>
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContext(Object key) {
 		if (keyGroupStateBackend != null) {
-			((KeyGroupStateBackend<Object>)keyGroupStateBackend).setCurrentKey(key);
+			try {
+				((KeyGroupStateBackend<Object>)keyGroupStateBackend).setCurrentKey(key);
+			} catch (Exception e) {
+				throw new RuntimeException("Exception occurred while setting the current key context.", e);
+			}
 		} else {
 			throw new RuntimeException("Could not set the current key context, because the" +
 				"KeyGroupStateBackend has not been initialized.");
