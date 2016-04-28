@@ -1459,14 +1459,8 @@ public class Graph<K, VV, EV> {
 		@Override
 		public void coGroup(Iterable<Edge<K, EV>> edge, Iterable<Edge<K, EV>> edgeToBeRemoved,
 							Collector<Edge<K, EV>> out) throws Exception {
-
-			final Iterator<Edge<K, EV>> edgeIterator = edge.iterator();
-			final Iterator<Edge<K, EV>> edgeToBeRemovedIterator = edgeToBeRemoved.iterator();
-			Edge<K, EV> next;
-
-			if (edgeIterator.hasNext()) {
-				if (!edgeToBeRemovedIterator.hasNext()) {
-					next = edgeIterator.next();
+			if (!edgeToBeRemoved.iterator().hasNext()) {
+				for (Edge<K, EV> next : edge) {
 					out.collect(next);
 				}
 			}
