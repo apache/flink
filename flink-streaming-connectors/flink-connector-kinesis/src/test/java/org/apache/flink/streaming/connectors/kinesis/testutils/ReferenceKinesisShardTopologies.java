@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.util;
+package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 
 import java.util.ArrayList;
 import java.util.List;

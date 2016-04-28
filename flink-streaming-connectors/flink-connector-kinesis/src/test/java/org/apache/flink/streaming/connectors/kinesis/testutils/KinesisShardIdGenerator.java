@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kinesis.util;
+package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 public class KinesisShardIdGenerator {
 	public static String generateFromShardOrder(int order) {

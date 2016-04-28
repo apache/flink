@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kinesis.exactlyonce;
+package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -36,7 +36,6 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.examples.ProduceIntoKinesis;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
@@ -59,9 +58,9 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
  * Invocation:
  * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
  */
-public class ExactlyOnceTest {
+public class ManualExactlyOnceTest {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExactlyOnceTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ManualExactlyOnceTest.class);
 
 	static final long TOTAL_EVENT_COUNT = 1000; // the producer writes one per 10 ms, so it runs for 10k ms = 10 seconds
 
