@@ -48,6 +48,9 @@ public class BigIntComparatorTest extends ComparatorTestBase<BigInteger> {
 			new BigInteger("128"),
 			new BigInteger("129"),
 			new BigInteger("130"),
+			BigInteger.valueOf(0b10000000_00000000_00000000_00000000L),
+			BigInteger.valueOf(0b10000000_00000000_00000000_00000001L),
+			BigInteger.valueOf(0b10000000_00000000_10000000_00000000L),
 			new BigInteger("8745979691234123413478523984729447")
 		};
 	}

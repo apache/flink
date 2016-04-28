@@ -57,7 +57,7 @@ public final class BigDecComparator extends BasicTypeComparator<BigDecimal> {
 
 	@Override
 	public int getNormalizeKeyLen() {
-		return Integer.MAX_VALUE;
+		return 5;
 	}
 
 	@Override
@@ -105,11 +105,6 @@ public final class BigDecComparator extends BasicTypeComparator<BigDecimal> {
 		for (int i = 0; i < 5 && len > 0; i++, len--) {
 			final byte b = (byte) (signNormMag >>> (8 * (4 - i)));
 			target.put(offset++, b);
-		}
-
-		// fill remaining bytes with 0
-		for (; len > 0; len--) {
-			target.put(offset++, (byte) 0);
 		}
 	}
 

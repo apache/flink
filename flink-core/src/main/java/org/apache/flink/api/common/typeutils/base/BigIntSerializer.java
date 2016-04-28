@@ -133,7 +133,7 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 	public static boolean copyBigInteger(DataInputView source, DataOutputView target) throws IOException {
 		final int len = source.readInt();
 		target.writeInt(len);
-		if (len >= 4) {
+		if (len > 4) {
 			target.write(source, len - 4);
 		}
 		return len == 0; // returns true if the copied record was null

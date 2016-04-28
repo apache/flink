@@ -85,18 +85,20 @@ public final class BigIntComparator extends BasicTypeComparator<BigInteger> {
 			}
 
 			for (int i = 0; i < 4 && len > 0; i++, len--) {
-				target.put(offset++, (byte) (normBitLen >>> (8 * (3 - i))));
+				final byte b = (byte) (normBitLen >>> (8 * (3 - i)));
+				target.put(offset++, b);
 			}
 		}
 
 		// fill remaining bytes with most significant bits
+		int bitPos = bitLen - 1;
 		for (; len > 0; len--) {
 			byte b = 0;
-			for (int bytePos = 0; bytePos < 8 && bytePos < bitLen; bytePos++) {
-				if (record.testBit(bytePos)) {
+			for (int bytePos = 0; bytePos < 8 && bitPos >= 0; bytePos++, bitPos--) {
+				b <<= 1;
+				if (record.testBit(bitPos)) {
 					b |= 1;
 				}
-				b <<= 1;
 			}
 			// the last byte might be partially filled, but that's ok within an equal bit length.
 			// no need for padding bits.
