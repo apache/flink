@@ -42,6 +42,7 @@ import scala.collection.mutable
   * A code generator for generating Flink [[org.apache.flink.api.common.functions.Function]]s.
   *
   * @param config configuration that determines runtime behavior
+  * @param nullableInput input(s) can be null.
   * @param input1 type information about the first input of the Function
   * @param input2 type information about the second input if the Function is binary
   * @param inputPojoFieldMapping additional mapping information if input1 is a POJO (POJO types
@@ -50,10 +51,16 @@ import scala.collection.mutable
   */
 class CodeGenerator(
    config: TableConfig,
+   nullableInput: Boolean,
    input1: TypeInformation[Any],
    input2: Option[TypeInformation[Any]] = None,
    inputPojoFieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
+
+  // check if nullCheck is enabled when inputs can be null
+  if (nullableInput && !config.getNullCheck) {
+    throw new CodeGenException("Null check must be enabled if entire rows can be null.")
+  }
 
   // check for POJO input mapping
   input1 match {
@@ -65,7 +72,7 @@ class CodeGenerator(
 
   // check that input2 is never a POJO
   input2 match {
-    case pt: PojoTypeInfo[_] =>
+    case Some(pt: PojoTypeInfo[_]) =>
       throw new CodeGenException("Second input must not be a POJO type.")
     case _ => // ok
   }
@@ -75,12 +82,17 @@ class CodeGenerator(
     * [[org.apache.flink.api.common.functions.Function]]s with one input.
     *
     * @param config configuration that determines runtime behavior
+    * @param nullableInput input(s) can be null.
     * @param input type information about the input of the Function
     * @param inputPojoFieldMapping additional mapping information necessary if input is a
     *                              POJO (POJO types have no deterministic field order).
     */
-  def this(config: TableConfig, input: TypeInformation[Any], inputPojoFieldMapping: Array[Int]) =
-    this(config, input, None, Some(inputPojoFieldMapping))
+  def this(
+      config: TableConfig,
+      nullableInput: Boolean,
+      input: TypeInformation[Any],
+      inputPojoFieldMapping: Array[Int]) =
+    this(config, nullableInput, input, None, Some(inputPojoFieldMapping))
 
 
   // set of member statements that will be added only once
@@ -212,7 +224,7 @@ class CodeGenerator(
 
         ${reuseMemberCode()}
 
-        public $funcName() throws Exception{
+        public $funcName() throws Exception {
           ${reuseInitCode()}
         }
 
@@ -785,73 +797,128 @@ class CodeGenerator(
 
       // generate input access and boxing if necessary
       case None =>
-        val newExpr = inputType match {
-
-          case ct: CompositeType[_] =>
-            val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-              inputPojoFieldMapping.get(index)
-            }
-            else {
-              index
-            }
-            val accessor = fieldAccessorFor(ct, fieldIndex)
-            val fieldType: TypeInformation[Any] = ct.getTypeAt(fieldIndex)
-            val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
-
-            accessor match {
-              case ObjectFieldAccessor(field) =>
-                // primitive
-                if (isFieldPrimitive(field)) {
-                  generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
-                }
-                // Object
-                else {
-                  generateNullableLiteral(
-                    fieldType,
-                    s"($fieldTypeTerm) $inputTerm.${field.getName}")
-                }
-
-              case ObjectGenericFieldAccessor(fieldName) =>
-                // Object
-                val inputCode = s"($fieldTypeTerm) $inputTerm.$fieldName"
-                generateNullableLiteral(fieldType, inputCode)
-
-              case ObjectMethodAccessor(methodName) =>
-                // Object
-                val inputCode = s"($fieldTypeTerm) $inputTerm.$methodName()"
-                generateNullableLiteral(fieldType, inputCode)
-
-              case ProductAccessor(i) =>
-                // Object
-                val inputCode = s"($fieldTypeTerm) $inputTerm.productElement($i)"
-                generateNullableLiteral(fieldType, inputCode)
-
-              case ObjectPrivateFieldAccessor(field) =>
-                val fieldTerm = addReusablePrivateFieldAccess(ct.getTypeClass, field.getName)
-                val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
-                // primitive
-                if (isFieldPrimitive(field)) {
-                  generateNonNullLiteral(fieldType, reflectiveAccessCode)
-                }
-                // Object
-                else {
-                  generateNullableLiteral(fieldType, reflectiveAccessCode)
-                }
-            }
-
-          case at: AtomicType[_] =>
-            val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
-            val inputCode = s"($fieldTypeTerm) $inputTerm"
-            generateNullableLiteral(at, inputCode)
-
-          case _ =>
-            throw new CodeGenException("Unsupported type for input access.")
+        val expr = if (nullableInput) {
+          generateNullableInputFieldAccess(inputType, inputTerm, index)
         }
-        reusableInputUnboxingExprs((inputTerm, index)) = newExpr
-        newExpr
+        else {
+          generateFieldAccess(inputType, inputTerm, index)
+        }
+
+        reusableInputUnboxingExprs((inputTerm, index)) = expr
+        expr
     }
     // hide the generated code as it will be executed only once
     GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, "", inputExpr.resultType)
+  }
+
+  private def generateNullableInputFieldAccess(
+      inputType: TypeInformation[Any],
+      inputTerm: String,
+      index: Int)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+
+    val fieldType = inputType match {
+      case ct: CompositeType[_] =>
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+          inputPojoFieldMapping.get(index)
+        }
+        else {
+          index
+        }
+        ct.getTypeAt(fieldIndex)
+      case at: AtomicType[_] => at
+      case _ => throw new CodeGenException("Unsupported type for input field access.")
+    }
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
+    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index)
+
+    val inputCheckCode =
+      s"""
+        |$resultTypeTerm $resultTerm;
+        |boolean $nullTerm;
+        |if ($inputTerm == null) {
+        |  $resultTerm = $defaultValue;
+        |  $nullTerm = true;
+        |}
+        |else {
+        |  ${fieldAccessExpr.code}
+        |  $resultTerm = ${fieldAccessExpr.resultTerm};
+        |  $nullTerm = ${fieldAccessExpr.nullTerm};
+        |}
+        |""".stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
+  }
+
+  private def generateFieldAccess(
+      inputType: TypeInformation[Any],
+      inputTerm: String,
+      index: Int)
+    : GeneratedExpression = {
+    inputType match {
+      case ct: CompositeType[_] =>
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+          inputPojoFieldMapping.get(index)
+        }
+        else {
+          index
+        }
+        val accessor = fieldAccessorFor(ct, fieldIndex)
+        val fieldType: TypeInformation[Any] = ct.getTypeAt(fieldIndex)
+        val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
+
+        accessor match {
+          case ObjectFieldAccessor(field) =>
+            // primitive
+            if (isFieldPrimitive(field)) {
+              generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
+            }
+            // Object
+            else {
+              generateNullableLiteral(
+                fieldType,
+                s"($fieldTypeTerm) $inputTerm.${field.getName}")
+            }
+
+          case ObjectGenericFieldAccessor(fieldName) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.$fieldName"
+            generateNullableLiteral(fieldType, inputCode)
+
+          case ObjectMethodAccessor(methodName) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.$methodName()"
+            generateNullableLiteral(fieldType, inputCode)
+
+          case ProductAccessor(i) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.productElement($i)"
+            generateNullableLiteral(fieldType, inputCode)
+
+          case ObjectPrivateFieldAccessor(field) =>
+            val fieldTerm = addReusablePrivateFieldAccess(ct.getTypeClass, field.getName)
+            val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
+            // primitive
+            if (isFieldPrimitive(field)) {
+              generateNonNullLiteral(fieldType, reflectiveAccessCode)
+            }
+            // Object
+            else {
+              generateNullableLiteral(fieldType, reflectiveAccessCode)
+            }
+        }
+
+      case at: AtomicType[_] =>
+        val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
+        val inputCode = s"($fieldTypeTerm) $inputTerm"
+        generateNullableLiteral(at, inputCode)
+
+      case _ =>
+        throw new CodeGenException("Unsupported type for input field access.")
+    }
   }
 
   private def generateNullableLiteral(

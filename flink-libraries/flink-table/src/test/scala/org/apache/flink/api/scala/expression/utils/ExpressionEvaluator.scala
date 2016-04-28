@@ -93,7 +93,7 @@ object ExpressionEvaluator {
       rexNode: RexNode): String = {
     // generate code for Mapper
     val config = new TableConfig()
-    val generator = new CodeGenerator(config, typeInfo)
+    val generator = new CodeGenerator(config, false, typeInfo)
     val genExpr = generator.generateExpression(relBuilder.cast(rexNode, VARCHAR)) // cast to String
     val bodyCode =
       s"""

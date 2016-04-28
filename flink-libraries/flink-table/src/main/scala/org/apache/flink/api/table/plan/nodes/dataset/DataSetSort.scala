@@ -27,7 +27,6 @@ import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.table.BatchTableEnvironment
 import org.apache.flink.api.table.typeutils.TypeConverter._
 
@@ -88,7 +87,9 @@ class DataSetSort(
         // conversion
         if (determinedType != inputType) {
 
-          val mapFunc = getConversionMapper(config,
+          val mapFunc = getConversionMapper(
+            config,
+            false,
             partitionedDs.getType,
             determinedType,
             "DataSetSortConversion",
