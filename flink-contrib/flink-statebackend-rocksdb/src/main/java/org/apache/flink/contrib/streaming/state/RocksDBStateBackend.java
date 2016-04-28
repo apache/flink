@@ -191,6 +191,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				} else {
 					dirs.add(f);
 				}
+				testDir.delete();
 			}
 			
 			if (dirs.isEmpty()) {
