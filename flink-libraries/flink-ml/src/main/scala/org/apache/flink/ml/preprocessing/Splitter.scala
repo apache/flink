@@ -20,10 +20,11 @@ package org.apache.flink.ml.preprocessing
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, BasicTypeInfo}
 import org.apache.flink.api.java.Utils
-import org.apache.flink.api.scala. DataSet
+import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala.utils._
 
 import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
+import org.apache.flink.util.Collector
 import _root_.scala.reflect.ClassTag
 
 object Splitter {
@@ -61,7 +62,7 @@ object Splitter {
     : Array[DataSet[T]] = {
     import org.apache.flink.api.scala._
 
-    val indexedInput: DataSet[(Long, T)] = input.zipWithIndex
+    val indexedInput: DataSet[(Long, T)] = input.zipWithUniqueId
 
     val leftSplit: DataSet[(Long, T)] = precise match {
       case false => indexedInput.sample(false, fraction, seed)
@@ -72,13 +73,14 @@ object Splitter {
       }
     }
 
-    val rightSplit: DataSet[(Long, T)] = indexedInput.leftOuterJoin[(Long, T)](leftSplit)
+    val rightSplit: DataSet[T] = indexedInput.leftOuterJoin[(Long, T)](leftSplit)
       .where(0)
-      .equalTo(0) {
-        (full: (Long,T) , left: (Long, T)) =>  (if (left == null) full else null)
-      }
-      .filter( o => o != null )
-    Array(leftSplit.map(o => o._2), rightSplit.map(o => o._2))
+      .equalTo(0).apply {
+        (full: (Long,T) , left: (Long, T), collector: Collector[T]) =>
+        if (left == null) {
+          collector.collect(full._2)
+        }
+    }
   }
 
   // --------------------------------------------------------------------------------------------
@@ -113,7 +115,6 @@ object Splitter {
     ////
     var tempDS = input
     for (k <- 0 to splits-2){
-      println( (splits -k))
       var temp = Splitter.randomSplit(tempDS, fracs(k), true)
       output(k) = temp(0)
       tempDS = temp(1)
@@ -149,8 +150,9 @@ object Splitter {
     val fracs = Array.fill(kFolds)(1.0)
     val dataSetArray = multiRandomSplit(input, fracs, precise, seed)
 
-    dataSetArray.zipWithIndex.map( ds => TrainTestDataSet(ds._1,
-                                          unionDataSetArray(dataSetArray.filter(_ != ds._1))) )
+    dataSetArray.map( ds => TrainTestDataSet(ds,
+                                             dataSetArray.filter(_ != ds)
+                                                         .reduce(_ union _) ))
 
   }
 
@@ -197,7 +199,7 @@ object Splitter {
    * A wrapper for multiRandomSplit that yields a TrainTestHoldoutDataSet
    *
    * @param input           DataSet to be split
-   * @param fracArray       An array of length 3, where the first element specifies the size of the
+   * @param frac            An Tuple3, where the first element specifies the size of the
    *                        training set, the second element the testing set, and the third
    *                        element is the holdout set. These are proportional and will be
    *                        normalized internally.
@@ -209,11 +211,11 @@ object Splitter {
    */
   def trainTestHoldoutSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
-      fracArray: Array[Double] = Array(0.6,0.3,0.1),
+      frac: Tuple3[Double, Double, Double] = (0.6,0.3,0.1),
       precise: Boolean = false,
       seed: Long = Utils.RNG.nextLong())
     : TrainTestHoldoutDataSet[T] = {
-    // throw error if fracArray isn't length = 3
+    val fracArray: Array[Double] = frac.productIterator.toArray[Double]
     val dataSetArray = multiRandomSplit(input, fracArray, precise, seed)
     TrainTestHoldoutDataSet(dataSetArray(0), dataSetArray(1), dataSetArray(2))
   }
