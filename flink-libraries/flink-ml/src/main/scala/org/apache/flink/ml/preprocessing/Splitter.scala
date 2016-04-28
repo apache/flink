@@ -20,8 +20,10 @@ package org.apache.flink.ml.preprocessing
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, BasicTypeInfo}
 import org.apache.flink.api.java.Utils
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala.utils._
+
 
 import org.apache.flink.ml.common.{FlinkMLTools, ParameterMap, WithParameters}
 import org.apache.flink.util.Collector
@@ -81,6 +83,8 @@ object Splitter {
           collector.collect(full._2)
         }
     }
+
+    Array(leftSplit.map(o => o._2), rightSplit)
   }
 
   // --------------------------------------------------------------------------------------------
@@ -95,32 +99,32 @@ object Splitter {
    *                        sampling. The number of splits is dictated by the length of this array.
    *                        The number are normalized, eg. Array(1.0, 2.0) would yield
    *                        two data sets with a 33/66% split.
-   * @param precise         Sampling by default is random and can result in slightly lop-sided
-   *                        sample sets. When precise is true, equal sample set size are forced,
-   *                        however this is somewhat less efficient.
    * @param seed            Random number generator seed.
    * @return An array of DataSets whose length is equal to the length of fracArray
    */
   def multiRandomSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
       fracArray: Array[Double],
-      precise: Boolean = false,
       seed: Long = Utils.RNG.nextLong())
     : Array[DataSet[T]] = {
-    val splits = fracArray.length
-    val output = new Array[DataSet[T]](splits)
-    val aggs = fracArray.scanRight((0.0))( _ + _ )
-    val fracs = fracArray.zip(aggs).map( o => o._1 / o._2)
 
-    ////
-    var tempDS = input
-    for (k <- 0 to splits-2){
-      var temp = Splitter.randomSplit(tempDS, fracs(k), true)
-      output(k) = temp(0)
-      tempDS = temp(1)
+    import org.apache.commons.math3.distribution.EnumeratedIntegerDistribution
+
+    val eid = new EnumeratedIntegerDistribution((0 to fracArray.length - 1).toArray, fracArray)
+
+    eid.reseedRandomGenerator(seed)
+
+    val tempDS: DataSet[(Int,T)] = input.map(o => (eid.sample, o))
+
+    val splits = fracArray.length
+    val outputArray = new Array[DataSet[T]]( splits )
+
+    for (k <- 0 to splits-1){
+      outputArray(k) = tempDS.filter(o => o._1 == k)
+                             .map(o => o._2)
     }
-    output(splits-1) = tempDS
-    output
+
+    outputArray
   }
 
   // --------------------------------------------------------------------------------------------
@@ -134,34 +138,22 @@ object Splitter {
    *                        1/k of the dataset, randomly sampled, the training will be the remainder
    *                        of the dataset.  The DataSet is split into kFolds first, so that no
    *                        observation will occurin in multiple folds.
-   * @param precise         Sampling by default is random and can result in slightly lop-sided
-   *                        sample sets. When precise is true, equal sample set size are forced,
-   *                        however this is somewhat less efficient.
    * @param seed            Random number generator seed.
    * @return An array of TrainTestDataSets
    */
   def kFoldSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
       kFolds: Int,
-      precise: Boolean = false,
       seed: Long = Utils.RNG.nextLong())
     : Array[TrainTestDataSet[T]] = {
 
     val fracs = Array.fill(kFolds)(1.0)
-    val dataSetArray = multiRandomSplit(input, fracs, precise, seed)
+    val dataSetArray = multiRandomSplit(input, fracs, seed)
 
     dataSetArray.map( ds => TrainTestDataSet(ds,
                                              dataSetArray.filter(_ != ds)
                                                          .reduce(_ union _) ))
 
-  }
-
-  def unionDataSetArray[T: TypeInformation : ClassTag](dsa : Array[DataSet[T]]): DataSet[T] = {
-    var dsu = dsa(0)
-    for (k <- 1 to dsa.length-1) {
-      dsu = dsu.union(dsa(k))
-    }
-    dsu
   }
 
   // --------------------------------------------------------------------------------------------
@@ -203,20 +195,19 @@ object Splitter {
    *                        training set, the second element the testing set, and the third
    *                        element is the holdout set. These are proportional and will be
    *                        normalized internally.
-   * @param precise         Sampling by default is random and can result in slightly lop-sided
-   *                        sample sets. When precise is true, equal sample set size are forced,
-   *                        however this is somewhat less efficient.
    * @param seed            Random number generator seed.
    * @return A TrainTestDataSet
    */
   def trainTestHoldoutSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
-      frac: Tuple3[Double, Double, Double] = (0.6,0.3,0.1),
+      fracArray: Array[Double] = Array(0.6,0.3,0.1),
       precise: Boolean = false,
       seed: Long = Utils.RNG.nextLong())
     : TrainTestHoldoutDataSet[T] = {
-    val fracArray: Array[Double] = frac.productIterator.toArray[Double]
-    val dataSetArray = multiRandomSplit(input, fracArray, precise, seed)
+    if (fracArray.length != 3) {
+      throw new IllegalArgumentException("fracArray must be an array of length 3");
+    }
+    val dataSetArray = multiRandomSplit(input, fracArray, seed)
     TrainTestHoldoutDataSet(dataSetArray(0), dataSetArray(1), dataSetArray(2))
   }
 }
