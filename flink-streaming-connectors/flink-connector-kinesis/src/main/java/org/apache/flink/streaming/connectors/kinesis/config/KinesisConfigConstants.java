@@ -33,6 +33,9 @@ public class KinesisConfigConstants {
 	/** The backoff time between each describeStream attempt */
 	public static final String CONFIG_STREAM_DESCRIBE_BACKOFF = "flink.stream.describe.backoff";
 
+	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard */
+	public static final String CONFIG_SHARD_RECORDS_PER_GET = "flink.shard.getrecords.maxcount";
+
 	/** The initial position to start reading Kinesis streams from (LATEST is used if not set) */
 	public static final String CONFIG_STREAM_INIT_POSITION_TYPE = "flink.stream.initpos.type";
 
@@ -62,5 +65,7 @@ public class KinesisConfigConstants {
 	public static final int DEFAULT_STREAM_DESCRIBE_RETRY_TIMES = 3;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF = 1000L;
+
+	public static final int DEFAULT_SHARD_RECORDS_PER_GET = 100;
 
 }

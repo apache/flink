@@ -22,6 +22,7 @@ import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
@@ -49,6 +50,8 @@ public class ShardConsumerThread<T> extends Thread {
 
 	private final KinesisStreamShard assignedShard;
 
+	private final int maxNumberOfRecordsPerFetch;
+
 	private String lastSequenceNum;
 	private String nextShardItr;
 
@@ -68,6 +71,9 @@ public class ShardConsumerThread<T> extends Thread {
 		this.deserializer = checkNotNull(deserializer);
 		this.seqNoState = checkNotNull(seqNumState);
 		this.kinesisProxy = new KinesisProxy(props);
+		this.maxNumberOfRecordsPerFetch = Integer.valueOf(props.getProperty(
+			KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET,
+			Integer.toString(KinesisConfigConstants.DEFAULT_SHARD_RECORDS_PER_GET)));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -99,7 +105,7 @@ public class ShardConsumerThread<T> extends Thread {
 
 					break;
 				} else {
-					GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, 100);
+					GetRecordsResult getRecordsResult = kinesisProxy.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
 					List<Record> fetchedRecords = getRecordsResult.getRecords();
 
