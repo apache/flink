@@ -65,7 +65,7 @@ public class ExecutionEnvironmentReadFileTest {
 
 		DataSet<String> data = env.readFile(format, tempFile);
 
-		assertNotNull("DataSet should not be null", data);
+		assertNotNull("DataSet should not be null.", data);
 
 		Path[] filePaths = format.getFilePaths();
 

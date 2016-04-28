@@ -141,7 +141,7 @@ object FlinkShell {
   ): (String, Int, Option[Either[FlinkMiniCluster, AbstractFlinkYarnCluster]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
-        val config = new Configuration()
+        val config = GlobalConfiguration.getConfiguration()
         config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
 
         val miniCluster = new LocalFlinkMiniCluster(config, false)

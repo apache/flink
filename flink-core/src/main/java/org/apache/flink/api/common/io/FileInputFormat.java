@@ -33,8 +33,6 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,11 +229,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (filePath == null) {
 			throw new IllegalArgumentException("The file path must not be null.");
 		}
-		this.filePathList = Lists.newArrayList(filePath);
-	}
-	
-	public FileInputFormat(String...filePaths) {
-		setFilePaths(filePaths);
+		setFilePath(filePath);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -243,6 +237,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	// --------------------------------------------------------------------------------------------
 	
 	public Path getFilePath() {
+		if (filePathList == null || filePathList.size() < 1) {
+			return null;
+		}
 		return filePathList.get(0);
 	}
 	
@@ -251,6 +248,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * @return the list of all file paths
 	 */
 	public Path[] getFilePaths() {
+		if (this.filePathList == null) {
+			return new Path[0];
+		}
 		return this.filePathList.toArray(new Path[this.filePathList.size()]);
 	}
 	
@@ -276,8 +276,8 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (filePath == null) {
 			throw new IllegalArgumentException("File path may not be null.");
 		}
-		
-		this.filePathList = Lists.newArrayList(filePath);
+		this.filePathList = new ArrayList<Path>();
+		this.filePathList.add(filePath);
 	}
 	
 	/**
@@ -288,12 +288,15 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (filePaths.length < 1) {
 			throw new IllegalArgumentException("At least one file path must be given.");
 		}
-		this.filePathList = Lists.newArrayList();
+		this.filePathList = new ArrayList<Path>();
 		for (String filePath : filePaths) {
 			if (filePath == null) {
 				throw new IllegalArgumentException("The file path must not be null.");
 			}
-			this.filePathList.add(new Path(filePath));
+			// can only add non-empty paths
+			if (!filePath.isEmpty()) {
+				this.filePathList.add(new Path(filePath));
+			}
 		}
 	}
 	
@@ -369,7 +372,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		String filePath = parameters.getString(FILE_PARAMETER_KEY, null);
 		if (filePath != null) {
 			try {
-				this.filePathList = Lists.newArrayList(new Path(filePath));
+				setFilePath(filePath);
 			}
 			catch (RuntimeException rex) {
 				throw new RuntimeException("Could not create a valid URI from the given file path name: " + rex.getMessage()); 
@@ -399,7 +402,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	}
 	
 	/**
-	 * @deprecated Should no longer be used because of filePathList
+	 * @deprecated Should no longer be used because of filePathList and multiple paths
 	 */
 	@Deprecated
 	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path filePath, FileSystem fs,
@@ -809,7 +812,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	public String toString() {
 		return this.filePathList == null ? 
 			"File Input (unknown file)" :
-			"File Input (" +  Joiner.on(",").join(this.filePathList) + ')';
+			"File Input (" +  this.filePathList + ')';
 	}
 	
 	// ============================================================================================
