@@ -21,14 +21,13 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
-import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.util.NlsString
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggCalls
-import org.apache.flink.api.table.expressions.{ExpressionParser, Naming,
-          UnresolvedFieldReference, Expression}
+import org.apache.flink.api.table.expressions._
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -209,7 +208,7 @@ class Table(
 
     relBuilder.push(relNode)
     relBuilder.filter(predicate.toRexNode(relBuilder))
-    
+
     new Table(relBuilder.build(), tableEnv)
   }
 
@@ -399,6 +398,50 @@ class Table(
 
     relBuilder.union(true)
     new Table(relBuilder.build(), tableEnv)
+  }
+
+  /**
+    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
+    * The resulting Table is sorted globally sorted across all parallel partitions.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.orderBy('name.desc)
+    * }}}
+    */
+  def orderBy(fields: Expression*): Table = {
+    relBuilder.push(relNode)
+
+    if (! fields.forall {
+      case x : UnresolvedFieldReference => true
+      case x : Ordering => x.child.isInstanceOf[UnresolvedFieldReference]
+      case _ => false
+    }) {
+      throw new IllegalArgumentException("All expressions must be field references " +
+        "or asc/desc expressions.")
+    }
+
+    val exprs = fields.map(_.toRexNode(relBuilder))
+
+    relBuilder.sort(exprs.asJava)
+    new Table(relBuilder.build(), tableEnv)
+
+  }
+
+  /**
+    * Sorts the given [[Table]]. Similar to SQL ORDER BY.
+    * The resulting Table is sorted globally sorted across all parallel partitions.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.orderBy("name DESC")
+    * }}}
+    */
+  def orderBy(fields: String): Table = {
+    val parsedFields = ExpressionParser.parseExpressionList(fields)
+    orderBy(parsedFields: _*)
   }
 
   private def createRenamingProject(exprs: Seq[RexNode]): LogicalProject = {

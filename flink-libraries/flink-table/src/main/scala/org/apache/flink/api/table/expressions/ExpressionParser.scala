@@ -52,6 +52,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val EVAL: Keyword = Keyword("eval")
+  lazy val ASC: Keyword = Keyword("asc")
+  lazy val DESC: Keyword = Keyword("desc")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -124,6 +126,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixIsNotNull: PackratParser[Expression] =
     composite <~ "." ~ IS_NOT_NULL ~ opt("()") ^^ { e => IsNotNull(e) }
 
+  lazy val suffixAsc : PackratParser[Expression] =
+    (atom <~ ".asc" ^^ { e => Asc(e) }) | (atom <~ ASC ^^ { e => Asc(e) })
+
+  lazy val suffixDesc : PackratParser[Expression] =
+    (atom <~ ".desc" ^^ { e => Desc(e) }) | (atom <~ DESC ^^ { e => Desc(e) })
+
+
   lazy val suffixSum: PackratParser[Expression] =
     composite <~ "." ~ SUM ~ opt("()") ^^ { e => Sum(e) }
 
@@ -181,7 +190,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixed: PackratParser[Expression] =
     suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg |
-      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixEval | suffixFunctionCall
+      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixEval | suffixFunctionCall |
+        suffixAsc | suffixDesc
 
   // prefix operators
 

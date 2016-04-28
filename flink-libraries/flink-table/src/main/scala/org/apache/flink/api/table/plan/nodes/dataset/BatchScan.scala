@@ -81,31 +81,14 @@ abstract class BatchScan(
 
         // conversion
         if (determinedType != inputType) {
-          val generator = new CodeGenerator(
+
+          val mapFunc = getConversionMapper(
             config,
-            input.getType,
-            flinkTable.fieldIndexes)
-
-          val conversion = generator.generateConverterResultExpression(
+            inputType,
             determinedType,
-            getRowType.getFieldNames)
-
-          val body =
-            s"""
-               |${conversion.code}
-               |return ${conversion.resultTerm};
-               |""".stripMargin
-
-          val genFunction = generator.generateFunction(
             "DataSetSourceConversion",
-            classOf[MapFunction[Any, Any]],
-            body,
-            determinedType)
-
-          val mapFunc = new MapRunner[Any, Any](
-            genFunction.name,
-            genFunction.code,
-            genFunction.returnType)
+            getRowType.getFieldNames,
+            Some(flinkTable.fieldIndexes))
 
           val opName = s"from: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
 
