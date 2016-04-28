@@ -37,7 +37,7 @@ import scala.reflect.ClassTag
 
 /** Implements a k-nearest neighbor join.
   *
-  * Calculates the `k` nearest neighbor points in the training set for each point in the test set.
+  * Calculates the `k`-nearest neighbor points in the training set for each point in the test set.
   *
   * @example
   * {{{
@@ -120,12 +120,12 @@ class KNN extends Predictor[KNN] {
   /**
    * Sets the Boolean variable that decides whether to use the QuadTree or not
    */
-  def setUseQuadTree(UseQuadTree: Boolean): KNN = {
-    if (UseQuadTree){
+  def setUseQuadTree(useQuadTree: Boolean): KNN = {
+    if (useQuadTree){
       require(parameters(DistanceMetric).isInstanceOf[SquaredEuclideanDistanceMetric] ||
         parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric])
     }
-    parameters.add(UseQuadTreeParam, UseQuadTree)
+    parameters.add(UseQuadTreeParam, useQuadTree)
     this
   }
 
@@ -239,7 +239,7 @@ object KNN {
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
-                      knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
+                    knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
                   } else {
                     knnQueryBasic(training.values, testing.values, k, metric, queue, out)
                   }

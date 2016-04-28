@@ -63,6 +63,11 @@ class QuadTree(
       (center, width)
     }
 
+    /** Tests whether the queryPoint is in the node, or a child of that node
+      *
+      * @param queryPoint
+      * @return
+      */
     def contains(queryPoint: Vector): Boolean = {
       overlap(queryPoint, 0.0)
     }

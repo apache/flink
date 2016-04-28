@@ -131,6 +131,3 @@ object Classification {
 
   val expectedWeightVector = DenseVector(-1.95, -3.45)
 }
-
-
-

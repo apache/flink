@@ -68,17 +68,17 @@ The KNN implementation can be controlled by the following parameters:
         <td><strong>K</strong></td>
         <td>
           <p>
-            Defines the number of nearest-neoghbors to search for.  That is, for each test point, the algorithm finds the K nearest neighbors in the training set
+            Defines the number of nearest-neighbors to search for.  That is, for each test point, the algorithm finds the K-nearest neighbors in the training set
             (Default value: <strong>5</strong>)
           </p>
         </td>
       </tr>
       <tr>
-        <td><strong> DistanceMetric</strong></td>
+        <td><strong>DistanceMetric</strong></td>
         <td>
           <p>
             Sets the distance metric we use to calculate the distance between two points. If no metric is specified, then [[org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric]] is used.
-            (Default value: <strong> EuclideanDistanceMetric </strong>)
+            (Default value: <strong>EuclideanDistanceMetric</strong>)
           </p>
         </td>
       </tr>
@@ -120,8 +120,7 @@ import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.Classification
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.metrics.distances.
-SquaredEuclideanDistanceMetric
+import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 
   val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -142,5 +141,5 @@ SquaredEuclideanDistanceMetric
 
 {% endhighlight %}
 
-For more details on the computing KNN with and without a d quadtree, here is a presentation:
+For more details on the computing KNN with and without and quadtree, here is a presentation:
 http://danielblazevski.github.io/
