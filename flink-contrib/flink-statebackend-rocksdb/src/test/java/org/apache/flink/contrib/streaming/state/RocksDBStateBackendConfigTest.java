@@ -21,8 +21,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -110,7 +108,7 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
 			assertNull(rocksDbBackend.getDbStoragePaths());
 			
-			rocksDbBackend.initializeForJob(getMockEnvironment(tempDirs), "foobar", IntSerializer.INSTANCE);
+			rocksDbBackend.initializeForJob(getMockEnvironment(tempDirs), "foobar");
 			assertArrayEquals(tempDirs, rocksDbBackend.getStoragePaths());
 		}
 		finally {
@@ -139,7 +137,7 @@ public class RocksDBStateBackendConfigTest {
 
 			boolean hasFailure = false;
 			try {
-				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
+				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar");
 			}
 			catch (Exception e) {
 				assertTrue(e.getMessage().contains("No local storage directories available"));
@@ -160,7 +158,7 @@ public class RocksDBStateBackendConfigTest {
 		File targetDir1 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
 		File targetDir2 = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
 		
-		try {
+		try (RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI)){
 			assertTrue(targetDir1.mkdirs());
 			assertTrue(targetDir2.mkdirs());
 
@@ -169,14 +167,16 @@ public class RocksDBStateBackendConfigTest {
 				return;
 			}
 	
-			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI);
 			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 	
 			try {
-				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar", IntSerializer.INSTANCE);
+				rocksDbBackend.initializeForJob(getMockEnvironment(), "foobar");
 
-				// actually get a state to see whether we can write to the storage directory
-				rocksDbBackend.getPartitionedState(null, VoidSerializer.INSTANCE, new ValueStateDescriptor<>("test", String.class, ""));
+				try (PartitionedRocksDBStateBackend<Void> partitionedRocksDBStateBackend = rocksDbBackend.createPartitionedStateBackend(VoidSerializer.INSTANCE)) {
+					// actually get a state to see whether we can write to the storage directory
+					partitionedRocksDBStateBackend.getPartitionedState(null, VoidSerializer.INSTANCE, new ValueStateDescriptor<>("test", String.class, ""));
+				}
+
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -281,8 +281,8 @@ public class RocksDBStateBackendConfigTest {
 		AbstractStateBackend nonPartBackend = mock(AbstractStateBackend.class);
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(TEMP_URI, nonPartBackend);
 
-		rocksDbBackend.initializeForJob(getMockEnvironment(), "foo", IntSerializer.INSTANCE);
-		verify(nonPartBackend, times(1)).initializeForJob(any(Environment.class), anyString(), any(TypeSerializer.class));
+		rocksDbBackend.initializeForJob(getMockEnvironment(), "foo");
+		verify(nonPartBackend, times(1)).initializeForJob(any(Environment.class), anyString());
 
 		rocksDbBackend.disposeAllStateForCurrentJob();
 		verify(nonPartBackend, times(1)).disposeAllStateForCurrentJob();

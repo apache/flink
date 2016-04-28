@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.PartitionedFsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -58,7 +59,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
+public class FileStateBackendTest extends StateBackendTestBase<PartitionedFsStateBackend<Integer>> {
 	
 	private static File TEMP_DIR;
 	
@@ -104,15 +105,22 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	private URI stateBaseURI;
 
-	@Override
-	protected FsStateBackend createStateBackend() throws Exception {
-		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
-		return new FsStateBackend(stateBaseURI);
+	private FsStateBackend fsStateBackend;
 
+	@Override
+	protected PartitionedFsStateBackend<Integer> createStateBackend() throws Exception {
+		return fsStateBackend.createPartitionedStateBackend(IntSerializer.INSTANCE);
+	}
+
+	@Override
+	protected void setup() throws Exception {
+		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
+		this.fsStateBackend = new FsStateBackend(stateBaseURI);
 	}
 
 	@Override
 	protected void cleanup() throws Exception {
+		fsStateBackend.close();
 		FileSystem.get(stateBaseURI).delete(new Path(stateBaseURI), true);
 	}
 
@@ -158,7 +166,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 				// supreme!
 			}
 
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy");
 			assertNotNull(backend.getCheckpointDirectory());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -180,7 +188,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	public void testSerializableState() {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy");
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -213,7 +221,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	public void testStateOutputStream() {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri(), 15));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy");
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 

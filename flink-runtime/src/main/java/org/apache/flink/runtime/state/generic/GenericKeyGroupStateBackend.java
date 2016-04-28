@@ -120,6 +120,8 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 			for (GenericKeyGroupKVState<KEY, ?, ?, ?> kvState: kvStates.values()) {
 				kvState.setPartitionedStateBackend(currentPartitionedStateBackend);
 			}
+		} else {
+			currentPartitionedStateBackend.setCurrentKey(key);
 		}
 	}
 
@@ -130,7 +132,6 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 
 	@Override
 	public <N, S extends PartitionedState> S getPartitionedState(N namespace, final TypeSerializer<N> namespaceSerializer, StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		Preconditions.checkNotNull(namespace);
 		Preconditions.checkNotNull(namespaceSerializer);
 		Preconditions.checkNotNull(stateDescriptor);
 

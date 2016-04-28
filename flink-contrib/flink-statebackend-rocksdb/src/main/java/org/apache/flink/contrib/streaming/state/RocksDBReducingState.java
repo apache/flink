@@ -71,7 +71,7 @@ public class RocksDBReducingState<K, N, V>
 	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 		
 		super(columnFamily, namespaceSerializer, backend);
 		this.stateDesc = requireNonNull(stateDesc);

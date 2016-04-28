@@ -46,17 +46,11 @@ public class GenericKeyGroupKVState<K, T, N, S extends PartitionedState> {
 
 	public void setPartitionedStateBackend(PartitionedStateBackend<K> partitionedStateBackend) throws Exception {
 		this.currentPartitionedStateBackend = Preconditions.checkNotNull(partitionedStateBackend);
-
-		if (currentNamespace != null) {
-			state = currentPartitionedStateBackend.getPartitionedState(currentNamespace, namespaceSerializer, stateDescriptor);
-		} else {
-			// clear state so that we request a new state when calling setNamespace
-			state = null;
-		}
+		state = currentPartitionedStateBackend.getPartitionedState(currentNamespace, namespaceSerializer, stateDescriptor);
 	}
 
 	public void setNamespace(N namespace) throws Exception {
-		this.currentNamespace = Preconditions.checkNotNull(namespace);
+		this.currentNamespace = namespace;
 
 		if (state != null) {
 			// set the namespace directly at the state object

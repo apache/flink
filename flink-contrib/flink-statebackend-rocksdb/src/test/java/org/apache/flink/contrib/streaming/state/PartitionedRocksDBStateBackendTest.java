@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -31,13 +32,13 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Tests for the partitioned state part of {@link RocksDBStateBackend} with fully asynchronous
- * checkpointing enabled.
+ * Tests for the partitioned state part of {@link RocksDBStateBackend}.
  */
-public class FullyAsyncRocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
+public class PartitionedRocksDBStateBackendTest extends StateBackendTestBase<PartitionedRocksDBStateBackend<Integer>> {
 
 	private File dbDir;
 	private File chkDir;
+	private RocksDBStateBackend rocksDBStateBackend;
 
 	@Before
 	public void checkOperatingSystem() {
@@ -45,14 +46,17 @@ public class FullyAsyncRocksDBStateBackendTest extends StateBackendTestBase<Rock
 	}
 
 	@Override
-	protected RocksDBStateBackend getStateBackend() throws IOException {
+	protected PartitionedRocksDBStateBackend<Integer> createStateBackend() throws IOException {
+		return rocksDBStateBackend.createPartitionedStateBackend(IntSerializer.INSTANCE);
+	}
+
+	@Override
+	protected void setup() throws Exception {
 		dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
 		chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
 
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
-		backend.setDbStoragePath(dbDir.getAbsolutePath());
-		backend.enableFullyAsyncSnapshots();
-		return backend;
+		rocksDBStateBackend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(dbDir.getAbsolutePath());
 	}
 
 	@Override

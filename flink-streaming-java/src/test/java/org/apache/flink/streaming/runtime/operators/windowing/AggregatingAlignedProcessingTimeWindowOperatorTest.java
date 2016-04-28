@@ -23,6 +23,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -33,12 +34,13 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -203,7 +205,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
+			op.setup(mockTask, createTaskConfig(mockKeySelector, StringSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -255,7 +257,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final Object lock = new Object();
 			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
 			
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -313,7 +315,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSize);
 			
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			final int numWindows = 10;
@@ -380,7 +382,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -449,7 +451,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							sumFunction, fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			synchronized (lock) {
@@ -511,7 +513,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							hundredYears, hundredYears);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			for (int i = 0; i < 100; i++) {
@@ -559,7 +561,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// inject some elements
@@ -607,7 +609,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out2);
 			op.restoreState(state, 1);
 			op.open();
 
@@ -667,7 +669,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, tupleSerializer,
 							windowSize, windowSlide);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// inject some elements
@@ -715,7 +717,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, tupleSerializer,
 					windowSize, windowSlide);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out2);
 			op.restoreState(state, 1);
 			op.open();
 
@@ -781,7 +783,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, twoSeconds, twoSeconds);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// because the window interval is so large, everything should be in one window
@@ -836,7 +838,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), fieldOneSelector,
 							IntSerializer.INSTANCE, tupleSerializer, windowSize, windowSlide);
 
-			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE), out);
+			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// because the window interval is so large, everything should be in one window
@@ -958,15 +960,22 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	// ------------------------------------------------------------------------
 	
 	private static StreamTask<?, ?> createMockTask() {
+		Configuration configuration = new Configuration();
+		configuration.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
+
 		StreamTask<?, ?> task = mock(StreamTask.class);
 		when(task.getAccumulatorMap()).thenReturn(new HashMap<String, Accumulator<?, ?>>());
 		when(task.getName()).thenReturn("Test task name");
 		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
+		final TaskManagerRuntimeInfo mockTaskManagerRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
+		when(mockTaskManagerRuntimeInfo.getConfiguration()).thenReturn(configuration);
+
 		final Environment env = mock(Environment.class);
 		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
-		
+		when(env.getTaskManagerInfo()).thenReturn(mockTaskManagerRuntimeInfo);
+
 		when(task.getEnvironment()).thenReturn(env);
 
 		return task;
@@ -1001,10 +1010,11 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		return mockTask;
 	}
 
-	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer) {
+	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer, KeyGroupAssigner<?> keyGroupAssigner) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStatePartitioner(0, partitioner);
 		cfg.setStateKeySerializer(keySerializer);
+		cfg.setKeyGroupAssigner(keyGroupAssigner);
 		return cfg;
 	}
 }

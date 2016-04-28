@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -352,7 +353,7 @@ public abstract class AbstractStreamOperator<OUT>
 				throw new RuntimeException("Exception occurred while setting the current key context.", e);
 			}
 		} else {
-			throw new RuntimeException("Could not set the current key context, because the" +
+			throw new RuntimeException("Could not set the current key context, because the " +
 				"KeyGroupStateBackend has not been initialized.");
 		}
 	}
@@ -373,44 +374,50 @@ public abstract class AbstractStreamOperator<OUT>
 			LOG.info("Using user-defined state backend: " + stateBackend);
 		} else {
 			// see if we have a backend specified in the configuration
-			Configuration flinkConfig = environment.getTaskManagerInfo().getConfiguration();
-			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
+			TaskManagerRuntimeInfo taskManagerRuntimeInfo = environment.getTaskManagerInfo();
 
-			if (backendName == null) {
-				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
-				backendName = "jobmanager";
-			}
+			if (taskManagerRuntimeInfo != null) {
+				Configuration flinkConfig = taskManagerRuntimeInfo.getConfiguration();
+				String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
 
-			backendName = backendName.toLowerCase();
-			switch (backendName) {
-				case "jobmanager":
-					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					stateBackend = MemoryStateBackend.create();
-					break;
+				if (backendName == null) {
+					LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
+					backendName = "jobmanager";
+				}
 
-				case "filesystem":
-					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-						+ backend.getBasePath() + "\")");
-					stateBackend = backend;
-					break;
+				backendName = backendName.toLowerCase();
+				switch (backendName) {
+					case "jobmanager":
+						LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
+						stateBackend = MemoryStateBackend.create();
+						break;
 
-				default:
-					try {
-						@SuppressWarnings("rawtypes")
-						Class<? extends StateBackendFactory> clazz =
-							Class.forName(backendName, false, classLoader).asSubclass(StateBackendFactory.class);
+					case "filesystem":
+						FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
+						LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
+							+ backend.getBasePath() + "\")");
+						stateBackend = backend;
+						break;
 
-						stateBackend = ((StateBackendFactory<?>) clazz.newInstance()).createFromConfig(flinkConfig);
-					} catch (ClassNotFoundException e) {
-						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
-					} catch (ClassCastException e) {
-						throw new IllegalConfigurationException("The class configured under '" +
-							ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
-							backendName + ')');
-					} catch (Throwable t) {
-						throw new IllegalConfigurationException("Cannot create configured state backend", t);
-					}
+					default:
+						try {
+							@SuppressWarnings("rawtypes")
+							Class<? extends StateBackendFactory> clazz =
+								Class.forName(backendName, false, classLoader).asSubclass(StateBackendFactory.class);
+
+							stateBackend = ((StateBackendFactory<?>) clazz.newInstance()).createFromConfig(flinkConfig);
+						} catch (ClassNotFoundException e) {
+							throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
+						} catch (ClassCastException e) {
+							throw new IllegalConfigurationException("The class configured under '" +
+								ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
+								backendName + ')');
+						} catch (Throwable t) {
+							throw new IllegalConfigurationException("Cannot create configured state backend", t);
+						}
+				}
+			} else {
+				throw new IllegalConfigurationException("Cannot create a state backend because the TaskManagerRuntimeInfo has not been set.");
 			}
 		}
 		stateBackend.initializeForJob(environment, operatorIdentifier);

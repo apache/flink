@@ -42,8 +42,8 @@ public abstract class AbstractStateBackend implements AutoCloseable, Serializabl
 
 	public abstract <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) throws Exception;
 
-	public <K> GenericKeyGroupStateBackend createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
-		return null;
+	public <K> GenericKeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
+		return new GenericKeyGroupStateBackend<K>(this, keySerializer, keyGroupAssigner);
 	}
 
 	public abstract void disposeAllStateForCurrentJob() throws Exception;

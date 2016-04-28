@@ -74,7 +74,7 @@ public class RocksDBListState<K, N, V>
 	public RocksDBListState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 		
 		super(columnFamily, namespaceSerializer, backend);
 		this.stateDesc = requireNonNull(stateDesc);

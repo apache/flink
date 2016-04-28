@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -43,11 +44,11 @@ import java.io.IOException;
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
- * @param <S> The type of {@link State}.
+ * @param <S> The type of {@link PartitionedState}.
  * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
-		implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
+public abstract class AbstractRocksDBState<K, N, S extends PartitionedState, SD extends StateDescriptor<S, ?>>
+		implements KvState<K, N, S, SD, PartitionedRocksDBStateBackend<K>>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
@@ -58,7 +59,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	private N currentNamespace;
 
 	/** Backend that holds the actual RocksDB instance where we store state */
-	protected RocksDBStateBackend backend;
+	protected PartitionedRocksDBStateBackend<K> backend;
 
 	/** The column family of this particular instance of state */
 	protected ColumnFamilyHandle columnFamily;
@@ -75,7 +76,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 */
 	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
 		this.backend = backend;
@@ -124,7 +125,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, S, SD, RocksDBStateBackend> snapshot(long checkpointId,
+	public KvStateSnapshot<K, N, S, SD, PartitionedRocksDBStateBackend<K>> snapshot(long checkpointId,
 			long timestamp) throws Exception {
 		throw new RuntimeException("Should not be called. Backups happen in RocksDBStateBackend.");
 	}

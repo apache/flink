@@ -229,8 +229,8 @@ public class RocksDBAsyncKVSnapshotTest {
 			}
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-				super.acknowledgeCheckpoint(checkpointId, state);
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> keyGroupStates) {
+				super.acknowledgeCheckpoint(checkpointId, state, keyGroupStates);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -240,12 +240,15 @@ public class RocksDBAsyncKVSnapshotTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
+				for (Map.Entry<Integer, StateHandle<?>> entry: keyGroupStates.entrySet()) {
+					assertTrue(entry.getValue() instanceof ChainedKeyGroupState);
 
-				// should be only one k/v state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
-				assertEquals(1, taskState.getKvStates().size());
+					ChainedKeyGroupState chainedKeyGroupState = (ChainedKeyGroupState) entry.getValue();
+
+					PartitionedStateSnapshot partitionedStateSnapshot = chainedKeyGroupState.getState(this.getUserClassLoader()).get(0);
+
+					assertEquals(partitionedStateSnapshot.entrySet().size(), 1);
+				}
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
