@@ -144,6 +144,9 @@ class QuadTree(
       }.sum
     }
 
+    /** Makes children nodes by partitioning the box into equal sub-boxes
+      * and adding a node for each sub-box
+      */
     def makeChildren() {
       val centerClone = center.copy
       val cPart = partitionBox(centerClone, width)
