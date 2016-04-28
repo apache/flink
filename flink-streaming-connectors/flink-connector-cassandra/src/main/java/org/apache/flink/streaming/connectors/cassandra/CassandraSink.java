@@ -211,10 +211,10 @@ public class CassandraSink<IN> {
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> setHost(final String host, final int port) {
-			if (builder != null) {
+			if (this.builder != null) {
 				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
 			}
-			builder = new ClusterBuilder() {
+			this.builder = new ClusterBuilder() {
 				@Override
 				protected Cluster buildCluster(Cluster.Builder builder) {
 					return builder.addContactPoint(host).withPort(port).build();
@@ -230,7 +230,7 @@ public class CassandraSink<IN> {
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> setClusterBuilder(ClusterBuilder builder) {
-			if (builder != null) {
+			if (this.builder != null) {
 				throw new IllegalArgumentException("Builder was already set. You must use either setHost() or setClusterBuilder().");
 			}
 			this.builder = builder;
