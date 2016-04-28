@@ -63,7 +63,7 @@ under the License.
   The convergence criterion is the relative change in the sum of squared residuals:
 
   $$\frac{S_{k-1} - S_k}{S_{k-1}} < \rho$$
-  
+
 ## Operations
 
 `MultipleLinearRegression` is a `Predictor`.
@@ -71,13 +71,13 @@ As such, it supports the `fit` and `predict` operation.
 
 ### Fit
 
-MultipleLinearRegression is trained on a set of `LabeledVector`: 
+MultipleLinearRegression is trained on a set of `LabeledVector`:
 
 * `fit: DataSet[LabeledVector] => Unit`
 
 ### Predict
 
-MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding regression value: 
+MultipleLinearRegression predicts for all subtypes of `Vector` the corresponding regression value:
 
 * `predict[T <: Vector]: DataSet[T] => DataSet[LabeledVector]`
 
@@ -92,7 +92,7 @@ the algorithm's performance.
 ## Parameters
 
   The multiple linear regression implementation can be controlled by the following parameters:
-  
+
    <table class="table table-bordered">
     <thead>
       <tr>
@@ -116,7 +116,7 @@ the algorithm's performance.
           <p>
             Initial step size for the gradient descent method.
             This value controls how far the gradient descent method moves in the opposite direction of the gradient.
-            Tuning this parameter might be crucial to make it stable and to obtain a better performance. 
+            Tuning this parameter might be crucial to make it stable and to obtain a better performance.
             (Default value: <strong>0.1</strong>)
           </p>
         </td>
