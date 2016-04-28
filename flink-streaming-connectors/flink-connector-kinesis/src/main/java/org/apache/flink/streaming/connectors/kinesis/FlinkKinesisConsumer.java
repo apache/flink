@@ -465,5 +465,29 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 				throw new IllegalArgumentException("Invalid initial position in stream set in config. Valid values are: " + sb.toString());
 			}
 		}
+
+		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES)) {
+			try {
+				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Invalid value given for describeStream stream operation retry count. Must be a valid integer value.");
+			}
+		}
+
+		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF)) {
+			try {
+				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Invalid value given for describeStream stream operation backoff milliseconds. Must be a valid long value.");
+			}
+		}
+
+		if (config.containsKey(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET)) {
+			try {
+				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
+			}
+		}
 	}
 }
