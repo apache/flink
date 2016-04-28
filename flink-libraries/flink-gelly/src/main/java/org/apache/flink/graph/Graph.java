@@ -1311,9 +1311,28 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> addVertices(List<Vertex<K, VV>> verticesToAdd) {
 		// Add the vertices
-		DataSet<Vertex<K, VV>> newVertices = this.vertices.union(this.context.fromCollection(verticesToAdd)).distinct();
+		DataSet<Vertex<K, VV>> newVertices = this.vertices.coGroup(this.context.fromCollection(verticesToAdd))
+				.where(0).equalTo(0).with(new VerticesUnionCoGroup<K, VV>());
 
-		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+		return new Graph<>(newVertices, this.edges, this.context);
+	}
+
+	private static final class VerticesUnionCoGroup<K, VV> implements CoGroupFunction<Vertex<K, VV>, Vertex<K, VV>, Vertex<K, VV>> {
+
+		@Override
+		public void coGroup(Iterable<Vertex<K, VV>> oldVertices, Iterable<Vertex<K, VV>> newVertices,
+							Collector<Vertex<K, VV>> out) throws Exception {
+
+			final Iterator<Vertex<K, VV>> oldVerticesIterator = oldVertices.iterator();
+			final Iterator<Vertex<K, VV>> newVerticesIterator = newVertices.iterator();
+
+			// if there is both an old vertex and a new vertex then only the old vertex is emitted
+			if (oldVerticesIterator.hasNext()) {
+				out.collect(oldVerticesIterator.next());
+			} else {
+				out.collect(newVerticesIterator.next());
+			}
+		}
 	}
 
 	/**

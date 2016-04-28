@@ -79,6 +79,9 @@ public class GraphMutationsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		// the first vertex has a duplicate ID from a vertex in the graph and
+		// should not be added to the new graph
+		vertices.add(new Vertex<>(5L, 0L));
 		vertices.add(new Vertex<>(6L, 6L));
 		vertices.add(new Vertex<>(7L, 7L));
 
