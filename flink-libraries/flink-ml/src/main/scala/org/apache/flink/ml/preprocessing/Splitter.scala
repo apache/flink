@@ -53,11 +53,12 @@ object Splitter {
    * @return An array of two datasets
    */
 
-  def randomSplit[T: TypeInformation : ClassTag]( input: DataSet[T],
-                                                  fraction: Double,
-                                                  precise: Boolean = false,
-                                                  seed: Long = Utils.RNG.nextLong())
-  : Array[DataSet[T]] = {
+  def randomSplit[T: TypeInformation : ClassTag](
+      input: DataSet[T],
+      fraction: Double,
+      precise: Boolean = false,
+      seed: Long = Utils.RNG.nextLong())
+    : Array[DataSet[T]] = {
     import org.apache.flink.api.scala._
 
     val indexedInput: DataSet[(Long, T)] = input.zipWithIndex
@@ -98,11 +99,12 @@ object Splitter {
    * @param seed            Random number generator seed.
    * @return An array of DataSets whose length is equal to the length of fracArray
    */
-  def multiRandomSplit[T: TypeInformation : ClassTag](input: DataSet[T],
-                        fracArray: Array[Double],
-                        precise: Boolean = false,
-                        seed: Long = Utils.RNG.nextLong())
-  : Array[DataSet[T]] = {
+  def multiRandomSplit[T: TypeInformation : ClassTag](
+      input: DataSet[T],
+      fracArray: Array[Double],
+      precise: Boolean = false,
+      seed: Long = Utils.RNG.nextLong())
+    : Array[DataSet[T]] = {
     val splits = fracArray.length
     val output = new Array[DataSet[T]](splits)
     val aggs = fracArray.scanRight((0.0))( _ + _ )
@@ -137,11 +139,12 @@ object Splitter {
    * @param seed            Random number generator seed.
    * @return An array of TrainTestDataSets
    */
-  def kFoldSplit[T: TypeInformation : ClassTag](input: DataSet[T],
-                                                kFolds: Int,
-                                                precise: Boolean = false,
-                                                seed: Long = Utils.RNG.nextLong())
-  : Array[TrainTestDataSet[T]] = {
+  def kFoldSplit[T: TypeInformation : ClassTag](
+      input: DataSet[T],
+      kFolds: Int,
+      precise: Boolean = false,
+      seed: Long = Utils.RNG.nextLong())
+    : Array[TrainTestDataSet[T]] = {
 
     val fracs = Array.fill(kFolds)(1.0)
     val dataSetArray = multiRandomSplit(input, fracs, precise, seed)
@@ -177,11 +180,12 @@ object Splitter {
    * @param seed            Random number generator seed.
    * @return A TrainTestDataSet
    */
-  def trainTestSplit[T: TypeInformation : ClassTag]( input: DataSet[T],
-                                                     fraction: Double = 0.6,
-                                                     precise: Boolean = false,
-                                                     seed: Long = Utils.RNG.nextLong())
-  : TrainTestDataSet[T] = {
+  def trainTestSplit[T: TypeInformation : ClassTag](
+      input: DataSet[T],
+      fraction: Double = 0.6,
+      precise: Boolean = false,
+      seed: Long = Utils.RNG.nextLong())
+    : TrainTestDataSet[T] = {
     val dataSetArray = randomSplit(input, fraction, precise, seed)
     TrainTestDataSet(dataSetArray(0), dataSetArray(1))
   }
@@ -203,11 +207,12 @@ object Splitter {
    * @param seed            Random number generator seed.
    * @return A TrainTestDataSet
    */
-  def trainTestHoldoutSplit[T: TypeInformation : ClassTag](input: DataSet[T],
-                                                    fracArray: Array[Double] = Array(0.6,0.3,0.1),
-                                                    precise: Boolean = false,
-                                                    seed: Long = Utils.RNG.nextLong())
-  : TrainTestHoldoutDataSet[T] = {
+  def trainTestHoldoutSplit[T: TypeInformation : ClassTag](
+      input: DataSet[T],
+      fracArray: Array[Double] = Array(0.6,0.3,0.1),
+      precise: Boolean = false,
+      seed: Long = Utils.RNG.nextLong())
+    : TrainTestHoldoutDataSet[T] = {
     // throw error if fracArray isn't length = 3
     val dataSetArray = multiRandomSplit(input, fracArray, precise, seed)
     TrainTestHoldoutDataSet(dataSetArray(0), dataSetArray(1), dataSetArray(2))
