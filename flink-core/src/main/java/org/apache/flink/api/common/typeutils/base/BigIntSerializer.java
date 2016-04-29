@@ -24,6 +24,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+/**
+ * Serializer for serializing/deserializing BigInteger values including null values.
+ */
 @Internal
 public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> {
 
@@ -92,6 +95,7 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 			return;
 		}
 		// fast paths for 0, 1, 10
+		// only reference equality is checked because equals would be too expensive
 		else if (record == BigInteger.ZERO) {
 			target.writeInt(1);
 			return;

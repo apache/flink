@@ -25,6 +25,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+/**
+ * Serializer for serializing/deserializing BigDecimal values including null values.
+ */
 @Internal
 public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> {
 
@@ -65,6 +68,7 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 			return;
 		}
 		// fast paths for 0, 1, 10
+		// only reference equality is checked because equals would be too expensive
 		else if (record == BigDecimal.ZERO) {
 			BigIntSerializer.writeBigInteger(BigInteger.ZERO, target);
 			target.writeInt(0);

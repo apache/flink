@@ -24,6 +24,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+/**
+ * Comparator for comparing BigInteger values. Does not support null values.
+ */
 @Internal
 public final class BigIntComparator extends BasicTypeComparator<BigInteger> {
 
@@ -37,7 +40,7 @@ public final class BigIntComparator extends BasicTypeComparator<BigInteger> {
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		BigInteger bi1 = BigIntSerializer.readBigInteger(firstSource);
 		BigInteger bi2 = BigIntSerializer.readBigInteger(secondSource);
-		int comp = bi1.compareTo(bi2);
+		int comp = bi1.compareTo(bi2); // null is not supported
 		return ascendingComparison ? comp : -comp;
 	}
 

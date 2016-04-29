@@ -24,6 +24,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+/**
+ * Comparator for comparing BigDecimal values. Does not support null values.
+ */
 @Internal
 public final class BigDecComparator extends BasicTypeComparator<BigDecimal> {
 
@@ -41,7 +44,7 @@ public final class BigDecComparator extends BasicTypeComparator<BigDecimal> {
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		BigDecimal bd1 = BigDecSerializer.readBigDecimal(firstSource);
 		BigDecimal bd2 = BigDecSerializer.readBigDecimal(secondSource);
-		int comp = bd1.compareTo(bd2);
+		int comp = bd1.compareTo(bd2); // null is not supported
 		return ascendingComparison ? comp : -comp;
 	}
 
