@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
@@ -185,17 +186,20 @@ public class DegreeAnnotationFunctions {
 	 * @param <K> ID type
 	 * @param <EV> edge value type
 	 */
-	@ForwardedFieldsFirst("0; 1")
-	@ForwardedFieldsSecond("0; 1->2")
+	@ForwardedFieldsFirst("0; 1; 2->2.0")
+	@ForwardedFieldsSecond("0; 1->2.1")
 	public static final class JoinEdgeWithVertexDegree<K, EV>
-	implements JoinFunction<Edge<K, EV>, Vertex<K, LongValue>, Edge<K, LongValue>> {
-		private Edge<K, LongValue> output = new Edge<>();
+	implements JoinFunction<Edge<K, EV>, Vertex<K, LongValue>, Edge<K, Tuple2<EV, LongValue>>> {
+		private Tuple2<EV, LongValue> valueAndDegree = new Tuple2<>();
+
+		private Edge<K, Tuple2<EV, LongValue>> output = new Edge<>(null, null, valueAndDegree);
 
 		@Override
-		public Edge<K, LongValue> join(Edge<K, EV> edge, Vertex<K, LongValue> vertex) throws Exception {
+		public Edge<K, Tuple2<EV, LongValue>> join(Edge<K, EV> edge, Vertex<K, LongValue> vertex) throws Exception {
 			output.f0 = edge.f0;
 			output.f1 = edge.f1;
-			output.f2 = vertex.f1;
+			valueAndDegree.f0 = edge.f2;
+			valueAndDegree.f1 = vertex.f1;
 
 			return output;
 		}
@@ -205,22 +209,26 @@ public class DegreeAnnotationFunctions {
 	 * Composes the vertex degree with this edge value.
 	 *
 	 * @param <K> ID type
+	 * @param <EV> edge value type
 	 */
-	@ForwardedFieldsFirst("0; 1; 2->2.1")
-	@ForwardedFieldsSecond("0; 1->2.0")
-	public static final class JoinEdgeDegreeWithVertexDegree<K>
-	implements JoinFunction<Edge<K, LongValue>, Vertex<K, LongValue>, Edge<K, Tuple2<LongValue, LongValue>>> {
-		private Tuple2<LongValue, LongValue> degrees = new Tuple2<>();
+	@ForwardedFieldsFirst("0; 1; 2.0; 2.1")
+	@ForwardedFieldsSecond("0; 1->2.2")
+	public static final class JoinEdgeDegreeWithVertexDegree<K, EV>
+	implements JoinFunction<Edge<K, Tuple2<EV, LongValue>>, Vertex<K, LongValue>, Edge<K, Tuple3<EV, LongValue, LongValue>>> {
+		private Tuple3<EV, LongValue, LongValue> valueAndDegrees = new Tuple3<>();
 
-		private Edge<K, Tuple2<LongValue, LongValue>> output = new Edge<>(null, null, degrees);
+		private Edge<K, Tuple3<EV, LongValue, LongValue>> output = new Edge<>(null, null, valueAndDegrees);
 
 		@Override
-		public Edge<K, Tuple2<LongValue, LongValue>> join(Edge<K, LongValue> edge, Vertex<K, LongValue> vertex)
+		public Edge<K, Tuple3<EV, LongValue, LongValue>> join(Edge<K, Tuple2<EV, LongValue>> edge, Vertex<K, LongValue> vertex)
 				throws Exception {
+			Tuple2<EV, LongValue> valueAndDegree = edge.f2;
+
 			output.f0 = edge.f0;
 			output.f1 = edge.f1;
-			degrees.f0 = edge.f2;
-			degrees.f1 = vertex.f1;
+			valueAndDegrees.f0 = valueAndDegree.f0;
+			valueAndDegrees.f1 = valueAndDegree.f1;
+			valueAndDegrees.f2 = vertex.f1;
 
 			return output;
 		}

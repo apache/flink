@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.CachingGraphAlgorithm;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -37,7 +38,7 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class EdgeDegreePair<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<LongValue, LongValue>>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>>> {
 
 	// Optional configuration
 	protected boolean reduceOnTargetId = false;
@@ -77,10 +78,10 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<LongValue, LongV
 	}
 
 	@Override
-	public DataSet<Edge<K, Tuple2<LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, deg(s)
-		DataSet<Edge<K, LongValue>> edgeSourceDegrees = input
+		DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees = input
 			.run(new EdgeSourceDegree<K, VV, EV>()
 				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
@@ -105,7 +106,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<LongValue, LongV
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
-			.with(new JoinEdgeDegreeWithVertexDegree<K>())
+			.with(new JoinEdgeDegreeWithVertexDegree<K,EV>())
 				.setParallelism(parallelism)
 				.name("Edge target degree");
 	}

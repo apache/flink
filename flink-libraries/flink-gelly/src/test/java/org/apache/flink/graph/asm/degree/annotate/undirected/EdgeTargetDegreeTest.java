@@ -20,6 +20,7 @@ package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.asm.AsmTestBase;
@@ -38,27 +39,27 @@ extends AsmTestBase {
 	public void testWithSimpleGraph()
 			throws Exception {
 		String expectedResult =
-			"(0,1,3)\n" +
-			"(0,2,3)\n" +
-			"(1,0,2)\n" +
-			"(1,2,3)\n" +
-			"(1,3,4)\n" +
-			"(2,0,2)\n" +
-			"(2,1,3)\n" +
-			"(2,3,4)\n" +
-			"(3,1,3)\n" +
-			"(3,2,3)\n" +
-			"(3,4,1)\n" +
-			"(3,5,1)\n" +
-			"(4,3,4)\n" +
-			"(5,3,4)";
+			"(0,1,((null),3))\n" +
+			"(0,2,((null),3))\n" +
+			"(1,0,((null),2))\n" +
+			"(1,2,((null),3))\n" +
+			"(1,3,((null),4))\n" +
+			"(2,0,((null),2))\n" +
+			"(2,1,((null),3))\n" +
+			"(2,3,((null),4))\n" +
+			"(3,1,((null),3))\n" +
+			"(3,2,((null),3))\n" +
+			"(3,4,((null),1))\n" +
+			"(3,5,((null),1))\n" +
+			"(4,3,((null),4))\n" +
+			"(5,3,((null),4))";
 
-		DataSet<Edge<IntValue, LongValue>> sourceDegree = undirectedSimpleGraph
+		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> sourceDegree = undirectedSimpleGraph
 				.run(new EdgeTargetDegree<IntValue, NullValue, NullValue>());
 
 		TestBaseUtils.compareResultAsText(sourceDegree.collect(), expectedResult);
 
-		DataSet<Edge<IntValue, LongValue>> targetDegree = undirectedSimpleGraph
+		DataSet<Edge<IntValue, Tuple2<NullValue, LongValue>>> targetDegree = undirectedSimpleGraph
 			.run(new EdgeTargetDegree<IntValue, NullValue, NullValue>()
 				.setReduceOnSourceId(true));
 
@@ -72,7 +73,7 @@ extends AsmTestBase {
 			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()));
 
 		assertEquals(20884, sourceDegreeChecksum.getCount());
-		assertEquals(0x000000019b836f94L, sourceDegreeChecksum.getChecksum());
+		assertEquals(0x000000019d8f0070L, sourceDegreeChecksum.getChecksum());
 
 		ChecksumHashCode targetDegreeChecksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
 			.run(new EdgeTargetDegree<LongValue, NullValue, NullValue>()

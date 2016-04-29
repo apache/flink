@@ -21,6 +21,7 @@ package org.apache.flink.graph.asm.degree.annotate.undirected;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.CachingGraphAlgorithm;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -36,7 +37,7 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class EdgeTargetDegree<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, LongValue>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 
 	// Optional configuration
 	private boolean reduceOnSourceId = false;
@@ -76,7 +77,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, LongValue>>> {
 	}
 
 	@Override
-	public DataSet<Edge<K, LongValue>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Edge<K, Tuple2<EV, LongValue>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		DataSet<Vertex<K, LongValue>> vertexDegrees;
 
