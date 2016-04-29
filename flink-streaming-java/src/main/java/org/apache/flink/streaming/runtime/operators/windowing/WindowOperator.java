@@ -574,10 +574,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			//If there are no timers left for this timestamp, remove it from queue and cancel TriggerTask
 			if (processingTimeTimerTimestamps.remove(time,1) == 1) {
-				ScheduledFuture<?> triggerTaskFuture = processingTimeTimerFutures.get(timer);
+				ScheduledFuture<?> triggerTaskFuture = processingTimeTimerFutures.remove(timer.timestamp);
 				if (triggerTaskFuture != null && !triggerTaskFuture.isDone()) {
 					triggerTaskFuture.cancel(false);
-					processingTimeTimerFutures.remove(triggerTaskFuture);
 				}
 			}
 		}
