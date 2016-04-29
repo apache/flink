@@ -1421,8 +1421,8 @@ public class Graph<K, VV, EV> {
 	 *         the removed edges
 	 */
 	public Graph<K, VV, EV> removeEdge(Edge<K, EV> edge) {
-		DataSet<Edge<K, EV>> newEdges = getEdges().filter(new EdgeRemovalEdgeFilter<K, EV>(edge));
-		return new Graph<K, VV, EV>(this.vertices, newEdges, this.context);
+		DataSet<Edge<K, EV>> newEdges = getEdges().filter(new EdgeRemovalEdgeFilter<>(edge));
+		return new Graph<>(this.vertices, newEdges, this.context);
 	}
 
 	private static final class EdgeRemovalEdgeFilter<K, EV>
