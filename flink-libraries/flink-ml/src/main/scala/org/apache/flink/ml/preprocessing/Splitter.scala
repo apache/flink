@@ -44,9 +44,8 @@ object Splitter {
    * Split a DataSet by the probability fraction of each element.
    *
    * @param input           DataSet to be split
-   * @param fraction        Probability that each element is chosen, should be [0,1] without
-   *                        replacement. This fraction refers to the first element in the
-   *                        resulting array.
+   * @param fraction        Probability that each element is chosen, should be [0,1] This fraction
+   *                        refers to the first element in the resulting array.
    * @param precise         Sampling by default is random and can result in slightly lop-sided
    *                        sample sets. When precise is true, equal sample set size are forced,
    *                        however this is somewhat less efficient.
@@ -88,7 +87,7 @@ object Splitter {
 
     Array(leftSplit.map(o => o._2), rightSplit)
   }
-  
+
   // --------------------------------------------------------------------------------------------
   //  multiRandomSplit
   // --------------------------------------------------------------------------------------------
@@ -165,11 +164,8 @@ object Splitter {
    * A wrapper for randomSplit that yields a TrainTestDataSet
    *
    * @param input           DataSet to be split
-   * @param fraction        Probability that each element is chosen, should be [0,1] without
-   *                        replacement, and [0, ∞) with replacement. While fraction is larger
-   *                        than 1, the elements are expected to be selected multi times into
-   *                        sample on average. This fraction refers to the training element in
-   *                        TrainTestSplit
+   * @param fraction        Probability that each element is chosen, should be [0,1].
+   *                        This fraction refers to the training element in TrainTestSplit
    * @param precise         Sampling by default is random and can result in slightly lop-sided
    *                        sample sets. When precise is true, equal sample set size are forced,
    *                        however this is somewhat less efficient.

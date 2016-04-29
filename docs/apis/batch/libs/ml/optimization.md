@@ -310,7 +310,7 @@ Where:
       <tr>
         <td><strong>Constant</strong></td>
         <td>
-          <p>
+          <p> 
             The step size is constant throughout the learning task.
           </p>
         </td>
@@ -321,10 +321,10 @@ Where:
         <td><strong>Leon Bottou's Method</strong></td>
         <td>
           <p>
-            This is the <code>'optimal'</code> method of sklearn.
+            This is the <code>'optimal'</code> method of sklearn. 
             The optimal initial value $t_0$ has to be provided.
             Sklearn uses the following heuristic: $t_0 = \max(1.0, L^\prime(-\beta, 1.0) / (\alpha \cdot \beta)$
-            with $\beta = \sqrt{\frac{1}{\sqrt{\alpha}}}$ and $L^\prime(prediction, truth)$ being the derivative of the loss function.
+            with $\beta = \sqrt{\frac{1}{\sqrt{\alpha}}}$ and $L^\prime(prediction, truth)$ being the derivative of the loss function. 
           </p>
         </td>
         <td class="text-center">$\eta_j = 1 / (\lambda \cdot (t_0 + j -1)) $</td>
