@@ -38,7 +38,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		DataSet<Vertex<IntValue,Tuple2<LongValue,LongValue>>> vertexDegrees = directedSimpleGraph
+		DataSet<Vertex<IntValue, Tuple2<LongValue, LongValue>>> vertexDegrees = directedSimpleGraph
 			.run(new VertexDegreePair<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
@@ -55,7 +55,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithEmptyGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue,Tuple2<LongValue,LongValue>>> vertexDegrees;
+		DataSet<Vertex<LongValue, Tuple2<LongValue, LongValue>>> vertexDegrees;
 
 		vertexDegrees = emptyGraph
 			.run(new VertexDegreePair<LongValue, NullValue, NullValue>()

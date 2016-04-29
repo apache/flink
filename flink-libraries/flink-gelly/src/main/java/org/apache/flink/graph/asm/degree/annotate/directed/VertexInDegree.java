@@ -27,7 +27,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
-import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetLabel;
+import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetId;
 import org.apache.flink.types.LongValue;
 
 /**
@@ -38,7 +38,7 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class VertexInDegree<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = true;
@@ -53,7 +53,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	 *                                  in-degree of zero
 	 * @return this
 	 */
-	public VertexInDegree<K,VV,EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+	public VertexInDegree<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
 		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
 
 		return this;
@@ -65,7 +65,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public VertexInDegree<K,VV,EV> setParallelism(int parallelism) {
+	public VertexInDegree<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
@@ -93,17 +93,17 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	}
 
 	@Override
-	public DataSet<Vertex<K,LongValue>> runInternal(Graph<K,VV,EV> input)
+	public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// t
-		DataSet<Vertex<K,LongValue>> targetLabels = input
+		DataSet<Vertex<K, LongValue>> targetIds = input
 			.getEdges()
-			.map(new MapEdgeToTargetLabel<K,EV>())
+			.map(new MapEdgeToTargetId<K, EV>())
 				.setParallelism(parallelism)
-				.name("Map edge to target label");
+				.name("Map edge to target ID");
 
 		// t, deg(t)
-		DataSet<Vertex<K,LongValue>> targetDegree = targetLabels
+		DataSet<Vertex<K, LongValue>> targetDegree = targetIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
 				.setParallelism(parallelism)
@@ -115,7 +115,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 				.leftOuterJoin(targetDegree)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegree<K,VV>())
+				.with(new JoinVertexWithVertexDegree<K, VV>())
 					.setParallelism(parallelism)
 					.name("Join zero degree vertices");
 		}

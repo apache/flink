@@ -20,7 +20,6 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.AsmTestBase;
@@ -38,7 +37,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithSimpleGraph()
 			throws Exception {
-		DataSet<Vertex<IntValue,LongValue>> vertexDegrees = directedSimpleGraph
+		DataSet<Vertex<IntValue, LongValue>> vertexDegrees = directedSimpleGraph
 			.run(new VertexOutDegree<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
@@ -55,7 +54,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithEmptyGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue,LongValue>> vertexDegrees;
+		DataSet<Vertex<LongValue, LongValue>> vertexDegrees;
 
 		vertexDegrees = emptyGraph
 			.run(new VertexOutDegree<LongValue, NullValue, NullValue>()

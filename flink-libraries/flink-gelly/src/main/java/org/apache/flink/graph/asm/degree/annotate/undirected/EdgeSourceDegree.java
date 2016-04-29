@@ -31,29 +31,29 @@ import org.apache.flink.types.LongValue;
 /**
  * Annotates edges of an undirected graph with the source degree count.
  *
- * @param <K> graph label type
+ * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class EdgeSourceDegree<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K,LongValue>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, LongValue>>> {
 
 	// Optional configuration
-	private boolean reduceOnTargetLabel = false;
+	private boolean reduceOnTargetId = false;
 
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
 	/**
-	 * The degree can be counted from either the edge source or target labels.
-	 * By default the source labels are counted. Reducing on target labels may
-	 * optimize the algorithm if the input edge list is sorted by target label.
+	 * The degree can be counted from either the edge source or target IDs.
+	 * By default the source IDs are counted. Reducing on target IDs may
+	 * optimize the algorithm if the input edge list is sorted by target ID.
 	 *
-	 * @param reduceOnTargetLabel set to {@code true} if the input edge list
-	 *                            is sorted by target label
+	 * @param reduceOnTargetId set to {@code true} if the input edge list
+	 *                         is sorted by target ID
 	 * @return this
 	 */
-	public EdgeSourceDegree<K,VV,EV> setReduceOnTargetLabel(boolean reduceOnTargetLabel) {
-		this.reduceOnTargetLabel = reduceOnTargetLabel;
+	public EdgeSourceDegree<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
+		this.reduceOnTargetId = reduceOnTargetId;
 
 		return this;
 	}
@@ -64,7 +64,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K,LongValue>>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public EdgeSourceDegree<K,VV,EV> setParallelism(int parallelism) {
+	public EdgeSourceDegree<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
@@ -76,20 +76,20 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K,LongValue>>> {
 	}
 
 	@Override
-	public DataSet<Edge<K,LongValue>> runInternal(Graph<K,VV,EV> input)
+	public DataSet<Edge<K, LongValue>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
-		DataSet<Vertex<K,LongValue>> vertexDegrees;
+		DataSet<Vertex<K, LongValue>> vertexDegrees;
 
-		if (reduceOnTargetLabel) {
+		if (reduceOnTargetId) {
 			// t, d(t)
 			vertexDegrees = input
-				.run(new VertexDegree<K,VV,EV>()
-					.setReduceOnTargetLabel(true)
+				.run(new VertexDegree<K, VV, EV>()
+					.setReduceOnTargetId(true)
 					.setParallelism(parallelism));
 		} else {
 			// s, d(s)
 			vertexDegrees = input
-				.run(new VertexDegree<K,VV,EV>()
+				.run(new VertexDegree<K, VV, EV>()
 					.setParallelism(parallelism));
 		}
 
@@ -98,7 +98,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K,LongValue>>> {
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K,EV>())
+			.with(new JoinEdgeWithVertexDegree<K, EV>())
 				.setParallelism(parallelism)
 				.name("Edge source degree");
 	}

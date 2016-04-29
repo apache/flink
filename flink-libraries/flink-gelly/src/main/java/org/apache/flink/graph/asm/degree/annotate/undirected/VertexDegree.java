@@ -29,24 +29,24 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
-import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceLabel;
-import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetLabel;
+import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceId;
+import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetId;
 import org.apache.flink.types.LongValue;
 
 /**
  * Annotates vertices of an undirected graph with the degree count.
  *
- * @param <K> graph label type
+ * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class VertexDegree<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
 
-	private boolean reduceOnTargetLabel = false;
+	private boolean reduceOnTargetId = false;
 
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
@@ -58,23 +58,23 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	 *                                  degree of zero
 	 * @return this
 	 */
-	public VertexDegree<K,VV,EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+	public VertexDegree<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
 		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
 
 		return this;
 	}
 
 	/**
-	 * The degree can be counted from either the edge source or target labels.
-	 * By default the source labels are counted. Reducing on target labels may
-	 * optimize the algorithm if the input edge list is sorted by target label.
+	 * The degree can be counted from either the edge source or target IDs.
+	 * By default the source IDs are counted. Reducing on target IDs may
+	 * optimize the algorithm if the input edge list is sorted by target ID.
 	 *
-	 * @param reduceOnTargetLabel set to {@code true} if the input edge list
-	 *                            is sorted by target label
+	 * @param reduceOnTargetId set to {@code true} if the input edge list
+	 *                         is sorted by target ID
 	 * @return this
 	 */
-	public VertexDegree<K,VV,EV> setReduceOnTargetLabel(boolean reduceOnTargetLabel) {
-		this.reduceOnTargetLabel = reduceOnTargetLabel;
+	public VertexDegree<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
+		this.reduceOnTargetId = reduceOnTargetId;
 
 		return this;
 	}
@@ -85,7 +85,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public VertexDegree<K,VV,EV> setParallelism(int parallelism) {
+	public VertexDegree<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
@@ -113,20 +113,20 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 	}
 
 	@Override
-	public DataSet<Vertex<K,LongValue>> runInternal(Graph<K,VV,EV> input)
+	public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
-		MapFunction<Edge<K,EV>, Vertex<K,LongValue>> mapEdgeToLabel = reduceOnTargetLabel ?
-			new MapEdgeToTargetLabel<K,EV>() : new MapEdgeToSourceLabel<K,EV>();
+		MapFunction<Edge<K, EV>, Vertex<K, LongValue>> mapEdgeToId = reduceOnTargetId ?
+			new MapEdgeToTargetId<K, EV>() : new MapEdgeToSourceId<K, EV>();
 
 		// v
-		DataSet<Vertex<K,LongValue>> vertexLabels = input
+		DataSet<Vertex<K, LongValue>> vertexIds = input
 			.getEdges()
-			.map(mapEdgeToLabel)
+			.map(mapEdgeToId)
 				.setParallelism(parallelism)
-				.name("Map edge to vertex label");
+				.name("Map edge to vertex ID");
 
 		// v, deg(v)
-		DataSet<Vertex<K,LongValue>> degree = vertexLabels
+		DataSet<Vertex<K, LongValue>> degree = vertexIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
 				.setParallelism(parallelism)
@@ -138,7 +138,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,LongValue>>> {
 				.leftOuterJoin(degree)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegree<K,VV>())
+				.with(new JoinVertexWithVertexDegree<K, VV>())
 					.setParallelism(parallelism)
 					.name("Join zero degree vertices");
 		}

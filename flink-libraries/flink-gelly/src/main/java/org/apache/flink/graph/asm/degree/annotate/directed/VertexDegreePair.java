@@ -34,12 +34,12 @@ import org.apache.flink.types.LongValue;
  * Annotates vertices of a directed graph with both the out-degree and
  * in-degree count.
  *
- * @param <K> graph label type
+ * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class VertexDegreePair<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,Tuple2<LongValue,LongValue>>>> {
+extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Tuple2<LongValue, LongValue>>>> {
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
@@ -54,7 +54,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,Tuple2<LongValue,LongV
 	 *                                  and in-degree of zero
 	 * @return this
 	 */
-	public VertexDegreePair<K,VV,EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
+	public VertexDegreePair<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
 		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
 
 		return this;
@@ -66,7 +66,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,Tuple2<LongValue,LongV
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public VertexDegreePair<K,VV,EV> setParallelism(int parallelism) {
+	public VertexDegreePair<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
@@ -94,19 +94,19 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,Tuple2<LongValue,LongV
 	}
 
 	@Override
-	public DataSet<Vertex<K,Tuple2<LongValue,LongValue>>> runInternal(Graph<K,VV,EV> input)
+	public DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, deg(s)
-		DataSet<Vertex<K,LongValue>> outDegree = input
-			.run(new VertexOutDegree<K,VV,EV>()
+		DataSet<Vertex<K, LongValue>> outDegree = input
+			.run(new VertexOutDegree<K, VV, EV>()
 				.setIncludeZeroDegreeVertices(false));
 
 		// t, deg(t)
-		DataSet<Vertex<K,LongValue>> inDegree = input
-			.run(new VertexInDegree<K,VV,EV>()
+		DataSet<Vertex<K, LongValue>> inDegree = input
+			.run(new VertexInDegree<K, VV, EV>()
 				.setIncludeZeroDegreeVertices(false));
 
-		DataSet<Vertex<K,Tuple2<LongValue,LongValue>>> degree = outDegree
+		DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> degree = outDegree
 			.fullOuterJoin(inDegree)
 			.where(0)
 			.equalTo(0)
@@ -120,7 +120,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K,Tuple2<LongValue,LongV
 				.leftOuterJoin(degree)
 				.where(0)
 				.equalTo(0)
-				.with(new JoinVertexWithVertexDegrees<K,VV>())
+				.with(new JoinVertexWithVertexDegrees<K, VV>())
 					.setParallelism(parallelism)
 					.name("Join zero degree vertices");
 		}

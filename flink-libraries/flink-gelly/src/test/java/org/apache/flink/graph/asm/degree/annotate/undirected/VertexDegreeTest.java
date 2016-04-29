@@ -20,11 +20,9 @@ package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegreePair;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -47,14 +45,14 @@ extends AsmTestBase {
 			"(4,1)\n" +
 			"(5,1)";
 
-		DataSet<Vertex<IntValue,LongValue>> sourceDegrees = undirectedSimpleGraph
+		DataSet<Vertex<IntValue, LongValue>> sourceDegrees = undirectedSimpleGraph
 			.run(new VertexDegree<IntValue, NullValue, NullValue>());
 
 		TestBaseUtils.compareResultAsText(sourceDegrees.collect(), expectedResult);
 
-		DataSet<Vertex<IntValue,LongValue>> targetDegrees = undirectedSimpleGraph
+		DataSet<Vertex<IntValue, LongValue>> targetDegrees = undirectedSimpleGraph
 			.run(new VertexDegree<IntValue, NullValue, NullValue>()
-			.setReduceOnTargetLabel(true));
+			.setReduceOnTargetId(true));
 
 		TestBaseUtils.compareResultAsText(targetDegrees.collect(), expectedResult);
 	}
@@ -64,18 +62,18 @@ extends AsmTestBase {
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 
-		DataSet<Vertex<LongValue,LongValue>> sourceDegrees = completeGraph
+		DataSet<Vertex<LongValue, LongValue>> sourceDegrees = completeGraph
 			.run(new VertexDegree<LongValue, NullValue, NullValue>());
 
-		for (Vertex<LongValue,LongValue> vertex : sourceDegrees.collect()) {
+		for (Vertex<LongValue, LongValue> vertex : sourceDegrees.collect()) {
 			assertEquals(expectedDegree, vertex.getValue().getValue());
 		}
 
-		DataSet<Vertex<LongValue,LongValue>> targetDegrees = completeGraph
+		DataSet<Vertex<LongValue, LongValue>> targetDegrees = completeGraph
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
-				.setReduceOnTargetLabel(true));
+				.setReduceOnTargetId(true));
 
-		for (Vertex<LongValue,LongValue> vertex : targetDegrees.collect()) {
+		for (Vertex<LongValue, LongValue> vertex : targetDegrees.collect()) {
 			assertEquals(expectedDegree, vertex.getValue().getValue());
 		}
 	}
@@ -83,7 +81,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithEmptyGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue,LongValue>> vertexDegrees;
+		DataSet<Vertex<LongValue, LongValue>> vertexDegrees;
 
 		vertexDegrees = emptyGraph
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
@@ -114,7 +112,7 @@ extends AsmTestBase {
 
 		ChecksumHashCode targetDegreeChecksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
-				.setReduceOnTargetLabel(true)));
+				.setReduceOnTargetId(true)));
 
 		assertEquals(sourceDegreeChecksum, targetDegreeChecksum);
 	}

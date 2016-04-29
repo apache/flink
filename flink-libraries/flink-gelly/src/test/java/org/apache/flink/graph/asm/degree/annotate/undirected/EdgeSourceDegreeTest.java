@@ -53,14 +53,14 @@ extends AsmTestBase {
 			"(4,3,1)\n" +
 			"(5,3,1)";
 
-		DataSet<Edge<IntValue,LongValue>> sourceDegree = undirectedSimpleGraph
+		DataSet<Edge<IntValue, LongValue>> sourceDegree = undirectedSimpleGraph
 			.run(new EdgeSourceDegree<IntValue, NullValue, NullValue>());
 
 		TestBaseUtils.compareResultAsText(sourceDegree.collect(), expectedResult);
 
-		DataSet<Edge<IntValue,LongValue>> targetDegree = undirectedSimpleGraph
+		DataSet<Edge<IntValue, LongValue>> targetDegree = undirectedSimpleGraph
 			.run(new EdgeSourceDegree<IntValue, NullValue, NullValue>()
-				.setReduceOnTargetLabel(true));
+				.setReduceOnTargetId(true));
 
 		TestBaseUtils.compareResultAsText(targetDegree.collect(), expectedResult);
 	}
@@ -76,7 +76,7 @@ extends AsmTestBase {
 
 		ChecksumHashCode targetDegreeChecksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
 			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>()
-				.setReduceOnTargetLabel(true)));
+				.setReduceOnTargetId(true)));
 
 		assertEquals(sourceDegreeChecksum, targetDegreeChecksum);
 	}
