@@ -32,13 +32,13 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeValues
 /**
  * Translate {@link Edge} values using the given {@link MapFunction}.
  *
- * @param <K> vertex label type
+ * @param <K> vertex ID type
  * @param <VV> vertex value type
  * @param <OLD> old edge value type
  * @param <NEW> new edge value type
  */
 public class TranslateEdgeValues<K, VV, OLD, NEW>
-implements GraphAlgorithm<K, VV, OLD, Graph<K,VV,NEW>> {
+implements GraphAlgorithm<K, VV, OLD, Graph<K, VV, NEW>> {
 
 	// Required configuration
 	private MapFunction<OLD,NEW> translator;
@@ -51,7 +51,7 @@ implements GraphAlgorithm<K, VV, OLD, Graph<K,VV,NEW>> {
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
-	public TranslateEdgeValues(MapFunction<OLD,NEW> translator) {
+	public TranslateEdgeValues(MapFunction<OLD, NEW> translator) {
 		Preconditions.checkNotNull(translator);
 
 		this.translator = translator;
@@ -63,7 +63,7 @@ implements GraphAlgorithm<K, VV, OLD, Graph<K,VV,NEW>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public TranslateEdgeValues<K,VV,OLD,NEW> setParallelism(int parallelism) {
+	public TranslateEdgeValues<K, VV, OLD, NEW> setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
 			"The parallelism must be greater than zero.");
 
@@ -73,8 +73,8 @@ implements GraphAlgorithm<K, VV, OLD, Graph<K,VV,NEW>> {
 	}
 
 	@Override
-	public Graph<K,VV,NEW> run(Graph<K,VV,OLD> input) throws Exception {
-		DataSet<Edge<K,NEW>> translatedEdges = translateEdgeValues(input.getEdges(), translator, parallelism);
+	public Graph<K, VV, NEW> run(Graph<K, VV, OLD> input) throws Exception {
+		DataSet<Edge<K, NEW>> translatedEdges = translateEdgeValues(input.getEdges(), translator, parallelism);
 
 		return Graph.fromDataSet(input.getVertices(), translatedEdges, input.getContext());
 	}

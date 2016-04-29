@@ -433,6 +433,42 @@ val updatedGraph = graph.mapVertices(v => v.getValue + 1)
 </div>
 </div>
 
+* <strong>Translate</strong>: Gelly provides specialized methods for translating the value and/or type of vertex and edge IDs (`translateGraphIDs`), vertex values (`translateVertexValues`), or edge values (`translateEdgeValues`). Translation is performed by the user-defined map function, several of which are provided in the `org.apache.flink.graph.asm.translate` package. The same `MapFunction` can be used for all the three translate methods.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
+
+// translate each vertex and edge ID to a String
+Graph<String, Long, Long> updatedGraph = graph.translateGraphIds(
+				new MapFunction<Long, String>() {
+					public String map(Long id) {
+						return id.toString();
+					}
+				});
+
+// translate vertex IDs, edge IDs, vertex values, and edge values to LongValue
+Graph<LongValue, LongValue, LongValue> updatedGraph = graph
+                .translateGraphIds(new LongToLongValue())
+                .translateVertexValues(new LongToLongValue())
+                .translateEdgeValues(new LongToLongValue())
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+val graph = Graph.fromDataSet(vertices, edges, env)
+
+// translate each vertex and edge ID to a String
+val updatedGraph = graph.translateGraphIds(id => id.toString)
+{% endhighlight %}
+</div>
+</div>
+
+
 * <strong>Filter</strong>: A filter transformation applies a user-defined filter function on the vertices or edges of the `Graph`. `filterOnEdges` will create a sub-graph of the original graph, keeping only the edges that satisfy the provided predicate. Note that the vertex dataset will not be modified. Respectively, `filterOnVertices` applies a filter on the vertices of the graph. Edges whose source and/or target do not satisfy the vertex predicate are removed from the resulting edge dataset. The `subgraph` method can be used to apply a filter function to the vertices and the edges at the same time.
 
 <div class="codetabs" markdown="1">

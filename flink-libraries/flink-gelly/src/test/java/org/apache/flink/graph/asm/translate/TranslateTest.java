@@ -37,7 +37,7 @@ import static org.junit.Assert.assertEquals;
 
 public class TranslateTest {
 
-	private Graph<LongValue,LongValue,LongValue> graph;
+	private Graph<LongValue, LongValue, LongValue> graph;
 
 	private String expectedVertexResult =
 		"(0,0)\n" +
@@ -69,8 +69,8 @@ public class TranslateTest {
 
 		int count = 10;
 
-		List<Vertex<LongValue,LongValue>> vertexList = new LinkedList<>();
-		List<Edge<LongValue,LongValue>> edgeList = new LinkedList<>();
+		List<Vertex<LongValue, LongValue>> vertexList = new LinkedList<>();
+		List<Edge<LongValue, LongValue>> edgeList = new LinkedList<>();
 
 		for (long l = 0 ; l < count ; l++) {
 			LongValue lv = new LongValue(l);
@@ -82,34 +82,34 @@ public class TranslateTest {
 	}
 
 	@Test
-	public void testTranslateGraphLabels()
+	public void testTranslateGraphIds()
 			throws Exception {
-		Graph<StringValue,LongValue,LongValue> stringLabelGraph = graph
-			.translateGraphLabels(new LongValueToStringValue());
+		Graph<StringValue,LongValue, LongValue> stringIdGraph = graph
+			.translateGraphIds(new LongValueToStringValue());
 
-		for (Vertex<StringValue,LongValue> vertex : stringLabelGraph.getVertices().collect()) {
+		for (Vertex<StringValue, LongValue> vertex : stringIdGraph.getVertices().collect()) {
 			assertEquals(StringValue.class, vertex.f0.getClass());
 			assertEquals(LongValue.class, vertex.f1.getClass());
 		}
 
-		for (Edge<StringValue,LongValue> edge : stringLabelGraph.getEdges().collect()) {
+		for (Edge<StringValue, LongValue> edge : stringIdGraph.getEdges().collect()) {
 			assertEquals(StringValue.class, edge.f0.getClass());
 			assertEquals(StringValue.class, edge.f1.getClass());
 			assertEquals(LongValue.class, edge.f2.getClass());
 		}
 
-		TestBaseUtils.compareResultAsText(stringLabelGraph.getVertices().collect(), expectedVertexResult);
-		TestBaseUtils.compareResultAsText(stringLabelGraph.getEdges().collect(), expectedEdgeResult);
+		TestBaseUtils.compareResultAsText(stringIdGraph.getVertices().collect(), expectedVertexResult);
+		TestBaseUtils.compareResultAsText(stringIdGraph.getEdges().collect(), expectedEdgeResult);
 	}
 
 	@Test
 	public void testTranslateVertexValues()
 			throws Exception {
-		DataSet<Vertex<LongValue,StringValue>> vertexSet = graph
+		DataSet<Vertex<LongValue, StringValue>> vertexSet = graph
 			.translateVertexValues(new LongValueToStringValue())
 			.getVertices();
 
-		for (Vertex<LongValue,StringValue> vertex : vertexSet.collect()) {
+		for (Vertex<LongValue, StringValue> vertex : vertexSet.collect()) {
 			assertEquals(LongValue.class, vertex.f0.getClass());
 			assertEquals(StringValue.class, vertex.f1.getClass());
 		}
@@ -120,11 +120,11 @@ public class TranslateTest {
 	@Test
 	public void testTranslateEdgeValues()
 			throws Exception {
-		DataSet<Edge<LongValue,StringValue>> edgeSet = graph
+		DataSet<Edge<LongValue, StringValue>> edgeSet = graph
 			.translateEdgeValues(new LongValueToStringValue())
 			.getEdges();
 
-		for (Edge<LongValue,StringValue> edge : edgeSet.collect()) {
+		for (Edge<LongValue, StringValue> edge : edgeSet.collect()) {
 			assertEquals(LongValue.class, edge.f0.getClass());
 			assertEquals(LongValue.class, edge.f1.getClass());
 			assertEquals(StringValue.class, edge.f2.getClass());

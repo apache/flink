@@ -47,7 +47,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
-import org.apache.flink.graph.asm.translate.TranslateGraphLabels;
+import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.TranslateVertexValues;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GSAConfiguration;
@@ -550,15 +550,15 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Relabels {@link Vertex Vertices} and {@link Edge}s of a {@link Graph} using the given {@link MapFunction}.
+	 * Translate {@link Vertex} and {@link Edge} IDs using the given {@link MapFunction}.
 	 *
 	 * @param translator implements conversion from {@code K} to {@code NEW}
-	 * @param <NEW> new label type
-	 * @return relabeled graph
+	 * @param <NEW> new ID type
+	 * @return graph with translated vertex and edge IDs
 	 * @throws Exception
 	 */
-	public <NEW> Graph<NEW, VV, EV> translateGraphLabels(MapFunction<K, NEW> translator) throws Exception {
-		return run(new TranslateGraphLabels<K, NEW, VV, EV>(translator));
+	public <NEW> Graph<NEW, VV, EV> translateGraphIds(MapFunction<K, NEW> translator) throws Exception {
+		return run(new TranslateGraphIds<K, NEW, VV, EV>(translator));
 	}
 
 	/**

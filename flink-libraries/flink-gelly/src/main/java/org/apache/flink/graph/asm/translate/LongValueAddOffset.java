@@ -44,7 +44,6 @@ implements MapFunction<LongValue, LongValue> {
 	public LongValue map(LongValue value)
 			throws Exception {
 		output.setValue(offset + value.getValue());
-
 		return output;
 	}
 }

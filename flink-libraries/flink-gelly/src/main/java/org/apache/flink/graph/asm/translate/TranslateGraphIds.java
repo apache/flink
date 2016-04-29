@@ -28,19 +28,19 @@ import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
-import static org.apache.flink.graph.asm.translate.Translate.translateEdgeLabels;
-import static org.apache.flink.graph.asm.translate.Translate.translateVertexLabels;
+import static org.apache.flink.graph.asm.translate.Translate.translateEdgeIds;
+import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
 
 /**
- * Relabels {@link Vertex Vertices} and {@link Edge}s of a {@link Graph} using the given {@link MapFunction}.
+ * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link MapFunction}
  *
- * @param <OLD> old graph label type
- * @param <NEW> new graph label type
+ * @param <OLD> old graph ID type
+ * @param <NEW> new graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class TranslateGraphLabels<OLD, NEW, VV, EV>
-implements GraphAlgorithm<OLD, VV, EV, Graph<NEW,VV,EV>> {
+public class TranslateGraphIds<OLD, NEW, VV, EV>
+implements GraphAlgorithm<OLD, VV, EV, Graph<NEW, VV, EV>> {
 
 	// Required configuration
 	private MapFunction<OLD,NEW> translator;
@@ -49,11 +49,11 @@ implements GraphAlgorithm<OLD, VV, EV, Graph<NEW,VV,EV>> {
 	private int parallelism = PARALLELISM_UNKNOWN;
 
 	/**
-	 * Relabels {@link Vertex Vertices} and {@link Edge}s of a {@link Graph} using the given {@link MapFunction}.
+	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link MapFunction}
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
-	public TranslateGraphLabels(MapFunction<OLD,NEW> translator) {
+	public TranslateGraphIds(MapFunction<OLD, NEW> translator) {
 		Preconditions.checkNotNull(translator);
 
 		this.translator = translator;
@@ -65,7 +65,7 @@ implements GraphAlgorithm<OLD, VV, EV, Graph<NEW,VV,EV>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public TranslateGraphLabels<OLD,NEW,VV,EV> setParallelism(int parallelism) {
+	public TranslateGraphIds<OLD, NEW, VV, EV> setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
 			"The parallelism must be greater than zero.");
 
@@ -75,12 +75,12 @@ implements GraphAlgorithm<OLD, VV, EV, Graph<NEW,VV,EV>> {
 	}
 
 	@Override
-	public Graph<NEW,VV,EV> run(Graph<OLD,VV,EV> input) throws Exception {
+	public Graph<NEW, VV, EV> run(Graph<OLD, VV, EV> input) throws Exception {
 		// Vertices
-		DataSet<Vertex<NEW,VV>> translatedVertices = translateVertexLabels(input.getVertices(), translator, parallelism);
+		DataSet<Vertex<NEW, VV>> translatedVertices = translateVertexIds(input.getVertices(), translator, parallelism);
 
 		// Edges
-		DataSet<Edge<NEW,EV>> translatedEdges = translateEdgeLabels(input.getEdges(), translator, parallelism);
+		DataSet<Edge<NEW, EV>> translatedEdges = translateEdgeIds(input.getEdges(), translator, parallelism);
 
 		// Graph
 		return Graph.fromDataSet(translatedVertices, translatedEdges, input.getContext());
