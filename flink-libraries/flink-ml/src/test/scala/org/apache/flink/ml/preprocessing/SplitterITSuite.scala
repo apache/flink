@@ -38,9 +38,9 @@ class SplitterITSuite extends FlatSpec
 
     val dataSet = env.fromCollection(data)
 
-    val splitDataSets = Splitter.randomSplit(dataSet.zipWithIndex, 0.5)
+    val splitDataSets = Splitter.randomSplit(dataSet.zipWithUniqueId, 0.5)
 
-   (splitDataSets(0).count() + splitDataSets(1).count()) should equal(dataSet.count())
+   (splitDataSets(0).union(splitDataSets(1)).count()) should equal(dataSet.count())
 
 
    splitDataSets(0).join(splitDataSets(1)).where(0).equalTo(0).count() should equal(0)
@@ -51,11 +51,11 @@ class SplitterITSuite extends FlatSpec
 
     val dataSet = env.fromCollection(data)
 
-    val splitDataSets = Splitter.randomSplit(dataSet, 0.5)
+    val splitDataSets = Splitter.randomSplit(dataSet, 0.5, true)
 
-    val expectedLength = dataSet.count().toDouble * 0.5
+    val expectedLength = data.size.toDouble * 0.5
 
-    splitDataSets(0).count().toDouble should equal(expectedLength +- 5.0)
+    splitDataSets(0).count().toDouble should equal(expectedLength +- 1.0)
   }
 
   it should "result in expected number of datasets" in {
@@ -70,4 +70,33 @@ class SplitterITSuite extends FlatSpec
     splitDataSets.length should equal(fracArray.length)
   }
 
+  it should "throw an exception if trainTestHoldoutSplit fracArray length is not 3" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val dataSet = env.fromCollection(data)
+
+    intercept[IllegalArgumentException] {
+      val splitDataSets = Splitter.trainTestHoldoutSplit(dataSet, Array(0.25, 0.25, 0.05, 0.15))
+    }
+
+    intercept[IllegalArgumentException] {
+      val splitDataSets = Splitter.trainTestHoldoutSplit(dataSet, Array(0.25, 0.25))
+    }
+
+  }
+
+  it should "throw an exception if sample fraction ins nonsensical" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val dataSet = env.fromCollection(data)
+
+    intercept[IllegalArgumentException] {
+      val splitDataSets = Splitter.randomSplit(dataSet, -0.2)
+    }
+
+    intercept[IllegalArgumentException] {
+      val splitDataSets = Splitter.randomSplit(dataSet, -1.2)
+    }
+
+  }
 }

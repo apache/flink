@@ -45,9 +45,7 @@ object Splitter {
    *
    * @param input           DataSet to be split
    * @param fraction        Probability that each element is chosen, should be [0,1] without
-   *                        replacement, and [0, ∞) with replacement. While fraction is larger
-   *                        than 1, the elements are expected to be selected multi times into
-   *                        sample on average. This fraction refers to the first element in the
+   *                        replacement. This fraction refers to the first element in the
    *                        resulting array.
    * @param precise         Sampling by default is random and can result in slightly lop-sided
    *                        sample sets. When precise is true, equal sample set size are forced,
@@ -65,6 +63,10 @@ object Splitter {
     import org.apache.flink.api.scala._
 
     val indexedInput: DataSet[(Long, T)] = input.zipWithUniqueId
+
+    if ((fraction >= 1) || (fraction <= 0)) {
+      throw new IllegalArgumentException("sampling fraction outside of (0,1) bounds is nonsensical")
+    }
 
     val leftSplit: DataSet[(Long, T)] = precise match {
       case false => indexedInput.sample(false, fraction, seed)
@@ -86,7 +88,7 @@ object Splitter {
 
     Array(leftSplit.map(o => o._2), rightSplit)
   }
-
+  
   // --------------------------------------------------------------------------------------------
   //  multiRandomSplit
   // --------------------------------------------------------------------------------------------
@@ -191,21 +193,20 @@ object Splitter {
    * A wrapper for multiRandomSplit that yields a TrainTestHoldoutDataSet
    *
    * @param input           DataSet to be split
-   * @param frac            An Tuple3, where the first element specifies the size of the
-   *                        training set, the second element the testing set, and the third
-   *                        element is the holdout set. These are proportional and will be
-   *                        normalized internally.
+   * @param fracArray       An array of three doubles, where the first element specifies the
+   *                        size of the training set, the second element the testing set, and
+   *                        the third element is the holdout set. These are proportional and
+   *                        will be normalized internally.
    * @param seed            Random number generator seed.
    * @return A TrainTestDataSet
    */
   def trainTestHoldoutSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
       fracArray: Array[Double] = Array(0.6,0.3,0.1),
-      precise: Boolean = false,
       seed: Long = Utils.RNG.nextLong())
     : TrainTestHoldoutDataSet[T] = {
     if (fracArray.length != 3) {
-      throw new IllegalArgumentException("fracArray must be an array of length 3");
+      throw new IllegalArgumentException("fracArray must be an array of length 3")
     }
     val dataSetArray = multiRandomSplit(input, fracArray, seed)
     TrainTestHoldoutDataSet(dataSetArray(0), dataSetArray(1), dataSetArray(2))
