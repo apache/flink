@@ -163,6 +163,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		KinesisProducerConfiguration config = new KinesisProducerConfiguration();
 		config.setRegion(this.region);
 		config.setCredentialsProvider(new StaticCredentialsProvider(new BasicAWSCredentials(this.accessKey, this.secretKey)));
+		//config.setCollectionMaxCount(1);
+		//config.setAggregationMaxCount(1);
 		producer = new KinesisProducer(config);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override

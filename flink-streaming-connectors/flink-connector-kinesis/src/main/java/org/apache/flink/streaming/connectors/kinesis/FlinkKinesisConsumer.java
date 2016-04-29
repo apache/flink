@@ -412,7 +412,8 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			// so the Access Key ID and Secret Key must be given
 			if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
 				|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-				throw new IllegalArgumentException("Need to set values for AWS Access Key ID and Secret Key when using the BASIC AWS credential provider type.");
+				throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
+						"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
 			}
 		} else {
 			String credentialsProviderType = config.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE);
@@ -433,13 +434,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			if (providerType == CredentialProviderType.BASIC) {
 				if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
 					|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-					throw new IllegalArgumentException("Need to set values for AWS Access Key ID and Secret Key when using the BASIC AWS credential provider type.");
+					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
+							"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
 				}
 			}
 		}
 
 		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region must be set in the config.");
+			throw new IllegalArgumentException("The AWS region ('" + KinesisConfigConstants.CONFIG_AWS_REGION + "') must be set in the config.");
 		} else {
 			// specified AWS Region name must be recognizable
 			if (!AWSUtil.isValidRegion(config.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))) {
