@@ -79,8 +79,8 @@ MultipleProgramsTestBase(mode) {
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
 
-    val newgraph = graph.addVertices(List[Vertex[Long, Long]](new Vertex[Long, Long](6L, 6L),
-        new Vertex[Long, Long](7L, 7L)))
+    val newgraph = graph.addVertices(List[Vertex[Long, Long]](new Vertex[Long, Long](5L, 0L),
+      new Vertex[Long, Long](6L, 6L), new Vertex[Long, Long](7L, 7L)))
     val res = newgraph.getVertices.collect().toList
     expectedResult = "1,1\n" + "2,2\n" + "3,3\n" + "4,4\n" + "5,5\n" + "6,6\n" + "7,7\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
