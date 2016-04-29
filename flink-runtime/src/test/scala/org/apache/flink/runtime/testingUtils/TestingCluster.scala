@@ -24,10 +24,10 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
+import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
 
@@ -96,7 +96,7 @@ class TestingCluster(
     instanceManager,
     scheduler,
     libraryCacheManager,
-    restartStrategyFactory,
+    restartStrategy,
     timeout,
     archiveCount,
     leaderElectionService,
@@ -118,7 +118,7 @@ class TestingCluster(
         scheduler,
         libraryCacheManager,
         archive,
-        restartStrategyFactory,
+        restartStrategy,
         timeout,
         leaderElectionService,
         submittedJobsGraphs,
@@ -153,10 +153,6 @@ class TestingCluster(
 
   def createLeaderElectionService(): Option[LeaderElectionService] = {
     None
-  }
-
-  def getRestartStrategy(restartStrategy: RestartStrategy) = {
-    restartStrategy
   }
 
   @throws(classOf[TimeoutException])

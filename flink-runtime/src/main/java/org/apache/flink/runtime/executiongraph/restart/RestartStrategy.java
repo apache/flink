@@ -38,9 +38,4 @@ public interface RestartStrategy {
 	 * @param executionGraph The ExecutionGraph to be restarted
 	 */
 	void restart(ExecutionGraph executionGraph);
-
-	/**
-	 * Disables the restart strategy.
-	 */
-	void disable();
 }

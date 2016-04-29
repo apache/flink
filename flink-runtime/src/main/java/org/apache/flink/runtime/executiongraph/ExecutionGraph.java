@@ -790,14 +790,6 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	public void fail(Throwable t) {
-		if (t instanceof UnrecoverableException) {
-			if (restartStrategy != null) {
-				// disable the restart strategy in case that we have seen a SuppressRestartsException
-				// it basically overrides the restart behaviour of a the root cause
-				restartStrategy.disable();
-			}
-		}
-
 		while (true) {
 			JobStatus current = state;
 			if (current == JobStatus.FAILING || current.isTerminalState()) {
@@ -1021,17 +1013,15 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						if (restartStrategy.canRestart() && transitionState(current, JobStatus.RESTARTING)) {
-							// double check in case that in the meantime a SuppressRestartsException was thrown
-							if (restartStrategy.canRestart()) {
-								restartStrategy.restart(this);
-								break;
-							} else {
-								fail(new Exception("ExecutionGraph went into RESTARTING state but " +
-									"then the restart strategy was disabled."));
-							}
+						boolean isRecoverable = !(failureCause instanceof UnrecoverableException);
 
-						} else if (!restartStrategy.canRestart() && transitionState(current, JobStatus.FAILED, failureCause)) {
+						if (isRecoverable && restartStrategy.canRestart() &&
+								transitionState(current, JobStatus.RESTARTING)) {
+							restartStrategy.restart(this);
+							break;
+
+						} else if ((!isRecoverable || !restartStrategy.canRestart()) &&
+							transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;
 						}
