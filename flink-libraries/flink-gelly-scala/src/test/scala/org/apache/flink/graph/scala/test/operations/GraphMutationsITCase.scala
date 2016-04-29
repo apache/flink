@@ -211,11 +211,13 @@ MultipleProgramsTestBase(mode) {
   @throws(classOf[Exception])
   def testRemoveEdge() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+    var graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val newgraph = graph.removeEdge(new Edge[Long, Long](5L, 1L, 51L))
-    val res = newgraph.getEdges.collect().toList
-    expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n"
+    graph = graph.addEdge(new Vertex[Long, Long](1L, 1L), new Vertex[Long, Long](2L, 2L), 12L)
+    graph = graph.removeEdge(new Edge[Long, Long](5L, 1L, 51L))
+    val res = graph.getEdges.collect().toList
+    expectedResult = "1,2,12\n" + "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" +
+      "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
@@ -236,12 +238,12 @@ MultipleProgramsTestBase(mode) {
   @throws(classOf[Exception])
   def testRemoveEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+    var graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val newgraph = graph.removeEdges(List[Edge[Long, Long]](new Edge(1L, 2L, 12L),
-      new Edge(4L, 5L, 45L)))
-    val res = newgraph.getEdges.collect().toList
-    expectedResult = "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "5,1,51\n"
+    graph = graph.addEdge(new Vertex[Long, Long](3L, 3L), new Vertex[Long, Long](4L, 4L), 34L)
+    graph = graph.removeEdges(List[Edge[Long, Long]](new Edge(1L, 2L, 12L), new Edge(4L, 5L, 45L)))
+    val res = graph.getEdges.collect().toList
+    expectedResult = "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,4,34\n" + "3,5,35\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
