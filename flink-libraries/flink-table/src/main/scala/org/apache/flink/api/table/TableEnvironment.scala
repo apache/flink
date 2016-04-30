@@ -38,6 +38,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions.{Naming, UnresolvedFieldReference, Expression}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
+import org.apache.flink.api.table.sinks.TableSink
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -135,6 +137,15 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return The result of the query as Table.
     */
   def sql(query: String): Table
+
+  /**
+    * Emits a [[Table]] to a [[TableSink]].
+    *
+    * @param table The [[Table]] to emit.
+    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit
 
   /**
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
