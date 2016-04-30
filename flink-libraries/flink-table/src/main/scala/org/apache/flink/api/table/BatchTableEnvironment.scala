@@ -34,6 +34,7 @@ import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetRel, DataSetConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataSetTable}
+import org.apache.flink.api.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.api.table.sources.BatchTableSource
 
 /**
@@ -133,6 +134,30 @@ abstract class BatchTableEnvironment(
     val relational = planner.rel(validated)
 
     new Table(relational.rel, this)
+  }
+
+  /**
+    * Emits a [[Table]] to a [[TableSink]].
+    *
+    * Internally, the [[Table]] is translated into a [[DataSet]] and handed over to the
+    * [[TableSink]] to emit it.
+    *
+    * @param table The [[Table]] to emit.
+    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
+    */
+  override private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit = {
+
+    sink match {
+      case batchSink: BatchTableSink[T] =>
+        val outputType = sink.getOutputType
+        // translate the Table into a DataSet and provide the type that the TableSink expects.
+        val result: DataSet[T] = translate(table)(outputType)
+        // Give the DataSet to the TableSink to emit it.
+        batchSink.emitDataSet(result)
+      case _ =>
+        throw new TableException("BatchTableSink required to emit batch Table")
+    }
   }
 
   /**

@@ -25,9 +25,12 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.util.NlsString
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggCalls
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.sinks.TableSink
+import org.apache.flink.api.table.typeutils.TypeConverter
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -442,6 +445,31 @@ class Table(
   def orderBy(fields: String): Table = {
     val parsedFields = ExpressionParser.parseExpressionList(fields)
     orderBy(parsedFields: _*)
+  }
+
+  /**
+    * Emits the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
+    *
+    * A batch [[Table]] can only be emitted by a
+    * [[org.apache.flink.api.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.api.table.sinks.StreamTableSink]].
+    *
+    * @param sink The [[TableSink]] to which the [[Table]] is emitted.
+    * @tparam T The data type that the [[TableSink]] expects.
+    */
+  def toSink[T](sink: TableSink[T]): Unit = {
+
+    // get schema information of table
+    val rowType = relNode.getRowType
+    val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
+    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
+      .map(f => TypeConverter.sqlTypeToTypeInfo(f.getType.getSqlTypeName)).toArray
+
+    // configure the table sink
+    val configuredSink = sink.configure(fieldNames, fieldTypes)
+
+    // emit the table to the configured table sink
+    tableEnv.emitToSink(this, configuredSink)
   }
 
   private def createRenamingProject(exprs: Seq[RexNode]): LogicalProject = {

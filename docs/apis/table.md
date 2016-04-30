@@ -685,6 +685,53 @@ SQL queries can be executed on DataStream Tables by adding the `STREAM` SQL keyw
 
 {% top %}
 
+Emit a Table to external sinks
+----
+
+A `Table` can be emitted to a `TableSink`, which is a generic interface to support a wide variaty of file formats (e.g., CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ), and others. A batch `Table` can only be emitted by a `BatchTableSink`, a streaming table requires a `StreamTableSink` (a `TableSink` can implement both interfaces). 
+
+Currently, Flink only provides a `CsvTableSink` that writes a batch or streaming `Table` to CSV-formatted files. A custom `TableSource` can be defined by implementing the `BatchTableSink` and/or `StreamTableSink` interface. 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// compute the result Table using Table API operators and/or SQL queries
+Table result = ... 
+
+// create a TableSink
+TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
+// add a TableSink to emit the result Table
+result.toSink(sink);
+
+// execute the program
+env.execute();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// compute the result Table using Table API operators and/or SQL queries
+val result: Table = ... 
+
+// create a TableSink
+val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
+// add a TableSink to emit the result Table
+result.toSink(sink)
+
+// execute the program
+env.execute()
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
 Runtime Configuration
 ----
 The Table API provides a configuration (the so-called `TableConfig`) to modify runtime behavior. It can be accessed either through `TableEnvironment` or passed to the `toDataSet`/`toDataStream` method when using Scala implicit conversion.

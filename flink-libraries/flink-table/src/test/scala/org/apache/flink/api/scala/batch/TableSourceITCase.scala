@@ -31,7 +31,7 @@ import org.apache.flink.api.table.sources.{BatchTableSource, CsvTableSource}
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -39,10 +39,8 @@ import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class TableSourceITCase(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class TableSourceITCase(mode: TestExecutionMode)
+  extends MultipleProgramsTestBase(mode) {
 
   @Test
   def testBatchTableSourceTableAPI(): Unit = {
