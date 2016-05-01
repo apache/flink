@@ -32,8 +32,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import static javafx.scene.input.KeyCode.L;
-
 @RunWith(Parameterized.class)
 public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
