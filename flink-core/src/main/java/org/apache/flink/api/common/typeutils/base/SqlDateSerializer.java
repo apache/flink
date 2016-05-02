@@ -18,18 +18,19 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-import java.util.Date;
+import java.sql.Date;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+
 @Internal
-public final class DateSerializer extends TypeSerializerSingleton<Date> {
+public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final DateSerializer INSTANCE = new DateSerializer();
+	public static final SqlDateSerializer INSTANCE = new SqlDateSerializer();
 
 	@Override
 	public boolean isImmutableType() {
@@ -38,7 +39,7 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date createInstance() {
-		return new Date();
+		return new Date(0L);
 	}
 
 	@Override
@@ -51,7 +52,7 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date copy(Date from, Date reuse) {
-		if (from == null) {
+		if(from == null) {
 			return null;
 		}
 		reuse.setTime(from.getTime());
@@ -81,7 +82,7 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 			return new Date(v);
 		}
 	}
-	
+
 	@Override
 	public Date deserialize(Date reuse, DataInputView source) throws IOException {
 		final long v = source.readLong();
@@ -99,6 +100,6 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof DateSerializer;
+		return obj instanceof SqlDateSerializer;
 	}
 }

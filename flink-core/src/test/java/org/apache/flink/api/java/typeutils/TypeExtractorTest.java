@@ -23,6 +23,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -2049,5 +2052,40 @@ public class TypeExtractorTest {
 		// use getForObject()
 		Assert.assertEquals(BasicTypeInfo.BIG_INT_TYPE_INFO, TypeExtractor.getForObject(new BigInteger("42")));
 		Assert.assertEquals(BasicTypeInfo.BIG_DEC_TYPE_INFO, TypeExtractor.getForObject(new BigDecimal("42.42")));
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testSqlBasicTypes() {
+		MapFunction<?, ?> function = new MapFunction<Tuple3<Date, Time, Timestamp>, Tuple3<Date, Time, Timestamp>>() {
+			@Override
+			public Tuple3<Date, Time, Timestamp> map(Tuple3<Date, Time, Timestamp> value) throws Exception {
+				return null;
+			}
+		};
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+			function,
+			(TypeInformation) TypeInformation.of(new TypeHint<Tuple3<Date, Time, Timestamp>>() {
+		}));
+
+		Assert.assertTrue(ti.isTupleType());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.SQL_DATE_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.SQL_TIME_TYPE_INFO, tti.getTypeAt(1));
+		Assert.assertEquals(BasicTypeInfo.SQL_TIMESTAMP_TYPE_INFO, tti.getTypeAt(2));
+
+		// use getForClass()
+		Assert.assertTrue(TypeExtractor.getForClass(Date.class).isBasicType());
+		Assert.assertTrue(TypeExtractor.getForClass(Time.class).isBasicType());
+		Assert.assertTrue(TypeExtractor.getForClass(Timestamp.class).isBasicType());
+		Assert.assertEquals(tti.getTypeAt(0), TypeExtractor.getForClass(Date.class));
+		Assert.assertEquals(tti.getTypeAt(1), TypeExtractor.getForClass(Time.class));
+		Assert.assertEquals(tti.getTypeAt(2), TypeExtractor.getForClass(Timestamp.class));
+
+		// use getForObject()
+		Assert.assertEquals(BasicTypeInfo.SQL_DATE_TYPE_INFO, TypeExtractor.getForObject(Date.valueOf("1998-12-12")));
+		Assert.assertEquals(BasicTypeInfo.SQL_TIME_TYPE_INFO, TypeExtractor.getForObject(Time.valueOf("12:37:45")));
+		Assert.assertEquals(BasicTypeInfo.SQL_TIMESTAMP_TYPE_INFO, TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45")));
 	}
 }
