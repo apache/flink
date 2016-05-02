@@ -240,7 +240,11 @@ public class ConnectionUtils {
 			}
 		}
 
-		final byte[] targetAddressBytes = targetAddress.getAddress().getAddress();
+		final InetAddress address = targetAddress.getAddress();
+		if (address == null) {
+			return null;
+		}
+		final byte[] targetAddressBytes = address.getAddress();
 
 		// for each network interface
 		Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
