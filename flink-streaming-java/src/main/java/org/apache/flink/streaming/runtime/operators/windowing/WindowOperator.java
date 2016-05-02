@@ -57,7 +57,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorPartitionedState;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -343,7 +344,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	@SuppressWarnings("unchecked")
 	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
-		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get((K) getKeyGroupStateBackend().getCurrentKey());
+		MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get(getKeyGroupStateBackend().getCurrentKey());
 		if (mergingWindows == null) {
 			// try to retrieve from state
 
@@ -683,20 +684,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-
-		if (mergingWindowsByKey != null) {
-			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
-			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
-			for (Map.Entry<K, MergingWindowSet<W>> key: mergingWindowsByKey.entrySet()) {
-				setKeyContext(key.getKey());
-				ListState<Tuple2<W, W>> mergeState = getKeyGroupStateBackend().getPartitionedState(null, VoidSerializer.INSTANCE, mergeStateDescriptor);
-				mergeState.clear();
-				key.getValue().persist(mergeState);
-			}
-		}
-
-		StreamOperatorState operatorState = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorNonPartitionedState operatorState = super.snapshotNonPartitionedState(checkpointId, timestamp);
 
 		AbstractStateBackend.CheckpointStateOutputView out =
 			getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
@@ -709,9 +698,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@Override
-	public void restoreState(StreamOperatorState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
+	public StreamOperatorPartitionedState snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
+		if (mergingWindowsByKey != null) {
+			TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[] {windowSerializer, windowSerializer} );
+			ListStateDescriptor<Tuple2<W, W>> mergeStateDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
+			for (Map.Entry<K, MergingWindowSet<W>> key: mergingWindowsByKey.entrySet()) {
+				setKeyContext(key.getKey());
+				ListState<Tuple2<W, W>> mergeState = getKeyGroupStateBackend().getPartitionedState(null, VoidSerializer.INSTANCE, mergeStateDescriptor);
+				mergeState.clear();
+				key.getValue().persist(mergeState);
+			}
+		}
 
+		return super.snapshotPartitionedState(checkpointId, timestamp);
+	}
+
+	@Override
+	public void restoreNonPartitionedState(StreamOperatorNonPartitionedState taskState, long recoveryTimestamp) throws Exception {
 		final ClassLoader userClassloader = getUserCodeClassloader();
 
 		@SuppressWarnings("unchecked")

@@ -60,7 +60,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
@@ -355,7 +355,7 @@ public class SavepointITCase extends TestLogger {
 					StreamTaskState streamTaskState = (StreamTaskState) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
-				for (StreamOperatorState taskState : streamTaskState.getState(
+				for (StreamOperatorNonPartitionedState taskState : streamTaskState.getState(
 						ClassLoader.getSystemClassLoader())) {
 
 						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
@@ -652,7 +652,7 @@ public class SavepointITCase extends TestLogger {
 					StreamTaskState streamTaskState = (StreamTaskState) subtaskState.getState()
 						.deserializeValue(ClassLoader.getSystemClassLoader());
 
-				for (StreamOperatorState taskState : streamTaskState.getState(
+				for (StreamOperatorNonPartitionedState taskState : streamTaskState.getState(
 						ClassLoader.getSystemClassLoader())) {
 
 						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();

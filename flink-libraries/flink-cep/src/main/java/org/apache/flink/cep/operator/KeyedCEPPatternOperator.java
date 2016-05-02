@@ -32,7 +32,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -168,8 +168,8 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 	}
 
 	@Override
-	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamOperatorState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorNonPartitionedState taskState = super.snapshotNonPartitionedState(checkpointId, timestamp);
 
 		AbstractStateBackend.CheckpointStateOutputView ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
@@ -185,8 +185,8 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 	}
 
 	@Override
-	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
+	public void restoreNonPartitionedState(StreamOperatorNonPartitionedState state, long recoveryTimestamp) throws Exception {
+		super.restoreNonPartitionedState(state, recoveryTimestamp);
 
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state;

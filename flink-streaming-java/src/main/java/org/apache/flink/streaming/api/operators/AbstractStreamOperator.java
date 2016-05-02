@@ -31,7 +31,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.KeyGroupStateBackend;
-import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -41,6 +40,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorPartitionedState;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
@@ -48,7 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ScheduledFuture;
-
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
  * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class). 
@@ -201,30 +201,39 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		return new StreamOperatorState();
+	public final StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorPartitionedState partitionedState = snapshotPartitionedState(checkpointId, timestamp);
+		StreamOperatorNonPartitionedState nonPartitionedState = snapshotNonPartitionedState(checkpointId, timestamp);
+
+		return new StreamOperatorState(partitionedState, nonPartitionedState);
 	}
 
-	@Override
-	public Map<Integer, PartitionedStateSnapshot> snapshotKvState(long checkpointId, long timestamp) throws Exception {
+	protected StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
+		return new StreamOperatorNonPartitionedState();
+	}
+
+	protected StreamOperatorPartitionedState snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
 		// here, we deal with key/value state snapshots
 		if (keyGroupStateBackend != null) {
-			return keyGroupStateBackend.snapshotPartitionedState(checkpointId, timestamp);
+			return new StreamOperatorPartitionedState(keyGroupStateBackend.snapshotPartitionedState(checkpointId, timestamp));
 		} else {
 			return null;
 		}
 	}
 	
 	@Override
-	public void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
+	public final void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
+		restorePartitionedState(state.getPartitionedState(), recoveryTimestamp);
+		restoreNonPartitionedState(state.getNonPartitionedState(), recoveryTimestamp);
 	}
 
-	@Override
-	public void restoreKvState(Map<Integer, PartitionedStateSnapshot> keyGroupStates, long recoveryTimestamp) throws Exception {
+	protected void restoreNonPartitionedState(StreamOperatorNonPartitionedState nonPartitionedState, long recoveryTimestamp) throws Exception {}
+
+	protected void restorePartitionedState(StreamOperatorPartitionedState partitionedState, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
-		if (keyGroupStateBackend != null) {
-			keyGroupStateBackend.restorePartitionedState(keyGroupStates, recoveryTimestamp);
+		if (keyGroupStateBackend != null && partitionedState.getPartitionedStateSnapshots() != null) {
+			keyGroupStateBackend.restorePartitionedState(partitionedState.getPartitionedStateSnapshots(), recoveryTimestamp);
 		}
 	}
 	

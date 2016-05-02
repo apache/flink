@@ -26,19 +26,19 @@ import org.apache.flink.runtime.state.StateHandle;
  * List of task states for a chain of streaming tasks.
  */
 @Internal
-public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
+public class StreamTaskState implements StateHandle<StreamOperatorNonPartitionedState[]> {
 
 	private static final long serialVersionUID = 1L;
 
 	/** The states for all operator */
-	private final StreamOperatorState[] states;
+	private final StreamOperatorNonPartitionedState[] nonPartitionedStates;
 
-	public StreamTaskState(StreamOperatorState[] states) throws Exception {
-		this.states = states;
+	public StreamTaskState(StreamOperatorNonPartitionedState[] nonPartitionedStates) throws Exception {
+		this.nonPartitionedStates = nonPartitionedStates;
 	}
 
 	public boolean isEmpty() {
-		for (StreamOperatorState state : states) {
+		for (StreamOperatorNonPartitionedState state : nonPartitionedStates) {
 			if (state != null) {
 				return false;
 			}
@@ -47,13 +47,13 @@ public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
 	}
 	
 	@Override
-	public StreamOperatorState[] getState(ClassLoader userCodeClassLoader) {
-		return states;
+	public StreamOperatorNonPartitionedState[] getState(ClassLoader userCodeClassLoader) {
+		return nonPartitionedStates;
 	}
 
 	@Override
 	public void discardState() throws Exception {
-		for (StreamOperatorState state : states) {
+		for (StreamOperatorNonPartitionedState state : nonPartitionedStates) {
 			if (state != null) {
 				state.discardState();
 			}
@@ -64,8 +64,8 @@ public class StreamTaskState implements StateHandle<StreamOperatorState[]> {
 	public long getStateSize() throws Exception {
 		long sumStateSize = 0;
 
-		if (states != null) {
-			for (StreamOperatorState state : states) {
+		if (nonPartitionedStates != null) {
+			for (StreamOperatorNonPartitionedState state : nonPartitionedStates) {
 				if (state != null) {
 					StateHandle<?> operatorState = state.getOperatorState();
 					StateHandle<?> functionState = state.getFunctionState();

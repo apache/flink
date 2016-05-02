@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.OperatingSystem;
@@ -57,6 +58,7 @@ public class PartitionedRocksDBStateBackendTest extends StateBackendTestBase<Par
 
 		rocksDBStateBackend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(dbDir.getAbsolutePath());
+		rocksDBStateBackend.initializeForJob(new DummyEnvironment("dummy-task", 1, 0), "dummy-operator");
 	}
 
 	@Override

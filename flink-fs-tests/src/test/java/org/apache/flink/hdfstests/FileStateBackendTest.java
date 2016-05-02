@@ -116,6 +116,7 @@ public class FileStateBackendTest extends StateBackendTestBase<PartitionedFsStat
 	protected void setup() throws Exception {
 		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
 		this.fsStateBackend = new FsStateBackend(stateBaseURI);
+		this.fsStateBackend.initializeForJob(new DummyEnvironment("dummy-task", 1, 0), "dummy-operator");
 	}
 
 	@Override

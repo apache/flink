@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.util.HDFSCopyFromLocal;
 import org.apache.flink.streaming.util.HDFSCopyToLocal;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FileSystem;
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
@@ -164,20 +165,20 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 		boolean fullyAsyncBackup) throws IOException {
 		super(keySerializer, classLoader);
 
-		this.checkpointDirectory = checkpointDirectory;
-		this.operatorIdentifier = operatorIdentifier.replace(" ", "");
-		this.jobId = jobId;
+		this.checkpointDirectory = Preconditions.checkNotNull(checkpointDirectory);
+		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier).replace(" ", "");
+		this.jobId = Preconditions.checkNotNull(jobId);
 
-		this.initializedDbBasePaths = initializedDbBasePaths;
-		this.dbOptions = dbOptions;
-		this.columnOptions = columnOptions;
+		this.initializedDbBasePaths = Preconditions.checkNotNull(initializedDbBasePaths);
+		this.dbOptions = Preconditions.checkNotNull(dbOptions);
+		this.columnOptions = Preconditions.checkNotNull(columnOptions);
 
 		this.fullyAsyncBackup = fullyAsyncBackup;
 
 		nextDirectory = new Random().nextInt(initializedDbBasePaths.length);
 
-		instanceBasePath = new File(getDbPath("dummy_state"), UUID.randomUUID().toString());
-		instanceCheckpointPath = getCheckpointPath("dummy_state");
+		instanceBasePath = new File(getDbPath(STATE_NAME), UUID.randomUUID().toString());
+		instanceCheckpointPath = getCheckpointPath(STATE_NAME);
 		instanceRocksDBPath = new File(instanceBasePath, "db");
 
 		RocksDB.loadLibrary();

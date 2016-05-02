@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.Serializable;
 
@@ -34,61 +33,21 @@ import java.io.Serializable;
  */
 @Internal
 public class StreamOperatorState implements Serializable {
+	private static final long serialVersionUID = 1603204675128946014L;
 
-	private static final long serialVersionUID = 1L;
-	
-	private StateHandle<?> operatorState;
+	private final StreamOperatorPartitionedState partitionedState;
+	private final StreamOperatorNonPartitionedState nonPartitionedState;
 
-	private StateHandle<Serializable> functionState;
-
-	// ------------------------------------------------------------------------
-
-	public StateHandle<?> getOperatorState() {
-		return operatorState;
+	public StreamOperatorState(StreamOperatorPartitionedState partitionedState, StreamOperatorNonPartitionedState nonPartitionedState) {
+		this.partitionedState = partitionedState;
+		this.nonPartitionedState = nonPartitionedState;
 	}
 
-	public void setOperatorState(StateHandle<?> operatorState) {
-		this.operatorState = operatorState;
+	public StreamOperatorPartitionedState getPartitionedState() {
+		return partitionedState;
 	}
 
-	public StateHandle<Serializable> getFunctionState() {
-		return functionState;
-	}
-
-	public void setFunctionState(StateHandle<Serializable> functionState) {
-		this.functionState = functionState;
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Checks if this state object actually contains any state, or if all of the state
-	 * fields are null.
-	 * 
-	 * @return True, if all state is null, false if at least one state is not null.
-	 */
-	public boolean isEmpty() {
-		return operatorState == null & functionState == null;
-	}
-
-	/**
-	 * Discards all the contained states and sets them to null.
-	 * 
-	 * @throws Exception Forwards exceptions that occur when releasing the
-	 *                   state handles and snapshots.
-	 */
-	public void discardState() throws Exception {
-		StateHandle<?> operatorState = this.operatorState;
-		StateHandle<?> functionState = this.functionState;
-
-		if (operatorState != null) {
-			operatorState.discardState();
-		}
-		if (functionState != null) {
-			functionState.discardState();
-		}
-
-		this.operatorState = null;
-		this.functionState = null;
+	public StreamOperatorNonPartitionedState getNonPartitionedState() {
+		return nonPartitionedState;
 	}
 }

@@ -104,7 +104,7 @@ public class StreamTaskAsyncCheckpointTest {
 				StreamTaskState stateList = (StreamTaskState) state;
 
 				// should be only one state
-				StreamOperatorState taskState = stateList.getState(this.getUserClassLoader())[0];
+				StreamOperatorNonPartitionedState taskState = stateList.getState(this.getUserClassLoader())[0];
 				StateHandle<?> operatorState = taskState.getOperatorState();
 				assertTrue("It must be a TestStateHandle", operatorState instanceof TestStateHandle);
 				TestStateHandle testState = (TestStateHandle) operatorState;
@@ -159,8 +159,8 @@ public class StreamTaskAsyncCheckpointTest {
 
 
 		@Override
-		public StreamOperatorState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-			StreamOperatorState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		public StreamOperatorNonPartitionedState snapshotNonPartitionedState(final long checkpointId, final long timestamp) throws Exception {
+			StreamOperatorNonPartitionedState taskState = super.snapshotNonPartitionedState(checkpointId, timestamp);
 
 			AsynchronousStateHandle<String> asyncState =
 				new DataInputViewAsynchronousStateHandle(checkpointId, timestamp);
@@ -168,11 +168,6 @@ public class StreamTaskAsyncCheckpointTest {
 			taskState.setOperatorState(asyncState);
 
 			return taskState;
-		}
-
-		@Override
-		public void restoreState(StreamOperatorState taskState, long recoveryTimestamp) throws Exception {
-			super.restoreState(taskState, recoveryTimestamp);
 		}
 	}
 

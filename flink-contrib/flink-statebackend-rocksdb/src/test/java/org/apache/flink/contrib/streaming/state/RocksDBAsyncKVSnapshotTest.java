@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -70,7 +71,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class, FileSystem.class})
 @SuppressWarnings("serial")
-public class RocksDBAsyncKVSnapshotTest {
+public class RocksDBAsyncKVSnapshotTest extends TestLogger {
 
 	@Before
 	public void checkOperatingSystem() {
@@ -78,7 +79,7 @@ public class RocksDBAsyncKVSnapshotTest {
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -163,6 +164,8 @@ public class RocksDBAsyncKVSnapshotTest {
 		}
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+		testHarness.waitForInputProcessing();
 
 		task.triggerCheckpoint(42, 17);
 
@@ -269,6 +272,8 @@ public class RocksDBAsyncKVSnapshotTest {
 		}
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+		testHarness.waitForInputProcessing();
 
 		task.triggerCheckpoint(42, 17);
 
