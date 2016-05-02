@@ -81,6 +81,11 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 
 	@Override
 	public void configure(Configuration parameters) {
+		//do nothing here
+	}
+	
+	@Override
+	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
 			establishConnection();
@@ -88,6 +93,19 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
+		}
+	}
+	
+	@Override
+	public void closeInputFormat() {
+		//called once per inputFormat (on close)
+		try {
+			dbConn.close();
+		} catch (SQLException se) {
+			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
+		} catch (NullPointerException npe) {
+		} finally {
+			dbConn = null;
 		}
 	}
 
