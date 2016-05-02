@@ -23,9 +23,9 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.graph.CachingGraphAlgorithm;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeDegreeWithVertexDegree;
 import org.apache.flink.types.LongValue;
@@ -38,7 +38,7 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class EdgeDegreePair<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>>> {
+implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>>> {
 
 	// Optional configuration
 	protected boolean reduceOnTargetId = false;
@@ -73,12 +73,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, L
 	}
 
 	@Override
-	protected String getAlgorithmName() {
-		return EdgeDegreePair.class.getCanonicalName();
-	}
-
-	@Override
-	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> run(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, deg(s)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees = input

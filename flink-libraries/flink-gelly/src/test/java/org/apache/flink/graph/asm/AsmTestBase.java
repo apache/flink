@@ -71,17 +71,14 @@ public class AsmTestBase {
 		};
 
 		List<Edge<IntValue,NullValue>> directedEdgeList = new LinkedList<>();
-		List<Edge<IntValue,NullValue>> undirectedEdgeList = new LinkedList<>();
 
 		for (Object[] edge : edges) {
 			directedEdgeList.add(new Edge<>(new IntValue((int) edge[0]), new IntValue((int) edge[1]), NullValue.getInstance()));
-
-			undirectedEdgeList.add(new Edge<>(new IntValue((int) edge[0]), new IntValue((int) edge[1]), NullValue.getInstance()));
-			undirectedEdgeList.add(new Edge<>(new IntValue((int) edge[1]), new IntValue((int) edge[0]), NullValue.getInstance()));
 		}
 
 		directedSimpleGraph = Graph.fromCollection(directedEdgeList, env);
-		undirectedSimpleGraph = Graph.fromCollection(undirectedEdgeList, env);
+		undirectedSimpleGraph = directedSimpleGraph
+			.getUndirected();
 
 		// complete graph
 		completeGraph = new CompleteGraph(env, completeGraphVertexCount)

@@ -18,14 +18,12 @@
 
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.CachingGraphAlgorithm;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
@@ -41,7 +39,7 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class VertexDegree<K, VV, EV>
-extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
+implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
@@ -92,28 +90,7 @@ extends CachingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	}
 
 	@Override
-	protected void hashCodeInternal(HashCodeBuilder builder) {
-		builder.append(includeZeroDegreeVertices);
-	}
-
-	@Override
-	protected void equalsInternal(EqualsBuilder builder, CachingGraphAlgorithm obj) {
-		if (! VertexDegree.class.isAssignableFrom(obj.getClass())) {
-			builder.appendSuper(false);
-		}
-
-		VertexDegree rhs = (VertexDegree) obj;
-
-		builder.append(includeZeroDegreeVertices, rhs.includeZeroDegreeVertices);
-	}
-
-	@Override
-	protected String getAlgorithmName() {
-		return VertexDegree.class.getCanonicalName();
-	}
-
-	@Override
-	public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Vertex<K, LongValue>> run(Graph<K, VV, EV> input)
 			throws Exception {
 		MapFunction<Edge<K, EV>, Vertex<K, LongValue>> mapEdgeToId = reduceOnTargetId ?
 			new MapEdgeToTargetId<K, EV>() : new MapEdgeToSourceId<K, EV>();
