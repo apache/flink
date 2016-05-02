@@ -65,7 +65,7 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
     val sender = new JobVertex("BlockingSender");
     sender.setParallelism(numSlots)
     sender.setInvokableClass(classOf[BlockingUntilSignalNoOpInvokable])
-    val jobGraph = new JobGraph("TestJob", new ExecutionConfig(), sender)
+    val jobGraph = new JobGraph("TestJob", sender)
 
     val oldSessionID = UUID.randomUUID()
 

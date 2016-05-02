@@ -104,7 +104,7 @@ public class SlotCountExceedingParallelismTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, new ExecutionConfig(), sender, receiver);
+		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
 
 		// We need to allow queued scheduling, because there are not enough slots available
 		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking

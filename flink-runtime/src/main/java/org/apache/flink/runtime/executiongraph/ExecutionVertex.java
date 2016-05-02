@@ -667,7 +667,7 @@ public class ExecutionVertex implements Serializable {
 			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
 		}
 
-		ExecutionConfig config = getExecutionGraph().getExecutionConfig();
+		SerializedValue<ExecutionConfig> serializedConfig = getExecutionGraph().getSerializedExecutionConfig();
 		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
 		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
 
@@ -675,7 +675,7 @@ public class ExecutionVertex implements Serializable {
 			getJobId(),
 			getJobvertexId(),
 			executionId,
-			config,
+			serializedConfig,
 			getTaskName(),
 			subTaskIndex,
 			getTotalNumberOfParallelSubtasks(),

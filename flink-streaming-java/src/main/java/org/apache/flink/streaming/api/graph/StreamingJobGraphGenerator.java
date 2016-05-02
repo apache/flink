@@ -55,7 +55,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -110,7 +109,8 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public JobGraph createJobGraph() {
-		jobGraph = new JobGraph(streamGraph.getJobName(), streamGraph.getExecutionConfig());
+
+		jobGraph = new JobGraph(streamGraph.getJobName());
 
 		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
@@ -126,15 +126,11 @@ public class StreamingJobGraphGenerator {
 		setPhysicalEdges();
 
 		setSlotSharing();
-		
+
 		configureCheckpointing();
 
-		try {
-			// make sure that we can send the ExecutionConfig without user code object problems
-			jobGraph.getExecutionConfig().serializeUserCode();
-		} catch (IOException e) {
-			throw new IllegalStateException("Could not serialize ExecutionConfig.", e);
-		}
+		// set the ExecutionConfig last when it has been finalized
+		jobGraph.setExecutionConfig(streamGraph.getExecutionConfig());
 
 		return jobGraph;
 	}

@@ -90,7 +90,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final SerializedValue<StateHandle<?>> operatorState;
 
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
-	private final ExecutionConfig executionConfig;
+	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	private long recoveryTimestamp;
 		
@@ -101,7 +101,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			JobID jobID,
 			JobVertexID vertexID,
 			ExecutionAttemptID executionId,
-			ExecutionConfig executionConfig,
+			SerializedValue<ExecutionConfig> serializedExecutionConfig,
 			String taskName,
 			int indexInSubtaskGroup,
 			int numberOfSubtasks,
@@ -125,7 +125,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
-		this.executionConfig = checkNotNull(executionConfig);
+		this.serializedExecutionConfig = checkNotNull(serializedExecutionConfig);
 		this.taskName = checkNotNull(taskName);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
 		this.numberOfSubtasks = numberOfSubtasks;
@@ -146,7 +146,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		JobID jobID,
 		JobVertexID vertexID,
 		ExecutionAttemptID executionId,
-		ExecutionConfig executionConfig,
+		SerializedValue<ExecutionConfig> serializedExecutionConfig,
 		String taskName,
 		int indexInSubtaskGroup,
 		int numberOfSubtasks,
@@ -164,7 +164,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			jobID,
 			vertexID,
 			executionId,
-			executionConfig,
+			serializedExecutionConfig,
 			taskName,
 			indexInSubtaskGroup,
 			numberOfSubtasks,
@@ -185,8 +185,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * Returns the execution configuration (see {@link ExecutionConfig}) related to the
 	 * specific job.
 	 */
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
+	public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
+		return serializedExecutionConfig;
 	}
 
 	/**

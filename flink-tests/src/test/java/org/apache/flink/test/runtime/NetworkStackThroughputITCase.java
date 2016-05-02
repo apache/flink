@@ -97,7 +97,7 @@ public class NetworkStackThroughputITCase {
 
 		private JobGraph createJobGraph(int dataVolumeGb, boolean useForwarder, boolean isSlowSender,
 										boolean isSlowReceiver, int numSubtasks) {
-			JobGraph jobGraph = new JobGraph("Speed Test", new ExecutionConfig());
+			JobGraph jobGraph = new JobGraph("Speed Test");
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
 			JobVertex producer = new JobVertex("Speed Test Producer");

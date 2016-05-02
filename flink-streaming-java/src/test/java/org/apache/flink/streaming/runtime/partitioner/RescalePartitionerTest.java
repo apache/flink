@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -135,7 +135,7 @@ public class RescalePartitionerTest extends TestLogger {
 			jobId,
 			jobName,
 			cfg,
-			new ExecutionConfig(),
+			ExecutionConfigTest.getSerializedConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new ArrayList<BlobKey>(),
