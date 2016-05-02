@@ -30,17 +30,13 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 
 	private static final long serialVersionUID = 1L;
 
-
 	public DateComparator(boolean ascending) {
 		super(ascending);
 	}
 
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		long l1 = firstSource.readLong();
-		long l2 = secondSource.readLong();
-		int comp = (l1 < l2 ? -1 : (l1 == l2 ? 0 : 1)); 
-		return ascendingComparison ? comp : -comp;
+		return compareSerializedDate(firstSource, secondSource, ascendingComparison);
 	}
 
 	@Override
@@ -59,15 +55,34 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 	}
 
 	@Override
-	public void putNormalizedKey(Date lValue, MemorySegment target, int offset, int numBytes) {
-		long value = lValue.getTime() - Long.MIN_VALUE;
-		
+	public void putNormalizedKey(Date record, MemorySegment target, int offset, int numBytes) {
+		putNormalizedKeyDate(record, target, offset, numBytes);
+	}
+
+	@Override
+	public DateComparator duplicate() {
+		return new DateComparator(ascendingComparison);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//                           Static Helpers for Date Comparison
+	// --------------------------------------------------------------------------------------------
+
+	public static int compareSerializedDate(DataInputView firstSource, DataInputView secondSource,
+			boolean ascendingComparison) throws IOException {
+		final long l1 = firstSource.readLong();
+		final long l2 = secondSource.readLong();
+		final int comp = (l1 < l2 ? -1 : (l1 == l2 ? 0 : 1));
+		return ascendingComparison ? comp : -comp;
+	}
+
+	public static void putNormalizedKeyDate(Date record, MemorySegment target, int offset, int numBytes) {
+		final long value = record.getTime() - Long.MIN_VALUE;
+
 		// see IntValue for an explanation of the logic
 		if (numBytes == 8) {
 			// default case, full normalized key
 			target.putLongBigEndian(offset, value);
-		}
-		else if (numBytes <= 0) {
 		}
 		else if (numBytes < 8) {
 			for (int i = 0; numBytes > 0; numBytes--, i++) {
@@ -80,10 +95,5 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 				target.put(offset + i, (byte) 0);
 			}
 		}
-	}
-
-	@Override
-	public DateComparator duplicate() {
-		return new DateComparator(ascendingComparison);
 	}
 }
