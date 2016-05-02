@@ -1830,6 +1830,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [GSA Single Source Shortest Paths](#gsa-single-source-shortest-paths)
 * [GSA Triangle Count](#gsa-triangle-count)
 * [Triangle Enumerator](#triangle-enumerator)
+* [Hyperlink-Induced Topic Search](#hyperlink-induced-topic-search)
 * [Summarization](#summarization)
 * [Jaccard Index](#jaccard-index)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
@@ -2028,6 +2029,23 @@ This implementation extends the basic algorithm by computing output degrees of e
 The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3`. The Vertex ID type has to be `Comparable`.
 Each `Tuple3` corresponds to a triangle, with the fields containing the IDs of the vertices forming the triangle.
 
+### Hyperlink-Induced Topic Search
+
+#### Overview
+[Hyperlink-Induced Topic Search](http://www.cs.cornell.edu/home/kleinber/auth.pdf) (HITS, or "Hubs and Authorities")
+computes two interdependent scores for every vertex in a directed graph. Good hubs are those which point to many 
+good authorities and good authorities are those pointed to by many good hubs.
+ 
+#### Details
+HITS ranking relies on an iterative method converging to a stationary solution. Each vertex in the directed graph is assigned same non-negative
+hub and authority scores. Then the algorithm iteratively updates the scores until termination. Current implementation divides the iteration
+into two phases, authority scores can be computed until hub scores updating and normalising finished, hub scores can be computed until
+authority scores updating and normalising finished.
+
+#### Usage
+The algorithm takes a directed graph as input and outputs a `DataSet` of vertices, where the vertex value is a `Tuple2` 
+containing the hub and authority score after maximum iterations.
+ 
 ### Summarization
 
 #### Overview
