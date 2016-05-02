@@ -31,7 +31,7 @@ import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.Join
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates edges of an undirected graph with the source and target degree count.
+ * Annotates edges of an undirected graph with the degree of both the source and target degree ID.
  *
  * @param <K> ID type
  * @param <VV> vertex value type

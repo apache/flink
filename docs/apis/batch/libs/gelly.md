@@ -2067,7 +2067,92 @@ configuration.
 
   <tbody>
     <tr>
-      <td><strong>TranslateGraphIds</strong></td>
+      <td>degree.annotate.directed.<br/><strong>VertexInDegree</strong></td>
+      <td>
+        <p>Annotate vertices of a directed graph with the in-degree count.</p>
+{% highlight java %}
+DataSet<Vertex<K, LongValue>> inDegree = graph
+  .run(new VertexInDegree()
+    .setIncludeZeroDegreeVertices(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.directed.<br/><strong>VertexOutDegree</strong></td>
+      <td>
+        <p>Annotate vertices of a directed graph with the out-degree count.</p>
+{% highlight java %}
+DataSet<Vertex<K, LongValue>> outDegree = graph
+  .run(new VertexOutDegree()
+    .setIncludeZeroDegreeVertices(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
+      <td>
+        <p>Annotate vertices of a directed graph with both the out-degree and in-degree count.</p>
+{% highlight java %}
+DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
+  .run(new VertexDegreePair()
+    .setIncludeZeroDegreeVertices(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.undirected.<br/><strong>VertexDegree</strong></td>
+      <td>
+        <p>Annotate vertices of an undirected graph with the degree count.</p>
+{% highlight java %}
+DataSet<Vertex<K, LongValue>> degree = graph
+  .run(new VertexDegree()
+    .setIncludeZeroDegreeVertices(true)
+    .setReduceOnTargetId(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.undirected.<br/><strong>EdgeSourceDegree</strong></td>
+      <td>
+        <p>Annotate edges of an undirected graph with degree of the source ID.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
+  .run(new EdgeSourceDegree()
+    .setReduceOnTargetId(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.undirected.<br/><strong>EdgeTargetDegree</strong></td>
+      <td>
+        <p>Annotate edges of an undirected graph with degree of the target ID.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
+  .run(new EdgeTargetDegree()
+    .setReduceOnSourceId(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.undirected.<br/><strong>EdgeDegreePair</strong></td>
+      <td>
+        <p>Annotate edges of an undirected graph with the degree of both the source and target degree ID.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
+  .run(new EdgeDegreePair()
+    .setReduceOnTargetId(true));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>translate.<br/><strong>TranslateGraphIds</strong></td>
       <td>
         <p>Translate vertex and edge IDs using the given <code>MapFunction</code>.</p>
 {% highlight java %}
@@ -2077,7 +2162,7 @@ graph.run(new TranslateGraphIds(new LongValueToStringValue()));
     </tr>
 
     <tr>
-      <td><strong>TranslateVertexValues</strong></td>
+      <td>translate.<br/><strong>TranslateVertexValues</strong></td>
       <td>
         <p>Translate vertex values using the given <code>MapFunction</code>.</p>
 {% highlight java %}
@@ -2087,7 +2172,7 @@ graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
     </tr>
 
     <tr>
-      <td><strong>TranslateEdgeValues</strong></td>
+      <td>translate.<br/><strong>TranslateEdgeValues</strong></td>
       <td>
         <p>Translate edge values using the given <code>MapFunction</code>.</p>
 {% highlight java %}
