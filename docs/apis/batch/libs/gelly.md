@@ -2049,6 +2049,57 @@ vertex and edge in the output graph stores the common group value and the number
 
 {% top %}
 
+Graph Algorithms
+-----------
+
+The logic blocks with which the `Graph` API and top-level algorithms are assembled are accessible in Gelly as graph
+algorithms in the `org.apache.flink.graph.asm` package. These algorithms provide optimization and tuning through
+configuration parameters and may provide implicit runtime reuse when processing the same input with a similar
+configuration.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Algorithm</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>TranslateGraphIds</strong></td>
+      <td>
+        <p>Translate vertex and edge IDs using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateGraphIds(new LongValueToStringValue()));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>TranslateVertexValues</strong></td>
+      <td>
+        <p>Translate vertex values using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>TranslateEdgeValues</strong></td>
+      <td>
+        <p>Translate edge values using the given <code>MapFunction</code>.</p>
+{% highlight java %}
+graph.run(new TranslateEdgeValues(new Nullify()));
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+{% top %}
+
 Graph Generators
 -----------
 
