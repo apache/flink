@@ -19,17 +19,17 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
-import java.util.Date;
+import java.sql.Timestamp;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 @Internal
-public final class DateSerializer extends TypeSerializerSingleton<Date> {
+public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timestamp> {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final DateSerializer INSTANCE = new DateSerializer();
+	public static final SqlTimestampSerializer INSTANCE = new SqlTimestampSerializer();
 
 	@Override
 	public boolean isImmutableType() {
@@ -37,68 +37,77 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	}
 
 	@Override
-	public Date createInstance() {
-		return new Date();
+	public Timestamp createInstance() {
+		return new Timestamp(0L);
 	}
 
 	@Override
-	public Date copy(Date from) {
-		if(from == null) {
+	public Timestamp copy(Timestamp from) {
+		if (from == null) {
 			return null;
 		}
-		return new Date(from.getTime());
+		final Timestamp t = new Timestamp(from.getTime());
+		t.setNanos(from.getNanos());
+		return t;
 	}
 
 	@Override
-	public Date copy(Date from, Date reuse) {
+	public Timestamp copy(Timestamp from, Timestamp reuse) {
 		if (from == null) {
 			return null;
 		}
 		reuse.setTime(from.getTime());
+		reuse.setNanos(from.getNanos());
 		return reuse;
 	}
 
 	@Override
 	public int getLength() {
-		return 8;
+		return 12;
 	}
 
 	@Override
-	public void serialize(Date record, DataOutputView target) throws IOException {
+	public void serialize(Timestamp record, DataOutputView target) throws IOException {
 		if (record == null) {
 			target.writeLong(Long.MIN_VALUE);
+			target.writeInt(0);
 		} else {
 			target.writeLong(record.getTime());
+			target.writeInt(record.getNanos());
 		}
 	}
 
 	@Override
-	public Date deserialize(DataInputView source) throws IOException {
+	public Timestamp deserialize(DataInputView source) throws IOException {
 		final long v = source.readLong();
 		if (v == Long.MIN_VALUE) {
 			return null;
 		} else {
-			return new Date(v);
+			final Timestamp t = new Timestamp(v);
+			t.setNanos(source.readInt());
+			return t;
 		}
 	}
-	
+
 	@Override
-	public Date deserialize(Date reuse, DataInputView source) throws IOException {
+	public Timestamp deserialize(Timestamp reuse, DataInputView source) throws IOException {
 		final long v = source.readLong();
 		if (v == Long.MIN_VALUE) {
 			return null;
 		}
 		reuse.setTime(v);
+		reuse.setNanos(source.readInt());
 		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeLong(source.readLong());
+		target.writeInt(source.readInt());
 	}
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof DateSerializer;
+		return obj instanceof SqlTimestampSerializer;
 	}
 }
