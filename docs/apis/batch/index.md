@@ -174,8 +174,8 @@ data.flatMap(new FlatMapFunction<String, String>() {
     <tr>
       <td><strong>MapPartition</strong></td>
       <td>
-        <p>Transforms a parallel partition in a single function call. The function get the partition
-        as an `Iterable` stream and can produce an arbitrary number of result values. The number of
+        <p>Transforms a parallel partition in a single function call. The function gets the partition
+        as an <code>Iterable</code> stream and can produce an arbitrary number of result values. The number of
         elements in each partition depends on the degree-of-parallelism and previous operations.</p>
 {% highlight java %}
 data.mapPartition(new MapPartitionFunction<String, Long>() {
@@ -301,7 +301,7 @@ result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
     <tr>
       <td><strong>OuterJoin</strong></td>
       <td>
-        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a <code>null</code> value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight java %}
 input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or full outer joins
       .where(0)              // key of the first input (tuple field 0)
@@ -1067,12 +1067,12 @@ The following table lists the currently supported compression methods.
   <tbody>
     <tr>
       <td><strong>DEFLATE</strong></td>
-      <td>`.deflate`</td>
+      <td><code>.deflate</code></td>
       <td>no</td>
     </tr>
     <tr>
       <td><strong>GZip</strong></td>
-      <td>`.gz`, `.gzip`</td>
+      <td><code>.gz</code>, <code>.gzip</code></td>
       <td>no</td>
     </tr>
   </tbody>
