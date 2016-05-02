@@ -1,5 +1,5 @@
 ---
-title: "Table API - Relational Queries"
+title: "Table API and SQL"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,6 +20,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<meta http-equiv="refresh" content="1; url={{ site.baseurl }}/apis/batch/libs/table.html" />
+<meta http-equiv="refresh" content="1; url={{ site.baseurl }}/apis/table.html" />
 
-The *Table API guide* has been moved. Redirecting to [{{ site.baseurl }}/apis/batch/libs/table.html]({{ site.baseurl }}/apis/batch/libs/table.html) in 1 second.
+The *Table API guide* has been moved. Redirecting to [{{ site.baseurl }}/apis/table.html]({{ site.baseurl }}/apis/table.html) in 1 second.
