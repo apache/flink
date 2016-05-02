@@ -219,11 +219,11 @@ public class Task implements Runnable {
 
 	private volatile long recoveryTs;
 
-	/** The job specific execution configuration (see {@link ExecutionConfig}). */
-	private final ExecutionConfig executionConfig;
+	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
+	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	/** Interval between two successive task cancellation attempts */
-	private final long taskCancellationInterval;
+	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
+	private long taskCancellationInterval;
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
@@ -253,7 +253,11 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
-		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
+		this.serializedExecutionConfig = checkNotNull(tdd.getSerializedExecutionConfig());
+
+		this.taskCancellationInterval = jobConfiguration.getLong(
+			ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
+			ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -270,15 +274,6 @@ public class Task implements Runnable {
 		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
-
-		if (executionConfig.getTaskCancellationInterval() < 0) {
-			taskCancellationInterval = jobConfiguration.getLong(
-				ConfigConstants.TASK_CANCELLATION_INTERVAL_MILLIS,
-				ConfigConstants.DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS);
-		} else {
-			taskCancellationInterval = executionConfig.getTaskCancellationInterval();
-		}
-
 
 		// create the reader and writer structures
 
@@ -467,9 +462,14 @@ public class Task implements Runnable {
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task " + taskNameWithSubtask);
-			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
 
-			executionConfig.deserializeUserCode(userCodeClassLoader);
+			final ClassLoader userCodeClassLoader = createUserCodeClassloader(libraryCache);
+			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
+
+			if (executionConfig.getTaskCancellationInterval() >= 0) {
+				// override task cancellation interval from Flink config if set in ExecutionConfig
+				taskCancellationInterval = executionConfig.getTaskCancellationInterval();
+			}
 
 			// now load the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass);

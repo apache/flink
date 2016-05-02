@@ -140,7 +140,10 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 
-		return new JobGraph("Blocking test job", executionConfig, sender, receiver);
+		JobGraph jobGraph = new JobGraph("Blocking test job", sender, receiver);
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
 	}
 
 	public static class TestActorGateway implements ActorGateway {

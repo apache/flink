@@ -77,7 +77,7 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 			final FiniteDuration deadline = new FiniteDuration(60, TimeUnit.SECONDS);
 
 			// The JobGraph
-			final JobGraph jobGraph = new JobGraph(new ExecutionConfig());
+			final JobGraph jobGraph = new JobGraph();
 			final int parallelism = 1;
 
 			final JobVertex task = new JobVertex("Task");

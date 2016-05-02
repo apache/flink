@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,7 +43,8 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy =
+			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
@@ -64,7 +66,8 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy =
+			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration);
@@ -86,7 +89,8 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy =
+			ExecutionConfigTest.deserializeConfig(jobGraph.getSerializedExecutionConfig()).getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);

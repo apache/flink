@@ -28,7 +28,6 @@ import akka.actor._
 import akka.pattern.ask
 
 import grizzled.slf4j.Logger
-import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
@@ -46,7 +45,7 @@ import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
@@ -1069,11 +1068,14 @@ class JobManager(
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
-        val restartStrategy = Option(jobGraph.getExecutionConfig().getRestartStrategy())
-          .map(RestartStrategyFactory.createRestartStrategy(_)) match {
-            case Some(strategy) => strategy
-            case None => restartStrategyFactory.createRestartStrategy()
-          }
+        val restartStrategy =
+          Option(jobGraph.getSerializedExecutionConfig()
+            .deserializeValue(userCodeLoader)
+            .getRestartStrategy())
+              .map(RestartStrategyFactory.createRestartStrategy(_)) match {
+                case Some(strategy) => strategy
+                case None => restartStrategyFactory.createRestartStrategy()
+              }
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
@@ -1088,7 +1090,7 @@ class JobManager(
               jobGraph.getJobID,
               jobGraph.getName,
               jobGraph.getJobConfiguration,
-              jobGraph.getExecutionConfig,
+              jobGraph.getSerializedExecutionConfig,
               timeout,
               restartStrategy,
               jobGraph.getUserJarBlobKeys,
@@ -1197,12 +1199,13 @@ class JobManager(
               new SimpleCheckpointStatsTracker(historySize, ackVertices)
             }
 
-          val jobParallelism = jobGraph.getExecutionConfig.getParallelism()
+          val jobParallelism = jobGraph.getSerializedExecutionConfig
+            .deserializeValue(userCodeLoader).getParallelism()
 
           val parallelism = if (jobParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
             numSlots
           } else {
-            jobGraph.getExecutionConfig.getParallelism
+            jobParallelism
           }
 
           executionGraph.enableSnapshotCheckpointing(
