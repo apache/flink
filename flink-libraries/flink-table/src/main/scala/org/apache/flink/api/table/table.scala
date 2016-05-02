@@ -402,7 +402,7 @@ class Table(
 
   /**
     * Sorts the given [[Table]]. Similar to SQL ORDER BY.
-    * The resulting Table is sorted globally sorted across all parallel partitions.
+    * The resulting Table is globally sorted across all parallel partitions.
     *
     * Example:
     *
