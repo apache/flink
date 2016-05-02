@@ -104,7 +104,7 @@ public final class DataSetUtils {
 							@Override
 							public List<Tuple2<Integer, Long>> initializeBroadcastVariable(Iterable<Tuple2<Integer, Long>> data) {
 								// sort the list by task id to calculate the correct offset
-								List<Tuple2<Integer, Long>> sortedData = new ArrayList();
+								List<Tuple2<Integer, Long>> sortedData = new ArrayList<>();
 								for (Tuple2<Integer, Long> datum : data) {
 									sortedData.add(datum);
 								}

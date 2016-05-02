@@ -137,9 +137,7 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 			if (i < 0) {
 				throw new IllegalArgumentException("Field indices must not be smaller than zero.");
 			}
-			if (i > max) {
-				max = i;
-			}
+			max = Math.max(i, max);
 		}
 
 		boolean[] includedMask = new boolean[max + 1];
