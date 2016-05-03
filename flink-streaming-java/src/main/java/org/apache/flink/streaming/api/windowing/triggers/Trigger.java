@@ -171,6 +171,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
 
+
 		/**
 		 *
 		 * Get an existing accumulator by <code>name</code> if it exists, Otherwise add <code>defaultAccumulator</code>.
@@ -179,7 +180,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @param defaultAccumulator Accumulator to add, if no accumulator of the given name exists
 		 * @return The accumulator registered by the given <code>name</code> or the given default <code>defaultAccumulator</code>
 		 */
-		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, org.apache.flink.api.common.accumulators.Accumulator<V, A> defaultAccumulator);
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator);
 
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
@@ -199,8 +200,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
-	
-	
+
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -219,7 +219,6 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
-
 	}
 
 	/**

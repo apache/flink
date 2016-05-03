@@ -23,6 +23,7 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -602,6 +603,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public TriggerResult onEventTime(long time) throws Exception {
 			return trigger.onEventTime(time, window, this);
+		}
+
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator) {
+			return getRuntimeContext().<V,A> getAccumulator(name, defaultAccumulator);
 		}
 
 		public TriggerResult onMerge(Collection<W> mergedWindows) throws Exception {

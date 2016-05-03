@@ -18,6 +18,11 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.Future;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
@@ -38,12 +43,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.Future;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -132,11 +133,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		accumulators.put(name, accumulator);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
 		return (Accumulator<V, A>) accumulators.get(name);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator) {
 		final Accumulator<V, A> accumulator = (Accumulator<V, A>) accumulators.get(name);
