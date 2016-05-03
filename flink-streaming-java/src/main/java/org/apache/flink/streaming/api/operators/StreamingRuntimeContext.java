@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
 
 import static java.util.Objects.requireNonNull;
 
@@ -88,8 +89,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
 	 */
-	public void registerTimer(long time, Triggerable target) {
-		operator.registerTimer(time, target);
+	public ScheduledFuture<?> registerTimer(long time, Triggerable target) {
+		return operator.registerTimer(time, target);
 	}
 	
 	// ------------------------------------------------------------------------
