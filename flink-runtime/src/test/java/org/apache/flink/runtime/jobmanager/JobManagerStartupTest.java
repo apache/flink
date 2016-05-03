@@ -49,12 +49,9 @@ public class JobManagerStartupTest {
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
 
 	private File blobStorageDirectory;
-	private StartupUtils utils;
 
 	@Before
 	public void before() {
-		
-		utils = new StartupUtils();
 		
 		// Prepare test directory
 		blobStorageDirectory = Files.createTempDir();
@@ -98,7 +95,7 @@ public class JobManagerStartupTest {
 		}
 		catch (Exception e) {
 			// expected
-			List<Throwable> causes = utils.getExceptionCauses(e,new ArrayList<Throwable>());
+			List<Throwable> causes = StartupUtils.getExceptionCauses(e,new ArrayList<Throwable>());
 			for(Throwable cause:causes) {
 				if(cause instanceof BindException) {
 					throw (BindException) cause;

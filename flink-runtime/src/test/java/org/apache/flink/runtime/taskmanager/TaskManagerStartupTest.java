@@ -44,15 +44,6 @@ import java.util.UUID;
  */
 public class TaskManagerStartupTest {
 	
-	private StartupUtils utils;
-
-	@Before
-	public void before() {
-		
-		utils = new StartupUtils();
-		
-	}
-	
 
 	/**
 	 * Tests that the TaskManager fails synchronously when the actor system port
@@ -78,7 +69,7 @@ public class TaskManagerStartupTest {
 		}
 		catch (IOException e) {
 			// expected. validate the error messagex
-			List<Throwable> causes = utils.getExceptionCauses(e, new ArrayList<Throwable>());
+			List<Throwable> causes = StartupUtils.getExceptionCauses(e, new ArrayList<Throwable>());
 			for (Throwable cause : causes) {
 				if (cause instanceof BindException) {
 					throw (BindException) cause;

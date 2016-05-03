@@ -29,7 +29,7 @@ public class StartupUtils {
 	 * @param causes  the list of exceptions that caused the root exceptions
 	 * @return  a list of Throwable
 	 */
-	public List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes) {
+	public static List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes) {
 		if (e.getCause() == null) {
 			return causes;
 		} else {
