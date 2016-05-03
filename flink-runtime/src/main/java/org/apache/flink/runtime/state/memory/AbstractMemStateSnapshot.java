@@ -36,7 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the value in the snapshot state.
  */
-public abstract class AbstractMemStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, SD, PartitionedMemoryStateBackend<K>> {
+public abstract class AbstractMemStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, PartitionedMemoryStateBackend<K>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -76,10 +76,10 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends PartitionedSt
 		this.data = data;
 	}
 
-	public abstract KvState<K, N, S, SD, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, SV>> stateMap);
+	public abstract KvState<K, N, S, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, SV>> stateMap);
 
 	@Override
-	public KvState<K, N, S, SD, PartitionedMemoryStateBackend<K>> restoreState(
+	public KvState<K, N, S, PartitionedMemoryStateBackend<K>> restoreState(
 		PartitionedMemoryStateBackend<K> stateBackend,
 		final TypeSerializer<K> keySerializer,
 		ClassLoader classLoader, long recoveryTimestamp) throws Exception {

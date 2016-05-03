@@ -88,7 +88,7 @@ public class MemListState<K, N, V>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, ListState<V>, ListStateDescriptor<V>, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes) {
+	public KvStateSnapshot<K, N, ListState<V>, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
 	}
 
@@ -103,7 +103,7 @@ public class MemListState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ListState<V>, ListStateDescriptor<V>, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, ArrayList<V>>> stateMap) {
+		public KvState<K, N, ListState<V>, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, ArrayList<V>>> stateMap) {
 			return new MemListState<>(keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 
 /**
  * Key/Value state implementation for user-defined state. The state is backed by a state
@@ -33,10 +32,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <S> The type of {@link State} this {@code KvState} holds.
- * @param <SD> The type of the {@link StateDescriptor} for state {@code S}.
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  */
-public interface KvState<K, N, S extends PartitionedState, SD extends StateDescriptor<S, ?>, Backend extends PartitionedStateBackend> {
+public interface KvState<K, N, S extends PartitionedState, Backend extends PartitionedStateBackend> {
 
 	/**
 	 * Sets the current key, which will be used when using the state access methods.
@@ -62,7 +60,7 @@ public interface KvState<K, N, S extends PartitionedState, SD extends StateDescr
 	 * @throws Exception Exceptions during snapshotting the state should be forwarded, so the system
 	 *                   can react to failed snapshots.
 	 */
-	KvStateSnapshot<K, N, S, SD, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
+	KvStateSnapshot<K, N, S, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
 
 	/**
 	 * Disposes the key/value state, releasing all occupied resources.

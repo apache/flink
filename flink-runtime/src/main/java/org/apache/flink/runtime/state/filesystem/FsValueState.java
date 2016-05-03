@@ -108,7 +108,7 @@ public class FsValueState<K, N, V>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, ValueState<V>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
@@ -124,7 +124,7 @@ public class FsValueState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, V>> stateMap) {
+		public KvState<K, N, ValueState<V>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, V>> stateMap) {
 			return new FsValueState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

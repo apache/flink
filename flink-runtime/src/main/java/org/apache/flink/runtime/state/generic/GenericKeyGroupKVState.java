@@ -54,7 +54,7 @@ public class GenericKeyGroupKVState<K, T, N, S extends PartitionedState> {
 
 		if (state != null) {
 			// set the namespace directly at the state object
-			((KvState<K, N, S, ?, ?>) state).setCurrentNamespace(currentNamespace);
+			((KvState<K, N, S, ?>) state).setCurrentNamespace(currentNamespace);
 		} else if (currentPartitionedStateBackend != null) {
 			state = currentPartitionedStateBackend.getPartitionedState(currentNamespace, namespaceSerializer, stateDescriptor);
 		}

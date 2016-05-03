@@ -19,7 +19,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -45,10 +44,9 @@ import java.io.IOException;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <S> The type of {@link PartitionedState}.
- * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, S extends PartitionedState, SD extends StateDescriptor<S, ?>>
-		implements KvState<K, N, S, SD, PartitionedRocksDBStateBackend<K>>, State {
+public abstract class AbstractRocksDBState<K, N, S extends PartitionedState>
+		implements KvState<K, N, S, PartitionedRocksDBStateBackend<K>>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
@@ -125,7 +123,7 @@ public abstract class AbstractRocksDBState<K, N, S extends PartitionedState, SD 
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, S, SD, PartitionedRocksDBStateBackend<K>> snapshot(long checkpointId,
+	public KvStateSnapshot<K, N, S, PartitionedRocksDBStateBackend<K>> snapshot(long checkpointId,
 			long timestamp) throws Exception {
 		throw new RuntimeException("Should not be called. Backups happen in RocksDBStateBackend.");
 	}

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
@@ -31,19 +30,18 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <K> The type of the key
  * @param <N> The type of the namespace
  * @param <S> The type of the {@link State}
- * @param <SD> The type of the {@link StateDescriptor}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public abstract class AsynchronousKvStateSnapshot<K, N, S extends PartitionedState, SD extends StateDescriptor<S, ?>, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, S, SD, Backend> {
+public abstract class AsynchronousKvStateSnapshot<K, N, S extends PartitionedState, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, S, Backend> {
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Materializes the state held by this {@code AsynchronousKvStateSnapshot}.
 	 */
-	public abstract KvStateSnapshot<K, N, S, SD, Backend> materialize() throws Exception;
+	public abstract KvStateSnapshot<K, N, S, Backend> materialize() throws Exception;
 
 	@Override
-	public final KvState<K, N, S, SD, Backend> restoreState(
+	public final KvState<K, N, S, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
 		ClassLoader classLoader,

@@ -29,13 +29,13 @@ import java.util.Set;
 public class PartitionedStateSnapshot implements Serializable {
 	private static final long serialVersionUID = 7043475572141783706L;
 
-	private final Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> namedKvStateSnapshots;
+	private final Map<String, KvStateSnapshot<?, ?, ?, ?>> namedKvStateSnapshots;
 
 	public PartitionedStateSnapshot() {
 		namedKvStateSnapshots = new HashMap<>();
 	}
 
-	public KvStateSnapshot<?, ?, ?, ?, ?> get(String key) {
+	public KvStateSnapshot<?, ?, ?, ?> get(String key) {
 		return namedKvStateSnapshots.get(key);
 	}
 
@@ -43,7 +43,7 @@ public class PartitionedStateSnapshot implements Serializable {
 		return namedKvStateSnapshots.containsKey(key);
 	}
 
-	public void put(String name, KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot) {
+	public void put(String name, KvStateSnapshot<?, ?, ?, ?> kvStateSnapshot) {
 		namedKvStateSnapshots.put(name, kvStateSnapshot);
 	}
 
@@ -51,14 +51,14 @@ public class PartitionedStateSnapshot implements Serializable {
 		return namedKvStateSnapshots.keySet();
 	}
 
-	public Set<Map.Entry<String, KvStateSnapshot<?, ?, ?, ?, ?>>> entrySet() {
+	public Set<Map.Entry<String, KvStateSnapshot<?, ?, ?, ?>>> entrySet() {
 		return namedKvStateSnapshots.entrySet();
 	}
 
 	public long getStateSize() throws Exception {
 		long stateSize = 0;
 
-		for (KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot: namedKvStateSnapshots.values()) {
+		for (KvStateSnapshot<?, ?, ?, ?> kvStateSnapshot: namedKvStateSnapshots.values()) {
 			stateSize += kvStateSnapshot.getStateSize();
 		}
 
@@ -69,10 +69,10 @@ public class PartitionedStateSnapshot implements Serializable {
 
 		while (!namedKvStateSnapshots.isEmpty()) {
 			try {
-				Iterator<KvStateSnapshot<?, ?, ?, ?, ?>> iterator = namedKvStateSnapshots.values().iterator();
+				Iterator<KvStateSnapshot<?, ?, ?, ?>> iterator = namedKvStateSnapshots.values().iterator();
 
 				while (iterator.hasNext()) {
-					KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot = iterator.next();
+					KvStateSnapshot<?, ?, ?, ?> kvStateSnapshot = iterator.next();
 					kvStateSnapshot.discardState();
 					iterator.remove();
 				}
@@ -82,12 +82,12 @@ public class PartitionedStateSnapshot implements Serializable {
 		}
 
 
-		for (KvStateSnapshot<?, ?, ?, ?, ?> kvStateSnapshot : namedKvStateSnapshots.values()) {
+		for (KvStateSnapshot<?, ?, ?, ?> kvStateSnapshot : namedKvStateSnapshots.values()) {
 			kvStateSnapshot.discardState();
 		}
 	}
 
-	public Collection<KvStateSnapshot<?, ?, ?, ?, ?>> values() {
+	public Collection<KvStateSnapshot<?, ?, ?, ?>> values() {
 		return namedKvStateSnapshots.values();
 	}
 }

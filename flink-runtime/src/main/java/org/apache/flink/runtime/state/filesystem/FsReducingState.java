@@ -126,7 +126,7 @@ public class FsReducingState<K, N, V>
 		}
 	}
 	@Override
-	public KvStateSnapshot<K, N, ReducingState<V>, ReducingStateDescriptor<V>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, ReducingState<V>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
@@ -142,7 +142,7 @@ public class FsReducingState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, V>> stateMap) {
+		public KvState<K, N, ReducingState<V>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, V>> stateMap) {
 			return new FsReducingState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

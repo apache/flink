@@ -49,7 +49,7 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N, ListState<V>>
 	implements ListState<V> {
 
 	/** Serializer for the values */

@@ -102,7 +102,7 @@ public class MemReducingState<K, N, V>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, ReducingState<V>, ReducingStateDescriptor<V>, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes) {
+	public KvStateSnapshot<K, N, ReducingState<V>, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
 	}
 
@@ -117,7 +117,7 @@ public class MemReducingState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, V>> stateMap) {
+		public KvState<K, N, ReducingState<V>, PartitionedMemoryStateBackend<K>> createMemState(HashMap<N, Map<K, V>> stateMap) {
 			return new MemReducingState<>(keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}}

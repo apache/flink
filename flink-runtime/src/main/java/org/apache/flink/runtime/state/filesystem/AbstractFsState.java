@@ -66,10 +66,10 @@ public abstract class AbstractFsState<K, N, SV, S extends PartitionedState, SD e
 		this.backend = backend;
 	}
 
-	public abstract KvStateSnapshot<K, N, S, SD, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath);
+	public abstract KvStateSnapshot<K, N, S, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath);
 
 	@Override
-	public KvStateSnapshot<K, N, S, SD, PartitionedFsStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
+	public KvStateSnapshot<K, N, S, PartitionedFsStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
 
 		try (FsStateBackend.FsCheckpointStateOutputStream out = backend.getFsStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp)) {
 

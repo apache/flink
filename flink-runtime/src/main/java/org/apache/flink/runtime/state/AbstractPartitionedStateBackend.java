@@ -52,10 +52,10 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	protected KEY currentKey;
 
 	/** For efficient access in setCurrentKey() */
-	private KvState<KEY, ?, ?, ?, ?>[] keyValueStates;
+	private KvState<KEY, ?, ?, ?>[] keyValueStates;
 
 	/** So that we can give out state when the user uses the same key. */
-	protected HashMap<String, KvState<KEY, ?, ?, ?, ?>> keyValueStatesByName;
+	protected HashMap<String, KvState<KEY, ?, ?, ?>> keyValueStatesByName;
 
 	/** For caching the last accessed partitioned state */
 	private String lastName;
@@ -81,7 +81,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 
 	public void close() throws Exception {
 		if (keyValueStates != null) {
-			for (KvState<?, ?, ?, ?, ?> state : keyValueStates) {
+			for (KvState<?, ?, ?, ?> state : keyValueStates) {
 				state.dispose();
 			}
 		}
@@ -202,7 +202,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 			return (S) lastState;
 		}
 
-		KvState<?, ?, ?, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
+		KvState<?, ?, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
 		if (previous != null) {
 			lastState = previous;
 			lastState.setCurrentNamespace(namespace);
@@ -238,7 +238,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
 
 		lastName = stateDescriptor.getName();
-		lastState = (KvState<?, ?, ?, ?, ?>) kvstate;
+		lastState = (KvState<?, ?, ?, ?>) kvstate;
 
 		((KvState) kvstate).setCurrentKey(currentKey);
 		((KvState) kvstate).setCurrentNamespace(namespace);
@@ -298,8 +298,8 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 		if (keyValueStates != null) {
 			PartitionedStateSnapshot partitionedStateSnapshot = new PartitionedStateSnapshot();
 
-			for (Map.Entry<String, KvState<KEY, ?, ?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
-				KvStateSnapshot<KEY, ?, ?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
+			for (Map.Entry<String, KvState<KEY, ?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
+				KvStateSnapshot<KEY, ?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
 				partitionedStateSnapshot.put(entry.getKey(), snapshot);
 			}
 
@@ -312,7 +312,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	public void notifyCompletedCheckpoint(long checkpointId) throws Exception {
 		// We check whether the KvStates require notifications
 		if (keyValueStates != null) {
-			for (KvState<?, ?, ?, ?, ?> kvstate : keyValueStates) {
+			for (KvState<?, ?, ?, ?> kvstate : keyValueStates) {
 				if (kvstate instanceof CheckpointListener) {
 					((CheckpointListener) kvstate).notifyCheckpointComplete(checkpointId);
 				}
@@ -330,7 +330,7 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 			keyValueStatesByName = new HashMap<>();
 		}
 
-		for (Map.Entry<String, KvStateSnapshot<?, ?, ?, ?, ?>> state: partitionedStateSnapshot.entrySet()) {
+		for (Map.Entry<String, KvStateSnapshot<?, ?, ?, ?>> state: partitionedStateSnapshot.entrySet()) {
 			KvState kvState = ((KvStateSnapshot)state.getValue()).restoreState(this,
 				keySerializer,
 				classLoader,
