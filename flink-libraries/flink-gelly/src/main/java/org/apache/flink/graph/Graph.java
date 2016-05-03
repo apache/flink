@@ -18,20 +18,13 @@
 
 package org.apache.flink.graph;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.List;
-import java.util.Arrays;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -46,6 +39,9 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexInDegree;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexOutDegree;
+import org.apache.flink.graph.asm.translate.Translate;
 import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.TranslateVertexValues;
@@ -67,8 +63,16 @@ import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.graph.validation.GraphValidator;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Represents a Graph consisting of {@link Edge edges} and {@link Vertex
@@ -867,27 +871,20 @@ public class Graph<K, VV, EV> {
 	 * @return A DataSet of {@code Tuple2<vertexId, outDegree>}
 	 */
 	public DataSet<Tuple2<K, Long>> outDegrees() {
-
-		return vertices.coGroup(edges).where(0).equalTo(0).with(new CountNeighborsCoGroup<K, VV, EV>());
+		try {
+			return Translate.translateVertexValues(
+					run(new VertexOutDegree<K, VV, EV>().setIncludeZeroDegreeVertices(true)),
+					new LongValueToLong())
+				.map(new VertexToTuple2Map<K, Long>());
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	private static final class CountNeighborsCoGroup<K, VV, EV>
-			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Long>> {
-		@SuppressWarnings("unused")
-		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
-				Collector<Tuple2<K, Long>> out) {
-			long count = 0;
-			for (Edge<K, EV> edge : outEdges) {
-				count++;
-			}
-
-			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
-
-			if(vertexIterator.hasNext()) {
-				out.collect(new Tuple2<K, Long>(vertexIterator.next().f0, count));
-			} else {
-				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
-			}
+	private static final class LongValueToLong implements MapFunction<LongValue, Long> {
+		@Override
+		public Long map(LongValue value) throws Exception {
+			return value.getValue();
 		}
 	}
 
@@ -897,8 +894,14 @@ public class Graph<K, VV, EV> {
 	 * @return A DataSet of {@code Tuple2<vertexId, inDegree>}
 	 */
 	public DataSet<Tuple2<K, Long>> inDegrees() {
-
-		return vertices.coGroup(edges).where(0).equalTo(1).with(new CountNeighborsCoGroup<K, VV, EV>());
+		try {
+			return Translate.translateVertexValues(
+					run(new VertexInDegree<K, VV, EV>().setIncludeZeroDegreeVertices(true)),
+					new LongValueToLong())
+				.map(new VertexToTuple2Map<K, Long>());
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
