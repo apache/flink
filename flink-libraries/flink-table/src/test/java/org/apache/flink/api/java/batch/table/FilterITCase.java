@@ -161,10 +161,9 @@ public class FilterITCase extends TableProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
 
-		Table result = table
+		table
 			// Must fail. Field foo does not exist.
 			.filter("foo = 17");
-		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 }

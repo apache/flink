@@ -111,10 +111,9 @@ public class SelectITCase extends TableProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table result = tableEnv.fromDataSet(ds, "a, b, c")
+		tableEnv.fromDataSet(ds, "a, b, c")
 			// Must fail. Field foo does not exist
 			.select("a + 1, foo + 2");
-		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test(expected = ValidationException.class)

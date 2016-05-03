@@ -24,7 +24,6 @@ import org.apache.calcite.rel.RelNode
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
@@ -60,21 +59,15 @@ import org.apache.flink.api.table.validate.ValidationException
   * syntax.
   *
   * @param tableEnv The [[TableEnvironment]] to which the table is bound.
-  * @param planPreparation
+  * @param logicalPlan
   */
 class Table(
     private[flink] val tableEnv: TableEnvironment,
-    private[flink] val planPreparation: PlanPreparation) {
-
-  def this(tableEnv: TableEnvironment, logicalPlan: LogicalNode) = {
-    this(tableEnv, new PlanPreparation(tableEnv, logicalPlan))
-  }
+    private[flink] val logicalPlan: LogicalNode) {
 
   def relBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = planPreparation.relNode
-
-  def logicalPlan: LogicalNode = planPreparation.resolvedPlan
+  def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder).build()
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -86,13 +79,13 @@ class Table(
     *   tab.select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
-  def select(fields: Expression*): Table = withPlan {
+  def select(fields: Expression*): Table = validate {
     checkUniqueNames(fields)
     val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
     val aggregations = projectionOnAggregates.flatMap(_._2)
     if (aggregations.nonEmpty) {
       Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-        Aggregate(Nil, aggregations, logicalPlan)
+        Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)
       )
     } else {
       Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan)
@@ -124,7 +117,7 @@ class Table(
     *   tab.as('a, 'b)
     * }}}
     */
-  def as(fields: Expression*): Table = withPlan {
+  def as(fields: Expression*): Table = validate {
     AliasNode(fields, logicalPlan)
   }
 
@@ -153,7 +146,7 @@ class Table(
     *   tab.filter('name === "Fred")
     * }}}
     */
-  def filter(predicate: Expression): Table = withPlan {
+  def filter(predicate: Expression): Table = validate {
     Filter(predicate, logicalPlan)
   }
 
@@ -211,6 +204,9 @@ class Table(
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new ValidationException(s"Group by on stream tables is currently not supported.")
+    }
     new GroupedTable(this, fields)
   }
 
@@ -238,7 +234,7 @@ class Table(
     *   tab.select("key, value").distinct()
     * }}}
     */
-  def distinct(): Table = withPlan {
+  def distinct(): Table = validate {
     Distinct(logicalPlan)
   }
 
@@ -255,7 +251,7 @@ class Table(
     *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
     * }}}
     */
-  def join(right: Table): Table = withPlan {
+  def join(right: Table): Table = validate {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
@@ -275,7 +271,7 @@ class Table(
     *   left.unionAll(right)
     * }}}
     */
-  def unionAll(right: Table): Table = withPlan {
+  def unionAll(right: Table): Table = validate {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
@@ -293,7 +289,7 @@ class Table(
     *   tab.orderBy('name.desc)
     * }}}
     */
-  def orderBy(fields: Expression*): Table = withPlan {
+  def orderBy(fields: Expression*): Table = validate {
     val order: Seq[Ordering] = fields.map { case e =>
       e match {
         case o: Ordering => o
@@ -365,8 +361,8 @@ class Table(
     }
   }
 
-  @inline protected def withPlan(logicalNode: => LogicalNode): Table = {
-    new Table(tableEnv, logicalNode)
+  @inline protected def validate(logicalNode: => LogicalNode): Table = {
+    new Table(tableEnv, logicalNode.validate(tableEnv))
   }
 }
 
@@ -394,14 +390,14 @@ class GroupedTable(
 
     val logical = if (aggregations.nonEmpty) {
       Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-        Aggregate(groupKey, aggregations, table.logicalPlan)
+        Aggregate(groupKey, aggregations, table.logicalPlan).validate(table.tableEnv)
       )
     } else {
       Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-        Aggregate(groupKey, Nil, table.logicalPlan))
+        Aggregate(groupKey, Nil, table.logicalPlan).validate(table.tableEnv))
     }
 
-    new Table(table.tableEnv, logical)
+    new Table(table.tableEnv, logical.validate(table.tableEnv))
   }
 
   /**

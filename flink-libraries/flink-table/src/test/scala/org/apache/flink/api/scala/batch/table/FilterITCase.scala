@@ -183,7 +183,7 @@ class FilterITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     // must fail. Field 'foo does not exist
-    ds.filter( 'foo === 2 ).collect()
+    ds.filter( 'foo === 2 )
   }
 
 }

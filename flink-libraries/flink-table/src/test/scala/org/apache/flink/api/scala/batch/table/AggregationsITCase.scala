@@ -58,7 +58,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       // Must fail. Field 'foo does not exist.
       .select('foo.avg)
-    t.collect()
   }
 
   @Test
@@ -160,7 +159,6 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = env.fromElements(("Hello", 1)).toTable(tEnv)
       // Must fail. Sum aggregation can not be chained.
       .select('_2.sum.sum)
-    t.collect()
   }
 
   @Test

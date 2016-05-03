@@ -25,7 +25,6 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
@@ -133,7 +132,7 @@ abstract class StreamTableEnvironment(
     // transform to a relational tree
     val relational = planner.rel(validated)
 
-    new Table(this, new PlanPreparation(this, LogicalRelNode(relational.rel)))
+    new Table(this, LogicalRelNode(relational.rel))
   }
 
   /**

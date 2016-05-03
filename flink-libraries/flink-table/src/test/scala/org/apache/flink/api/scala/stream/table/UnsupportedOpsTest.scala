@@ -18,24 +18,24 @@
 
 package org.apache.flink.api.scala.stream.table
 
-import jdk.nashorn.internal.ir.annotations.Ignore
 import org.apache.flink.api.scala.stream.utils.StreamTestData
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{TableEnvironment, TableException}
+import org.apache.flink.api.table.validate.ValidationException
+import org.apache.flink.api.table.TableEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
 
 class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
 
-  @Ignore//(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testSelectWithAggregation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1.min)
   }
 
-  @Ignore//(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testGroupBy(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -43,14 +43,14 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
       .groupBy('_1)
   }
 
-  @Ignore//(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDistinct(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).distinct()
   }
 
-  @Ignore//(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

@@ -20,7 +20,7 @@ package org.apache.flink.api.table.validate
 /**
   * Represents the result of `Expression.validateInput`.
   *
-  * Note: the idea for expr validation mainly comes from Apache Spark
+  * Note: this is adapted from Apache Spark's TypeCheckResult.
   */
 trait ExprValidationResult {
   def isFailure: Boolean = !isSuccess

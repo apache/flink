@@ -27,7 +27,7 @@ import org.apache.flink.api.table.validate.FunctionCatalog.FunctionBuilder
 /**
   * A catalog for looking up user defined functions, used by an Analyzer.
   *
-  * Note: this is adapted from Spark's FunctionRegistry.
+  * Note: this is adapted from Apache Spark's FunctionRegistry.
   */
 trait FunctionCatalog {
 

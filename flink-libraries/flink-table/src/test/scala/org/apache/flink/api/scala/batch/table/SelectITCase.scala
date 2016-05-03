@@ -112,7 +112,7 @@ class SelectITCase(
 
     CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. Field 'foo does not exist
-      .select('a, 'foo).collect()
+      .select('a, 'foo)
   }
 
   @Test(expected = classOf[ValidationException])

@@ -134,8 +134,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
 		// Must fail. Field foo does not exist.
-		Table reuslt = in1.join(in2).where("foo === e").select("c, g");
-		tableEnv.toDataSet(reuslt, Row.class).collect();
+		in1.join(in2).where("foo === e").select("c, g");
 	}
 
 	@Test(expected = ValidationException.class)
@@ -168,8 +167,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, c");
 
 		// Must fail. Join input have overlapping field names.
-		Table result = in1.join(in2).where("a === d").select("c, g");
-		tableEnv.toDataSet(result, Row.class).collect();
+		in1.join(in2).where("a === d").select("c, g");
 	}
 
 	@Test

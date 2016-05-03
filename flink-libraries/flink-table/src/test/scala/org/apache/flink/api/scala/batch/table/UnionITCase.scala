@@ -100,7 +100,7 @@ class UnionITCase(
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     // must fail. Union inputs have different field names.
-    ds1.unionAll(ds2).collect()
+    ds1.unionAll(ds2)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -113,7 +113,7 @@ class UnionITCase(
       .select('a, 'b, 'c)
 
     // must fail. Union inputs have different field types.
-    ds1.unionAll(ds2).collect()
+    ds1.unionAll(ds2)
   }
 
   @Test
@@ -170,6 +170,6 @@ class UnionITCase(
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
 
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.unionAll(ds2).select('c).collect()
+    ds1.unionAll(ds2).select('c)
   }
 }

@@ -43,7 +43,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       // must fail. '_foo not a valid field
       .groupBy('_foo)
-      .select('a.avg).collect()
+      .select('a.avg)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -55,7 +55,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('a, 'b)
       // must fail. 'c is not a grouping key or aggregation
-      .select('c).collect()
+      .select('c)
   }
 
   @Test

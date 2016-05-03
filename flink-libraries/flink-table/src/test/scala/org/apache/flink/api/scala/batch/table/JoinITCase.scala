@@ -109,7 +109,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     ds1.join(ds2)
       // must fail. Field 'foo does not exist
       .where('foo === 'e)
-      .select('c, 'g).collect()
+      .select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -137,7 +137,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     ds1.join(ds2)
       // must fail. Both inputs share the same field 'c
       .where('a === 'd)
-      .select('c, 'g).collect()
+      .select('c, 'g)
   }
 
   @Test(expected = classOf[TableException])
@@ -269,7 +269,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv2, 'd, 'e, 'f, 'g, 'h)
 
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.join(ds2).where('b === 'e).select('c, 'g).collect()
+    ds1.join(ds2).where('b === 'e).select('c, 'g)
   }
 
 }

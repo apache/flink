@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.TableEnvironment.PlanPreparation
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
@@ -134,7 +133,7 @@ abstract class BatchTableEnvironment(
     // transform to a relational tree
     val relational = planner.rel(validated)
 
-    new Table(this, new PlanPreparation(this, LogicalRelNode(relational.rel)))
+    new Table(this, LogicalRelNode(relational.rel))
   }
 
   /**

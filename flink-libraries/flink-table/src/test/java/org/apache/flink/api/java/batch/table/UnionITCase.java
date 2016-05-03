@@ -92,8 +92,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
 		// Must fail. Number of fields of union inputs do not match
-		Table result = in1.unionAll(in2);
-		tableEnv.toDataSet(result, Row.class).collect();
+		in1.unionAll(in2);
 	}
 
 	@Test(expected = ValidationException.class)
@@ -108,8 +107,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d");
 
 		// Must fail. Field names of union inputs do not match
-		Table result = in1.unionAll(in2);
-		tableEnv.toDataSet(result, Row.class).collect();
+		in1.unionAll(in2);
 	}
 
 	@Test(expected = ValidationException.class)
@@ -124,8 +122,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e").select("a, b, c");
 
 		// Must fail. Field types of union inputs do not match
-		Table result = in1.unionAll(in2);
-		tableEnv.toDataSet(result, Row.class).collect();
+		in1.unionAll(in2);
 	}
 
 	@Test

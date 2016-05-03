@@ -48,12 +48,11 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table result = tableEnv
+		tableEnv
 			.fromDataSet(input, "a, b, c")
 			// must fail. Field foo is not in input
 			.groupBy("foo")
 			.select("a.avg");
-		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test(expected = ValidationException.class)
@@ -63,12 +62,11 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table result = tableEnv
+		tableEnv
 			.fromDataSet(input, "a, b, c")
 			.groupBy("a, b")
 			// must fail. Field c is not a grouping key or aggregation
 			.select("c");
-		tableEnv.toDataSet(result, Row.class).collect();
 	}
 
 	@Test

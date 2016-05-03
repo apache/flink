@@ -21,6 +21,8 @@ import org.apache.commons.lang.ClassUtils
 
 /**
  * Generic base class for trees that can be transformed and traversed.
+ *
+ * Note: this is adapted from Apache Spark's TreeNode.
  */
 abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
 

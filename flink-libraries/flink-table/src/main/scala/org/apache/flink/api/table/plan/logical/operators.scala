@@ -26,8 +26,9 @@ import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.schema.{Table => CTable}
 import org.apache.calcite.tools.RelBuilder
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.table.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeutils.TypeConverter
 import org.apache.flink.api.table.validate.ValidationException
@@ -35,15 +36,25 @@ import org.apache.flink.api.table.validate.ValidationException
 case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
-  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
-    def allAlias: Boolean = {
-      projectList.forall { proj =>
-        proj match {
-          case Alias(r: ResolvedFieldReference, name) => true
-          case _ => false
+  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
+    val afterResolve = super.resolveExpressions(tableEnv).asInstanceOf[Project]
+    val newProjectList =
+      afterResolve.projectList.zipWithIndex.map { case (e, i) =>
+        e match {
+          case u @ UnresolvedAlias(child, optionalAliasName) => child match {
+            case ne: NamedExpression => ne
+            case e if !e.valid => u
+            case c @ Cast(ne: NamedExpression, _) => Alias(c, ne.name)
+            case other => Alias(other, optionalAliasName.getOrElse(s"_c$i"))
+          }
+          case _ => throw new IllegalArgumentException
         }
-      }
     }
+    Project(newProjectList, child)
+  }
+
+  override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
+    val allAlias = projectList.forall(_.isInstanceOf[Alias])
     child.toRelNode(relBuilder)
     if (allAlias) {
       // Calcite's RelBuilder does not translate identity projects even if they rename fields.
@@ -65,7 +76,19 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
   override def toRelNode(relBuilder: RelBuilder): RelBuilder =
     throw new UnresolvedException("Invalid call to toRelNode on AliasNode")
 
-  override lazy val resolved: Boolean = false
+  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
+    if (aliasList.length > child.output.length) {
+      failValidation("Aliasing more fields than we actually have")
+    } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
+      failValidation("`as` only allow string arguments")
+    } else {
+      val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
+      val input = child.output
+      Project(
+        names.zip(input).map { case (name, attr) =>
+          Alias(attr, name)} ++ input.drop(names.length), child)
+    }
+  }
 }
 
 case class Distinct(child: LogicalNode) extends UnaryNode {
@@ -74,6 +97,13 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
   override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
     child.toRelNode(relBuilder)
     relBuilder.distinct()
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Distinct on stream tables is currently not supported.")
+    }
+    this
   }
 }
 
@@ -92,6 +122,15 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
   override def toRelNode(relBuilder: RelBuilder): RelBuilder = {
     child.toRelNode(relBuilder)
     relBuilder.filter(condition.toRexNode(relBuilder))
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
+    if (resolvedFilter.condition.dataType != BOOLEAN_TYPE_INFO) {
+      failValidation(s"filter expression ${resolvedFilter.condition} of" +
+        s" ${resolvedFilter.condition.dataType} is not a boolean")
+    }
+    resolvedFilter
   }
 }
 
@@ -120,6 +159,47 @@ case class Aggregate(
         }
       }.asJava)
   }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Aggregate on stream tables is currently not supported.")
+    }
+
+    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
+    val groupingExprs = resolvedAggregate.groupingExpressions
+    val aggregateExprs = resolvedAggregate.aggregateExpressions
+    aggregateExprs.foreach(validateAggregateExpression)
+    groupingExprs.foreach(validateGroupingExpression)
+
+    def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check no nested aggregation exists.
+      case aggExpr: Aggregation =>
+        aggExpr.children.foreach { child =>
+          child.foreach {
+            case agg: Aggregation =>
+              failValidation(
+                "It's not allowed to use an aggregate function as " +
+                  "input of another aggregate function")
+            case _ => // OK
+          }
+        }
+      case a: Attribute if !groupingExprs.exists(_.semanticEquals(a)) =>
+        failValidation(
+          s"expression '$a' is invalid because it is neither" +
+            " present in group by nor an aggregate function")
+      case e if groupingExprs.exists(_.semanticEquals(e)) => // OK
+      case e => e.children.foreach(validateAggregateExpression)
+    }
+
+    def validateGroupingExpression(expr: Expression): Unit = {
+      if (!expr.dataType.isKeyType) {
+        failValidation(
+          s"expression $expr cannot be used as a grouping expression " +
+            "because it's not a valid key type")
+      }
+    }
+    resolvedAggregate
+  }
 }
 
 case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
@@ -131,11 +211,20 @@ case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
     relBuilder.union(true)
   }
 
-  override lazy val resolved: Boolean = {
-    childrenResolved &&
-      left.output.length == right.output.length &&
-      left.output.zip(right.output).forall { case (l, r) =>
-        l.dataType == r.dataType && l.name == r.name }
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    val resolvedUnion = super.validate(tableEnv).asInstanceOf[Union]
+    if (left.output.length != right.output.length) {
+      failValidation(s"Union two table of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
+    }
+    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
+      l.dataType == r.dataType && l.name == r.name }
+    if (!sameSchema) {
+      failValidation(s"Union two table of different schema:" +
+        s" [${left.output.map(a => (a.name, a.dataType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.dataType)).mkString(", ")}]")
+    }
+    resolvedUnion
   }
 }
 
@@ -164,14 +253,21 @@ case class Join(
     }
   }
 
-  def noAmbiguousName: Boolean =
-    left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet).isEmpty
+  private def ambiguousName: Set[String] =
+    left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet)
 
-  // Joins are only resolved if they don't introduce ambiguous names.
-  override lazy val resolved: Boolean = {
-    childrenResolved &&
-      noAmbiguousName &&
-      condition.forall(_.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO)
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Join on stream tables is currently not supported.")
+    }
+
+    val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
+    if (!resolvedJoin.condition.forall(_.dataType == BOOLEAN_TYPE_INFO)) {
+      failValidation(s"filter expression ${resolvedJoin.condition} is not a boolean")
+    } else if (!ambiguousName.isEmpty) {
+      failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
+    }
+    resolvedJoin
   }
 }
 
@@ -191,7 +287,7 @@ case class CatalogNode(
     relBuilder.scan(tableName)
   }
 
-  override lazy val resolved: Boolean = true
+  override def validate(tableEnv: TableEnvironment): LogicalNode = this
 }
 
 /**
@@ -209,5 +305,5 @@ case class LogicalRelNode(
     relBuilder.push(relNode)
   }
 
-  override lazy val resolved: Boolean = true
+  override def validate(tableEnv: TableEnvironment): LogicalNode = this
 }

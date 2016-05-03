@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.schema.{SchemaPlus, Table => CTable}
 import org.apache.calcite.schema.impl.AbstractTable
@@ -40,10 +39,9 @@ import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.plan.logical.LogicalNode
-import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
 import org.apache.flink.api.table.sinks.TableSink
-import org.apache.flink.api.table.validate.{FunctionCatalog, ValidationException, Validator}
+import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
+import org.apache.flink.api.table.validate.{FunctionCatalog, ValidationException}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -85,7 +83,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
 
-  private val validator: Validator = new Validator(FunctionCatalog.builtin)
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.builtin
 
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -218,8 +216,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     typeFactory
   }
 
-  private[flink] def getValidator: Validator = {
-    validator
+  private[flink] def getFunctionCatalog: FunctionCatalog = {
+    functionCatalog
   }
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
@@ -413,22 +411,5 @@ object TableEnvironment {
     tableConfig: TableConfig): ScalaStreamTableEnv = {
 
     new ScalaStreamTableEnv(executionEnvironment, tableConfig)
-  }
-
-  /**
-    * The primary workflow for executing plan validation for that generated from Table API.
-    * The validation is intentionally designed as a lazy procedure and triggered when we
-    * are going to run on Flink core.
-    */
-  class PlanPreparation(val env: TableEnvironment, val logical: LogicalNode) {
-
-    lazy val resolvedPlan: LogicalNode = env.getValidator.resolve(logical)
-
-    def validate(): Unit = env.getValidator.validate(resolvedPlan)
-
-    lazy val relNode: RelNode = {
-      validate()
-      resolvedPlan.toRelNode(env.getRelBuilder).build()
-    }
   }
 }
