@@ -223,8 +223,16 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	@Override
 	public final void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception {
-		restorePartitionedState(state.getPartitionedState(), recoveryTimestamp);
-		restoreNonPartitionedState(state.getNonPartitionedState(), recoveryTimestamp);
+		StreamOperatorPartitionedState partitionedState = state.getPartitionedState();
+		StreamOperatorNonPartitionedState nonPartitionedState = state.getNonPartitionedState();
+
+		if (partitionedState != null) {
+			restorePartitionedState(partitionedState, recoveryTimestamp);
+		}
+
+		if (nonPartitionedState != null) {
+			restoreNonPartitionedState(nonPartitionedState, recoveryTimestamp);
+		}
 	}
 
 	protected void restoreNonPartitionedState(StreamOperatorNonPartitionedState nonPartitionedState, long recoveryTimestamp) throws Exception {}
@@ -232,7 +240,7 @@ public abstract class AbstractStreamOperator<OUT>
 	protected void restorePartitionedState(StreamOperatorPartitionedState partitionedState, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
-		if (keyGroupStateBackend != null && partitionedState.getPartitionedStateSnapshots() != null) {
+		if (keyGroupStateBackend != null) {
 			keyGroupStateBackend.restorePartitionedState(partitionedState.getPartitionedStateSnapshots(), recoveryTimestamp);
 		}
 	}

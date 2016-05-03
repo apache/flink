@@ -217,7 +217,7 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	private volatile Map<Integer, SerializedValue<StateHandle<?>>> operatorKvStates;
+	private volatile Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates;
 
 	private volatile long recoveryTs;
 
@@ -254,7 +254,7 @@ public class Task implements Runnable {
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
-		this.operatorKvStates = null;
+		this.keyGroupStates = tdd.getKeyGroupState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
 		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
 
@@ -531,18 +531,18 @@ public class Task implements Runnable {
 			// of a task that failed but had backuped state from a checkpoint
 
 			// get our private reference onto the stack (be safe against concurrent changes)
-			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
-			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvStates = this.operatorKvStates;
+			SerializedValue<StateHandle<?>> nonPartitionedState = this.operatorState;
+			Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates = this.keyGroupStates;
 			long recoveryTs = this.recoveryTs;
 
-			if (operatorState != null) {
+			if (nonPartitionedState != null) {
 				if (invokable instanceof StatefulTask) {
 					try {
-						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
+						StateHandle<?> state = nonPartitionedState.deserializeValue(userCodeClassLoader);
 
 						Map<Integer, StateHandle<?>> keyGroupState = new HashMap<>();
 
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState: operatorKvStates.entrySet()) {
+						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState: keyGroupStates.entrySet()) {
 							keyGroupState.put(operatorKvState.getKey(), operatorKvState.getValue().deserializeValue(userCodeClassLoader));
 						}
 
@@ -561,7 +561,7 @@ public class Task implements Runnable {
 			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
 			// we clear the reference to the state handle
 			//noinspection UnusedAssignment
-			operatorState = null;
+			nonPartitionedState = null;
 			this.operatorState = null;
 
 			// ----------------------------------------------------------------

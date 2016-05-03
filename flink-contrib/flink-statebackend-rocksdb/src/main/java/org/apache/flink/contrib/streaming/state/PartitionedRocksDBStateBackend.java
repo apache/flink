@@ -242,7 +242,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	}
 
 	private String getCheckpointPath(String stateName) {
-		return checkpointDirectory + "/" + jobId.toString() + "/" + operatorIdentifier + "/" + stateName;
+		return checkpointDirectory + "/" + jobId.toString() + "/" + operatorIdentifier + "/" + UUID.randomUUID().toString() + "/" + stateName;
 	}
 
 	private File getNextStoragePath() {
@@ -284,7 +284,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	private PartitionedStateSnapshot performSemiAsyncSnapshot(long checkpointId, long timestamp) throws Exception {
 		// We don't snapshot individual k/v states since everything is stored in a central
 		// RocksDB data base. Create a dummy KvStateSnapshot that holds the information about
-		// that checkpoint. We use the in injectKeyValueStateSnapshots to restore.
+		// that checkpoint. We use the in restorePartitionedState to restore.
 
 		final File localBackupPath = new File(instanceBasePath, "local-chk-" + checkpointId);
 		final URI backupUri = new URI(instanceCheckpointPath + "/chk-" + checkpointId);

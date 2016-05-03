@@ -29,7 +29,6 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -51,6 +50,7 @@ public class CustomInputSplitProgram {
 		RemoteEnvironment env = new RemoteEnvironment(host, port, null, jarFile, classpath);
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
+		env.getConfig().setMaxParallelism(parallelism + 5);
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
 

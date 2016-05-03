@@ -38,7 +38,7 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	
 	private final SerializedValue<StateHandle<?>> state;
 
-	private final Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates;
+	private final Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState;
 
 	/**
 	 * The state size. This is an optimization in order to not deserialize the
@@ -56,12 +56,12 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		ExecutionAttemptID taskExecutionId,
 		long checkpointId,
 		SerializedValue<StateHandle<?>> state,
-		Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates,
+		Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState,
 		long stateSize) {
 
 		super(job, taskExecutionId, checkpointId);
 		this.state = state;
-		this.keyGroupStates = keyGroupStates;
+		this.keyGroupState = keyGroupState;
 		this.stateSize = stateSize;
 	}
 
@@ -69,8 +69,8 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		return state;
 	}
 
-	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupStates() {
-		return keyGroupStates;
+	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupState() {
+		return keyGroupState;
 	}
 
 	public long getStateSize() {

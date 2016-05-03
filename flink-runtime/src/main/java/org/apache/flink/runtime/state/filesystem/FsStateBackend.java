@@ -398,9 +398,11 @@ public class FsStateBackend extends AbstractStateBackend {
 		private boolean closed;
 
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
+			Path basePath,
+			FileSystem fs,
+			int bufferSize,
+			int localStateThreshold) {
+
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}

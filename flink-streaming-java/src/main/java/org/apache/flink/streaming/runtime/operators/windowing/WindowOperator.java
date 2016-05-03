@@ -715,6 +715,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	@Override
 	public void restoreNonPartitionedState(StreamOperatorNonPartitionedState taskState, long recoveryTimestamp) throws Exception {
+		super.restoreNonPartitionedState(taskState, recoveryTimestamp);
+
 		final ClassLoader userClassloader = getUserCodeClassloader();
 
 		@SuppressWarnings("unchecked")

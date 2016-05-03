@@ -766,6 +766,7 @@ public class SavepointITCase extends TestLogger {
 			env.enableCheckpointing(checkpointingInterval);
 			env.setNumberOfExecutionRetries(numExecutionRetries);
 			env.getConfig().setExecutionRetryDelay(retryDelay);
+			env.getConfig().setMaxParallelism(10);
 
 			DataStream<Integer> stream = env
 					.addSource(new RestoreStateCountingAndFailingSource());
@@ -876,6 +877,7 @@ public class SavepointITCase extends TestLogger {
 		env.disableOperatorChaining();
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
 		env.getConfig().disableSysoutLogging();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Integer> stream = env
 				.addSource(new InfiniteTestSource())

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Hash based key group assigner
@@ -34,6 +35,9 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 	private final int numberKeyGroups;
 
 	public HashKeyGroupAssigner(int numberKeyGroups) {
+		Preconditions.checkArgument(numberKeyGroups > 0, "The number of key groups has to be " +
+			"greater than 0. Use env.getConfig.setMaxParallelism() to specify the number of key " +
+			"groups.");
 		this.numberKeyGroups = numberKeyGroups;
 	}
 

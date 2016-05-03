@@ -111,6 +111,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
+			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
@@ -169,6 +170,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
+			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
@@ -227,6 +229,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
+			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
@@ -275,6 +278,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
+			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))

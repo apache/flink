@@ -439,6 +439,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				final StreamOperatorNonPartitionedState[] nonPartitionedStates = lazyRestoreState.getState(userClassLoader);
 				final List<Map<Integer, PartitionedStateSnapshot>> keyGroupStates = new ArrayList<Map<Integer, PartitionedStateSnapshot>>(allOperators.length);
 
+				for (int i = 0; i < allOperators.length; i++) {
+					keyGroupStates.add(new HashMap<Integer, PartitionedStateSnapshot>());
+				}
+
 				// be GC friendly
 				lazyRestoreState = null;
 
@@ -450,15 +454,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 					for (Map.Entry<Integer, PartitionedStateSnapshot> chainedKeyGroupState: chainedKeyGroupStates.entrySet()) {
 						int chainedIndex = chainedKeyGroupState.getKey();
+
 						Map<Integer, PartitionedStateSnapshot> keyGroupState;
 
-						if (keyGroupStates.get(chainedIndex) == null) {
-							keyGroupState = new HashMap<>();
-							keyGroupStates.set(chainedIndex, keyGroupState);
-						} else {
-							keyGroupState = keyGroupStates.get(chainedIndex);
-						}
-
+						keyGroupState = keyGroupStates.get(chainedIndex);
 						keyGroupState.put(keyGroupId, chainedKeyGroupState.getValue());
 					}
 				}
@@ -517,7 +516,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 				boolean hasAsyncStates = false;
 
-				for (int i = 0; i < nonPartitionedStates.length; i++) {
+				for (int i = 0; i < allOperators.length; i++) {
 					StreamOperator<?> operator = allOperators[i];
 					if (operator != null) {
 						StreamOperatorState state = operator.snapshotOperatorState(checkpointId, timestamp);
