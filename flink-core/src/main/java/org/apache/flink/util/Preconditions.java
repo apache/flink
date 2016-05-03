@@ -219,7 +219,7 @@ public final class Preconditions {
 	}
 
 	/**
-	 * Ensures that the given index is valid for an array, list or string of size size.
+	 * Ensures that the given index is valid for an array, list or string of the given size.
 	 * 
 	 * @param index index to check
 	 * @param size size of the array, list or string
