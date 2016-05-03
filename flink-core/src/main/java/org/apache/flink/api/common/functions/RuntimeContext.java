@@ -119,6 +119,17 @@ public interface RuntimeContext {
 	 */
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
 
+
+	/**
+	 *
+	 * Get an existing accumulator by <code>name</code> if it exists, Otherwise add <code>defaultAccumulator</code>.
+	 *
+	 * @param name Name of the accumulator
+	 * @param defaultAccumulator Accumulator to add, if no accumulator of the given name exists
+	 * @return The accumulator registered by the given <code>name</code> or the given default <code>defaultAccumulator</code>
+	 */
+	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator);
+
 	/**
 	 * Returns a map of all registered accumulators for this task.
 	 * The returned map must not be modified.
