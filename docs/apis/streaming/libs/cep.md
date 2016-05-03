@@ -435,24 +435,24 @@ class MyPatternFlatSelectFunction<IN, OUT> implements PatternFlatSelectFunction<
 </div>
 
 <div data-lang="scala" markdown="1">
-The `select` method takes an anonymous function for selection which is called for each matching event sequence.
+The `select` method takes a section function as argument, which is called for each matching event sequence.
 It receives a map of string/event pairs of the matched events.
 The string is defined by the name of the state to which the event has been matched.
-The anonymous selection function returns exactly one result per call.
+The selection function returns exactly one result per call.
 
 {% highlight scala %}
-val selectFn = (pattern : mutable.Map[String, IN]) => {
+def selectFn(pattern : mutable.Map[String, IN]) = {
     val startEvent = pattern.get("start").get
     val endEvent = pattern.get("end").get
     OUT(startEvent, endEvent)
 }
 {% endhighlight %}
 
-The `flatSelect` method is similar to the `select` method. Their only difference is that the anonymous function passed to the `flatSelect` method can return an arbitrary number of results per call.
-In order to do this, the anonymous function for `flatSelect` has an additional `Collector` parameter which is used for the element output.
+The `flatSelect` method is similar to the `select` method. Their only difference is that the function passed to the `flatSelect` method can return an arbitrary number of results per call.
+In order to do this, the function for `flatSelect` has an additional `Collector` parameter which is used for the element output.
 
 {% highlight scala %}
-val flatSelectFn = (pattern : mutable.Map[String, IN], collector : Collector[OUT]) => {
+def flatSelectFn(pattern : mutable.Map[String, IN], collector : Collector[OUT]) = {
     val startEvent = pattern.get("start").get
     val endEvent = pattern.get("end").get
     for (i <- 0 to startEvent.getValue) {
