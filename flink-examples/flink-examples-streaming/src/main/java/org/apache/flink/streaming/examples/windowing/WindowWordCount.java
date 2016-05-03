@@ -71,6 +71,7 @@ public class WindowWordCount {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
+		env.getConfig().setMaxParallelism(32);
 
 		final int windowSize = params.getInt("window", 250);
 		final int slideSize = params.getInt("slide", 150);

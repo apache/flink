@@ -105,6 +105,7 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(3);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
 

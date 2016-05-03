@@ -475,6 +475,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 	public void testGroupByFeedback() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(DEFAULT_PARALLELISM - 1);
+		env.getConfig().setMaxParallelism(DEFAULT_PARALLELISM - 1);
 
 		KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
 

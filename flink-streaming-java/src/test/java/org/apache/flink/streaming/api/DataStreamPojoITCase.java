@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -52,6 +51,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().disableObjectReuse();
 		see.setParallelism(3);
+		see.getConfig().setMaxParallelism(10);
 
 		DataStream<Data> dataStream = see.fromCollection(elements);
 
@@ -60,6 +60,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 				.sum("sum")
 				.keyBy("aaa", "abc", "wxyz")
 				.flatMap(new FlatMapFunction<Data, Data>() {
+					private static final long serialVersionUID = 788865239171396315L;
 					Data[] first = new Data[3];
 					@Override
 					public void flatMap(Data value, Collector<Data> out) throws Exception {
@@ -98,6 +99,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().disableObjectReuse();
 		see.setParallelism(4);
+		see.getConfig().setMaxParallelism(10);
 
 		DataStream<Data> dataStream = see.fromCollection(elements);
 
@@ -106,6 +108,7 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 				.sum("sum")
 				.keyBy("aaa", "stats.count")
 				.flatMap(new FlatMapFunction<Data, Data>() {
+					private static final long serialVersionUID = -3678267280397950258L;
 					Data[] first = new Data[3];
 					@Override
 					public void flatMap(Data value, Collector<Data> out) throws Exception {

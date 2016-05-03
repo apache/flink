@@ -31,13 +31,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.util.NoOpSink;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,7 +51,7 @@ import static org.junit.Assert.assertTrue;
  * Tests the {@link StreamNode} hash assignment during translation from {@link StreamGraph} to
  * {@link JobGraph} instances.
  */
-public class StreamingJobGraphGeneratorNodeHashTest {
+public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	// Deterministic hash assignment
@@ -75,6 +72,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 	public void testNodeHashIsDeterministic() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<String> src0 = env
 				.addSource(new NoOpSourceFunction(), "src0")
@@ -102,6 +100,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		// Do it again and verify
 		env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
+		env.getConfig().setMaxParallelism(10);
 
 		src0 = env
 				.addSource(new NoOpSourceFunction(), "src0")
@@ -389,6 +388,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
 		env.disableOperatorChaining();
+		env.getConfig().setMaxParallelism(10);
 
 		src = env.addSource(new NoOpSourceFunction())
 				// New map function, should be mapped to the source state

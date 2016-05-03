@@ -41,6 +41,7 @@ public class SessionWindowing {
 		env.getConfig().setGlobalJobParameters(params);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
+		env.getConfig().setMaxParallelism(10);
 
 		final boolean fileOutput = params.has("output");
 

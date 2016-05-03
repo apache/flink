@@ -65,6 +65,7 @@ object WindowJoin {
 
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
+    env.getConfig.setMaxParallelism(32)
 
     // // create the data sources for both grades and salaries
     val grades = WindowJoinSampleData.getGradeSource(env, rate)

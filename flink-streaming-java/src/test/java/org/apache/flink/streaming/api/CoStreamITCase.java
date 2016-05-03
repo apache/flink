@@ -44,6 +44,7 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
+		env.getConfig().setMaxParallelism(10);
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 

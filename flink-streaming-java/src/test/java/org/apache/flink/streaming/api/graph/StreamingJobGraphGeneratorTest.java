@@ -29,11 +29,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class StreamingJobGraphGeneratorTest {
+public class StreamingJobGraphGeneratorTest extends TestLogger {
 	
 	@Test
 	public void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
@@ -106,6 +107,7 @@ public class StreamingJobGraphGeneratorTest {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, String>> input = env
 				.fromElements("a", "b", "c", "d", "e", "f")

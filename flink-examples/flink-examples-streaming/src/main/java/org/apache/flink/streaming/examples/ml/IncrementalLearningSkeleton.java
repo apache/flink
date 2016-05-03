@@ -64,6 +64,7 @@ public class IncrementalLearningSkeleton {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.getConfig().setMaxParallelism(32);
 
 		DataStream<Integer> trainingData = env.addSource(new FiniteTrainingDataSource());
 		DataStream<Integer> newData = env.addSource(new FiniteNewDataSource());

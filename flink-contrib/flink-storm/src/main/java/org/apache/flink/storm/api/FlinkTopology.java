@@ -18,9 +18,11 @@
  */
 package org.apache.flink.storm.api;
 
+import backtype.storm.generated.Bolt;
 import backtype.storm.generated.ComponentCommon;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
+import backtype.storm.generated.SpoutSpec;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
@@ -158,6 +160,27 @@ public class FlinkTopology {
 
 		// Storm defaults to parallelism 1
 		env.setParallelism(1);
+
+		// TODO: Once the Storm compat layer supports partitioned state, set correct value for number of key group
+		int maxParallelism = 1;
+
+		for (SpoutSpec spoutSpec : stormTopology.get_spouts().values()) {
+			int spoutParallelism = spoutSpec.get_common().get_parallelism_hint();
+
+			if (spoutParallelism > maxParallelism) {
+				maxParallelism = spoutParallelism;
+			}
+		}
+
+		for (Bolt bolt : stormTopology.get_bolts().values()) {
+			int boltParallelism = bolt.get_common().get_parallelism_hint();
+
+			if (boltParallelism > maxParallelism) {
+				maxParallelism = boltParallelism;
+			}
+		}
+
+		env.getConfig().setMaxParallelism(maxParallelism);
 
 		/* Translation of topology */
 

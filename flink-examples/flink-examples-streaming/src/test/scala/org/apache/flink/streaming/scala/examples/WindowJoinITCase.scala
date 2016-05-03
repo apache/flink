@@ -42,6 +42,7 @@ class WindowJoinITCase extends StreamingMultipleProgramsTestBase {
     try {
       val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
       env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
+      env.getConfig.setMaxParallelism(10)
       
       val grades: DataStream[Grade] = env
         .fromCollection(WindowJoinData.GRADES_INPUT.split("\n"))

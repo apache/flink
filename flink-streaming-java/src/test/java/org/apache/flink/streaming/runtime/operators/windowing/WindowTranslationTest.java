@@ -67,6 +67,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 	@Test(expected = UnsupportedOperationException.class)
 	public void testReduceFailWithRichReducer() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
@@ -75,6 +76,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 			.keyBy(0)
 			.window(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 			.reduce(new RichReduceFunction<Tuple2<String, Integer>>() {
+				private static final long serialVersionUID = -6448847205314995812L;
+
 				@Override
 				public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
 					Tuple2<String, Integer> value2) throws Exception {
@@ -90,6 +93,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 	@SuppressWarnings("rawtypes")
 	public void testEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
@@ -137,6 +141,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 	public void testNonEvicting() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -186,6 +191,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 	public void testEvicting() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -238,9 +244,12 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		// verify that fold does not work with merging windows
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {
+					private static final long serialVersionUID = -3298887124448443076L;
+
 					@Override
 					public String getKey(String value) throws Exception {
 						return value;
@@ -250,6 +259,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		try {
 			windowedStream.fold("", new FoldFunction<String, String>() {
+				private static final long serialVersionUID = -4567902917104921706L;
+
 				@Override
 				public String fold(String accumulator, String value) throws Exception {
 					return accumulator;
@@ -271,9 +282,12 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		// verify that we check for trigger compatibility
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {
+					private static final long serialVersionUID = 598309916882894293L;
+
 					@Override
 					public String getKey(String value) throws Exception {
 						return value;
@@ -283,6 +297,8 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 		try {
 			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				private static final long serialVersionUID = 6558046711583024443L;
+
 				@Override
 				public TriggerResult onElement(String element,
 						long timestamp,

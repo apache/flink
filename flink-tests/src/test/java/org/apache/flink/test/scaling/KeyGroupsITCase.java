@@ -28,10 +28,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.TestLogger;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Random;
 
+@Ignore
 public class KeyGroupsITCase extends TestLogger {
 
 	@Test

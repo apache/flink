@@ -37,6 +37,7 @@ public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 

@@ -43,6 +43,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
+    env.getConfig.setMaxParallelism(10)
 
     val source1 = env.addSource(new SourceFunction[(String, Int)]() {
       def run(ctx: SourceFunction.SourceContext[(String, Int)]) {
@@ -110,6 +111,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
+    env.getConfig.setMaxParallelism(10)
 
     val source1 = env.addSource(new SourceFunction[(String, String, Int)]() {
       def run(ctx: SourceFunction.SourceContext[(String, String, Int)]) {
@@ -190,6 +192,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
+    env.getConfig.setMaxParallelism(10)
 
     val source1 = env.addSource(new SourceFunction[(String, String, Int)]() {
       def run(ctx: SourceFunction.SourceContext[(String, String, Int)]) {

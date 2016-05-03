@@ -209,6 +209,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testNaming() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Long> dataStream1 = env.generateSequence(0, 0).name("testSource1")
 				.map(new MapFunction<Long, Long>() {
@@ -269,6 +270,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	@SuppressWarnings("unchecked")
 	public void testPartitioning() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
 		DataStream<Tuple2<Long, Long>> src2 = env.fromElements(new Tuple2<>(0L, 0L));
@@ -434,6 +436,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
 		DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
 		env.setParallelism(10);
+		env.getConfig().setMaxParallelism(10);
 
 		SingleOutputStreamOperator<Long> map = src.map(new MapFunction<Tuple2<Long, Long>, Long>() {
 			@Override
@@ -502,6 +505,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testTypeInfo() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Long> src1 = env.generateSequence(0, 0);
 		assertEquals(TypeExtractor.getForClass(Long.class), src1.getType());
@@ -651,6 +655,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void sinkKeyTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
 		assertTrue(env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getStatePartitioner1() == null);

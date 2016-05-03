@@ -49,6 +49,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
+		see.getConfig().setMaxParallelism(10);
 
 		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		see.setStateBackend(new FailingStateBackend());

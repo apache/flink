@@ -45,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -63,7 +64,7 @@ import static org.junit.Assert.fail;
  * Tests for timestamps, watermarks, and event-time sources.
  */
 @SuppressWarnings("serial")
-public class TimestampITCase {
+public class TimestampITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int NUM_TASK_SLOTS = 3;
@@ -642,6 +643,7 @@ public class TimestampITCase {
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source1 = 
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
@@ -673,6 +675,7 @@ public class TimestampITCase {
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));

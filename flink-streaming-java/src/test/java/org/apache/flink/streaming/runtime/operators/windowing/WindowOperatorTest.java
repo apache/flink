@@ -57,6 +57,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -71,7 +72,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.fail;
 
-public class WindowOperatorTest {
+public class WindowOperatorTest extends TestLogger {
 
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
@@ -589,6 +590,7 @@ public class WindowOperatorTest {
 		// verify that merging WindowAssigner and Evictor cannot be used together
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+		env.getConfig().setMaxParallelism(10);
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {

@@ -342,10 +342,12 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
-		config.setKeyGroupAssigner(
-			new HashKeyGroupAssigner<Object>(
-				streamGraph.getExecutionConfig().getMaxParallelism()));
-		
+		if (vertex.getStatePartitioner1() != null) {
+			config.setKeyGroupAssigner(
+				new HashKeyGroupAssigner<Object>(
+					streamGraph.getExecutionConfig().getMaxParallelism()));
+		}
+
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
