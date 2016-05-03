@@ -138,14 +138,14 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		if (reachedEnd()) {
 			return null;
 		}
-		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
-			return reuseAvroValue ? dataFileReader.next(reuseValue) : dataFileReader.next();
+		if (reuseAvroValue) {
+			return dataFileReader.next(reuseValue);
 		} else {
-			if (!reuseAvroValue) {
-				reuseValue = InstantiationUtil.instantiate(avroValueType, Object.class);
+			if (GenericRecord.class == avroValueType) {
+				return dataFileReader.next();
+			} else {
+				return dataFileReader.next(InstantiationUtil.instantiate(avroValueType, Object.class));
 			}
-			reuseValue = dataFileReader.next(reuseValue);
 		}
-		return reuseValue;
 	}
 }
