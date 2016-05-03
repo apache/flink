@@ -29,7 +29,7 @@ under the License.
 **Table API and SQL are experimental features**
 
 The Table API is a SQL-like expression language for relational stream and batch processing that can be easily embedded in Flink's DataSet and DataStream APIs (Java and Scala).
-The Table API operates on a relational `Table` abstraction, which can be created from external data sources, or existing DataSets and DataStreams. With the Table API, you can apply relational operators such as selection, aggregation, and joins on `Table`s.
+The Table API and SQL insterface operate on a relational `Table` abstraction, which can be created from external data sources, or existing DataSets and DataStreams. With the Table API, you can apply relational operators such as selection, aggregation, and joins on `Table`s.
 
 `Table`s can also be queried with regular SQL, as long as they are registered (see [Registering and Accessing Tables](#registering-and-accessing-tables)). The Table API and SQL offer equivalent functionality and can be mixed in the same program. When a `Table` is converted back into a `DataSet` or `DataStream`, the logical plan, which was defined by relational operators and SQL queries, is optimized using [Apache Calcite](https://calcite.apache.org/) and transformed into a `DataSet` or `DataStream` execution plan.
 
@@ -53,7 +53,7 @@ The following dependency must be added to your project in order to use the Table
 Note that the Table API is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 
-Registering and Accessing Tables
+Registering Tables
 --------------------------------
 
 `TableEnvironment`s have an internal table catalog to which tables can be registered with a unique name. After registration, a table can be accessed from the `TableEnvironment` by its name. Tables can be registered in different ways.
@@ -207,14 +207,6 @@ A `TableSource` can provide access to data stored in various storage systems suc
 
 Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. 
 
-### Access a registered Table
-
-A registered table can be accessed from a `TableEnvironment` as follows:
-
-- `tEnv.scan("tName")` scans a `Table` that was registered as `"tName"` in a `BatchTableEnvironment`.
-- `tEnv.ingest("tName")` ingests a `Table` that was registered as `"tName"` in a `StreamTableEnvironment`.
-- `tEnv.sql(SELECT * FROM tName)` executes the SQL query on the corresponding tables which were registered in a `TableEnvironment`.
-
 
 Table API
 ----------
@@ -347,6 +339,16 @@ val resultStream = result.toDataStream[Row]
 Please refer to the Scaladoc for a full list of supported operations and a description of the expression syntax.
 </div>
 </div>
+
+{% top %}
+
+
+### Access a registered Table
+
+A registered table can be accessed from a `TableEnvironment` as follows:
+
+- `tEnv.scan("tName")` scans a `Table` that was registered as `"tName"` in a `BatchTableEnvironment`.
+- `tEnv.ingest("tName")` ingests a `Table` that was registered as `"tName"` in a `StreamTableEnvironment`.
 
 {% top %}
 
@@ -641,7 +643,13 @@ Registered `Table`s can be directly queried with SQL and SQL queries can also be
 
 *Note: The current SQL implementation is not feature complete. Outer joins, distinct aggregates, date and decimal data types are currently not supported. However, all operations supported by the Table API are also supported by SQL.*
 
-In order to use a `Table`, `DataSet`, `DataStream`, or external `TableSource` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name as shown above. A SQL query is defined using the `sql()` method of the `TableEnvironment`. It returns a new `Table` which can be converted back to a `DataSet`, or `DataStream`, or used in subsequent Table API queries.
+In order to use a `Table`, `DataSet`, `DataStream`, or external `TableSource` in a SQL query, it has to be registered in the `TableEnvironment`, using a unique name. 
+A registered table can be accessed from a `TableEnvironment`  using the `sql()` method of the `TableEnvironment`:
+
+- `tEnv.sql(SELECT * FROM tName)` executes the SQL query on the corresponding tables which were registered in a `TableEnvironment`.
+
+This method returns a new `Table` which can be converted back to a `DataSet`, or `DataStream`, or used in subsequent Table API queries.
+
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
