@@ -40,8 +40,10 @@ public class JDBCTestBase {
 	public static final String OUTPUT_TABLE = "newbooks";
 	public static final String SELECT_ALL_BOOKS = "select * from " + INPUT_TABLE;
 	public static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
-	protected static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
-	protected static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
+	public static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
+	public static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
+	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
+	public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE author = ?";
 	
 	protected JDBCInputFormat jdbcInputFormat;
 	protected JDBCOutputFormat jdbcOutputFormat;
@@ -94,11 +96,10 @@ public class JDBCTestBase {
 		}
 	};
 
-
 	public static void prepareTestDb() throws Exception {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName()+".DEV_NULL");
+		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
 		Class.forName(DRIVER_CLASS);
-		Connection conn = DriverManager.getConnection(DB_URL+";create=true");
+		Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
 
 		//create input table
 		Statement stat = conn.createStatement();
@@ -121,7 +122,7 @@ public class JDBCTestBase {
 	@BeforeClass
 	public static void setUpClass() throws SQLException {
 		try {
-			System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName()+".DEV_NULL");
+			System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
 			prepareDerbyDatabase();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
@@ -131,7 +132,7 @@ public class JDBCTestBase {
 
 	private static void prepareDerbyDatabase() throws ClassNotFoundException, SQLException {
 		Class.forName(DRIVER_CLASS);
-		conn = DriverManager.getConnection(DB_URL+";create=true");
+		conn = DriverManager.getConnection(DB_URL + ";create=true");
 		createTable(INPUT_TABLE);
 		createTable(OUTPUT_TABLE);
 		insertDataIntoInputTable();
@@ -158,7 +159,7 @@ public class JDBCTestBase {
 	private static void cleanUpDerbyDatabases() {
 		try {
 			Class.forName(DRIVER_CLASS);
-			conn = DriverManager.getConnection(DB_URL+";create=true");
+			conn = DriverManager.getConnection(DB_URL + ";create=true");
 			Statement stat = conn.createStatement();
 			stat.executeUpdate("DROP TABLE "+INPUT_TABLE);
 			stat.executeUpdate("DROP TABLE "+OUTPUT_TABLE);

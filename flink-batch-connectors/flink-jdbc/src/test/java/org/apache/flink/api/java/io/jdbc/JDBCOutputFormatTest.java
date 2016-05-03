@@ -21,8 +21,8 @@ package org.apache.flink.api.java.io.jdbc;
 import java.io.IOException;
 import java.sql.ResultSet;
 
-import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.table.Row;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -84,7 +84,10 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		tuple5.setField(0.99, 3);
 		tuple5.setField("imthewrongtype", 4);
 
-		GenericRow row = new GenericRow(tuple5.getArity()).fromTuple(tuple5);
+		Row row = new Row(tuple5.getArity());
+		for (int i = 0; i < tuple5.getArity(); i++) {
+			row.setField(i, tuple5.getField(i));
+		}
 		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.close();
 	}
@@ -105,9 +108,10 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.setQuery(SELECT_ALL_BOOKS)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
+		jdbcInputFormat.openInputFormat();
 		jdbcInputFormat.open(null);
 
-		GenericRow row = new GenericRow(tuple5.getArity());
+		Row row = new Row(tuple5.getArity());
 		while (!jdbcInputFormat.reachedEnd()) {
 			if(jdbcInputFormat.nextRecord(row)!=null) {
 				jdbcOutputFormat.writeRecord(row);
@@ -116,6 +120,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 
 		jdbcOutputFormat.close();
 		jdbcInputFormat.close();
+		jdbcInputFormat.closeInputFormat();
 
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -123,20 +128,21 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.setQuery(SELECT_ALL_NEWBOOKS)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
+		jdbcInputFormat.openInputFormat();
 		jdbcInputFormat.open(null);
 
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			jdbcInputFormat.nextRecord(row);
-			if(row.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.getField(0).getClass());}
-			if(row.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.getField(1).getClass());}
-			if(row.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.getField(2).getClass());}
-			if(row.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, row.getField(3).getClass());}
-			if(row.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, row.getField(4).getClass());}
+			if(row.productElement(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.productElement(0).getClass());}
+			if(row.productElement(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.productElement(1).getClass());}
+			if(row.productElement(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.productElement(2).getClass());}
+			if(row.productElement(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, row.productElement(3).getClass());}
+			if(row.productElement(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, row.productElement(4).getClass());}
 
 			for (int x = 0; x < 5; x++) {
 				if(JDBCTestBase.testData[recordCount][x]!=null) {
-					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.getField(x));
+					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.productElement(x));
 				}
 			}
 
@@ -145,5 +151,6 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		Assert.assertEquals(JDBCTestBase.testData.length, recordCount);
 
 		jdbcInputFormat.close();
+		jdbcInputFormat.closeInputFormat();
 	}
 }

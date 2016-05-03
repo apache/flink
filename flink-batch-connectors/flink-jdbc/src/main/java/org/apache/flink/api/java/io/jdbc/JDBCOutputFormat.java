@@ -27,8 +27,8 @@ import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.table.Row;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -39,7 +39,7 @@ import org.apache.flink.configuration.Configuration;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCOutputFormat extends RichOutputFormat<GenericRow> {
+public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
@@ -106,11 +106,11 @@ public class JDBCOutputFormat extends RichOutputFormat<GenericRow> {
 	 * @throws IOException Thrown, if the records could not be added due to an I/O problem.
 	 */
 	@Override
-	public void writeRecord(GenericRow tuple) throws IOException {
+	public void writeRecord(Row tuple) throws IOException {
 		try {
-			for (int index = 0; index < tuple.getArity(); index++) {
-				if(tuple.getField(index) ==null && typesArray != null && typesArray.length > 0) {
-					if(typesArray.length == tuple.getArity()) {
+			for (int index = 0; index < tuple.productArity(); index++) {
+				if(tuple.productElement(index) ==null && typesArray != null && typesArray.length > 0) {
+					if(typesArray.length == tuple.productArity()) {
 						upload.setNull(index + 1, typesArray[index]);
 					} else {
 						LOG.warn("Column SQL types array doesn't match arity of SqlRow! Check the passed array...");
@@ -118,7 +118,7 @@ public class JDBCOutputFormat extends RichOutputFormat<GenericRow> {
 				} else {
 					//try generic set if no column type available
 					//WARNING: this may fail if the JDBC driver doesn't handle null correctly
-					upload.setObject(index + 1, tuple.getField(index));
+					upload.setObject(index + 1, tuple.productElement(index));
 				}
 			}
 			upload.addBatch();

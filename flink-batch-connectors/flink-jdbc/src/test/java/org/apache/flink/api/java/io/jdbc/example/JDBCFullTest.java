@@ -19,22 +19,38 @@
 package org.apache.flink.api.java.io.jdbc.example;
 
 import java.sql.Types;
+import java.util.Arrays;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.GenericRow;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
+import org.apache.flink.api.java.io.jdbc.split.NumericColumnSplitsGenerator;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.typeutils.RowTypeInfo;
+import org.junit.Test;
 
-public class JDBCExample {
+public class JDBCFullTest extends JDBCTestBase {
 	
-	public static final boolean exploitParallelism = true;
-	
-	public static void main(String[] args) throws Exception {
+	@Test
+	public void testWithParallelism() throws Exception {
+		//run without parallelism
+		runTest(false);
+
+		//cleanup
+		JDBCTestBase.tearDownClass();
 		JDBCTestBase.prepareTestDb();
-
+		
+		//run expliting parallelism
+		runTest(true);
+		
+	}
+	
+	private void runTest(boolean exploitParallelism) throws Exception {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
@@ -42,17 +58,25 @@ public class JDBCExample {
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS);
 		
 		if(exploitParallelism) {
-			final String splitColumnName = "id";
 			final int fetchSize = 1;
-			final Long min = new Long(JDBCTestBase.testData[0][0]+"");
-			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length-fetchSize][0]+"");
-			//rewrite query and add $CONDITIONS token to generate splits (sqoop-like)
+			final Long min = new Long(JDBCTestBase.testData[0][0] + "");
+			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length-fetchSize][0] + "");
+			//use a "splittable" query to exploit parallelism
 			inputBuilder = inputBuilder
-					// WARNING: ONLY when query does not contains the  WHERE clause we can keep the next line commented
-					//.setQuery(SELECT_ALL_BOOKS + " WHERE " +JDBCInputFormat.CONDITIONS)
-					.setSplitConfig(splitColumnName, fetchSize, min, max);
+					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
+					.setSplitsGenerator(new NumericColumnSplitsGenerator(fetchSize, min, max));
 		}
-		DataSet<GenericRow> source = environment.createInput(inputBuilder.finish());
+		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
+			BasicTypeInfo.INT_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.DOUBLE_TYPE_INFO,
+			BasicTypeInfo.INT_TYPE_INFO
+		};
+		TypeInformation<Row> rowTypeInfo = new RowTypeInfo(scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(fieldTypes)).seq());
+		DataSet<Row> source = environment.createInput(inputBuilder.finish(), rowTypeInfo);
+		//when rowTypeInfo is not passed the IF should always re-instantiated a row in nextRecord()
+		//DataSet<Row> source = environment.createInput(inputBuilder.finish());
 
 		//NOTE: in this case (with Derby driver) setSqlTypes could be skipped, but
 		//some database, doens't handle correctly null values when no column type specified

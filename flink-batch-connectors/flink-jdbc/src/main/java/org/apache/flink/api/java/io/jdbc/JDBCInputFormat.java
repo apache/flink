@@ -21,17 +21,19 @@ package org.apache.flink.api.java.io.jdbc;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.Arrays;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.io.RangeInputSplit;
-import org.apache.flink.api.java.io.GenericRow;
+import org.apache.flink.api.java.io.QueryParamInputSplit;
+import org.apache.flink.api.java.io.jdbc.split.JDBCInputSplitsGenerator;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.table.Row;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -49,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
+public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
@@ -63,19 +65,12 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 	private int resultSetConcurrency;
 
 	private transient Connection dbConn;
-	private transient Statement statement;
+	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 	
-	private String splitColumnName;
-	private long max;
-	private long min;
-	private long fetchSize;
-	
 	private boolean hasNext = true;
+	private JDBCInputSplitsGenerator inputSplitsGenerator;
 	
-	private static final String BETWEEN = "(%s BETWEEN %s AND %s)";
-	public static final String CONDITIONS = "$CONDITIONS";
-
 	public JDBCInputFormat() {
 	}
 
@@ -88,7 +83,13 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
-			establishConnection();
+			Class.forName(drivername);
+			if (username == null) {
+				dbConn = DriverManager.getConnection(dbURL);
+			} else {
+				dbConn = DriverManager.getConnection(dbURL, username, password);
+			}
+			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
 		}catch (SQLException se) {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
@@ -100,6 +101,15 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 	public void closeInputFormat() {
 		//called once per inputFormat (on close)
 		try {
+			statement.close();
+		} catch (SQLException se) {
+			LOG.info("Inputformat Statement couldn't be closed - " + se.getMessage());
+		} catch (NullPointerException npe) {
+		} finally {
+			statement = null;
+		}
+		
+		try {
 			dbConn.close();
 		} catch (SQLException se) {
 			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
@@ -107,6 +117,7 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 		} finally {
 			dbConn = null;
 		}
+		
 	}
 
 	/**
@@ -119,33 +130,33 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 	public void open(InputSplit inputSplit) throws IOException {
 		hasNext = true;
 		try {
-			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
-			String query = queryTemplate;
-			if(isSplitConfigured()) {
-				RangeInputSplit jdbcInputSplit = (RangeInputSplit) inputSplit;
-				long start = jdbcInputSplit.getMin();
-				long end = jdbcInputSplit.getMax();
-				query = queryTemplate.replace(CONDITIONS, String.format(BETWEEN, splitColumnName, start, end));
+			if(inputSplit!=null && inputSplit instanceof QueryParamInputSplit) {
+				QueryParamInputSplit jdbcInputSplit = (QueryParamInputSplit) inputSplit;
+				for (int i = 0; i < jdbcInputSplit.getQueryParameters().length; i++) {
+					Object param = jdbcInputSplit.getQueryParameters()[i];
+					if(param instanceof String) {
+						statement.setString(i + 1, (String) param);
+					} else if(param instanceof Long) {
+						statement.setLong(i + 1, (Long) param);
+					} else if(param instanceof Integer) {
+						statement.setInt(i + 1, (Integer) param);
+					} else if(param instanceof Double) {
+						statement.setDouble(i + 1, (Double) param);
+					} else if(param instanceof Boolean) {
+						statement.setBoolean(i + 1, (Boolean) param);
+					} else {
+						//extends with other types if needed
+						throw new IllegalArgumentException("open() failed. Parameter " + i + " of type " + param.getClass() + " is not handled (yet)." );
+					}
+				}
+				if(LOG.isDebugEnabled()) {
+					LOG.debug(String.format("Executing '%s' with parameters %s", queryTemplate, Arrays.deepToString(jdbcInputSplit.getQueryParameters())));
+				}
 			}
-			LOG.debug(query);
-			resultSet = statement.executeQuery(query);
+			resultSet = statement.executeQuery();
 		} catch (SQLException se) {
 			close();
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
-		}
-	}
-
-	private boolean isSplitConfigured() {
-		return splitColumnName != null;
-	}
-
-	/** Perform initialization of the JDBC connection. Done just once per parallel task */
-	private void establishConnection() throws SQLException, ClassNotFoundException {
-		Class.forName(drivername);
-		if (username == null) {
-			dbConn = DriverManager.getConnection(dbURL);
-		} else {
-			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
 	}
 
@@ -160,12 +171,6 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 			resultSet.close();
 		} catch (SQLException se) {
 			LOG.info("Inputformat ResultSet couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
-		}
-		try {
-			statement.close();
-		} catch (SQLException se) {
-			LOG.info("Inputformat Statement couldn't be closed - " + se.getMessage());
 		} catch (NullPointerException npe) {
 		}
 	}
@@ -198,21 +203,25 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 	 * @throws java.io.IOException
 	 */
 	@Override
-	public GenericRow nextRecord(GenericRow tuple) throws IOException {
+	public Row nextRecord(Row row) throws IOException {
 		try {
 			hasNext = resultSet.next();
 			if(!hasNext) {
 				return null;
 			}
-			if (tuple.getFields() == null || tuple.getFields().length == 0 ) {
+			try{
+				//This throws a NPE when the TypeInfo is not passed to the InputFormat,
+				//i.e. KryoSerializer used to generate the passed row
+				row.productArity();
+			}catch(NullPointerException npe) {
 				ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-				tuple = new GenericRow(resultSetMetaData.getColumnCount());
+				row = new Row(resultSetMetaData.getColumnCount());
+				LOG.warn("TypeInfo not provided to the InputFormat. Row cannot be reused.");
 			}
-			for (int pos = 0; pos < tuple.getArity(); pos++) {
-				final Object o = resultSet.getObject(pos + 1);
-				tuple.setField(o, pos);
+			for (int pos = 0; pos < row.productArity(); pos++) {
+				row.setField(pos, resultSet.getObject(pos + 1));
 			}
-			return tuple;
+			return row;
 		} catch (SQLException se) {
 			close();
 			throw new IOException("Couldn't read data - " + se.getMessage(), se);
@@ -229,30 +238,10 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 
 	@Override
 	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		if(!isSplitConfigured()) {
-			GenericInputSplit[] split = {
-					new GenericInputSplit(0, 1)
-				};
-			return split;
+		if (inputSplitsGenerator == null) {
+			return new GenericInputSplit[]{new GenericInputSplit(0, 1)};
 		}
-		
-		double maxEelemCount = (max - min) +1;
-		int size = new Double(Math.ceil( maxEelemCount / fetchSize)).intValue();
-		if(minNumSplits > size) {
-			size = minNumSplits;
-			fetchSize = new Double(Math.ceil( maxEelemCount / minNumSplits)).intValue();
-		}
-		RangeInputSplit[] ret = new RangeInputSplit[size];
-		int count = 0;
-		for (long i = min; i < max; i += fetchSize, count++) {
-			long currentLimit = i + fetchSize - 1;
-			ret[count] = new RangeInputSplit(count, i, currentLimit);
-			if (currentLimit + 1 + fetchSize > max) {
-				ret[count+1] = new RangeInputSplit(count, currentLimit + 1, max);
-				break;
-			}
-		}
-		return ret;
+		return inputSplitsGenerator.getInputSplits(minNumSplits);
 	}
 
 	@Override
@@ -312,11 +301,8 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 			format.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
-		public JDBCInputFormatBuilder setSplitConfig(String splitColumnName,long fetchSize, long min, long max) {
-			format.splitColumnName = splitColumnName;
-			format.fetchSize = fetchSize;
-			format.min = min;
-			format.max = max;
+		public JDBCInputFormatBuilder setSplitsGenerator(JDBCInputSplitsGenerator inputSplitsGenerator) {
+			format.inputSplitsGenerator = inputSplitsGenerator;
 			return this;
 		}
 
@@ -336,25 +322,12 @@ public class JDBCInputFormat extends RichInputFormat<GenericRow, InputSplit> {
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
-			adjustQueryTemplateIfNecessary();
+			if (format.inputSplitsGenerator == null) {
+				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
+			}
 			return format;
 		}
 
-		/** Try to add $CONDITIONS token automatically (at least for straightforward cases) */
-		private void adjustQueryTemplateIfNecessary() {
-			if(!format.isSplitConfigured()) {
-				return;
-			}
-			if(!format.queryTemplate.toLowerCase().contains("where")) {
-				if(format.queryTemplate.contains(";")) {
-					format.queryTemplate = format.queryTemplate.replace(";", "");
-				}
-				format.queryTemplate += " WHERE "+CONDITIONS;
-			}else if(!format.queryTemplate.contains(CONDITIONS)) {		
-				//if not simple query and no $CONDITIONS avoid dangerous heuristics
-				throw new IllegalArgumentException("Usage of splits requires to specify "+CONDITIONS+" in the query for their generation");
-			}
-		}
 	}
 
 }
