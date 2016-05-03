@@ -99,7 +99,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key : snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -116,7 +116,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key : snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot2.get(key)).materialize());
+					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot2.get(key)).materialize());
 				}
 			}
 
@@ -210,7 +210,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key : snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -250,7 +250,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -267,7 +267,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot2.get(key)).materialize());
+					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot2.get(key)).materialize());
 				}
 			}
 
@@ -338,7 +338,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -355,7 +355,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot2.get(key)).materialize());
+					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot2.get(key)).materialize());
 				}
 			}
 
@@ -433,7 +433,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -451,7 +451,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot2.keySet()) {
 				if (snapshot2.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot2.get(key)).materialize());
+					snapshot2.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot2.get(key)).materialize());
 				}
 			}
 
@@ -519,7 +519,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -574,7 +574,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 
@@ -632,7 +632,7 @@ public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Int
 
 			for (String key: snapshot1.keySet()) {
 				if (snapshot1.get(key) instanceof AsynchronousKvStateSnapshot) {
-					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?, ?>) snapshot1.get(key)).materialize());
+					snapshot1.put(key, ((AsynchronousKvStateSnapshot<?, ?, ?>) snapshot1.get(key)).materialize());
 				}
 			}
 

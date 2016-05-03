@@ -490,7 +490,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	 * Upon snapshotting the RocksDB backup is created synchronously. The asynchronous part is
 	 * copying the backup to a (possibly) remote filesystem. This is done in {@link #materialize()}.
 	 */
-	private static class SemiAsyncSnapshot extends AsynchronousKvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> {
+	private static class SemiAsyncSnapshot extends AsynchronousKvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> {
 		private static final long serialVersionUID = 1L;
 		private final File localBackupPath;
 		private final URI backupUri;
@@ -510,7 +510,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 		}
 
 		@Override
-		public KvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> materialize() throws Exception {
+		public KvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> materialize() throws Exception {
 			try {
 				long startTime = System.currentTimeMillis();
 				HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
@@ -532,7 +532,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	 * also stores the column families that we had at the time of the snapshot so that we can
 	 * restore these. This results from {@link PartitionedRocksDBStateBackend.SemiAsyncSnapshot}.
 	 */
-	private static class FinalSemiAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> {
+	private static class FinalSemiAsyncSnapshot implements KvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> {
 		private static final long serialVersionUID = 1L;
 
 		final URI backupUri;
@@ -549,7 +549,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 		}
 
 		@Override
-		public final KvState<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> restoreState(
+		public final KvState<Object, Object, PartitionedRocksDBStateBackend<Object>> restoreState(
 			PartitionedRocksDBStateBackend<Object> stateBackend,
 			TypeSerializer<Object> keySerializer,
 			ClassLoader classLoader,
@@ -578,7 +578,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	 * This does the snapshot using a RocksDB snapshot and an iterator over all keys
 	 * at the point of that snapshot.
 	 */
-	private static class FullyAsynSnapshot extends AsynchronousKvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> {
+	private static class FullyAsynSnapshot extends AsynchronousKvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> {
 		private static final long serialVersionUID = 1L;
 
 		private transient final RocksDB db;
@@ -602,7 +602,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 		}
 
 		@Override
-		public KvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> materialize() throws Exception {
+		public KvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> materialize() throws Exception {
 			try {
 				long startTime = System.currentTimeMillis();
 
@@ -673,7 +673,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	 * Dummy {@link KvStateSnapshot} that holds the state of our one RocksDB data base. This
 	 * results from {@link PartitionedRocksDBStateBackend.FullyAsynSnapshot}.
 	 */
-	private static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> {
+	private static class FinalFullyAsyncSnapshot implements KvStateSnapshot<Object, Object, PartitionedRocksDBStateBackend<Object>> {
 		private static final long serialVersionUID = 1L;
 
 		final StateHandle<DataInputView> stateHandle;
@@ -688,7 +688,7 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 		}
 
 		@Override
-		public final KvState<Object, Object, ValueState<Object>, PartitionedRocksDBStateBackend<Object>> restoreState(
+		public final KvState<Object, Object, PartitionedRocksDBStateBackend<Object>> restoreState(
 			PartitionedRocksDBStateBackend<Object> stateBackend,
 			TypeSerializer<Object> keySerializer,
 			ClassLoader classLoader,

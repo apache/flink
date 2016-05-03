@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
 public abstract class AbstractHeapState<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>, Backend extends PartitionedStateBackend<K>>
-		implements KvState<K, N, S, Backend>, PartitionedState {
+		implements KvState<K, N, Backend>, PartitionedState {
 
 	/** Map containing the actual key/value pairs */
 	protected final HashMap<N, Map<K, SV>> state;

@@ -534,7 +534,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 							for (PartitionedStateSnapshot partitionedStateSnapshot : partitionedState.values()) {
 
 								if (partitionedStateSnapshot != null) {
-									for (KvStateSnapshot<?, ?, ?, ?> kvSnapshot : partitionedStateSnapshot.values()) {
+									for (KvStateSnapshot<?, ?, ?> kvSnapshot : partitionedStateSnapshot.values()) {
 										if (kvSnapshot instanceof AsynchronousKvStateSnapshot) {
 											hasAsyncStates = true;
 										}
@@ -601,7 +601,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 									for (PartitionedStateSnapshot keyGroupState: chainedKeyGroupState.getState(getUserCodeClassLoader()).values()) {
 										for (String key: keyGroupState.keySet()) {
 											if (keyGroupState.get(key) instanceof AsynchronousKvStateSnapshot) {
-												AsynchronousKvStateSnapshot<?, ?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?, ?>) keyGroupState.get(key);
+												AsynchronousKvStateSnapshot<?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?>) keyGroupState.get(key);
 												keyGroupState.put(key, asyncHandle.materialize());
 											}
 										}

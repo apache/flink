@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>>
+	extends AbstractRocksDBState<K, N>
 	implements ReducingState<V> {
 
 	/** Serializer for the values */

@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.PartitionedState;
-import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
@@ -35,10 +33,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  *
  * @param <K> The type of the key
  * @param <N> The type of the namespace
- * @param <S> The type of the {@link State}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public interface KvStateSnapshot<K, N, S extends PartitionedState, Backend extends PartitionedStateBackend> extends java.io.Serializable {
+public interface KvStateSnapshot<K, N, Backend extends PartitionedStateBackend> extends java.io.Serializable {
 
 	/**
 	 * Loads the key/value state back from this snapshot.
@@ -53,7 +50,7 @@ public interface KvStateSnapshot<K, N, S extends PartitionedState, Backend exten
 	 * 
 	 * @throws Exception Exceptions can occur during the state loading and are forwarded. 
 	 */
-	KvState<K, N, S, Backend> restoreState(
+	KvState<K, N, Backend> restoreState(
 		Backend stateBackend,
 		TypeSerializer<K> keySerializer,
 		ClassLoader classLoader,

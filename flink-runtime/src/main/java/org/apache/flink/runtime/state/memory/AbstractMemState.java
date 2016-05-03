@@ -57,10 +57,10 @@ public abstract class AbstractMemState<K, N, SV, S extends PartitionedState, SD 
 		super(keySerializer, namespaceSerializer, stateSerializer, stateDesc, state);
 	}
 
-	public abstract KvStateSnapshot<K, N, S, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes);
+	public abstract KvStateSnapshot<K, N, PartitionedMemoryStateBackend<K>> createHeapSnapshot(byte[] bytes);
 
 	@Override
-	public KvStateSnapshot<K, N, S, PartitionedMemoryStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
+	public KvStateSnapshot<K, N, PartitionedMemoryStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
 
 		DataOutputSerializer out = new DataOutputSerializer(Math.max(size() * 16, 16));
 

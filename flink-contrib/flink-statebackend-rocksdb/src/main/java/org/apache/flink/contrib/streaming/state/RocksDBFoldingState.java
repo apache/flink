@@ -44,7 +44,7 @@ import static java.util.Objects.requireNonNull;
  * @param <ACC> The type of the value in the folding state.
  */
 public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>>
+	extends AbstractRocksDBState<K, N>
 	implements FoldingState<T, ACC> {
 
 	/** Serializer for the values */

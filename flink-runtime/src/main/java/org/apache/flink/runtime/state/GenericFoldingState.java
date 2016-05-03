@@ -32,8 +32,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateBackend<K>, W extends ValueState<ACC> & KvState<K, N, ValueState<ACC>, Backend>>
-	implements FoldingState<T, ACC>, KvState<K, N, FoldingState<T, ACC>, Backend> {
+public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateBackend<K>, W extends ValueState<ACC> & KvState<K, N, Backend>>
+	implements FoldingState<T, ACC>, KvState<K, N, Backend> {
 
 	private final W wrappedState;
 	private final FoldFunction<T, ACC> foldFunction;
@@ -65,10 +65,10 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateB
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, Backend> snapshot(
+	public KvStateSnapshot<K, N, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
-		KvStateSnapshot<K, N, ValueState<ACC>, Backend> wrappedSnapshot = wrappedState.snapshot(
+		KvStateSnapshot<K, N, Backend> wrappedSnapshot = wrappedState.snapshot(
 			checkpointId,
 			timestamp);
 		return new Snapshot<>(wrappedSnapshot, foldFunction);
@@ -95,14 +95,14 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateB
 		wrappedState.clear();
 	}
 
-	private static class Snapshot<K, N, T, ACC, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, FoldingState<T, ACC>, Backend> {
+	private static class Snapshot<K, N, T, ACC, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, Backend> {
 		private static final long serialVersionUID = 1L;
 
-		private final KvStateSnapshot<K, N, ValueState<ACC>, Backend> wrappedSnapshot;
+		private final KvStateSnapshot<K, N, Backend> wrappedSnapshot;
 
 		private final FoldFunction<T, ACC> foldFunction;
 
-		public Snapshot(KvStateSnapshot<K, N, ValueState<ACC>, Backend> wrappedSnapshot,
+		public Snapshot(KvStateSnapshot<K, N, Backend> wrappedSnapshot,
 			FoldFunction<T, ACC> foldFunction) {
 			this.wrappedSnapshot = wrappedSnapshot;
 			this.foldFunction = foldFunction;
@@ -110,7 +110,7 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends PartitionedStateB
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public KvState<K, N, FoldingState<T, ACC>, Backend> restoreState(
+		public KvState<K, N, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
 			ClassLoader classLoader,

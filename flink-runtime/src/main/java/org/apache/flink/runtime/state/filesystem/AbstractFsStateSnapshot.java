@@ -39,7 +39,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
  */
-public abstract class AbstractFsStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, PartitionedFsStateBackend<K>> {
+public abstract class AbstractFsStateSnapshot<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -77,10 +77,10 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends PartitionedSta
 
 	}
 
-	public abstract KvState<K, N, S, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, SV>> stateMap);
+	public abstract KvState<K, N, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, SV>> stateMap);
 
 	@Override
-	public KvState<K, N, S, PartitionedFsStateBackend<K>> restoreState(
+	public KvState<K, N, PartitionedFsStateBackend<K>> restoreState(
 		PartitionedFsStateBackend<K> stateBackend,
 		final TypeSerializer<K> keySerializer,
 		ClassLoader classLoader,

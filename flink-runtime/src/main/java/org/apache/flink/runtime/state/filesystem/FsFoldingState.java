@@ -120,7 +120,7 @@ public class FsFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
@@ -137,7 +137,7 @@ public class FsFoldingState<K, N, T, ACC>
 		}
 
 		@Override
-		public KvState<K, N, FoldingState<T, ACC>, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, ACC>> stateMap) {
+		public KvState<K, N, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, ACC>> stateMap) {
 			return new FsFoldingState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}
