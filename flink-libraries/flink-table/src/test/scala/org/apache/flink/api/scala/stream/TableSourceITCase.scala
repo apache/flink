@@ -70,7 +70,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
 
     tEnv.registerTableSource("MyTestTable", new TestStreamTableSource(33))
     tEnv.sql(
-      "SELECT amount * id, name FROM MyTestTable WHERE amount < 4")
+      "SELECT STREAM amount * id, name FROM MyTestTable WHERE amount < 4")
       .toDataStream[Row]
       .addSink(new StreamITCase.StringSink)
 

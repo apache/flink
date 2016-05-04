@@ -29,8 +29,9 @@ import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
-import org.apache.flink.api.table.plan.schema.{TableSourceTable, TransStreamTable, DataStreamTable}
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
+import org.apache.flink.api.table.plan.schema.
+  {StreamableTableSourceTable, TransStreamTable, DataStreamTable}
 import org.apache.flink.api.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -110,7 +111,7 @@ abstract class StreamTableEnvironment(
   def registerTableSource(name: String, tableSource: StreamTableSource[_]): Unit = {
 
     checkValidTableName(name)
-    registerTableInternal(name, new TableSourceTable(tableSource))
+    registerTableInternal(name, new StreamableTableSourceTable(tableSource))
   }
 
   /**
@@ -179,7 +180,7 @@ abstract class StreamTableEnvironment(
       fieldIndexes,
       fieldNames
     )
-    // when registering a DataStream, we need to wrap it into a StreamableTable
+    // when registering a DataStream, we need to wrap it into a TransStreamTable
     // so that the SQL validation phase won't fail
     if (wrapper) {
       registerTableInternal(name, dataStreamTable)

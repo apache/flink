@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.table.plan.schema
 
-import org.apache.flink.api.table.Row
+import org.apache.calcite.schema.{Table, StreamableTable}
 import org.apache.flink.api.table.sources.TableSource
-import org.apache.flink.api.table.typeutils.RowTypeInfo
 
-/** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable(val tableSource: TableSource[_])
-  extends FlinkTable[Row](
-    typeInfo = new RowTypeInfo(tableSource.getFieldTypes, tableSource.getFieldsNames),
-    fieldIndexes = 0.until(tableSource.getNumberOfFields).toArray,
-    fieldNames = tableSource.getFieldsNames)
+/** Table which defines an external streamable table via a [[TableSource]] */
+class StreamableTableSourceTable(tableSource: TableSource[_])
+  extends TableSourceTable(tableSource)
+  with StreamableTable {
+
+  override def stream(): Table = new TableSourceTable(tableSource)
+}

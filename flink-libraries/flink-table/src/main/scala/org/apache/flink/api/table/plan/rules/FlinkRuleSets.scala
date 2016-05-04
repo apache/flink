@@ -110,12 +110,10 @@ object FlinkRuleSets {
   /**
   * RuleSet to optimize plans for batch / DataSet execution
   */
-  val DATASTREAM_OPT_RULES: RuleSet = {
+  val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
 
-    val rules = List(
-
+      RemoveDeltaRule.INSTANCE,
       EnumerableToLogicalTableScan.INSTANCE,
-      LogicalScanToStreamable.INSTANCE,
 
       // calc rules
       FilterToCalcRule.INSTANCE,
@@ -148,6 +146,4 @@ object FlinkRuleSets {
       StreamTableSourceScanRule.INSTANCE
   )
 
-    RuleSets.ofList(rules ++ StreamRules.RULES.asList.take(7))
-  }
 }
