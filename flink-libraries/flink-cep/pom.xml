@@ -61,7 +61,6 @@ under the License.
             <scope>test</scope>
         </dependency>
 
-<<<<<<< HEAD
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-java_2.10</artifactId>
@@ -69,16 +68,6 @@ under the License.
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
-=======
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
->>>>>>> FLINK-1827 fixed compilation that skips tests
 
         <dependency>
             <groupId>org.apache.flink</groupId>
