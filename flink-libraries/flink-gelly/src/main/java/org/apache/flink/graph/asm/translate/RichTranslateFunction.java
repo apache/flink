@@ -18,33 +18,22 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.types.LongValue;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 
 /**
- * Translate {@link LongValue} by adding a constant offset value.
+ * Rich variant of the {@link TranslateFunction}. As a {@link RichFunction}, it gives access to the
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
+ * {@link RichFunction#close()}.
+ *
+ * @param <IN> Type of the input elements.
+ * @param <OUT> Type of the returned elements.
  */
-public class LongValueAddOffset
-implements TranslateFunction<LongValue, LongValue> {
+public abstract class RichTranslateFunction<IN, OUT> extends AbstractRichFunction implements TranslateFunction<IN, OUT> {
 
-	private final long offset;
-
-	/**
-	 * Translate {@link LongValue} by adding a constant offset value.
-	 *
-	 * @param offset value to be added to each element
-	 */
-	public LongValueAddOffset(long offset) {
-		this.offset = offset;
-	}
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public LongValue translate(LongValue value, LongValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new LongValue();
-		}
-
-		reuse.setValue(offset + value.getValue());
-		return reuse;
-	}
+	public abstract OUT translate(IN value, OUT reuse) throws Exception;
 }

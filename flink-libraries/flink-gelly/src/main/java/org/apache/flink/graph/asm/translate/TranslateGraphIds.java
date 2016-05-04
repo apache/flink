@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -32,7 +31,7 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeIds;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
 
 /**
- * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link MapFunction}
+ * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}
  *
  * @param <OLD> old graph ID type
  * @param <NEW> new graph ID type
@@ -43,17 +42,17 @@ public class TranslateGraphIds<OLD, NEW, VV, EV>
 implements GraphAlgorithm<OLD, VV, EV, Graph<NEW, VV, EV>> {
 
 	// Required configuration
-	private MapFunction<OLD,NEW> translator;
+	private TranslateFunction<OLD,NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_UNKNOWN;
 
 	/**
-	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link MapFunction}
+	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
-	public TranslateGraphIds(MapFunction<OLD, NEW> translator) {
+	public TranslateGraphIds(TranslateFunction<OLD, NEW> translator) {
 		Preconditions.checkNotNull(translator);
 
 		this.translator = translator;

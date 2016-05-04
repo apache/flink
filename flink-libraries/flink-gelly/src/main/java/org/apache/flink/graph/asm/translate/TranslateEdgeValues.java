@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -30,7 +29,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
 import static org.apache.flink.graph.asm.translate.Translate.translateEdgeValues;
 
 /**
- * Translate {@link Edge} values using the given {@link MapFunction}.
+ * Translate {@link Edge} values using the given {@link TranslateFunction}.
  *
  * @param <K> vertex ID type
  * @param <VV> vertex value type
@@ -41,17 +40,17 @@ public class TranslateEdgeValues<K, VV, OLD, NEW>
 implements GraphAlgorithm<K, VV, OLD, Graph<K, VV, NEW>> {
 
 	// Required configuration
-	private MapFunction<OLD,NEW> translator;
+	private TranslateFunction<OLD,NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_UNKNOWN;
 
 	/**
-	 * Translate {@link Edge} values using the given {@link MapFunction}.
+	 * Translate {@link Edge} values using the given {@link TranslateFunction}.
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
-	public TranslateEdgeValues(MapFunction<OLD, NEW> translator) {
+	public TranslateEdgeValues(TranslateFunction<OLD, NEW> translator) {
 		Preconditions.checkNotNull(translator);
 
 		this.translator = translator;
