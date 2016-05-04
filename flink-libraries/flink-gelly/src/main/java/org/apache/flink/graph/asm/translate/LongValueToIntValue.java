@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
@@ -28,12 +27,10 @@ import org.apache.flink.types.LongValue;
  * Throws {@link RuntimeException} for integer overflow.
  */
 public class LongValueToIntValue
-implements MapFunction<LongValue, IntValue> {
-
-	private IntValue output = new IntValue();
+implements TranslateFunction<LongValue, IntValue> {
 
 	@Override
-	public IntValue map(LongValue value)
+	public IntValue translate(LongValue value, IntValue reuse)
 			throws Exception {
 		long val = value.getValue();
 
@@ -41,7 +38,11 @@ implements MapFunction<LongValue, IntValue> {
 			throw new RuntimeException("LongValue input overflows IntValue output");
 		}
 
-		output.setValue((int) val);
-		return output;
+		if (reuse == null) {
+			reuse = new IntValue();
+		}
+
+		reuse.setValue((int) val);
+		return reuse;
 	}
 }
