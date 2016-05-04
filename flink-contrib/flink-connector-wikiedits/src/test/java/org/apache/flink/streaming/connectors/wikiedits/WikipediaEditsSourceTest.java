@@ -22,6 +22,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -29,33 +34,73 @@ import static org.junit.Assert.fail;
 
 public class WikipediaEditsSourceTest {
 
+	private static final Logger LOG = LoggerFactory.getLogger(WikipediaEditsSourceTest.class);
+
 	/**
-	 * NOTE: if you are behind a firewall you may need to use a SOCKS Proxy for this test
+	 * NOTE: if you are behind a firewall you may need to use a SOCKS Proxy for this test.
+	 *
+	 * We first check the connection to the IRC server. If it fails, this test
+	 * is effectively ignored.
 	 *
 	 * @see <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html">Socks Proxy</a>
 	 */
 	@Test(timeout = 120 * 1000)
 	public void testWikipediaEditsSource() throws Exception {
+		final int numRetries = 5;
+		final int waitBetweenRetriesMillis = 2000;
+		final int connectTimeout = 1000;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
+		boolean success = false;
 
-		DataStream<WikipediaEditEvent> edits = env.addSource(new WikipediaEditsSource());
+		for (int i = 0; i < numRetries && !success; i++) {
+			// Check connection
+			boolean canConnect = false;
 
-		edits.addSink(new SinkFunction<WikipediaEditEvent>() {
-			@Override
-			public void invoke(WikipediaEditEvent value) throws Exception {
-				throw new Exception("Expected test exception");
+			String host = WikipediaEditsSource.DEFAULT_HOST;
+			int port = WikipediaEditsSource.DEFAULT_PORT;
+
+			try (Socket s = new Socket()) {
+				s.connect(new InetSocketAddress(host, port), connectTimeout);
+				canConnect = s.isConnected();
+			} catch (Throwable ignored) {
 			}
-		});
 
-		try {
-			env.execute();
-			fail("Did not throw expected Exception.");
+			if (canConnect) {
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+				env.getConfig().disableSysoutLogging();
+
+				DataStream<WikipediaEditEvent> edits = env.addSource(new WikipediaEditsSource());
+
+				edits.addSink(new SinkFunction<WikipediaEditEvent>() {
+					@Override
+					public void invoke(WikipediaEditEvent value) throws Exception {
+						throw new Exception("Expected test exception");
+					}
+				});
+
+				try {
+					env.execute();
+					fail("Did not throw expected Exception.");
+				} catch (Exception e) {
+					assertNotNull(e.getCause());
+					assertEquals("Expected test exception", e.getCause().getMessage());
+				}
+
+				success = true;
+			} else {
+				LOG.info("Failed to connect to IRC server ({}/{}). Retrying in {} ms.",
+						i + 1,
+						numRetries,
+						waitBetweenRetriesMillis);
+
+				Thread.sleep(waitBetweenRetriesMillis);
+			}
 		}
-		catch (Exception e) {
-			assertNotNull(e.getCause());
-			assertEquals("Expected test exception", e.getCause().getMessage());
+
+		if (success) {
+			LOG.info("Successfully ran test.");
+		} else {
+			LOG.info("Skipped test, because not able to connect to IRC server.");
 		}
 	}
 }
