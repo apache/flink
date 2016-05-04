@@ -85,15 +85,15 @@ DataStream<Alert> result = patternStream.select(pattern -> {
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val input : DataStream[Event] = ...
+val input: DataStream[Event] = ...
 
-val pattern : Pattern[Event, _] = Pattern.begin("start").where((evt: Event) => evt.getId == 42)
-  .next("middle").subtype(classOf[SubEvent]).where((subEvt) => subEvt.getVolume >= 10.0)
-  .followedBy("end").where((evt) => evt.getName == "end")
+val pattern = Pattern.begin("start").where(_.getId == 42)
+  .next("middle").subtype(classOf[SubEvent]).where(_.getVolume >= 10.0)
+  .followedBy("end").where(_.getName == "end")
 
-val patternStream : PatternStream[Event] = CEP.pattern(input, pattern)
+val patternStream = CEP.pattern(input, pattern)
 
-val result : DataStream[Alert] = patternStream.select((pattern) => createAlert(pattern))
+val result: DataStream[Alert] = patternStream.select(createAlert(_))
 {% endhighlight %}
 </div>
 </div>
@@ -141,7 +141,7 @@ start.where(new FilterFunction<Event>() {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-start.where((value : Event) => ... /* some condition */)
+start.where(event => ... /* some condition */)
 {% endhighlight %}
 </div>
 </div>
@@ -162,7 +162,7 @@ start.subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-start.subtype(classOf[SubEvent]).where((value : SubEvent) => ... /* some condition */)
+start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
 {% endhighlight %}
 </div>
 </div>
@@ -260,7 +260,7 @@ Pattern<Event, ?> next = start.next("next");
             <td>
                 <p>Appends a new pattern state. Other events can occur between a matching event and the previous matching event:</p>
 {% highlight java %}
-Pattern<Event, ?> next = start.followedBy("next");
+Pattern<Event, ?> followedBy = start.followedBy("next");
 {% endhighlight %}
             </td>
         </tr>
@@ -314,7 +314,7 @@ patternState.within(Time.seconds(10));
             <td>
             <p>Defines a starting pattern state:</p>
 {% highlight scala %}
-val start : Pattern[Event, _] = Pattern.begin("start")
+val start = Pattern.begin[Event]("start")
 {% endhighlight %}
             </td>
         </tr>
@@ -323,7 +323,7 @@ val start : Pattern[Event, _] = Pattern.begin("start")
             <td>
                 <p>Appends a new pattern state. A matching event has to directly succeed the previous matching event:</p>
 {% highlight scala %}
-val next: Pattern[Event, _] = start.next("middle")
+val next = start.next("middle")
 {% endhighlight %}
             </td>
         </tr>
@@ -332,7 +332,7 @@ val next: Pattern[Event, _] = start.next("middle")
             <td>
                 <p>Appends a new pattern state. Other events can occur between a matching event and the previous matching event:</p>
 {% highlight scala %}
-val next : Pattern[Event, _] = start.followedBy("middle")
+val followedBy = start.followedBy("middle")
 {% endhighlight %}
             </td>
         </tr>
@@ -341,7 +341,7 @@ val next : Pattern[Event, _] = start.followedBy("middle")
             <td>
                 <p>Defines a filter condition for the current pattern state. Only if an event passes the filter, it can match the state:</p>
 {% highlight scala %}
-patternState.where((value : Event) => ... /* some condition */)
+patternState.where(event => ... /* some condition */)
 {% endhighlight %}
             </td>
         </tr>
@@ -441,7 +441,7 @@ The string is defined by the name of the state to which the event has been match
 The selection function returns exactly one result per call.
 
 {% highlight scala %}
-def selectFn(pattern : mutable.Map[String, IN]) = {
+def selectFn(pattern : mutable.Map[String, IN]): OUT = {
     val startEvent = pattern.get("start").get
     val endEvent = pattern.get("end").get
     OUT(startEvent, endEvent)
@@ -515,17 +515,16 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val input : DataStream[Event] = ...
 
-val partitionedInput : DataStream[Event] = input.keyBy((value: Event) => value.getId)
+val partitionedInput = input.keyBy(event => event.getId)
 
-val pattern : Pattern[Event, _] = Pattern.begin("start")
-  .next("middle").where((value: Event) => value.getName == "error")
-  .followedBy("end").where((value: Event) => value.getName == "critical")
+val pattern = Pattern.begin("start")
+  .next("middle").where(_.getName == "error")
+  .followedBy("end").where(_.getName == "critical")
   .within(Time.seconds(10))
 
-val patternStream : PatternStream[Event] = CEP.pattern(partitionedInput, pattern)
+val patternStream = CEP.pattern(partitionedInput, pattern)
 
-val alerts : DataStream[Alert] = patternStream.select(
-  (pattern : mutable.Map[String, Event] => createAlert(pattern)))
+val alerts = patternStream.select(createAlert(_)))
 {% endhighlight %}
 </div>
 </div>
