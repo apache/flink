@@ -127,3 +127,10 @@ Prior to doing anything, make sure that the Flink project is built at least once
 2. Select the root folder of the Flink repository
 3. Choose "Import project from external model" and select "Maven"
 4. Leave the default options and finish the import.
+
+### Setting code style schema
+1. Go to IntelliJ code style settings (File -> Settings -> Editor -> Code Style) and click "Manage..."
+2. Choose "Import..." and select "Import from IntelliJ IDEA code style XML" 
+3. Point to the code style schema file (/*-project root-*/tools/FlinkCodeStyle.xml)
+4. Name the schema in "To:" field or leave it as it is and leave the option "Current schema" deselected. 
+5. Make sure it is chosen as the active schema in code style settings. 
