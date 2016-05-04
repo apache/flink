@@ -23,8 +23,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.api.table.plan.nodes.datastream.{StreamTableSourceScan, DataStreamConvention}
-import org.apache.flink.api.table.plan.schema.TableSourceTable
+import org.apache.flink.api.table.plan.nodes.datastream.
+  {StreamTableSourceScan, DataStreamConvention}
+import org.apache.flink.api.table.plan.schema.StreamableTableSourceTable
 import org.apache.flink.api.table.sources.StreamTableSource
 
 /** Rule to convert a [[LogicalTableScan]] into a [[StreamTableSourceScan]]. */
@@ -39,9 +40,9 @@ class StreamTableSourceScanRule
   /** Rule must only match if TableScan targets a [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable])
+    val dataSetTable = scan.getTable.unwrap(classOf[StreamableTableSourceTable])
     dataSetTable match {
-      case tst: TableSourceTable =>
+      case tst: StreamableTableSourceTable =>
         tst.tableSource match {
           case _: StreamTableSource[_] =>
             true

@@ -33,11 +33,6 @@ import org.apache.calcite.schema.{StreamableTable, Table, TranslatableTable}
   * can be converted to a relational expression and [[StreamableTable]]
   * so that it can be used in Streaming SQL queries.
   *
-  * Except for registering Streaming Tables, this implementation is also used
-  * in [[org.apache.flink.api.table.plan.rules.LogicalScanToStreamable]]
-  * rule to convert a logical scan of a non-Streamable Table into
-  * a logical scan of a Streamable table, i.e. of this class.
-  *
   * @see [[DataStreamTable]]
   */
 class TransStreamTable(relNode: RelNode, wrapper: Boolean)
