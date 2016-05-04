@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.io.jdbc.example;
 
 import java.sql.Types;
-import java.util.Arrays;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -73,8 +72,7 @@ public class JDBCFullTest extends JDBCTestBase {
 			BasicTypeInfo.DOUBLE_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO
 		};
-		TypeInformation<Row> rowTypeInfo = new RowTypeInfo(scala.collection.JavaConversions.asScalaBuffer(Arrays.asList(fieldTypes)).seq());
-		DataSet<Row> source = environment.createInput(inputBuilder.finish(), rowTypeInfo);
+		DataSet<Row> source = environment.createInput(inputBuilder.finish(), new RowTypeInfo(fieldTypes));
 		//when rowTypeInfo is not passed the IF should always re-instantiated a row in nextRecord()
 		//DataSet<Row> source = environment.createInput(inputBuilder.finish());
 
