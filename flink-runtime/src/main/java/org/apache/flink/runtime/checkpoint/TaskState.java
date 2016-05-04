@@ -112,8 +112,12 @@ public class TaskState implements Serializable {
 		keyGroupStates.put(keyGroupId, keyGroupState);
 	}
 
-	public KeyGroupState getKvState(int keyGroupId) {
+	public KeyGroupState getKeyGroupState(int keyGroupId) {
 		return keyGroupStates.get(keyGroupId);
+	}
+
+	public Map<Integer, KeyGroupState> getKeyGroupStates() {
+		return keyGroupStates;
 	}
 
 	/**

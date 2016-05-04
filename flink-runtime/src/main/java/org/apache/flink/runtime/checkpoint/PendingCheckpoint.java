@@ -54,12 +54,18 @@ public class PendingCheckpoint {
 	private int numAcknowledgedTasks;
 	
 	private boolean discarded;
+
+	private final int numberKeyGroups;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public PendingCheckpoint(JobID jobId, long checkpointId, long checkpointTimestamp,
-							Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm)
-	{
+	public PendingCheckpoint(
+		JobID jobId,
+		long checkpointId,
+		long checkpointTimestamp,
+		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
+		int numberKeyGroups) {
+
 		if (jobId == null || verticesToConfirm == null) {
 			throw new NullPointerException();
 		}
@@ -73,6 +79,8 @@ public class PendingCheckpoint {
 		
 		this.notYetAcknowledgedTasks = verticesToConfirm;
 		this.taskStates = new HashMap<>();
+
+		this.numberKeyGroups = numberKeyGroups;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -121,7 +129,8 @@ public class PendingCheckpoint {
 					checkpointId,
 					checkpointTimestamp,
 					System.currentTimeMillis(),
-					new HashMap<>(taskStates));
+					new HashMap<>(taskStates),
+					numberKeyGroups);
 				dispose(null, false);
 				
 				return completed;

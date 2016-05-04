@@ -447,7 +447,7 @@ public class CheckpointCoordinator {
 
 		LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
 
-		final PendingCheckpoint checkpoint = new PendingCheckpoint(job, checkpointID, timestamp, ackTasks);
+		final PendingCheckpoint checkpoint = new PendingCheckpoint(job, checkpointID, timestamp, ackTasks, numberKeyGroups);
 
 		// schedule the timer that will clean up the expired checkpoints
 		TimerTask canceller = new TimerTask() {
@@ -799,6 +799,13 @@ public class CheckpointCoordinator {
 				} else {
 					return false;
 				}
+			}
+
+			// check that the number of key groups have not changed
+			if (latest.getNumberKeyGroups() != numberKeyGroups) {
+				throw new IllegalStateException("The number of key groups with which the latest " +
+					"checkpoint has been taken and the current number of key groups changed. This " +
+					"is currently not supported.");
 			}
 
 			long recoveryTimestamp = System.currentTimeMillis();

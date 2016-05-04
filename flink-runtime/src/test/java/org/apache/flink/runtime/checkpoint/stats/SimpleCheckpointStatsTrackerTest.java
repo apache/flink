@@ -282,6 +282,7 @@ public class SimpleCheckpointStatsTrackerTest {
 		int maxNumOperators = 32;
 		int minParallelism = 4;
 		int maxParallelism = 16;
+		int numberKeyGroups = 32;
 
 		// Use yuge numbers here in order to test that summing up state sizes
 		// does not overflow. This was a bug in the initial version, because
@@ -340,7 +341,7 @@ public class SimpleCheckpointStatsTrackerTest {
 			final long completionTimestamp = triggerTimestamp + completionDuration + RAND.nextInt(10);
 
 			checkpoints[i] = new CompletedCheckpoint(
-					jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates);
+					jobId, i, triggerTimestamp, completionTimestamp, taskGroupStates, numberKeyGroups);
 		}
 
 		return checkpoints;
