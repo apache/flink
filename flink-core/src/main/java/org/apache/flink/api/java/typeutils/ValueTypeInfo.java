@@ -26,6 +26,26 @@ import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BooleanValueComparator;
+import org.apache.flink.api.common.typeutils.base.BooleanValueSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteValueComparator;
+import org.apache.flink.api.common.typeutils.base.ByteValueSerializer;
+import org.apache.flink.api.common.typeutils.base.CharValueComparator;
+import org.apache.flink.api.common.typeutils.base.CharValueSerializer;
+import org.apache.flink.api.common.typeutils.base.DoubleValueComparator;
+import org.apache.flink.api.common.typeutils.base.DoubleValueSerializer;
+import org.apache.flink.api.common.typeutils.base.FloatValueComparator;
+import org.apache.flink.api.common.typeutils.base.FloatValueSerializer;
+import org.apache.flink.api.common.typeutils.base.IntValueComparator;
+import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
+import org.apache.flink.api.common.typeutils.base.LongValueComparator;
+import org.apache.flink.api.common.typeutils.base.LongValueSerializer;
+import org.apache.flink.api.common.typeutils.base.NullValueComparator;
+import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
+import org.apache.flink.api.common.typeutils.base.ShortValueComparator;
+import org.apache.flink.api.common.typeutils.base.ShortValueSerializer;
+import org.apache.flink.api.common.typeutils.base.StringValueComparator;
+import org.apache.flink.api.common.typeutils.base.StringValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueComparator;
@@ -126,7 +146,37 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
-		if (CopyableValue.class.isAssignableFrom(type)) {
+		if (BooleanValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) BooleanValueSerializer.INSTANCE;
+		}
+		else if (ByteValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) ByteValueSerializer.INSTANCE;
+		}
+		else if (CharValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) CharValueSerializer.INSTANCE;
+		}
+		else if (DoubleValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) DoubleValueSerializer.INSTANCE;
+		}
+		else if (FloatValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) FloatValueSerializer.INSTANCE;
+		}
+		else if (IntValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) IntValueSerializer.INSTANCE;
+		}
+		else if (LongValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) LongValueSerializer.INSTANCE;
+		}
+		else if (NullValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) NullValueSerializer.INSTANCE;
+		}
+		else if (ShortValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) ShortValueSerializer.INSTANCE;
+		}
+		else if (StringValue.class.isAssignableFrom(type)) {
+			return (TypeSerializer<T>) StringValueSerializer.INSTANCE;
+		}
+		else if (CopyableValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<T>) createCopyableValueSerializer(type.asSubclass(CopyableValue.class));
 		}
 		else {
@@ -141,8 +191,38 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		if (!isKeyType()) {
 			throw new RuntimeException("The type " + type.getName() + " is not Comparable.");
 		}
-		
-		if (CopyableValue.class.isAssignableFrom(type)) {
+
+		if (BooleanValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new BooleanValueComparator(sortOrderAscending);
+		}
+		else if (ByteValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new ByteValueComparator(sortOrderAscending);
+		}
+		else if (CharValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new CharValueComparator(sortOrderAscending);
+		}
+		else if (DoubleValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new DoubleValueComparator(sortOrderAscending);
+		}
+		else if (FloatValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new FloatValueComparator(sortOrderAscending);
+		}
+		else if (IntValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new IntValueComparator(sortOrderAscending);
+		}
+		else if (LongValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new LongValueComparator(sortOrderAscending);
+		}
+		else if (NullValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) NullValueComparator.getInstance();
+		}
+		else if (ShortValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new ShortValueComparator(sortOrderAscending);
+		}
+		else if (StringValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) new StringValueComparator(sortOrderAscending);
+		}
+		else if (CopyableValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<T>) new CopyableValueComparator(sortOrderAscending, type);
 		}
 		else {
