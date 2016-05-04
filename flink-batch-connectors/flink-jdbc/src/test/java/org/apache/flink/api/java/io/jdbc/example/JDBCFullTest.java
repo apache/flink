@@ -29,7 +29,7 @@ import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
-import org.apache.flink.api.java.io.jdbc.split.NumericColumnSplitsGenerator;
+import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.junit.Test;
@@ -37,13 +37,13 @@ import org.junit.Test;
 public class JDBCFullTest extends JDBCTestBase {
 	
 	@Test
-	public void testWithParallelism() throws Exception {
+	public void test() throws Exception {
 		//run without parallelism
-		runTest(false);
+//		runTest(false);
 
 		//cleanup
-		JDBCTestBase.tearDownClass();
-		JDBCTestBase.prepareTestDb();
+//		JDBCTestBase.tearDownClass();
+//		JDBCTestBase.prepareTestDb();
 		
 		//run expliting parallelism
 		runTest(true);
@@ -60,11 +60,11 @@ public class JDBCFullTest extends JDBCTestBase {
 		if(exploitParallelism) {
 			final int fetchSize = 1;
 			final Long min = new Long(JDBCTestBase.testData[0][0] + "");
-			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length-fetchSize][0] + "");
+			final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length - fetchSize][0] + "");
 			//use a "splittable" query to exploit parallelism
 			inputBuilder = inputBuilder
 					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
-					.setSplitsGenerator(new NumericColumnSplitsGenerator(fetchSize, min, max));
+					.setParametersProvider(new NumericBetweenParametersProvider(fetchSize, min, max));
 		}
 		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
 			BasicTypeInfo.INT_TYPE_INFO,

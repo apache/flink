@@ -17,25 +17,27 @@
  */
 package org.apache.flink.api.java.io.jdbc.split;
 
-import org.apache.flink.api.java.io.QueryParamInputSplit;
+import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 
 /** 
  * 
- * This splits generator allows the apply user defined splits (computed outside the IF) 
+ * This splits generator actually does nothing but wrapping the query parameters
+ * computed by the user before creating the {@link JDBCInputFormat} instance.
  * 
  * */
-public class GenericSplitsGenerator implements JDBCInputSplitsGenerator {
+public class GenericParameterValuesProvider implements ParameterValuesProvider {
 
 	private static final long serialVersionUID = 1L;
-	private QueryParamInputSplit[] splits;
+	private final Object[][] parameters;
 	
-	public GenericSplitsGenerator(QueryParamInputSplit[] splits) {
-		this.splits = splits;
+	public GenericParameterValuesProvider(Object[][] parameters) {
+		this.parameters = parameters;
 	}
 
 	@Override
-	public QueryParamInputSplit[] getInputSplits(int minNumSplits) {
-		return splits;
+	public Object[][] getParameterValues(){
+		//do nothing...precomputed externally
+		return parameters;
 	}
 
 }

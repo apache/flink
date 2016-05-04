@@ -109,8 +109,8 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	public void writeRecord(Row tuple) throws IOException {
 		try {
 			for (int index = 0; index < tuple.productArity(); index++) {
-				if(tuple.productElement(index) ==null && typesArray != null && typesArray.length > 0) {
-					if(typesArray.length == tuple.productArity()) {
+				if (tuple.productElement(index) == null && typesArray != null && typesArray.length > 0) {
+					if (typesArray.length == tuple.productArity()) {
 						upload.setNull(index + 1, typesArray[index]);
 					} else {
 						LOG.warn("Column SQL types array doesn't match arity of SqlRow! Check the passed array...");

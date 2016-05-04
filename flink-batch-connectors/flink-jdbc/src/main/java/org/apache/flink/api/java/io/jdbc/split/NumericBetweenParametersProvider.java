@@ -17,47 +17,54 @@
  */
 package org.apache.flink.api.java.io.jdbc.split;
 
-import org.apache.flink.api.java.io.QueryParamInputSplit;
-
 /** 
  * 
- * This splits generator assumes that the query has a BETWEEN constraint on a numeric column.
- * The generated input splits will be of size equal to the configured fetchSize (maximum),
- * ranging from the min value up to the max 
+ * This query generator assumes that the query to parameterize contains a BETWEEN constraint on a numeric column.
+ * The generated query set will be of size equal to the configured fetchSize (apart the last one range),
+ * ranging from the min value up to the max.
+ * 
+ * For example, if there's a table <CODE>BOOKS</CODE> with a numeric PK <CODE>id</CODE>, using a query like:
+ * <PRE>
+ *   SELECT * FROM BOOKS WHERE id BETWEEN ? AND ?
+ * </PRE>
+ *
+ * you can use this class to automatically generate the parameters of the BETWEEN clause,
+ * based on the passed constructor parameters.
  * 
  * */
-public class NumericColumnSplitsGenerator implements JDBCInputSplitsGenerator {
+public class NumericBetweenParametersProvider implements ParameterValuesProvider {
 
 	private static final long serialVersionUID = 1L;
 	private long fetchSize;
 	private final long min;
 	private final long max;
 	
-	public NumericColumnSplitsGenerator(long fetchSize, long min, long max) {
+	public NumericBetweenParametersProvider(long fetchSize, long min, long max) {
 		this.fetchSize = fetchSize;
 		this.min = min;
 		this.max = max;
 	}
 
 	@Override
-	public QueryParamInputSplit[] getInputSplits(int minNumSplits) {
+	public Object[][] getParameterValues(){
 		double maxEelemCount = (max - min) + 1;
 		int size = new Double(Math.ceil(maxEelemCount / fetchSize)).intValue();
-		if(minNumSplits > size) {
-			size = minNumSplits;
-			fetchSize = new Double(Math.ceil(maxEelemCount / minNumSplits)).intValue();
-		}
-		QueryParamInputSplit[] ret = new QueryParamInputSplit[size];
+		//decomment if we ever have to respect the minNumSplits constraint..
+//		if (minNumberOfQueries > size) {
+//			size = minNumberOfQueries;
+//			fetchSize = new Double(Math.ceil(maxEelemCount / minNumberOfQueries)).intValue();
+//		}
+		Object[][] parameters = new Object[size][2];
 		int count = 0;
 		for (long i = min; i < max; i += fetchSize, count++) {
 			long currentLimit = i + fetchSize - 1;
-			ret[count] = new QueryParamInputSplit(count, new Long[]{i,currentLimit});
+			parameters[count] = new Long[]{i,currentLimit};
 			if (currentLimit + 1 + fetchSize > max) {
-				ret[count + 1] = new QueryParamInputSplit(count, new Long[]{currentLimit + 1, max});
+				parameters[count + 1] = new Long[]{currentLimit + 1, max};
 				break;
 			}
 		}
-		return ret;
+		return parameters;
 	}
-
+	
 }

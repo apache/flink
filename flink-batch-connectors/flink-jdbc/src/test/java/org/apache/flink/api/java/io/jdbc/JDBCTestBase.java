@@ -84,8 +84,9 @@ public class JDBCTestBase {
 			.append(JDBCTestBase.testData[i][2]).append("',")
 			.append(JDBCTestBase.testData[i][3]).append(",")
 			.append(JDBCTestBase.testData[i][4]).append(")");
-			if(i<JDBCTestBase.testData.length-1)
+			if (i < JDBCTestBase.testData.length - 1) {
 				sqlQueryBuilder.append(",");
+			}
 		}
 		String insertQuery = sqlQueryBuilder.toString();
 		return insertQuery;

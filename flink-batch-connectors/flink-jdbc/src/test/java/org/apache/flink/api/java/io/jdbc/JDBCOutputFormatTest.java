@@ -113,7 +113,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 
 		Row row = new Row(tuple5.getArity());
 		while (!jdbcInputFormat.reachedEnd()) {
-			if(jdbcInputFormat.nextRecord(row)!=null) {
+			if (jdbcInputFormat.nextRecord(row) != null) {
 				jdbcOutputFormat.writeRecord(row);
 			}
 		}
@@ -133,7 +133,10 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
-			jdbcInputFormat.nextRecord(row);
+			row = jdbcInputFormat.nextRecord(row);
+			if (row == null) {
+				break;
+			}
 			if(row.productElement(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.productElement(0).getClass());}
 			if(row.productElement(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.productElement(1).getClass());}
 			if(row.productElement(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.productElement(2).getClass());}
