@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -135,7 +136,7 @@ public class PendingCheckpoint {
 			ExecutionAttemptID attemptID,
 			SerializedValue<StateHandle<?>> state,
 			long stateSize,
-			Map<Integer, SerializedValue<StateHandle<?>>> kvState) {
+			Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -144,7 +145,7 @@ public class PendingCheckpoint {
 			
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
-				if (state != null || kvState != null) {
+				if (state != null || keyGroupStateAndSizes != null) {
 
 					JobVertexID jobVertexID = vertex.getJobvertexId();
 
@@ -170,15 +171,14 @@ public class PendingCheckpoint {
 						);
 					}
 
-					if (kvState != null) {
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
-							taskState.putKvState(
+					if (keyGroupStateAndSizes != null) {
+						for (Map.Entry<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> entry : keyGroupStateAndSizes.entrySet()) {
+							taskState.putKeyGroupState(
 								entry.getKey(),
 								new KeyGroupState(
-									entry.getValue(),
-									0L,
-									timestamp
-								));
+									entry.getValue().f0,
+									entry.getValue().f1,
+									timestamp));
 						}
 					}
 				}

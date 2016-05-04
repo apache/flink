@@ -654,7 +654,7 @@ public class CheckpointCoordinator {
 					message.getTaskExecutionId(),
 					message.getState(),
 					message.getStateSize(),
-					message.getKeyGroupState())) { // TODO: Give KV-state to the acknowledgeTask method
+					message.getKeyGroupStateAndSizes())) { // TODO: Give KV-state to the acknowledgeTask method
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.toCompletedCheckpoint();
 
@@ -830,7 +830,7 @@ public class CheckpointCoordinator {
 							state = subtaskState.getState();
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKvStates(keyGroupPartitions.get(i));
+						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
 						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);

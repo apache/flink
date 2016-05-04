@@ -231,7 +231,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						}
 
 						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState
-							.getUnwrappedKvStates(keyGroupPartitions.get(i));
+							.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex
 							.getTaskVertices()[i]

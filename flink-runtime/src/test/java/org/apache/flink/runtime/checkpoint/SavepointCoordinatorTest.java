@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -125,8 +126,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				vertex.getCurrentExecutionAttempt().getAttemptId(),
 				checkpointId,
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		// The pending checkpoint is completed
@@ -198,8 +199,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				attemptId,
 				0,
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -262,8 +263,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				attemptId,
 				0,
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -317,8 +318,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				attemptId,
 				0,
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
@@ -625,8 +626,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				attemptId,
 				0,
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		try {
@@ -699,8 +700,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				vertex.getCurrentExecutionAttempt().getAttemptId(),
 				checkpointIds[1],
 				createSerializedStateHandle(vertex),
-				createSerializedStateHandleMap(vertex),
-				0));
+				0,
+				createSerializedStateHandleMap(vertex)));
 		}
 
 		// ...and one task of first checkpoint
@@ -709,8 +710,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 			vertices[0].getCurrentExecutionAttempt().getAttemptId(),
 			checkpointIds[0],
 			createSerializedStateHandle(vertices[0]),
-			createSerializedStateHandleMap(vertices[0]),
-			0));
+			0,
+			createSerializedStateHandleMap(vertices[0])));
 
 		// The second pending checkpoint is completed and subsumes the first one
 		assertTrue(pendingCheckpoints[0].isDiscarded());
@@ -799,8 +800,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 					vertex.getCurrentExecutionAttempt().getAttemptId(),
 					checkpointId,
 					createSerializedStateHandle(vertex),
-					createSerializedStateHandleMap(vertex),
-					0));
+					0,
+					createSerializedStateHandleMap(vertex)));
 			}
 
 			// The pending checkpoint is completed
@@ -879,12 +880,15 @@ public class SavepointCoordinatorTest extends TestLogger {
 				vertex.getCurrentExecutionAttempt().getAttemptId()));
 	}
 
-	private static Map<Integer, SerializedValue<StateHandle<?>>> createSerializedStateHandleMap(ExecutionVertex vertex) throws IOException {
+	private static Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> createSerializedStateHandleMap(ExecutionVertex vertex) throws IOException {
 		return Collections.singletonMap(
 			0,
-			new SerializedValue<StateHandle<?>>(
-				new LocalStateHandle<Serializable>(
-					vertex.getCurrentExecutionAttempt().getAttemptId())));
+			Tuple2.of(
+				new SerializedValue<StateHandle<?>>(
+					new LocalStateHandle<Serializable>(
+						vertex.getCurrentExecutionAttempt().getAttemptId())),
+				0L
+				));
 	}
 
 	@SuppressWarnings("unchecked")

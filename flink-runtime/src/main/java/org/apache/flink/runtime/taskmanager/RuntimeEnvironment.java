@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -226,7 +227,7 @@ public class RuntimeEnvironment implements Environment {
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> keyGroupStates) {
 		// try and create a serialized version of the state handle
 		SerializedValue<StateHandle<?>> serializedState;
-		Map<Integer, SerializedValue<StateHandle<?>>> serializedKeyGroupStates;
+		Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> serializedKeyGroupStates;
 		long stateSize;
 
 		if (state == null) {
@@ -253,19 +254,22 @@ public class RuntimeEnvironment implements Environment {
 			serializedKeyGroupStates = new HashMap<>(keyGroupStates.size());
 
 			for(Map.Entry<Integer, StateHandle<?>> entry: keyGroupStates.entrySet()) {
-				try {
-					SerializedValue<StateHandle<?>> serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
+				SerializedValue<StateHandle<?>> serializedKeyGroupState;
+				long keyGroupStateSize;
 
-					serializedKeyGroupStates.put(entry.getKey(), serializedKeyGroupState);
+				try {
+					serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
 				} catch(IOException e) {
 					throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation.", e);
 				}
 
 				try {
-					stateSize += entry.getValue().getStateSize();
+					keyGroupStateSize = entry.getValue().getStateSize();
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to fetch state handle size.", e);
 				}
+
+				serializedKeyGroupStates.put(entry.getKey(), Tuple2.of(serializedKeyGroupState, keyGroupStateSize));
 			}
 		}
 		
@@ -274,8 +278,8 @@ public class RuntimeEnvironment implements Environment {
 			executionId,
 			checkpointId,
 			serializedState,
-			serializedKeyGroupStates,
-			stateSize);
+			stateSize,
+			serializedKeyGroupStates);
 
 		jobManager.tell(message);
 	}
