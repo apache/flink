@@ -38,11 +38,11 @@ public class JDBCFullTest extends JDBCTestBase {
 	@Test
 	public void test() throws Exception {
 		//run without parallelism
-//		runTest(false);
+		runTest(false);
 
 		//cleanup
-//		JDBCTestBase.tearDownClass();
-//		JDBCTestBase.prepareTestDb();
+		JDBCTestBase.tearDownClass();
+		JDBCTestBase.prepareTestDb();
 		
 		//run expliting parallelism
 		runTest(true);
