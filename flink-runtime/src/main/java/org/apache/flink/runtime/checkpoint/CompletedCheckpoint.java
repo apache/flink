@@ -47,22 +47,18 @@ public class CompletedCheckpoint implements Serializable {
 	/** States of the different task groups belonging to this checkpoint */
 	private final Map<JobVertexID, TaskState> taskStates;
 
-	private final int numberKeyGroups;
-
 	public CompletedCheckpoint(
 		JobID job,
 		long checkpointID,
 		long timestamp,
 		long completionTimestamp,
-		Map<JobVertexID, TaskState> taskStates,
-		int numberKeyGroups) {
+		Map<JobVertexID, TaskState> taskStates) {
 
 		this.job = job;
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
 		this.taskStates = Preconditions.checkNotNull(taskStates);
-		this.numberKeyGroups = numberKeyGroups;
 	}
 
 	public JobID getJobId() {
@@ -79,10 +75,6 @@ public class CompletedCheckpoint implements Serializable {
 
 	public long getDuration() {
 		return duration;
-	}
-
-	public int getNumberKeyGroups() {
-		return numberKeyGroups;
 	}
 
 	public long getStateSize() {

@@ -1197,14 +1197,11 @@ class JobManager(
               new SimpleCheckpointStatsTracker(historySize, ackVertices)
             }
 
-          val numberKeyGroups = jobGraph.getExecutionConfig.getMaxParallelism()
-
           executionGraph.enableSnapshotCheckpointing(
             snapshotSettings.getCheckpointInterval,
             snapshotSettings.getCheckpointTimeout,
             snapshotSettings.getMinPauseBetweenCheckpoints,
             snapshotSettings.getMaxConcurrentCheckpoints,
-            numberKeyGroups,
             triggerVertices,
             ackVertices,
             confirmVertices,

@@ -22,4 +22,6 @@ import java.io.Serializable;
 
 public interface KeyGroupAssigner<K> extends Serializable {
 	int getKeyGroupIndex(K key);
+
+	void setup(int maxParallelism);
 }

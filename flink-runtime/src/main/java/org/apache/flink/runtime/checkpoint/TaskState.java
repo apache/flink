@@ -50,7 +50,9 @@ public class TaskState implements Serializable {
 	/** Parallelism of the operator when it was checkpointed */
 	private final int parallelism;
 
-	public TaskState(JobVertexID jobVertexID, int parallelism) {
+	private final int maxParallelism;
+
+	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism) {
 		this.jobVertexID = jobVertexID;
 
 		this.subtaskStates = new HashMap<>(parallelism);
@@ -58,6 +60,8 @@ public class TaskState implements Serializable {
 		this.keyGroupStates = new HashMap<>();
 
 		this.parallelism = parallelism;
+
+		this.maxParallelism = maxParallelism;
 	}
 
 	public JobVertexID getJobVertexID() {
@@ -106,6 +110,10 @@ public class TaskState implements Serializable {
 
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
 	public void putKeyGroupState(int keyGroupId, KeyGroupState keyGroupState) {

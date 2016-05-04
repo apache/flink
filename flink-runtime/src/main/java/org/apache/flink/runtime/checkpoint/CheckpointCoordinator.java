@@ -151,15 +151,12 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
-	protected final int numberKeyGroups;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
 			JobID job,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -168,7 +165,7 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			RecoveryMode recoveryMode) throws Exception {
 
-		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE, numberKeyGroups,
+		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE,
 				tasksToTrigger, tasksToWaitFor, tasksToCommitTo,
 				userClassLoader, checkpointIDCounter, completedCheckpointStore, recoveryMode,
 				new DisabledCheckpointStatsTracker());
@@ -180,7 +177,6 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -248,7 +244,6 @@ public class CheckpointCoordinator {
 			this.shutdownHook = null;
 		}
 
-		this.numberKeyGroups = numberKeyGroups;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -447,7 +442,7 @@ public class CheckpointCoordinator {
 
 		LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
 
-		final PendingCheckpoint checkpoint = new PendingCheckpoint(job, checkpointID, timestamp, ackTasks, numberKeyGroups);
+		final PendingCheckpoint checkpoint = new PendingCheckpoint(job, checkpointID, timestamp, ackTasks);
 
 		// schedule the timer that will clean up the expired checkpoints
 		TimerTask canceller = new TimerTask() {
@@ -801,13 +796,6 @@ public class CheckpointCoordinator {
 				}
 			}
 
-			// check that the number of key groups have not changed
-			if (latest.getNumberKeyGroups() != numberKeyGroups) {
-				throw new IllegalStateException("The number of key groups with which the latest " +
-					"checkpoint has been taken and the current number of key groups changed. This " +
-					"is currently not supported.");
-			}
-
 			long recoveryTimestamp = System.currentTimeMillis();
 
 			for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry: latest.getTaskStates().entrySet()) {
@@ -823,9 +811,17 @@ public class CheckpointCoordinator {
 							"state object has a parallelism of " + taskState.getParallelism());
 					}
 
+					// check that the number of key groups have not changed
+					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+						throw new IllegalStateException("The max parallelism with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current max parallelism changed. This " +
+							"is currently not supported.");
+					}
+
 					int counter = 0;
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(numberKeyGroups, executionJobVertex.getParallelism());
+					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(executionJobVertex.getMaxParallelism(), executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 						SubtaskState subtaskState = taskState.getState(i);

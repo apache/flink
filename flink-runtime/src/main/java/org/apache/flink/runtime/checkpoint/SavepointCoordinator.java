@@ -83,7 +83,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			JobID jobId,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -97,7 +96,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				checkpointTimeout,
 				0L,
 				Integer.MAX_VALUE,
-				numberKeyGroups,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
@@ -218,8 +216,16 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						throw new IllegalStateException(msg);
 					}
 
+					// check that the number of key groups have not changed
+					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+						throw new IllegalStateException("The max parallelism with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current max parallelism changed. This " +
+							"is currently not supported.");
+					}
+
 					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
-						numberKeyGroups,
+						executionJobVertex.getMaxParallelism(),
 						executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {

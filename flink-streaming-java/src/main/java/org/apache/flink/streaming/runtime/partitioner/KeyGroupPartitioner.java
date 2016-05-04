@@ -44,6 +44,10 @@ public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> {
 		this.keyGroupAssigner = keyGroupAssigner;
 	}
 
+	public void setup(int maxParallelism) {
+		keyGroupAssigner.setup(maxParallelism);
+	}
+
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {

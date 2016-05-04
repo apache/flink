@@ -58,6 +58,8 @@ public class JobVertex implements java.io.Serializable {
 	/** Number of subtasks to split this task into at runtime.*/
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
+	private int maxParallelism = Integer.MAX_VALUE;
+
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;
 
@@ -233,6 +235,14 @@ public class JobVertex implements java.io.Serializable {
 			throw new IllegalArgumentException("The parallelism must be at least one.");
 		}
 		this.parallelism = parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	public void setMaxParallelism(int maxParallelism) {
+		this.maxParallelism = maxParallelism;
 	}
 
 	public InputSplitSource<?> getInputSplitSource() {

@@ -199,7 +199,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		JobVertexID jvid = new JobVertexID();
 
 		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
-		TaskState taskState = new TaskState(jvid, numberOfStates);
+		TaskState taskState = new TaskState(jvid, numberOfStates, numberOfStates);
 		taskGroupStates.put(jvid, taskState);
 
 		for (int i = 0; i < numberOfStates; i++) {
@@ -209,7 +209,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			taskState.putState(i, new SubtaskState(stateHandle, 0, 0));
 		}
 
-		return new TestCheckpoint(new JobID(), id, 0, taskGroupStates, numberOfStates);
+		return new TestCheckpoint(new JobID(), id, 0, taskGroupStates);
 	}
 
 	private void verifyCheckpoint(CompletedCheckpoint expected, CompletedCheckpoint actual) {
@@ -236,10 +236,9 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			JobID jobId,
 			long checkpointId,
 			long timestamp,
-			Map<JobVertexID, TaskState> taskGroupStates,
-			int numberKeyGroups) {
+			Map<JobVertexID, TaskState> taskGroupStates) {
 
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates, numberKeyGroups);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates);
 		}
 
 		@Override

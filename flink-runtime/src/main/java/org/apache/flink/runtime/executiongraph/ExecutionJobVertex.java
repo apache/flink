@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -72,6 +73,8 @@ public class ExecutionJobVertex implements Serializable {
 	private final List<IntermediateResult> inputs;
 	
 	private final int parallelism;
+
+	private final int maxParallelism;
 	
 	private final boolean[] finishedSubtasks;
 			
@@ -87,15 +90,22 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private InputSplitAssigner splitAssigner;
 	
-	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
-							int defaultParallelism, FiniteDuration timeout) throws JobException {
+	public ExecutionJobVertex(
+		ExecutionGraph graph,
+		JobVertex jobVertex,
+		int defaultParallelism,
+		FiniteDuration timeout) throws JobException {
+
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
 	
-	public ExecutionJobVertex(ExecutionGraph graph, JobVertex jobVertex,
-							int defaultParallelism, FiniteDuration timeout, long createTimestamp)
-			throws JobException
-	{
+	public ExecutionJobVertex(
+		ExecutionGraph graph,
+		JobVertex jobVertex,
+		int defaultParallelism,
+		FiniteDuration timeout,
+		long createTimestamp) throws JobException {
+
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
 		}
@@ -107,6 +117,11 @@ public class ExecutionJobVertex implements Serializable {
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
 		
 		this.parallelism = numTaskVertices;
+
+		int maxParallelism = jobVertex.getMaxParallelism();
+		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism must be greater or equal than the parallelism.");
+		this.maxParallelism = maxParallelism;
+
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
 		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
@@ -185,6 +200,10 @@ public class ExecutionJobVertex implements Serializable {
 
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
 	public JobID getJobId() {

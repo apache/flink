@@ -32,12 +32,18 @@ import org.apache.flink.util.Preconditions;
 public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 	private static final long serialVersionUID = -6319826921798945448L;
 
-	private final int numberKeyGroups;
+	private static final int UNDEFINED_NUMBER_KEY_GROUPS = Integer.MIN_VALUE;
+
+	private int numberKeyGroups;
+
+	public HashKeyGroupAssigner() {
+		this(UNDEFINED_NUMBER_KEY_GROUPS);
+	}
 
 	public HashKeyGroupAssigner(int numberKeyGroups) {
-		Preconditions.checkArgument(numberKeyGroups > 0, "The number of key groups has to be " +
-			"greater than 0. Use env.getConfig.setMaxParallelism() to specify the number of key " +
-			"groups.");
+		Preconditions.checkArgument(numberKeyGroups > 0 || numberKeyGroups == UNDEFINED_NUMBER_KEY_GROUPS,
+			"The number of key groups has to be greater than 0 or undefined. Use " +
+			"setMaxParallelism() to specify the number of key groups.");
 		this.numberKeyGroups = numberKeyGroups;
 	}
 
@@ -52,5 +58,14 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 				return MathUtils.murmurHash(key.hashCode());
 			}
 		}
+	}
+
+	@Override
+	public void setup(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The number of key groups has to be " +
+			"greater than 0. Use setMaxParallelism() to specify the number of key " +
+			"groups.");
+
+		numberKeyGroups = maxParallelism;
 	}
 }

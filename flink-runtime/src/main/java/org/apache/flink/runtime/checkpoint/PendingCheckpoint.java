@@ -55,16 +55,13 @@ public class PendingCheckpoint {
 	
 	private boolean discarded;
 
-	private final int numberKeyGroups;
-	
 	// --------------------------------------------------------------------------------------------
 	
 	public PendingCheckpoint(
 		JobID jobId,
 		long checkpointId,
 		long checkpointTimestamp,
-		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
-		int numberKeyGroups) {
+		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm) {
 
 		if (jobId == null || verticesToConfirm == null) {
 			throw new NullPointerException();
@@ -80,9 +77,8 @@ public class PendingCheckpoint {
 		this.notYetAcknowledgedTasks = verticesToConfirm;
 		this.taskStates = new HashMap<>();
 
-		this.numberKeyGroups = numberKeyGroups;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 
@@ -129,8 +125,7 @@ public class PendingCheckpoint {
 					checkpointId,
 					checkpointTimestamp,
 					System.currentTimeMillis(),
-					new HashMap<>(taskStates),
-					numberKeyGroups);
+					new HashMap<>(taskStates));
 				dispose(null, false);
 				
 				return completed;
@@ -163,7 +158,7 @@ public class PendingCheckpoint {
 					if (taskStates.containsKey(jobVertexID)) {
 						taskState = taskStates.get(jobVertexID);
 					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
+						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getJobVertex().getMaxParallelism());
 						taskStates.put(jobVertexID, taskState);
 					}
 
