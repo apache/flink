@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
@@ -26,14 +25,16 @@ import org.apache.flink.types.StringValue;
  * Translate {@link LongValue} to {@link StringValue}.
  */
 public class LongValueToStringValue
-implements MapFunction<LongValue, StringValue> {
-
-	private StringValue output = new StringValue();
+implements TranslateFunction<LongValue, StringValue> {
 
 	@Override
-	public StringValue map(LongValue value)
+	public StringValue translate(LongValue value, StringValue reuse)
 			throws Exception {
-		output.setValue(Long.toString(value.getValue()));
-		return output;
+		if (reuse == null) {
+			reuse = new StringValue();
+		}
+
+		reuse.setValue(Long.toString(value.getValue()));
+		return reuse;
 	}
 }

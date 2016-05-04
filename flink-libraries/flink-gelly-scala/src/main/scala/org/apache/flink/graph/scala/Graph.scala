@@ -24,10 +24,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
+import org.apache.flink.graph.asm.translate.TranslateFunction
 import org.apache.flink.graph.validation.GraphValidator
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
 import org.apache.flink.graph.spargel.{MessagingFunction, ScatterGatherConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
+
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
 import org.apache.flink.types.NullValue
@@ -412,7 +414,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @param translator implements conversion from K to NEW
    * @return graph with translated vertex and edge IDs
    */
-  def translateGraphIds[NEW: TypeInformation : ClassTag](translator: MapFunction[K, NEW]):
+  def translateGraphIds[NEW: TypeInformation : ClassTag](translator: TranslateFunction[K, NEW]):
   Graph[NEW, VV, EV] = {
     new Graph[NEW, VV, EV](jgraph.translateGraphIds(translator))
   }
@@ -423,15 +425,15 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from K to NEW
     * @return graph with translated vertex and edge IDs
     */
-  def translateGraphIds[NEW: TypeInformation : ClassTag](fun: K => NEW):
+  def translateGraphIds[NEW: TypeInformation : ClassTag](fun: (K, NEW) => NEW):
   Graph[NEW, VV, EV] = {
-    val mapper: MapFunction[K, NEW] = new MapFunction[K, NEW] {
+    val translator: TranslateFunction[K, NEW] = new TranslateFunction[K, NEW] {
       val cleanFun = clean(fun)
 
-      def map(in: K): NEW = cleanFun(in)
+      def translate(in: K, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
-    new Graph[NEW, VV, EV](jgraph.translateGraphIds(mapper))
+    new Graph[NEW, VV, EV](jgraph.translateGraphIds(translator))
   }
 
   /**
@@ -440,8 +442,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @param translator implements conversion from VV to NEW
    * @return graph with translated vertex values
    */
-  def translateVertexValues[NEW: TypeInformation : ClassTag](translator: MapFunction[VV, NEW]):
-  Graph[K, NEW, EV] = {
+  def translateVertexValues[NEW: TypeInformation : ClassTag](translator:
+  TranslateFunction[VV, NEW]): Graph[K, NEW, EV] = {
     new Graph[K, NEW, EV](jgraph.translateVertexValues(translator))
   }
 
@@ -451,15 +453,15 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from VV to NEW
     * @return graph with translated vertex values
     */
-  def translateVertexValues[NEW: TypeInformation : ClassTag](fun: VV => NEW):
+  def translateVertexValues[NEW: TypeInformation : ClassTag](fun: (VV, NEW) => NEW):
   Graph[K, NEW, EV] = {
-    val mapper: MapFunction[VV, NEW] = new MapFunction[VV, NEW] {
+    val translator: TranslateFunction[VV, NEW] = new TranslateFunction[VV, NEW] {
       val cleanFun = clean(fun)
 
-      def map(in: VV): NEW = cleanFun(in)
+      def translate(in: VV, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
-    new Graph[K, NEW, EV](jgraph.translateVertexValues(mapper))
+    new Graph[K, NEW, EV](jgraph.translateVertexValues(translator))
   }
 
   /**
@@ -468,7 +470,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @param translator implements conversion from EV to NEW
    * @return graph with translated edge values
    */
-  def translateEdgeValues[NEW: TypeInformation : ClassTag](translator: MapFunction[EV, NEW]):
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](translator: TranslateFunction[EV, NEW]):
   Graph[K, VV, NEW] = {
     new Graph[K, VV, NEW](jgraph.translateEdgeValues(translator))
   }
@@ -479,15 +481,15 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from EV to NEW
     * @return graph with translated edge values
     */
-  def translateEdgeValues[NEW: TypeInformation : ClassTag](fun: EV => NEW):
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](fun: (EV, NEW) => NEW):
   Graph[K, VV, NEW] = {
-    val mapper: MapFunction[EV, NEW] = new MapFunction[EV, NEW] {
+    val translator: TranslateFunction[EV, NEW] = new TranslateFunction[EV, NEW] {
       val cleanFun = clean(fun)
 
-      def map(in: EV): NEW = cleanFun(in)
+      def translate(in: EV, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
-    new Graph[K, VV, NEW](jgraph.translateEdgeValues(mapper))
+    new Graph[K, VV, NEW](jgraph.translateEdgeValues(translator))
   }
 
   /**

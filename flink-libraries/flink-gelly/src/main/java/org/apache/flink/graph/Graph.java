@@ -47,6 +47,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.asm.translate.TranslateEdgeValues;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.asm.translate.TranslateVertexValues;
 import org.apache.flink.graph.gsa.ApplyFunction;
@@ -557,7 +558,7 @@ public class Graph<K, VV, EV> {
 	 * @return graph with translated vertex and edge IDs
 	 * @throws Exception
 	 */
-	public <NEW> Graph<NEW, VV, EV> translateGraphIds(MapFunction<K, NEW> translator) throws Exception {
+	public <NEW> Graph<NEW, VV, EV> translateGraphIds(TranslateFunction<K, NEW> translator) throws Exception {
 		return run(new TranslateGraphIds<K, NEW, VV, EV>(translator));
 	}
 
@@ -569,7 +570,7 @@ public class Graph<K, VV, EV> {
 	 * @return graph with translated vertex values
 	 * @throws Exception
 	 */
-	public <NEW> Graph<K, NEW, EV> translateVertexValues(MapFunction<VV, NEW> translator) throws Exception {
+	public <NEW> Graph<K, NEW, EV> translateVertexValues(TranslateFunction<VV, NEW> translator) throws Exception {
 		return run(new TranslateVertexValues<K, VV, NEW, EV>(translator));
 	}
 
@@ -581,7 +582,7 @@ public class Graph<K, VV, EV> {
 	 * @return graph with translated edge values
 	 * @throws Exception
 	 */
-	public <NEW> Graph<K, VV, NEW> translateEdgeValues(MapFunction<EV, NEW> translator) throws Exception {
+	public <NEW> Graph<K, VV, NEW> translateEdgeValues(TranslateFunction<EV, NEW> translator) throws Exception {
 		return run(new TranslateEdgeValues<K, VV, EV, NEW>(translator));
 	}
 

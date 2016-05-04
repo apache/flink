@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.translate;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -30,7 +29,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexValues;
 
 /**
- * Translate {@link Vertex} values using the given {@link MapFunction}.
+ * Translate {@link Vertex} values using the given {@link TranslateFunction}.
  *
  * @param <K> vertex ID type
  * @param <OLD> old vertex value type
@@ -41,17 +40,17 @@ public class TranslateVertexValues<K, OLD, NEW, EV>
 implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
 
 	// Required configuration
-	private MapFunction<OLD, NEW> translator;
+	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_UNKNOWN;
 
 	/**
-	 * Translate {@link Vertex} values using the given {@link MapFunction}.
+	 * Translate {@link Vertex} values using the given {@link TranslateFunction}.
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
-	public TranslateVertexValues(MapFunction<OLD, NEW> translator) {
+	public TranslateVertexValues(TranslateFunction<OLD, NEW> translator) {
 		Preconditions.checkNotNull(translator);
 
 		this.translator = translator;
