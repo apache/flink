@@ -124,6 +124,11 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
     this
   }
 
+  def setOptimizer(optimizer: IterativeSolver): MultipleLinearRegression = {
+    parameters.add(Optimizer, optimizer)
+    this
+  }
+
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
       case Some(weights) => {
@@ -171,6 +176,9 @@ object MultipleLinearRegression {
     val defaultValue = Some(false)
   }
 
+  case object Optimizer extends Parameter[IterativeSolver] {
+    val defaultValue = None
+  }
   // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
@@ -199,11 +207,14 @@ object MultipleLinearRegression {
       val warmStart = map.get(WarmStart).get
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-      val optimizer = SimpleGradientDescent()
-        .setIterations(numberOfIterations)
-        .setStepsize(stepsize)
-        .setLossFunction(lossFunction)
-        .setWarmStart(warmStart)
+      val optimizer = map.get(Optimizer) match {
+        case None => SimpleGradientDescent()
+          .setIterations(numberOfIterations)
+          .setStepsize(stepsize)
+          .setLossFunction(lossFunction)
+          .setWarmStart(warmStart)
+        case Some(opt) => opt
+      }
 
       convergenceThreshold match {
         case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
