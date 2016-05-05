@@ -56,27 +56,28 @@ public class FoldApplyWindowFunctionTest {
 
 		int initValue = 1;
 
-		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
-			initValue,
-			new FoldFunction<Integer, Integer>() {
-				private static final long serialVersionUID = -4849549768529720587L;
+		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
+				initValue,
+				new FoldFunction<Integer, Integer>() {
+					private static final long serialVersionUID = -4849549768529720587L;
 
-				@Override
-				public Integer fold(Integer accumulator, Integer value) throws Exception {
-					return accumulator + value;
-				}
-			},
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>() {
-				@Override
-				public void apply(Integer integer,
-					TimeWindow window,
-					Iterable<Integer> input,
-					Collector<Integer> out) throws Exception {
-					for (Integer in: input) {
-						out.collect(in);
+					@Override
+					public Integer fold(Integer accumulator, Integer value) throws Exception {
+						return accumulator + value;
 					}
-				}
-			}
+				},
+				new WindowFunction<Integer, Integer, Integer, TimeWindow>() {
+					@Override
+					public void apply(Integer integer,
+						TimeWindow window,
+						Iterable<Integer> input,
+						Collector<Integer> out) throws Exception {
+						for (Integer in: input) {
+							out.collect(in);
+						}
+					}
+				},
+				BasicTypeInfo.INT_TYPE_INFO
 		);
 
 		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(

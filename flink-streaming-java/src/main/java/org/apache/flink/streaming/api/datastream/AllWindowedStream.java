@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -197,7 +198,7 @@ public class AllWindowedStream<T, W extends Window> {
 					"Please use apply(FoldFunction, WindowFunction) instead.");
 		}
 
-		return apply(initialValue, function, new PassThroughAllWindowFunction<W, R>(), resultType);
+		return apply(initialValue, function, new PassThroughAllWindowFunction<W, R>(), resultType, resultType);
 	}
 
 	/**
@@ -376,12 +377,15 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, AllWindowFunction<R, R, W> function) {
+	public <ACC, R> SingleOutputStreamOperator<R> apply(ACC initialValue, FoldFunction<T, ACC> foldFunction, AllWindowFunction<ACC, R, W> function) {
 
-		TypeInformation<R> resultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
+		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
 				Utils.getCallLocationName(), true);
 
-		return apply(initialValue, foldFunction, function, resultType);
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+				function, WindowFunction.class, true, true, getInputType(), null, false);
+
+		return apply(initialValue, foldFunction, function, foldAccumulatorType, resultType);
 	}
 
 	/**
@@ -398,7 +402,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, AllWindowFunction<R, R, W> function, TypeInformation<R> resultType) {
+	public <ACC, R> SingleOutputStreamOperator<R> apply(ACC initialValue,
+			FoldFunction<T, ACC> foldFunction,
+			AllWindowFunction<ACC, R, W> function,
+			TypeInformation<ACC> foldAccumulatorType,
+			TypeInformation<R> resultType) {
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of apply can not be a RichFunction.");
 		}
@@ -430,15 +438,15 @@ public class AllWindowedStream<T, W extends Window> {
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
-					new InternalIterableAllWindowFunction<>(new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function)),
+					new InternalIterableAllWindowFunction<>(new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)),
 					trigger,
 					evictor);
 
 		} else {
-			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
+			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
 					initialValue,
 					foldFunction,
-					resultType);
+					foldAccumulatorType);
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 

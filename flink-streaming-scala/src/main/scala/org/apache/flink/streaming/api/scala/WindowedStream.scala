@@ -272,20 +272,21 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param function The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def apply[R: TypeInformation](
-      initialValue: R,
-      foldFunction: FoldFunction[T, R],
-      function: WindowFunction[R, R, K, W]): DataStream[R] = {
+  def apply[ACC: TypeInformation, R: TypeInformation](
+      initialValue: ACC,
+      foldFunction: FoldFunction[T, ACC],
+      function: WindowFunction[ACC, R, K, W]): DataStream[R] = {
 
     val cleanedFunction = clean(function)
     val cleanedFoldFunction = clean(foldFunction)
 
-    val applyFunction = new ScalaWindowFunctionWrapper[R, R, K, W](cleanedFunction)
+    val applyFunction = new ScalaWindowFunctionWrapper[ACC, R, K, W](cleanedFunction)
 
     asScalaStream(javaStream.apply(
       initialValue,
       cleanedFoldFunction,
       applyFunction,
+      implicitly[TypeInformation[ACC]],
       implicitly[TypeInformation[R]]))
   }
 
@@ -300,10 +301,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def apply[R: TypeInformation](
-      initialValue: R,
-      foldFunction: (R, T) => R,
-      windowFunction: (K, W, Iterable[R], Collector[R]) => Unit): DataStream[R] = {
+  def apply[ACC: TypeInformation, R: TypeInformation](
+      initialValue: ACC,
+      foldFunction: (ACC, T) => ACC,
+      windowFunction: (K, W, Iterable[ACC], Collector[R]) => Unit): DataStream[R] = {
     
     if (foldFunction == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -315,11 +316,12 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     val cleanFolder = clean(foldFunction)
     val cleanWindowFunction = clean(windowFunction)
     
-    val folder = new ScalaFoldFunction[T, R](cleanFolder)
-    val applyFunction = new ScalaWindowFunction[R, R, K, W](cleanWindowFunction)
+    val folder = new ScalaFoldFunction[T, ACC](cleanFolder)
+    val applyFunction = new ScalaWindowFunction[ACC, R, K, W](cleanWindowFunction)
     
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.apply(initialValue, folder, applyFunction, resultType))
+    val accType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    asScalaStream(javaStream.apply(initialValue, folder, applyFunction, accType, resultType))
   }
 
   // ------------------------------------------------------------------------
