@@ -112,6 +112,19 @@ The command line can be used to
 -   Stop a job (streaming jobs only):
 
         ./bin/flink stop <jobID>
+        
+        
+The difference between cancelling and stopping a (streaming) job is the following:
+
+On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as 
+soon as possible.
+If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
+until it stops.
+
+A "stop" call is a more graceful way of stopping a running streaming job. Stop is only available for jobs
+which use sources that implement the `StoppableFunction` interface. When the user requests to stop a job,
+all sources will receive a `stop()` method call. The job will keep running until all sources properly shut down.
+This allows the job to finish processing all inflight data.
 
 ### Savepoints
 
