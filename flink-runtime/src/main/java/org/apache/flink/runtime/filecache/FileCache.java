@@ -77,10 +77,10 @@ public class FileCache {
 				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 
 		String[] directories = tempDirs.split(",|" + File.pathSeparator);
-		String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
 		storageDirectories = new File[directories.length];
 
 		for (int i = 0; i < directories.length; i++) {
+			String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
 			storageDirectories[i] = new File(directories[i], cacheDirName);
 			String path = storageDirectories[i].getAbsolutePath();
 
