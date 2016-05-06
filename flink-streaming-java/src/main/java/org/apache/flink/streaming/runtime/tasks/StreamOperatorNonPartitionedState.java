@@ -22,6 +22,10 @@ import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.Serializable;
 
+/**
+ * The non-partitioned stream operator state after it has been checkpointed. The non-partitioned
+ * state consists of operator state and user function state.
+ */
 public class StreamOperatorNonPartitionedState implements Serializable {
 	private static final long serialVersionUID = 1L;
 

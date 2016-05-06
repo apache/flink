@@ -25,18 +25,75 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Collection;
 
+/**
+ * State backend interface for partitioned state (key-value state). The state backend maintains
+ * multiple state objects for different key values. State objects are specified by
+ * {@link StateDescriptor} specifying the state's name and its type.
+ *
+ * A partitioned state backend is used by the {@link org.apache.flink.runtime.state.generic.GenericKeyGroupStateBackend}
+ * to store the state for a single key group.
+ *
+ * @param <KEY> Key type
+ */
 public interface PartitionedStateBackend<KEY> extends AutoCloseable {
+
+	/**
+	 * Dispose the state associated with the given state descriptor. Disposing means that all
+	 * allocated resources are released.
+	 *
+	 * @param stateDescriptor State descriptor identifying the partitioned state to be disposed
+	 * @param <S> Type of the state
+	 */
 	<S extends PartitionedState> void dispose(StateDescriptor<S, ?> stateDescriptor);
 
+	/**
+	 * Sets the current key for all state objects requested from this state backend. This means that
+	 * update and read operations on the state objects will access the state values for this key.
+	 *
+	 * @param key Current key
+	 */
 	void setCurrentKey(KEY key);
 
+	/**
+	 * Gets the current key value which is set for all state objects requested from this state
+	 * backend.
+	 *
+	 * @return Current key value
+	 */
 	KEY getCurrentKey();
 
+	/**
+	 * Requests a partitioned state object. The state object is identified by its namespace, the
+	 * corresponding namespace serializer and the state descriptor.
+	 *
+	 * @param namespace Namespace of the state object
+	 * @param namespaceSerializer Namespace serializer
+	 * @param stateDescriptor State descriptor identifying the state type and its name
+	 * @param <N> Namespace type
+	 * @param <S> Partitioned state type
+	 * @return Partitioned state object
+	 * @throws Exception
+	 */
 	<N, S extends PartitionedState> S getPartitionedState(
 		final N namespace,
 		final TypeSerializer<N> namespaceSerializer,
 		final StateDescriptor<S, ?> stateDescriptor) throws Exception;
 
+	/**
+	 * Merges partitioned state specified by the state descriptor and the list of namespaces.
+	 *
+	 * The state descriptor specifies the state object whose namespaced states shall be merged.
+	 * States for the given source namespaces are merged together and stored under the given
+	 * target namespace.
+	 *
+	 * @param target Target namespace of the merged result
+	 * @param sources List of namespaces to be merged
+	 * @param namespaceSerializer Namespace serializer
+	 * @param stateDescriptor State descriptor specifying the state object
+	 * @param <N> Namespace type
+	 * @param <S> State type
+	 * @throws Exception
+	 */
 	<N, S extends MergingState<?, ?>> void mergePartitionedStates(
 		final N target,
 		Collection<N> sources,

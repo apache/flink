@@ -42,7 +42,8 @@ public class ChainedKeyGroupState implements StateHandle<Map<Integer, Partitione
 	/**
 	 * Key group states for the different chained operators of the {@link StreamTask}. All key
 	 * groups have the same key group index. The stored key group state snapshots must not be
-	 * continuous with respect to the chaining index.
+	 * continuous with respect to the chaining index. This means that there can be chaining indices
+	 * which have no key group state associated.
 	 */
 	private final Map<Integer, PartitionedStateSnapshot> keyGroupStates;
 

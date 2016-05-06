@@ -31,18 +31,56 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 
+/**
+ * State backend for non-partitioned state (e.g. operator or function state).
+ *
+ * The state backend only offers an output stream/output view to store state persistently. The
+ * stored state is bound to the stream operator instance which uses the state backend. Consequently,
+ * this state cannot be scaled up or down.
+ *
+ * Additionally, the AbstractStateBackend acts as a factory for {@link PartitionedStateBackend} and
+ * the corresponding {@link GenericKeyGroupStateBackend}.
+ */
 public abstract class AbstractStateBackend implements AutoCloseable, Serializable {
 	private static final long serialVersionUID = 274476799538194350L;
 
 	protected transient ClassLoader classLoader;
 
+	/**
+	 * Initializes the state backend before it is used by an operator. The method sets fields
+	 * which are either transient and have been lost due to serialization or because they weren't
+	 * available when the object was created.
+	 *
+	 * @param environment Environment in whose context the state backend runs
+	 * @param operatorIdentifier Identifier of the operator
+	 * @throws Exception
+	 */
 	public void initializeForJob(Environment environment, String operatorIdentifier) throws Exception {
 		classLoader = environment.getUserClassLoader();
 	}
 
+	/**
+	 * Creates a partitioned version of this state backend.
+	 *
+	 * This method is only used by the GenericKeyGroupStateBackend to for each key group a
+	 * partitioned state backend which backs this key group.
+	 *
+	 * @param keySerializer Key serializer for the partitioned states
+	 * @param <K> Type of the key
+	 * @return PartitionedStateBackend
+	 * @throws Exception
+	 */
 	public abstract <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) throws Exception;
 
-	public <K> GenericKeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
+	/**
+	 * Creates a key group state backend for this abstract state backend.
+	 *
+	 * @param keySerializer Key serializer for the partitioned states
+	 * @param keyGroupAssigner Key group assigner to map keys to key group indices
+	 * @param <K> Type of the key
+	 * @return KeyGroupStateBackend
+	 */
+	public <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
 		return new GenericKeyGroupStateBackend<K>(this, keySerializer, keyGroupAssigner);
 	}
 

@@ -26,9 +26,16 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Snapshot of partitioned state (key-value state). The snapshot consists of named
+ * key-value state snapshots and is the result of snapshotting a {@link PartitionedStateBackend}.
+ */
 public class PartitionedStateSnapshot implements Serializable {
 	private static final long serialVersionUID = 7043475572141783706L;
 
+	/**
+	 * Named key-value state snapshots.
+	 */
 	private final Map<String, KvStateSnapshot<?, ?, ?>> namedKvStateSnapshots;
 
 	public PartitionedStateSnapshot() {

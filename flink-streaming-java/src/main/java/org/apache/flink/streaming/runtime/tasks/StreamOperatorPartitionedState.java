@@ -26,9 +26,15 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * The partitioned stream operator state after it has been checkpointed. The partitioned state
+ * consists of a set of key group snapshots. A key group constitutes a sub set of the available
+ * key space. The key groups are indexed by their key group index.
+ */
 public class StreamOperatorPartitionedState implements Serializable {
 	private static final long serialVersionUID = -8070326169926626355L;
 
+	/** Set of key group snapshots indexed by their key group index */
 	private final Map<Integer, PartitionedStateSnapshot> partitionedStateSnapshots;
 
 	public StreamOperatorPartitionedState(Map<Integer, PartitionedStateSnapshot> partitionedStateSnapshots) {

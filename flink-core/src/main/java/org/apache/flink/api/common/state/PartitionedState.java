@@ -18,5 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
-public interface PartitionedState extends State {
-}
+/**
+ * State types which are partitioned by a key (key-value state). These state objects can be
+ * obtained from a partitioned state backend.
+ */
+public interface PartitionedState extends State {}

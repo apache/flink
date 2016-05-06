@@ -24,11 +24,10 @@ import java.io.Serializable;
 
 /**
  * The state checkpointed by a {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}.
- * This state consists of any combination of those three:
+ * This state consists of:
  * <ul>
- *     <li>The state of the stream operator, if it implements the Checkpointed interface.</li>
- *     <li>The state of the user function, if it implements the Checkpointed interface.</li>
- *     <li>The key/value state of the operator, if it executes on a KeyedDataStream.</li>
+ *     <li>Non-partitioned operator state</li>
+ *     <li>Partitioned operator state</li>
  * </ul>
  */
 @Internal

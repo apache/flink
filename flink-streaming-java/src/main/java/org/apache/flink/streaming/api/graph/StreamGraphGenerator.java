@@ -152,6 +152,18 @@ public class StreamGraphGenerator {
 
 			if (maxParallelism <= 0) {
 				maxParallelism = transform.getParallelism();
+
+				/**
+				 * TODO: Remove once the parallelism settings works properly in Flink (FLINK-3885)
+				 * Currently, the parallelism will be set to 1 on the JobManager iff it encounters
+				 * a negative parallelism value. We need to know this for the
+				 * KeyGroupStreamPartitioner on the client-side. Thus, we already set the value to
+				 * 1 here.
+				 */
+				if (maxParallelism <= 0) {
+					transform.setParallelism(1);
+					maxParallelism = 1;
+				}
 			}
 
 			transform.setMaxParallelism(maxParallelism);
