@@ -26,9 +26,9 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -73,19 +73,33 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	public Graph<K, Long, Double> run(Graph<K, Long, Double> graph) {
 
 		DataSet<Vertex<K, Tuple2<Long, Double>>> initializedVertices = graph.getVertices()
-				.map(new AddScoreToVertexValuesMapper<K>());
+			.map(new AddScoreToVertexValuesMapper<K>());
 
 		Graph<K, Tuple2<Long, Double>, Double> graphWithScoredVertices =
-				Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
+			Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
 
-		return graphWithScoredVertices.runScatterGatherIteration(new VertexLabelUpdater<K>(delta),
-				new LabelMessenger<K>(), maxIterations)
+		return graphWithScoredVertices.runScatterGatherIteration(new LabelMessenger<K>(),
+			new VertexLabelUpdater<K>(delta), maxIterations)
 				.mapVertices(new RemoveScoreFromVertexValuesMapper<K>());
 	}
 
 	@SuppressWarnings("serial")
-	public static final class VertexLabelUpdater<K> extends VertexUpdateFunction<
-		K, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	public static final class LabelMessenger<K> extends ScatterFunction<K, Tuple2<Long, Double>,
+			Tuple2<Long, Double>, Double> {
+
+		@Override
+		public void sendMessages(Vertex<K, Tuple2<Long, Double>> vertex) throws Exception {
+
+			for(Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertex.getValue().f0,
+					vertex.getValue().f1 * edge.getValue()));
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static final class VertexLabelUpdater<K> extends GatherFunction<
+			K, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		private Double delta;
 
@@ -154,27 +168,13 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 	}
 
 	@SuppressWarnings("serial")
-	public static final class LabelMessenger<K> extends MessagingFunction<K, Tuple2<Long, Double>,
-			Tuple2<Long, Double>, Double> {
-
-		@Override
-		public void sendMessages(Vertex<K, Tuple2<Long, Double>> vertex) throws Exception {
-
-			for(Edge<K, Double> edge : getEdges()) {
-				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertex.getValue().f0,
-						vertex.getValue().f1 * edge.getValue()));
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
 	@ForwardedFields("f0")
 	public static final class AddScoreToVertexValuesMapper<K> implements MapFunction<
 		Vertex<K, Long>, Vertex<K, Tuple2<Long, Double>>> {
 
 		public Vertex<K, Tuple2<Long, Double>> map(Vertex<K, Long> vertex) {
 			return new Vertex<K, Tuple2<Long, Double>>(
-					vertex.getId(), new Tuple2<Long, Double>(vertex.getValue(), 1.0));
+				vertex.getId(), new Tuple2<Long, Double>(vertex.getValue(), 1.0));
 		}
 	}
 

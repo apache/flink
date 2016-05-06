@@ -25,10 +25,10 @@ import org.apache.flink.graph.EdgeJoinFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
-import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
-import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.LongValue;
 
 /**
@@ -65,9 +65,29 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 		parameters.setOptNumVertices(true);
 
-		return networkWithWeights.runScatterGatherIteration(new VertexRankUpdater<K>(beta),
-				new RankMessenger<K>(), maxIterations, parameters)
+		return networkWithWeights.runScatterGatherIteration(new RankMessenger<K>(),
+				new VertexRankUpdater<K>(beta), maxIterations, parameters)
 				.getVertices();
+	}
+
+	/**
+	 * Distributes the rank of a vertex among all target vertices according to
+	 * the transition probability, which is associated with an edge as the edge
+	 * value.
+	 */
+	@SuppressWarnings("serial")
+	public static final class RankMessenger<K> extends ScatterFunction<K, Double, Double, Double> {
+		@Override
+		public void sendMessages(Vertex<K, Double> vertex) {
+			if (getSuperstepNumber() == 1) {
+				// initialize vertex ranks
+				vertex.setValue(1.0 / this.getNumberOfVertices());
+			}
+
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
+			}
+		}
 	}
 
 	/**
@@ -75,8 +95,7 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 	 * ranks from all incoming messages and then applying the dampening formula.
 	 */
 	@SuppressWarnings("serial")
-	public static final class VertexRankUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
-
+	public static final class VertexRankUpdater<K> extends GatherFunction<K, Double, Double> {
 		private final double beta;
 
 		public VertexRankUpdater(double beta) {
@@ -96,30 +115,8 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 		}
 	}
 
-	/**
-	 * Distributes the rank of a vertex among all target vertices according to
-	 * the transition probability, which is associated with an edge as the edge
-	 * value.
-	 */
-	@SuppressWarnings("serial")
-	public static final class RankMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
-
-		@Override
-		public void sendMessages(Vertex<K, Double> vertex) {
-			if (getSuperstepNumber() == 1) {
-				// initialize vertex ranks
-				vertex.setValue(1.0 / this.getNumberOfVertices());
-			}
-
-			for (Edge<K, Double> edge : getEdges()) {
-				sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
-			}
-		}
-	}
-
 	@SuppressWarnings("serial")
 	private static final class InitWeights implements EdgeJoinFunction<Double, LongValue> {
-
 		public Double edgeJoin(Double edgeValue, LongValue inputValue) {
 			return edgeValue / (double) inputValue.getValue();
 		}
