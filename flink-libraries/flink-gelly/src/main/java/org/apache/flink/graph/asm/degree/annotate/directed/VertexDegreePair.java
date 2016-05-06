@@ -29,8 +29,7 @@ import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.Join
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates vertices of a directed graph with both the out-degree and
- * in-degree count.
+ * Annotates vertices of a directed graph with both the out-degree and in-degree.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -45,8 +44,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Tuple2<LongValue, LongVal
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
 	/**
-	 * When set to true an additional join is performed against the vertex
-	 * set in order to output vertices with zero out- and in-degree.
+	 * By default only the edge set is processed for the computation of degree.
+	 * When this flag is set an additional join is performed against the vertex
+	 * set in order to output vertices with out- and in-degree of zero.
 	 *
 	 * @param includeZeroDegreeVertices whether to output vertices with out-
 	 *                                  and in-degree of zero

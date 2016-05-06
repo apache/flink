@@ -32,7 +32,7 @@ import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapE
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates vertices of an undirected graph with the degree count.
+ * Annotates vertices of an undirected graph with the degree.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -49,8 +49,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
 	/**
-	 * When set to true an additional join is performed against the vertex
-	 * set in order to output vertices with zero degree.
+	 * By default only the edge set is processed for the computation of degree.
+	 * When this flag is set an additional join is performed against the vertex
+	 * set in order to output vertices with a degree of zero.
 	 *
 	 * @param includeZeroDegreeVertices whether to output vertices with a
 	 *                                  degree of zero

@@ -2069,49 +2069,70 @@ configuration.
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexInDegree</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with the in-degree count.</p>
+        <p>Annotate vertices of a directed graph with the in-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> inDegree = graph
   .run(new VertexInDegree()
     .setIncludeZeroDegreeVertices(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with an in-degree of zero</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
       </td>
     </tr>
 
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexOutDegree</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with the out-degree count.</p>
+        <p>Annotate vertices of a directed graph with the out-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> outDegree = graph
   .run(new VertexOutDegree()
     .setIncludeZeroDegreeVertices(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with an out-degree of zero</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
       </td>
     </tr>
 
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with both the out-degree and in-degree count.</p>
+        <p>Annotate vertices of a directed graph with both the out-degree and in-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
   .run(new VertexDegreePair()
     .setIncludeZeroDegreeVertices(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with out- and in-degree of zero</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
       </td>
     </tr>
 
     <tr>
       <td>degree.annotate.undirected.<br/><strong>VertexDegree</strong></td>
       <td>
-        <p>Annotate vertices of an undirected graph with the degree count.</p>
+        <p>Annotate vertices of an undirected graph with the degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> degree = graph
   .run(new VertexDegree()
     .setIncludeZeroDegreeVertices(true)
     .setReduceOnTargetId(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with a degree of zero</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+          <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2124,6 +2145,11 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
   .run(new EdgeSourceDegree()
     .setReduceOnTargetId(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+          <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2136,6 +2162,11 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
   .run(new EdgeTargetDegree()
     .setReduceOnSourceId(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+          <li><p><strong>setReduceOnSourceId</strong>: the degree can be counted from either the edge source or target IDs. By default the target IDs are counted. Reducing on source IDs may optimize the algorithm if the input edge list is sorted by source ID.</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2148,6 +2179,11 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
   .run(new EdgeDegreePair()
     .setReduceOnTargetId(true));
 {% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+          <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
+        </ul>
       </td>
     </tr>
 
