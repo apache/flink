@@ -28,13 +28,13 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
+import org.apache.flink.graph.asm.simple.directed.Simplify;
 import org.apache.flink.graph.asm.translate.LongValueToIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
+import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -42,32 +42,28 @@ import org.apache.flink.types.NullValue;
 import java.text.NumberFormat;
 
 /**
- * Driver for the library implementation of Jaccard Index.
+ * Driver for the library implementation of HITS (Hubs and Authorities).
  *
  * This example reads a simple, undirected graph from a CSV file or generates
  * an undirected RMat graph with the given scale and edge factor then calculates
- * all non-zero Jaccard Index similarity scores between vertices.
+ * hub and authority scores for each vertex.
  *
- * @see org.apache.flink.graph.library.similarity.JaccardIndex
+ * @see org.apache.flink.graph.library.link_analysis.HITS
  */
-public class JaccardIndex {
+public class HITS {
+
+	public static final int DEFAULT_ITERATIONS = 10;
 
 	public static final int DEFAULT_SCALE = 10;
 
 	public static final int DEFAULT_EDGE_FACTOR = 16;
 
-	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
-
 	private static void printUsage() {
-		System.out.println(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
-			" neighborhoods and is computed as the number of shared neighbors divided by the number of" +
-			" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
-			" shared).", 80));
+		System.out.println(WordUtils.wrap("", 80));
 		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
-			" number of shared neighbors, and the number of distinct neighbors.", 80));
+		System.out.println(WordUtils.wrap("", 80));
 		System.out.println();
-		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: HITS --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();
 		System.out.println("options:");
 		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
@@ -84,8 +80,9 @@ public class JaccardIndex {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		int iterations = parameters.getInt("iterations", DEFAULT_ITERATIONS);
 
-		DataSet ji;
+		DataSet hits;
 
 		switch (parameters.get("input", "")) {
 			case "csv": {
@@ -102,9 +99,8 @@ public class JaccardIndex {
 						.fieldDelimiterEdges(fieldDelimiter)
 						.keyType(LongValue.class);
 
-				ji = graph
-					.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
-
+				hits = graph
+					.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
 				} break;
 
 			case "rmat": {
@@ -116,20 +112,18 @@ public class JaccardIndex {
 				long vertexCount = 1L << scale;
 				long edgeCount = vertexCount * edgeFactor;
 
-				boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
-
 				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
 					.generate();
 
 				if (scale > 32) {
-					ji = graph
-						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
-						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+					hits = graph
+						.run(new Simplify<LongValue, NullValue, NullValue>())
+						.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
 				} else {
-					ji = graph
+					hits = graph
 						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-						.run(new Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
-						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
+						.run(new Simplify<IntValue, NullValue, NullValue>())
+						.run(new org.apache.flink.graph.library.link_analysis.HITS<IntValue, NullValue, NullValue>(iterations));
 				}
 				} break;
 
@@ -140,14 +134,13 @@ public class JaccardIndex {
 
 		switch (parameters.get("output", "")) {
 			case "print":
-				for (Object e: ji.collect()) {
-					Result result = (Result)e;
-					System.out.println(result.toVerboseString());
+				for (Object e: hits.collect()) {
+					System.out.println(((Result)e).toVerboseString());
 				}
 				break;
 
 			case "hash":
-				System.out.println(DataSetUtils.checksumHashCode(ji));
+				System.out.println(DataSetUtils.checksumHashCode(hits));
 				break;
 
 			case "csv":
@@ -159,11 +152,10 @@ public class JaccardIndex {
 				String fieldDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-				ji.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
+				hits.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
 				env.execute();
 				break;
-
 			default:
 				printUsage();
 				return;
