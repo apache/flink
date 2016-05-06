@@ -95,12 +95,19 @@ There are two popular S3 file system implementations available:
 
 This is the recommended S3 FileSystem implementation to use. It uses Amazon's SDK internally and works with IAM roles (see [Configure Access Credential](#configure-access-credentials)).
 
-You need to point Flink to a valid Hadoop configuration, which contains the following property in `core-site.xml`:
+You need to point Flink to a valid Hadoop configuration, which contains the following properties in `core-site.xml`:
 
 ```xml
 <property>
   <name>fs.s3.impl</name>
   <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+</property>
+
+<!-- Comma separated list of local directories used to buffer
+     large results prior to transmitting them to S3. -->
+<property>
+  <name>fs.s3.buffer.dir</name>
+  <value>/tmp</value>
 </property>
 ```
 
@@ -311,3 +318,24 @@ Caused by: org.jets3t.service.impl.rest.HttpException [...]
 ```
 
 {% top %}
+
+### NullPointerException at org.apache.hadoop.fs.LocalDirAllocator
+
+This Exception is usually caused by skipping the local buffer directory configuration `fs.s3.buffer.dir` for the `S3AFileSystem`. Please refer to the [S3AFileSystem configuration](#s3afilesystem-recommended) section to see how to configure the `S3AFileSystem` properly.
+
+```
+[...]
+Caused by: java.lang.NullPointerException at
+o.a.h.fs.LocalDirAllocator$AllocatorPerContext.confChanged(LocalDirAllocator.java:268) at
+o.a.h.fs.LocalDirAllocator$AllocatorPerContext.getLocalPathForWrite(LocalDirAllocator.java:344) at
+o.a.h.fs.LocalDirAllocator$AllocatorPerContext.createTmpFileForWrite(LocalDirAllocator.java:416) at
+o.a.h.fs.LocalDirAllocator.createTmpFileForWrite(LocalDirAllocator.java:198) at
+o.a.h.fs.s3a.S3AOutputStream.<init>(S3AOutputStream.java:87) at
+o.a.h.fs.s3a.S3AFileSystem.create(S3AFileSystem.java:410) at
+o.a.h.fs.FileSystem.create(FileSystem.java:907) at
+o.a.h.fs.FileSystem.create(FileSystem.java:888) at
+o.a.h.fs.FileSystem.create(FileSystem.java:785) at
+o.a.f.runtime.fs.hdfs.HadoopFileSystem.create(HadoopFileSystem.java:404) at
+o.a.f.runtime.fs.hdfs.HadoopFileSystem.create(HadoopFileSystem.java:48) at
+... 25 more
+```
