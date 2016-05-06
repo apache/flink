@@ -49,7 +49,7 @@ import org.apache.flink.util.Preconditions;
 public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, Tuple2<DoubleValue, DoubleValue>>>> {
 
 	private final static int MAXIMUMITERATION = (Integer.MAX_VALUE - 1) / 2;
-	private final static double MINIMUMTHRESHOLD = 1e-9;
+	private final static double MINIMUMTHRESHOLD = Double.MIN_VALUE;
 
 	private int maxIterations;
 	private double convergeThreshold;
@@ -179,7 +179,7 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 					double previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / getNumberOfVertices();
 
 					// count the diff value of sum of authority scores
-					diffSumAggregator.aggregate((previousAuthAverage - newAuthorityValue.getValue()));
+					diffSumAggregator.aggregate(Math.abs(previousAuthAverage - newAuthorityValue.getValue()));
 				}
 				setNewVertexValue(new Tuple2<>(newHubValue, newAuthorityValue));
 			} else if (getSuperstepNumber() == maxIteration) {

@@ -2038,19 +2038,18 @@ Each `Tuple3` corresponds to a triangle, with the fields containing the IDs of t
 
 #### Overview
 [Hyperlink-Induced Topic Search](http://www.cs.cornell.edu/home/kleinber/auth.pdf) (HITS, or "Hubs and Authorities")
-computes two interdependent scores for every vertex in a directed graph. Good hubs are those which point to many 
+computes two interdependent scores for every vertex in a directed graph. Good hubs are those which point to many
 good authorities and good authorities are those pointed to by many good hubs.
  
 #### Details
-HITS ranking relies on an iterative method converging to a stationary solution. Each vertex in the directed graph is assigned same non-negative
-hub and authority scores. Then the algorithm iteratively updates the scores until termination. Current implementation divides the iteration
-into two phases, authority scores can be computed until hub scores updating and normalising finished, hub scores can be computed until
-authority scores updating and normalising finished.
+Every vertex is assigned the same initial hub and authority scores. The algorithm then iteratively updates the scores
+until termination. During each iteration new hub scores are computed from the authority scores, then new authority
+scores are computed from the new hub scores. The scores are then normalized and optionally tested for convergence.
 
 #### Usage
-The algorithm takes a directed graph as input and outputs a `DataSet` of vertices, where the vertex value is a `Tuple2` 
-containing the hub and authority score after maximum iterations.
- 
+The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3` containing the vertex ID, hub score,
+and authority score.
+
 ### Summarization
 
 #### Overview
