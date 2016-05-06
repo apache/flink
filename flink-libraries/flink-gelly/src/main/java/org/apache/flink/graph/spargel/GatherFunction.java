@@ -18,15 +18,15 @@
 
 package org.apache.flink.graph.spargel;
 
-import java.io.Serializable;
-import java.util.Collection;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * This class must be extended by functions that compute the state of the vertex depending on the old state and the
@@ -37,7 +37,7 @@ import org.apache.flink.util.Collector;
  * {@code <VV>} The vertex value type.
  * {@code <Message>} The message type.
  */
-public abstract class VertexUpdateFunction<K, VV, Message> implements Serializable {
+public abstract class GatherFunction<K, VV, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -76,11 +76,11 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * This method is invoked once per vertex per superstep. It receives the current state of the vertex, as well as
 	 * the incoming messages. It may set a new vertex state via {@link #setNewVertexValue(Object)}. If the vertex
-	 * state is changed, it will trigger the sending of messages via the {@link MessagingFunction}.
+	 * state is changed, it will trigger the sending of messages via the {@link ScatterFunction}.
 	 * 
 	 * @param vertex The vertex.
 	 * @param inMessages The incoming messages to this vertex.
@@ -88,21 +88,21 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
 	public abstract void updateVertex(Vertex<K, VV> vertex, MessageIterator<Message> inMessages) throws Exception;
-	
+
 	/**
-	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
+	 * This method is executed once per superstep before the gather function is invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() throws Exception {}
-	
+
 	/**
-	 * This method is executed one per superstep after the vertex update function has been invoked for each vertex.
+	 * This method is executed once per superstep after the gather function has been invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
 	public void postSuperstep() throws Exception {}
-	
+
 	/**
 	 * Sets the new value of this vertex. Setting a new value triggers the sending of outgoing messages from this vertex.
 	 *
@@ -123,7 +123,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 			out.collect(outVal);
 		}
 	}
-	
+
 	/**
 	 * Gets the number of the superstep, starting at <tt>1</tt>.
 	 * 
@@ -132,7 +132,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	public int getSuperstepNumber() {
 		return this.runtimeContext.getSuperstepNumber();
 	}
-	
+
 	/**
 	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
@@ -143,7 +143,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
-	
+
 	/**
 	 * Get the aggregated value that an aggregator computed in the previous iteration.
 	 * 
@@ -153,11 +153,11 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
 		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
 	}
-	
+
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForUpdateFunction(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForGatherFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
@@ -165,15 +165,15 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	public <T> Collection<T> getBroadcastSet(String name) {
 		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  internal methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private IterationRuntimeContext runtimeContext;
 
 	private Collector<Vertex<K, VV>> out;
-	
+
 	private Collector<Vertex<K, Tuple3<VV, Long, Long>>> outWithDegrees;
 
 	private Vertex<K, VV> outVal;

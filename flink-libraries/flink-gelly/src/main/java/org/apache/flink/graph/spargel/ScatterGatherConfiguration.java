@@ -29,20 +29,20 @@ import java.util.List;
 /**
  * A ScatterGatherConfiguration object can be used to set the iteration name and
  * degree of parallelism, to register aggregators and use broadcast sets in
- * the {@link org.apache.flink.graph.spargel.VertexUpdateFunction} and {@link org.apache.flink.graph.spargel.MessagingFunction}
+ * the {@link GatherFunction} and {@link ScatterFunction}
  *
  * The VertexCentricConfiguration object is passed as an argument to
  * {@link org.apache.flink.graph.Graph#runScatterGatherIteration (
- * org.apache.flink.graph.spargel.VertexUpdateFunction, org.apache.flink.graph.spargel.MessagingFunction, int,
+ * org.apache.flink.graph.spargel.GatherFunction, org.apache.flink.graph.spargel.ScatterFunction, int,
  * ScatterGatherConfiguration)}.
  */
 public class ScatterGatherConfiguration extends IterationConfiguration {
 
-	/** the broadcast variables for the update function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsUpdate = new ArrayList<Tuple2<String,DataSet<?>>>();
+	/** the broadcast variables for the scatter function **/
+	private List<Tuple2<String, DataSet<?>>> bcVarsScatter = new ArrayList<>();
 
-	/** the broadcast variables for the messaging function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>();
+	/** the broadcast variables for the gather function **/
+	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<>();
 
 	/** flag that defines whether the degrees option is set **/
 	private boolean optDegrees = false;
@@ -53,43 +53,43 @@ public class ScatterGatherConfiguration extends IterationConfiguration {
 	public ScatterGatherConfiguration() {}
 
 	/**
-	 * Adds a data set as a broadcast set to the messaging function.
+	 * Adds a data set as a broadcast set to the scatter function.
 	 *
-	 * @param name The name under which the broadcast data is available in the messaging function.
+	 * @param name The name under which the broadcast data is available in the scatter function.
 	 * @param data The data set to be broadcasted.
 	 */
-	public void addBroadcastSetForMessagingFunction(String name, DataSet<?> data) {
-		this.bcVarsMessaging.add(new Tuple2<String, DataSet<?>>(name, data));
+	public void addBroadcastSetForScatterFunction(String name, DataSet<?> data) {
+		this.bcVarsScatter.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
 
 	/**
-	 * Adds a data set as a broadcast set to the vertex update function.
+	 * Adds a data set as a broadcast set to the gather function.
 	 *
-	 * @param name The name under which the broadcast data is available in the vertex update function.
+	 * @param name The name under which the broadcast data is available in the gather function.
 	 * @param data The data set to be broadcasted.
 	 */
-	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
-		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
+	public void addBroadcastSetForGatherFunction(String name, DataSet<?> data) {
+		this.bcVarsGather.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
 
 	/**
-	 * Get the broadcast variables of the VertexUpdateFunction.
+	 * Get the broadcast variables of the ScatterFunction.
 	 *
 	 * @return a List of Tuple2, where the first field is the broadcast variable name
 	 * and the second field is the broadcast DataSet.
 	 */
-	public List<Tuple2<String, DataSet<?>>> getUpdateBcastVars() {
-		return this.bcVarsUpdate;
+	public List<Tuple2<String, DataSet<?>>> getScatterBcastVars() {
+		return this.bcVarsScatter;
 	}
 
 	/**
-	 * Get the broadcast variables of the MessagingFunction.
+	 * Get the broadcast variables of the GatherFunction.
 	 *
 	 * @return a List of Tuple2, where the first field is the broadcast variable name
 	 * and the second field is the broadcast DataSet.
 	 */
-	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
-		return this.bcVarsMessaging;
+	public List<Tuple2<String, DataSet<?>>> getGatherBcastVars() {
+		return this.bcVarsGather;
 	}
 
 	/**
@@ -113,7 +113,7 @@ public class ScatterGatherConfiguration extends IterationConfiguration {
 	}
 
 	/**
-	 * Gets the direction in which messages are sent in the MessagingFunction.
+	 * Gets the direction in which messages are sent in the ScatterFunction.
 	 * By default the messaging direction is OUT.
 	 *
 	 * @return an EdgeDirection, which can be either IN, OUT or ALL.
@@ -123,7 +123,7 @@ public class ScatterGatherConfiguration extends IterationConfiguration {
 	}
 
 	/**
-	 * Sets the direction in which messages are sent in the MessagingFunction.
+	 * Sets the direction in which messages are sent in the ScatterFunction.
 	 * By default the messaging direction is OUT.
 	 *
 	 * @param direction - IN, OUT or ALL

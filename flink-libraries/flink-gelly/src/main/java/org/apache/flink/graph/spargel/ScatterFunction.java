@@ -18,10 +18,6 @@
 
 package org.apache.flink.graph.spargel;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -32,6 +28,10 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
+
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link ScatterGatherIteration}.
  * 
@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EV> The type of the values that are associated with the edges.
  */
-public abstract class MessagingFunction<K, VV, Message, EV> implements Serializable {
+public abstract class ScatterFunction<K, VV, Message, EV> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -96,22 +96,22 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
 	public abstract void sendMessages(Vertex<K, VV> vertex) throws Exception;
-	
+
 	/**
-	 * This method is executed once per superstep before the vertex update function is invoked for each vertex.
+	 * This method is executed once per superstep before the scatter function is invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() throws Exception {}
-	
+
 	/**
-	 * This method is executed once per superstep after the vertex update function has been invoked for each vertex.
+	 * This method is executed once per superstep after the scatter function has been invoked for each vertex.
 	 * 
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
 	public void postSuperstep() throws Exception {}
-	
-	
+
+
 	/**
 	 * Gets an {@link java.lang.Iterable} with all edges. This method is mutually exclusive with
 	 * {@link #sendMessageToAllNeighbors(Object)} and may be called only once.
@@ -147,17 +147,17 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllNeighbors()'"
 					+ "exactly once.");
 		}
-		
+
 		edgesUsed = true;
 		outValue.f1 = m;
-		
+
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
 
 			/*
 			 * When EdgeDirection is OUT, the edges iterator only has the out-edges 
 			 * of the vertex, i.e. the ones where this vertex is src. 
-			 * next.getField(1) gives the neighbor of the vertex running this MessagingFunction.
+			 * next.getField(1) gives the neighbor of the vertex running this ScatterFunction.
 			 */
 			if (getDirection().equals(EdgeDirection.OUT)) {
 				outValue.f0 = next.getField(1);
@@ -165,7 +165,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 			/*
 			 * When EdgeDirection is IN, the edges iterator only has the in-edges 
 			 * of the vertex, i.e. the ones where this vertex is trg. 
-			 * next.getField(10) gives the neighbor of the vertex running this MessagingFunction.
+			 * next.getField(10) gives the neighbor of the vertex running this ScatterFunction.
 			 */
 			else if (getDirection().equals(EdgeDirection.IN)) {
 				outValue.f0 = next.getField(0);
@@ -184,7 +184,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 			out.collect(outValue);
 		}
 	}
-	
+
 	/**
 	 * Sends the given message to the vertex identified by the given key. If the target vertex does not exist,
 	 * the next superstep will cause an exception due to a non-deliverable message.
@@ -199,7 +199,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the number of the superstep, starting at <tt>1</tt>.
 	 * 
@@ -208,7 +208,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	public int getSuperstepNumber() {
 		return this.runtimeContext.getSuperstepNumber();
 	}
-	
+
 	/**
 	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
@@ -219,7 +219,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
-	
+
 	/**
 	 * Get the aggregated value that an aggregator computed in the previous iteration.
 	 * 
@@ -229,11 +229,11 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
 		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
 	}
-	
+
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForMessagingFunction(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForScatterFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
@@ -245,49 +245,49 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	// --------------------------------------------------------------------------------------------
 	//  internal methods and state
 	// --------------------------------------------------------------------------------------------
-	
+
 	private Tuple2<K, Message> outValue;
-	
+
 	private IterationRuntimeContext runtimeContext;
-	
+
 	private Iterator<?> edges;
-	
+
 	private Collector<Tuple2<K, Message>> out;
 
 	private K vertexId;
-	
+
 	private EdgesIterator<K, EV> edgeIterator;
-	
+
 	private boolean edgesUsed;
 
 	private long inDegree = -1;
 
 	private long outDegree = -1;
-	
+
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 		this.outValue = new Tuple2<K, Message>();
 		this.edgeIterator = new EdgesIterator<K, EV>();
 	}
-	
+
 	void set(Iterator<?> edges, Collector<Tuple2<K, Message>> out, K id) {
 		this.edges = edges;
 		this.out = out;
 		this.vertexId = id;
 		this.edgesUsed = false;
 	}
-	
+
 	private static final class EdgesIterator<K, EV> 
 		implements Iterator<Edge<K, EV>>, Iterable<Edge<K, EV>>
 	{
 		private Iterator<Edge<K, EV>> input;
-		
+
 		private Edge<K, EV> edge = new Edge<K, EV>();
-		
+
 		void set(Iterator<Edge<K, EV>> input) {
 			this.input = input;
 		}
-		
+
 		@Override
 		public boolean hasNext() {
 			return input.hasNext();
