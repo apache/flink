@@ -50,7 +50,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.streaming.runtime.partitioner.ConfigurablePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -359,12 +359,15 @@ public class StreamGraph extends StreamingPlan {
 				partitioner = virtuaPartitionNodes.get(virtualId).f1;
 			}
 
-			if (partitioner instanceof ConfigurablePartitioner) {
+			if (partitioner instanceof ConfigurableStreamPartitioner) {
 				StreamNode downstreamNode = getStreamNode(downStreamVertexID);
 
-				ConfigurablePartitioner configurablePartitioner = (ConfigurablePartitioner) partitioner;
+				ConfigurableStreamPartitioner configurableStreamPartitioner = (ConfigurableStreamPartitioner) partitioner;
 
-				configurablePartitioner.configure(downstreamNode.getMaxParallelism());
+				// Configure the partitioner with the max parallelism. This is necessary if the
+				// partitioner has been created before the maximum parallelism has been set. The
+				// maximum parallelism is necessary for the key group mapping.
+				configurableStreamPartitioner.configure(downstreamNode.getMaxParallelism());
 			}
 
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
@@ -627,9 +630,5 @@ public class StreamGraph extends StreamingPlan {
 				pw.close();
 			}
 		}
-	}
-
-	public static enum ResourceStrategy {
-		DEFAULT, ISOLATE, NEWGROUP
 	}
 }

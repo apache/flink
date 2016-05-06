@@ -24,13 +24,13 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner selects the target channel based on the virtual partition ID. The virtual parititon
- * ID is derived from the key of the elements using the virtual state partitioner.
+ * Partitioner selects the target channel based on the key group index. The Key group
+ * index is derived from the key of the elements using the {@link KeyGroupAssigner}.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> implements ConfigurablePartitioner {
+public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implements ConfigurableStreamPartitioner {
 	private static final long serialVersionUID = 1L;
 
 	private final int[] returnArray = new int[1];
@@ -39,7 +39,7 @@ public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> implements C
 
 	private final KeyGroupAssigner<K> keyGroupAssigner;
 
-	public KeyGroupPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
+	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
 		this.keySelector = keySelector;
 		this.keyGroupAssigner = keyGroupAssigner;
 	}
@@ -49,8 +49,10 @@ public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> implements C
 	}
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
-			int numberOfOutputChannels) {
+	public int[] selectChannels(
+		SerializationDelegate<StreamRecord<T>> record,
+		int numberOfOutputChannels) {
+
 		K key;
 		try {
 			key = keySelector.getKey(record.getInstance().getValue());

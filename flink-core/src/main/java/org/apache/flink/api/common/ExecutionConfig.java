@@ -96,6 +96,11 @@ public class ExecutionConfig implements Serializable {
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
+	/**
+	 * The program wide maximum parallelism used for operators which haven't specified a maximum
+	 * parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the
+	 * number of key groups used for partitioned state.
+	 */
 	private int maxParallelism = -1;
 
 	/**
@@ -261,6 +266,9 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Gets the maximum degree of parallelism defined for the program.
 	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
+	 *
 	 * @return Maximum degree of parallelism
 	 */
 	@PublicEvolving
@@ -270,6 +278,9 @@ public class ExecutionConfig implements Serializable {
 
 	/**
 	 * Sets the maximum degree of parallelism defined for the program.
+	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
 	 *
 	 * @param maxParallelism Maximum degree of parallelism to be used for the program.
 	 */

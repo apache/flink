@@ -50,7 +50,7 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
@@ -102,7 +102,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			dataStream.getExecutionEnvironment(),
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
-				new KeyGroupPartitioner<>(
+				new KeyGroupStreamPartitioner<>(
 					keySelector,
 					new HashKeyGroupAssigner<KEY>())));
 		this.keySelector = keySelector;

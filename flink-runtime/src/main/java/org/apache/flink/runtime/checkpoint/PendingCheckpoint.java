@@ -137,10 +137,10 @@ public class PendingCheckpoint {
 	}
 	
 	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SerializedValue<StateHandle<?>> state,
-			long stateSize,
-			Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes) {
+		ExecutionAttemptID attemptID,
+		SerializedValue<StateHandle<?>> state,
+		long stateSize,
+		Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -176,6 +176,8 @@ public class PendingCheckpoint {
 					}
 
 					if (keyGroupStateAndSizes != null) {
+						// the key of the map is the key group index and the value is the
+						// serialized value of the state handle and the state size
 						for (Map.Entry<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> entry : keyGroupStateAndSizes.entrySet()) {
 							taskState.putKeyGroupState(
 								entry.getKey(),

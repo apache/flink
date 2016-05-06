@@ -26,9 +26,24 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * The aggregated key group state for one key group index belonging to a chain of operators. The
+ * individual key group states are identified by the index of the operator to which they belong.
+ *
+ * This class is necessary because of the way the chaining works in Flink. A {@link StreamTask} can
+ * be instantiated with multiple chained stream operators. Each stream operator has a set of key
+ * groups assigned. However, the chaining is transparent to the checkpoint coordinator.
+ * Consequently, the key groups for each key group index of the chained operators have to
+ * aggregated and are only then sent to the checkpoint coordinator.
+ */
 public class ChainedKeyGroupState implements StateHandle<Map<Integer, PartitionedStateSnapshot>> {
 	private static final long serialVersionUID = -9207708192881175094L;
 
+	/**
+	 * Key group states for the different chained operators of the {@link StreamTask}. All key
+	 * groups have the same key group index. The stored key group state snapshots must not be
+	 * continuous with respect to the chaining index.
+	 */
 	private final Map<Integer, PartitionedStateSnapshot> keyGroupStates;
 
 	public ChainedKeyGroupState(int maxChainedStates) {

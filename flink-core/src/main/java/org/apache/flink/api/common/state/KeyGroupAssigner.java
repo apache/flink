@@ -20,8 +20,25 @@ package org.apache.flink.api.common.state;
 
 import java.io.Serializable;
 
+/**
+ * Assigns a key to a key group index. A key group is the smallest unit of partitioned state
+ * which is assigned to an operator. An operator can be assigned multiple key groups.
+ *
+ * @param <K> Type of the key
+ */
 public interface KeyGroupAssigner<K> extends Serializable {
+	/**
+	 * Calculates the key group index for the given key.
+	 *
+	 * @param key Key to be used
+	 * @return Key group index for the given key
+	 */
 	int getKeyGroupIndex(K key);
 
+	/**
+	 * Setups the key group assigner with the maximum parallelism (= number of key groups).
+	 *
+	 * @param maxParallelism Maximum parallelism (= number of key groups)
+	 */
 	void setup(int maxParallelism);
 }

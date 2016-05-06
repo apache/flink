@@ -23,9 +23,8 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Hash based key group assigner
- *
- * The assigner assigns each key to a key group using the hash value of the key
+ * Hash based key group assigner. The assigner assigns each key to a key group using the hash value
+ * of the key.
  *
  * @param <K> Type of the key
  */

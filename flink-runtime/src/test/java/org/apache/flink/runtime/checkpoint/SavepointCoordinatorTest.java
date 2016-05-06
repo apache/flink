@@ -353,6 +353,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 
 		CheckpointIDCounter checkpointIdCounter = mock(CheckpointIDCounter.class);
 
+		@SuppressWarnings("unchecked")
 		StateStore<CompletedCheckpoint> savepointStore = mock(StateStore.class);
 		when(savepointStore.getState(anyString())).thenReturn(savepoint);
 
@@ -1027,6 +1028,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		when(jobVertex.getJobId()).thenReturn(jobId);
 		when(jobVertex.getJobVertexId()).thenReturn(jobVertexId);
 		when(jobVertex.getParallelism()).thenReturn(parallelism);
+		when(jobVertex.getMaxParallelism()).thenReturn(parallelism);
 
 		ExecutionVertex[] vertices = new ExecutionVertex[parallelism];
 

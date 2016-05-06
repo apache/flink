@@ -101,6 +101,15 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
+	/**
+	 * Sets the maximum parallelism of this operator.
+	 *
+	 * The maximum parallelism specifies the upper bound for dynamic scaling. It also defines the
+	 * number of key groups used for partitioned state.
+	 *
+	 * @param maxParallelism Maximum parallelism
+	 * @return The operator with set maximum parallelism
+	 */
 	@PublicEvolving
 	public SingleOutputStreamOperator<T> setMaxParallelism(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");

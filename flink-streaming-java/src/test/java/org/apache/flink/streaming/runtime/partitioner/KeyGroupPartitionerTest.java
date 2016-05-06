@@ -30,7 +30,7 @@ import org.junit.Test;
 
 public class KeyGroupPartitionerTest {
 
-	private KeyGroupPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;
+	private KeyGroupStreamPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;
 	private StreamRecord<Tuple2<String, Integer>> streamRecord1 = new StreamRecord<Tuple2<String, Integer>>(new Tuple2<String, Integer>("test", 0));
 	private StreamRecord<Tuple2<String, Integer>> streamRecord2 = new StreamRecord<Tuple2<String, Integer>>(new Tuple2<String, Integer>("test", 42));
 	private SerializationDelegate<StreamRecord<Tuple2<String, Integer>>> sd1 = new SerializationDelegate<StreamRecord<Tuple2<String, Integer>>>(null);
@@ -38,7 +38,7 @@ public class KeyGroupPartitionerTest {
 
 	@Before
 	public void setPartitioner() {
-		keyGroupPartitioner = new KeyGroupPartitioner<Tuple2<String, Integer>, String>(new KeySelector<Tuple2<String, Integer>, String>() {
+		keyGroupPartitioner = new KeyGroupStreamPartitioner<Tuple2<String, Integer>, String>(new KeySelector<Tuple2<String, Integer>, String>() {
 
 			private static final long serialVersionUID = 1L;
 

@@ -51,6 +51,10 @@ public class PartitionedStateSnapshot implements Serializable {
 		return namedKvStateSnapshots.keySet();
 	}
 
+	public Collection<KvStateSnapshot<?, ?, ?>> values() {
+		return namedKvStateSnapshots.values();
+	}
+
 	public Set<Map.Entry<String, KvStateSnapshot<?, ?, ?>>> entrySet() {
 		return namedKvStateSnapshots.entrySet();
 	}
@@ -85,9 +89,5 @@ public class PartitionedStateSnapshot implements Serializable {
 		for (KvStateSnapshot<?, ?, ?> kvStateSnapshot : namedKvStateSnapshots.values()) {
 			kvStateSnapshot.discardState();
 		}
-	}
-
-	public Collection<KvStateSnapshot<?, ?, ?>> values() {
-		return namedKvStateSnapshots.values();
 	}
 }

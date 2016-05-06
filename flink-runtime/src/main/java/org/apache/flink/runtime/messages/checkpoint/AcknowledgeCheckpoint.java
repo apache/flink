@@ -31,7 +31,7 @@ import java.util.Map;
  * {@link org.apache.flink.runtime.jobmanager.JobManager} to signal that the checkpoint of an
  * individual task is completed.
  * 
- * This message may carry the handle to the task's state.
+ * This message may carry the handle to the task's state and the key group state.
  */
 public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements java.io.Serializable {
 
@@ -46,6 +46,10 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	 */
 	private final long stateSize;
 
+	/**
+	 * State handles and their sizes for the individual key groups assigned to the check-pointed
+	 * task. The key groups are indexed by their key group index.
+	 */
 	private final Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes;
 
 	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {

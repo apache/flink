@@ -237,6 +237,14 @@ public class Execution implements Serializable {
 		partialInputChannelDeploymentDescriptors = null;
 	}
 
+	/**
+	 * Sets the initial state for the execution. The serialized state is then shipped via the
+	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
+	 *
+	 * @param initialState Initial operator state
+	 * @param initialKeyGroupState Initial key group state (= partitioend state)
+	 * @param recoveryTimestamp Reocvery timestamp
+	 */
 	public void setInitialState(
 		SerializedValue<StateHandle<?>> initialState,
 		Map<Integer, SerializedValue<StateHandle<?>>> initialKeyGroupState,

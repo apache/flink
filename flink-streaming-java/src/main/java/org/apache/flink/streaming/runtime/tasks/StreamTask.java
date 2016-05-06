@@ -530,23 +530,23 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 							hasAsyncStates = true;
 						}
 
+						nonPartitionedStates[i] = nonPartitionedState.isEmpty() ? null : nonPartitionedState;
+
 						if (partitionedState != null) {
-							for (PartitionedStateSnapshot partitionedStateSnapshot : partitionedState.values()) {
+							for (Map.Entry<Integer, PartitionedStateSnapshot> keyGroupState : partitionedState.entrySet()) {
+								PartitionedStateSnapshot partitionedStateSnapshot = keyGroupState.getValue();
 
 								if (partitionedStateSnapshot != null) {
+									// check if any of the KvStateSnapshots asynchronous is
 									for (KvStateSnapshot<?, ?, ?> kvSnapshot : partitionedStateSnapshot.values()) {
 										if (kvSnapshot instanceof AsynchronousKvStateSnapshot) {
 											hasAsyncStates = true;
 										}
 									}
 								}
-							}
-						}
 
-						nonPartitionedStates[i] = nonPartitionedState.isEmpty() ? null : nonPartitionedState;
-
-						if (partitionedState != null) {
-							for (Map.Entry<Integer, PartitionedStateSnapshot> keyGroupState : partitionedState.entrySet()) {
+								// Group all key group states with the same key group index but
+								// coming from different streaming operators together.
 								ChainedKeyGroupState chainedKeyGroupState;
 
 								if (!chainedPartitionedStates.containsKey(keyGroupState.getKey())) {
@@ -556,6 +556,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 									chainedKeyGroupState = (ChainedKeyGroupState) chainedPartitionedStates.get(keyGroupState.getKey());
 								}
 
+								// Add this key group state belonging to the i-th operator to the
+								// key group chain identified by the key group index
 								chainedKeyGroupState.put(i, keyGroupState.getValue());
 							}
 						}
@@ -599,10 +601,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 								for (StateHandle<?> stateHandle: chainedPartitionedStates.values()) {
 									ChainedKeyGroupState chainedKeyGroupState = (ChainedKeyGroupState) stateHandle;
 									for (PartitionedStateSnapshot keyGroupState: chainedKeyGroupState.getState(getUserCodeClassLoader()).values()) {
-										for (String key: keyGroupState.keySet()) {
-											if (keyGroupState.get(key) instanceof AsynchronousKvStateSnapshot) {
-												AsynchronousKvStateSnapshot<?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?>) keyGroupState.get(key);
-												keyGroupState.put(key, asyncHandle.materialize());
+										for (Map.Entry<String, KvStateSnapshot<?, ?, ?>> entry: keyGroupState.entrySet()) {
+											KvStateSnapshot<?, ?, ?> kvStateSnapshot = entry.getValue();
+											if (kvStateSnapshot instanceof AsynchronousKvStateSnapshot) {
+												AsynchronousKvStateSnapshot<?, ?, ?> asyncHandle = (AsynchronousKvStateSnapshot<?, ?, ?>) kvStateSnapshot;
+												entry.setValue(asyncHandle.materialize());
 											}
 										}
 									}

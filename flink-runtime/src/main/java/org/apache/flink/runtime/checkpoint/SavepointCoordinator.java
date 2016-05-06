@@ -91,19 +91,20 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			StateStore<CompletedCheckpoint> savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
-		super(jobId,
-				baseInterval,
-				checkpointTimeout,
-				0L,
-				Integer.MAX_VALUE,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				checkpointIDCounter,
-				IgnoreCompletedCheckpointsStore.INSTANCE,
-				RecoveryMode.STANDALONE,
-				statsTracker);
+		super(
+			jobId,
+			baseInterval,
+			checkpointTimeout,
+			0L,
+			Integer.MAX_VALUE,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			userClassLoader,
+			checkpointIDCounter,
+			IgnoreCompletedCheckpointsStore.INSTANCE,
+			RecoveryMode.STANDALONE,
+			statsTracker);
 
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();
@@ -218,9 +219,11 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 					// check that the number of key groups have not changed
 					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
-						throw new IllegalStateException("The max parallelism with which the latest " +
+						throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
 							"checkpoint of the execution job vertex " + executionJobVertex +
-							" has been taken and the current max parallelism changed. This " +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
 							"is currently not supported.");
 					}
 
@@ -236,14 +239,14 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 							state = subtaskState.getState();
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState
+						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState
 							.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex
 							.getTaskVertices()[i]
 							.getCurrentExecutionAttempt();
 
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						currentExecutionAttempt.setInitialState(state, keyGroupState, recoveryTimestamp);
 					}
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +

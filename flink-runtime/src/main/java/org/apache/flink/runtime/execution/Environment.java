@@ -155,7 +155,8 @@ public interface Environment {
 	 *
 	 * @param checkpointId The ID of the checkpoint.
 	 * @param state A handle to the state to be included in the checkpoint.
-	 * @param keyGroupStates State handles for key group state
+	 * @param keyGroupStates State handles for key group state indexed by their corresponding key
+	 *                       group indices
 	 */
 	void acknowledgeCheckpoint(
 		long checkpointId,

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.state.StateHandle;
 
 
 /**
- * List of task states for a chain of streaming tasks.
+ * List of non-partitioned stream operator states for a chain of streaming operators.
  */
 @Internal
 public class StreamTaskState implements StateHandle<StreamOperatorNonPartitionedState[]> {

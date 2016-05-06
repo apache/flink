@@ -70,7 +70,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinator {
 
-	static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	/** The number of recent checkpoints whose IDs are remembered */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
@@ -571,9 +571,8 @@ public class CheckpointCoordinator {
 				rememberRecentCheckpointId(checkpointId);
 
 				boolean haveMoreRecentPending = false;
-				Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
-				while (entries.hasNext()) {
-					PendingCheckpoint p = entries.next().getValue();
+				for (Map.Entry<Long, PendingCheckpoint> entry: pendingCheckpoints.entrySet()) {
+					PendingCheckpoint p = entry.getValue();
 					if (!p.isDiscarded() && p.getCheckpointTimestamp() >= checkpoint.getCheckpointTimestamp()) {
 						haveMoreRecentPending = true;
 						break;
@@ -649,7 +648,7 @@ public class CheckpointCoordinator {
 					message.getTaskExecutionId(),
 					message.getState(),
 					message.getStateSize(),
-					message.getKeyGroupStateAndSizes())) { // TODO: Give KV-state to the acknowledgeTask method
+					message.getKeyGroupStateAndSizes())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.toCompletedCheckpoint();
 
@@ -813,9 +812,11 @@ public class CheckpointCoordinator {
 
 					// check that the number of key groups have not changed
 					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
-						throw new IllegalStateException("The max parallelism with which the latest " +
+						throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
 							"checkpoint of the execution job vertex " + executionJobVertex +
-							" has been taken and the current max parallelism changed. This " +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
 							"is currently not supported.");
 					}
 
@@ -833,10 +834,10 @@ public class CheckpointCoordinator {
 							state = subtaskState.getState();
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
+						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						currentExecutionAttempt.setInitialState(state, keyGroupState, recoveryTimestamp);
 					}
 
 					if (allOrNothingState && counter > 0 && counter < executionJobVertex.getParallelism()) {

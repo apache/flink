@@ -116,6 +116,10 @@ public abstract class StreamTransformation<T> {
 
 	private int parallelism;
 
+	/**
+	 * The maximum parallelism for this stream transformation. It defines the upper limit for
+	 * dynamic scaling and the number of key groups used for partitioned state.
+	 */
 	private int maxParallelism = -1;
 
 	/**
@@ -182,10 +186,20 @@ public abstract class StreamTransformation<T> {
 		this.parallelism = parallelism;
 	}
 
+	/**
+	 * Gets the maximum parallelism for this stream transformation.
+	 *
+	 * @return Maximum parallelism of this transformation.
+	 */
 	public int getMaxParallelism() {
 		return maxParallelism;
 	}
 
+	/**
+	 * Sets the maximum parallelism for this stream transformation.
+	 *
+	 * @param maxParallelism Maximum parallelism for this stream transformation.
+	 */
 	public void setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
 	}
