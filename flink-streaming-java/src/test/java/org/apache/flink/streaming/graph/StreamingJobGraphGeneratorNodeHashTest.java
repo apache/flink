@@ -72,7 +72,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	public void testNodeHashIsDeterministic() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<String> src0 = env
 				.addSource(new NoOpSourceFunction(), "src0")
@@ -100,7 +99,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		// Do it again and verify
 		env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
-		env.getConfig().setMaxParallelism(10);
 
 		src0 = env
 				.addSource(new NoOpSourceFunction(), "src0")
@@ -388,7 +386,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 		env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
 		env.disableOperatorChaining();
-		env.getConfig().setMaxParallelism(10);
 
 		src = env.addSource(new NoOpSourceFunction())
 				// New map function, should be mapped to the source state

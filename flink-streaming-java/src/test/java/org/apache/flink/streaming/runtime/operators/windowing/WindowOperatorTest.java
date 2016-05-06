@@ -590,7 +590,6 @@ public class WindowOperatorTest extends TestLogger {
 		// verify that merging WindowAssigner and Evictor cannot be used together
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.keyBy(new KeySelector<String, String>() {

@@ -45,7 +45,6 @@ public class CheckpointedStreamingProgram {
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
-		env.getConfig().setMaxParallelism(10);
 		env.enableCheckpointing(CHECKPOINT_INTERVALL);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));
 		env.disableOperatorChaining();

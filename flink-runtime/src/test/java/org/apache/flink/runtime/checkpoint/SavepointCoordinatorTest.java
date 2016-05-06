@@ -1067,6 +1067,7 @@ public class SavepointCoordinatorTest extends TestLogger {
 		when(vertex.getParallelSubtaskIndex()).thenReturn(subtaskIndex);
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
+		when(vertex.getMaxParallelism()).thenReturn(parallelism);
 
 		return vertex;
 	}

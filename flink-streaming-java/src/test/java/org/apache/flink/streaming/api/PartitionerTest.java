@@ -90,7 +90,6 @@ public class PartitionerTest extends StreamingMultipleProgramsTestBase {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(3);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple1<String>> src = env.fromElements(
 				new Tuple1<String>("a"),

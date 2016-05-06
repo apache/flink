@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 
@@ -274,6 +275,7 @@ public class ExecutionConfig implements Serializable {
 	 */
 	@PublicEvolving
 	public void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
 		this.maxParallelism = maxParallelism;
 	}
 

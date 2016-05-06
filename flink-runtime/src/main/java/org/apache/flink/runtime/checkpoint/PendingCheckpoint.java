@@ -158,7 +158,7 @@ public class PendingCheckpoint {
 					if (taskStates.containsKey(jobVertexID)) {
 						taskState = taskStates.get(jobVertexID);
 					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getJobVertex().getMaxParallelism());
+						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getMaxParallelism());
 						taskStates.put(jobVertexID, taskState);
 					}
 

@@ -51,7 +51,6 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().disableObjectReuse();
 		see.setParallelism(3);
-		see.getConfig().setMaxParallelism(10);
 
 		DataStream<Data> dataStream = see.fromCollection(elements);
 
@@ -99,7 +98,6 @@ public class DataStreamPojoITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.getConfig().disableObjectReuse();
 		see.setParallelism(4);
-		see.getConfig().setMaxParallelism(10);
 
 		DataStream<Data> dataStream = see.fromCollection(elements);
 

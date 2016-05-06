@@ -96,7 +96,6 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(500);
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(PARALLELISM + 3);
 
 			testProgram(env);
 

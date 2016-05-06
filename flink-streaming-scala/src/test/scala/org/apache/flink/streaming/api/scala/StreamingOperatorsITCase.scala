@@ -69,7 +69,6 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
-    env.getConfig.setMaxParallelism(2)
 
     val sourceStream = env.addSource(new SourceFunction[(Int, Int)] {
 

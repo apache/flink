@@ -104,8 +104,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				dataStream.getTransformation(),
 				new KeyGroupPartitioner<>(
 					keySelector,
-					new HashKeyGroupAssigner<KEY>(
-						dataStream.getExecutionConfig().getMaxParallelism()))));
+					new HashKeyGroupAssigner<KEY>())));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}

@@ -49,7 +49,6 @@ public class UserCodeType {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
-		env.getConfig().setMaxParallelism(41);
 
 		DataSet<Integer> input = env.fromElements(1,2,3,4,5);
 

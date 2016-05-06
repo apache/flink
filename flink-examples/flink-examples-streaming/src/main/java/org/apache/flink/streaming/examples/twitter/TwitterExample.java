@@ -71,7 +71,6 @@ public class TwitterExample {
 		env.getConfig().setGlobalJobParameters(params);
 
 		env.setParallelism(params.getInt("parallelism", 1));
-		env.getConfig().setMaxParallelism(params.getInt("parallelism", 1));
 
 		// get input data
 		DataStream<String> streamSource;

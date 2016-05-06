@@ -119,7 +119,10 @@ public class ExecutionJobVertex implements Serializable {
 		this.parallelism = numTaskVertices;
 
 		int maxParallelism = jobVertex.getMaxParallelism();
-		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism must be greater or equal than the parallelism.");
+
+		Preconditions.checkArgument(maxParallelism >= parallelism, "The maximum parallelism (" +
+			maxParallelism + ") must be greater or equal than the parallelism (" + parallelism +
+			").");
 		this.maxParallelism = maxParallelism;
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];

@@ -77,7 +77,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		final int numKeys = 2;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<Integer, Integer>> sourceStream = env.addSource(new TupleSource(numElements, numKeys));
 
@@ -159,7 +158,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		final int numElements = 10;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 

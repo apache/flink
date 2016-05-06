@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> {
+public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> implements ConfigurablePartitioner {
 	private static final long serialVersionUID = 1L;
 
 	private final int[] returnArray = new int[1];
@@ -70,5 +70,10 @@ public class KeyGroupPartitioner<T, K> extends StreamPartitioner<T> {
 	@Override
 	public String toString() {
 		return "HASH";
+	}
+
+	@Override
+	public void configure(int maxParallelism) {
+		keyGroupAssigner.setup(maxParallelism);
 	}
 }

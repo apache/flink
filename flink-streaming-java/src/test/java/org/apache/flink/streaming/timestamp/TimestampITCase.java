@@ -643,7 +643,6 @@ public class TimestampITCase extends TestLogger {
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source1 = 
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
@@ -675,7 +674,6 @@ public class TimestampITCase extends TestLogger {
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));

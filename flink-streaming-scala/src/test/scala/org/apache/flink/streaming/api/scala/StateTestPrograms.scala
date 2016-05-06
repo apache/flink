@@ -28,8 +28,7 @@ object StateTestPrograms {
 
   def testStatefulFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
-    
+
     // test stateful map
     env.generateSequence(0, 10).setParallelism(1)
       .map { v => (1, v) }.setParallelism(1)

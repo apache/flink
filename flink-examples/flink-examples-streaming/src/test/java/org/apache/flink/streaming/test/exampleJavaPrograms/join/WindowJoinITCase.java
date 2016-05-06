@@ -41,8 +41,7 @@ public class WindowJoinITCase extends StreamingMultipleProgramsTestBase {
 		try {
 			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-			env.getConfig().setMaxParallelism(10);
-			
+
 			DataStream<Tuple2<String, Integer>> grades = env
 					.fromElements(WindowJoinData.GRADES_INPUT.split("\n"))
 					.map(new Parser());

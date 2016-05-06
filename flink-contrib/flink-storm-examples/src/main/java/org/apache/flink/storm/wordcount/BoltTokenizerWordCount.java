@@ -54,7 +54,6 @@ public class BoltTokenizerWordCount {
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		// get input data
 		final DataStream<String> text = getTextDataStream(env);

@@ -57,7 +57,6 @@ public class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase
 	@Test
 	public void testFastTimeWindows() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -97,7 +96,6 @@ public class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase
 	public void testEventTimeWindows() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 

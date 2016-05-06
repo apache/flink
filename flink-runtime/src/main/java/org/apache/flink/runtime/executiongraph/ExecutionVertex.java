@@ -183,6 +183,10 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getParallelism();
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}

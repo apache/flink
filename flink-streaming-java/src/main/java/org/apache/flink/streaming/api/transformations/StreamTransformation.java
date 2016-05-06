@@ -116,6 +116,8 @@ public abstract class StreamTransformation<T> {
 
 	private int parallelism;
 
+	private int maxParallelism = -1;
+
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
 	 * same operator ID across job restarts. There is also the automatically
@@ -178,6 +180,14 @@ public abstract class StreamTransformation<T> {
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
 		this.parallelism = parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	public void setMaxParallelism(int maxParallelism) {
+		this.maxParallelism = maxParallelism;
 	}
 
 	/**

@@ -43,6 +43,7 @@ public class StreamNode implements Serializable {
 
 	private final int id;
 	private Integer parallelism = null;
+	private int maxParallelism;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
@@ -139,6 +140,14 @@ public class StreamNode implements Serializable {
 
 	public void setParallelism(Integer parallelism) {
 		this.parallelism = parallelism;
+	}
+
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	public void setMaxParallelism(int maxParallelism) {
+		this.maxParallelism = maxParallelism;
 	}
 
 	public Long getBufferTimeout() {

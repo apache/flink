@@ -100,7 +100,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS,
@@ -165,7 +164,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
@@ -227,7 +225,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS,
@@ -300,7 +297,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS,
@@ -373,7 +369,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
-			env.getConfig().setMaxParallelism(10);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS,

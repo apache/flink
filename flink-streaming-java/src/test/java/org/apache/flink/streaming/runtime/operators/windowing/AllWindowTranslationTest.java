@@ -68,7 +68,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DummyReducer reducer = new DummyReducer();
 
@@ -112,7 +111,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 	public void testNonEvicting() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -160,7 +158,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 	public void testEvicting() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -213,7 +210,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 	@SuppressWarnings("rawtypes")
 	public void testFoldBuffer() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
@@ -251,7 +247,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		// verify that fold does not work with merging windows
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));
@@ -281,7 +276,6 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		// verify that we check for trigger compatibility
 
 		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
-		env.getConfig().setMaxParallelism(10);
 
 		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
 				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));

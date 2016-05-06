@@ -242,6 +242,8 @@ public class JobVertex implements java.io.Serializable {
 	}
 
 	public void setMaxParallelism(int maxParallelism) {
+		org.apache.flink.util.Preconditions.checkArgument(maxParallelism > 0, "The max parallelism must be at least 1.");
+
 		this.maxParallelism = maxParallelism;
 	}
 

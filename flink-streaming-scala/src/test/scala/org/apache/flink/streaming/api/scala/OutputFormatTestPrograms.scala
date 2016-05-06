@@ -37,7 +37,6 @@ object OutputFormatTestPrograms {
 
   def wordCountToText(input: String, outputPath : String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val text = env.fromElements(input)
 
@@ -54,7 +53,6 @@ object OutputFormatTestPrograms {
       outputPath : String,
       writeMode : FileSystem.WriteMode) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
     val text = env.fromElements(input)
 
     val counts = wordCountProgram(text)
@@ -67,7 +65,6 @@ object OutputFormatTestPrograms {
 
   def wordCountToCsv(input : String, outputPath : String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
     val text = env.fromElements(input)
 
     val counts = wordCountProgram(text)
@@ -83,7 +80,6 @@ object OutputFormatTestPrograms {
       outputPath : String,
       writeMode : FileSystem.WriteMode) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
     val text = env.fromElements(input)
 
     val counts = wordCountProgram(text)
@@ -101,7 +97,6 @@ object OutputFormatTestPrograms {
       rowDelimiter: String,
       fieldDelimiter: String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
     val text = env.fromElements(input)
 
     val counts = wordCountProgram(text)
@@ -113,7 +108,6 @@ object OutputFormatTestPrograms {
 
   def wordCountToSocket(input : String, outputHost : String, outputPort : Int) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     //Create streams for names and ages by mapping the inputs to the corresponding objects
     val text = env.fromElements(input)

@@ -50,7 +50,6 @@ public class CustomInputSplitProgram {
 		RemoteEnvironment env = new RemoteEnvironment(host, port, null, jarFile, classpath);
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
-		env.getConfig().setMaxParallelism(parallelism + 5);
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
 

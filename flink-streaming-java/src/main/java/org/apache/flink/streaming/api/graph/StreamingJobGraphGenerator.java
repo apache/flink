@@ -291,6 +291,20 @@ public class StreamingJobGraphGenerator {
 
 		if (parallelism > 0) {
 			jobVertex.setParallelism(parallelism);
+		} else {
+			parallelism = jobVertex.getParallelism();
+		}
+
+		int maxParallelism = streamNode.getMaxParallelism();
+
+		if (parallelism > maxParallelism) {
+			// the parallelism should always be smaller or equal than the max parallelism
+			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
+				"the stream node " + streamNode + " is smaller than the parallelism (" +
+				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
+				"this operator.");
+		} else {
+			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -344,8 +358,7 @@ public class StreamingJobGraphGenerator {
 
 		if (vertex.getStatePartitioner1() != null) {
 			config.setKeyGroupAssigner(
-				new HashKeyGroupAssigner<Object>(
-					streamGraph.getExecutionConfig().getMaxParallelism()));
+				new HashKeyGroupAssigner<Object>(vertex.getMaxParallelism()));
 		}
 
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();

@@ -45,7 +45,6 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testFastTimeWindows(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -85,7 +84,6 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testNonEvicting(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -139,7 +137,6 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testEvicting(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -195,7 +192,6 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testPreReduce(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 

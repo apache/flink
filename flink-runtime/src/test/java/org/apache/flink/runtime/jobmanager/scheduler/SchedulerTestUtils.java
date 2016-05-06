@@ -104,6 +104,7 @@ public class SchedulerTestUtils {
 		when(vertex.getJobvertexId()).thenReturn(jid);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(taskIndex);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
+		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getSimpleName()).thenReturn("TEST-VERTEX");
 		
@@ -121,6 +122,7 @@ public class SchedulerTestUtils {
 		when(vertex.getJobvertexId()).thenReturn(jid);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(taskIndex);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
+		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		
 		Execution execution = mock(Execution.class);

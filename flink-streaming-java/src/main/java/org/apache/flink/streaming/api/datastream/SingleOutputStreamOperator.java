@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import static java.util.Objects.requireNonNull;
 
@@ -96,6 +97,15 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		}
 
 		transformation.setParallelism(parallelism);
+
+		return this;
+	}
+
+	@PublicEvolving
+	public SingleOutputStreamOperator<T> setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+
+		transformation.setMaxParallelism(maxParallelism);
 
 		return this;
 	}

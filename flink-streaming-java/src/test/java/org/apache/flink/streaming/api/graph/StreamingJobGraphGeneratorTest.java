@@ -107,7 +107,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Tuple2<String, String>> input = env
 				.fromElements("a", "b", "c", "d", "e", "f")

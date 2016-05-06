@@ -62,7 +62,6 @@ public class WordCount {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-		env.getConfig().setMaxParallelism(32);
 
 		// get input data
 		DataStream<String> text;

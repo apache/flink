@@ -40,7 +40,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testNaming(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val source1Operator = env.generateSequence(0, 0).name("testSource1")
     val source1 = source1Operator
@@ -94,7 +93,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testPartitioning(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val src1: DataStream[(Long, Long)] = env.fromElements((0L, 0L))
     val src2: DataStream[(Long, Long)] = env.fromElements((0L, 0L))
@@ -243,7 +241,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testParallelism() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.createLocalEnvironment(10)
-    env.getConfig.setMaxParallelism(10)
 
     val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
     val map = src.map(x => (0L, 0L))
@@ -295,7 +292,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testTypeInfo() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val src1: DataStream[Long] = env.generateSequence(0, 0)
     assert(TypeExtractor.getForClass(classOf[Long]) == src1.getType)
@@ -321,7 +317,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val src = env.generateSequence(0, 0)
 
@@ -444,7 +439,6 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   @Test
   def testChannelSelectors() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(10)
 
     val src = env.generateSequence(0, 0)
 

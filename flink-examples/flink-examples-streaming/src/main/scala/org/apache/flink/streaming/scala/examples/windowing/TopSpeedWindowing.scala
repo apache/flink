@@ -63,7 +63,6 @@ object TopSpeedWindowing {
     env.getConfig.setGlobalJobParameters(params)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
-    env.getConfig.setMaxParallelism(32)
 
     val cars =
       if (params.has("input")) {

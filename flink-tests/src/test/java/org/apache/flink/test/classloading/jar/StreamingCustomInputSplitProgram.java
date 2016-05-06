@@ -54,7 +54,6 @@ public class StreamingCustomInputSplitProgram {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jarFile);
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
-		env.getConfig().setMaxParallelism(parallelism + 5);
 
 		DataStream<Integer> data = env.createInput(new CustomInputFormat());
 

@@ -29,7 +29,6 @@ import org.scalatest.junit.JUnitSuiteLike
 private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
 
   private val env = StreamExecutionEnvironment.getExecutionEnvironment
-  env.getConfig.setMaxParallelism(10)
 
   protected val tuples = env.fromElements(
     1 -> "hello",

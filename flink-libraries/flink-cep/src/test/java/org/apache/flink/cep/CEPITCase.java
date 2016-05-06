@@ -130,7 +130,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	public void testSimpleKeyedPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
-		env.getConfig().setMaxParallelism(10);
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "barfoo", 1.0),
@@ -285,7 +284,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(2);
-		env.getConfig().setMaxParallelism(10);
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(

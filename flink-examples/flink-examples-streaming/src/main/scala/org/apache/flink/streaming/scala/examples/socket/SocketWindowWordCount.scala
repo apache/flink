@@ -53,8 +53,7 @@ object SocketWindowWordCount {
     
     // get the execution environment
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.setMaxParallelism(32)
-    
+
     // get input data by connecting to the socket
     val text = env.socketTextStream("localhost", port, '\n')
 
