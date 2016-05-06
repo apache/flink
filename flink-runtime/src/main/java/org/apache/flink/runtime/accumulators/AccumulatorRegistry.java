@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,8 +45,7 @@ public class AccumulatorRegistry {
 			new HashMap<Metric, Accumulator<?, ?>>();
 
 	/* User-defined Accumulator values stored for the executing task. */
-	private final Map<String, Accumulator<?, ?>> userAccumulators =
-			Collections.synchronizedMap(new HashMap<String, Accumulator<?, ?>>());
+	private final Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
 
 	/* The reporter reference that is handed to the reporting tasks. */
 	private final ReadWriteReporter reporter;
