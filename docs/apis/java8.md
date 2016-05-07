@@ -53,29 +53,33 @@ If the `Collector` type can not be inferred from the surrounding context, it nee
 Otherwise the output will be treated as type `Object` which can lead to undesired behaviour.
 
 ~~~java
-DataSet<String> input = env.fromElements(1, 2, 3);
+DataSet<Integer> input = env.fromElements(1, 2, 3);
 
 // collector type must be declared
 input.flatMap((Integer number, Collector<String> out) -> {
+    StringBuilder builder = new StringBuilder();
     for(int i = 0; i < number; i++) {
-        out.collect("a");
+        builder.append("a");
+        out.collect(builder.toString());
     }
 })
-// returns "a", "a", "aa", "a", "aa" , "aaa"
+// returns (on separate lines) "a", "a", "aa", "a", "aa", "aaa"
 .print();
 ~~~
 
 ~~~java
-DataSet<String> input = env.fromElements(1, 2, 3);
+DataSet<Integer> input = env.fromElements(1, 2, 3);
 
 // collector type must not be declared, it is inferred from the type of the dataset
 DataSet<String> manyALetters = input.flatMap((number, out) -> {
+    StringBuilder builder = new StringBuilder();
     for(int i = 0; i < number; i++) {
-        out.collect("a");
+       builder.append("a");
+       out.collect(builder.toString());
     }
 });
 
-// returns "a", "a", "aa", "a", "aa" , "aaa"
+// returns (on separate lines) "a", "a", "aa", "a", "aa", "aaa"
 manyALetters.print();
 ~~~
 
