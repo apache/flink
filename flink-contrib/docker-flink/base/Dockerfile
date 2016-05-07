@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 
 #requirements
 RUN apt-get update; apt-get install -y curl wget supervisor openssh-server openssh-client nano
@@ -24,9 +24,9 @@ RUN apt-get update; apt-get install -y curl wget supervisor openssh-server opens
 #priviledge separation directory
 RUN mkdir /var/run/sshd
 
-#install Java 7 Oracle JDK
+#install Java 8 Oracle JDK
 RUN mkdir -p /usr/java/default && \
-    curl -Ls 'http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz' -H 'Cookie: oraclelicense=accept-securebackup-cookie' | \
+    curl -Ls 'http://download.oracle.com/otn-pub/java/jdk/8u91-b14/jdk-8u91-linux-x64.tar.gz' -H 'Cookie: oraclelicense=accept-securebackup-cookie' | \
     tar --strip-components=1 -xz -C /usr/java/default/
 ENV JAVA_HOME /usr/java/default/
 
