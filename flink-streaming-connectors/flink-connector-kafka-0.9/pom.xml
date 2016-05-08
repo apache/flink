@@ -115,6 +115,39 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+			              <includes>
+			                <include>**/KafkaTestEnvironmentImpl*</include>
+			              </includes>
+			            </configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+		        <groupId>org.apache.maven.plugins</groupId>
+		        <artifactId>maven-source-plugin</artifactId>
+		        <executions>
+		          <execution>
+		            <id>attach-test-sources</id>
+		            <goals>
+		              <goal>test-jar-no-fork</goal>
+		            </goals>
+		            <configuration>
+		              <includes>
+		                <include>**/KafkaTestEnvironmentImpl*</include>
+		              </includes>
+		            </configuration>
+		          </execution>
+		        </executions>
+		    </plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
