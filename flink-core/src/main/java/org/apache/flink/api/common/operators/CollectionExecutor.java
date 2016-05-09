@@ -36,6 +36,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -58,9 +59,15 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.JobMetricGroup;
+import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -86,6 +93,8 @@ public class CollectionExecutor {
 	private final ExecutionConfig executionConfig;
 
 	private int iterationSuperstep;
+	
+	private JobMetricGroup jobMetricGroup;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -106,6 +115,14 @@ public class CollectionExecutor {
 	
 	public JobExecutionResult execute(Plan program) throws Exception {
 		long startTime = System.currentTimeMillis();
+		
+		JobID jobID = program.getJobId();
+		if (jobID == null) {
+			jobID = new JobID();
+		}
+		this.jobMetricGroup = 
+			new TaskManagerMetricGroup(new MetricRegistry(new Configuration()), "localhost", new AbstractID().toString())
+				.addJob(jobID, program.getJobName());
 		initCache(program.getCachedFiles());
 		Collection<? extends GenericDataSinkBase<?>> sinks = program.getDataSinks();
 		for (Operator<?> sink : sinks) {
@@ -184,9 +201,12 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		TaskInfo taskInfo = new TaskInfo(typedSink.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
+
+		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedSink.getName());
+			
 		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
 		} else {
 			ctx = null;
 		}
@@ -200,10 +220,13 @@ public class CollectionExecutor {
 		GenericDataSourceBase<OUT, ?> typedSource = (GenericDataSourceBase<OUT, ?>) source;
 		// build the runtime context and compute broadcast variables, if necessary
 		TaskInfo taskInfo = new TaskInfo(typedSource.getName(), 0, 1, 0);
+		
 		RuntimeUDFContext ctx;
+
+		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, source.getName());
 		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
 		} else {
 			ctx = null;
 		}
@@ -225,9 +248,11 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
+
+		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedOp.getName());
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators) :
-					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -265,9 +290,11 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
+
+		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedOp.getName());
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators) :
-				new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
+				new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -523,8 +550,9 @@ public class CollectionExecutor {
 	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterationRuntimeUDFContext(TaskInfo taskInfo, ClassLoader classloader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-			super(taskInfo, classloader, executionConfig, cpTasks, accumulators);
+											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulators,
+											MetricGroup metrics) {
+			super(taskInfo, classloader, executionConfig, cpTasks, accumulators, metrics);
 		}
 
 		@Override

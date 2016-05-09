@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.util.DummyMetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -220,5 +222,10 @@ public class TestTaskContext<S, T> implements TaskContext<S, T> {
 	@Override
 	public String formatLogString(String message) {
 		return message;
+	}
+
+	@Override
+	public MetricGroup getMetricGroup() {
+		return new DummyMetricGroup();
 	}
 }

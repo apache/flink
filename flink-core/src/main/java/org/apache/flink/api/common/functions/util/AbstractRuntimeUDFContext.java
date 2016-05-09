@@ -44,6 +44,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -62,17 +63,21 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	private final Map<String, Accumulator<?, ?>> accumulators;
 
 	private final DistributedCache distributedCache;
+	
+	private final MetricGroup metrics;
 
 	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
 										Map<String, Accumulator<?,?>> accumulators,
-										Map<String, Future<Path>> cpTasks) {
+										Map<String, Future<Path>> cpTasks,
+										MetricGroup metrics) {
 		this.taskInfo = checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(checkNotNull(cpTasks));
 		this.accumulators = checkNotNull(accumulators);
+		this.metrics = metrics;
 	}
 
 	@Override
@@ -93,6 +98,11 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public int getIndexOfThisSubtask() {
 		return taskInfo.getIndexOfThisSubtask();
+	}
+	
+	@Override
+	public MetricGroup getMetricGroup() {
+		return metrics;
 	}
 
 	@Override

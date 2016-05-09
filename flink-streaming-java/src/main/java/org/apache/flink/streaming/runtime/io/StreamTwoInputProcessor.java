@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -276,6 +277,17 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
+		}
+	}
+
+	/**
+	 * Sets the metric group for this StreamTwoInputProcessor.
+	 *
+	 * @param metrics metric group
+	 */
+	public void setMetricGroup(IOMetricGroup metrics) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+			deserializer.instantiateMetrics(metrics);
 		}
 	}
 	

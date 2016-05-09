@@ -31,6 +31,7 @@ import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.util.DummyMetricGroup;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
@@ -76,7 +77,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			final TaskInfo taskInfo = new TaskInfo("Test UDF", 0, 4, 0);
-			final RuntimeContext ctx = new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulators);
+			final RuntimeContext ctx = new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulators, new DummyMetricGroup());
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();

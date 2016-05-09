@@ -46,6 +46,7 @@ public class TaskDeploymentDescriptorTest {
 			final JobID jobID = new JobID();
 			final JobVertexID vertexID = new JobVertexID();
 			final ExecutionAttemptID execId = new ExecutionAttemptID();
+			final String jobName = "job name";
 			final String taskName = "task name";
 			final int indexInSubtaskGroup = 0;
 			final int currentNumberOfSubtasks = 1;
@@ -59,7 +60,7 @@ public class TaskDeploymentDescriptorTest {
 			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
 			final SerializedValue<ExecutionConfig> executionConfig = ExecutionConfigTest.getSerializedConfig();
 
-			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId,
+			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, jobName, vertexID, execId,
 				executionConfig, taskName, indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClass.getName(), producedResults, inputGates,
 				requiredJars, requiredClasspaths, 47);

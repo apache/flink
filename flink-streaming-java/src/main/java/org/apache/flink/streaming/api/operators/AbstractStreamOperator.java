@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -91,6 +92,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/** The state backend that stores the state and checkpoints for this task */
 	private AbstractStateBackend stateBackend = null;
+	protected MetricGroup metrics;
 
 	// ------------------------------------------------------------------------
 	//  Life Cycle
@@ -101,6 +103,9 @@ public abstract class AbstractStreamOperator<OUT>
 		this.container = containingTask;
 		this.config = config;
 		this.output = output;
+		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
+		
+		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
@@ -115,6 +120,10 @@ public abstract class AbstractStreamOperator<OUT>
 		} catch (Exception e) {
 			throw new RuntimeException("Could not initialize state backend. ", e);
 		}
+	}
+	
+	public MetricGroup getMetricGroup() {
+		return metrics;
 	}
 
 	/**

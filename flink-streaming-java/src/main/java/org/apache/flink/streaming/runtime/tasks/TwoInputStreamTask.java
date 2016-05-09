@@ -77,6 +77,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
 		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 		this.inputProcessor.setReporter(reporter);
+		inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 	}
 
 	@Override

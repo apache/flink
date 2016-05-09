@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.util.DummyTaskMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -794,6 +795,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		final Environment env = mock(Environment.class);
 		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
+		when(env.getMetricGroup()).thenReturn(new DummyTaskMetricGroup());
 
 		when(task.getEnvironment()).thenReturn(env);
 
