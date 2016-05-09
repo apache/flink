@@ -361,38 +361,84 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
-   * the given position. When equality, returns the first.
+   * the given position. When equality, returns the first by default.
    */
   def maxBy(position: Int): DataStream[T] = aggregate(AggregationType.MAXBY,
-    position)
+    position, true)
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
-   * the given field. When equality, returns the first.
+   * the given position. When equality, returns either the first or last one depending
+   * on the parameter setting.
+   */
+  def maxBy(position: Int, first: Boolean): DataStream[T] = aggregate(AggregationType.MAXBY,
+    position, first)
+
+  /**
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given field. When equality, returns the first by default.
    */
   def maxBy(field: String): DataStream[T] = aggregate(AggregationType.MAXBY,
-    field)
+    field, true)
+
+  /**
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given field. When equality, returns either the first or last one depending
+   * on the parameter setting.
+   */
+  def maxBy(field: String, first: Boolean): DataStream[T] = aggregate(AggregationType.MAXBY,
+    field, first)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
-   * the given position. When equality, returns the first.
+   * the given position. When equality, returns the first by default.
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY,
-    position)
+    position, true)
 
   /**
-   * Applies an aggregation that that gives the minimum element of the window by
-   * the given field. When equality, returns the first.
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given position. When equality, returns either the first or last one depending
+   * on the parameter setting.
+   */
+  def minBy(position: Int, first: Boolean): DataStream[T] = aggregate(AggregationType.MINBY,
+    position, first)
+
+  /**
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given field. When equality, returns the first by default.
    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY,
-    field)
+    field, true)
 
-  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
-    val position = fieldNames2Indices(getInputType(), Array(field))(0)
-    aggregate(aggregationType, position)
+  /**
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given field. When equality, returns either the first or last one depending
+   * on the parameter setting.
+   */
+  def minBy(field: String, first: Boolean): DataStream[T] = aggregate(AggregationType.MINBY,
+    field, first)
+
+  private def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
+    aggregate(aggregationType, position, false)
   }
 
-  def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
+  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
+    aggregate(aggregationType, field, false)
+  }
+
+  private def aggregate(
+              aggregationType: AggregationType, 
+              field: String, 
+              first: Boolean): DataStream[T] = {
+    val position = fieldNames2Indices(getInputType(), Array(field))(0)
+    aggregate(aggregationType, position, first)
+  }
+
+  private def aggregate(
+              aggregationType: AggregationType,
+              position: Int,
+              first: Boolean): DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaAllWStream[Product, W]]
 
@@ -405,7 +451,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
           position,
           jStream.getInputType,
           aggregationType,
-          true,
+          first,
           jStream.getExecutionEnvironment.getConfig)
     }
 

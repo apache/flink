@@ -224,45 +224,95 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
    * the given position by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the minimal value.
+   * When equality, the first element is returned with the minimal value by default.
    *
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType
-    .MINBY, position)
-    
-   /**
+    .MINBY, position, true)
+
+  /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given field by the given key. An independent aggregate is kept per key.
-   * When equality, the first element is returned with the minimal value.
+   * the given position by the given key. An independent aggregate is kept per key. 
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   */
+  def minBy(position: Int, first: Boolean): DataStream[T] = aggregate(AggregationType
+    .MINBY, position, first)
+
+  /**
+   * Applies an aggregation that that gives the current minimum element of the data stream by
+   * the given field by the given key. An independent aggregate is kept per key. 
+   * When equality, the first element is returned with the minimal value by default.
    *
    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType
-    .MINBY, field )
+    .MINBY, field, true)
+
+  /**
+   * Applies an aggregation that that gives the current minimum element of the data stream by
+   * the given field by the given key. An independent aggregate is kept per key. 
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   */
+  def minBy(field: String, first: Boolean): DataStream[T] = aggregate(AggregationType
+    .MINBY, field, first)
 
    /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
    * the given position by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
+   * When equality, the first element is returned with the maximal value by default.
    *
    */
   def maxBy(position: Int): DataStream[T] =
-    aggregate(AggregationType.MAXBY, position)
-    
-   /**
+    aggregate(AggregationType.MAXBY, position, true)
+
+  /**
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given position by the given key. An independent aggregate is kept per key. 
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   */
+  def maxBy(position: Int, first: Boolean): DataStream[T] =
+    aggregate(AggregationType.MAXBY, position, first)
+
+  /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
    * the given field by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
+   * When equality, the first element is returned with the maximal value by default.
    *
    */
   def maxBy(field: String): DataStream[T] =
-    aggregate(AggregationType.MAXBY, field)
-    
-  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
-    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
-    aggregate(aggregationType, position)
-  }
+    aggregate(AggregationType.MAXBY, field, true)
+
+  /**
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given field by the given key. An independent aggregate is kept per key. 
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   */
+  def maxBy(field: String, first: Boolean): DataStream[T] =
+    aggregate(AggregationType.MAXBY, field, first)
 
   private def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
+    aggregate(aggregationType, position, false)
+  }
+
+  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
+    aggregate(aggregationType, field, false)
+  }
+    
+  private def aggregate(
+              aggregationType: AggregationType,
+              field: String,
+              first: Boolean): DataStream[T] = {
+    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
+    aggregate(aggregationType, position, first)
+  }
+
+  private def aggregate(
+              aggregationType: AggregationType,
+              position: Int,
+              first: Boolean): DataStream[T] = {
 
     val reducer = aggregationType match {
       case AggregationType.SUM =>
