@@ -56,6 +56,7 @@ object TypeConverter {
     case STRING_TYPE_INFO => VARCHAR
     case STRING_VALUE_TYPE_INFO => VARCHAR
     case DATE_TYPE_INFO => DATE
+    case BIG_DEC_TYPE_INFO => DECIMAL
 
     case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
       throw new TableException("Character type is not supported.")
@@ -74,6 +75,7 @@ object TypeConverter {
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
     case DATE => DATE_TYPE_INFO
+    case DECIMAL => BIG_DEC_TYPE_INFO
 
     case NULL =>
       throw new TableException("Type NULL is not supported. " +

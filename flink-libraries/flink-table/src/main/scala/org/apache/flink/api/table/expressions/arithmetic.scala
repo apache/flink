@@ -17,17 +17,16 @@
  */
 package org.apache.flink.api.table.expressions
 
-import scala.collection.JavaConversions._
-
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
-import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeCoercion, TypeConverter}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isNumeric, isString}
+import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeCoercion}
 import org.apache.flink.api.table.validate._
+
+import scala.collection.JavaConversions._
 
 abstract class BinaryArithmetic extends BinaryExpression {
   def sqlOperator: SqlOperator
@@ -45,9 +44,8 @@ abstract class BinaryArithmetic extends BinaryExpression {
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override def validateInput(): ExprValidationResult = {
-    if (!left.resultType.isInstanceOf[NumericTypeInfo[_]] ||
-      !right.resultType.isInstanceOf[NumericTypeInfo[_]]) {
-      ValidationFailure(s"$this requires both operands Numeric, get" +
+    if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
+      ValidationFailure(s"$this requires both operands Numeric, got " +
         s"${left.resultType} and ${right.resultType}")
     } else {
       ValidationSuccess
@@ -61,28 +59,24 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
   val sqlOperator = SqlStdOperatorTable.PLUS
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val l = left.toRexNode
-    val r = right.toRexNode
-    if(SqlTypeName.STRING_TYPES.contains(l.getType.getSqlTypeName)) {
-      val cast: RexNode = relBuilder.cast(r,
-        TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
-      relBuilder.call(SqlStdOperatorTable.PLUS, l, cast)
-    } else if(SqlTypeName.STRING_TYPES.contains(r.getType.getSqlTypeName)) {
-      val cast: RexNode = relBuilder.cast(l,
-        TypeConverter.typeInfoToSqlType(BasicTypeInfo.STRING_TYPE_INFO))
-      relBuilder.call(SqlStdOperatorTable.PLUS, cast, r)
+    if(isString(left.resultType)) {
+      val castedRight = Cast(right, BasicTypeInfo.STRING_TYPE_INFO)
+      relBuilder.call(SqlStdOperatorTable.PLUS, left.toRexNode, castedRight.toRexNode)
+    } else if(isString(right.resultType)) {
+      val castedLeft = Cast(left, BasicTypeInfo.STRING_TYPE_INFO)
+      relBuilder.call(SqlStdOperatorTable.PLUS, castedLeft.toRexNode, right.toRexNode)
     } else {
-      relBuilder.call(SqlStdOperatorTable.PLUS, l, r)
+      val castedLeft = Cast(left, resultType)
+      val castedRight = Cast(right, resultType)
+      relBuilder.call(SqlStdOperatorTable.PLUS, castedLeft.toRexNode, castedRight.toRexNode)
     }
   }
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override def validateInput(): ExprValidationResult = {
-    if (left.resultType == BasicTypeInfo.STRING_TYPE_INFO ||
-        right.resultType == BasicTypeInfo.STRING_TYPE_INFO) {
+    if (isString(left.resultType) || isString(right.resultType)) {
       ValidationSuccess
-    } else if (!left.resultType.isInstanceOf[NumericTypeInfo[_]] ||
-        !right.resultType.isInstanceOf[NumericTypeInfo[_]]) {
+    } else if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
       ValidationFailure(s"$this requires Numeric or String input," +
         s" get ${left.resultType} and ${right.resultType}")
     } else {

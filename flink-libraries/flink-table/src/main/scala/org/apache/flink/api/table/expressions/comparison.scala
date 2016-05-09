@@ -17,16 +17,15 @@
  */
 package org.apache.flink.api.table.expressions
 
-import scala.collection.JavaConversions._
-
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.NumericTypeInfo
+import org.apache.flink.api.table.typeutils.TypeCheckUtils.{isComparable, isNumeric}
 import org.apache.flink.api.table.validate._
+
+import scala.collection.JavaConversions._
 
 abstract class BinaryComparison extends BinaryExpression {
   def sqlOperator: SqlOperator
@@ -39,11 +38,12 @@ abstract class BinaryComparison extends BinaryExpression {
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ValidationSuccess
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+    case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
+    case (lType, rType) if isComparable(lType) && lType == rType => ValidationSuccess
     case (lType, rType) =>
       ValidationFailure(
-        s"Comparison is only supported for Strings and numeric types, get $lType and $rType")
+        s"Comparison is only supported for numeric types and comparable types of same type," +
+          s"got $lType and $rType")
   }
 }
 
@@ -53,13 +53,11 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
   val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 
   override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+    case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
+    // TODO widen this rule once we support custom objects as types (FLINK-3916)
+    case (lType, rType) if lType == rType => ValidationSuccess
     case (lType, rType) =>
-      if (lType != rType) {
-        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
-      } else {
-        ValidationSuccess
-      }
+      ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
   }
 }
 
@@ -69,13 +67,11 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
   val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 
   override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+    case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
+    // TODO widen this rule once we support custom objects as types (FLINK-3916)
+    case (lType, rType) if lType == rType => ValidationSuccess
     case (lType, rType) =>
-      if (lType != rType) {
-        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
-      } else {
-        ValidationSuccess
-      }
+      ValidationFailure(s"Inequality predicate on incompatible types: $lType and $rType")
   }
 }
 

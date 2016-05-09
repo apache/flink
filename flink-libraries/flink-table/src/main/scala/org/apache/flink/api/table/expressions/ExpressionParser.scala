@@ -71,23 +71,24 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       "DOUBLE" ^^ { ti => BasicTypeInfo.DOUBLE_TYPE_INFO } |
       ("BOOL" | "BOOLEAN" ) ^^ { ti => BasicTypeInfo.BOOLEAN_TYPE_INFO } |
       "STRING" ^^ { ti => BasicTypeInfo.STRING_TYPE_INFO } |
-      "DATE" ^^ { ti => BasicTypeInfo.DATE_TYPE_INFO }
+      "DATE" ^^ { ti => BasicTypeInfo.DATE_TYPE_INFO } |
+      "DECIMAL" ^^ { ti => BasicTypeInfo.BIG_DEC_TYPE_INFO }
 
   // Literals
 
   lazy val numberLiteral: PackratParser[Expression] =
-    ((wholeNumber <~ ("L" | "l")) | floatingPointNumber | decimalNumber | wholeNumber) ^^ {
-      str =>
-        if (str.endsWith("L") || str.endsWith("l")) {
-          Literal(str.toLong)
-        } else if (str.matches("""-?\d+""")) {
-          Literal(str.toInt)
-        } else if (str.endsWith("f") | str.endsWith("F")) {
-          Literal(str.toFloat)
-        } else {
-          Literal(str.toDouble)
-        }
-    }
+    (wholeNumber <~ ("l" | "L")) ^^ { n => Literal(n.toLong) } |
+      (decimalNumber <~ ("p" | "P")) ^^ { n => Literal(BigDecimal(n)) } |
+      (floatingPointNumber | decimalNumber) ^^ {
+        n =>
+          if (n.matches("""-?\d+""")) {
+            Literal(n.toInt)
+          } else if (n.endsWith("f") || n.endsWith("F")) {
+            Literal(n.toFloat)
+          } else {
+            Literal(n.toDouble)
+          }
+      }
 
   lazy val singleQuoteStringLiteral: Parser[Expression] =
     ("'" + """([^'\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*""" + "'").r ^^ {
@@ -261,7 +262,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val unaryMinus: PackratParser[Expression] = "-" ~> composite ^^ { e => UnaryMinus(e) }
 
-  lazy val unary = unaryNot | unaryMinus | composite
+  lazy val unary = composite | unaryNot | unaryMinus
 
   // arithmetic
 

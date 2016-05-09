@@ -16,29 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.codegen.calls
+package org.apache.flink.api.table
 
-import java.lang.reflect.Method
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.
-  {DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO,BIG_DEC_TYPE_INFO}
-import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.calcite.rel.`type`.RelDataTypeSystemImpl
 
 /**
-  * Generates arithmetic floor/ceil function calls.
+  * Custom type system for Flink.
   */
-class FloorCeilCallGen(method: Method) extends MultiTypeMethodCallGen(method) {
+class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
-  override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    operands.head.resultType match {
-      case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO | BIG_DEC_TYPE_INFO =>
-        super.generate(codeGenerator, operands)
-      case _ =>
-        operands.head // no floor/ceil necessary
-    }
-  }
+  // we cannot use Int.MaxValue because of an overflow in Calcites type inference logic
+  // half should be enough for all use cases
+  override def getMaxNumericScale: Int = Int.MaxValue / 2
+
+  // we cannot use Int.MaxValue because of an overflow in Calcites type inference logic
+  // half should be enough for all use cases
+  override def getMaxNumericPrecision: Int = Int.MaxValue / 2
 
 }
