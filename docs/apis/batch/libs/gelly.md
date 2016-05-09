@@ -121,6 +121,9 @@ val weight = e.getValue // weight = 0.5
 </div>
 </div>
 
+In Gelly an `Edge` is always directed from the source vertex to the target vertex. A `Graph` may be undirected if for
+every `Edge` it contains a matching `Edge` from the target vertex to the source vertex.
+
 {% top %}
 
 Graph Creation
@@ -2069,7 +2072,7 @@ configuration.
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexInDegree</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with the in-degree.</p>
+        <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with the in-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> inDegree = graph
   .run(new VertexInDegree()
@@ -2086,7 +2089,7 @@ DataSet<Vertex<K, LongValue>> inDegree = graph
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexOutDegree</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with the out-degree.</p>
+        <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with the out-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> outDegree = graph
   .run(new VertexOutDegree()
@@ -2103,7 +2106,7 @@ DataSet<Vertex<K, LongValue>> outDegree = graph
     <tr>
       <td>degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
       <td>
-        <p>Annotate vertices of a directed graph with both the out-degree and in-degree.</p>
+        <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with both the out-degree and in-degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
   .run(new VertexDegreePair()
@@ -2120,7 +2123,7 @@ DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
     <tr>
       <td>degree.annotate.undirected.<br/><strong>VertexDegree</strong></td>
       <td>
-        <p>Annotate vertices of an undirected graph with the degree.</p>
+        <p>Annotate vertices of an <a href="#graph-representation">undirected graph</a> with the degree.</p>
 {% highlight java %}
 DataSet<Vertex<K, LongValue>> degree = graph
   .run(new VertexDegree()
@@ -2139,7 +2142,7 @@ DataSet<Vertex<K, LongValue>> degree = graph
     <tr>
       <td>degree.annotate.undirected.<br/><strong>EdgeSourceDegree</strong></td>
       <td>
-        <p>Annotate edges of an undirected graph with degree of the source ID.</p>
+        <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with degree of the source ID.</p>
 {% highlight java %}
 DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
   .run(new EdgeSourceDegree()
@@ -2156,7 +2159,7 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
     <tr>
       <td>degree.annotate.undirected.<br/><strong>EdgeTargetDegree</strong></td>
       <td>
-        <p>Annotate edges of an undirected graph with degree of the target ID.</p>
+        <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with degree of the target ID.</p>
 {% highlight java %}
 DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
   .run(new EdgeTargetDegree()
@@ -2173,7 +2176,7 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
     <tr>
       <td>degree.annotate.undirected.<br/><strong>EdgeDegreePair</strong></td>
       <td>
-        <p>Annotate edges of an undirected graph with the degree of both the source and target degree ID.</p>
+        <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with the degree of both the source and target degree ID.</p>
 {% highlight java %}
 DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
   .run(new EdgeDegreePair()
