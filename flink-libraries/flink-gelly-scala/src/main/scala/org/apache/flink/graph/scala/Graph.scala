@@ -425,12 +425,12 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from K to NEW
     * @return graph with translated vertex and edge IDs
     */
-  def translateGraphIds[NEW: TypeInformation : ClassTag](fun: K => NEW):
+  def translateGraphIds[NEW: TypeInformation : ClassTag](fun: (K, NEW) => NEW):
   Graph[NEW, VV, EV] = {
     val translator: TranslateFunction[K, NEW] = new TranslateFunction[K, NEW] {
       val cleanFun = clean(fun)
 
-      def translate(in: K, reuse: NEW): NEW = cleanFun(in)
+      def translate(in: K, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
     new Graph[NEW, VV, EV](jgraph.translateGraphIds(translator))
@@ -453,12 +453,12 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from VV to NEW
     * @return graph with translated vertex values
     */
-  def translateVertexValues[NEW: TypeInformation : ClassTag](fun: VV => NEW):
+  def translateVertexValues[NEW: TypeInformation : ClassTag](fun: (VV, NEW) => NEW):
   Graph[K, NEW, EV] = {
     val translator: TranslateFunction[VV, NEW] = new TranslateFunction[VV, NEW] {
       val cleanFun = clean(fun)
 
-      def translate(in: VV, reuse: NEW): NEW = cleanFun(in)
+      def translate(in: VV, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
     new Graph[K, NEW, EV](jgraph.translateVertexValues(translator))
@@ -481,12 +481,12 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     * @param fun implements conversion from EV to NEW
     * @return graph with translated edge values
     */
-  def translateEdgeValues[NEW: TypeInformation : ClassTag](fun: EV => NEW):
+  def translateEdgeValues[NEW: TypeInformation : ClassTag](fun: (EV, NEW) => NEW):
   Graph[K, VV, NEW] = {
     val translator: TranslateFunction[EV, NEW] = new TranslateFunction[EV, NEW] {
       val cleanFun = clean(fun)
 
-      def translate(in: EV, reuse: NEW): NEW = cleanFun(in)
+      def translate(in: EV, reuse: NEW): NEW = cleanFun(in, reuse)
     }
 
     new Graph[K, VV, NEW](jgraph.translateEdgeValues(translator))
