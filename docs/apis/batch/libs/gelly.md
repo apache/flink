@@ -1831,6 +1831,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [GSA Triangle Count](#gsa-triangle-count)
 * [Triangle Enumerator](#triangle-enumerator)
 * [Summarization](#summarization)
+* [Jaccard Similarity](#jaccard-similarity)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
@@ -2050,6 +2051,25 @@ corresponding groupings.
 The algorithm takes a directed, vertex (and possibly edge) attributed graph as input and outputs a new graph where each
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
+
+### Jaccard Similarity
+
+#### Overview
+The Jaccard Index measures the similarity between vertex neighborhoods. Scores range from 0.0 (no common neighbors) to
+1.0 (all neighbors are common).
+
+#### Details
+Counting common neighbors for pairs of vertices is equivalent to counting the two-paths consisting of two edges
+connecting the two vertices to the common neighbor. The number of distinct neighbors for pairs of vertices is computed
+by storing the sum of degrees of the vertex pair and subtracting the count of common neighbors, which are double-counted
+in the sum of degrees.
+
+The algorithm first annotates each edge with the endpoint degree. Grouping on the midpoint vertex, each pair of
+neighbors is emitted with the endpoint degree sum. Grouping on two-paths, the common neighbors are counted.
+
+#### Usage
+The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing two vertex IDs,
+the number of common neighbors, and the number of distinct neighbors. The vertex ID must be `Comparable` and `Copyable`.
 
 ### Local Clustering Coefficient
 
