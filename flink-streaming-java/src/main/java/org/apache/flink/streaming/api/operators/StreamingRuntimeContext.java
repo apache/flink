@@ -64,7 +64,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 				env.getUserClassLoader(),
 				operator.getExecutionConfig(),
 				accumulators,
-				env.getDistributedCacheEntries());
+				env.getDistributedCacheEntries(),
+				operator.getMetricGroup());
 		
 		this.operator = operator;
 		this.taskEnvironment = env;

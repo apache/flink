@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -212,6 +213,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The accumulator map used in the RuntimeContext.
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
+	private MetricGroup metrics;
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
@@ -237,6 +239,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		final Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
 		this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
+		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
+		this.metrics = getEnvironment().getMetricGroup()
+			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+
 		// initialize the readers.
 		// this does not yet trigger any stream consuming or processing.
 		initInputReaders();
@@ -256,7 +262,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			LOG.debug(formatLogString("Start task code."));
 		}
 
-		this.runtimeUdfContext = createRuntimeContext();
+		this.runtimeUdfContext = createRuntimeContext(metrics);
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -666,6 +672,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 
 			inputReaders[i].setReporter(reporter);
+			inputReaders[i].setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 
 			currentReaderOffset += groupSize;
 		}
@@ -1005,11 +1012,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				this.getExecutionConfig(), reporter, this.accumulatorMap);
 	}
 
-	public DistributedRuntimeUDFContext createRuntimeContext() {
+	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1054,6 +1061,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	@Override
 	public String formatLogString(String message) {
 		return constructLogString(message, getEnvironment().getTaskInfo().getTaskName(), this);
+	}
+
+	@Override
+	public MetricGroup getMetricGroup() {
+		return metrics;
 	}
 
 	@Override
@@ -1226,6 +1238,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			// setup live accumulator counters
 			recordWriter.setReporter(reporter);
+			recordWriter.setMetricGroup(task.getEnvironment().getMetricGroup().getIOMetricGroup());
 
 			writers.add(recordWriter);
 		}

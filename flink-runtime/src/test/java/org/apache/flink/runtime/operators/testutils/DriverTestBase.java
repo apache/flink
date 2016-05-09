@@ -24,6 +24,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.util.DummyMetricGroup;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.TestLogger;
@@ -363,6 +365,11 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 		return "Driver Tester: " + message;
 	}
 	
+	@Override
+	public MetricGroup getMetricGroup() {
+		return new DummyMetricGroup();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@After

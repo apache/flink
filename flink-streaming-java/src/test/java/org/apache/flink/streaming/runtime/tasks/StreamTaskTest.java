@@ -23,6 +23,7 @@ import akka.actor.ActorRef;
 import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -134,7 +135,7 @@ public class StreamTaskTest {
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
 				ExecutionConfigTest.getSerializedConfig(),
 				"Test Task", 0, 1, 0,
 				new Configuration(),
@@ -157,7 +158,8 @@ public class StreamTaskTest {
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
 				mock(FileCache.class),
-				new TaskManagerRuntimeInfo("localhost", new Configuration()));
+				new TaskManagerRuntimeInfo("localhost", new Configuration()),
+				mock(TaskMetricGroup.class));
 	}
 	
 	// ------------------------------------------------------------------------
