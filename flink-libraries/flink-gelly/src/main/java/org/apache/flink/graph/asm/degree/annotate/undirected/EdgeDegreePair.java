@@ -81,20 +81,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongV
 				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
 
-		DataSet<Vertex<K, LongValue>> vertexDegrees;
-
-		if (reduceOnTargetId) {
-			// t, d(t)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setReduceOnTargetId(true)
-					.setParallelism(parallelism));
-		} else {
-			// s, d(s)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setParallelism(parallelism));
-		}
+		// t, d(t)
+		DataSet<Vertex<K, LongValue>> vertexDegrees = input
+			.run(new VertexDegree<K, VV, EV>()
+				.setReduceOnTargetId(reduceOnTargetId)
+				.setParallelism(parallelism));
 
 		// s, t, (deg(s), deg(t))
 		return edgeSourceDegrees

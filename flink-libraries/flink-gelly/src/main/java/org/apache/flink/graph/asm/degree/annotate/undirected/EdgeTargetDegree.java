@@ -74,20 +74,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	@Override
 	public DataSet<Edge<K, Tuple2<EV, LongValue>>> run(Graph<K, VV, EV> input)
 			throws Exception {
-		DataSet<Vertex<K, LongValue>> vertexDegrees;
-
-		if (reduceOnSourceId) {
-			// s, d(s)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setParallelism(parallelism));
-		} else {
-			// t, d(t)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setReduceOnTargetId(true)
-					.setParallelism(parallelism));
-		}
+		// t, d(t)
+		DataSet<Vertex<K, LongValue>> vertexDegrees = input
+			.run(new VertexDegree<K, VV, EV>()
+				.setReduceOnTargetId(!reduceOnSourceId)
+				.setParallelism(parallelism));
 
 		// s, t, d(t)
 		return input.getEdges()

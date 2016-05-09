@@ -1831,6 +1831,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [GSA Triangle Count](#gsa-triangle-count)
 * [Triangle Enumerator](#triangle-enumerator)
 * [Summarization](#summarization)
+* [Jaccard Index](#jaccard-index)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
@@ -2051,6 +2052,30 @@ The algorithm takes a directed, vertex (and possibly edge) attributed graph as i
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
 
+### Jaccard Index
+
+#### Overview
+The Jaccard Index measures the similarity between vertex neighborhoods and is computed as the number of shared neighbors
+divided by the number of distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are
+shared).
+
+#### Details
+Counting shared neighbors for pairs of vertices is equivalent to counting connecting paths of length two. The number of
+distinct neighbors is computed by storing the sum of degrees of the vertex pair and subtracting the count of shared
+neighbors, which are double-counted in the sum of degrees.
+
+The algorithm first annotates each edge with the target vertex's degree. Grouping on the source vertex, each pair of
+neighbors is emitted with the degree sum. Grouping on two-paths, the shared neighbors are counted.
+
+#### Usage
+The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing two vertex IDs,
+the number of shared neighbors, and the number of distinct neighbors. The result class provides a method to compute the
+Jaccard Index score. The graph ID type must be `Comparable` and `Copyable`.
+
+* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setMaximumScore`: filter out Jaccard Index scores greater than or equal to the given maximum fraction
+* `setMinimumScore`: filter out Jaccard Index scores less than the given minimum fraction
+
 ### Local Clustering Coefficient
 
 #### Overview
@@ -2215,6 +2240,10 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
 {% highlight java %}
 graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2225,6 +2254,10 @@ graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% highlight java %}
 graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2235,6 +2268,10 @@ graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% highlight java %}
 graph.run(new TranslateEdgeValues(new Nullify()));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
   </tbody>
