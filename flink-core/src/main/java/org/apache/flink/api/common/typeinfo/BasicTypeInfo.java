@@ -69,7 +69,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Type information for primitive types (int, long, double, byte, ...), String, Date, Void,
- * BigInteger, BigDecimal, and Java SQL Date/Time/Timestamp.
+ * BigInteger, and BigDecimal.
  */
 @Public
 public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
@@ -89,18 +89,6 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	public static final BasicTypeInfo<Void> VOID_TYPE_INFO = new BasicTypeInfo<Void>(Void.class, new Class<?>[]{}, VoidSerializer.INSTANCE, null);
 	public static final BasicTypeInfo<BigInteger> BIG_INT_TYPE_INFO = new BasicTypeInfo<BigInteger>(BigInteger.class, new Class<?>[]{}, BigIntSerializer.INSTANCE, BigIntComparator.class);
 	public static final BasicTypeInfo<BigDecimal> BIG_DEC_TYPE_INFO = new BasicTypeInfo<BigDecimal>(BigDecimal.class, new Class<?>[]{}, BigDecSerializer.INSTANCE, BigDecComparator.class);
-
-	@PublicEvolving
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final BasicTypeInfo<java.sql.Date> SQL_DATE_TYPE_INFO = new BasicTypeInfo<>(java.sql.Date.class, new Class<?>[]{}, SqlDateSerializer.INSTANCE, (Class) DateComparator.class);
-
-	@PublicEvolving
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final BasicTypeInfo<Time> SQL_TIME_TYPE_INFO = new BasicTypeInfo<>(Time.class, new Class<?>[]{}, SqlTimeSerializer.INSTANCE, (Class) DateComparator.class);
-
-	@PublicEvolving
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static final BasicTypeInfo<Timestamp> SQL_TIMESTAMP_TYPE_INFO = new BasicTypeInfo<>(Timestamp.class, new Class<?>[]{}, SqlTimestampSerializer.INSTANCE, (Class) SqlTimestampComparator.class);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -269,8 +257,5 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 		TYPES.put(void.class, VOID_TYPE_INFO);
 		TYPES.put(BigInteger.class, BIG_INT_TYPE_INFO);
 		TYPES.put(BigDecimal.class, BIG_DEC_TYPE_INFO);
-		TYPES.put(java.sql.Date.class, SQL_DATE_TYPE_INFO);
-		TYPES.put(Time.class, SQL_TIME_TYPE_INFO);
-		TYPES.put(Timestamp.class, SQL_TIMESTAMP_TYPE_INFO);
 	}
 }

@@ -44,6 +44,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
@@ -2056,7 +2057,7 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
-	public void testSqlBasicTypes() {
+	public void testSqlTimeTypes() {
 		MapFunction<?, ?> function = new MapFunction<Tuple3<Date, Time, Timestamp>, Tuple3<Date, Time, Timestamp>>() {
 			@Override
 			public Tuple3<Date, Time, Timestamp> map(Tuple3<Date, Time, Timestamp> value) throws Exception {
@@ -2071,21 +2072,18 @@ public class TypeExtractorTest {
 
 		Assert.assertTrue(ti.isTupleType());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
-		Assert.assertEquals(BasicTypeInfo.SQL_DATE_TYPE_INFO, tti.getTypeAt(0));
-		Assert.assertEquals(BasicTypeInfo.SQL_TIME_TYPE_INFO, tti.getTypeAt(1));
-		Assert.assertEquals(BasicTypeInfo.SQL_TIMESTAMP_TYPE_INFO, tti.getTypeAt(2));
+		Assert.assertEquals(SqlTimeTypeInfo.DATE, tti.getTypeAt(0));
+		Assert.assertEquals(SqlTimeTypeInfo.TIME, tti.getTypeAt(1));
+		Assert.assertEquals(SqlTimeTypeInfo.TIMESTAMP, tti.getTypeAt(2));
 
 		// use getForClass()
-		Assert.assertTrue(TypeExtractor.getForClass(Date.class).isBasicType());
-		Assert.assertTrue(TypeExtractor.getForClass(Time.class).isBasicType());
-		Assert.assertTrue(TypeExtractor.getForClass(Timestamp.class).isBasicType());
 		Assert.assertEquals(tti.getTypeAt(0), TypeExtractor.getForClass(Date.class));
 		Assert.assertEquals(tti.getTypeAt(1), TypeExtractor.getForClass(Time.class));
 		Assert.assertEquals(tti.getTypeAt(2), TypeExtractor.getForClass(Timestamp.class));
 
 		// use getForObject()
-		Assert.assertEquals(BasicTypeInfo.SQL_DATE_TYPE_INFO, TypeExtractor.getForObject(Date.valueOf("1998-12-12")));
-		Assert.assertEquals(BasicTypeInfo.SQL_TIME_TYPE_INFO, TypeExtractor.getForObject(Time.valueOf("12:37:45")));
-		Assert.assertEquals(BasicTypeInfo.SQL_TIMESTAMP_TYPE_INFO, TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45")));
+		Assert.assertEquals(SqlTimeTypeInfo.DATE, TypeExtractor.getForObject(Date.valueOf("1998-12-12")));
+		Assert.assertEquals(SqlTimeTypeInfo.TIME, TypeExtractor.getForObject(Time.valueOf("12:37:45")));
+		Assert.assertEquals(SqlTimeTypeInfo.TIMESTAMP, TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45")));
 	}
 }
