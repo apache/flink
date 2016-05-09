@@ -17,17 +17,37 @@
  */
 package org.apache.flink.api.table.typeutils
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{BIG_DEC_TYPE_INFO, BOOLEAN_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.validate._
 
 object TypeCheckUtils {
 
-  def assertNumericExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {
-    if (dataType.isInstanceOf[NumericTypeInfo[_]]) {
+  def isNumeric(dataType: TypeInformation[_]): Boolean = dataType match {
+    case _: NumericTypeInfo[_] => true
+    case BIG_DEC_TYPE_INFO => true
+    case _ => false
+  }
+
+  def isString(dataType: TypeInformation[_]): Boolean = dataType == STRING_TYPE_INFO
+
+  def isBoolean(dataType: TypeInformation[_]): Boolean = dataType == BOOLEAN_TYPE_INFO
+
+  def isDecimal(dataType: TypeInformation[_]): Boolean = dataType == BIG_DEC_TYPE_INFO
+
+  def isComparable(dataType: TypeInformation[_]): Boolean =
+    classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass)
+
+  def assertNumericExpr(
+      dataType: TypeInformation[_],
+      caller: String)
+    : ExprValidationResult = dataType match {
+    case _: NumericTypeInfo[_] =>
       ValidationSuccess
-    } else {
+    case BIG_DEC_TYPE_INFO =>
+      ValidationSuccess
+    case _ =>
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
-    }
   }
 
   def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ExprValidationResult = {

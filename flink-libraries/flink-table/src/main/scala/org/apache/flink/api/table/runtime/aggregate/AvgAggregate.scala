@@ -18,8 +18,9 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import com.google.common.math.LongMath
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
+import java.math.BigDecimal
 import java.math.BigInteger
 
 abstract class AvgAggregate[T] extends Aggregate[T] {
@@ -250,4 +251,46 @@ class DoubleAvgAggregate extends FloatingAvgAggregate[Double] {
       (bufferSum / bufferCount)
     }
   }
+}
+
+class DecimalAvgAggregate extends AvgAggregate[BigDecimal] {
+
+  override def intermediateDataType = Array(
+    BasicTypeInfo.BIG_DEC_TYPE_INFO,
+    BasicTypeInfo.LONG_TYPE_INFO)
+
+  override def initiate(partial: Row): Unit = {
+    partial.setField(partialSumIndex, BigDecimal.ZERO)
+    partial.setField(partialCountIndex, 0L)
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    if (value == null) {
+      initiate(partial)
+    } else {
+      val input = value.asInstanceOf[BigDecimal]
+      partial.setField(partialSumIndex, input)
+      partial.setField(partialCountIndex, 1L)
+    }
+  }
+
+  override def merge(partial: Row, buffer: Row): Unit = {
+    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[BigDecimal]
+    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]
+    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    buffer.setField(partialSumIndex, partialSum.add(bufferSum))
+    buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
+  }
+
+  override def evaluate(buffer: Row): BigDecimal = {
+    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    if (bufferCount != 0) {
+      val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigDecimal]
+      bufferSum.divide(BigDecimal.valueOf(bufferCount))
+    } else {
+      null.asInstanceOf[BigDecimal]
+    }
+  }
+
 }

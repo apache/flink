@@ -157,6 +157,23 @@ class ExpressionsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testDecimalLiteral(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = env
+      .fromElements(
+        (BigDecimal("78.454654654654654").bigDecimal, BigDecimal("4E+9999").bigDecimal)
+      )
+      .toTable(tEnv, 'a, 'b)
+      .select('a, 'b, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal)
+
+    val expected = "78.454654654654654,4E+9999,11.2,11.2"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   // Date literals not yet supported
   @Ignore
   @Test

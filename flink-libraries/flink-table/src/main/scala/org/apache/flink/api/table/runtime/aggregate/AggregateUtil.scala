@@ -155,6 +155,8 @@ object AggregateUtil {
               new FloatSumAggregate
             case DOUBLE =>
               new DoubleSumAggregate
+            case DECIMAL =>
+              new DecimalSumAggregate
             case sqlType: SqlTypeName =>
               throw new TableException("Sum aggregate does no support type:" + sqlType)
           }
@@ -173,6 +175,8 @@ object AggregateUtil {
               new FloatAvgAggregate
             case DOUBLE =>
               new DoubleAvgAggregate
+            case DECIMAL =>
+              new DecimalAvgAggregate
             case sqlType: SqlTypeName =>
               throw new TableException("Avg aggregate does no support type:" + sqlType)
           }
@@ -192,6 +196,8 @@ object AggregateUtil {
                 new FloatMinAggregate
               case DOUBLE =>
                 new DoubleMinAggregate
+              case DECIMAL =>
+                new DecimalMinAggregate
               case BOOLEAN =>
                 new BooleanMinAggregate
               case sqlType: SqlTypeName =>
@@ -211,6 +217,8 @@ object AggregateUtil {
                 new FloatMaxAggregate
               case DOUBLE =>
                 new DoubleMaxAggregate
+              case DECIMAL =>
+                new DecimalMaxAggregate
               case BOOLEAN =>
                 new BooleanMaxAggregate
               case sqlType: SqlTypeName =>
