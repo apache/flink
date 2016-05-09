@@ -166,6 +166,36 @@ public final class MathUtils {
 		}
 	}
 
+	/**
+	 * This function hashes a series of integer values.
+	 *
+	 * @param seed initialization
+	 * @param codes one or more integer values
+	 * @return The hash code for the integer series
+	 */
+	public static int murmurHash(int seed, int... codes) {
+		int hash = seed;
+
+		for (int code : codes) {
+			code *= 0xcc9e2d51;
+			code = code << 15;
+			code *= 0x1b873593;
+
+			hash ^= code;
+			hash = hash << 13;
+			hash = hash * 5 + 0xe6546b64;
+		}
+
+		hash ^= 4 * codes.length;
+		hash ^= hash >>> 16;
+		hash *= 0x85ebca6b;
+		hash ^= hash >>> 13;
+		hash *= 0xc2b2ae35;
+		hash ^= hash >>> 16;
+
+		return hash;
+	}
+
 	// ============================================================================================
 	
 	/**
