@@ -103,6 +103,8 @@ KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_RECOVERY_MODE="recovery.mode"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
+KEY_METRICS_JMX_PORT="metrics.jmx.port"
+
 ########################################################################################################################
 # PATHS AND CONFIG
 ########################################################################################################################
@@ -238,6 +240,10 @@ fi
 
 if [ -z "${RECOVERY_MODE}" ]; then
     RECOVERY_MODE=$(readFromConfig ${KEY_RECOVERY_MODE} "standalone" "${YAML_CONF}")
+fi
+
+if [ -z "${JMX_PORT}" ]; then
+    JMX_PORT=$(readFromConfig ${KEY_METRICS_JMX_PORT} 9010 "${YAML_CONF}")
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

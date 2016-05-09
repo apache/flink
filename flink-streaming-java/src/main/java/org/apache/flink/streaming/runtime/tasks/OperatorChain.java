@@ -286,6 +286,7 @@ public class OperatorChain<OUT> {
 		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output = 
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setReporter(reporter);
+		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
 		return new RecordWriterOutput<T>(output, outSerializer, withTimestamps);
 	}

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
@@ -120,6 +121,13 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
+		}
+	}
+	
+	@Override
+	public void setMetricGroup(IOMetricGroup metrics) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+			deserializer.instantiateMetrics(metrics);
 		}
 	}
 }

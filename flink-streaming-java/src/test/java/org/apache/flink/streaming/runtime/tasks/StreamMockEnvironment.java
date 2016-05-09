@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
+import org.apache.flink.metrics.util.DummyTaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -302,6 +304,11 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
 		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+	}
+
+	@Override
+	public TaskMetricGroup getMetricGroup() {
+		return new DummyTaskMetricGroup();
 	}
 }
 

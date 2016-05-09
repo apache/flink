@@ -52,6 +52,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
 			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 			inputProcessor.setReporter(reporter);
+			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 		}
 	}
 

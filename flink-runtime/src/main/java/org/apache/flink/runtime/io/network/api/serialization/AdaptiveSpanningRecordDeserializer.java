@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
@@ -47,6 +49,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	private Buffer currentBuffer;
 
 	private AccumulatorRegistry.Reporter reporter;
+	
+	private transient Counter numRecordsIn;
+	private transient Counter numBytesIn;
 
 	public AdaptiveSpanningRecordDeserializer() {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -96,6 +101,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 			if (reporter != null) {
 				reporter.reportNumBytesIn(len);
 			}
+			if (numBytesIn != null) {
+				numBytesIn.inc(len);
+			}
 
 			if (len <= nonSpanningRemaining - 4) {
 				// we can get a full record from here
@@ -103,6 +111,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 				if (reporter != null) {
 					reporter.reportNumRecordsIn(1);
+				}
+				if (numRecordsIn != null) {
+					numRecordsIn.inc();
 				}
 
 				return (this.nonSpanningWrapper.remaining() == 0) ?
@@ -130,6 +141,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 			if (reporter != null) {
 				reporter.reportNumRecordsIn(1);
+			}
+			if (numRecordsIn != null) {
+				numRecordsIn.inc();
 			}
 
 			// move the remainder to the non-spanning wrapper
@@ -163,6 +177,12 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		this.reporter = reporter;
 		this.spanningWrapper.setReporter(reporter);
+	}
+
+	@Override
+	public void instantiateMetrics(IOMetricGroup metrics) {
+		numBytesIn = metrics.getBytesInCounter();
+		numRecordsIn = metrics.getRecordsInCounter();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

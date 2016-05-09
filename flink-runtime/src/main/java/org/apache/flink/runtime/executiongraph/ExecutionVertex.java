@@ -673,6 +673,7 @@ public class ExecutionVertex implements Serializable {
 
 		return new TaskDeploymentDescriptor(
 			getJobId(),
+			getExecutionGraph().getJobName(),
 			getJobvertexId(),
 			executionId,
 			serializedConfig,

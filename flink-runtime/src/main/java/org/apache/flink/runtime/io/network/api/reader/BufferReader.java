@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
@@ -52,5 +53,9 @@ public final class BufferReader extends AbstractReader {
 	@Override
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 
+	}
+
+	@Override
+	public void setMetricGroup(IOMetricGroup metrics) {
 	}
 }

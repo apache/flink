@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -87,6 +88,13 @@ public interface Environment {
 	 * @return The task manager info, with configuration and hostname. 
 	 */
 	TaskManagerRuntimeInfo getTaskManagerInfo();
+
+	/**
+	 * Returns the task specific metric group.
+	 * 
+	 * @return The MetricGroup of this task.
+     */
+	TaskMetricGroup getMetricGroup();
 
 	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.
