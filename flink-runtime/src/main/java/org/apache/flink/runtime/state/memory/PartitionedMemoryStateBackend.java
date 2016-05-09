@@ -36,11 +36,6 @@ public class PartitionedMemoryStateBackend<KEY> extends AbstractPartitionedState
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		// nothing to do here, GC will do it
-	}
-
-	@Override
 	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
 		return new MemValueState<>(keySerializer, namespaceSerializer, stateDesc);
 	}

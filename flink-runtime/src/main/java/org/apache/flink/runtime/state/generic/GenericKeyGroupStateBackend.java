@@ -42,16 +42,30 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A generic {@link KeyGroupStateBackend} implementation which creates for every key group a
+ * distinct {@link PartitionedStateBackend} using the {@link AbstractStateBackend} factory.
+ *
+ * The returned partitioned state objects are proxies for the state objects which are managed by
+ * the partitioned state backends. Depending on the current key, the respective partitioned state
+ * backend and its state objects are chosen as the proxy target.
+ *
+ * @param <KEY> Type of the key
+ */
 public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KEY> {
 
+	// state backend to be used as the factory for PartitionedStateBackends
 	private final AbstractStateBackend stateBackend;
 
 	private final TypeSerializer<KEY> keySerializer;
 
+	// Assigns keys to their key groups
 	private final KeyGroupAssigner<KEY> keyGroupAssigner;
 
+	// The PartitionedStateBackends for the different key groups
 	private final Map<Integer, PartitionedStateBackend<KEY>> partitionedStateBackends;
 
+	// Map of GenericKeyGroupKVStates which act as proxies for the actual KvState objects
 	private final Map<String, GenericKeyGroupKVState<KEY, ?, ?, ?>> kvStates;
 
 	private KEY currentKey = null;
@@ -73,12 +87,13 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 	}
 
 
-	PartitionedStateBackend<KEY> getBackend(int keyGroupIndex) {
+	private PartitionedStateBackend<KEY> getBackend(int keyGroupIndex) {
 		if (partitionedStateBackends.containsKey(keyGroupIndex)) {
 			return partitionedStateBackends.get(keyGroupIndex);
 		} else {
-			PartitionedStateBackend partitionedStateBackend = null;
+			PartitionedStateBackend<KEY> partitionedStateBackend;
 			try {
+				// create a new state backend for the given key group
 				partitionedStateBackend = stateBackend.createPartitionedStateBackend(keySerializer);
 			} catch (Exception e) {
 				throw new RuntimeException("Could not create the partitioned state backend for " +
@@ -131,6 +146,7 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <N, S extends PartitionedState> S getPartitionedState(N namespace, final TypeSerializer<N> namespaceSerializer, StateDescriptor<S, ?> stateDescriptor) throws Exception {
 		Preconditions.checkNotNull(namespaceSerializer);
 		Preconditions.checkNotNull(stateDescriptor);
@@ -191,6 +207,7 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 	public Map<Integer, PartitionedStateSnapshot> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
 		Map<Integer, PartitionedStateSnapshot> partitionedStateSnapshots = new HashMap<>(partitionedStateBackends.size());
 
+		// snapshot each PartitionedStateBackend (every key group) individually
 		for (Map.Entry<Integer, PartitionedStateBackend<KEY>> entry: partitionedStateBackends.entrySet()) {
 			PartitionedStateSnapshot partitionedStateSnapshot = entry.getValue().snapshotPartitionedState(checkpointId, timestamp);
 

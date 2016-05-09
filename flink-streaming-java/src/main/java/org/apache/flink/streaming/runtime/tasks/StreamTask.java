@@ -468,11 +468,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					StreamOperatorNonPartitionedState nonPartitionedState = nonPartitionedStates[i];
 					StreamOperator<?> operator = allOperators[i];
 					StreamOperatorPartitionedState partitionedState = new StreamOperatorPartitionedState(keyGroupStates.get(i));
-					StreamOperatorState state = new StreamOperatorState(partitionedState, nonPartitionedState);
+					StreamOperatorState operatorState = new StreamOperatorState(partitionedState, nonPartitionedState);
 
 					if (operator != null) {
 						LOG.debug("Restore state of task {} in chain ({}).", i, getName());
-						operator.restoreState(state, recoveryTimestamp);
+						operator.restoreState(operatorState, recoveryTimestamp);
 					}
 				}
 			}

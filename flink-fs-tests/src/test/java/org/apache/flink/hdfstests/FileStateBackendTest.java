@@ -173,11 +173,6 @@ public class FileStateBackendTest extends StateBackendTestBase<PartitionedFsStat
 			Path checkpointDir = backend.getCheckpointDirectory();
 			assertTrue(FS.exists(checkpointDir));
 			assertTrue(isDirectoryEmpty(checkpointDir));
-
-			backend.disposeAllStateForCurrentJob();
-			assertNull(backend.getCheckpointDirectory());
-
-			assertTrue(isDirectoryEmpty(baseUri));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -22,6 +22,16 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+/**
+ * Generic key group {@link FoldingState} implementation returned by the
+ * {@link GenericKeyGroupStateBackend}. This class is a proxy for folding states which are backed
+ * by different {@link org.apache.flink.runtime.state.PartitionedStateBackend}.
+ *
+ * @param <K> Type of the key
+ * @param <T> Type of the values to be folded
+ * @param <ACC> Type of the resulting folded value
+ * @param <N> Type of the namespace
+ */
 public class GenericKeyGroupFoldingState<K, T, ACC, N> extends GenericKeyGroupKVState<K, ACC, N, FoldingState<T, ACC>> implements FoldingState<T, ACC> {
 
 	public GenericKeyGroupFoldingState(FoldingStateDescriptor<T, ACC> stateDescriptor, TypeSerializer<N> namespaceSerializer) {

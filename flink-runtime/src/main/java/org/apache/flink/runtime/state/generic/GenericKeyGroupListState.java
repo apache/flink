@@ -22,6 +22,15 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+/**
+ * Generic key group {@link ListState} implementation returned by the
+ * {@link GenericKeyGroupStateBackend}. This class is a proxy for list state which are backed by
+ * different {@link org.apache.flink.runtime.state.PartitionedStateBackend}.
+ *
+ * @param <K> Type of the key
+ * @param <T> Type of the list elements
+ * @param <N> Type of the namespace
+ */
 public class GenericKeyGroupListState<K, T, N> extends GenericKeyGroupKVState<K, T, N , ListState<T>> implements ListState<T> {
 
 	public GenericKeyGroupListState(ListStateDescriptor<T> stateDescriptor, TypeSerializer<N> namespaceSerializer) {

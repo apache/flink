@@ -102,7 +102,10 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The state backend that stores the state and checkpoints for this task */
 	private transient AbstractStateBackend stateBackend;
 
-	/** The state backend that stores the partitioned state */
+	/**
+	 * The state backend that stores the partitioned state. It is only initialized in the setup
+	 * method if stateKeySelector1 != null (= keyed stream).
+	 */
 	private transient KeyGroupStateBackend<?> keyGroupStateBackend;
 
 	// ------------------------------------------------------------------------
@@ -208,10 +211,31 @@ public abstract class AbstractStreamOperator<OUT>
 		return new StreamOperatorState(partitionedState, nonPartitionedState);
 	}
 
+	/**
+	 * Snapshots the non-partitioned operator state. The base implementation simply returns a
+	 * {@link StreamOperatorNonPartitionedState} object which is the container for the operator and
+	 * function state.
+	 *
+	 * Subclasses which have to checkpoint operator or function state, should override this method.
+	 *
+	 * @param checkpointId Id of the current checkpoint
+	 * @param timestamp Timestamp of the current checkpoint
+	 * @return Non-partitioned stream operator state snapshot
+	 * @throws Exception
+	 */
 	protected StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
 		return new StreamOperatorNonPartitionedState();
 	}
 
+	/**
+	 * Snapshots the partitioned operator state. The base implementation draws a snapshot of the
+	 * {@link KeyGroupStateBackend} if it has been set (= the operator is keyed).
+	 *
+	 * @param checkpointId Id of the current checkpoint
+	 * @param timestamp Timestamp of the current checkpoint
+	 * @return Partitioned stream operator state snapshot
+	 * @throws Exception
+	 */
 	protected StreamOperatorPartitionedState snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
 		// here, we deal with key/value state snapshots
 		if (keyGroupStateBackend != null) {
@@ -235,8 +259,27 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * Restore non-partitioned operator state. The base implementation is empty since no
+	 * non-partitioned state has been snapshot.
+	 *
+	 * Subclasses which snapshot non-partitioned state, have to override this method to properly
+	 * restore the non-partitioned state.
+	 *
+	 * @param nonPartitionedState Non-partitioned state snapshot
+	 * @param recoveryTimestamp Timestamp of the recovery
+	 * @throws Exception
+	 */
 	protected void restoreNonPartitionedState(StreamOperatorNonPartitionedState nonPartitionedState, long recoveryTimestamp) throws Exception {}
 
+	/**
+	 * Restore partitioned operator state. The base implementation restores snapshot key group state
+	 * if the {@link KeyGroupStateBackend} has been set.
+	 *
+	 * @param partitionedState Partitioned state snapshot
+	 * @param recoveryTimestamp Timestamp of the recovery
+	 * @throws Exception
+	 */
 	protected void restorePartitionedState(StreamOperatorPartitionedState partitionedState, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
@@ -379,11 +422,12 @@ public abstract class AbstractStreamOperator<OUT>
 	//  State backend
 	// ------------------------------------------------------------------------
 
-	protected AbstractStateBackend createStateBackend(
-			StreamConfig configuration,
-			String operatorIdentifier,
-			ClassLoader classLoader,
-			Environment environment) throws Exception {
+	private AbstractStateBackend createStateBackend(
+		StreamConfig configuration,
+		String operatorIdentifier,
+		ClassLoader classLoader,
+		Environment environment) throws Exception {
+
 		AbstractStateBackend stateBackend = configuration.getStateBackend(classLoader);
 
 		if (stateBackend != null) {
@@ -437,6 +481,7 @@ public abstract class AbstractStreamOperator<OUT>
 				throw new IllegalConfigurationException("Cannot create a state backend because the TaskManagerRuntimeInfo has not been set.");
 			}
 		}
+
 		stateBackend.initializeForJob(environment, operatorIdentifier);
 		return stateBackend;
 

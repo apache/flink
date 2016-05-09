@@ -205,11 +205,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		nonPartitionedStateBackend.disposeAllStateForCurrentJob();
-	}
-
-	@Override
 	public void close() throws Exception {
 		nonPartitionedStateBackend.close();
 	}

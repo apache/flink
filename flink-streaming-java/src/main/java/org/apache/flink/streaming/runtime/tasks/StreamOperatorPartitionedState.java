@@ -29,7 +29,7 @@ import java.util.Set;
 /**
  * The partitioned stream operator state after it has been checkpointed. The partitioned state
  * consists of a set of key group snapshots. A key group constitutes a sub set of the available
- * key space. The key groups are indexed by their key group index.
+ * key space. The key groups are indexed by their key group indices.
  */
 public class StreamOperatorPartitionedState implements Serializable {
 	private static final long serialVersionUID = -8070326169926626355L;

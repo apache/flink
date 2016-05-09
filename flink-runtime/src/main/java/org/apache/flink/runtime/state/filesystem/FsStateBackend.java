@@ -248,21 +248,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		FileSystem fs = this.filesystem;
-		Path dir = this.checkpointDirectory;
-
-		if (fs != null && dir != null) {
-			this.filesystem = null;
-			this.checkpointDirectory = null;
-			fs.delete(dir, true);
-		}
-		else {
-			throw new IllegalStateException("state backend has not been initialized");
-		}
-	}
-
-	@Override
 	public void close() throws Exception {}
 
 	// ------------------------------------------------------------------------

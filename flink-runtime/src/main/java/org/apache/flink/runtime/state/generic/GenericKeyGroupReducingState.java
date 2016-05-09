@@ -22,6 +22,15 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+/**
+ * Generic key group {@link ReducingState} implementation returned by the
+ * {@link GenericKeyGroupStateBackend}. This class is a proxy for reducing states which are backed
+ * by different {@link org.apache.flink.runtime.state.PartitionedStateBackend}.
+ *
+ * @param <K> Type of the key
+ * @param <T> Type of the elements to be reduced and the reduction result
+ * @param <N> Type of the namespace
+ */
 public class GenericKeyGroupReducingState<K, T, N> extends GenericKeyGroupKVState<K, T, N, ReducingState<T>> implements ReducingState<T> {
 
 	public GenericKeyGroupReducingState(ReducingStateDescriptor<T> stateDescriptor, TypeSerializer<N> namespaceSerializer) {

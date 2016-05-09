@@ -39,11 +39,6 @@ public class PartitionedFsStateBackend<KEY> extends AbstractPartitionedStateBack
 		this.fsStateBackend = fsStateBackend;
 	}
 
-	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		fsStateBackend.disposeAllStateForCurrentJob();
-	}
-
 	public FsStateBackend getFsStateBackend() {
 		return fsStateBackend;
 	}

@@ -84,8 +84,6 @@ public abstract class AbstractStateBackend implements AutoCloseable, Serializabl
 		return new GenericKeyGroupStateBackend<K>(this, keySerializer, keyGroupAssigner);
 	}
 
-	public abstract void disposeAllStateForCurrentJob() throws Exception;
-
 	// ------------------------------------------------------------------------
 	//  storing state for a checkpoint
 	// ------------------------------------------------------------------------

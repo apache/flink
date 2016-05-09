@@ -221,11 +221,6 @@ public class PartitionedRocksDBStateBackend<KEY> extends AbstractPartitionedStat
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		// we don't have to dispose state for the partitioned state backend
-	}
-
-	@Override
 	public void close() throws Exception {
 		super.close();
 		if (this.dbOptions != null) {

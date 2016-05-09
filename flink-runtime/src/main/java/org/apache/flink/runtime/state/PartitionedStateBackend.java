@@ -100,9 +100,31 @@ public interface PartitionedStateBackend<KEY> extends AutoCloseable {
 		final TypeSerializer<N> namespaceSerializer,
 		final StateDescriptor<S, ?> stateDescriptor) throws Exception;
 
+	/**
+	 * Snapshots the current partitioned state.
+	 *
+	 * @param checkpointId Id of the checkpoint to be taken
+	 * @param timestamp Timestamp of the checkpoint
+	 * @return Partitioned state snapshot containing the snapshot data
+	 * @throws Exception
+	 */
 	PartitionedStateSnapshot snapshotPartitionedState(long checkpointId, long timestamp) throws Exception;
 
+	/**
+	 * Restores the partitioned state from a partitioned state snapshot.
+	 *
+	 * @param partitionedStateSnapshot Partitioned state snapshot containing the state to restore from
+	 * @param recoveryTimestamp Timestamp of the recovery
+	 * @throws Exception
+	 */
 	void restorePartitionedState(PartitionedStateSnapshot partitionedStateSnapshot, long recoveryTimestamp) throws Exception;
 
+	/**
+	 * Callback which is called when a checkpoint has completed. The id of the completed checkpoint
+	 * is given to the method.
+	 *
+	 * @param checkpointId Id of the completed checkpoint.
+	 * @throws Exception
+	 */
 	void notifyCompletedCheckpoint(long checkpointId) throws Exception;
 }

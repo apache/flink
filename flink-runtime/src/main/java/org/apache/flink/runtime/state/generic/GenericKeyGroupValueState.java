@@ -24,6 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.io.IOException;
 
+/**
+ * Generic key group {@link ValueState} implementation returned by the
+ * {@link GenericKeyGroupStateBackend}. This class is a proxy for reducing states which are backed
+ * by different {@link org.apache.flink.runtime.state.PartitionedStateBackend}.
+ *
+ * @param <K> Type of the key
+ * @param <T> Type of the value
+ * @param <N> Type of the namespace
+ */
 public class GenericKeyGroupValueState<K, T, N> extends GenericKeyGroupKVState<K, T, N, ValueState<T>> implements ValueState<T> {
 
 	public GenericKeyGroupValueState(ValueStateDescriptor<T> stateDescriptor, TypeSerializer<N> namespaceSerializer) {

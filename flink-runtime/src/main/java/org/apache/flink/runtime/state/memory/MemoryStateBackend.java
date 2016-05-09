@@ -71,11 +71,6 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		// nothing to do here, GC will do it
-	}
-
-	@Override
 	public void close() throws Exception {}
 
 	// ------------------------------------------------------------------------

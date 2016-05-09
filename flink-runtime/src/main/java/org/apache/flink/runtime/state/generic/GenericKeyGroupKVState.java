@@ -25,14 +25,27 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.PartitionedStateBackend;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Key-value state proxy which points to state objects of an underlying
+ * {@link PartitionedStateBackend}. The partitioned state backend can be swapped to operate on
+ * different state objects.
+ *
+ * @param <K> Type of the key
+ * @param <T> Type of the value
+ * @param <N> Type of the namespace
+ * @param <S> Type of the partitioned state
+ */
 public class GenericKeyGroupKVState<K, T, N, S extends PartitionedState> {
 
 	private final StateDescriptor<S, T> stateDescriptor;
 
 	private final TypeSerializer<N> namespaceSerializer;
 
+	// state of the current partitioned state backend and specified by the state descriptor
 	protected S state;
 
+	// current partitioned state backend; it's set by the GenericKeyGroupStateBackend based on the
+	// current key value
 	private PartitionedStateBackend<K> currentPartitionedStateBackend;
 
 	private N currentNamespace;

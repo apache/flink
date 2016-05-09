@@ -283,9 +283,6 @@ public class RocksDBStateBackendConfigTest {
 
 		rocksDbBackend.initializeForJob(getMockEnvironment(), "foo");
 		verify(nonPartBackend, times(1)).initializeForJob(any(Environment.class), anyString());
-
-		rocksDbBackend.disposeAllStateForCurrentJob();
-		verify(nonPartBackend, times(1)).disposeAllStateForCurrentJob();
 		
 		rocksDbBackend.close();
 		verify(nonPartBackend, times(1)).close();

@@ -41,7 +41,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A state backend defines how state is stored and snapshotted during checkpoints.
+ * Abstract base class for partitioned state backends.
+ *
+ * The partitioned state backend keeps a map of {@link KvState} objects and their names. The actual
+ * state data is stored in the KvState subclasses. An implementing subclass of the
+ * AbstractPartitionedStateBackend has to specify how these KvState objects are instantiated.
  */
 public abstract class AbstractPartitionedStateBackend<KEY> implements PartitionedStateBackend<KEY> {
 	
@@ -71,13 +75,6 @@ public abstract class AbstractPartitionedStateBackend<KEY> implements Partitione
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Disposes all state associated with the current job.
-	 *
-	 * @throws Exception Exceptions may occur during disposal of the state and should be forwarded.
-	 */
-	public abstract void disposeAllStateForCurrentJob() throws Exception;
 
 	public void close() throws Exception {
 		if (keyValueStates != null) {

@@ -100,9 +100,6 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void disposeAllStateForCurrentJob() throws Exception {}
-
-		@Override
 		public void close() throws Exception {}
 
 		@Override
