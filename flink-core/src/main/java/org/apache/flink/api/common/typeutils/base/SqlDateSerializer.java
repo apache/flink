@@ -44,7 +44,7 @@ public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date copy(Date from) {
-		if(from == null) {
+		if (from == null) {
 			return null;
 		}
 		return new Date(from.getTime());
@@ -52,7 +52,7 @@ public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date copy(Date from, Date reuse) {
-		if(from == null) {
+		if (from == null) {
 			return null;
 		}
 		reuse.setTime(from.getTime());

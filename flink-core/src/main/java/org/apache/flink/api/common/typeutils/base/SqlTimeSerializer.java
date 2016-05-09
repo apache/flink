@@ -44,7 +44,7 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 
 	@Override
 	public Time copy(Time from) {
-		if(from == null) {
+		if (from == null) {
 			return null;
 		}
 		return new Time(from.getTime());
@@ -86,7 +86,7 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 	@Override
 	public Time deserialize(Time reuse, DataInputView source) throws IOException {
 		final long v = source.readLong();
-		if(v == Long.MIN_VALUE) {
+		if (v == Long.MIN_VALUE) {
 			return null;
 		}
 		reuse.setTime(v);

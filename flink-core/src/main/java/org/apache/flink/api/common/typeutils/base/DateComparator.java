@@ -84,9 +84,6 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 			// default case, full normalized key
 			target.putLongBigEndian(offset, value);
 		}
-		else if (numBytes <= 0) {
-			// nothing to do
-		}
 		else if (numBytes < 8) {
 			for (int i = 0; numBytes > 0; numBytes--, i++) {
 				target.put(offset + i, (byte) (value >>> ((7-i)<<3)));
