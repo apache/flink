@@ -40,28 +40,28 @@ public class TranslateTest {
 	private Graph<LongValue, LongValue, LongValue> graph;
 
 	private String expectedVertexResult =
-		"(0,0)\n" +
-		"(1,1)\n" +
-		"(2,2)\n" +
-		"(3,3)\n" +
-		"(4,4)\n" +
-		"(5,5)\n" +
-		"(6,6)\n" +
-		"(7,7)\n" +
-		"(8,8)\n" +
-		"(9,9)";
+		"(0,1)\n" +
+		"(1,2)\n" +
+		"(2,3)\n" +
+		"(3,4)\n" +
+		"(4,5)\n" +
+		"(5,6)\n" +
+		"(6,7)\n" +
+		"(7,8)\n" +
+		"(8,9)\n" +
+		"(9,10)";
 
 	private String expectedEdgeResult =
-		"(0,0,0)\n" +
-		"(1,1,1)\n" +
-		"(2,2,2)\n" +
-		"(3,3,3)\n" +
-		"(4,4,4)\n" +
-		"(5,5,5)\n" +
-		"(6,6,6)\n" +
-		"(7,7,7)\n" +
-		"(8,8,8)\n" +
-		"(9,9,9)";
+		"(0,1,2)\n" +
+		"(1,2,3)\n" +
+		"(2,3,4)\n" +
+		"(3,4,5)\n" +
+		"(4,5,6)\n" +
+		"(5,6,7)\n" +
+		"(6,7,8)\n" +
+		"(7,8,9)\n" +
+		"(8,9,10)\n" +
+		"(9,10,11)";
 
 	@Before
 	public void setup() {
@@ -73,9 +73,11 @@ public class TranslateTest {
 		List<Edge<LongValue, LongValue>> edgeList = new LinkedList<>();
 
 		for (long l = 0 ; l < count ; l++) {
-			LongValue lv = new LongValue(l);
-			vertexList.add(new Vertex<>(lv, lv));
-			edgeList.add(new Edge<>(lv, lv, lv));
+			LongValue lv0 = new LongValue(l);
+			LongValue lv1 = new LongValue(l+1);
+			LongValue lv2 = new LongValue(l+2);
+			vertexList.add(new Vertex<>(lv0, lv1));
+			edgeList.add(new Edge<>(lv0, lv1, lv2));
 		}
 
 		graph = Graph.fromCollection(vertexList, edgeList, env);

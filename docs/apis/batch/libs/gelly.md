@@ -2193,7 +2193,7 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
     <tr>
       <td>translate.<br/><strong>TranslateGraphIds</strong></td>
       <td>
-        <p>Translate vertex and edge IDs using the given <code>MapFunction</code>.</p>
+        <p>Translate vertex and edge IDs using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% endhighlight %}
@@ -2203,7 +2203,7 @@ graph.run(new TranslateGraphIds(new LongValueToStringValue()));
     <tr>
       <td>translate.<br/><strong>TranslateVertexValues</strong></td>
       <td>
-        <p>Translate vertex values using the given <code>MapFunction</code>.</p>
+        <p>Translate vertex values using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% endhighlight %}
@@ -2213,7 +2213,7 @@ graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
     <tr>
       <td>translate.<br/><strong>TranslateEdgeValues</strong></td>
       <td>
-        <p>Translate edge values using the given <code>MapFunction</code>.</p>
+        <p>Translate edge values using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateEdgeValues(new Nullify()));
 {% endhighlight %}
