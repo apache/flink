@@ -107,7 +107,7 @@ public class TriangleListing {
 			break;
 		default:
 			System.out.println("Lists all distinct triangles in the generated RMat graph.");
-			System.out.println("");
+			System.out.println();
 			System.out.println("usage:");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
