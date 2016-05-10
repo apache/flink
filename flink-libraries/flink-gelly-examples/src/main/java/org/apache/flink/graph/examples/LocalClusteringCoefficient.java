@@ -37,6 +37,14 @@ import org.apache.flink.types.NullValue;
 
 import java.text.NumberFormat;
 
+/**
+ * Driver for the library implementation of Local Clustering Coefficient.
+ *
+ * This example generates an undirected RMat graph with the given scale and
+ * edge factor then calculates the local clustering coefficient for each vertex.
+ *
+ * @see org.apache.flink.graph.library.asm.LocalClusteringCoefficient
+ */
 public class LocalClusteringCoefficient {
 
 	public static final int DEFAULT_SCALE = 10;
@@ -78,7 +86,6 @@ public class LocalClusteringCoefficient {
 				.run(new org.apache.flink.graph.library.asm.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
 		}
 
-		// Print, hash, or write RMat graph to disk
 		switch (parameters.get("output", "")) {
 		case "print":
 			cc.print();
@@ -100,10 +107,10 @@ public class LocalClusteringCoefficient {
 			break;
 		default:
 			System.out.println("The local clustering coefficient measures the connectedness of each vertex's");
-			System.out.println("neighborhood. Values range from 0.0 (no edges between neighbors) to 1.0");
+			System.out.println("neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0");
 			System.out.println("(neighborhood is a clique)");
 			System.out.println("");
-			System.out.println("This algorithm returns 3-tuples containing the vertex label, the degree of");
+			System.out.println("This algorithm returns 3-tuples containing the vertex ID, the degree of");
 			System.out.println("the vertex, and the number of edges between vertex neighbors. A neighborhood");
 			System.out.println("of size n contains (n choose 2) = n * (n-1) / 2 neighbor pairs so the");
 			System.out.println("Clustering Coefficient is neighbor edges / neighbor pairs");
@@ -112,7 +119,7 @@ public class LocalClusteringCoefficient {
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
+				" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
 
 			return;
 		}

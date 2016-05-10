@@ -216,8 +216,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		 * number of edges between neighbors, equal to the triangle count,
 		 * divided by the number of potential edges between neighbors.
 		 *
-		 * A score of 0.0 is returned for a vertex with degree 1 for which both
-		 * the triangle count and number of neighbors are zero.
+		 * A score of {@code Double.NaN} is returned for a vertex with degree 1
+		 * for which both the triangle count and number of neighbors are zero.
 		 *
 		 * @return local clustering coefficient score
 		 */
@@ -225,7 +225,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 			long degree = getDegree().getValue();
 			long neighborPairs = degree * (degree - 1) / 2;
 
-			return (neighborPairs == 0) ? 0.0 : getTriangleCount().getValue() / (double) neighborPairs;
+			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
 		}
 
 		@Override

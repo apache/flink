@@ -38,6 +38,14 @@ import org.apache.flink.types.NullValue;
 
 import java.text.NumberFormat;
 
+/**
+ * Driver for the library implementation of Triangle Listing.
+ *
+ * This example generates an undirected RMat graph with the given scale
+ * and edge factor then lists all triangles.
+ *
+ * @see org.apache.flink.graph.library.asm.TriangleListing
+ */
 public class TriangleListing {
 
 	public static final int DEFAULT_SCALE = 10;
@@ -52,7 +60,7 @@ public class TriangleListing {
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 
-		if (parameters.has("listing")) {
+		if (! parameters.has("enumerator")) {
 			env.getConfig().enableObjectReuse();
 		}
 
@@ -93,7 +101,6 @@ public class TriangleListing {
 			}
 		}
 
-		// Print, hash, or write RMat graph to disk
 		switch (parameters.get("output", "")) {
 		case "print":
 			tl.print();
@@ -114,13 +121,13 @@ public class TriangleListing {
 			env.execute();
 			break;
 		default:
-			System.out.println(" Generates a listing of distinct triangles from the input graph.");
+			System.out.println("Lists all distinct triangles in the generated RMat graph.");
 			System.out.println("");
 			System.out.println("usage:");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
+				" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
 
 			return;
 		}
