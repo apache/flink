@@ -2059,7 +2059,8 @@ edges between neighbors) to 1.0 (neighborhood is a clique).
 
 #### Details
 An edge between a vertex's neighbors is a triangle. Counting edges between neighbors is equivalent to counting the
-number of triangles which include the vertex.
+number of triangles which include the vertex. The clustering coefficient score is the number of edges between neighbors
+divided by the number of potential edges between neighbors.
 
 See the [Triangle Enumeration](#triangle-enumeration) library method for a detailed explanation of triangle enumeration.
 

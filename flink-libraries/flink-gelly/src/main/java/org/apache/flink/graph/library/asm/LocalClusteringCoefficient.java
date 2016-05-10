@@ -45,12 +45,8 @@ import org.apache.flink.util.MathUtils;
  * neighbors is equivalent to counting the number of triangles which include
  * the vertex.
  * <br/>
- * The algorithm takes a simple, undirected graph as input and outputs a `DataSet`
- * of tuples containing the vertex ID, vertex degree, and number of triangles
- * containing the vertex. The vertex ID must be `Comparable` and `Copyable`.
- * <br/>
- * The input graph must be a simple graph of undirected edges containing
- * no duplicates or self-loops.
+ * The input graph must be a simple, undirected graph containing no duplicate
+ * edges or self-loops.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -73,6 +69,16 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 		return this;
 	}
+
+	/*
+	 * Implementation notes:
+	 *
+	 * The requirement that "K extends CopyableValue<K>" can be removed when
+	 *   removed from TriangleListing.
+	 *
+	 * CountVertices can be replaced by ".sum(1)" when Flink aggregators use
+	 *   code generation.
+	 */
 
 	@Override
 	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
@@ -97,7 +103,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// u, deg(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
 			.run(new VertexDegree<K, VV, EV>()
-				.setParallelism(littleParallelism));
+				.setParallelism(littleParallelism)
+				.setIncludeZeroDegreeVertices(true));
 
 		// u, deg(u), neighbor edge count
 		return vertexDegree
@@ -143,8 +150,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
 				throws Exception {
-			LongValue count = left.f1;
-			count.setValue(count.getValue() + right.f1.getValue());
+			left.f1.setValue(left.f1.getValue() + right.f1.getValue());
 			return left;
 		}
 	}
@@ -155,19 +161,19 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFieldsFirst("0; 1->1.0")
-	@FunctionAnnotation.ForwardedFieldsSecond("0; 1->1.1")
+	@FunctionAnnotation.ForwardedFieldsSecond("0")
 	private class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, LongValue>, Tuple2<T, LongValue>, Result<T>> {
-		private LongValue zero = new LongValue();
+		private LongValue zero = new LongValue(0);
 
 		private Result<T> output = new Result<>();
 
 		@Override
-		public Result<T> join(Vertex<T, LongValue> vertex_degree, Tuple2<T, LongValue> vertex_triangle_count)
+		public Result<T> join(Vertex<T, LongValue> vertexAndDegree, Tuple2<T, LongValue> vertexAndTriangleCount)
 				throws Exception {
-			output.f0 = vertex_degree.f0;
-			output.f1.f0 = vertex_degree.f1;
-			output.f1.f1 = (vertex_triangle_count == null) ? zero : vertex_triangle_count.f1;
+			output.f0 = vertexAndDegree.f0;
+			output.f1.f0 = vertexAndDegree.f1;
+			output.f1.f1 = (vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1;
 
 			return output;
 		}
@@ -187,33 +193,39 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		}
 
 		/**
+		 * Get the vertex degree.
 		 *
-		 *
-		 * @return
+		 * @return vertex degree
 		 */
 		public LongValue getDegree() {
 			return f1.f0;
 		}
 
 		/**
+		 * Get the number of triangles containing this vertex; equivalently,
+		 * this is the number of edges between neighbors of this vertex.
 		 *
-		 *
-		 * @return
+		 * @return triangle count
 		 */
 		public LongValue getTriangleCount() {
 			return f1.f1;
 		}
 
 		/**
+		 * Get the local clustering coefficient score. This is computed as the
+		 * number of edges between neighbors, equal to the triangle count,
+		 * divided by the number of potential edges between neighbors.
 		 *
+		 * A score of 0.0 is returned for a vertex with degree 1 for which both
+		 * the triangle count and number of neighbors are zero.
 		 *
-		 * @return
+		 * @return local clustering coefficient score
 		 */
 		public double getLocalClusteringCoefficientScore() {
 			long degree = getDegree().getValue();
 			long neighborPairs = degree * (degree - 1) / 2;
 
-			return getTriangleCount().getValue() / (double) neighborPairs;
+			return (neighborPairs == 0) ? 0.0 : getTriangleCount().getValue() / (double) neighborPairs;
 		}
 
 		@Override

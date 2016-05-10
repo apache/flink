@@ -21,11 +21,14 @@ package org.apache.flink.graph.library.asm;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
@@ -46,8 +49,11 @@ import java.util.List;
  * A triangle is a 3-clique with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
  * <br/>
- * The input graph must be a simple graph of undirected edges containing
- * no duplicates or self-loops.
+ * The input graph must be a simple, undirected graph containing no duplicate
+ * edges or self-loops.
+ * <br/>
+ * Algorithm from "Graph Twiddling in a MapReduce World", J. D. Cohen,
+ * http://lintool.github.io/UMD-courses/bigdata-2015-Spring/content/Cohen_2009.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -62,10 +68,10 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
 	/**
-	 * Normalize the triangle listing such that for each triangle <K0, K1, K2>
+	 * Normalize the triangle listing such that for each result (K0, K1, K2)
 	 * the vertex IDs are sorted K0 < K1 < K2.
 	 *
-	 * @param sortTriangleVertices whether to output the triangle vertices in sorted order
+	 * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
 	 * @return this
 	 */
 	public TriangleListing<K, VV, EV> setSortTriangleVertices(boolean sortTriangleVertices) {
@@ -86,6 +92,16 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 		return this;
 	}
 
+	/*
+	 * Implementation notes:
+	 *
+	 * The requirement that "K extends CopyableValue<K>" can be removed when
+	 *   Flink has a self-join and GenerateTriplets is implemented as such.
+	 *
+	 * ProjectTriangles should eventually be replaced by ".projectFirst("*")"
+	 *   when projections use code generation.
+	 */
+
 	@Override
 	public DataSet<Tuple3<K, K, K>> run(Graph<K, VV, EV> input)
 			throws Exception {
@@ -94,7 +110,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 			.getEdges()
 			.flatMap(new FilterByID<K, EV>())
 				.setParallelism(littleParallelism)
-				.name("Filter by ID");;
+				.name("Filter by ID");
 
 		// u, v, (deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = input
@@ -108,7 +124,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.name("Filter by degree");
 
 		// u, v, w where (u, v) and (u, w) are edges in graph
-		DataSet<Tuple3<K, K, K>> twoPaths = filteredByDegree
+		DataSet<Tuple3<K, K, K>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new GenerateTriplets<K>())
@@ -116,11 +132,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.name("Generate triplets");
 
 		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph
-		DataSet<Tuple3<K, K, K>> triangles = twoPaths
+		DataSet<Tuple3<K, K, K>> triangles = triplets
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.<Tuple3<K, K, K>>projectFirst(0, 1, 2)
+			.with(new ProjectTriangles<K>())
+				.setParallelism(littleParallelism)
 				.name("Triangle listing");
 
 		if (sortTriangleVertices) {
@@ -133,8 +150,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	}
 
 	/**
-	 * Converts edges to 2-tuples while filtering such that only edges with
-	 * vertex IDs in sorted order are emitted.
+	 * Removes edge values while filtering such that only edges where the
+	 * source vertex ID compares less than the target vertex ID are emitted.
 	 * <br/>
 	 * Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
@@ -159,9 +176,10 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	}
 
 	/**
-	 * Converts edges to 2-tuples and filters such that only edges with
-	 * vertices in degree order are emitted. If the vertex degrees are equal
-	 * then the edge is emitted if the vertex IDs are in sorted order.
+	 * Removes edge values while filtering such that edges where the source
+	 * vertex has lower degree are emitted. If the source and target vertex
+	 * degrees are equal then the edge is emitted if the source vertex ID
+	 * compares less than the target vertex ID.
 	 * <br/>
 	 * Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
@@ -191,16 +209,16 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	}
 
 	/**
-	 * Generates the set of triplets by
+	 * Generates the set of triplets by the pairwise enumeration of the open
+	 * neighborhood for each vertex. The number of triplets is quadratic in
+	 * the vertex degree; however, data skew is minimized by only generating
+	 * triplets from the vertex with least degree.
 	 *
 	 * @param <T> ID type
 	 */
 	@ForwardedFields("1->0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple2<T, T>, Tuple3<T, T, T>> {
-
-		private static final long serialVersionUID = 1L;
-
 		private Tuple3<T, T, T> output = new Tuple3<>();
 
 		private List<T> visited = new ArrayList<>();
@@ -216,8 +234,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				Tuple2<T, T> edge = iter.next();
 
 				output.f0 = edge.f0;
-				T target = edge.f1;
-				output.f2 = target;
+				output.f2 = edge.f1;
 
 				for (int i = 0; i < visitedCount; i++) {
 					output.f1 = visited.get(i);
@@ -231,9 +248,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				}
 
 				if (visitedCount == visited.size()) {
-					visited.add(target.copy());
+					visited.add(edge.f1.copy());
 				} else {
-					target.copyTo(visited.get(visitedCount));
+					edge.f1.copyTo(visited.get(visitedCount));
 				}
 
 				visitedCount += 1;
@@ -242,7 +259,23 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	}
 
 	/**
-	 * Reorders the vertices of each emitted triangle <K0, K1, K2>
+	 * Simply project the triplet as a triangle.
+	 *
+	 * @param <T> ID type
+	 */
+	@ForwardedFieldsFirst("0; 1; 2")
+	@ForwardedFieldsSecond("0; 1")
+	private static final class ProjectTriangles<T>
+	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Tuple3<T, T, T>> {
+		@Override
+		public Tuple3<T, T, T> join(Tuple3<T, T, T> first, Tuple2<T, T> second)
+				throws Exception {
+			return first;
+		}
+	}
+
+	/**
+	 * Reorders the vertices of each emitted triangle (K0, K1, K2)
 	 * into sorted order such that K0 < K1 < K2.
 	 *
 	 * @param <T> ID type
