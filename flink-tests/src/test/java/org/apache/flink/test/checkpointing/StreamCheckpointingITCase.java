@@ -267,7 +267,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			count++;
 			if (!hasFailed && count >= failurePos) {
 				hasFailed = true;
-//				throw new Exception("Test Failure");
+				throw new Exception("Test Failure");
 			}
 			inputCount++;
 		
