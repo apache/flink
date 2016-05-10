@@ -526,7 +526,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig, metrics);
+					writers, inputGates, jobManager, taskManagerConfig, this, metrics);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -703,7 +703,7 @@ public class Task implements Runnable {
 				LOG.error(message, t);
 				notifyFatalError(message, t);
 			}
-			
+
 			// un-register the metrics at the end so that the task may already be
 			// counted as finished when this happens
 			// errors here will only be logged

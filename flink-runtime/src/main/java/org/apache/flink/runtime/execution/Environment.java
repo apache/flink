@@ -166,6 +166,17 @@ public interface Environment {
 	 */
 	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
 
+	/**
+	 * Marks task execution failed for an external reason (a reason other than the task code itself
+	 * throwing an exception). If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 *
+	 * <p>This method never blocks.</p>
+	 */
+	void failExternally(Throwable cause);
+
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task
 	// --------------------------------------------------------------------------------------------

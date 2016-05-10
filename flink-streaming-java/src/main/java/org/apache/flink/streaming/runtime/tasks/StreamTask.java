@@ -295,7 +295,20 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			}
 		}
 	}
-	
+
+	/**
+	 * Marks task execution failed for an external reason (a reason other than the task code itself
+	 * throwing an exception). If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 *
+	 * <p>This method never blocks.</p>
+	 */
+	public void failExternally(Throwable cause) {
+		getEnvironment().failExternally(cause);
+	}
+
 	@Override
 	public final void cancel() throws Exception {
 		isRunning = false;
