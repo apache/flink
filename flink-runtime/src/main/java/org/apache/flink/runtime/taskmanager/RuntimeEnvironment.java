@@ -76,6 +76,8 @@ public class RuntimeEnvironment implements Environment {
 
 	private final TaskManagerRuntimeInfo taskManagerInfo;
 
+	private final Task containingTask;
+
 	// ------------------------------------------------------------------------
 
 	public RuntimeEnvironment(
@@ -96,7 +98,8 @@ public class RuntimeEnvironment implements Environment {
 			ResultPartitionWriter[] writers,
 			InputGate[] inputGates,
 			ActorGateway jobManager,
-			TaskManagerRuntimeInfo taskManagerInfo) {
+			TaskManagerRuntimeInfo taskManagerInfo,
+			Task containingTask) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
@@ -116,6 +119,7 @@ public class RuntimeEnvironment implements Environment {
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
+		this.containingTask = containingTask;
 	}
 
 	// ------------------------------------------------------------------------
@@ -252,5 +256,10 @@ public class RuntimeEnvironment implements Environment {
 				stateSize);
 
 		jobManager.tell(message);
+	}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		this.containingTask.failExternally(cause);
 	}
 }
