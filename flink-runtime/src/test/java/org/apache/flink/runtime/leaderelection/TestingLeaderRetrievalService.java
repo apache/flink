@@ -61,8 +61,6 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 	public void notifyListener(String address, UUID leaderSessionID) {
 		if (listener != null) {
 			listener.notifyLeaderAddress(address, leaderSessionID);
-		} else {
-			throw new IllegalStateException("The retrieval service has not been started properly.");
 		}
 	}
 }
