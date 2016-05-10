@@ -96,7 +96,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		// notify all listeners
 		cluster.notifyRetrievalListeners(0, leaderSessionID1);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		// submit blocking job so that it is not finished when we cancel it
 		cluster.submitJobDetached(job);
@@ -116,7 +116,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		Await.ready(jobRemoval, timeout);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		ActorGateway jm2 = cluster.getLeaderGateway(timeout);
 
@@ -145,7 +145,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		// submit blocking job so that we can test job clean up
 		cluster.submitJobDetached(job);
@@ -178,7 +178,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		// submit blocking job
 		cluster.submitJobDetached(job);
@@ -212,7 +212,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		// submit blocking job
 		cluster.submitJobDetached(job);
@@ -242,7 +242,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		// notify the TMs about the new (old) leader
 		cluster.notifyRetrievalListeners(0, newLeaderSessionID);
 
-		cluster.waitForTaskManagersToBeRegistered();
+		cluster.waitForTaskManagersToBeRegistered(timeout);
 
 		ActorGateway leaderGateway = cluster.getLeaderGateway(timeout);
 
