@@ -140,6 +140,11 @@ public class DummyEnvironment implements Environment {
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {}
 
 	@Override
+	public void failExternally(Throwable cause) {
+		throw new UnsupportedOperationException("DummyEnvironment does not support external task failure.");
+	}
+
+	@Override
 	public ResultPartitionWriter getWriter(int index) {
 		return null;
 	}

@@ -302,6 +302,11 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public void failExternally(Throwable cause) {
+		throw new UnsupportedOperationException("StreamMockEnvironment does not support external task failure.");
+	}
+
+	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
 		return new TaskManagerRuntimeInfo("localhost", new Configuration(), System.getProperty("java.io.tmpdir"));
 	}
