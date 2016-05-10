@@ -31,7 +31,7 @@ import org.apache.flink.api.table.TableEnvironment;
 import org.apache.flink.api.table.codegen.CodeGenException;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.api.table.validate.ValidationException;
+import org.apache.flink.api.table.ValidationException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

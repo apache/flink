@@ -15,40 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.table.expressions
 
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
+import scala.collection.mutable
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.validate._
 
-abstract class Ordering extends UnaryExpression {
+/**
+  * Expressions that have specification on its inputs.
+  */
+trait InputTypeSpec extends Expression {
+
+  /**
+    * Input type specification for each child.
+    *
+    * For example, [[Power]] expecting both of the children be of Double Type should use:
+    * {{{
+    *   def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
+    * }}}
+    */
+  def expectedTypes: Seq[TypeInformation[_]]
+
   override def validateInput(): ExprValidationResult = {
-    if (!child.isInstanceOf[NamedExpression]) {
-      ValidationFailure(s"Sort should only based on field reference")
-    } else {
+    val typeMismatches = mutable.ArrayBuffer.empty[String]
+    children.zip(expectedTypes).zipWithIndex.foreach { case ((e, tpe), i) =>
+      if (e.resultType != tpe) {
+        typeMismatches += s"expecting $tpe on ${i}th input, get ${e.resultType}"
+      }
+    }
+    if (typeMismatches.isEmpty) {
       ValidationSuccess
+    } else {
+      ValidationFailure(
+        s"$this fails on input type checking: ${typeMismatches.mkString("[", ", ", "]")}")
     }
   }
-}
-
-case class Asc(child: Expression) extends Ordering {
-  override def toString: String = s"($child).asc"
-
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    child.toRexNode
-  }
-
-  override def resultType: TypeInformation[_] = child.resultType
-}
-
-case class Desc(child: Expression) extends Ordering {
-  override def toString: String = s"($child).desc"
-
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.desc(child.toRexNode)
-  }
-
-  override def resultType: TypeInformation[_] = child.resultType
 }

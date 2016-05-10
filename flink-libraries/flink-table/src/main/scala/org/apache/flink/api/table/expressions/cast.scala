@@ -23,27 +23,26 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.typeutils.TypeConverter
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
-case class Cast(child: Expression, dataType: TypeInformation[_]) extends UnaryExpression {
+case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
 
-  override def toString = s"$child.cast($dataType)"
+  override def toString = s"$child.cast($resultType)"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(dataType))
+    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
   }
 
   override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
-    copy(child, dataType).asInstanceOf[this.type]
+    copy(child, resultType).asInstanceOf[this.type]
   }
 
   override def validateInput(): ExprValidationResult = {
-    if (Cast.canCast(child.dataType, dataType)) {
-      ExprValidationResult.ValidationSuccess
+    if (Cast.canCast(child.resultType, resultType)) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"Unsupported cast from ${child.dataType} to $dataType")
+      ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")
     }
   }
 }

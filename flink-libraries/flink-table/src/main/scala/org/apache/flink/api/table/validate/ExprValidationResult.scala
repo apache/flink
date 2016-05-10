@@ -19,28 +19,23 @@ package org.apache.flink.api.table.validate
 
 /**
   * Represents the result of `Expression.validateInput`.
-  *
-  * Note: this is adapted from Apache Spark's TypeCheckResult.
   */
-trait ExprValidationResult {
+sealed trait ExprValidationResult {
   def isFailure: Boolean = !isSuccess
   def isSuccess: Boolean
 }
 
-object ExprValidationResult {
+/**
+  * Represents the successful result of `Expression.checkInputDataTypes`.
+  */
+object ValidationSuccess extends ExprValidationResult {
+  val isSuccess: Boolean = true
+}
 
-  /**
-    * Represents the successful result of `Expression.checkInputDataTypes`.
-    */
-  object ValidationSuccess extends ExprValidationResult {
-    val isSuccess: Boolean = true
-  }
-
-  /**
-    * Represents the failing result of `Expression.checkInputDataTypes`,
-    * with a error message to show the reason of failure.
-    */
-  case class ValidationFailure(message: String) extends ExprValidationResult {
-    val isSuccess: Boolean = false
-  }
+/**
+  * Represents the failing result of `Expression.checkInputDataTypes`,
+  * with a error message to show the reason of failure.
+  */
+case class ValidationFailure(message: String) extends ExprValidationResult {
+  val isSuccess: Boolean = false
 }

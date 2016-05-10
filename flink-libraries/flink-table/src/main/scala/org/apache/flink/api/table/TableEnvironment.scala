@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
-import org.apache.calcite.rel.`type`.RelDataTypeFactory
-import org.apache.calcite.schema.{SchemaPlus, Table => CTable}
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
@@ -40,8 +40,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
 import org.apache.flink.api.table.sinks.TableSink
-import org.apache.flink.api.table.plan.schema.{TransStreamTable, RelTable}
-import org.apache.flink.api.table.validate.{FunctionCatalog, ValidationException}
+import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
+import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 
@@ -83,7 +83,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
 
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.builtin
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
 
   // a counter for unique attribute names
   private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
@@ -162,11 +162,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param table The table to register in the catalog
     * @throws ValidationException if another table is registered under the provided name.
     */
-  @throws[ValidationException]
+  @throws[TableException]
   protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
 
     if (isRegistered(name)) {
-      throw new ValidationException(s"Table \'$name\' already exists. " +
+      throw new TableException(s"Table \'$name\' already exists. " +
         s"Please, choose a different name.")
     } else {
       tables.add(name, table)
@@ -190,8 +190,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     tables.getTableNames.contains(name)
   }
 
-  protected def getTable(name: String): CTable = {
-    tables.getTable(name)
+  protected def getRowType(name: String): RelDataType = {
+    tables.getTable(name).getRowType(typeFactory)
   }
 
   /** Returns a unique temporary attribute name. */
@@ -207,13 +207,6 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
   protected def getPlanner: RelOptPlanner = {
     planner
-  }
-
-  /**
-    * Returns the Calcite [[org.apache.calcite.rel.`type`.RelDataTypeFactory]]
-    * of this TableEnvironment. */
-  private[flink] def getTypeFactory: RelDataTypeFactory = {
-    typeFactory
   }
 
   private[flink] def getFunctionCatalog: FunctionCatalog = {

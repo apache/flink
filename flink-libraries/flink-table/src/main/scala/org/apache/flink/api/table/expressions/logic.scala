@@ -22,18 +22,18 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
 abstract class BinaryPredicate extends BinaryExpression {
-  override def dataType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (left.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
-        right.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(s"$this only accept child of Boolean Type, " +
-        s"get ${left.dataType} and ${right.dataType}")
+      ValidationFailure(s"$this only accepts children of Boolean Type, " +
+        s"get ${left.resultType} and ${right.resultType}")
     }
   }
 }
@@ -46,14 +46,14 @@ case class Not(child: Expression) extends UnaryExpression {
     relBuilder.not(child.toRexNode)
   }
 
-  override def dataType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (child.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(s"Not only accept child of Boolean Type, " +
-        s"get ${child.dataType}")
+      ValidationFailure(s"Not only accepts child of Boolean Type, " +
+        s"get ${child.resultType}")
     }
   }
 }
@@ -83,7 +83,7 @@ case class Eval(
   extends Expression {
   def children = Seq(condition, ifTrue, ifFalse)
 
-  override def dataType = ifTrue.dataType
+  override def resultType = ifTrue.resultType
 
   override def toString = s"($condition)? $ifTrue : $ifFalse"
 
@@ -95,13 +95,13 @@ case class Eval(
   }
 
   override def validateInput(): ExprValidationResult = {
-    if (condition.dataType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
-        ifTrue.dataType == ifFalse.dataType) {
-      ExprValidationResult.ValidationSuccess
+    if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        ifTrue.resultType == ifFalse.resultType) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
+      ValidationFailure(
         s"Eval should have boolean condition and same type of ifTrue and ifFalse, get " +
-          s"(${condition.dataType}, ${ifTrue.dataType}, ${ifFalse.dataType})")
+          s"(${condition.resultType}, ${ifTrue.resultType}, ${ifFalse.resultType})")
     }
   }
 }

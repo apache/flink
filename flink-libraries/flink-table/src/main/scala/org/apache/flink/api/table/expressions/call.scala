@@ -19,8 +19,7 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
 
 /**
   * General expression for unresolved function calls. The function can be a built-in
@@ -36,9 +35,9 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
 
-  override def dataType =
+  override def resultType =
     throw new UnresolvedException(s"calling dataType on Unresolved Function $functionName")
 
   override def validateInput(): ExprValidationResult =
-    ExprValidationResult.ValidationFailure(s"Unresolved function call: $functionName")
+    ValidationFailure(s"Unresolved function call: $functionName")
 }

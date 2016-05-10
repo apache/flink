@@ -27,7 +27,7 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeConverter}
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
 abstract class BinaryArithmetic extends BinaryExpression {
   def sqlOperator: SqlOperator
@@ -36,16 +36,21 @@ abstract class BinaryArithmetic extends BinaryExpression {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
   }
 
-  override def dataType = left.dataType
+  override def resultType: TypeInformation[_] =
+    TypeCoercion.widerTypeOf(left.resultType, right.resultType) match {
+      case Some(t) => t
+      case None =>
+        throw new RuntimeException("This should never happen.")
+    }
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override def validateInput(): ExprValidationResult = {
-    if (!left.dataType.isInstanceOf[NumericTypeInfo[_]] ||
-      !right.dataType.isInstanceOf[NumericTypeInfo[_]]) {
-      ExprValidationResult.ValidationFailure(s"$this require both operand Numeric, get" +
-        s"${left.dataType} and ${right.dataType}")
+    if (!left.resultType.isInstanceOf[NumericTypeInfo[_]] ||
+      !right.resultType.isInstanceOf[NumericTypeInfo[_]]) {
+      ValidationFailure(s"$this requires both operands Numeric, get" +
+        s"${left.resultType} and ${right.resultType}")
     } else {
-      ExprValidationResult.ValidationSuccess
+      ValidationSuccess
     }
   }
 }
@@ -71,26 +76,17 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
     }
   }
 
-  override def dataType: TypeInformation[_] = {
-    if (left.dataType == BasicTypeInfo.STRING_TYPE_INFO ||
-      right.dataType == BasicTypeInfo.STRING_TYPE_INFO) {
-      BasicTypeInfo.STRING_TYPE_INFO
-    } else {
-      left.dataType
-    }
-  }
-
   // TODO: tighten this rule once we implemented type coercion rules during validation
   override def validateInput(): ExprValidationResult = {
-    if (left.dataType == BasicTypeInfo.STRING_TYPE_INFO ||
-        right.dataType == BasicTypeInfo.STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else if (!left.dataType.isInstanceOf[NumericTypeInfo[_]] ||
-        !right.dataType.isInstanceOf[NumericTypeInfo[_]]) {
-      ExprValidationResult.ValidationFailure(s"$this requires Numeric or String input," +
-        s" get ${left.dataType} and ${right.dataType}")
+    if (left.resultType == BasicTypeInfo.STRING_TYPE_INFO ||
+        right.resultType == BasicTypeInfo.STRING_TYPE_INFO) {
+      ValidationSuccess
+    } else if (!left.resultType.isInstanceOf[NumericTypeInfo[_]] ||
+        !right.resultType.isInstanceOf[NumericTypeInfo[_]]) {
+      ValidationFailure(s"$this requires Numeric or String input," +
+        s" get ${left.resultType} and ${right.resultType}")
     } else {
-      ExprValidationResult.ValidationSuccess
+      ValidationSuccess
     }
   }
 }
@@ -102,10 +98,10 @@ case class UnaryMinus(child: Expression) extends UnaryExpression {
     relBuilder.call(SqlStdOperatorTable.UNARY_MINUS, child.toRexNode)
   }
 
-  override def dataType = child.dataType
+  override def resultType = child.resultType
 
   override def validateInput(): ExprValidationResult =
-    TypeCheckUtils.assertNumericExpr(child.dataType, "unary minus")
+    TypeCheckUtils.assertNumericExpr(child.resultType, "unary minus")
 }
 
 case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {

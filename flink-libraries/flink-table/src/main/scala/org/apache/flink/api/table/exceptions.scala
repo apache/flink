@@ -15,9 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.table
 
 /**
- * Exception for all errors occurring during expression evaluation.
- */
-class ExpressionParserException(msg: String) extends RuntimeException(msg)
+  * Exception for all errors occurring during expression parsing.
+  */
+case class ExpressionParserException(msg: String) extends RuntimeException(msg)
+
+/**
+  * General Exception for all errors during table handling.
+  */
+case class TableException(msg: String) extends RuntimeException(msg)
+
+/**
+  * Exception for all errors occurring during validation phase.
+  */
+case class ValidationException(msg: String) extends RuntimeException(msg)

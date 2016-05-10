@@ -25,20 +25,19 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
 /**
   * Returns the length of this `str`.
   */
 case class CharLength(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = INT_TYPE_INFO
+  override def resultType: TypeInformation[_] = INT_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (child.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"CharLength only accept String input, get ${child.dataType}")
+      ValidationFailure(s"CharLength only accepts String input, get ${child.resultType}")
     }
   }
 
@@ -54,14 +53,13 @@ case class CharLength(child: Expression) extends UnaryExpression {
   * All other letters are in lowercase. Words are delimited by white space.
   */
 case class InitCap(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = STRING_TYPE_INFO
+  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (child.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"InitCap only accept String input, get ${child.dataType}")
+      ValidationFailure(s"InitCap only accepts String input, get ${child.resultType}")
     }
   }
 
@@ -79,14 +77,14 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
   def left: Expression = str
   def right: Expression = pattern
 
-  override def dataType: TypeInformation[_] = BOOLEAN_TYPE_INFO
+  override def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (str.dataType == STRING_TYPE_INFO && pattern.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"Like only accept (String, String) input, get (${str.dataType}, ${pattern.dataType})")
+      ValidationFailure(s"Like only accepts (String, String) input, " +
+        s"get (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -101,14 +99,13 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
   * Returns str with all characters changed to lowercase.
   */
 case class Lower(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = STRING_TYPE_INFO
+  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (child.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"Lower only accept String input, get ${child.dataType}")
+      ValidationFailure(s"Lower only accepts String input, get ${child.resultType}")
     }
   }
 
@@ -126,14 +123,14 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
   def left: Expression = str
   def right: Expression = pattern
 
-  override def dataType: TypeInformation[_] = BOOLEAN_TYPE_INFO
+  override def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (str.dataType == STRING_TYPE_INFO && pattern.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (str.resultType == STRING_TYPE_INFO && pattern.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"Similar only accept (String, String) input, get (${str.dataType}, ${pattern.dataType})")
+      ValidationFailure(s"Similar only accepts (String, String) input, " +
+        s"get (${str.resultType}, ${pattern.resultType})")
     }
   }
 
@@ -147,26 +144,19 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
 /**
   * Returns subString of `str` from `begin`(inclusive) to `end`(not inclusive).
   */
-case class SubString(str: Expression, begin: Expression, end: Expression) extends Expression {
+case class SubString(
+    str: Expression,
+    begin: Expression,
+    end: Expression) extends Expression with InputTypeSpec {
 
   def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
 
   override def children: Seq[Expression] = str :: begin :: end :: Nil
 
-  override def dataType: TypeInformation[_] = STRING_TYPE_INFO
+  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (str.dataType == STRING_TYPE_INFO &&
-        begin.dataType == INT_TYPE_INFO &&
-        end.dataType == INT_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        "subString only accept (String, Int, Int) input, " +
-          s"get (${str.dataType}, ${begin.dataType}, ${end.dataType})")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
   override def toString(): String = s"$str.subString($begin, $end)"
 
@@ -182,24 +172,14 @@ case class SubString(str: Expression, begin: Expression, end: Expression) extend
 case class Trim(
     trimFlag: Expression,
     trimString: Expression,
-    str: Expression) extends Expression {
+    str: Expression) extends Expression with InputTypeSpec {
 
   override def children: Seq[Expression] = trimFlag :: trimString :: str :: Nil
 
-  override def dataType: TypeInformation[_] = STRING_TYPE_INFO
+  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (trimFlag.dataType == INT_TYPE_INFO &&
-      trimString.dataType == STRING_TYPE_INFO &&
-      str.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        "subString only accept (Int, String, String) input, " +
-          s"get (${trimFlag.dataType}, ${trimString.dataType}, ${str.dataType})")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(INT_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
 
   override def toString(): String = s"trim($trimFlag, $trimString, $str)"
 
@@ -222,14 +202,13 @@ object TrimConstants {
   * Returns str with all characters changed to uppercase.
   */
 case class Upper(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = STRING_TYPE_INFO
+  override def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override def validateInput(): ExprValidationResult = {
-    if (child.dataType == STRING_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
     } else {
-      ExprValidationResult.ValidationFailure(
-        s"Upper only accept String input, get ${child.dataType}")
+      ValidationFailure(s"Upper only accepts String input, get ${child.resultType}")
     }
   }
 

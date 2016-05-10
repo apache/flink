@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.table
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 import org.apache.calcite.rel.RelNode
@@ -29,7 +28,6 @@ import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.typeutils.TypeConverter
-import org.apache.flink.api.table.validate.ValidationException
 
 /**
   * A Table is the core component of the Table API.
@@ -67,7 +65,7 @@ class Table(
 
   def relBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder).build()
+  def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -79,16 +77,17 @@ class Table(
     *   tab.select('key, 'value.avg + " The average" as 'average)
     * }}}
     */
-  def select(fields: Expression*): Table = validate {
-    checkUniqueNames(fields)
+  def select(fields: Expression*): Table = {
     val projectionOnAggregates = fields.map(extractAggregations(_, tableEnv))
     val aggregations = projectionOnAggregates.flatMap(_._2)
     if (aggregations.nonEmpty) {
-      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
-        Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)
-      )
+      new Table(tableEnv,
+        Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)),
+          Aggregate(Nil, aggregations, logicalPlan).validate(tableEnv)).validate(tableEnv))
     } else {
-      Project(projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan)
+      new Table(tableEnv,
+        Project(
+          projectionOnAggregates.map(e => UnresolvedAlias(e._1)), logicalPlan).validate(tableEnv))
     }
   }
 
@@ -117,8 +116,8 @@ class Table(
     *   tab.as('a, 'b)
     * }}}
     */
-  def as(fields: Expression*): Table = validate {
-    AliasNode(fields, logicalPlan)
+  def as(fields: Expression*): Table = {
+    new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -146,8 +145,8 @@ class Table(
     *   tab.filter('name === "Fred")
     * }}}
     */
-  def filter(predicate: Expression): Table = validate {
-    Filter(predicate, logicalPlan)
+  def filter(predicate: Expression): Table = {
+    new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -205,7 +204,7 @@ class Table(
     */
   def groupBy(fields: Expression*): GroupedTable = {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      throw new ValidationException(s"Group by on stream tables is currently not supported.")
+      throw new TableException(s"Group by on stream tables is currently not supported.")
     }
     new GroupedTable(this, fields)
   }
@@ -234,8 +233,8 @@ class Table(
     *   tab.select("key, value").distinct()
     * }}}
     */
-  def distinct(): Table = validate {
-    Distinct(logicalPlan)
+  def distinct(): Table = {
+    new Table(tableEnv, Distinct(logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -251,12 +250,13 @@ class Table(
     *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
     * }}}
     */
-  def join(right: Table): Table = validate {
+  def join(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
-    Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None)
+    new Table(tableEnv,
+      Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None).validate(tableEnv))
   }
 
   /**
@@ -271,12 +271,12 @@ class Table(
     *   left.unionAll(right)
     * }}}
     */
-  def unionAll(right: Table): Table = validate {
+  def unionAll(right: Table): Table = {
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    Union(logicalPlan, right.logicalPlan)
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -289,14 +289,14 @@ class Table(
     *   tab.orderBy('name.desc)
     * }}}
     */
-  def orderBy(fields: Expression*): Table = validate {
+  def orderBy(fields: Expression*): Table = {
     val order: Seq[Ordering] = fields.map { case e =>
       e match {
         case o: Ordering => o
         case _ => Asc(e)
       }
     }
-    Sort(order, logicalPlan)
+    new Table(tableEnv, Sort(order, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -337,32 +337,6 @@ class Table(
 
     // emit the table to the configured table sink
     tableEnv.emitToSink(this, configuredSink)
-  }
-
-  private def checkUniqueNames(exprs: Seq[Expression]): Unit = {
-    val names: mutable.Set[String] = mutable.Set()
-
-    exprs.foreach {
-      case n: Alias =>
-        // explicit name
-        if (names.contains(n.name)) {
-          throw new ValidationException(s"Duplicate field name $n.name.")
-        } else {
-          names.add(n.name)
-        }
-      case u: UnresolvedFieldReference =>
-        // simple field forwarding
-        if (names.contains(u.name)) {
-          throw new ValidationException(s"Duplicate field name $u.name.")
-        } else {
-          names.add(u.name)
-        }
-      case _ => // Do nothing
-    }
-  }
-
-  @inline protected def validate(logicalNode: => LogicalNode): Table = {
-    new Table(tableEnv, logicalNode.validate(tableEnv))
   }
 }
 

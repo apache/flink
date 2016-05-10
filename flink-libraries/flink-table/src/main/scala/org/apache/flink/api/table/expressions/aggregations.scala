@@ -45,9 +45,9 @@ case class Sum(child: Expression) extends Aggregation {
     relBuilder.aggregateCall(SqlStdOperatorTable.SUM, false, null, name, child.toRexNode)
   }
 
-  override def dataType = child.dataType
+  override def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertNumericExpr(child.dataType, "sum")
+  override def validateInput = TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
 }
 
 case class Min(child: Expression) extends Aggregation {
@@ -57,9 +57,9 @@ case class Min(child: Expression) extends Aggregation {
     relBuilder.aggregateCall(SqlStdOperatorTable.MIN, false, null, name, child.toRexNode)
   }
 
-  override def dataType = child.dataType
+  override def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.dataType, "min")
+  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
 }
 
 case class Max(child: Expression) extends Aggregation {
@@ -69,9 +69,9 @@ case class Max(child: Expression) extends Aggregation {
     relBuilder.aggregateCall(SqlStdOperatorTable.MAX, false, null, name, child.toRexNode)
   }
 
-  override def dataType = child.dataType
+  override def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.dataType, "max")
+  override def validateInput = TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
 }
 
 case class Count(child: Expression) extends Aggregation {
@@ -81,7 +81,7 @@ case class Count(child: Expression) extends Aggregation {
     relBuilder.aggregateCall(SqlStdOperatorTable.COUNT, false, null, name, child.toRexNode)
   }
 
-  override def dataType = BasicTypeInfo.LONG_TYPE_INFO
+  override def resultType = BasicTypeInfo.LONG_TYPE_INFO
 }
 
 case class Avg(child: Expression) extends Aggregation {
@@ -91,7 +91,7 @@ case class Avg(child: Expression) extends Aggregation {
     relBuilder.aggregateCall(SqlStdOperatorTable.AVG, false, null, name, child.toRexNode)
   }
 
-  override def dataType = BasicTypeInfo.DOUBLE_TYPE_INFO
+  override def resultType = child.resultType
 
-  override def validateInput = TypeCheckUtils.assertNumericExpr(child.dataType, "avg")
+  override def validateInput = TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
 }

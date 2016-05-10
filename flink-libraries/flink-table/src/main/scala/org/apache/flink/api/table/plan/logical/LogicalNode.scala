@@ -17,63 +17,77 @@
  */
 package org.apache.flink.api.table.plan.logical
 
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 
-import org.apache.flink.api.table.TableEnvironment
+import org.apache.flink.api.table.{TableEnvironment, ValidationException}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.trees.TreeNode
 import org.apache.flink.api.table.validate._
 
 /**
-  * LogicalNode is created and validated as we construct query plan using Table API.<p>
+  * LogicalNode is created and validated as we construct query plan using Table API.
   *
-  * The main validation procedure is separated into two phases:<p>
-  * Expressions' resolution and transformation (#resolveExpressions(TableEnvironment)):
-  * <ul>
-  *   <li>translate UnresolvedFieldReference into ResolvedFieldReference
-  *     using child operator's output</li>
-  *   <li>translate Call(UnresolvedFunction) into solid Expression</li>
-  *   <li>generate alias names for query output</li>
-  *   <li>....</li>
-  * </ul>
+  * The main validation procedure is separated into two phases:
   *
-  * LogicalNode validation (#validate(TableEnvironment)):
-  * <ul>
-  *   <li>check no UnresolvedFieldReference exists any more</li>
-  *   <li>check if all expressions have children of needed type</li>
-  *   <li>check each logical operator have desired input</li>
-  * </ul>
+  * Expressions' resolution and transformation ([[resolveExpressions]]):
+  *
+  * - translate [[UnresolvedFieldReference]] into [[ResolvedFieldReference]]
+  *     using child operator's output
+  * - translate [[Call]](UnresolvedFunction) into solid Expression
+  * - generate alias names for query output
+  * - ....
+  *
+  * LogicalNode validation ([[validate]]):
+  *
+  * - check no [[UnresolvedFieldReference]] exists any more
+  * - check if all expressions have children of needed type
+  * - check each logical operator have desired input
+  *
   * Once we pass the validation phase, we can safely convert LogicalNode into Calcite's RelNode.
-  *
-  * Note: this is adapted from Apache Spark's LogicalPlan.
   */
 abstract class LogicalNode extends TreeNode[LogicalNode] {
   def output: Seq[Attribute]
 
   def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     // resolve references and function calls
-    transformExpressionsUp {
+    val exprResolved = expressionPostOrderTransform {
       case u @ UnresolvedFieldReference(name) =>
         resolveChildren(name).getOrElse(u)
       case c @ Call(name, children) if c.childrenValid =>
         tableEnv.getFunctionCatalog.lookupFunction(name, children)
     }
+
+    exprResolved.expressionPostOrderTransform {
+      case ips: InputTypeSpec if ips.childrenValid =>
+        var changed: Boolean = false
+        val newChildren = ips.expectedTypes.zip(ips.children).map { case (tpe, child) =>
+          val childType = child.resultType
+          if (childType != tpe && TypeCoercion.canSafelyCasted(childType, tpe)) {
+            changed = true
+            Cast(child, tpe)
+          } else {
+            child
+          }
+        }.toArray[AnyRef]
+        if (changed) ips.makeCopy(newChildren) else ips
+    }
   }
 
-  def toRelNode(relBuilder: RelBuilder): RelBuilder
+  final def toRelNode(relBuilder: RelBuilder): RelNode = construct(relBuilder).build()
+
+  protected[logical] def construct(relBuilder: RelBuilder): RelBuilder
 
   def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedNode = resolveExpressions(tableEnv)
-    resolvedNode.transformExpressionsUp {
+    resolvedNode.expressionPostOrderTransform {
       case a: Attribute if !a.valid =>
         val from = children.flatMap(_.output).map(_.name).mkString(", ")
         failValidation(s"cannot resolve [${a.name}] given input [$from]")
 
       case e: Expression if e.validateInput().isFailure =>
-        e.validateInput() match {
-          case ExprValidationResult.ValidationFailure(message) =>
-            failValidation(s"Expression $e failed on input check: $message")
-        }
+        failValidation(s"Expression $e failed on input check: " +
+          s"${e.validateInput().asInstanceOf[ValidationFailure].message}")
     }
   }
 
@@ -85,7 +99,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     resolve(name, children.flatMap(_.output))
 
   /**
-    *  Performs attribute resolution given a name and a sequence of possible attributes.
+    * Performs attribute resolution given a name and a sequence of possible attributes.
     */
   def resolve(name: String, input: Seq[Attribute]): Option[NamedExpression] = {
     // find all matches in input
@@ -99,32 +113,17 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     }
   }
 
-  def expressions: Seq[Expression] = {
-    // Recursively find all expressions from a traversable.
-    def seqToExpressions(seq: Traversable[Any]): Traversable[Expression] = seq.flatMap {
-      case e: Expression => e :: Nil
-      case s: Traversable[_] => seqToExpressions(s)
-      case other => Nil
-    }
-
-    productIterator.flatMap {
-      case e: Expression => e :: Nil
-      case Some(e: Expression) => e :: Nil
-      case seq: Traversable[_] => seqToExpressions(seq)
-      case other => Nil
-    }.toSeq
-  }
-
   /**
-    * Runs [[transformUp]] with `rule` on all expressions present in this query operator.
+    * Runs [[postOrderTransform]] with `rule` on all expressions present in this query operator.
+    *
     * @param rule the rule to be applied to every expression in this operator.
     * @return
     */
-  def transformExpressionsUp(rule: PartialFunction[Expression, Expression]): LogicalNode = {
+  def expressionPostOrderTransform(rule: PartialFunction[Expression, Expression]): LogicalNode = {
     var changed = false
 
-    @inline def transformExpressionUp(e: Expression): Expression = {
-      val newE = e.transformUp(rule)
+    @inline def expressionPostOrderTransform(e: Expression): Expression = {
+      val newE = e.postOrderTransform(rule)
       if (newE.fastEquals(e)) {
         e
       } else {
@@ -134,10 +133,10 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     }
 
     val newArgs = productIterator.map {
-      case e: Expression => transformExpressionUp(e)
-      case Some(e: Expression) => Some(transformExpressionUp(e))
+      case e: Expression => expressionPostOrderTransform(e)
+      case Some(e: Expression) => Some(expressionPostOrderTransform(e))
       case seq: Traversable[_] => seq.map {
-        case e: Expression => transformExpressionUp(e)
+        case e: Expression => expressionPostOrderTransform(e)
         case other => other
       }
       case other: AnyRef => other

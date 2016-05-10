@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.plan.PlanGenException
@@ -87,17 +88,17 @@ abstract class StreamTableEnvironment(
     * The table to ingest must be registered in the [[TableEnvironment]]'s catalog.
     *
     * @param tableName The name of the table to ingest.
-    * @throws TableException if no table is registered under the given name.
+    * @throws ValidationException if no table is registered under the given name.
     * @return The ingested table.
     */
-  @throws[TableException]
+  @throws[ValidationException]
   def ingest(tableName: String): Table = {
 
     if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(tableName, getTable(tableName), getTypeFactory))
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
     }
     else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 

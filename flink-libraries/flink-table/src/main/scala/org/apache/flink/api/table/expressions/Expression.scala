@@ -22,14 +22,14 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.trees.TreeNode
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationSuccess}
 
 abstract class Expression extends TreeNode[Expression] {
   /**
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It is sometimes not available until the expression is valid.
     */
-  def dataType: TypeInformation[_]
+  def resultType: TypeInformation[_]
 
   /**
     * One pass validation of the expression tree in post order.
@@ -44,7 +44,7 @@ abstract class Expression extends TreeNode[Expression] {
     * or `ValidationFailure` with supplement message explaining the error.
     * Note: we should only call this method until `childrenValid == true`
     */
-  def validateInput(): ExprValidationResult = ExprValidationResult.ValidationSuccess
+  def validateInput(): ExprValidationResult = ValidationSuccess
 
   /**
     * Convert Expression to its counterpart in Calcite, i.e. RexNode
@@ -54,22 +54,21 @@ abstract class Expression extends TreeNode[Expression] {
       s"${this.getClass.getName} cannot be transformed to RexNode"
     )
 
-  /**
-    * Returns true when two expressions will always compute the same result, even if they differ
-    * cosmetically (i.e. capitalization of names in attributes may be different).
-    */
-  def semanticEquals(other: Expression): Boolean = this.getClass == other.getClass && {
-    def checkSemantic(elements1: Seq[Any], elements2: Seq[Any]): Boolean = {
-      elements1.length == elements2.length && elements1.zip(elements2).forall {
-        case (e1: Expression, e2: Expression) => e1 semanticEquals e2
-        case (Some(e1: Expression), Some(e2: Expression)) => e1 semanticEquals e2
-        case (t1: Traversable[_], t2: Traversable[_]) => checkSemantic(t1.toSeq, t2.toSeq)
-        case (i1, i2) => i1 == i2
+  def checkEquals(other: Expression): Boolean = {
+    if (this.getClass != other.getClass) {
+      false
+    } else {
+      def checkEquality(elements1: Seq[Any], elements2: Seq[Any]): Boolean = {
+        elements1.length == elements2.length && elements1.zip(elements2).forall {
+          case (e1: Expression, e2: Expression) => e1.checkEquals(e2)
+          case (t1: Seq[_], t2: Seq[_]) => checkEquality(t1, t2)
+          case (i1, i2) => i1 == i2
+        }
       }
+      val elements1 = this.productIterator.toSeq
+      val elements2 = other.productIterator.toSeq
+      checkEquality(elements1, elements2)
     }
-    val elements1 = this.productIterator.toSeq
-    val elements2 = other.productIterator.toSeq
-    checkSemantic(elements1, elements2)
   }
 }
 

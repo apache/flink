@@ -24,13 +24,13 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.typeutils.TypeCheckUtils
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
 case class Abs(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = child.dataType
+  override def resultType: TypeInformation[_] = child.resultType
 
   override def validateInput(): ExprValidationResult =
-    TypeCheckUtils.assertNumericExpr(child.dataType, "Abs")
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Abs")
 
   override def toString(): String = s"abs($child)"
 
@@ -40,10 +40,10 @@ case class Abs(child: Expression) extends UnaryExpression {
 }
 
 case class Ceil(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = LONG_TYPE_INFO
+  override def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
   override def validateInput(): ExprValidationResult =
-    TypeCheckUtils.assertNumericExpr(child.dataType, "Ceil")
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Ceil")
 
   override def toString(): String = s"ceil($child)"
 
@@ -52,18 +52,10 @@ case class Ceil(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Exp(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = DOUBLE_TYPE_INFO
+case class Exp(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (child.dataType == DOUBLE_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        s"exp only accept Double input, get ${child.dataType}")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
   override def toString(): String = s"exp($child)"
 
@@ -74,10 +66,10 @@ case class Exp(child: Expression) extends UnaryExpression {
 
 
 case class Floor(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = LONG_TYPE_INFO
+  override def resultType: TypeInformation[_] = LONG_TYPE_INFO
 
   override def validateInput(): ExprValidationResult =
-    TypeCheckUtils.assertNumericExpr(child.dataType, "Floor")
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Floor")
 
   override def toString(): String = s"floor($child)"
 
@@ -86,18 +78,10 @@ case class Floor(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Log10(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = DOUBLE_TYPE_INFO
+case class Log10(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (child.dataType == DOUBLE_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        s"log10 only accept Double input, get ${child.dataType}")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
   override def toString(): String = s"log10($child)"
 
@@ -106,18 +90,10 @@ case class Log10(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Ln(child: Expression) extends UnaryExpression {
-  override def dataType: TypeInformation[_] = DOUBLE_TYPE_INFO
+case class Ln(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (child.dataType == DOUBLE_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        s"ln only accept Double input, get ${child.dataType}")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
 
   override def toString(): String = s"ln($child)"
 
@@ -126,18 +102,10 @@ case class Ln(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Power(left: Expression, right: Expression) extends BinaryExpression {
-  override def dataType: TypeInformation[_] = DOUBLE_TYPE_INFO
+case class Power(left: Expression, right: Expression) extends BinaryExpression with InputTypeSpec {
+  override def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
-  // TODO: this could be loosened by enabling implicit cast
-  override def validateInput(): ExprValidationResult = {
-    if (left.dataType == DOUBLE_TYPE_INFO && right.dataType == DOUBLE_TYPE_INFO) {
-      ExprValidationResult.ValidationSuccess
-    } else {
-      ExprValidationResult.ValidationFailure(
-        s"power only accept Double input, get ${left.dataType} and ${right.dataType}")
-    }
-  }
+  override def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
 
   override def toString(): String = s"pow($left, $right)"
 

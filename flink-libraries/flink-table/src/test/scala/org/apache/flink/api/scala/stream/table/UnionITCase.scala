@@ -19,16 +19,15 @@
 package org.apache.flink.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.stream.utils.{StreamTestData, StreamITCase}
+import org.apache.flink.api.scala.stream.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
-import org.apache.flink.api.table.validate.ValidationException
 
 class UnionITCase extends StreamingMultipleProgramsTestBase {
 

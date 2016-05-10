@@ -26,7 +26,7 @@ import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.NumericTypeInfo
-import org.apache.flink.api.table.validate.ExprValidationResult
+import org.apache.flink.api.table.validate._
 
 abstract class BinaryComparison extends BinaryExpression {
   def sqlOperator: SqlOperator
@@ -35,14 +35,14 @@ abstract class BinaryComparison extends BinaryExpression {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
   }
 
-  override def dataType = BOOLEAN_TYPE_INFO
+  override def resultType = BOOLEAN_TYPE_INFO
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
-  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
-    case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ExprValidationResult.ValidationSuccess
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
+    case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ValidationSuccess
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
     case (lType, rType) =>
-      ExprValidationResult.ValidationFailure(
+      ValidationFailure(
         s"Comparison is only supported for Strings and numeric types, get $lType and $rType")
   }
 }
@@ -52,14 +52,13 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 
-  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
     case (lType, rType) =>
       if (lType != rType) {
-        ExprValidationResult.ValidationFailure(
-          s"Equality predicate on incompatible types: $lType and $rType")
+        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
       } else {
-        ExprValidationResult.ValidationSuccess
+        ValidationSuccess
       }
   }
 }
@@ -69,14 +68,13 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
 
   val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 
-  override def validateInput(): ExprValidationResult = (left.dataType, right.dataType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ExprValidationResult.ValidationSuccess
+  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
     case (lType, rType) =>
       if (lType != rType) {
-        ExprValidationResult.ValidationFailure(
-          s"Equality predicate on incompatible types: $lType and $rType")
+        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
       } else {
-        ExprValidationResult.ValidationSuccess
+        ValidationSuccess
       }
   }
 }
@@ -112,7 +110,7 @@ case class IsNull(child: Expression) extends UnaryExpression {
     relBuilder.isNull(child.toRexNode)
   }
 
-  override def dataType = BOOLEAN_TYPE_INFO
+  override def resultType = BOOLEAN_TYPE_INFO
 }
 
 case class IsNotNull(child: Expression) extends UnaryExpression {
@@ -122,5 +120,5 @@ case class IsNotNull(child: Expression) extends UnaryExpression {
     relBuilder.isNotNull(child.toRexNode)
   }
 
-  override def dataType = BOOLEAN_TYPE_INFO
+  override def resultType = BOOLEAN_TYPE_INFO
 }

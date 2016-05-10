@@ -38,7 +38,6 @@ import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.{TableSourceTable, DataSetTable}
 import org.apache.flink.api.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.api.table.sources.BatchTableSource
-import org.apache.flink.api.table.validate.ValidationException
 
 /**
   * The abstract base class for batch TableEnvironments.
@@ -96,7 +95,7 @@ abstract class BatchTableEnvironment(
   @throws[ValidationException]
   def scan(tableName: String): Table = {
     if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(tableName, getTable(tableName), getTypeFactory))
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
     } else {
       throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
