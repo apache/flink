@@ -534,26 +534,36 @@ public class Task implements Runnable {
 			SerializedValue<StateHandle<?>> nonPartitionedState = this.operatorState;
 			Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates = this.keyGroupStates;
 			long recoveryTs = this.recoveryTs;
+			StateHandle<?> state = null;
+			Map<Integer, StateHandle<?>> keyGroupState = null;
 
 			if (nonPartitionedState != null) {
-				if (invokable instanceof StatefulTask) {
-					try {
-						StateHandle<?> state = nonPartitionedState.deserializeValue(userCodeClassLoader);
-
-						Map<Integer, StateHandle<?>> keyGroupState = new HashMap<>();
-
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState: keyGroupStates.entrySet()) {
-							keyGroupState.put(operatorKvState.getKey(), operatorKvState.getValue().deserializeValue(userCodeClassLoader));
-						}
-
-						StatefulTask<?, ?> op = (StatefulTask<?, ?>) invokable;
-						StateUtils.setOperatorState(op, state, keyGroupState, recoveryTs);
-					}
-					catch (Exception e) {
-						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
-					}
+				try {
+					state = nonPartitionedState.deserializeValue(userCodeClassLoader);
 				}
-				else {
+				catch (Exception e) {
+					throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
+				}
+			}
+
+			if (keyGroupStates != null) {
+				try {
+					keyGroupState = new HashMap<>();
+
+					for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState : keyGroupStates.entrySet()) {
+						keyGroupState.put(operatorKvState.getKey(), operatorKvState.getValue().deserializeValue(userCodeClassLoader));
+					}
+
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to deserialize key group state handle and setup initial key group state.", e);
+				}
+			}
+
+			if (state != null || (keyGroupState != null && !keyGroupState.isEmpty())) {
+				if (invokable instanceof StatefulTask) {
+					StatefulTask<?, ?> op = (StatefulTask<?, ?>) invokable;
+					StateUtils.setOperatorState(op, state, keyGroupState, recoveryTs);
+				} else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
 			}
@@ -563,6 +573,8 @@ public class Task implements Runnable {
 			//noinspection UnusedAssignment
 			nonPartitionedState = null;
 			this.operatorState = null;
+			keyGroupStates = null;
+			this.keyGroupStates = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work

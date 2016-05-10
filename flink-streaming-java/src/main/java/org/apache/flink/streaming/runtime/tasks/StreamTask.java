@@ -431,53 +431,68 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 	
 	private void restoreState() throws Exception {
-		if (lazyRestoreState != null) {
+
+		if (lazyRestoreState != null || lazyRestoreKeyGroupStates != null) {
+
 			LOG.info("Restoring checkpointed state to task {}", getName());
-			
-			try {
-				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-				final StreamOperatorNonPartitionedState[] nonPartitionedStates = lazyRestoreState.getState(userClassLoader);
-				final List<Map<Integer, PartitionedStateSnapshot>> keyGroupStates = new ArrayList<Map<Integer, PartitionedStateSnapshot>>(allOperators.length);
 
-				for (int i = 0; i < allOperators.length; i++) {
-					keyGroupStates.add(new HashMap<Integer, PartitionedStateSnapshot>());
+			final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
+			StreamOperatorNonPartitionedState[] nonPartitionedStates;
+
+			final List<Map<Integer, PartitionedStateSnapshot>> keyGroupStates = new ArrayList<Map<Integer, PartitionedStateSnapshot>>(allOperators.length);
+
+			for (int i = 0; i < allOperators.length; i++) {
+				keyGroupStates.add(new HashMap<Integer, PartitionedStateSnapshot>());
+			}
+
+			if (lazyRestoreState != null) {
+				try {
+					nonPartitionedStates = lazyRestoreState.getState(getUserCodeClassLoader());
+
+					// be GC friendly
+					lazyRestoreState = null;
+				} catch (Exception e) {
+					throw new Exception("Could not restore checkpointed non-partitioned state.", e);
 				}
+			} else {
+				nonPartitionedStates = new StreamOperatorNonPartitionedState[allOperators.length];
+			}
 
-				// be GC friendly
-				lazyRestoreState = null;
+			if (lazyRestoreKeyGroupStates != null) {
+				try {
+					// construct key groups state for operators
+					for (Map.Entry<Integer, ChainedKeyGroupState> lazyRestoreKeyGroupState : lazyRestoreKeyGroupStates.entrySet()) {
+						int keyGroupId = lazyRestoreKeyGroupState.getKey();
 
-				// construct key groups state for operators
-				for (Map.Entry<Integer, ChainedKeyGroupState> lazyRestoreKeyGroupState: lazyRestoreKeyGroupStates.entrySet()) {
-					int keyGroupId = lazyRestoreKeyGroupState.getKey();
+						Map<Integer, PartitionedStateSnapshot> chainedKeyGroupStates = lazyRestoreKeyGroupState.getValue().getState(getUserCodeClassLoader());
 
-					Map<Integer, PartitionedStateSnapshot> chainedKeyGroupStates = lazyRestoreKeyGroupState.getValue().getState(getUserCodeClassLoader());
+						for (Map.Entry<Integer, PartitionedStateSnapshot> chainedKeyGroupState : chainedKeyGroupStates.entrySet()) {
+							int chainedIndex = chainedKeyGroupState.getKey();
 
-					for (Map.Entry<Integer, PartitionedStateSnapshot> chainedKeyGroupState: chainedKeyGroupStates.entrySet()) {
-						int chainedIndex = chainedKeyGroupState.getKey();
+							Map<Integer, PartitionedStateSnapshot> keyGroupState;
 
-						Map<Integer, PartitionedStateSnapshot> keyGroupState;
-
-						keyGroupState = keyGroupStates.get(chainedIndex);
-						keyGroupState.put(keyGroupId, chainedKeyGroupState.getValue());
+							keyGroupState = keyGroupStates.get(chainedIndex);
+							keyGroupState.put(keyGroupId, chainedKeyGroupState.getValue());
+						}
 					}
-				}
 
-				lazyRestoreKeyGroupStates = null;
+					lazyRestoreKeyGroupStates = null;
 
-				for (int i = 0; i < nonPartitionedStates.length; i++) {
-					StreamOperatorNonPartitionedState nonPartitionedState = nonPartitionedStates[i];
-					StreamOperator<?> operator = allOperators[i];
-					StreamOperatorPartitionedState partitionedState = new StreamOperatorPartitionedState(keyGroupStates.get(i));
-					StreamOperatorState operatorState = new StreamOperatorState(partitionedState, nonPartitionedState);
-
-					if (operator != null) {
-						LOG.debug("Restore state of task {} in chain ({}).", i, getName());
-						operator.restoreState(operatorState, recoveryTimestamp);
-					}
+				} catch (Exception e) {
+					throw new Exception("Could not restore checkpointed partitioned state.", e);
 				}
 			}
-			catch (Exception e) {
-				throw new Exception("Could not restore checkpointed state to operators and functions", e);
+
+			for (int i = 0; i < nonPartitionedStates.length; i++) {
+				StreamOperatorNonPartitionedState nonPartitionedState = nonPartitionedStates[i];
+				StreamOperator<?> operator = allOperators[i];
+				StreamOperatorPartitionedState partitionedState = new StreamOperatorPartitionedState(keyGroupStates.get(i));
+				StreamOperatorState operatorState = new StreamOperatorState(partitionedState, nonPartitionedState);
+
+				if (operator != null) {
+					LOG.debug("Restore state of task {} in chain ({}).", i, getName());
+					operator.restoreState(operatorState, recoveryTimestamp);
+				}
 			}
 		}
 	}

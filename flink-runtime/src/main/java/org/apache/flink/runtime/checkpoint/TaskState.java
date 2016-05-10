@@ -128,6 +128,10 @@ public class TaskState implements Serializable {
 		return keyGroupStates;
 	}
 
+	public boolean hasNonPartitionedState() {
+		return !subtaskStates.isEmpty();
+	}
+
 	/**
 	 * Retrieve the set of key-value state key groups specified by the given key group partition set.
 	 * The key groups are returned as a map where the key group index maps to the serialized state

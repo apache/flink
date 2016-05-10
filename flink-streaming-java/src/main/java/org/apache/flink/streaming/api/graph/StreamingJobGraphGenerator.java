@@ -752,8 +752,6 @@ public class StreamingJobGraphGenerator {
 		// stream graph.
 		hasher.putInt(id);
 
-		hasher.putInt(node.getParallelism());
-
 		if (node.getOperator() instanceof AbstractUdfStreamOperator) {
 			String udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())
 					.getUserFunction().getClass().getName();

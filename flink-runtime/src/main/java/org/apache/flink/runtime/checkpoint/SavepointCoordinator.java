@@ -203,20 +203,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskStateEntry.getKey());
 
 				if (executionJobVertex != null) {
-					if (executionJobVertex.getParallelism() != taskState.getParallelism()) {
-						String msg = String.format("Failed to rollback to savepoint %s. " +
-								"Parallelism mismatch between savepoint state and new program. " +
-								"Cannot map operator %s with parallelism %d to new program with " +
-								"parallelism %d. This indicates that the program has been changed " +
-								"in a non-compatible way after the savepoint.",
-							checkpoint,
-							taskStateEntry.getKey(),
-							taskState.getParallelism(),
-							executionJobVertex.getParallelism());
-
-						throw new IllegalStateException(msg);
-					}
-
 					// check that the number of key groups have not changed
 					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
 						throw new IllegalStateException("The maximum parallelism (" +
@@ -227,16 +213,34 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 							"is currently not supported.");
 					}
 
+					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
+
+					if (hasNonPartitionedState && executionJobVertex.getParallelism() != taskState.getParallelism()) {
+						String msg = String.format("Failed to rollback to savepoint %s. " +
+								"Parallelism mismatch between savepoint state and new program. " +
+								"Cannot map operator %s with parallelism %d to new program with " +
+								"parallelism %d, because the operator contains non-partitioned state.",
+							checkpoint,
+							taskStateEntry.getKey(),
+							taskState.getParallelism(),
+							executionJobVertex.getParallelism());
+
+						throw new IllegalStateException(msg);
+					}
+
 					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
 						executionJobVertex.getMaxParallelism(),
 						executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {
-						SubtaskState subtaskState = taskState.getState(i);
 						SerializedValue<StateHandle<?>> state = null;
 
-						if (subtaskState != null) {
-							state = subtaskState.getState();
+						if (hasNonPartitionedState) {
+							SubtaskState subtaskState = taskState.getState(i);
+
+							if (subtaskState != null) {
+								state = subtaskState.getState();
+							}
 						}
 
 						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState

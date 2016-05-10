@@ -235,16 +235,20 @@ public class RuntimeEnvironment implements Environment {
 			stateSize = 0;
 		} else {
 			try {
-				serializedState = new SerializedValue<StateHandle<?>>(state);
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
-			}
-
-			try {
 				stateSize = state.getStateSize();
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Failed to fetch state handle size", e);
+			}
+
+			if (stateSize == 0) {
+				serializedState = null;
+			} else {
+				try {
+					serializedState = new SerializedValue<StateHandle<?>>(state);
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
+				}
 			}
 		}
 
@@ -258,18 +262,21 @@ public class RuntimeEnvironment implements Environment {
 				long keyGroupStateSize;
 
 				try {
-					serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
-				} catch(IOException e) {
-					throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation.", e);
-				}
-
-				try {
 					keyGroupStateSize = entry.getValue().getStateSize();
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to fetch state handle size.", e);
 				}
 
-				serializedKeyGroupStates.put(entry.getKey(), Tuple2.of(serializedKeyGroupState, keyGroupStateSize));
+				if (keyGroupStateSize > 0) {
+
+					try {
+						serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
+					} catch (IOException e) {
+						throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation.", e);
+					}
+
+					serializedKeyGroupStates.put(entry.getKey(), Tuple2.of(serializedKeyGroupState, keyGroupStateSize));
+				}
 			}
 		}
 		
