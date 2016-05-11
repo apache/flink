@@ -272,7 +272,7 @@ abstract class GradientDescent extends IterativeSolver {
   * The regularization function is `1/2 ||w||_2^2` with `w` being the weight vector.
   */
 class GradientDescentL2 extends GradientDescent {
-
+  //TODO(skavulya): Pass regularization penalty as a parameter
   /** Calculates the new weights based on the gradient
     *
     * @param weightVector
@@ -287,11 +287,8 @@ class GradientDescentL2 extends GradientDescent {
       regularizationConstant: Double,
       learningRate: Double)
     : Vector = {
-    // add the gradient of the L2 regularization
-    BLAS.axpy(regularizationConstant, weightVector, gradient)
 
-    // update the weights according to the learning rate
-    BLAS.axpy(-learningRate, gradient, weightVector)
+    L2Regularization.takeStep(weightVector, gradient, regularizationConstant,learningRate)
 
     weightVector
   }
@@ -306,7 +303,7 @@ object GradientDescentL2 {
   * The regularization function is `||w||_1` with `w` being the weight vector.
   */
 class GradientDescentL1 extends GradientDescent {
-
+  //TODO(skavulya): Pass regularization penalty as a parameter
   /** Calculates the new weights based on the gradient.
     *
     * @param weightVector
@@ -321,19 +318,8 @@ class GradientDescentL1 extends GradientDescent {
       regularizationConstant: Double,
       learningRate: Double)
     : Vector = {
-    // Update weight vector with gradient. L1 regularization has no gradient, the proximal operator
-    // does the job.
-    BLAS.axpy(-learningRate, gradient, weightVector)
 
-    // Apply proximal operator (soft thresholding)
-    val shrinkageVal = regularizationConstant * learningRate
-    var i = 0
-    while (i < weightVector.size) {
-      val wi = weightVector(i)
-      weightVector(i) = scala.math.signum(wi) *
-        scala.math.max(0.0, scala.math.abs(wi) - shrinkageVal)
-      i += 1
-    }
+    L1Regularization.takeStep(weightVector, gradient, regularizationConstant,learningRate)
 
     weightVector
   }
@@ -348,7 +334,7 @@ object GradientDescentL1 {
   * No regularization is applied.
   */
 class SimpleGradientDescent extends GradientDescent {
-
+  //TODO(skavulya): Pass regularization penalty as a parameter
   /** Calculates the new weights based on the gradient.
     *
     * @param weightVector
@@ -364,8 +350,7 @@ class SimpleGradientDescent extends GradientDescent {
       learningRate: Double)
     : Vector = {
     // Update the weight vector
-    BLAS.axpy(-learningRate, gradient, weightVector)
-    weightVector
+    NoRegularization.takeStep(weightVector, gradient, regularizationConstant,learningRate)
   }
 }
 

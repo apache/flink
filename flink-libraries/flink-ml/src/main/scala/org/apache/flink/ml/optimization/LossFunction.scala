@@ -23,8 +23,8 @@ import org.apache.flink.ml.math.BLAS
 
 /** Abstract class that implements some of the functionality for common loss functions
   *
-  * A loss function determines the loss term $L(w) of the objective function  $f(w) = L(w) +
-  * \lambda R(w)$ for prediction tasks, the other being regularization, $R(w)$.
+  * A loss function determines the loss term `L(w)` of the objective function  `f(w) = L(w) +
+  * lambda*R(w)` for prediction tasks, the other being regularization, `R(w)`.
   *
   * The regularization is specific to the used optimization algorithm and, thus, implemented there.
   *

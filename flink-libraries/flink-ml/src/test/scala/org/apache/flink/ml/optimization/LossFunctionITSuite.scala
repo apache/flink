@@ -37,7 +37,6 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-
     val example = LabeledVector(1.0, DenseVector(2))
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
 
@@ -47,5 +46,68 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
     loss should be (2.0 +- 0.001)
 
     gradient.weights(0) should be (4.0 +- 0.001)
+  }
+
+  it should "calculate logistic loss and gradient correctly" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val lossFunction = GenericLossFunction(LogisticLoss, LinearPrediction)
+
+    val examples = List(
+      LabeledVector(1.0, DenseVector(2)),
+      LabeledVector(1.0, DenseVector(20)),
+      LabeledVector(1.0, DenseVector(-25))
+    )
+
+    val weightVector = new WeightVector(DenseVector(1.0), 1.0)
+    val expectedLosses = List(0.049, 7.58e-10, 24.0)
+    val expectedGradients = List(-0.095, -1.52e-8, 25.0)
+
+    expectedLosses zip examples foreach {
+      case (expectedLoss, example) => {
+        val loss = lossFunction.loss(example, weightVector)
+        loss should be (expectedLoss +- 0.001)
+      }
+    }
+
+    expectedGradients zip examples foreach {
+      case (expectedGradient, example) => {
+        val gradient = lossFunction.gradient(example, weightVector)
+        gradient.weights(0) should be (expectedGradient +- 0.001)
+      }
+    }
+  }
+
+  it should "calculate hinge loss and gradient correctly" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val lossFunction = GenericLossFunction(HingeLoss, LinearPrediction)
+
+    val examples = List(
+      LabeledVector(1.0, DenseVector(2)),
+      LabeledVector(1.0, DenseVector(-2))
+    )
+
+    val weightVector = new WeightVector(DenseVector(1.0), 1.0)
+    val expectedLosses = List(0.0, 2.0)
+    val expectedGradients = List(0.0, 2.0)
+
+    expectedLosses zip examples foreach {
+      case (expectedLoss, example) => {
+        val loss = lossFunction.loss(example, weightVector)
+        loss should be (expectedLoss +- 0.001)
+      }
+    }
+
+    expectedGradients zip examples foreach {
+      case (expectedGradient, example) => {
+        val gradient = lossFunction.gradient(example, weightVector)
+        gradient.weights(0) should be (expectedGradient +- 0.001)
+      }
+    }
   }
 }
