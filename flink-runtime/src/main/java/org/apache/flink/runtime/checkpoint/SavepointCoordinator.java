@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.japi.Creator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -334,9 +335,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			if (getJobStatusListener() == null) {
 				Props props = Props.create(
-						SavepointCoordinatorDeActivator.class,
-						this,
-						leaderSessionID);
+					SavepointCoordinatorDeActivator.class,
+					new SavepointCoordinatorDeActivatorCreator(this, leaderSessionID));
 
 				// wrap the ActorRef in a AkkaActorGateway to support message decoration
 				setJobStatusListener(new AkkaActorGateway(
@@ -351,6 +351,27 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	// ------------------------------------------------------------------------
 	// Completed checkpoints
 	// ------------------------------------------------------------------------
+
+	private static class SavepointCoordinatorDeActivatorCreator implements Creator<SavepointCoordinatorDeActivator> {
+
+		private static final long serialVersionUID = -7159442644775636028L;
+
+		private final transient SavepointCoordinator savepointCoordinator;
+		private final UUID leaderSessionID;
+
+		SavepointCoordinatorDeActivatorCreator(
+			SavepointCoordinator savepointCoordinator,
+			UUID leaderSessionID) {
+
+			this.savepointCoordinator = savepointCoordinator;
+			this.leaderSessionID = leaderSessionID;
+		}
+
+		@Override
+		public SavepointCoordinatorDeActivator create() throws Exception {
+			return new SavepointCoordinatorDeActivator(savepointCoordinator, leaderSessionID);
+		}
+	}
 
 	private static class IgnoreCompletedCheckpointsStore implements CompletedCheckpointStore {
 

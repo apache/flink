@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.japi.Creator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
@@ -994,7 +995,9 @@ public class CheckpointCoordinator {
 			}
 
 			if (jobStatusListener == null) {
-				Props props = Props.create(CheckpointCoordinatorDeActivator.class, this, leaderSessionID);
+				Props props = Props.create(
+					CheckpointCoordinatorDeActivator.class,
+					new CheckpointCoordinatorDeActivatorCreator(this, leaderSessionID));
 
 				// wrap the ActorRef in a AkkaActorGateway to support message decoration
 				jobStatusListener = new AkkaActorGateway(actorSystem.actorOf(props), leaderSessionID);
@@ -1006,14 +1009,33 @@ public class CheckpointCoordinator {
 
 	// ------------------------------------------------------------------------
 
+	private static class CheckpointCoordinatorDeActivatorCreator implements Creator<CheckpointCoordinatorDeActivator> {
+
+		private static final long serialVersionUID = 8690426061660839304L;
+
+		private final transient CheckpointCoordinator checkpointCoordinator;
+		private final UUID leaderSessionID;
+
+		CheckpointCoordinatorDeActivatorCreator(
+			CheckpointCoordinator checkpointCoordinator,
+			UUID leaderSessionID) {
+			this.checkpointCoordinator = checkpointCoordinator;
+			this.leaderSessionID = leaderSessionID;
+		}
+
+		@Override
+		public CheckpointCoordinatorDeActivator create() throws Exception {
+			return new CheckpointCoordinatorDeActivator(checkpointCoordinator, leaderSessionID);
+		}
+	}
+
 	private class ScheduledTrigger extends TimerTask {
 
 		@Override
 		public void run() {
 			try {
 				triggerCheckpoint(System.currentTimeMillis());
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint", e);
 			}
 		}
