@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -271,15 +272,7 @@ public class StreamGraphGeneratorTest {
 
 		StreamPartitioner<?> streamPartitioner = keyedResultNode.getInEdges().get(0).getPartitioner();
 
-		assertTrue(streamPartitioner instanceof KeyGroupStreamPartitioner);
-
-		KeyGroupStreamPartitioner<?, ?> keyGroupStreamPartitioner = (KeyGroupStreamPartitioner<?, ?>) streamPartitioner;
-
-		KeyGroupAssigner<?> keyGroupAssigner = keyGroupStreamPartitioner.getKeyGroupAssigner();
-
-		assertTrue(keyGroupAssigner instanceof HashKeyGroupAssigner);
-
-		HashKeyGroupAssigner<?> hashKeyGroupAssigner = (HashKeyGroupAssigner<?>) keyGroupAssigner;
+		HashKeyGroupAssigner<?> hashKeyGroupAssigner = extractHashKeyGroupAssigner(streamPartitioner);
 
 		assertEquals(maxParallelism, hashKeyGroupAssigner.getNumberKeyGroups());
 	}
@@ -391,6 +384,66 @@ public class StreamGraphGeneratorTest {
 		assertEquals(maxParallelism, keyedResult4Node.getMaxParallelism());
 	}
 
+	/**
+	 * Tests that the max parallelism and the key group partitioner is properly set for connected
+	 * streams.
+	 */
+	@Test
+	public void testMaxParallelismWithConnectedKeyedStream() {
+		int maxParallelism = 42;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128);
+		DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129);
+
+		env.getConfig().setMaxParallelism(maxParallelism);
+
+		DataStream<Integer> keyedResult = input1.connect(input2).keyBy(
+			 new KeySelector<Integer, Integer>() {
+				 private static final long serialVersionUID = -6908614081449363419L;
+
+				 @Override
+				 public Integer getKey(Integer value) throws Exception {
+					 return value;
+				 }
+			},
+			new KeySelector<Integer, Integer>() {
+				private static final long serialVersionUID = 3195683453223164931L;
+
+				@Override
+				public Integer getKey(Integer value) throws Exception {
+					return value;
+				}
+			}).map(new NoOpIntCoMap());
+
+		keyedResult.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		StreamNode keyedResultNode = graph.getStreamNode(keyedResult.getId());
+
+		StreamPartitioner<?> streamPartitioner1 = keyedResultNode.getInEdges().get(0).getPartitioner();
+		StreamPartitioner<?> streamPartitioner2 = keyedResultNode.getInEdges().get(1).getPartitioner();
+
+		HashKeyGroupAssigner<?> hashKeyGroupAssigner1 = extractHashKeyGroupAssigner(streamPartitioner1);
+		assertEquals(maxParallelism, hashKeyGroupAssigner1.getNumberKeyGroups());
+
+		HashKeyGroupAssigner<?> hashKeyGroupAssigner2 = extractHashKeyGroupAssigner(streamPartitioner2);
+		assertEquals(maxParallelism, hashKeyGroupAssigner2.getNumberKeyGroups());
+	}
+
+	private HashKeyGroupAssigner<?> extractHashKeyGroupAssigner(StreamPartitioner<?> streamPartitioner) {
+		assertTrue(streamPartitioner instanceof KeyGroupStreamPartitioner);
+
+		KeyGroupStreamPartitioner<?, ?> keyGroupStreamPartitioner = (KeyGroupStreamPartitioner<?, ?>) streamPartitioner;
+
+		KeyGroupAssigner<?> keyGroupAssigner = keyGroupStreamPartitioner.getKeyGroupAssigner();
+
+		assertTrue(keyGroupAssigner instanceof HashKeyGroupAssigner);
+
+		return (HashKeyGroupAssigner<?>) keyGroupAssigner;
+	}
+
 	private static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
@@ -451,5 +504,18 @@ public class StreamGraphGeneratorTest {
 			tpeInformation = outTypeInfo;
 		}
 	}
+
+	static class NoOpIntCoMap implements CoMapFunction<Integer, Integer, Integer> {
+		private static final long serialVersionUID = 1886595528149124270L;
+
+		public Integer map1(Integer value) throws Exception {
+			return value;
+		}
+
+		public Integer map2(Integer value) throws Exception {
+			return value;
+		}
+
+	};
 
 }
