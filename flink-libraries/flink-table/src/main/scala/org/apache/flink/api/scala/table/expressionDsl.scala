@@ -213,7 +213,7 @@ trait ImplicitExpressionConversions {
   }
 
   implicit class SymbolExpression(s: Symbol) extends ImplicitExpressionOperations {
-    def expr = UnresolvedFieldReference(s.name)
+    def expr = FieldReference(s.name)
   }
 
   implicit class LiteralLongExpression(l: Long) extends ImplicitExpressionOperations {
@@ -240,7 +240,7 @@ trait ImplicitExpressionConversions {
     def expr = Literal(bool)
   }
 
-  implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
+  implicit def symbol2FieldExpression(sym: Symbol): Expression = FieldReference(sym.name)
   implicit def int2Literal(i: Int): Expression = Literal(i)
   implicit def long2Literal(l: Long): Expression = Literal(l)
   implicit def double2Literal(d: Double): Expression = Literal(d)

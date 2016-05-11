@@ -18,13 +18,11 @@
 
 package org.apache.flink.api.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.TableException
+
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetJoin, DataSetConvention}
 
 import scala.collection.JavaConversions._
@@ -42,15 +40,8 @@ class DataSetJoinRule
     val joinInfo = join.analyzeCondition
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    val hasValidCondition = !joinInfo.pairs().isEmpty
-    // only inner joins are supported at the moment
-    val isInnerJoin = join.getJoinType.equals(JoinRelType.INNER)
-    if (!isInnerJoin) {
-      throw new TableException("OUTER JOIN is currently not supported.")
-    }
+    !joinInfo.pairs().isEmpty
 
-    // check that condition is valid and inner join
-    hasValidCondition && isInnerJoin
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -61,21 +52,22 @@ class DataSetJoinRule
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
     val joinInfo = join.analyzeCondition
 
-    new DataSetJoin(
-      rel.getCluster,
-      traitSet,
-      convLeft,
-      convRight,
-      rel.getRowType,
-      join.getCondition,
-      join.getRowType,
-      joinInfo,
-      joinInfo.pairs.toList,
-      JoinType.INNER,
-      null,
-      description)
+        new DataSetJoin(
+          rel.getCluster,
+          traitSet,
+          convLeft,
+          convRight,
+          rel.getRowType,
+          join.getCondition,
+          join.getRowType,
+          joinInfo,
+          joinInfo.pairs.toList,
+          join.getJoinType,
+          null,
+          description)
+    }
+
   }
-}
 
 object DataSetJoinRule {
   val INSTANCE: RelOptRule = new DataSetJoinRule
