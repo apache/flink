@@ -231,10 +231,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
 
-    val expected =
-      "Hi,Hallo\n" +
-        "Hello,Hallo Welt\n" +
-        "I am fine.,IJK"
+    val expected = "Hi,Hallo\n" +
+      "Hello,Hallo Welt\n" +
+      "I am fine.,IJK"
     val results = joinT.toDataSet[Row] collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -249,12 +248,11 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
 
-    val expected =
-      "I am fine.,Hallo Welt\n" +
-        "Luke Skywalker,Hallo Welt wie gehts?\n" +
-        "Luke Skywalker,ABC\n" +
-        "Comment#2,HIJ\n" +
-        "Comment#2,IJK"
+    val expected = "I am fine.,Hallo Welt\n" +
+      "Luke Skywalker,Hallo Welt wie gehts?\n" +
+      "Luke Skywalker,ABC\n" +
+      "Comment#2,HIJ\n" +
+      "Comment#2,IJK"
     val results = joinT.toDataSet[Row] collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
