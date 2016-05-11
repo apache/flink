@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Partitioner selects the target channel based on the key group index. The key group
@@ -40,12 +41,8 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 	private final KeyGroupAssigner<K> keyGroupAssigner;
 
 	public KeyGroupStreamPartitioner(KeySelector<T, K> keySelector, KeyGroupAssigner<K> keyGroupAssigner) {
-		this.keySelector = keySelector;
-		this.keyGroupAssigner = keyGroupAssigner;
-	}
-
-	public void setup(int maxParallelism) {
-		keyGroupAssigner.setup(maxParallelism);
+		this.keySelector = Preconditions.checkNotNull(keySelector);
+		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
 	}
 
 	@Override

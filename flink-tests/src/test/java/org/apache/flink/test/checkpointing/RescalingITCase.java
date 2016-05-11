@@ -45,7 +45,9 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-import org.junit.Rule;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
@@ -64,19 +66,46 @@ import static org.junit.Assert.assertTrue;
 
 public class RescalingITCase extends TestLogger {
 
-	private int numTaskManagers = 2;
-	private int slotsPerTaskManager = 2;
-	private int numSlots = numTaskManagers * slotsPerTaskManager;
+	private static int numTaskManagers = 2;
+	private static int slotsPerTaskManager = 2;
+	private static int numSlots = numTaskManagers * slotsPerTaskManager;
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	private static ForkableFlinkMiniCluster cluster;
+
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void setup() throws Exception {
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
+
+		final File checkpointDir = temporaryFolder.newFolder();
+		final File savepointDir = temporaryFolder.newFolder();
+
+		config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
+		config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
+		config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
+
+		cluster = new ForkableFlinkMiniCluster(config);
+		cluster.start();
+	}
+
+	@AfterClass
+	public static void teardown() {
+		if (cluster != null) {
+			cluster.shutdown();
+		}
+	}
 
 	/**
-	 * Tests that a a job with partitioned state can be restarted with a different parallelism.
+	 * Tests that a a job with purely partitioned state can be restarted from a savepoint
+	 * with a different parallelism.
 	 */
 	@Test
-	public void testRescalingWithPartitionedState() throws Exception {
-		ForkableFlinkMiniCluster cluster = null;
+	public void testSavepointRescalingWithPartitionedState() throws Exception {
 		int numberKeys = 42;
 		int numberElements = 1000;
 		int numberElements2 = 500;
@@ -87,21 +116,6 @@ public class RescalingITCase extends TestLogger {
 		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
 		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
-
-			final File checkpointDir = temporaryFolder.newFolder();
-			final File savepointDir = temporaryFolder.newFolder();
-
-			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
-			config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
-
-			cluster = new ForkableFlinkMiniCluster(config);
-			cluster.start();
-
 			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
 			JobGraph jobGraph = createPartitionedStateJobGraph(parallelism, maxParallelism, numberKeys, numberElements, false, 100);
@@ -167,15 +181,19 @@ public class RescalingITCase extends TestLogger {
 			assertEquals(expectedResult2, actualResult2);
 
 		} finally {
-			if (cluster != null) {
-				cluster.shutdown();
-			}
+			// clear the CollectionSink set for the restarted job
+			CollectionSink.clearElementsSet();
 		}
 	}
 
+	/**
+	 * Tests that a job cannot be restarted from a savepoint with a different parallelism if the
+	 * rescaled operator has non-partitioned state.
+	 *
+	 * @throws Exception
+	 */
 	@Test
-	public void testSavepointRescalingWithNonPartitionedState() throws Exception {
-		ForkableFlinkMiniCluster cluster = null;
+	public void testSavepointRescalingFailureWithNonPartitionedState() throws Exception {
 		int parallelism = numSlots / 2;
 		int parallelism2 = numSlots;
 		int maxParallelism = 13;
@@ -183,21 +201,6 @@ public class RescalingITCase extends TestLogger {
 		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
 		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
-
-			final File checkpointDir = temporaryFolder.newFolder();
-			final File savepointDir = temporaryFolder.newFolder();
-
-			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
-			config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
-
-			cluster = new ForkableFlinkMiniCluster(config);
-			cluster.start();
-
 			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
 			JobGraph jobGraph = createNonPartitionedStateJobGraph(parallelism, maxParallelism, 500);
@@ -207,7 +210,7 @@ public class RescalingITCase extends TestLogger {
 			cluster.submitJobDetached(jobGraph);
 
 			// wait till all tasks have been started
-			SubtaskIndexNonPartitionedSource.workStartedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			NonPartitionedStateSource.workStartedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
 
@@ -245,10 +248,108 @@ public class RescalingITCase extends TestLogger {
 			} else {
 				throw exception;
 			}
-		} finally {
-			if (cluster != null) {
-				cluster.shutdown();
+		}
+	}
+
+	/**
+	 * Tests that a job with non partitioned state can be restarted from a savepoint with a
+	 * different parallelism if the operator with non-partitioned state are not rescaled.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testSavepointRescalingWithPartiallyNonPartitionedState() throws Exception {
+		int numberKeys = 42;
+		int numberElements = 1000;
+		int numberElements2 = 500;
+		int parallelism = numSlots / 2;
+		int parallelism2 = numSlots;
+		int maxParallelism = 13;
+
+		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		try {
+			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
+
+			JobGraph jobGraph = createPartitionedNonPartitionedStateJobGraph(
+				parallelism,
+				maxParallelism,
+				parallelism,
+				numberKeys,
+				numberElements,
+				false,
+				100);
+
+			JobID jobID = jobGraph.getJobID();
+
+			cluster.submitJobDetached(jobGraph);
+
+			// wait til the sources have emitted numberElements for each key and completed a checkpoint
+			SubtaskIndexFlatMapper.workCompletedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			// verify the current state
+
+			Set<Tuple2<Integer, Integer>> actualResult = CollectionSink.getElementsSet();
+
+			Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
+
+			HashKeyGroupAssigner<Integer> keyGroupAssigner = new HashKeyGroupAssigner<>(maxParallelism);
+
+			for (int key = 0; key < numberKeys; key++) {
+				int keyGroupIndex = keyGroupAssigner.getKeyGroupIndex(key);
+
+				expectedResult.add(Tuple2.of(keyGroupIndex % parallelism, numberElements * key));
 			}
+
+			assertEquals(expectedResult, actualResult);
+
+			// clear the CollectionSink set for the restarted job
+			CollectionSink.clearElementsSet();
+
+			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
+
+			final String savepointPath = ((JobManagerMessages.TriggerSavepointSuccess)
+				Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+
+			Future<Object> jobRemovedFuture = jobManager.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobID), deadline.timeLeft());
+
+			Future<Object> cancellationResponseFuture = jobManager.ask(new JobManagerMessages.CancelJob(jobID), deadline.timeLeft());
+
+			Object cancellationResponse = Await.result(cancellationResponseFuture, deadline.timeLeft());
+
+			assertTrue(cancellationResponse instanceof JobManagerMessages.CancellationSuccess);
+
+			Await.ready(jobRemovedFuture, deadline.timeLeft());
+
+			JobGraph scaledJobGraph = createPartitionedNonPartitionedStateJobGraph(
+				parallelism2,
+				maxParallelism,
+				parallelism,
+				numberKeys,
+				numberElements + numberElements2,
+				true,
+				100);
+
+			scaledJobGraph.setSavepointPath(savepointPath);
+
+			cluster.submitJobAndWait(scaledJobGraph, false);
+
+			Set<Tuple2<Integer, Integer>> actualResult2 = CollectionSink.getElementsSet();
+
+			Set<Tuple2<Integer, Integer>> expectedResult2 = new HashSet<>();
+
+			HashKeyGroupAssigner<Integer> keyGroupAssigner2 = new HashKeyGroupAssigner<>(maxParallelism);
+
+			for (int key = 0; key < numberKeys; key++) {
+				int keyGroupIndex = keyGroupAssigner2.getKeyGroupIndex(key);
+				expectedResult2.add(Tuple2.of(keyGroupIndex % parallelism2, key * (numberElements + numberElements2)));
+			}
+
+			assertEquals(expectedResult2, actualResult2);
+
+		} finally {
+			// clear the CollectionSink set for the restarted job
+			CollectionSink.clearElementsSet();
 		}
 	}
 
@@ -258,9 +359,9 @@ public class RescalingITCase extends TestLogger {
 		env.getConfig().setMaxParallelism(maxParallelism);
 		env.enableCheckpointing(checkpointInterval);
 
-		SubtaskIndexNonPartitionedSource.workStartedLatch = new CountDownLatch(parallelism);
+		NonPartitionedStateSource.workStartedLatch = new CountDownLatch(parallelism);
 
-		DataStream<Integer> input = env.addSource(new SubtaskIndexNonPartitionedSource());
+		DataStream<Integer> input = env.addSource(new NonPartitionedStateSource());
 
 		input.addSink(new DiscardingSink<Integer>());
 
@@ -302,6 +403,43 @@ public class RescalingITCase extends TestLogger {
 		return env.getStreamGraph().getJobGraph();
 	}
 
+	private static JobGraph createPartitionedNonPartitionedStateJobGraph(
+		int parallelism,
+		int maxParallelism,
+		int fixedParallelism,
+		int numberKeys,
+		int numberElements,
+		boolean terminateAfterEmission,
+		int checkpointingInterval) {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(parallelism);
+		env.getConfig().setMaxParallelism(maxParallelism);
+		env.enableCheckpointing(checkpointingInterval);
+
+		DataStream<Integer> input = env.addSource(new SubtaskIndexNonPartitionedStateSource(
+			numberKeys,
+			numberElements,
+			terminateAfterEmission))
+			.setParallelism(fixedParallelism)
+			.keyBy(new KeySelector<Integer, Integer>() {
+				private static final long serialVersionUID = -7952298871120320940L;
+
+				@Override
+				public Integer getKey(Integer value) throws Exception {
+					return value;
+				}
+			});
+
+		SubtaskIndexFlatMapper.workCompletedLatch = new CountDownLatch(numberKeys);
+
+		DataStream<Tuple2<Integer, Integer>> result = input.flatMap(new SubtaskIndexFlatMapper(numberElements));
+
+		result.addSink(new CollectionSink());
+
+		return env.getStreamGraph().getJobGraph();
+	}
+
 	private static class SubtaskIndexSource
 		extends RichParallelSourceFunction<Integer> {
 
@@ -311,7 +449,7 @@ public class RescalingITCase extends TestLogger {
 		private final int numberElements;
 		private final boolean terminateAfterEmission;
 
-		private int counter = 0;
+		protected int counter = 0;
 
 		private boolean running = true;
 
@@ -356,6 +494,25 @@ public class RescalingITCase extends TestLogger {
 		@Override
 		public void cancel() {
 			running = false;
+		}
+	}
+
+	private static class SubtaskIndexNonPartitionedStateSource extends SubtaskIndexSource implements Checkpointed<Integer> {
+
+		private static final long serialVersionUID = 8388073059042040203L;
+
+		SubtaskIndexNonPartitionedStateSource(int numberKeys, int numberElements, boolean terminateAfterEmission) {
+			super(numberKeys, numberElements, terminateAfterEmission);
+		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return counter;
+		}
+
+		@Override
+		public void restoreState(Integer state) throws Exception {
+			counter = state;
 		}
 	}
 
@@ -415,7 +572,7 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class SubtaskIndexNonPartitionedSource extends RichParallelSourceFunction<Integer> implements Checkpointed<Integer> {
+	private static class NonPartitionedStateSource extends RichParallelSourceFunction<Integer> implements Checkpointed<Integer> {
 
 		private static final long serialVersionUID = -8108185918123186841L;
 
@@ -460,6 +617,4 @@ public class RescalingITCase extends TestLogger {
 			running = true;
 		}
 	}
-
-
 }

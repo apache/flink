@@ -48,7 +48,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Generic tests for the partitioned state part of {@link AbstractStateBackend}.
+ * Generic tests for the partitioned state part of {@link PartitionedStateBackend}.
  */
 public abstract class StateBackendTestBase<B extends PartitionedStateBackend<Integer>> extends TestLogger {
 

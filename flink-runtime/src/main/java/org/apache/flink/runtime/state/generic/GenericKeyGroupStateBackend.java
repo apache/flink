@@ -211,7 +211,7 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 		for (Map.Entry<Integer, PartitionedStateBackend<KEY>> entry: partitionedStateBackends.entrySet()) {
 			PartitionedStateSnapshot partitionedStateSnapshot = entry.getValue().snapshotPartitionedState(checkpointId, timestamp);
 
-			if (partitionedStateSnapshot != null) {
+			if (partitionedStateSnapshot != null && !partitionedStateSnapshot.isEmpty()) {
 				partitionedStateSnapshots.put(entry.getKey(), partitionedStateSnapshot);
 			}
 		}
@@ -221,9 +221,11 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 
 	@Override
 	public void restorePartitionedState(Map<Integer, PartitionedStateSnapshot> partitionedStateSnapshots, long recoveryTimestamp) throws Exception {
-		for (Map.Entry<Integer, PartitionedStateSnapshot> entry: partitionedStateSnapshots.entrySet()) {
-			PartitionedStateBackend<KEY> partitionedStateBackend = getBackend(entry.getKey());
-			partitionedStateBackend.restorePartitionedState(entry.getValue(), recoveryTimestamp);
+		if (partitionedStateSnapshots != null) {
+			for (Map.Entry<Integer, PartitionedStateSnapshot> entry : partitionedStateSnapshots.entrySet()) {
+				PartitionedStateBackend<KEY> partitionedStateBackend = getBackend(entry.getKey());
+				partitionedStateBackend.restorePartitionedState(entry.getValue(), recoveryTimestamp);
+			}
 		}
 	}
 
