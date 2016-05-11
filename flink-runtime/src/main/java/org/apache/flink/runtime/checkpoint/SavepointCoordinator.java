@@ -232,7 +232,7 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 						executionJobVertex.getMaxParallelism(),
 						executionJobVertex.getParallelism());
 
-					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {
+					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 						SerializedValue<StateHandle<?>> state = null;
 
 						if (hasNonPartitionedState) {

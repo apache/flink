@@ -802,14 +802,6 @@ public class CheckpointCoordinator {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
 
 				if (executionJobVertex != null) {
-					// check that we only restore the state if the parallelism has not been changed
-					if (taskState.getParallelism() != executionJobVertex.getParallelism()) {
-						throw new RuntimeException("Cannot restore the latest checkpoint because " +
-							"the parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
-							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
-							"state object has a parallelism of " + taskState.getParallelism());
-					}
-
 					// check that the number of key groups have not changed
 					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
 						throw new IllegalStateException("The maximum parallelism (" +
@@ -822,21 +814,40 @@ public class CheckpointCoordinator {
 
 					int counter = 0;
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(executionJobVertex.getMaxParallelism(), executionJobVertex.getParallelism());
+					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
+
+					if (hasNonPartitionedState && taskState.getParallelism() != executionJobVertex.getParallelism()) {
+						throw new RuntimeException("Cannot restore the latest checkpoint because " +
+							"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
+							"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
+							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
+							"state object has a parallelism of " + taskState.getParallelism());
+					}
+
+					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
+						executionJobVertex.getMaxParallelism(),
+						executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
-						SubtaskState subtaskState = taskState.getState(i);
 						SerializedValue<StateHandle<?>> state = null;
 
-						if (subtaskState != null) {
-							// count the number of executions for which we set a state
-							counter++;
-							state = subtaskState.getState();
+						if (hasNonPartitionedState) {
+							SubtaskState subtaskState = taskState.getState(i);
+
+							if (subtaskState != null) {
+								// count the number of executions for which we set a state
+								counter++;
+								state = subtaskState.getState();
+							}
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
+						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState
+							.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
-						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
+						Execution currentExecutionAttempt = executionJobVertex
+							.getTaskVertices()[i]
+							.getCurrentExecutionAttempt();
+
 						currentExecutionAttempt.setInitialState(state, keyGroupState, recoveryTimestamp);
 					}
 
