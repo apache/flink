@@ -33,6 +33,7 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
@@ -74,7 +75,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 	
-	private boolean hasNext = true;
+	private boolean hasNext;
 	private Object[][] parameterValues;
 	
 	public JDBCInputFormat() {
@@ -107,19 +108,21 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	public void closeInputFormat() {
 		//called once per inputFormat (on close)
 		try {
-			statement.close();
+			if(statement != null) {
+				statement.close();
+			}
 		} catch (SQLException se) {
 			LOG.info("Inputformat Statement couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
 		} finally {
 			statement = null;
 		}
 		
 		try {
-			dbConn.close();
+			if(dbConn != null) {
+				dbConn.close();
+			}
 		} catch (SQLException se) {
 			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
 		} finally {
 			dbConn = null;
 		}
@@ -128,14 +131,16 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	}
 
 	/**
-	 * Connects to the source database and executes the query.
+	 * Connects to the source database and executes the query in a <b>parallel fashion</b> if
+	 * this {@link InputFormat} is built using a parameterized query (i.e. using a {@link PreparedStatement})
+	 * and a proper {@link ParameterValuesProvider}, in a <b>non-parallel fashion</b> otherwise. 
 	 *
-	 * @param ignored
-	 * @throws IOException
+	 * @param inputSplit which is ignored if this InputFormat is executed as a non-parallel source,
+	 *  a "hook" to the query parameters otherwise (using its <i>splitNumber</i>)
+	 * @throws IOException if there's an error during the execution of the query
 	 */
 	@Override
 	public void open(InputSplit inputSplit) throws IOException {
-		hasNext = true;
 		try {
 			if (inputSplit != null && parameterValues != null) {
 				for (int i = 0; i < parameterValues[inputSplit.getSplitNumber()].length; i++) {
@@ -176,6 +181,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 				}
 			}
 			resultSet = statement.executeQuery();
+			hasNext = resultSet.next();
 		} catch (SQLException se) {
 			close();
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
@@ -189,12 +195,14 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	 */
 	@Override
 	public void close() throws IOException {
+		if(resultSet == null) {
+			return;
+		}
 		try {
 			resultSet.close();
 		} catch (SQLException se) {
 			LOG.info("Inputformat ResultSet couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
-		}
+		} 
 	}
 
 	/**
@@ -211,14 +219,13 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	/**
 	 * Stores the next resultSet row in a tuple
 	 *
-	 * @param tuple
-	 * @return tuple containing next row
+	 * @param row
+	 * @return row containing next {@link Row}
 	 * @throws java.io.IOException
 	 */
 	@Override
 	public Row nextRecord(Row row) throws IOException {
 		try {
-			hasNext = resultSet.next();
 			if (!hasNext) {
 				return null;
 			}
@@ -234,6 +241,8 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 			for (int pos = 0; pos < row.productArity(); pos++) {
 				row.setField(pos, resultSet.getObject(pos + 1));
 			}
+			//update hasNext after we've read the record
+			hasNext = resultSet.next();
 			return row;
 		} catch (SQLException se) {
 			close();
@@ -279,7 +288,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 
 		public JDBCInputFormatBuilder() {
 			this.format = new JDBCInputFormat();
-			//use the "Firehose cursor" (see http://jtds.sourceforge.net/resultSets.html)
+			//using TYPE_FORWARD_ONLY for high performance reads
 			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
 			this.format.resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 		}
@@ -318,6 +327,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 			format.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
+		
 		public JDBCInputFormatBuilder setParametersProvider(ParameterValuesProvider parameterValuesProvider) {
 			format.parameterValues = parameterValuesProvider.getParameterValues();
 			return this;

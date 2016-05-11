@@ -27,9 +27,9 @@ import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
  * Each query will be parameterized using a row of the matrix provided by each {@link ParameterValuesProvider} implementation
  * 
  * */
-public interface ParameterValuesProvider extends Serializable {
+public interface ParameterValuesProvider {
 
 	/** Returns the necessary parameters array to use for query in parallel a table */
-	public Object[][] getParameterValues();
+	public Serializable[][] getParameterValues();
 	
 }

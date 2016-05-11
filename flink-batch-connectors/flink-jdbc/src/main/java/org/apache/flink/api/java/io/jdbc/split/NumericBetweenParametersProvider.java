@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.java.io.jdbc.split;
 
+import java.io.Serializable;
+
 /** 
  * 
  * This query generator assumes that the query to parameterize contains a BETWEEN constraint on a numeric column.
@@ -34,7 +36,6 @@ package org.apache.flink.api.java.io.jdbc.split;
  * */
 public class NumericBetweenParametersProvider implements ParameterValuesProvider {
 
-	private static final long serialVersionUID = 1L;
 	private long fetchSize;
 	private final long min;
 	private final long max;
@@ -46,15 +47,10 @@ public class NumericBetweenParametersProvider implements ParameterValuesProvider
 	}
 
 	@Override
-	public Object[][] getParameterValues(){
-		double maxEelemCount = (max - min) + 1;
-		int size = new Double(Math.ceil(maxEelemCount / fetchSize)).intValue();
-		//decomment if we ever have to respect the minNumSplits constraint..
-//		if (minNumberOfQueries > size) {
-//			size = minNumberOfQueries;
-//			fetchSize = new Double(Math.ceil(maxEelemCount / minNumberOfQueries)).intValue();
-//		}
-		Object[][] parameters = new Object[size][2];
+	public Serializable[][] getParameterValues(){
+		double maxElemCount = (max - min) + 1;
+		int size = new Double(Math.ceil(maxElemCount / fetchSize)).intValue();
+		Serializable[][] parameters = new Serializable[size][2];
 		int count = 0;
 		for (long i = min; i < max; i += fetchSize, count++) {
 			long currentLimit = i + fetchSize - 1;

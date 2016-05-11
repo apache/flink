@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.sql.ResultSet;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -79,6 +80,8 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setQuery(SELECT_ALL_BOOKS)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
+		//this query does not exploit parallelism
+		Assert.assertEquals(1, jdbcInputFormat.createInputSplits(1).length);
 		jdbcInputFormat.openInputFormat();
 		jdbcInputFormat.open(null);
 		Row row =  new Row(5);
@@ -120,8 +123,11 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
+
 		jdbcInputFormat.openInputFormat();
 		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
+		//this query exploit parallelism (1 split for every id)
+		Assert.assertEquals(testData.length, splits.length);
 		int recordCount = 0;
 		Row row =  new Row(5);
 		for (int i = 0; i < splits.length; i++) {
@@ -152,7 +158,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	
 	@Test
 	public void testJDBCInputFormatWithParallelismAndGenericSplitting() throws IOException, InstantiationException, IllegalAccessException {
-		Object[][] queryParameters = new Object[2][1];
+		Serializable[][] queryParameters = new String[2][1];
 		queryParameters[0] = new String[]{"Kumar"};
 		queryParameters[1] = new String[]{"Tan Ah Teck"};
 		ParameterValuesProvider paramProvider = new GenericParameterValuesProvider(queryParameters);
@@ -165,6 +171,8 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcInputFormat.openInputFormat();
 		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
+		//this query exploit parallelism (1 split for every queryParameters row)
+		Assert.assertEquals(queryParameters.length, splits.length);
 		int recordCount = 0;
 		Row row =  new Row(5);
 		for (int i = 0; i < splits.length; i++) {
@@ -199,14 +207,14 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat.openInputFormat();
 		jdbcInputFormat.open(null);
 		Row row = new Row(5);
-		int loopCnt = 0;
+		int recordsCnt = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			Assert.assertNull(jdbcInputFormat.nextRecord(row));
-			loopCnt++;
+			recordsCnt++;
 		}
 		jdbcInputFormat.close();
 		jdbcInputFormat.closeInputFormat();
-		Assert.assertEquals(1, loopCnt);
+		Assert.assertEquals(0, recordsCnt);
 
 	}
 	

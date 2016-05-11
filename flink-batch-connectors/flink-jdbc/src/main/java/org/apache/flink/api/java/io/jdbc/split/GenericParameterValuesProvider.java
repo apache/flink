@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.java.io.jdbc.split;
 
+import java.io.Serializable;
+
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 
 /** 
@@ -27,15 +29,14 @@ import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
  * */
 public class GenericParameterValuesProvider implements ParameterValuesProvider {
 
-	private static final long serialVersionUID = 1L;
-	private final Object[][] parameters;
+	private final Serializable[][] parameters;
 	
-	public GenericParameterValuesProvider(Object[][] parameters) {
+	public GenericParameterValuesProvider(Serializable[][] parameters) {
 		this.parameters = parameters;
 	}
 
 	@Override
-	public Object[][] getParameterValues(){
+	public Serializable[][] getParameterValues(){
 		//do nothing...precomputed externally
 		return parameters;
 	}
