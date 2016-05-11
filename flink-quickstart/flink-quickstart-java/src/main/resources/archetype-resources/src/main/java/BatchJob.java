@@ -21,9 +21,9 @@ package ${package};
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Skeleton for a Flink Job.
+ * Skeleton for a Flink Batch Job.
  *
- * For a full example of a Flink Job, see the WordCountJob.java file in the
+ * For a full example of a Flink Batch Job, see the WordCountJob.java file in the
  * same package/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
@@ -32,28 +32,29 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * 		mvn clean package
  * in the projects root directory.
  * You will find the jar in
- * 		target/flink-quickstart-0.1-SNAPSHOT-Sample.jar
- *
+ * 		target/flink-quickstart-0.1-SNAPSHOT.jar
+ * From the cli you can then run
+ * 		./bin/flink run -c  &lt;BatchJob&gt; &lt;quickstart jar&gt;
  */
-public class Job {
+public class BatchJob {
 
 	public static void main(String[] args) throws Exception {
-		// set up the execution environment
+		// set up the batch execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
 
 		/**
 		 * Here, you can start creating your execution plan for Flink.
 		 *
 		 * Start with getting some data from the environment, like
-		 * 	env.readTextFile(textPath);
+		 * env.readTextFile(textPath);
 		 *
 		 * then, transform the resulting DataSet<String> using operations
-		 * like
+		 * like:
 		 * 	.filter()
 		 * 	.flatMap()
 		 * 	.join()
 		 * 	.coGroup()
+		 *
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
@@ -66,6 +67,6 @@ public class Job {
 		 */
 
 		// execute program
-		env.execute("Flink Java API Skeleton");
+		env.execute("Flink Batch Java API Skeleton");
 	}
 }

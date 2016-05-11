@@ -21,9 +21,9 @@ package ${package}
 import org.apache.flink.api.scala._
 
 /**
- * Skeleton for a Flink Job.
+ * Skeleton for a Flink Batch Job.
  *
- * For a full example of a Flink Job, see the WordCountJob.scala file in the
+ * For a full example of a Flink Batch Job, see the WordCountJob.scala file in the
  * same package/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
@@ -32,12 +32,15 @@ import org.apache.flink.api.scala._
  *   mvn clean package
  * }}}
  * in the projects root directory. You will find the jar in
- * target/flink-quickstart-0.1-SNAPSHOT-Sample.jar
- *
+ * target/flink-quickstart-0.1-SNAPSHOT.jar
+ * From the cli you can then run
+ * {{{
+ *    ./bin/flink run -c <BatchJob> <quickstart jar>
+ * }}}
  */
-object Job {
+object BatchJob {
   def main(args: Array[String]) {
-    // set up the execution environment
+    // set up the batch execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     /**
@@ -64,8 +67,7 @@ object Job {
      *
      */
 
-
     // execute program
-    env.execute("Flink Scala API Skeleton")
+    env.execute("Flink Batch Scala API Skeleton")
   }
 }
