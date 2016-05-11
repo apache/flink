@@ -21,6 +21,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.UnresolvedException
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}
 
 trait NamedExpression extends Expression {
@@ -41,7 +42,7 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
   override def withName(newName: String): Attribute = UnresolvedFieldReference(newName)
 
   override def resultType: TypeInformation[_] =
-    throw new UnresolvedException(s"calling dataType on ${this.getClass}")
+    throw new UnresolvedException(s"calling resultType on ${this.getClass}")
 
   override def validateInput(): ExprValidationResult =
     ValidationFailure(s"Unresolved reference $name")
@@ -100,7 +101,7 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
     throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override def resultType: TypeInformation[_] =
-    throw new UnresolvedException("Invalid call to dataType on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override lazy val valid = false
 }

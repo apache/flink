@@ -32,3 +32,8 @@ case class TableException(msg: String) extends RuntimeException(msg)
   * Exception for all errors occurring during validation phase.
   */
 case class ValidationException(msg: String) extends RuntimeException(msg)
+
+/**
+  * Exception for unwanted method calling on unresolved expression.
+  */
+case class UnresolvedException(msg: String) extends RuntimeException(msg)

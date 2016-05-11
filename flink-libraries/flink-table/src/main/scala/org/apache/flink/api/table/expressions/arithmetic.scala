@@ -26,7 +26,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, TypeInformation}
-import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeConverter}
+import org.apache.flink.api.table.typeutils.{TypeCheckUtils, TypeCoercion, TypeConverter}
 import org.apache.flink.api.table.validate._
 
 abstract class BinaryArithmetic extends BinaryExpression {

@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.expressions
+package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
 
+/**
+  * Utilities for type conversions.
+  */
 object TypeCoercion {
 
   val numericWideningPrecedence: IndexedSeq[TypeInformation[_]] =
@@ -47,18 +50,43 @@ object TypeCoercion {
     }
   }
 
-  def canSafelyCasted(from: TypeInformation[_], to: TypeInformation[_]): Boolean = {
-    (from, to) match {
-      case (_, STRING_TYPE_INFO) => true
+  /**
+    * Test if we can do cast safely without lose of information.
+    */
+  def canSafelyCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
+    case (_, STRING_TYPE_INFO) => true
 
-      case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
-        if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
-          true
-        } else {
-          false
-        }
+    case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
+      if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
+        true
+      } else {
+        false
+      }
 
-      case _ => false
-    }
+    case _ => false
+  }
+
+  /**
+    * All the supported cast types in flink-table.
+    * Note: This may lose information during the cast.
+    */
+  def canCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
+    case (from, to) if from == to => true
+
+    case (_, STRING_TYPE_INFO) => true
+
+    case (_, DATE_TYPE_INFO) => false // Date type not supported yet.
+    case (_, VOID_TYPE_INFO) => false // Void type not supported
+    case (_, CHAR_TYPE_INFO) => false // Character type not supported.
+
+    case (STRING_TYPE_INFO, _: NumericTypeInfo[_]) => true
+    case (STRING_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
+
+    case (BOOLEAN_TYPE_INFO, _: NumericTypeInfo[_]) => true
+    case (_: NumericTypeInfo[_], BOOLEAN_TYPE_INFO) => true
+
+    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => true
+
+    case _ => false
   }
 }

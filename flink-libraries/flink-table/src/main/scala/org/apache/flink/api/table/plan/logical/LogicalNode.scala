@@ -23,6 +23,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.table.{TableEnvironment, ValidationException}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.trees.TreeNode
+import org.apache.flink.api.table.typeutils.TypeCoercion
 import org.apache.flink.api.table.validate._
 
 /**
@@ -63,7 +64,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
         var changed: Boolean = false
         val newChildren = ips.expectedTypes.zip(ips.children).map { case (tpe, child) =>
           val childType = child.resultType
-          if (childType != tpe && TypeCoercion.canSafelyCasted(childType, tpe)) {
+          if (childType != tpe && TypeCoercion.canSafelyCast(childType, tpe)) {
             changed = true
             Cast(child, tpe)
           } else {
