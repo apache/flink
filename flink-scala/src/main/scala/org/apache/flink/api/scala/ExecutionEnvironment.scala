@@ -378,10 +378,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def readFile[T : ClassTag : TypeInformation](
       inputFormat: FileInputFormat[T],
-      filePath: String): DataSet[T] = {
+      filePaths: String*): DataSet[T] = {
     require(inputFormat != null, "InputFormat must not be null.")
-    require(filePath != null, "File path must not be null.")
-    inputFormat.setFilePath(new Path(filePath))
+    require(filePaths != null, "File path must not be null.")
+    inputFormat.setFilePaths(filePaths:_*)
     createInput(inputFormat, implicitly[TypeInformation[T]])
   }
 

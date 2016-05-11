@@ -289,113 +289,115 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		final long oldTimeout = this.openTimeout;
 		final int oldBufferSize = this.bufferSize;
 		final int oldLineLengthLimit = this.lineLengthLimit;
-		try {
-			final Path filePath = this.filePath;
-		
-			// get the filesystem
-			final FileSystem fs = FileSystem.get(filePath.toUri());
-			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
+		for (Path filePath: this.filePathList) {
+			try {
 			
-			// let the file input format deal with the up-to-date check and the basic size
-			final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
-			if (stats == null) {
-				return null;
-			}
-			
-			// check whether the width per record is already known or the total size is unknown as well
-			// in both cases, we return the stats as they are
-			if (stats.getAverageRecordWidth() != FileBaseStatistics.AVG_RECORD_BYTES_UNKNOWN ||
-					stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
-				return stats;
-			}
-			
-			// disabling sampling for unsplittable files since the logic below assumes splitability.
-			// TODO: Add sampling for unsplittable files. Right now, only compressed text files are affected by this limitation.
-			if(unsplittable) {
-				return stats;
-			}
-			
-			// compute how many samples to take, depending on the defined upper and lower bound
-			final int numSamples;
-			if (this.numLineSamples != NUM_SAMPLES_UNDEFINED) {
-				numSamples = this.numLineSamples;
-			} else {
-				// make the samples small for very small files
-				final int calcSamples = (int) (stats.getTotalInputSize() / 1024);
-				numSamples = Math.min(DEFAULT_MAX_NUM_SAMPLES, Math.max(DEFAULT_MIN_NUM_SAMPLES, calcSamples));
-			}
-			
-			// check if sampling is disabled.
-			if (numSamples == 0) {
-				return stats;
-			}
-			if (numSamples < 0) {
-				throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
-			}
-			
-			
-			// make sure that the sampling times out after a while if the file system does not answer in time
-			this.openTimeout = 10000;
-			// set a small read buffer size
-			this.bufferSize = 4 * 1024;
-			// prevent overly large records, for example if we have an incorrectly configured delimiter
-			this.lineLengthLimit = MAX_SAMPLE_LEN;
-			
-			long offset = 0;
-			long totalNumBytes = 0;
-			long stepSize = stats.getTotalInputSize() / numSamples;
+				// get the filesystem
+				final FileSystem fs = FileSystem.get(filePath.toUri());
+				final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
+				
+				// let the file input format deal with the up-to-date check and the basic size
+				final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
+				if (stats == null) {
+					return null;
+				}
+				
+				// check whether the width per record is already known or the total size is unknown as well
+				// in both cases, we return the stats as they are
+				if (stats.getAverageRecordWidth() != FileBaseStatistics.AVG_RECORD_BYTES_UNKNOWN ||
+						stats.getTotalInputSize() == FileBaseStatistics.SIZE_UNKNOWN) {
+					return stats;
+				}
+				
+				// disabling sampling for unsplittable files since the logic below assumes splitability.
+				// TODO: Add sampling for unsplittable files. Right now, only compressed text files are affected by this limitation.
+				if(unsplittable) {
+					return stats;
+				}
+				
+				// compute how many samples to take, depending on the defined upper and lower bound
+				final int numSamples;
+				if (this.numLineSamples != NUM_SAMPLES_UNDEFINED) {
+					numSamples = this.numLineSamples;
+				} else {
+					// make the samples small for very small files
+					final int calcSamples = (int) (stats.getTotalInputSize() / 1024);
+					numSamples = Math.min(DEFAULT_MAX_NUM_SAMPLES, Math.max(DEFAULT_MIN_NUM_SAMPLES, calcSamples));
+				}
+				
+				// check if sampling is disabled.
+				if (numSamples == 0) {
+					return stats;
+				}
+				if (numSamples < 0) {
+					throw new RuntimeException("Error: Invalid number of samples: " + numSamples);
+				}
+				
+				
+				// make sure that the sampling times out after a while if the file system does not answer in time
+				this.openTimeout = 10000;
+				// set a small read buffer size
+				this.bufferSize = 4 * 1024;
+				// prevent overly large records, for example if we have an incorrectly configured delimiter
+				this.lineLengthLimit = MAX_SAMPLE_LEN;
+				
+				long offset = 0;
+				long totalNumBytes = 0;
+				long stepSize = stats.getTotalInputSize() / numSamples;
 
-			int fileNum = 0;
-			int samplesTaken = 0;
+				int fileNum = 0;
+				int samplesTaken = 0;
 
-			// take the samples
-			while (samplesTaken < numSamples && fileNum < allFiles.size()) {
-				// make a split for the sample and use it to read a record
-				FileStatus file = allFiles.get(fileNum);
-				FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null);
+				// take the samples
+				while (samplesTaken < numSamples && fileNum < allFiles.size()) {
+					// make a split for the sample and use it to read a record
+					FileStatus file = allFiles.get(fileNum);
+					FileInputSplit split = new FileInputSplit(0, file.getPath(), offset, file.getLen() - offset, null);
 
-				// we open the split, read one line, and take its length
-				try {
-					open(split);
-					if (readLine()) {
-						totalNumBytes += this.currLen + this.delimiter.length;
-						samplesTaken++;
+					// we open the split, read one line, and take its length
+					try {
+						open(split);
+						if (readLine()) {
+							totalNumBytes += this.currLen + this.delimiter.length;
+							samplesTaken++;
+						}
+					} finally {
+						// close the file stream, do not release the buffers
+						super.close();
 					}
-				} finally {
-					// close the file stream, do not release the buffers
-					super.close();
+
+					offset += stepSize;
+
+					// skip to the next file, if necessary
+					while (fileNum < allFiles.size() && offset >= (file = allFiles.get(fileNum)).getLen()) {
+						offset -= file.getLen();
+						fileNum++;
+					}
 				}
-
-				offset += stepSize;
-
-				// skip to the next file, if necessary
-				while (fileNum < allFiles.size() && offset >= (file = allFiles.get(fileNum)).getLen()) {
-					offset -= file.getLen();
-					fileNum++;
+				
+				// we have the width, store it
+				return new FileBaseStatistics(stats.getLastModificationTime(),
+					stats.getTotalInputSize(), totalNumBytes / (float) samplesTaken);
+				
+			} catch (IOException ioex) {
+				if (LOG.isWarnEnabled()) {
+					LOG.warn("Could not determine statistics for file '" + filePath + "' due to an io error: "
+							+ ioex.getMessage());
 				}
 			}
-			
-			// we have the width, store it
-			return new FileBaseStatistics(stats.getLastModificationTime(),
-				stats.getTotalInputSize(), totalNumBytes / (float) samplesTaken);
-			
-		} catch (IOException ioex) {
-			if (LOG.isWarnEnabled()) {
-				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
-						+ ioex.getMessage());
+			catch (Throwable t) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Unexpected problen while getting the file statistics for file '" + filePath + "': "
+							+ t.getMessage(), t);
+				}
+			} finally {
+				// restore properties (even on return)
+				this.openTimeout = oldTimeout;
+				this.bufferSize = oldBufferSize;
+				this.lineLengthLimit = oldLineLengthLimit;
 			}
 		}
-		catch (Throwable t) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
-						+ t.getMessage(), t);
-			}
-		} finally {
-			// restore properties (even on return)
-			this.openTimeout = oldTimeout;
-			this.bufferSize = oldBufferSize;
-			this.lineLengthLimit = oldLineLengthLimit;
-		}
+
 		
 		// no statistics possible
 		return null;

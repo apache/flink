@@ -199,7 +199,182 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+	
+	// -- Multiple Files -- //
+	
+	@Test
+	public void testGetStatisticsMultipleNonExistingFile() {
+		try {
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePaths("file:///some/none/existing/directory/","file:///another/non/existing/directory/");
+			format.configure(new Configuration());
+			
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertNull("The file statistics should be null.", stats);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleOneFileNoCachedVersion() {
+		try {
+			final long SIZE = 1024 * 500;
+			String tempFile = TestFileUtils.createTempFile(SIZE);
 
+			final long SIZE2 = 1024 * 505;
+			String tempFile2 = TestFileUtils.createTempFile(SIZE2);
+
+			final long TOTAL_SIZE = SIZE + SIZE2;
+			
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePaths(tempFile, tempFile2);
+			format.configure(new Configuration());
+			
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL_SIZE, stats.getTotalInputSize());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleFilesMultiplePathsNoCachedVersion() {
+		try {
+			final long SIZE1 = 2077;
+			final long SIZE2 = 31909;
+			final long SIZE3 = 10;
+			final long TOTAL = SIZE1 + SIZE2 + SIZE3;
+			
+			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			
+			final long SIZE4 = 2051;
+			final long SIZE5 = 31902;
+			final long SIZE6 = 15;
+			final long TOTAL2 = SIZE4 + SIZE5 + SIZE6;
+			String tempDir2 = TestFileUtils.createTempFileDir(SIZE4, SIZE5, SIZE6);
+
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePaths(tempDir, tempDir2);
+			format.configure(new Configuration());
+			
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL + TOTAL2, stats.getTotalInputSize());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleOneFileWithCachedVersion() {
+		try {
+			final long SIZE = 50873;
+			final long FAKE_SIZE = 10065;
+			
+			String tempFile = TestFileUtils.createTempFile(SIZE);
+
+			final long SIZE2 = 52573;
+			String tempFile2 = TestFileUtils.createTempFile(SIZE2);
+
+			final long SIZE_TOTAL = SIZE + SIZE2;
+			
+			DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePaths(tempFile, tempFile2);
+			format.configure(new Configuration());
+			
+			
+			
+			FileBaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals("The file size from the statistics is wrong.", SIZE_TOTAL, stats.getTotalInputSize());
+			
+			format = new DummyFileInputFormat();
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics newStats = format.getStatistics(stats);
+			Assert.assertTrue("Statistics object was changed", newStats == stats);
+
+			// insert fake stats with the correct modification time. the call should return the fake stats
+			format = new DummyFileInputFormat();
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			BaseStatistics latest = format.getStatistics(fakeStats);
+			Assert.assertEquals("The file size from the statistics is wrong.", FAKE_SIZE, latest.getTotalInputSize());
+			
+			// insert fake stats with the expired modification time. the call should return new accurate stats
+			format = new DummyFileInputFormat();
+			format.setFilePaths(tempFile, tempFile2);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+			Assert.assertEquals("The file size from the statistics is wrong.", SIZE_TOTAL, reGathered.getTotalInputSize());
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleFilesMultiplePathsWithCachedVersion() {
+		try {
+			final long SIZE1 = 2077;
+			final long SIZE2 = 31909;
+			final long SIZE3 = 10;
+
+			final long SIZE4 = 2177;
+			final long SIZE5 = 33909;
+			final long SIZE6 = 18;
+
+			final long TOTAL = SIZE1 + SIZE2 + SIZE3 + SIZE4 + SIZE5 + SIZE6;
+			final long FAKE_SIZE = 10065;
+			
+			String tempDir = TestFileUtils.createTempFileDir(SIZE1, SIZE2, SIZE3);
+			String tempDir2 = TestFileUtils.createTempFileDir(SIZE4, SIZE5, SIZE6);
+			
+			DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePaths(tempDir, tempDir2);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, stats.getTotalInputSize());
+			
+			format = new DummyFileInputFormat();
+			format.setFilePaths(tempDir, tempDir2);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics newStats = format.getStatistics(stats);
+			Assert.assertTrue("Statistics object was changed", newStats == stats);
+
+			// insert fake stats with the correct modification time. the call should return the fake stats
+			format = new DummyFileInputFormat();
+			format.setFilePaths(tempDir, tempDir2);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			BaseStatistics latest = format.getStatistics(fakeStats);
+			Assert.assertEquals("The file size from the statistics is wrong.", FAKE_SIZE, latest.getTotalInputSize());
+			
+			// insert fake stats with the correct modification time. the call should return the fake stats
+			format = new DummyFileInputFormat();
+			format.setFilePaths(tempDir, tempDir2);
+			format.configure(new Configuration());
+			
+			FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+			BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+			Assert.assertEquals("The file size from the statistics is wrong.", TOTAL, reGathered.getTotalInputSize());
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
 	// ------------------------------------------------------------------------
 	//  Unsplittable input files
 	// ------------------------------------------------------------------------
