@@ -24,7 +24,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner selects the target channel based on the key group index. The Key group
+ * Partitioner selects the target channel based on the key group index. The key group
  * index is derived from the key of the elements using the {@link KeyGroupAssigner}.
  *
  * @param <T> Type of the elements in the Stream being partitioned

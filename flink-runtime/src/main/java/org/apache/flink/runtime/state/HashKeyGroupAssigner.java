@@ -46,6 +46,10 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 		this.numberKeyGroups = numberKeyGroups;
 	}
 
+	public int getNumberKeyGroups() {
+		return numberKeyGroups;
+	}
+
 	@Override
 	public int getKeyGroupIndex(K key) {
 		if (key == null) {
@@ -60,11 +64,11 @@ public class HashKeyGroupAssigner<K> implements KeyGroupAssigner<K> {
 	}
 
 	@Override
-	public void setup(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0, "The number of key groups has to be " +
+	public void setup(int numberKeyGroups) {
+		Preconditions.checkArgument(numberKeyGroups > 0, "The number of key groups has to be " +
 			"greater than 0. Use setMaxParallelism() to specify the number of key " +
 			"groups.");
 
-		numberKeyGroups = maxParallelism;
+		this.numberKeyGroups = numberKeyGroups;
 	}
 }

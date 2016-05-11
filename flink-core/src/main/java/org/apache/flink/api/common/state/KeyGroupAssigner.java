@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 
 /**
@@ -26,6 +28,7 @@ import java.io.Serializable;
  *
  * @param <K> Type of the key
  */
+@Internal
 public interface KeyGroupAssigner<K> extends Serializable {
 	/**
 	 * Calculates the key group index for the given key.
