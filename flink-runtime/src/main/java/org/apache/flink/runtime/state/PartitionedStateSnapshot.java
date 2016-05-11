@@ -76,10 +76,6 @@ public class PartitionedStateSnapshot implements Serializable {
 		return stateSize;
 	}
 
-	public boolean isEmpty() throws Exception {
-		return getStateSize() == 0;
-	}
-
 	public void discardState() throws Exception {
 
 		while (!namedKvStateSnapshots.isEmpty()) {

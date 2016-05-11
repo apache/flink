@@ -45,6 +45,10 @@ public class KeyGroupStreamPartitioner<T, K> extends StreamPartitioner<T> implem
 		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
 	}
 
+	public KeyGroupAssigner<K> getKeyGroupAssigner() {
+		return keyGroupAssigner;
+	}
+
 	@Override
 	public int[] selectChannels(
 		SerializationDelegate<StreamRecord<T>> record,

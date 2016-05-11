@@ -19,8 +19,11 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -33,8 +36,10 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
@@ -235,6 +240,155 @@ public class StreamGraphGeneratorTest {
 		StreamGraph graph = env.getStreamGraph();
 
 		assertEquals(BasicTypeInfo.INT_TYPE_INFO, outputTypeConfigurableOperation.getTypeInformation());
+	}
+
+	/**
+	 * Tests that the KeyGroupStreamPartitioner are properly set up with the correct value of
+	 * maximum parallelism.
+	 */
+	@Test
+	public void testSetupOfKeyGroupPartitioner() {
+		int maxParallelism = 42;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(maxParallelism);
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3);
+
+		DataStream<Integer> keyedResult = source.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 9205556348021992189L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap());
+
+		keyedResult.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		StreamNode keyedResultNode = graph.getStreamNode(keyedResult.getId());
+
+		StreamPartitioner<?> streamPartitioner = keyedResultNode.getInEdges().get(0).getPartitioner();
+
+		assertTrue(streamPartitioner instanceof KeyGroupStreamPartitioner);
+
+		KeyGroupStreamPartitioner<?, ?> keyGroupStreamPartitioner = (KeyGroupStreamPartitioner<?, ?>) streamPartitioner;
+
+		KeyGroupAssigner<?> keyGroupAssigner = keyGroupStreamPartitioner.getKeyGroupAssigner();
+
+		assertTrue(keyGroupAssigner instanceof HashKeyGroupAssigner);
+
+		HashKeyGroupAssigner<?> hashKeyGroupAssigner = (HashKeyGroupAssigner<?>) keyGroupAssigner;
+
+		assertEquals(maxParallelism, hashKeyGroupAssigner.getNumberKeyGroups());
+	}
+
+	/**
+	 * Tests that the global and operator-wide max parallelism setting is respected
+	 */
+	@Test
+	public void testMaxParallelismForwarding() {
+		int globalMaxParallelism = 42;
+		int keyedResult2MaxParallelism = 17;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(globalMaxParallelism);
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3);
+
+		DataStream<Integer> keyedResult1 = source.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 9205556348021992189L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap());
+
+		DataStream<Integer> keyedResult2 = keyedResult1.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1250168178707154838L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap()).setMaxParallelism(keyedResult2MaxParallelism);
+
+		keyedResult2.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		StreamNode keyedResult1Node = graph.getStreamNode(keyedResult1.getId());
+		StreamNode keyedResult2Node = graph.getStreamNode(keyedResult2.getId());
+
+		assertEquals(globalMaxParallelism, keyedResult1Node.getMaxParallelism());
+		assertEquals(keyedResult2MaxParallelism, keyedResult2Node.getMaxParallelism());
+	}
+
+	/**
+	 * Tests that the max parallelism is automatically set to the parallelism if it has not been
+	 * specified.
+	 */
+	@Test
+	public void testAutoMaxParallelism() {
+		int globalParallelism = 42;
+		int mapParallelism = 17;
+		int maxParallelism = 21;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(globalParallelism);
+
+		DataStream<Integer> source = env.fromElements(1, 2, 3);
+
+		DataStream<Integer> keyedResult1 = source.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 9205556348021992189L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap());
+
+		DataStream<Integer> keyedResult2 = keyedResult1.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1250168178707154838L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap()).setParallelism(mapParallelism);
+
+		DataStream<Integer> keyedResult3 = keyedResult2.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1250168178707154838L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap()).setMaxParallelism(maxParallelism);
+
+		DataStream<Integer> keyedResult4 = keyedResult3.keyBy(new KeySelector<Integer, Integer>() {
+			private static final long serialVersionUID = 1250168178707154838L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				return value;
+			}
+		}).map(new NoOpIntMap()).setMaxParallelism(maxParallelism).setParallelism(mapParallelism);
+
+		keyedResult4.addSink(new NoOpSink<Integer>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		StreamNode keyedResult1Node = graph.getStreamNode(keyedResult1.getId());
+		StreamNode keyedResult2Node = graph.getStreamNode(keyedResult2.getId());
+		StreamNode keyedResult3Node = graph.getStreamNode(keyedResult3.getId());
+		StreamNode keyedResult4Node = graph.getStreamNode(keyedResult4.getId());
+
+		assertEquals(globalParallelism, keyedResult1Node.getMaxParallelism());
+		assertEquals(mapParallelism, keyedResult2Node.getMaxParallelism());
+		assertEquals(maxParallelism, keyedResult3Node.getMaxParallelism());
+		assertEquals(maxParallelism, keyedResult4Node.getMaxParallelism());
 	}
 
 	private static class OutputTypeConfigurableOperationWithTwoInputs

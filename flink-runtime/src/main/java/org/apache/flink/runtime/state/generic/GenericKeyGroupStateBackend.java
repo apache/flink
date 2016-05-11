@@ -211,7 +211,7 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 		for (Map.Entry<Integer, PartitionedStateBackend<KEY>> entry: partitionedStateBackends.entrySet()) {
 			PartitionedStateSnapshot partitionedStateSnapshot = entry.getValue().snapshotPartitionedState(checkpointId, timestamp);
 
-			if (partitionedStateSnapshot != null && !partitionedStateSnapshot.isEmpty()) {
+			if (partitionedStateSnapshot != null) {
 				partitionedStateSnapshots.put(entry.getKey(), partitionedStateSnapshot);
 			}
 		}
