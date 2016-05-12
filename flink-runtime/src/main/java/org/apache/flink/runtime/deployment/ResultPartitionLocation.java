@@ -47,6 +47,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class ResultPartitionLocation implements Serializable {
 
+	private static final long serialVersionUID = -6354238166937194463L;
 	/** The type of location for the result partition. */
 	private final LocationType locationType;
 
