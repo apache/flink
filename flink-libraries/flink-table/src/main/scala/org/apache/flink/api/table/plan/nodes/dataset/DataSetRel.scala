@@ -25,9 +25,9 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
+import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.api.table.plan.nodes.FlinkRel
 import org.apache.flink.api.table.runtime.MapRunner
-import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
 
 import scala.collection.JavaConversions._
 
@@ -69,7 +69,6 @@ trait DataSetRel extends RelNode with FlinkRel {
 
   private[dataset] def getConversionMapper(
       config: TableConfig,
-      nullableInput: Boolean,
       inputType: TypeInformation[Any],
       expectedType: TypeInformation[Any],
       conversionOperatorName: String,
@@ -78,7 +77,6 @@ trait DataSetRel extends RelNode with FlinkRel {
 
     val generator = new CodeGenerator(
       config,
-      nullableInput,
       inputType,
       None,
       inputPojoFieldMapping)
