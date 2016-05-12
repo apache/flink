@@ -83,10 +83,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
-
 		Collection<W> elementWindows = windowAssigner.assignWindows(
-			element.getValue(),
-			element.getTimestamp());
+				element.getValue(),
+				element.getTimestamp(),
+				windowAssignerContext);
 
 		final K key = (K) getStateBackend().getCurrentKey();
 

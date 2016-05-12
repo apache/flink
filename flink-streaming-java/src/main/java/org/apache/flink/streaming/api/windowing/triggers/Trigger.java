@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.Serializable;
 
@@ -127,6 +128,12 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	public interface TriggerContext {
 
 		/**
+		 * Returns the current processing time, as returned by
+		 * the {@link StreamTask#getCurrentProcessingTime()}.
+		 */
+		long getCurrentProcessingTime();
+
+		/**
 		 * Returns the metric group for this {@link Trigger}. This is the same metric
 		 * group that would be returned from {@link RuntimeContext#getMetricGroup()} in a user
 		 * function.
@@ -170,7 +177,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		void deleteEventTimeTimer(long time);
 	
 		/**
-		 * Retrieves an {@link State} object that can be used to interact with
+		 * Retrieves a {@link State} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
 		 * trigger invocation.
 		 *

@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.WindowAssignerContext;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
@@ -80,9 +81,9 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>
  * When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
- * assigned to zero or more windows using a {@link WindowAssigner}. Based on this the element
- * is put into panes. A pane is the bucket of elements that have the same key and belong to the same
- * {@code Window}. An element can be in multiple panes of it was assigned to multiple windows by the
+ * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
+ * is put into panes. A pane is the bucket of elements that have the same key and same
+ * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by the
  * {@code WindowAssigner}.
  *
  * <p>
@@ -159,6 +160,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected transient long currentWatermark = Long.MIN_VALUE;
 
 	protected transient Context context = new Context(null, null);
+
+	protected transient WindowAssignerContext windowAssignerContext;
 
 	// ------------------------------------------------------------------------
 	// State that needs to be checkpointed
@@ -245,6 +248,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		context = new Context(null, null);
 
+		windowAssignerContext = new WindowAssignerContext() {
+			@Override
+			public long getCurrentProcessingTime() {
+				return WindowOperator.this.getCurrentProcessingTime();
+			}
+		};
+
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			mergingWindowsByKey = new HashMap<>();
 		}
@@ -261,6 +271,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		processingTimeTimers = null;
 		processingTimeTimersQueue = null;
 		context = null;
+		windowAssignerContext = null;
 		mergingWindowsByKey = null;
 	}
 
@@ -273,16 +284,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		processingTimeTimers = null;
 		processingTimeTimersQueue = null;
 		context = null;
+		windowAssignerContext = null;
 		mergingWindowsByKey = null;
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
-
 		Collection<W> elementWindows = windowAssigner.assignWindows(
-			element.getValue(),
-			element.getTimestamp());
+			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
 		final K key = (K) getStateBackend().getCurrentKey();
 
@@ -669,6 +679,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
+		public long getCurrentProcessingTime() {
+			return WindowOperator.this.getCurrentProcessingTime();
+		}
+
+		@Override
 		public void registerProcessingTimeTimer(long time) {
 			Timer<K, W> timer = new Timer<>(time, key, window);
 			// make sure we only put one timer per key into the queue
@@ -676,7 +691,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				processingTimeTimersQueue.add(timer);
 				//If this is the first timer added for this timestamp register a TriggerTask
 				if (processingTimeTimerTimestamps.add(time, 1) == 0) {
-					ScheduledFuture<?> scheduledFuture= getRuntimeContext().registerTimer(time, WindowOperator.this);
+					ScheduledFuture<?> scheduledFuture = WindowOperator.this.registerTimer(time, WindowOperator.this);
 					processingTimeTimerFutures.put(time, scheduledFuture);
 				}
 			}
