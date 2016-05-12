@@ -808,11 +808,12 @@ under the License.
 					</licenseFamilies>
 					<excludes>
 						<!-- Additional files like .gitignore etc.-->
-						<exclude>**/.*</exclude>
+						<exclude>**/.*/**</exclude>
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
 						<!-- External web libraries. -->
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
@@ -865,7 +866,7 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>docs/_site/**</exclude>
+						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
