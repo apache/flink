@@ -93,7 +93,15 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public ScheduledFuture<?> registerTimer(long time, Triggerable target) {
 		return operator.registerTimer(time, target);
 	}
-	
+
+	/**
+	 * Returns the current processing time as defined by the task's
+	 * {@link org.apache.flink.streaming.runtime.tasks.TimeServiceProvider TimeServiceProvider}
+	 */
+	public long getCurrentProcessingTime() {
+		return operator.getCurrentProcessingTime();
+	}
+
 	// ------------------------------------------------------------------------
 	//  broadcast variables
 	// ------------------------------------------------------------------------

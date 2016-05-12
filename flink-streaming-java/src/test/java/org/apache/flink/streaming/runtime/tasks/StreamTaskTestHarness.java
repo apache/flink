@@ -113,6 +113,13 @@ public class StreamTaskTestHarness<OUT> {
 		outputStreamRecordSerializer = new MultiplexingStreamRecordSerializer<OUT>(outputSerializer);
 	}
 
+	public long getCurrentProcessingTime() {
+		if (!(task instanceof StreamTask)) {
+			System.currentTimeMillis();
+		}
+		return ((StreamTask) task).getCurrentProcessingTime();
+	}
+
 	/**
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */

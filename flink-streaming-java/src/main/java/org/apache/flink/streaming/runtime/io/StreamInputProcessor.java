@@ -63,7 +63,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
  */
 @Internal
 public class StreamInputProcessor<IN> {
-	
+
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
@@ -76,7 +76,7 @@ public class StreamInputProcessor<IN> {
 
 	private boolean isFinished;
 
-	
+
 
 	private final long[] watermarks;
 	private long lastEmittedWatermark;

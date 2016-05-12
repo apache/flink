@@ -51,8 +51,9 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+		long currentProcessingTime = context.getCurrentProcessingTime();
+		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout));
 	}
 
 	@Override

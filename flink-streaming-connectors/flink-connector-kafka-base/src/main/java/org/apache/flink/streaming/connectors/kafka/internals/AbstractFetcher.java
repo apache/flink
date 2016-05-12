@@ -425,7 +425,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		//-------------------------------------------------
 		
 		public void start() {
-			triggerContext.registerTimer(System.currentTimeMillis() + interval, this);
+			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
 		}
 		
 		@Override
@@ -454,7 +454,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			}
 			
 			// schedule the next watermark
-			triggerContext.registerTimer(System.currentTimeMillis() + interval, this);
+			triggerContext.registerTimer(triggerContext.getCurrentProcessingTime() + interval, this);
 		}
 	}
 }

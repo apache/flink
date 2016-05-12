@@ -27,10 +27,12 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 
 /**
- * A {@link Trigger} that continuously fires based on a given time interval. The time is the current
- * system time.
+ * A {@link Trigger} that continuously fires based on a given time interval. The current (processing)
+ * time is provided by the {@link TimeServiceProvider}
+ * of the {@link org.apache.flink.streaming.runtime.tasks.StreamTask} executing the Trigger.
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
@@ -52,7 +54,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 
-		timestamp = System.currentTimeMillis();
+		timestamp = ctx.getCurrentProcessingTime();
 
 		if (fireTimestamp.get() == null) {
 			long start = timestamp - (timestamp % interval);
@@ -87,6 +89,8 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+		long timestamp = fireTimestamp.get();
+		ctx.deleteProcessingTimeTimer(timestamp);
 		fireTimestamp.clear();
 	}
 

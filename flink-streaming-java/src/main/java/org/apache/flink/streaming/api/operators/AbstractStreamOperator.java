@@ -262,6 +262,10 @@ public abstract class AbstractStreamOperator<OUT>
 		return container.registerTimer(time, target);
 	}
 
+	protected long getCurrentProcessingTime() {
+		return container.getCurrentProcessingTime();
+	}
+
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
 	 * 

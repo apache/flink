@@ -50,8 +50,9 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
 	 *
 	 * @param element The element to which windows should be assigned.
 	 * @param timestamp The timestamp of the element.
+	 * @param context The {@link WindowAssignerContext} in which the assigner operates.
 	 */
-	public abstract Collection<W> assignWindows(T element, long timestamp);
+	public abstract Collection<W> assignWindows(T element, long timestamp, WindowAssignerContext context);
 
 	/**
 	 * Returns the default trigger associated with this {@code WindowAssigner}.
