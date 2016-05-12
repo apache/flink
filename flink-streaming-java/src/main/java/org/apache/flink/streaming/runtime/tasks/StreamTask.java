@@ -113,7 +113,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	private final Object lock = new Object();
 	
 	/** the head operator that consumes the input streams of this task */
-	protected Operator headOperator;
+	Operator headOperator;
 
 	/** The chain of operators executed by this task */
 	private OperatorChain<OUT> operatorChain;
@@ -121,9 +121,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** The configuration of this streaming task */
 	private StreamConfig configuration;
 
-	/** The class loader used to load dynamic classes of a job */
-	private ClassLoader userClassLoader;
-	
 	/** The executor service that schedules and calls the triggers of this task*/
 	private ScheduledThreadPoolExecutor timerService;
 	
@@ -177,11 +174,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// -------- Initialize ---------
 			LOG.debug("Initializing {}", getName());
 
-			userClassLoader = getUserCodeClassLoader();
 			configuration = new StreamConfig(getTaskConfiguration());
 			accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
-			headOperator = configuration.getStreamOperator(userClassLoader);
+			headOperator = configuration.getStreamOperator(getUserCodeClassLoader());
 			operatorChain = new OperatorChain<>(this, headOperator, 
 						getEnvironment().getAccumulatorRegistry().getReadWriteReporter());
 
@@ -377,7 +373,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		}
 	}
 
-	protected boolean isSerializingTimestamps() {
+	boolean isSerializingTimestamps() {
 		TimeCharacteristic tc = configuration.getTimeCharacteristic();
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
 	}
@@ -411,11 +407,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		return accumulatorMap;
 	}
 	
-	public Output<StreamRecord<OUT>> getHeadOutput() {
+	Output<StreamRecord<OUT>> getHeadOutput() {
 		return operatorChain.getChainEntryPoint();
 	}
 	
-	public RecordWriterOutput<?>[] getStreamOutputs() {
+	RecordWriterOutput<?>[] getStreamOutputs() {
 		return operatorChain.getStreamOutputs();
 	}
 
@@ -512,7 +508,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		}
 	}
 
-	protected boolean performCheckpoint(final long checkpointId, final long timestamp) throws Exception {
+	private boolean performCheckpoint(final long checkpointId, final long timestamp) throws Exception {
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 		
 		synchronized (lock) {
@@ -706,7 +702,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		return getName();
 	}
 
-	protected final EventListener<CheckpointBarrier> getCheckpointBarrierListener() {
+	final EventListener<CheckpointBarrier> getCheckpointBarrierListener() {
 		return new EventListener<CheckpointBarrier>() {
 			@Override
 			public void onEvent(CheckpointBarrier barrier) {

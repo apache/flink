@@ -316,6 +316,27 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(maxParallelism, hashKeyGroupAssigner.getNumberKeyGroups());
 	}
 
+	/**
+	 * Tests that the {@link JobGraph} creation fails if the parallelism is greater than the max
+	 * parallelism.
+	 */
+	@Test(expected=IllegalStateException.class)
+	public void testFailureOfJobJobCreationIfParallelismGreaterThanMaxParallelism() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setMaxParallelism(42);
+
+		DataStream<Integer> input = env.fromElements(1, 2, 3, 4);
+
+		DataStream<Integer> result = input.map(new NoOpIntMap()).setParallelism(43);
+
+		result.addSink(new NoOpSink<Integer>());
+
+		env.getStreamGraph().getJobGraph();
+
+		fail("The JobGraph should not have been created because the parallelism is greater than " +
+			"the max parallelism.");
+	}
+
 	private HashKeyGroupAssigner<Integer> extractHashKeyGroupAssigner(JobVertex jobVertex) {
 		Configuration config = jobVertex.getConfiguration();
 

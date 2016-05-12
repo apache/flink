@@ -103,7 +103,7 @@ public class CheckpointCoordinator {
 
 	/** Checkpoint ID counter to ensure ascending IDs. In case of job manager failures, these
 	 * need to be ascending across job managers. */
-	protected final CheckpointIDCounter checkpointIdCounter;
+	final CheckpointIDCounter checkpointIdCounter;
 
 	/** Class loader used to deserialize the state handles (as they may be user-defined) */
 	private final ClassLoader userClassLoader;
@@ -875,7 +875,7 @@ public class CheckpointCoordinator {
 	 * @param parallelism Parallelism to generate the key group partitioning for
 	 * @return List of key group partitions
 	 */
-	protected List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
+	List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
 		ArrayList<Set<Integer>> result = new ArrayList<>(parallelism);
 
 		for (int p = 0; p < parallelism; p++) {
@@ -895,29 +895,29 @@ public class CheckpointCoordinator {
 	//  Accessors
 	// --------------------------------------------------------------------------------------------
 
-	public int getNumberOfPendingCheckpoints() {
+	int getNumberOfPendingCheckpoints() {
 		return this.pendingCheckpoints.size();
 	}
 
-	public int getNumberOfRetainedSuccessfulCheckpoints() {
+	int getNumberOfRetainedSuccessfulCheckpoints() {
 		synchronized (lock) {
 			return completedCheckpointStore.getNumberOfRetainedCheckpoints();
 		}
 	}
 
-	public Map<Long, PendingCheckpoint> getPendingCheckpoints() {
+	Map<Long, PendingCheckpoint> getPendingCheckpoints() {
 		synchronized (lock) {
 			return new HashMap<Long, PendingCheckpoint>(this.pendingCheckpoints);
 		}
 	}
 
-	public List<CompletedCheckpoint> getSuccessfulCheckpoints() throws Exception {
+	List<CompletedCheckpoint> getSuccessfulCheckpoints() throws Exception {
 		synchronized (lock) {
 			return completedCheckpointStore.getAllCheckpoints();
 		}
 	}
 
-	protected long getAndIncrementCheckpointId() {
+	long getAndIncrementCheckpointId() {
 		try {
 			// this must happen outside the locked scope, because it communicates
 			// with external services (in HA mode) and may block for a while.
@@ -930,11 +930,11 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	protected ActorGateway getJobStatusListener() {
+	ActorGateway getJobStatusListener() {
 		return jobStatusListener;
 	}
 
-	protected void setJobStatusListener(ActorGateway jobStatusListener) {
+	void setJobStatusListener(ActorGateway jobStatusListener) {
 		this.jobStatusListener = jobStatusListener;
 	}
 
@@ -942,7 +942,7 @@ public class CheckpointCoordinator {
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
 
-	public void startCheckpointScheduler() {
+	void startCheckpointScheduler() {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
@@ -965,7 +965,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void stopCheckpointScheduler() {
+	void stopCheckpointScheduler() {
 		synchronized (lock) {
 			triggerRequestQueued = false;
 			periodicScheduling = false;
