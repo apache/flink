@@ -504,7 +504,7 @@ public abstract class ExecutionEnvironment {
 
 	// ------------------------------------ File Input Format -----------------------------------------
 
-	public <X> DataSource<X> readFile(FileInputFormat<X> inputFormat, String filePath) {
+	public <X> DataSource<X> readFile(FileInputFormat<X> inputFormat, String...filePath) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
@@ -512,7 +512,7 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The file path must not be null.");
 		}
 
-		inputFormat.setFilePath(new Path(filePath));
+		inputFormat.setFilePaths(filePath);
 		try {
 			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 		}
