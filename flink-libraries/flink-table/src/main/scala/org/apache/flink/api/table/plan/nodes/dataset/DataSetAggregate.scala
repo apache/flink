@@ -18,20 +18,17 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.codegen.CodeGenerator
-import org.apache.flink.api.table.runtime.MapRunner
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.api.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
-import org.apache.flink.api.table.{BatchTableEnvironment, Row, TableConfig}
+import org.apache.flink.api.table.typeutils.{RowTypeInfo, TypeConverter}
+import org.apache.flink.api.table.{BatchTableEnvironment, Row}
 
 import scala.collection.JavaConverters._
 
@@ -143,7 +140,9 @@ class DataSetAggregate(
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
         val mapName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
-        result.map(getConversionMapper(config,
+        result.map(getConversionMapper(
+          config,
+          false,
           rowTypeInfo.asInstanceOf[TypeInformation[Any]],
           expectedType.get,
           "AggregateOutputConversion",

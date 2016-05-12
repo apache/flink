@@ -22,14 +22,11 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.schema.FlinkTable
-import org.apache.flink.api.table.runtime.MapRunner
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 
 import scala.collection.JavaConversions._
@@ -84,6 +81,7 @@ abstract class BatchScan(
 
           val mapFunc = getConversionMapper(
             config,
+            false,
             inputType,
             determinedType,
             "DataSetSourceConversion",

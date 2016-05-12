@@ -103,7 +103,7 @@ class DataSetCalc(
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    val generator = new CodeGenerator(config, inputDS.getType)
+    val generator = new CodeGenerator(config, false, inputDS.getType)
 
     val body = functionBody(
       generator,
