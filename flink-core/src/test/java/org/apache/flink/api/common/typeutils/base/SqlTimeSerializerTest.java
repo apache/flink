@@ -46,10 +46,10 @@ public class SqlTimeSerializerTest extends SerializerTestBase<Time> {
 	protected Time[] getTestData() {
 		return new Time[] {
 			new Time(0L),
-			Time.valueOf("00:00:00.000"),
-			Time.valueOf("02:42:85.123"),
-			Time.valueOf("14:15:59.478"),
-			Time.valueOf("18:00:45.999")
+			Time.valueOf("00:00:00"),
+			Time.valueOf("02:42:85"),
+			Time.valueOf("14:15:59"),
+			Time.valueOf("18:00:45")
 		};
 	}
 }
