@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import io.netty.util.internal.ConcurrentSet;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -60,9 +61,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class RescalingITCase extends TestLogger {
 
@@ -113,14 +116,18 @@ public class RescalingITCase extends TestLogger {
 		int parallelism2 = numSlots;
 		int maxParallelism = 13;
 
-		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+		FiniteDuration timeout = new FiniteDuration(3, TimeUnit.MINUTES);
+		Deadline deadline = timeout.fromNow();
+
+		ActorGateway jobManager = null;
+		JobID jobID = null;
 
 		try {
-			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
+			jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
 			JobGraph jobGraph = createPartitionedStateJobGraph(parallelism, maxParallelism, numberKeys, numberElements, false, 100);
 
-			JobID jobID = jobGraph.getJobID();
+			jobID = jobGraph.getJobID();
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -161,11 +168,17 @@ public class RescalingITCase extends TestLogger {
 
 			Await.ready(jobRemovedFuture, deadline.timeLeft());
 
+			jobID = null;
+
 			JobGraph scaledJobGraph = createPartitionedStateJobGraph(parallelism2, maxParallelism, numberKeys, numberElements2, true, 100);
 
 			scaledJobGraph.setSavepointPath(savepointPath);
 
+			jobID = scaledJobGraph.getJobID();
+
 			cluster.submitJobAndWait(scaledJobGraph, false);
+
+			jobID = null;
 
 			Set<Tuple2<Integer, Integer>> actualResult2 = CollectionSink.getElementsSet();
 
@@ -183,6 +196,17 @@ public class RescalingITCase extends TestLogger {
 		} finally {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
+
+			// clear any left overs from a possibly failed job
+			if (jobID != null && jobManager != null) {
+				Future<Object> jobRemovedFuture = jobManager.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobID), timeout);
+
+				try {
+					Await.ready(jobRemovedFuture, timeout);
+				} catch (TimeoutException | InterruptedException ie) {
+					fail("Failed while cleaning up the cluster.");
+				}
+			}
 		}
 	}
 
@@ -198,23 +222,30 @@ public class RescalingITCase extends TestLogger {
 		int parallelism2 = numSlots;
 		int maxParallelism = 13;
 
-		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+		FiniteDuration timeout = new FiniteDuration(3, TimeUnit.MINUTES);
+		Deadline deadline = timeout.fromNow();
+
+		JobID jobID = null;
+		ActorGateway jobManager = null;
 
 		try {
-			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
+			jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
 			JobGraph jobGraph = createNonPartitionedStateJobGraph(parallelism, maxParallelism, 500);
 
-			JobID jobID = jobGraph.getJobID();
+			jobID = jobGraph.getJobID();
 
 			cluster.submitJobDetached(jobGraph);
 
-			// wait till all tasks have been started
-			NonPartitionedStateSource.workStartedLatch.await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			Future<Object> allTasksRunning = jobManager.ask(new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobID), deadline.timeLeft());
+
+			Await.ready(allTasksRunning, deadline.timeLeft());
 
 			Future<Object> savepointPathFuture = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobID), deadline.timeLeft());
 
 			Object savepointResponse = Await.result(savepointPathFuture, deadline.timeLeft());
+
+			assertTrue(savepointResponse instanceof JobManagerMessages.TriggerSavepointSuccess);
 
 			final String savepointPath = ((JobManagerMessages.TriggerSavepointSuccess)savepointResponse).savepointPath();
 
@@ -228,11 +259,18 @@ public class RescalingITCase extends TestLogger {
 
 			Await.ready(jobRemovedFuture, deadline.timeLeft());
 
+			// job successfully removed
+			jobID = null;
+
 			JobGraph scaledJobGraph = createNonPartitionedStateJobGraph(parallelism2, maxParallelism, 500);
 
 			scaledJobGraph.setSavepointPath(savepointPath);
 
+			jobID = scaledJobGraph.getJobID();
+
 			cluster.submitJobAndWait(scaledJobGraph, false);
+
+			jobID = null;
 
 		} catch (JobExecutionException exception) {
 			if (exception.getCause() instanceof SuppressRestartsException) {
@@ -247,6 +285,17 @@ public class RescalingITCase extends TestLogger {
 				}
 			} else {
 				throw exception;
+			}
+		} finally {
+			// clear any left overs from a possibly failed job
+			if (jobID != null && jobManager != null) {
+				Future<Object> jobRemovedFuture = jobManager.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobID), timeout);
+
+				try {
+					Await.ready(jobRemovedFuture, timeout);
+				} catch (TimeoutException | InterruptedException ie) {
+					fail("Failed while cleaning up the cluster.");
+				}
 			}
 		}
 	}
@@ -266,10 +315,14 @@ public class RescalingITCase extends TestLogger {
 		int parallelism2 = numSlots;
 		int maxParallelism = 13;
 
-		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+		FiniteDuration timeout = new FiniteDuration(3, TimeUnit.MINUTES);
+		Deadline deadline = timeout.fromNow();
+
+		ActorGateway jobManager = null;
+		JobID jobID = null;
 
 		try {
-			ActorGateway jobManager = cluster.getLeaderGateway(deadline.timeLeft());
+			 jobManager = cluster.getLeaderGateway(deadline.timeLeft());
 
 			JobGraph jobGraph = createPartitionedNonPartitionedStateJobGraph(
 				parallelism,
@@ -280,7 +333,7 @@ public class RescalingITCase extends TestLogger {
 				false,
 				100);
 
-			JobID jobID = jobGraph.getJobID();
+			jobID = jobGraph.getJobID();
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -321,6 +374,8 @@ public class RescalingITCase extends TestLogger {
 
 			Await.ready(jobRemovedFuture, deadline.timeLeft());
 
+			jobID = null;
+
 			JobGraph scaledJobGraph = createPartitionedNonPartitionedStateJobGraph(
 				parallelism2,
 				maxParallelism,
@@ -332,7 +387,11 @@ public class RescalingITCase extends TestLogger {
 
 			scaledJobGraph.setSavepointPath(savepointPath);
 
+			jobID = scaledJobGraph.getJobID();
+
 			cluster.submitJobAndWait(scaledJobGraph, false);
+
+			jobID = null;
 
 			Set<Tuple2<Integer, Integer>> actualResult2 = CollectionSink.getElementsSet();
 
@@ -350,6 +409,17 @@ public class RescalingITCase extends TestLogger {
 		} finally {
 			// clear the CollectionSink set for the restarted job
 			CollectionSink.clearElementsSet();
+
+			// clear any left overs from a possibly failed job
+			if (jobID != null && jobManager != null) {
+				Future<Object> jobRemovedFuture = jobManager.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobID), timeout);
+
+				try {
+					Await.ready(jobRemovedFuture, timeout);
+				} catch (TimeoutException | InterruptedException ie) {
+					fail("Failed while cleaning up the cluster.");
+				}
+			}
 		}
 	}
 
@@ -358,8 +428,7 @@ public class RescalingITCase extends TestLogger {
 		env.setParallelism(parallelism);
 		env.getConfig().setMaxParallelism(maxParallelism);
 		env.enableCheckpointing(checkpointInterval);
-
-		NonPartitionedStateSource.workStartedLatch = new CountDownLatch(parallelism);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> input = env.addSource(new NonPartitionedStateSource());
 
@@ -380,6 +449,7 @@ public class RescalingITCase extends TestLogger {
 		env.setParallelism(parallelism);
 		env.getConfig().setMaxParallelism(maxParallelism);
 		env.enableCheckpointing(checkpointingInterval);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> input = env.addSource(new SubtaskIndexSource(
 			numberKeys,
@@ -416,6 +486,7 @@ public class RescalingITCase extends TestLogger {
 		env.setParallelism(parallelism);
 		env.getConfig().setMaxParallelism(maxParallelism);
 		env.enableCheckpointing(checkpointingInterval);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> input = env.addSource(new SubtaskIndexNonPartitionedStateSource(
 			numberKeys,
@@ -576,11 +647,8 @@ public class RescalingITCase extends TestLogger {
 
 		private static final long serialVersionUID = -8108185918123186841L;
 
-		static CountDownLatch workStartedLatch = new CountDownLatch(1);
-
 		private int counter = 0;
 		private boolean running = true;
-		private boolean started = false;
 
 		@Override
 		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
@@ -597,11 +665,6 @@ public class RescalingITCase extends TestLogger {
 			final Object lock = ctx.getCheckpointLock();
 
 			while (running) {
-				if (!started) {
-					workStartedLatch.countDown();
-					started = true;
-				}
-
 				synchronized (lock) {
 					counter++;
 

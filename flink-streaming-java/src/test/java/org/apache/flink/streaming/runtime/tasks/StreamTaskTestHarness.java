@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -179,26 +180,68 @@ public class StreamTaskTestHarness<OUT> {
 		taskThread.start();
 	}
 
+	/**
+	 * Waits for the task completion.
+	 *
+	 * @throws Exception
+	 */
 	public void waitForTaskCompletion() throws Exception {
+		waitForTaskCompletion(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits for the task completion. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task completion
+	 * @throws Exception
+	 */
+	public void waitForTaskCompletion(long timeout) throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 
-		taskThread.join();
+		taskThread.join(timeout);
 		if (taskThread.getError() != null) {
 			throw new Exception("error in task", taskThread.getError());
 		}
 	}
 
+	/**
+	 * Waits for the task to be running.
+	 *
+	 * @throws Exception
+	 */
 	public void waitForTaskRunning() throws Exception {
+		waitForTaskRunning(Long.MAX_VALUE);
+	}
+
+	/**
+	 * Waits fro the task to be running. If this does not happen within the timeout, then a
+	 * TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the task to be running.
+	 * @throws Exception
+	 */
+	public void waitForTaskRunning(long timeout) throws Exception {
 		if (taskThread == null) {
 			throw new IllegalStateException("Task thread was not started.");
 		}
 		else {
 			if (taskThread.task instanceof StreamTask) {
+				long base = System.currentTimeMillis();
+				long now = 0;
+
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
 					Thread.sleep(100);
+
+					if(now >= timeout) {
+						throw new TimeoutException("Timed out while waiting for the task to " +
+							"become running.");
+					}
+
+					now = System.currentTimeMillis() - base;
 				}
 			}
 			else {
@@ -267,9 +310,24 @@ public class StreamTaskTestHarness<OUT> {
 
 	/**
 	 * This only returns after all input queues are empty.
+	 *
+	 * @throws TimeoutException
 	 */
-	public void waitForInputProcessing() {
+	public void waitForInputProcessing() throws TimeoutException {
+		waitForInputProcessing(Long.MAX_VALUE);
+	}
 
+	/**
+	 * This only returns after all input queues are empty. If this does not happen within the
+	 * timeout, a TimeoutException is thrown.
+	 *
+	 * @param timeout Timeout for the waiting
+	 * @throws TimeoutException
+	 */
+	public void waitForInputProcessing(long timeout) throws TimeoutException {
+
+		long base = System.currentTimeMillis();
+		long now = 0;
 
 		// first wait for all input queues to be empty
 		try {
@@ -290,6 +348,13 @@ public class StreamTaskTestHarness<OUT> {
 			if (allEmpty) {
 				break;
 			}
+
+			if (now >= timeout) {
+				throw new TimeoutException("Timed out while waiting for the input queues to be " +
+					"empty.");
+			}
+
+			now = System.currentTimeMillis() - base;
 		}
 
 		// then wait for the Task Thread to be in a blocked state
@@ -305,6 +370,12 @@ public class StreamTaskTestHarness<OUT> {
 			try {
 				Thread.sleep(1);
 			} catch (InterruptedException ignored) {}
+
+			if (now >= timeout) {
+				throw new TimeoutException("Timed out whil waiting for the input processing.");
+			}
+
+			now = System.currentTimeMillis() - base;
 		}
 	}
 

@@ -274,8 +274,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		int maxParallelism = 42;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128);
-		DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129);
+		DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128).name("input1");
+		DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129).name("input2");
 
 		env.getConfig().setMaxParallelism(maxParallelism);
 
@@ -307,8 +307,15 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		JobVertex input2JV = jobVertices.get(1);
 		JobVertex connectedJV = jobVertices.get(2);
 
-		assertEquals(128, input1JV.getMaxParallelism());
-		assertEquals(129, input2JV.getMaxParallelism());
+		// disambiguate the partial order of the inputs
+		if (input1JV.getName().equals("Source: input1")) {
+			assertEquals(128, input1JV.getMaxParallelism());
+			assertEquals(129, input2JV.getMaxParallelism());
+		} else {
+			assertEquals(128, input2JV.getMaxParallelism());
+			assertEquals(129, input1JV.getMaxParallelism());
+		}
+
 		assertEquals(maxParallelism, connectedJV.getMaxParallelism());
 
 		HashKeyGroupAssigner<Integer> hashKeyGroupAssigner = extractHashKeyGroupAssigner(connectedJV);
