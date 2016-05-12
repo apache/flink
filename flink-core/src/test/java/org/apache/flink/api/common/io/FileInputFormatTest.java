@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
 
@@ -44,6 +45,54 @@ import static org.junit.Assert.*;
  * Tests for the FileInputFormat
  */
 public class FileInputFormatTest {
+
+	@Test
+	public void testToStringWithoutPathSet() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		assertEquals("The toString() should be correct", "File Input (unknown file)", format.toString());
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetPathsNull() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePaths((String)null);
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetPathsOnePathNull() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePaths("/an/imaginary/path", null);
+	}
+	
+	@Test
+	public void testSetPathsOnePath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String myPath = "/an/imaginary/path"; 
+		format.setFilePaths(myPath);
+		final Path[] filePaths = format.getFilePaths(); 
+		
+		assertEquals("File path count should be equal.", 1, filePaths.length);
+		assertEquals("File path should be equal.", myPath, filePaths[0].toUri().toString());
+		
+		assertEquals("First path should be equal.", myPath, format.getFilePath().toUri().toString());
+	}
+	
+	@Test
+	public void testSetPathsTwoPaths() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String myPath = "/an/imaginary/path"; 
+		final String myPath2 = "/an/imaginary/path2";
+		
+		format.setFilePaths(myPath, myPath2);
+		final Path[] filePaths = format.getFilePaths(); 
+		
+		assertEquals("File path count should be equal.", 2, filePaths.length);
+		assertEquals("File path should be equal.", myPath, filePaths[0].toUri().toString());
+		assertEquals("File path should be equal.", myPath2, filePaths[1].toUri().toString());
+		
+		assertEquals("First path should be equal.", myPath, format.getFilePath().toUri().toString());
+		assertEquals("The toString() should be correct.", "File Input (/an/imaginary/path,/an/imaginary/path2)", format.toString());
+	}
 
 	// ------------------------------------------------------------------------
 	//  Statistics

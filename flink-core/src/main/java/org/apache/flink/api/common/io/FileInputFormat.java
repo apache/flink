@@ -32,6 +32,8 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -288,6 +290,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		}
 		this.filePathList = Lists.newArrayList();
 		for (String filePath : filePaths) {
+			if (filePath == null) {
+				throw new IllegalArgumentException("The file path must not be null.");
+			}
 			this.filePathList.add(new Path(filePath));
 		}
 	}
@@ -387,33 +392,16 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics)
 				? (FileBaseStatistics) cachedStats : null;
-
-		if (this.filePathList.size() == 1) {
-			try {
-				final Path path = getFilePath();
-				final FileSystem fs = FileSystem.get(path.toUri());
-
-				return getFileStats(cachedFileStats, path, fs, new ArrayList<FileStatus>(1));
-			} catch (IOException ioex) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Could not determine statistics for file '" + getFilePath() + "' due to an io error: "
-							+ ioex.getMessage());
-				}
-			} catch (Throwable t) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Unexpected problem while getting the file statistics for file '" + getFilePath() + "': "
-							+ t.getMessage(), t);
-				}
-			}
-			// no statistics available
-			return null;
-		}
-
 		final FileBaseStatistics statistics = getFileStats(cachedFileStats, this.filePathList, new ArrayList<FileStatus>(1));
-		return (statistics.fileSize == BaseStatistics.SIZE_UNKNOWN) ? null : statistics;
 		
+		// final sanity check - for backward compatibility
+		return (statistics.fileSize == BaseStatistics.SIZE_UNKNOWN) ? null : statistics;
 	}
 	
+	/**
+	 * @deprecated Should no longer be used because of filePathList
+	 */
+	@Deprecated
 	protected FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, Path filePath, FileSystem fs,
 			ArrayList<FileStatus> files) throws IOException {
 		// get the file info and check whether the cached statistics are still valid.
@@ -821,7 +809,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	public String toString() {
 		return this.filePathList == null ? 
 			"File Input (unknown file)" :
-			"File Input (" + this.filePathList.toString() + ')';
+			"File Input (" +  Joiner.on(",").join(this.filePathList) + ')';
 	}
 	
 	// ============================================================================================

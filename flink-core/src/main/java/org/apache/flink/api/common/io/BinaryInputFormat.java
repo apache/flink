@@ -148,44 +148,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 			(FileBaseStatistics) cachedStats : null;
-
-		if (this.filePathList.size() == 1) {
-			try {
-				final Path filePath = getFilePath();
-
-				// get the filesystem
-				final FileSystem fs = FileSystem.get(filePath.toUri());
-				final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
-
-				// let the file input format deal with the up-to-date check and the basic size
-				final FileBaseStatistics stats = getFileStats(cachedFileStats, filePath, fs, allFiles);
-				if (stats == null) {
-					return null;
-				}
-
-				// check whether the file stats are still sequential stats (in that case they are still valid)
-				if (stats instanceof SequentialStatistics) {
-					return (SequentialStatistics) stats;
-				}
-				return createStatistics(allFiles, stats);
-			} catch (IOException ioex) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn(
-						String.format("Could not determine complete statistics for file '%s' due to an I/O error",
-						getFilePath()),
-						ioex);
-				}
-			} catch (Throwable t) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error(
-						String.format("Unexpected problem while getting the file statistics for file '%s'",
-						getFilePath()),
-						t);
-				}
-			}
-			// no stats available
-			return null;
-		}
+			
 		try {
 			final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
 			final FileBaseStatistics stats = getFileStats(cachedFileStats, this.filePathList, allFiles);
@@ -200,11 +163,20 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
 				LOG.warn(
-					String.format("Could not determine complete statistics for file '%s' due to an I/O error",
+					String.format("Could not determine complete statistics for files in '%s' due to an I/O error",
 					this.filePathList),
 					ioex);
 			}
+		} catch (Throwable t) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error(
+					String.format("Unexpected problem while getting the file statistics for file in'%s'",
+					this.filePathList),
+					t);
+			}
 		}
+		
+		// no stats available
 		return null;
 	}
 
