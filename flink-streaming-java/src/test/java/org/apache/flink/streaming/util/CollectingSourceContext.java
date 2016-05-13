@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.streaming.api.functions.source.MockSourceContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -26,13 +27,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 
-public class CollectingSourceContext<T extends Serializable> implements SourceFunction.SourceContext<T> {
+public class CollectingSourceContext<T extends Serializable> extends MockSourceContext<T> {
 	
-	private final Object lock;
 	private final Collection<T> collection;
 
-	public CollectingSourceContext(Object lock, Collection<T> collection) {
-		this.lock = lock;
+	public CollectingSourceContext(Collection<T> collection) {
 		this.collection = collection;
 	}
 
@@ -44,22 +43,4 @@ public class CollectingSourceContext<T extends Serializable> implements SourceFu
 			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
-
-	@Override
-	public void collectWithTimestamp(T element, long timestamp) {
-		collect(element);
-	}
-
-	@Override
-	public void emitWatermark(Watermark mark) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public Object getCheckpointLock() {
-		return lock;
-	}
-
-	@Override
-	public void close() {}
 }

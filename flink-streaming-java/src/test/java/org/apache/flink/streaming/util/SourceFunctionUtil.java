@@ -55,7 +55,7 @@ public class SourceFunctionUtil {
 			((RichFunction) sourceFunction).open(new Configuration());
 		}
 		try {
-			SourceFunction.SourceContext<T> ctx = new CollectingSourceContext<T>(new Object(), outputs);
+			SourceFunction.SourceContext<T> ctx = new CollectingSourceContext<>(outputs);
 			sourceFunction.run(ctx);
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);
