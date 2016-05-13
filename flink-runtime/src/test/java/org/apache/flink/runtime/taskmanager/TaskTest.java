@@ -20,12 +20,8 @@ package org.apache.flink.runtime.taskmanager;
 
 import com.google.common.collect.Maps;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -41,11 +37,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
 
+import org.apache.flink.runtime.testutils.recordutils.TaskDeploymentDescriptorBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,8 +49,6 @@ import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Field;
-import java.net.URL;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -609,7 +603,9 @@ public class TaskTest {
 							LibraryCacheManager libCache,
 							NetworkEnvironment networkEnvironment) {
 		
-		TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(invokable);
+		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptorBuilder()
+			.setInvokableClassName(invokable.getName())
+			.build();
 		
 		return new Task(
 				tdd,
@@ -623,19 +619,6 @@ public class TaskTest {
 				libCache,
 				mock(FileCache.class),
 				new TaskManagerRuntimeInfo("localhost", new Configuration()));
-	}
-
-	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {
-		return new TaskDeploymentDescriptor(
-				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
-				new ExecutionConfig(), "Test Task", 0, 1, 0,
-				new Configuration(), new Configuration(),
-				invokable.getName(),
-				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				0);
 	}
 
 	// ------------------------------------------------------------------------
