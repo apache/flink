@@ -1901,7 +1901,7 @@ public class CheckpointCoordinatorTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> generateKeyGroupState(
+	static Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> generateKeyGroupState(
 		JobVertexID jobVertexID,
 		Set<Integer> keyGroupPartition) throws IOException {
 
@@ -1922,7 +1922,7 @@ public class CheckpointCoordinatorTest {
 		return result;
 	}
 
-	private static Tuple2<SerializedValue<StateHandle<?>>, Long> generateState(JobVertexID jobVertexID, int index) throws IOException {
+	static Tuple2<SerializedValue<StateHandle<?>>, Long> generateState(JobVertexID jobVertexID, int index) throws IOException {
 		Random random = new Random(jobVertexID.hashCode() + index);
 
 		long size = random.nextInt(1024);
@@ -1933,7 +1933,7 @@ public class CheckpointCoordinatorTest {
 		return Tuple2.of(serializedValue, size);
 	}
 
-	private static ExecutionJobVertex mockExecutionJobVertex(
+	static ExecutionJobVertex mockExecutionJobVertex(
 		JobVertexID jobVertexID,
 		int parallelism,
 		int maxParallelism) {
