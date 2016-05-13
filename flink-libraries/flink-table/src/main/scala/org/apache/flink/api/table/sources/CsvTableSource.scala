@@ -23,11 +23,13 @@ import org.apache.flink.api.java.io.TupleCsvInputFormat
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.table.{Row, TableException}
+import org.apache.flink.api.table.Row
 import org.apache.flink.core.fs.Path
+import org.apache.flink.api.table.typeutils.RowTypeInfo
+import org.apache.flink.api.java.io.RowCsvInputFormat
 
 /**
-  * A [[TableSource]] for simple CSV files with up to 25 fields.
+  * A [[TableSource]] for simple CSV files with a (logically) unlimited number of fields.
   *
   * @param path The path to the CSV file.
   * @param fieldNames The names of the table fields.
@@ -49,21 +51,13 @@ class CsvTableSource(
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
     lenient: Boolean = false)
-  extends BatchTableSource[Tuple] {
-
-  if (fieldNames.length != fieldTypes.length) {
-    throw new TableException("Number of field names and field types must be equal.")
-  }
-
-  if (fieldNames.length > 25) {
-    throw new TableException("Only up to 25 fields supported with this CsvTableSource.")
-  }
+  extends BatchTableSource[Row] {
 
   /** Returns the data of the table as a [[DataSet]] of [[Row]]. */
-  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Tuple] = {
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
 
-    val typeInfo = getReturnType.asInstanceOf[TupleTypeInfoBase[Tuple]]
-    val inputFormat = new TupleCsvInputFormat(new Path(path), rowDelim, fieldDelim, typeInfo)
+    val typeInfo = getReturnType.asInstanceOf[RowTypeInfo]
+    val inputFormat = new RowCsvInputFormat(new Path(path), rowDelim, fieldDelim, typeInfo)
 
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
@@ -86,8 +80,8 @@ class CsvTableSource(
   /** Returns the number of fields of the table. */
   override def getNumberOfFields: Int = fieldNames.length
 
-  /** Returns the [[TypeInformation]] for the return type of the [[CsvTableSource]]. */
-  override def getReturnType: TypeInformation[Tuple] = {
-    new TupleTypeInfo(fieldTypes.toArray:_*)
+  /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
+  override def getReturnType: RowTypeInfo = {
+    new RowTypeInfo(fieldTypes)
   }
 }
