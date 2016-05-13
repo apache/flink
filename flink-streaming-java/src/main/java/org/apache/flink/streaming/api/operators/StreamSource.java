@@ -132,19 +132,13 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	// ------------------------------------------------------------------------
 	//  Source contexts for various stream time characteristics
 	// ------------------------------------------------------------------------
-	
-	/**
-	 * A source context that attached {@code -1} as a timestamp to all records, and that
-	 * does not forward watermarks.
-	 */
-	public static class NonTimestampContext<T> implements SourceFunction.SourceContext<T> {
+	public static abstract class AbstractSourceContext<T> implements SourceFunction.SourceContext<T> {
+		protected final StreamSource<?, ?> owner;
+		protected final Object lockingObject;
+		protected final Output<StreamRecord<T>> output;
+		protected final StreamRecord<T> reuse;
 
-		private final StreamSource<?, ?> owner;
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-
-		public NonTimestampContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
+		public AbstractSourceContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
 			this.owner = owner;
 			this.lockingObject = lockingObject;
 			this.output = output;
@@ -160,6 +154,24 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		}
 
 		@Override
+		public Object getCheckpointLock() {
+			return lockingObject;
+		}
+
+		@Override
+		public void close() {}
+	}
+	
+	/**
+	 * A source context that attached {@code -1} as a timestamp to all records, and that
+	 * does not forward watermarks.
+	 */
+	public static class NonTimestampContext<T> extends AbstractSourceContext<T> {
+		public NonTimestampContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
+			super(owner, lockingObject, output);
+		}
+
+		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
 			// ignore the timestamp
 			collect(element);
@@ -170,27 +182,13 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 			owner.checkAsyncException();
 			// do nothing else
 		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
-		public void close() {}
 	}
 	
 	/**
 	 * {@link SourceFunction.SourceContext} to be used for sources with automatic timestamps
 	 * and watermark emission.
 	 */
-	public static class AutomaticWatermarkContext<T> implements SourceFunction.SourceContext<T> {
-
-		private final StreamSource<?, ?> owner;
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-		
+	public static class AutomaticWatermarkContext<T> extends AbstractSourceContext<T> {
 		private final ScheduledExecutorService scheduleExecutor;
 		private final ScheduledFuture<?> watermarkTimer;
 		private final long watermarkInterval;
@@ -202,16 +200,13 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				final Object lockingObjectParam,
 				final Output<StreamRecord<T>> outputParam,
 				final long watermarkInterval) {
+			super(owner, lockingObjectParam, outputParam);
 			
 			if (watermarkInterval < 1L) {
 				throw new IllegalArgumentException("The watermark interval cannot be smaller than one.");
 			}
 
-			this.owner = owner;
-			this.lockingObject = lockingObjectParam;
-			this.output = outputParam;
 			this.watermarkInterval = watermarkInterval;
-			this.reuse = new StreamRecord<T>(null);
 			
 			this.scheduleExecutor = Executors.newScheduledThreadPool(1);
 
@@ -277,11 +272,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		}
 
 		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
 		public void close() {
 			watermarkTimer.cancel(true);
 			scheduleExecutor.shutdownNow();
@@ -296,27 +286,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	 * Streaming topologies can use timestamp assigner functions to override the timestamps
 	 * assigned here.
 	 */
-	public static class ManualWatermarkContext<T> implements SourceFunction.SourceContext<T> {
-
-		private final StreamSource<?, ?> owner;
-		private final Object lockingObject;
-		private final Output<StreamRecord<T>> output;
-		private final StreamRecord<T> reuse;
-
+	public static class ManualWatermarkContext<T> extends AbstractSourceContext<T> {
 		public ManualWatermarkContext(StreamSource<?, ?> owner, Object lockingObject, Output<StreamRecord<T>> output) {
-			this.owner = owner;
-			this.lockingObject = lockingObject;
-			this.output = output;
-			this.reuse = new StreamRecord<T>(null);
-		}
-
-		@Override
-		public void collect(T element) {
-			owner.checkAsyncException();
-			
-			synchronized (lockingObject) {
-				output.collect(reuse.replace(element));
-			}
+			super(owner, lockingObject, output);
 		}
 
 		@Override
@@ -336,13 +308,5 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				output.emitWatermark(mark);
 			}
 		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lockingObject;
-		}
-
-		@Override
-		public void close() {}
 	}
 }
