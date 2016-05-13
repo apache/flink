@@ -45,11 +45,26 @@ import static org.junit.Assert.*;
  * Tests for the FileInputFormat
  */
 public class FileInputFormatTest {
-
+	
+	@Test
+	public void testGetPathWithoutSettingFirst() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		assertNull("This should be null", format.getFilePath());
+	}
+	
+	@Test
+	public void testGetPathsWithoutSettingFirst() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		
+		Path[] paths = format.getFilePaths();
+		assertNotNull("Paths should not be null.", paths);
+		assertEquals("Paths size should be 0.", 0, paths.length);
+	}
+	
 	@Test
 	public void testToStringWithoutPathSet() {
 		final DummyFileInputFormat format = new DummyFileInputFormat();
-		assertEquals("The toString() should be correct", "File Input (unknown file)", format.toString());
+		assertEquals("The toString() should be correct.", "File Input (unknown file)", format.toString());
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -59,9 +74,44 @@ public class FileInputFormatTest {
 	}
 
 	@Test(expected=IllegalArgumentException.class)
+	public void testSetPathNullString() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath((String) null);
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetPathNullPath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath((Path) null);
+	}
+	
+	@Test
+	public void testSetPathNonNull() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePath("/some/imaginary/path");
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
 	public void testSetPathsOnePathNull() {
 		final DummyFileInputFormat format = new DummyFileInputFormat();
 		format.setFilePaths("/an/imaginary/path", null);
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetPathsEmptyArray() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePaths(new String[0]);
+	}
+	
+	@Test
+	public void testSetPathsEmptyString() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		format.setFilePaths("");
+		assertNull("Path should be null.", format.getFilePath());
+		
+		Path[] paths = format.getFilePaths();
+		assertNotNull("Paths should not be null.", paths);
+		assertEquals("Paths size should be 0.", 0, paths.length);
 	}
 	
 	@Test
@@ -91,9 +141,28 @@ public class FileInputFormatTest {
 		assertEquals("File path should be equal.", myPath2, filePaths[1].toUri().toString());
 		
 		assertEquals("First path should be equal.", myPath, format.getFilePath().toUri().toString());
-		assertEquals("The toString() should be correct.", "File Input (/an/imaginary/path,/an/imaginary/path2)", format.toString());
+		assertEquals("The toString() should be correct.", "File Input ([/an/imaginary/path, /an/imaginary/path2])", format.toString());
 	}
 
+	@Test
+	public void testSetFileViaConfiguration() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String filePath = "file:///some/none/existing/directory/";
+		Configuration conf = new Configuration();
+		conf.setString("input.file.path", filePath);
+		format.configure(conf);
+		
+		assertEquals("Paths should be equal.", new Path(filePath), format.getFilePath());
+	}
+	
+	@Test (expected=RuntimeException.class)
+	public void testSetFileViaConfigurationEmptyPath() {
+		final DummyFileInputFormat format = new DummyFileInputFormat();
+		final String filePath = null;
+		Configuration conf = new Configuration();
+		conf.setString("input.file.path", filePath);
+		format.configure(conf);
+	}
 	// ------------------------------------------------------------------------
 	//  Statistics
 	// ------------------------------------------------------------------------
@@ -632,7 +701,7 @@ public class FileInputFormatTest {
 	
 	private class DummyFileInputFormat extends FileInputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
-
+		
 		@Override
 		public boolean reachedEnd() throws IOException {
 			return true;
