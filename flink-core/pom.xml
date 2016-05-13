@@ -47,6 +47,12 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+
 		<!-- Avro is needed for the interoperability with Avro types for serialization -->
 		<dependency>
 			<groupId>org.apache.avro</groupId>
