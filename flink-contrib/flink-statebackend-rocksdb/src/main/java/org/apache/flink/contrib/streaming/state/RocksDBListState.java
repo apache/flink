@@ -49,7 +49,7 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N>
 	implements ListState<V> {
 
 	/** Serializer for the values */
@@ -74,7 +74,7 @@ public class RocksDBListState<K, N, V>
 	public RocksDBListState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 		
 		super(columnFamily, namespaceSerializer, backend);
 		this.stateDesc = requireNonNull(stateDesc);

@@ -72,7 +72,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.enableCheckpointing(200);
-		
+
 		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))

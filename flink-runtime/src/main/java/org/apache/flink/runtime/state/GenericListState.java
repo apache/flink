@@ -18,9 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
@@ -35,8 +33,8 @@ import java.util.Collections;
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  * @param <W> Generic type that extends both the underlying {@code ValueState} and {@code KvState}.
  */
-public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W extends ValueState<ArrayList<T>> & KvState<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend>>
-	implements ListState<T>, KvState<K, N, ListState<T>, ListStateDescriptor<T>, Backend> {
+public class GenericListState<K, N, T, Backend extends PartitionedStateBackend<K>, W extends ValueState<ArrayList<T>> & KvState<K, N, Backend>>
+	implements ListState<T>, KvState<K, N, Backend> {
 
 	private final W wrappedState;
 
@@ -65,10 +63,10 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, ListState<T>, ListStateDescriptor<T>, Backend> snapshot(
+	public KvStateSnapshot<K, N, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
-		KvStateSnapshot<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend> wrappedSnapshot = wrappedState.snapshot(
+		KvStateSnapshot<K, N, Backend> wrappedSnapshot = wrappedState.snapshot(
 			checkpointId,
 			timestamp);
 		return new Snapshot<>(wrappedSnapshot);
@@ -106,18 +104,18 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 		wrappedState.clear();
 	}
 
-	private static class Snapshot<K, N, T, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, ListState<T>, ListStateDescriptor<T>, Backend> {
+	private static class Snapshot<K, N, T, Backend extends PartitionedStateBackend<K>> implements KvStateSnapshot<K, N, Backend> {
 		private static final long serialVersionUID = 1L;
 
-		private final KvStateSnapshot<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend> wrappedSnapshot;
+		private final KvStateSnapshot<K, N, Backend> wrappedSnapshot;
 
-		public Snapshot(KvStateSnapshot<K, N, ValueState<ArrayList<T>>, ValueStateDescriptor<ArrayList<T>>, Backend> wrappedSnapshot) {
+		public Snapshot(KvStateSnapshot<K, N, Backend> wrappedSnapshot) {
 			this.wrappedSnapshot = wrappedSnapshot;
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public KvState<K, N, ListState<T>, ListStateDescriptor<T>, Backend> restoreState(
+		public KvState<K, N, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
 			ClassLoader classLoader,

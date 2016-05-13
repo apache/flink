@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -168,7 +169,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 		 *                                       function (function is not part os a KeyedStream).
 		 */
-		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
+		<S extends PartitionedState> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
 	
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with

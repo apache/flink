@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -35,7 +36,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
 
@@ -244,8 +244,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorNonPartitionedState taskState = super.snapshotNonPartitionedState(checkpointId, timestamp);
 		
 		// we write the panes with the key/value maps into the stream, as well as when this state
 		// should have triggered and slided
@@ -261,9 +261,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-		super.restoreState(taskState, recoveryTimestamp);
-
+	public void restoreNonPartitionedState(StreamOperatorNonPartitionedState taskState, long recoveryTimestamp) throws Exception {
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
 		DataInputView in = inputState.getState(getUserCodeClassloader());

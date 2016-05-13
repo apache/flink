@@ -21,6 +21,7 @@ package org.apache.flink.runtime.messages;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -32,6 +33,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 
 public class CheckpointMessagesTest {
 	
@@ -58,8 +60,12 @@ public class CheckpointMessagesTest {
 											new JobID(), new ExecutionAttemptID(), 569345L);
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
-											new JobID(), new ExecutionAttemptID(), 87658976143L, 
-											new SerializedValue<StateHandle<?>>(new MyHandle()), 0);
+				new JobID(),
+				new ExecutionAttemptID(),
+				87658976143L,
+				new SerializedValue<StateHandle<?>>(new MyHandle()),
+				0,
+				Collections.singletonMap(42, Tuple2.of(new SerializedValue<StateHandle<?>>(new MyHandle()), 0L)));
 			
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);

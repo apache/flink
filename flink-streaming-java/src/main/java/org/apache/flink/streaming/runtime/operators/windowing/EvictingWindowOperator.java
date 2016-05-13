@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.AppendingState;
-import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -82,7 +81,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		Collection<W> elementWindows = windowAssigner.assignWindows(element.getValue(),
 				element.getTimestamp());
 
-		final K key = (K) getStateBackend().getCurrentKey();
+		final K key = (K) getKeyGroupStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
 
@@ -115,10 +114,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 								}
 
 								// merge the merged state windows into the newly resulting state window
-								getStateBackend().mergePartitionedStates(stateWindowResult,
+								getKeyGroupStateBackend().mergePartitionedStates(stateWindowResult,
 										mergedStateWindows,
 										windowSerializer,
-										(StateDescriptor<? extends MergingState<?, ?>, ?>) windowStateDescriptor);
+										windowStateDescriptor);
 							}
 						});
 

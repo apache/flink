@@ -38,7 +38,7 @@ public class StreamingProgram {
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
-		
+
 		DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
 
 		DataStream<Word> counts =

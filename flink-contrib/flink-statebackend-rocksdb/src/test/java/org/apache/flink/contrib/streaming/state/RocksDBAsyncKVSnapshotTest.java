@@ -28,6 +28,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.OneShotLatch;
@@ -36,13 +38,13 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ChainedKeyGroupState;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskStateList;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -57,6 +59,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -68,7 +71,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ResultPartitionWriter.class, FileSystem.class})
 @SuppressWarnings("serial")
-public class RocksDBAsyncKVSnapshotTest {
+public class RocksDBAsyncKVSnapshotTest extends TestLogger {
 
 	@Before
 	public void checkOperatingSystem() {
@@ -76,7 +79,7 @@ public class RocksDBAsyncKVSnapshotTest {
 	}
 
 	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchonously.
+	 * This ensures that asynchronous state handles are actually materialized asynchronously.
 	 *
 	 * <p>We use latches to block at various stages and see if the code still continues through
 	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
@@ -114,6 +117,8 @@ public class RocksDBAsyncKVSnapshotTest {
 
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
 
+		streamConfig.setKeyGroupAssigner(new HashKeyGroupAssigner<String>(1));
+
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 			testHarness.jobConfig,
 			testHarness.taskConfig,
@@ -127,8 +132,8 @@ public class RocksDBAsyncKVSnapshotTest {
 			}
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-				super.acknowledgeCheckpoint(checkpointId, state);
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> kvStates) {
+				super.acknowledgeCheckpoint(checkpointId, state, kvStates);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -138,12 +143,7 @@ public class RocksDBAsyncKVSnapshotTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
-
-				// should be only one k/v state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
-				assertEquals(1, taskState.getKvStates().size());
+				assertEquals(1, kvStates.size());
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
@@ -164,6 +164,8 @@ public class RocksDBAsyncKVSnapshotTest {
 		}
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+		testHarness.waitForInputProcessing();
 
 		task.triggerCheckpoint(42, 17);
 
@@ -230,8 +232,8 @@ public class RocksDBAsyncKVSnapshotTest {
 			}
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-				super.acknowledgeCheckpoint(checkpointId, state);
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> keyGroupStates) {
+				super.acknowledgeCheckpoint(checkpointId, state, keyGroupStates);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -241,12 +243,15 @@ public class RocksDBAsyncKVSnapshotTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
+				for (Map.Entry<Integer, StateHandle<?>> entry: keyGroupStates.entrySet()) {
+					assertTrue(entry.getValue() instanceof ChainedKeyGroupState);
 
-				// should be only one k/v state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
-				assertEquals(1, taskState.getKvStates().size());
+					ChainedKeyGroupState chainedKeyGroupState = (ChainedKeyGroupState) entry.getValue();
+
+					PartitionedStateSnapshot partitionedStateSnapshot = chainedKeyGroupState.getState(this.getUserClassLoader()).get(0);
+
+					assertEquals(partitionedStateSnapshot.entrySet().size(), 1);
+				}
 
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
@@ -267,6 +272,8 @@ public class RocksDBAsyncKVSnapshotTest {
 		}
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+		testHarness.waitForInputProcessing();
 
 		task.triggerCheckpoint(42, 17);
 

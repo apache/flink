@@ -183,6 +183,10 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getParallelism();
 	}
 
+	public int getMaxParallelism() {
+		return this.jobVertex.getMaxParallelism();
+	}
+
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
 	}
@@ -637,7 +641,7 @@ public class ExecutionVertex implements Serializable {
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
 			SerializedValue<StateHandle<?>> operatorState,
-			Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState,
+			Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates,
 			long recoveryTimestamp,
 			int attemptNumber) {
 
@@ -689,6 +693,7 @@ public class ExecutionVertex implements Serializable {
 			classpaths,
 			targetSlot.getRoot().getSlotNumber(),
 			operatorState,
+			keyGroupStates,
 			recoveryTimestamp);
 	}
 

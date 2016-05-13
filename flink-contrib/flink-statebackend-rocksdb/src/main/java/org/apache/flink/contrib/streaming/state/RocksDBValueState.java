@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBValueState<K, N, V>
-	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N>
 	implements ValueState<V> {
 
 	/** Serializer for the values */
@@ -67,7 +67,7 @@ public class RocksDBValueState<K, N, V>
 	public RocksDBValueState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, backend);
 		this.stateDesc = requireNonNull(stateDesc);

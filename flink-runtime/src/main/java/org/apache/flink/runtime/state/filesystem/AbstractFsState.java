@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
@@ -41,13 +41,13 @@ import java.util.Map;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractFsState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		extends AbstractHeapState<K, N, SV, S, SD, FsStateBackend> {
+public abstract class AbstractFsState<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>>
+		extends AbstractHeapState<K, N, SV, S, SD, PartitionedFsStateBackend<K>> {
 
 	/** The file system state backend backing snapshots of this state */
-	private final FsStateBackend backend;
+	private final PartitionedFsStateBackend<K> backend;
 
-	public AbstractFsState(FsStateBackend backend,
+	public AbstractFsState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		TypeSerializer<SV> stateSerializer,
@@ -56,7 +56,7 @@ public abstract class AbstractFsState<K, N, SV, S extends State, SD extends Stat
 		this.backend = backend;
 	}
 
-	public AbstractFsState(FsStateBackend backend,
+	public AbstractFsState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		TypeSerializer<SV> stateSerializer,
@@ -66,12 +66,12 @@ public abstract class AbstractFsState<K, N, SV, S extends State, SD extends Stat
 		this.backend = backend;
 	}
 
-	public abstract KvStateSnapshot<K, N, S, SD, FsStateBackend> createHeapSnapshot(Path filePath);
+	public abstract KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath);
 
 	@Override
-	public KvStateSnapshot<K, N, S, SD, FsStateBackend> snapshot(long checkpointId, long timestamp) throws Exception {
+	public KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> snapshot(long checkpointId, long timestamp) throws Exception {
 
-		try (FsStateBackend.FsCheckpointStateOutputStream out = backend.createCheckpointStateOutputStream(checkpointId, timestamp)) {
+		try (FsStateBackend.FsCheckpointStateOutputStream out = backend.getFsStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp)) {
 
 			// serialize the state to the output stream
 			DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(new DataOutputStream(out));

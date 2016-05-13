@@ -58,6 +58,9 @@ public class JobVertex implements java.io.Serializable {
 	/** Number of subtasks to split this task into at runtime.*/
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
+	/** Maximum number of subtasks to split this taks into a runtime. */
+	private int maxParallelism = Integer.MAX_VALUE;
+
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;
 
@@ -233,6 +236,26 @@ public class JobVertex implements java.io.Serializable {
 			throw new IllegalArgumentException("The parallelism must be at least one.");
 		}
 		this.parallelism = parallelism;
+	}
+
+	/**
+	 * Gets the maximum parallelism for the task.
+	 *
+	 * @return The maximum parallelism for the task.
+	 */
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	/**
+	 * Sets the maximum parallelism for the task.
+	 *
+	 * @param maxParallelism The maximum parallelism to be set.
+	 */
+	public void setMaxParallelism(int maxParallelism) {
+		org.apache.flink.util.Preconditions.checkArgument(maxParallelism > 0, "The max parallelism must be at least 1.");
+
+		this.maxParallelism = maxParallelism;
 	}
 
 	public InputSplitSource<?> getInputSplitSource() {

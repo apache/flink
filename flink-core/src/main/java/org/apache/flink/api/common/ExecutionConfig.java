@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 
@@ -94,6 +95,13 @@ public class ExecutionConfig implements Serializable {
 	private boolean useClosureCleaner = true;
 
 	private int parallelism = PARALLELISM_DEFAULT;
+
+	/**
+	 * The program wide maximum parallelism used for operators which haven't specified a maximum
+	 * parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the
+	 * number of key groups used for partitioned state.
+	 */
+	private int maxParallelism = -1;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -253,6 +261,33 @@ public class ExecutionConfig implements Serializable {
 			this.parallelism = parallelism;
 		}
 		return this;
+	}
+
+	/**
+	 * Gets the maximum degree of parallelism defined for the program.
+	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
+	 *
+	 * @return Maximum degree of parallelism
+	 */
+	@PublicEvolving
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
+	/**
+	 * Sets the maximum degree of parallelism defined for the program.
+	 *
+	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * defines the number of key groups used for partitioned state.
+	 *
+	 * @param maxParallelism Maximum degree of parallelism to be used for the program.
+	 */
+	@PublicEvolving
+	public void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+		this.maxParallelism = maxParallelism;
 	}
 
 	/**

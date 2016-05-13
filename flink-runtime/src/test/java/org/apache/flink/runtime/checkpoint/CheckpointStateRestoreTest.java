@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -34,6 +35,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +55,13 @@ public class CheckpointStateRestoreTest {
 		try {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
 					new LocalStateHandle<SerializableObject>(new SerializableObject()));
+
+			final Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> serializedKeyGroupStates = Collections.singletonMap(
+				0,
+				Tuple2.of(
+					new SerializedValue<StateHandle<?>>(
+						new LocalStateHandle<SerializableObject>(new SerializableObject())),
+					0l));
 
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
@@ -84,7 +93,6 @@ public class CheckpointStateRestoreTest {
 				jid,
 				200000L,
 				200000L,
-				42,
 				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 				new ExecutionVertex[0],
@@ -100,9 +108,9 @@ public class CheckpointStateRestoreTest {
 			PendingCheckpoint pending = coord.getPendingCheckpoints().values().iterator().next();
 			final long checkpointId = pending.getCheckpointId();
 
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, serializedState, 0));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, serializedState, 0));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, serializedState, 0));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, serializedState, 0, serializedKeyGroupStates));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, serializedState, 0,serializedKeyGroupStates));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, serializedState, 0, serializedKeyGroupStates));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointId));
 
@@ -131,6 +139,13 @@ public class CheckpointStateRestoreTest {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
 					new LocalStateHandle<SerializableObject>(new SerializableObject()));
 
+			final Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> serializedKeyGroupStates = Collections.singletonMap(
+				0,
+				Tuple2.of(
+					new SerializedValue<StateHandle<?>>(
+						new LocalStateHandle<SerializableObject>(new SerializableObject())),
+					0l));
+
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
 			final JobVertexID statelessId = new JobVertexID();
@@ -161,7 +176,6 @@ public class CheckpointStateRestoreTest {
 				jid,
 				200000L,
 				200000L,
-				42,
 				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 				new ExecutionVertex[] { stateful1, stateful2, stateful3, stateless1, stateless2 },
 				new ExecutionVertex[0],
@@ -178,9 +192,9 @@ public class CheckpointStateRestoreTest {
 			final long checkpointId = pending.getCheckpointId();
 
 			// the difference to the test "testSetState" is that one stateful subtask does not report state
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, serializedState, 0));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, serializedState, 0, serializedKeyGroupStates));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId));
-			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, serializedState, 0));
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec3.getAttemptId(), checkpointId, serializedState, 0, serializedKeyGroupStates));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec2.getAttemptId(), checkpointId));
 
@@ -209,7 +223,6 @@ public class CheckpointStateRestoreTest {
 				new JobID(),
 				200000L,
 				200000L,
-				42,
 				new ExecutionVertex[] { mock(ExecutionVertex.class) },
 				new ExecutionVertex[] { mock(ExecutionVertex.class) },
 				new ExecutionVertex[0], cl,
@@ -249,12 +262,14 @@ public class CheckpointStateRestoreTest {
 		when(mock.getParallelSubtaskIndex()).thenReturn(subtask);
 		when(mock.getCurrentExecutionAttempt()).thenReturn(execution);
 		when(mock.getTotalNumberOfParallelSubtasks()).thenReturn(parallelism);
+		when(mock.getMaxParallelism()).thenReturn(parallelism);
 		return mock;
 	}
 
 	private ExecutionJobVertex mockExecutionJobVertex(JobVertexID id, ExecutionVertex[] vertices) {
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 		when(vertex.getParallelism()).thenReturn(vertices.length);
+		when(vertex.getMaxParallelism()).thenReturn(vertices.length);
 		when(vertex.getJobVertexId()).thenReturn(id);
 		when(vertex.getTaskVertices()).thenReturn(vertices);
 		return vertex;

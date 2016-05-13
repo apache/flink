@@ -23,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -102,8 +102,8 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * @throws Exception Forwards exceptions that occur while drawing snapshots from the operator
 	 *                   and the key/value state.
 	 */
-	StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
-	
+	StreamOperatorState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
+
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
@@ -120,7 +120,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
 	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
-	void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception;
+	void restoreState(StreamOperatorState state, long recoveryTimestamp) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

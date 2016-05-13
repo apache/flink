@@ -19,21 +19,14 @@
 package org.apache.flink.streaming.runtime.state;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.PartitionedStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -97,36 +90,17 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void initializeForJob(Environment env, String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
+		public void initializeForJob(Environment env, String operatorIdentifier) throws Exception {
 			throw new SuccessException();
 		}
 
 		@Override
-		public void disposeAllStateForCurrentJob() throws Exception {}
+		public <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) {
+			return null;
+		}
 
 		@Override
 		public void close() throws Exception {}
-
-		@Override
-		protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-			return null;
-		}
-
-		@Override
-		protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-			return null;
-		}
 
 		@Override
 		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID,

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,19 +29,20 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorState;
 import org.apache.flink.util.Collector;
 
 import org.junit.After;
@@ -187,7 +189,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
-			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
@@ -239,7 +241,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -277,7 +279,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	@Test
-	public void testSlidingWindow() {
+	public void testSlidingWindow() throws Exception {
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
 			final CollectingOutput<Integer> out = new CollectingOutput<>(50);
@@ -290,7 +292,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			final int numElements = 1000;
@@ -331,12 +333,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 					lastCount = 1;
 				}
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			timerService.shutdown();
 		}
 	}
@@ -356,7 +353,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			synchronized (lock) {
@@ -412,7 +409,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							validatingIdentityFunction, identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			synchronized (lock) {
@@ -460,7 +457,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// inject some elements
@@ -474,7 +471,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot and dispose the window
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Integer> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size(); 
@@ -502,7 +499,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSize);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out2);
 			op.restoreState(state, 1);
 			op.open();
 
@@ -555,7 +552,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 							windowSize, windowSlide);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			// inject some elements
@@ -570,7 +567,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			}
 
 			// draw a snapshot
-			StreamTaskState state;
+			StreamOperatorState state;
 			List<Integer> resultAtSnapshot;
 			synchronized (lock) {
 				int beforeSnapShot = out.getElements().size();
@@ -599,7 +596,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
 					windowSize, windowSlide);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out2);
 			op.restoreState(state, 1);
 			op.open();
 			
@@ -661,7 +658,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							new StatefulFunction(), identitySelector,
 							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 50, 50);
 
-			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE), out);
+			op.setup(mockTask, createTaskConfig(identitySelector, IntSerializer.INSTANCE, new HashKeyGroupAssigner<Object>(10)), out);
 			op.open();
 
 			synchronized (lock) {
@@ -722,34 +719,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
-	private static class FailingFunction implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
-
-		private final int failAfterElements;
-		
-		private int numElements;
-
-		FailingFunction(int failAfterElements) {
-			this.failAfterElements = failAfterElements;
-		}
-
-		@Override
-		public void apply(Integer integer,
-				TimeWindow window,
-				Iterable<Integer> values,
-				Collector<Integer> out) throws Exception {
-			for (Integer i : values) {
-				out.collect(i);
-				numElements++;
-				
-				if (numElements >= failAfterElements) {
-					throw new Exception("Artificial Test Exception");
-				}
-			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
 
 	private static class StatefulFunction extends RichWindowFunction<Integer, Integer, Integer, TimeWindow> {
 		
@@ -786,31 +755,23 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	// ------------------------------------------------------------------------
 
 	private static StreamTask<?, ?> createMockTask() {
+		Configuration configuration = new Configuration();
+		configuration.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
+
 		StreamTask<?, ?> task = mock(StreamTask.class);
 		when(task.getAccumulatorMap()).thenReturn(new HashMap<String, Accumulator<?, ?>>());
 		when(task.getName()).thenReturn("Test task name");
 		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
+		final TaskManagerRuntimeInfo mockTaskManagerRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
+		when(mockTaskManagerRuntimeInfo.getConfiguration()).thenReturn(configuration);
+
 		final Environment env = mock(Environment.class);
 		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
+		when(env.getTaskManagerInfo()).thenReturn(mockTaskManagerRuntimeInfo);
 
 		when(task.getEnvironment()).thenReturn(env);
-
-		try {
-			doAnswer(new Answer<AbstractStateBackend>() {
-				@Override
-				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
-					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					MemoryStateBackend backend = MemoryStateBackend.create();
-					backend.initializeForJob(env, operatorIdentifier, keySerializer);
-					return backend;
-				}
-			}).when(task).createStateBackend(any(String.class), any(TypeSerializer.class));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 
 		return task;
 	}
@@ -844,10 +805,11 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		return mockTask;
 	}
 	
-	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer) {
+	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer, KeyGroupAssigner<?> keyGroupAssigner) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStatePartitioner(0, partitioner);
 		cfg.setStateKeySerializer(keySerializer);
+		cfg.setKeyGroupAssigner(keyGroupAssigner);
 		return cfg;
 	}
 }

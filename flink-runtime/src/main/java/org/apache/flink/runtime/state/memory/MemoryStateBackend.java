@@ -18,15 +18,8 @@
 
 package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.PartitionedStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -73,8 +66,8 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void disposeAllStateForCurrentJob() {
-		// nothing to do here, GC will do it
+	public <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) {
+		return new PartitionedMemoryStateBackend<K>(keySerializer, classLoader);
 	}
 
 	@Override
@@ -83,26 +76,6 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 	//  State backend operations
 	// ------------------------------------------------------------------------
-
-	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
-		return new MemValueState<>(keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		return new MemListState<>(keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		return new MemReducingState<>(keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		return new MemFoldingState<>(keySerializer, namespaceSerializer, stateDesc);
-	}
 
 	/**
 	 * Serialized the given state into bytes using Java serialization and creates a state handle that

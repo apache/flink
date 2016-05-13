@@ -45,19 +45,23 @@ public class TaskState implements Serializable {
 	private final Map<Integer, SubtaskState> subtaskStates;
 
 	/** Map of key-value states which can be accessed by their key group index */
-	private final Map<Integer, KeyGroupState> kvStates;
+	private final Map<Integer, KeyGroupState> keyGroupStates;
 
 	/** Parallelism of the operator when it was checkpointed */
 	private final int parallelism;
 
-	public TaskState(JobVertexID jobVertexID, int parallelism) {
+	private final int maxParallelism;
+
+	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism) {
 		this.jobVertexID = jobVertexID;
 
 		this.subtaskStates = new HashMap<>(parallelism);
 
-		this.kvStates = new HashMap<>();
+		this.keyGroupStates = new HashMap<>();
 
 		this.parallelism = parallelism;
+
+		this.maxParallelism = maxParallelism;
 	}
 
 	public JobVertexID getJobVertexID() {
@@ -93,7 +97,7 @@ public class TaskState implements Serializable {
 			result += subtaskState.getStateSize();
 		}
 
-		for (KeyGroupState keyGroupState : kvStates.values()) {
+		for (KeyGroupState keyGroupState : keyGroupStates.values()) {
 			result += keyGroupState.getStateSize();
 		}
 
@@ -108,12 +112,24 @@ public class TaskState implements Serializable {
 		return parallelism;
 	}
 
-	public void putKvState(int keyGroupId, KeyGroupState keyGroupState) {
-		kvStates.put(keyGroupId, keyGroupState);
+	public int getMaxParallelism() {
+		return maxParallelism;
 	}
 
-	public KeyGroupState getKvState(int keyGroupId) {
-		return kvStates.get(keyGroupId);
+	public void putKeyGroupState(int keyGroupId, KeyGroupState keyGroupState) {
+		keyGroupStates.put(keyGroupId, keyGroupState);
+	}
+
+	public KeyGroupState getKeyGroupState(int keyGroupId) {
+		return keyGroupStates.get(keyGroupId);
+	}
+
+	public Map<Integer, KeyGroupState> getKeyGroupStates() {
+		return keyGroupStates;
+	}
+
+	public boolean hasNonPartitionedState() {
+		return !subtaskStates.isEmpty();
 	}
 
 	/**
@@ -124,22 +140,22 @@ public class TaskState implements Serializable {
 	 * @param keyGroupPartition Set of key group indices
 	 * @return Map of serialized key group state handles indexed by their key group index.
 	 */
-	public Map<Integer, SerializedValue<StateHandle<?>>> getUnwrappedKvStates(Set<Integer> keyGroupPartition) {
+	public Map<Integer, SerializedValue<StateHandle<?>>> getUnwrappedKeyGroupStates(Set<Integer> keyGroupPartition) {
 		HashMap<Integer, SerializedValue<StateHandle<?>>> result = new HashMap<>(keyGroupPartition.size());
 
 		for (Integer keyGroupId : keyGroupPartition) {
-			KeyGroupState keyGroupState = kvStates.get(keyGroupId);
+			KeyGroupState keyGroupState = keyGroupStates.get(keyGroupId);
 
 			if (keyGroupState != null) {
-				result.put(keyGroupId, kvStates.get(keyGroupId).getKeyGroupState());
+				result.put(keyGroupId, keyGroupStates.get(keyGroupId).getKeyGroupState());
 			}
 		}
 
 		return result;
 	}
 
-	public int getNumberCollectedKvStates() {
-		return kvStates.size();
+	public int getNumberCollectedKeyGroups() {
+		return keyGroupStates.size();
 	}
 
 	public void discard(ClassLoader classLoader) {
@@ -147,7 +163,7 @@ public class TaskState implements Serializable {
 			subtaskState.discard(classLoader);
 		}
 
-		for (KeyGroupState keyGroupState : kvStates.values()) {
+		for (KeyGroupState keyGroupState : keyGroupStates.values()) {
 			keyGroupState.discard(classLoader);
 		}
 	}
@@ -158,7 +174,7 @@ public class TaskState implements Serializable {
 			TaskState other = (TaskState) obj;
 
 			return jobVertexID.equals(other.jobVertexID) && parallelism == other.parallelism &&
-				subtaskStates.equals(other.subtaskStates) && kvStates.equals(other.kvStates);
+				subtaskStates.equals(other.subtaskStates) && keyGroupStates.equals(other.keyGroupStates);
 		} else {
 			return false;
 		}
@@ -166,6 +182,6 @@ public class TaskState implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, kvStates);
+		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates, keyGroupStates);
 	}
 }

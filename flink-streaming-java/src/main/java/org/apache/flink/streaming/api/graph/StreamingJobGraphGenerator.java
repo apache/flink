@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -290,6 +292,21 @@ public class StreamingJobGraphGenerator {
 
 		if (parallelism > 0) {
 			jobVertex.setParallelism(parallelism);
+		} else {
+			parallelism = jobVertex.getParallelism();
+		}
+
+		int maxParallelism = streamNode.getMaxParallelism();
+
+		// the maximum parallelism specifies the upper bound for the parallelism
+		if (parallelism > maxParallelism) {
+			// the parallelism should always be smaller or equal than the max parallelism
+			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
+				"the stream node " + streamNode + " is smaller than the parallelism (" +
+				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
+				"this operator.");
+		} else {
+			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -326,7 +343,7 @@ public class StreamingJobGraphGenerator {
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 		
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
-		
+
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
@@ -340,7 +357,15 @@ public class StreamingJobGraphGenerator {
 		config.setStatePartitioner(0, vertex.getStatePartitioner1());
 		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
-		
+
+		// only set the key group assigner if the vertex uses partitioned state (= KeyedStream).
+		if (vertex.getStatePartitioner1() != null) {
+			// the key group assigner has to know the number of key groups (= maxParallelism)
+			KeyGroupAssigner<Object> keyGroupAssigner = new HashKeyGroupAssigner<Object>(vertex.getMaxParallelism());
+
+			config.setKeyGroupAssigner(keyGroupAssigner);
+		}
+
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
 		if (vertexClass.equals(StreamIterationHead.class)
@@ -726,8 +751,6 @@ public class StreamingJobGraphGenerator {
 		// the generated hash codes depend on the ordering of the nodes in the
 		// stream graph.
 		hasher.putInt(id);
-
-		hasher.putInt(node.getParallelism());
 
 		if (node.getOperator() instanceof AbstractUdfStreamOperator) {
 			String udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())

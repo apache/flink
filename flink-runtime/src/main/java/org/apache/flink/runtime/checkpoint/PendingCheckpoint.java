@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -53,12 +54,15 @@ public class PendingCheckpoint {
 	private int numAcknowledgedTasks;
 	
 	private boolean discarded;
-	
+
 	// --------------------------------------------------------------------------------------------
 	
-	public PendingCheckpoint(JobID jobId, long checkpointId, long checkpointTimestamp,
-							Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm)
-	{
+	public PendingCheckpoint(
+		JobID jobId,
+		long checkpointId,
+		long checkpointTimestamp,
+		Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm) {
+
 		if (jobId == null || verticesToConfirm == null) {
 			throw new NullPointerException();
 		}
@@ -72,8 +76,9 @@ public class PendingCheckpoint {
 		
 		this.notYetAcknowledgedTasks = verticesToConfirm;
 		this.taskStates = new HashMap<>();
+
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 
@@ -132,10 +137,10 @@ public class PendingCheckpoint {
 	}
 	
 	public boolean acknowledgeTask(
-			ExecutionAttemptID attemptID,
-			SerializedValue<StateHandle<?>> state,
-			long stateSize,
-			Map<Integer, SerializedValue<StateHandle<?>>> kvState) {
+		ExecutionAttemptID attemptID,
+		SerializedValue<StateHandle<?>> state,
+		long stateSize,
+		Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -144,7 +149,7 @@ public class PendingCheckpoint {
 			
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
-				if (state != null || kvState != null) {
+				if (state != null || keyGroupStateAndSizes != null) {
 
 					JobVertexID jobVertexID = vertex.getJobvertexId();
 
@@ -153,7 +158,7 @@ public class PendingCheckpoint {
 					if (taskStates.containsKey(jobVertexID)) {
 						taskState = taskStates.get(jobVertexID);
 					} else {
-						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks());
+						taskState = new TaskState(jobVertexID, vertex.getTotalNumberOfParallelSubtasks(), vertex.getMaxParallelism());
 						taskStates.put(jobVertexID, taskState);
 					}
 
@@ -170,15 +175,16 @@ public class PendingCheckpoint {
 						);
 					}
 
-					if (kvState != null) {
-						for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> entry : kvState.entrySet()) {
-							taskState.putKvState(
+					if (keyGroupStateAndSizes != null) {
+						// the key of the map is the key group index and the value is the
+						// serialized value of the state handle and the state size
+						for (Map.Entry<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> entry : keyGroupStateAndSizes.entrySet()) {
+							taskState.putKeyGroupState(
 								entry.getKey(),
 								new KeyGroupState(
-									entry.getValue(),
-									0L,
-									timestamp
-								));
+									entry.getValue().f0,
+									entry.getValue().f1,
+									timestamp));
 						}
 					}
 				}

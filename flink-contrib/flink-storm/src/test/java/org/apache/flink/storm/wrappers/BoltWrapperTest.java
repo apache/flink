@@ -30,9 +30,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormConfig;
@@ -358,9 +360,16 @@ public class BoltWrapperTest extends AbstractTest {
 	}
 
 	public static StreamTask<?, ?> createMockStreamTask(ExecutionConfig execConfig) {
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
+
+		TaskManagerRuntimeInfo mockTaskManagerRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
+		when(mockTaskManagerRuntimeInfo.getConfiguration()).thenReturn(config);
+
 		Environment env = mock(Environment.class);
 		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(BoltWrapperTest.class.getClassLoader());
+		when(env.getTaskManagerInfo()).thenReturn(mockTaskManagerRuntimeInfo);
 
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());

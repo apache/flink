@@ -59,7 +59,7 @@ public class FastFailuresITCase extends TestLogger {
 		env.setParallelism(4);
 		env.enableCheckpointing(1000);
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(200, 0));
-		
+
 		DataStream<Tuple2<Integer, Integer>> input = env.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
 			@Override

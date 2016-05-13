@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.PartitionedState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -39,8 +39,8 @@ import static java.util.Objects.requireNonNull;
  * @param <SD> The type of StateDescriptor for the State S
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend>
-		implements KvState<K, N, S, SD, Backend>, State {
+public abstract class AbstractHeapState<K, N, SV, S extends PartitionedState, SD extends StateDescriptor<S, ?>, Backend extends PartitionedStateBackend<K>>
+		implements KvState<K, N, Backend>, PartitionedState {
 
 	/** Map containing the actual key/value pairs */
 	protected final HashMap<N, Map<K, SV>> state;

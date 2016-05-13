@@ -32,8 +32,8 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamOperatorNonPartitionedState;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
 
@@ -117,8 +117,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		StreamTaskState state = super.snapshotOperatorState(checkpointId, timestamp);
+	public StreamOperatorNonPartitionedState snapshotNonPartitionedState(long checkpointId, long timestamp) throws Exception {
+		StreamOperatorNonPartitionedState state = super.snapshotNonPartitionedState(checkpointId, timestamp);
 
 		if (userFunction instanceof Checkpointed) {
 			@SuppressWarnings("unchecked")
@@ -150,9 +150,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	}
 
 	@Override
-	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-		super.restoreState(state, recoveryTimestamp);
-		
+	public void restoreNonPartitionedState(StreamOperatorNonPartitionedState state, long recoveryTimestamp) throws Exception {
 		StateHandle<Serializable> stateHandle =  state.getFunctionState();
 		
 		if (userFunction instanceof Checkpointed && stateHandle != null) {

@@ -33,8 +33,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * {@link ReducingState} implementation that stores state in RocksDB.
  *
@@ -43,14 +41,11 @@ import static java.util.Objects.requireNonNull;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>>
+	extends AbstractRocksDBState<K, N>
 	implements ReducingState<V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	private final ReducingStateDescriptor<V> stateDesc;
 
 	/** User-specified reduce function */
 	private final ReduceFunction<V> reduceFunction;
@@ -71,10 +66,9 @@ public class RocksDBReducingState<K, N, V>
 	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<V> stateDesc,
-			RocksDBStateBackend backend) {
+			PartitionedRocksDBStateBackend<K> backend) {
 		
 		super(columnFamily, namespaceSerializer, backend);
-		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
 		this.reduceFunction = stateDesc.getReduceFunction();
 

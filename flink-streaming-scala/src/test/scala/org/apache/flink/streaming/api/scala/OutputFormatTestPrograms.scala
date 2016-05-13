@@ -37,6 +37,7 @@ object OutputFormatTestPrograms {
 
   def wordCountToText(input: String, outputPath : String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+
     val text = env.fromElements(input)
 
     val counts = wordCountProgram(text)

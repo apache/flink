@@ -217,6 +217,8 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
+	private volatile Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates;
+
 	private volatile long recoveryTs;
 
 	/** The job specific execution configuration (see {@link ExecutionConfig}). */
@@ -252,6 +254,7 @@ public class Task implements Runnable {
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
+		this.keyGroupStates = tdd.getKeyGroupState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
 		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
 
@@ -528,21 +531,39 @@ public class Task implements Runnable {
 			// of a task that failed but had backuped state from a checkpoint
 
 			// get our private reference onto the stack (be safe against concurrent changes)
-			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
+			SerializedValue<StateHandle<?>> nonPartitionedState = this.operatorState;
+			Map<Integer, SerializedValue<StateHandle<?>>> keyGroupStates = this.keyGroupStates;
 			long recoveryTs = this.recoveryTs;
+			StateHandle<?> state = null;
+			Map<Integer, StateHandle<?>> keyGroupState = null;
 
-			if (operatorState != null) {
-				if (invokable instanceof StatefulTask) {
-					try {
-						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						StatefulTask<?> op = (StatefulTask<?>) invokable;
-						StateUtils.setOperatorState(op, state, recoveryTs);
-					}
-					catch (Exception e) {
-						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
-					}
+			if (nonPartitionedState != null) {
+				try {
+					state = nonPartitionedState.deserializeValue(userCodeClassLoader);
 				}
-				else {
+				catch (Exception e) {
+					throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);
+				}
+			}
+
+			if (keyGroupStates != null) {
+				try {
+					keyGroupState = new HashMap<>();
+
+					for (Map.Entry<Integer, SerializedValue<StateHandle<?>>> operatorKvState : keyGroupStates.entrySet()) {
+						keyGroupState.put(operatorKvState.getKey(), operatorKvState.getValue().deserializeValue(userCodeClassLoader));
+					}
+
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to deserialize key group state handle and setup initial key group state.", e);
+				}
+			}
+
+			if (state != null || (keyGroupState != null && !keyGroupState.isEmpty())) {
+				if (invokable instanceof StatefulTask) {
+					StatefulTask<?, ?> op = (StatefulTask<?, ?>) invokable;
+					StateUtils.setOperatorState(op, state, keyGroupState, recoveryTs);
+				} else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
 			}
@@ -550,8 +571,10 @@ public class Task implements Runnable {
 			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
 			// we clear the reference to the state handle
 			//noinspection UnusedAssignment
-			operatorState = null;
+			nonPartitionedState = null;
 			this.operatorState = null;
+			keyGroupStates = null;
+			this.keyGroupStates = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -915,7 +938,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask<?, ?> statefulTask = (StatefulTask<?, ?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -956,7 +979,7 @@ public class Task implements Runnable {
 			if (invokable instanceof StatefulTask) {
 
 				// build a local closure
-				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
+				final StatefulTask<?, ?> statefulTask = (StatefulTask<?, ?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {

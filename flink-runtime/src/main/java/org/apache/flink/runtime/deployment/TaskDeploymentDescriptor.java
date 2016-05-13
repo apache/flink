@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -89,6 +90,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	private final SerializedValue<StateHandle<?>> operatorState;
 
+	private final Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState;
+
 	/** The execution configuration (see {@link ExecutionConfig}) related to the specific job. */
 	private final ExecutionConfig executionConfig;
 
@@ -115,6 +118,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<URL> requiredClasspaths,
 			int targetSlotNumber,
 			SerializedValue<StateHandle<?>> operatorState,
+			Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState,
 			long recoveryTimestamp) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
@@ -139,6 +143,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
+		this.keyGroupState = keyGroupState;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
@@ -177,6 +182,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			requiredJarFiles,
 			requiredClasspaths,
 			targetSlotNumber,
+			null,
 			null,
 			-1);
 	}
@@ -317,7 +323,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	public SerializedValue<StateHandle<?>> getOperatorState() {
 		return operatorState;
 	}
-	
+
+	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupState() {
+		return keyGroupState;
+	}
+
 	public long getRecoveryTimestamp() {
 		return recoveryTimestamp;
 	}

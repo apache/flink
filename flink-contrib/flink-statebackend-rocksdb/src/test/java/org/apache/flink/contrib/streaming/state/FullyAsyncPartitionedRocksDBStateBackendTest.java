@@ -19,7 +19,9 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.OperatingSystem;
@@ -31,12 +33,25 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Tests for the partitioned state part of {@link RocksDBStateBackend}.
+ * Tests for the partitioned state part of {@link RocksDBStateBackend} with fully asynchronous
+ * checkpointing enabled.
  */
-public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
+public class FullyAsyncPartitionedRocksDBStateBackendTest extends StateBackendTestBase<PartitionedRocksDBStateBackend<Integer>> {
 
 	private File dbDir;
 	private File chkDir;
+	private RocksDBStateBackend backend;
+
+	@Override
+	public void setup() throws Exception {
+		dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
+		chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
+
+		backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
+		backend.setDbStoragePath(dbDir.getAbsolutePath());
+		backend.enableFullyAsyncSnapshots();
+		backend.initializeForJob(new DummyEnvironment("dummy-task", 1, 0), "dummy-operator");
+	}
 
 	@Before
 	public void checkOperatingSystem() {
@@ -44,17 +59,14 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Override
-	protected RocksDBStateBackend getStateBackend() throws IOException {
-		dbDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "state");
-		chkDir = new File(new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString()), "snapshots");
-
-		RocksDBStateBackend backend = new RocksDBStateBackend(chkDir.getAbsoluteFile().toURI(), new MemoryStateBackend());
-		backend.setDbStoragePath(dbDir.getAbsolutePath());
-		return backend;
+	protected PartitionedRocksDBStateBackend<Integer> createStateBackend() throws IOException {
+		return backend.createPartitionedStateBackend(IntSerializer.INSTANCE);
 	}
 
 	@Override
-	protected void cleanup() {
+	protected void cleanup() throws Exception {
+		backend.close();
+
 		try {
 			FileUtils.deleteDirectory(dbDir);
 			FileUtils.deleteDirectory(chkDir);

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -38,6 +39,8 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -217,13 +220,14 @@ public class RuntimeEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
-		acknowledgeCheckpoint(checkpointId, null);
+		acknowledgeCheckpoint(checkpointId, null, null);
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> keyGroupStates) {
 		// try and create a serialized version of the state handle
 		SerializedValue<StateHandle<?>> serializedState;
+		Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> serializedKeyGroupStates;
 		long stateSize;
 
 		if (state == null) {
@@ -231,25 +235,58 @@ public class RuntimeEnvironment implements Environment {
 			stateSize = 0;
 		} else {
 			try {
-				serializedState = new SerializedValue<StateHandle<?>>(state);
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
-			}
-
-			try {
 				stateSize = state.getStateSize();
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Failed to fetch state handle size", e);
 			}
+
+			if (stateSize == 0) {
+				serializedState = null;
+			} else {
+				try {
+					serializedState = new SerializedValue<StateHandle<?>>(state);
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
+				}
+			}
+		}
+
+		if (keyGroupStates == null) {
+			serializedKeyGroupStates = null;
+		} else {
+			serializedKeyGroupStates = new HashMap<>(keyGroupStates.size());
+
+			for(Map.Entry<Integer, StateHandle<?>> entry: keyGroupStates.entrySet()) {
+				SerializedValue<StateHandle<?>> serializedKeyGroupState;
+				long keyGroupStateSize;
+
+				try {
+					keyGroupStateSize = entry.getValue().getStateSize();
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to fetch state handle size.", e);
+				}
+
+				if (keyGroupStateSize > 0) {
+
+					try {
+						serializedKeyGroupState = new SerializedValue<StateHandle<?>>(entry.getValue());
+					} catch (IOException e) {
+						throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation.", e);
+					}
+
+					serializedKeyGroupStates.put(entry.getKey(), Tuple2.of(serializedKeyGroupState, keyGroupStateSize));
+				}
+			}
 		}
 		
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
-				jobId,
-				executionId,
-				checkpointId,
-				serializedState,
-				stateSize);
+			jobId,
+			executionId,
+			checkpointId,
+			serializedState,
+			stateSize,
+			serializedKeyGroupStates);
 
 		jobManager.tell(message);
 	}

@@ -65,7 +65,6 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 					100,
 					100,
 					1,
-					42,
 					Collections.<ExecutionJobVertex>emptyList(),
 					Collections.<ExecutionJobVertex>emptyList(),
 					Collections.<ExecutionJobVertex>emptyList(),

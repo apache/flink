@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.japi.Creator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -83,7 +84,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			JobID jobId,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -92,20 +92,20 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			StateStore<CompletedCheckpoint> savepointStore,
 			CheckpointStatsTracker statsTracker) throws Exception {
 
-		super(jobId,
-				baseInterval,
-				checkpointTimeout,
-				0L,
-				Integer.MAX_VALUE,
-				numberKeyGroups,
-				tasksToTrigger,
-				tasksToWaitFor,
-				tasksToCommitTo,
-				userClassLoader,
-				checkpointIDCounter,
-				IgnoreCompletedCheckpointsStore.INSTANCE,
-				RecoveryMode.STANDALONE,
-				statsTracker);
+		super(
+			jobId,
+			baseInterval,
+			checkpointTimeout,
+			0L,
+			Integer.MAX_VALUE,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			userClassLoader,
+			checkpointIDCounter,
+			IgnoreCompletedCheckpointsStore.INSTANCE,
+			RecoveryMode.STANDALONE,
+			statsTracker);
 
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();
@@ -204,12 +204,23 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskStateEntry.getKey());
 
 				if (executionJobVertex != null) {
-					if (executionJobVertex.getParallelism() != taskState.getParallelism()) {
+					// check that the number of key groups have not changed
+					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+						throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
+							"is currently not supported.");
+					}
+
+					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
+
+					if (hasNonPartitionedState && executionJobVertex.getParallelism() != taskState.getParallelism()) {
 						String msg = String.format("Failed to rollback to savepoint %s. " +
 								"Parallelism mismatch between savepoint state and new program. " +
 								"Cannot map operator %s with parallelism %d to new program with " +
-								"parallelism %d. This indicates that the program has been changed " +
-								"in a non-compatible way after the savepoint.",
+								"parallelism %d, because the operator contains non-partitioned state.",
 							checkpoint,
 							taskStateEntry.getKey(),
 							taskState.getParallelism(),
@@ -219,25 +230,28 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 					}
 
 					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
-						numberKeyGroups,
+						executionJobVertex.getMaxParallelism(),
 						executionJobVertex.getParallelism());
 
-					for (int i = 0; i < executionJobVertex.getTaskVertices().length; i++) {
-						SubtaskState subtaskState = taskState.getState(i);
+					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
 						SerializedValue<StateHandle<?>> state = null;
 
-						if (subtaskState != null) {
-							state = subtaskState.getState();
+						if (hasNonPartitionedState) {
+							SubtaskState subtaskState = taskState.getState(i);
+
+							if (subtaskState != null) {
+								state = subtaskState.getState();
+							}
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState
-							.getUnwrappedKvStates(keyGroupPartitions.get(i));
+						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState
+							.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
 						Execution currentExecutionAttempt = executionJobVertex
 							.getTaskVertices()[i]
 							.getCurrentExecutionAttempt();
 
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						currentExecutionAttempt.setInitialState(state, keyGroupState, recoveryTimestamp);
 					}
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
@@ -321,9 +335,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			if (getJobStatusListener() == null) {
 				Props props = Props.create(
-						SavepointCoordinatorDeActivator.class,
-						this,
-						leaderSessionID);
+					SavepointCoordinatorDeActivator.class,
+					new SavepointCoordinatorDeActivatorCreator(this, leaderSessionID));
 
 				// wrap the ActorRef in a AkkaActorGateway to support message decoration
 				setJobStatusListener(new AkkaActorGateway(
@@ -338,6 +351,27 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 	// ------------------------------------------------------------------------
 	// Completed checkpoints
 	// ------------------------------------------------------------------------
+
+	private static class SavepointCoordinatorDeActivatorCreator implements Creator<SavepointCoordinatorDeActivator> {
+
+		private static final long serialVersionUID = -7159442644775636028L;
+
+		private final transient SavepointCoordinator savepointCoordinator;
+		private final UUID leaderSessionID;
+
+		SavepointCoordinatorDeActivatorCreator(
+			SavepointCoordinator savepointCoordinator,
+			UUID leaderSessionID) {
+
+			this.savepointCoordinator = savepointCoordinator;
+			this.leaderSessionID = leaderSessionID;
+		}
+
+		@Override
+		public SavepointCoordinatorDeActivator create() throws Exception {
+			return new SavepointCoordinatorDeActivator(savepointCoordinator, leaderSessionID);
+		}
+	}
 
 	private static class IgnoreCompletedCheckpointsStore implements CompletedCheckpointStore {
 

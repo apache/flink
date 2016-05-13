@@ -29,17 +29,14 @@ import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.HashKeyGroupAssigner;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -89,6 +86,7 @@ public class MockContext<IN, OUT> {
 		if (keySelector != null && keyType != null) {
 			config.setStateKeySerializer(keyType.createSerializer(new ExecutionConfig()));
 			config.setStatePartitioner(0, keySelector);
+			config.setKeyGroupAssigner(new HashKeyGroupAssigner<KEY>(10));
 		}
 		
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
@@ -148,22 +146,6 @@ public class MockContext<IN, OUT> {
 				return null;
 			}
 		}).when(task).registerTimer(anyLong(), any(Triggerable.class));
-
-
-		try {
-			doAnswer(new Answer<AbstractStateBackend>() {
-				@Override
-				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
-					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
-					MemoryStateBackend backend = MemoryStateBackend.create();
-					backend.initializeForJob(new DummyEnvironment("dummty", 1, 0), operatorIdentifier, keySerializer);
-					return backend;
-				}
-			}).when(task).createStateBackend(any(String.class), any(TypeSerializer.class));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 
 		return task;
 	}

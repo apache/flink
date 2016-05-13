@@ -138,7 +138,7 @@ public class Execution implements Serializable {
 
 	private SerializedValue<StateHandle<?>> operatorState;
 
-	private Map<Integer, SerializedValue<StateHandle<?>>> operatorKvState;
+	private Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState;
 	
 	private long recoveryTimestamp;
 
@@ -218,6 +218,14 @@ public class Execution implements Serializable {
 		return this.stateTimestamps[state.ordinal()];
 	}
 
+	public SerializedValue<StateHandle<?>> getOperatorState() {
+		return operatorState;
+	}
+
+	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupState() {
+		return keyGroupState;
+	}
+
 	public boolean isFinished() {
 		return state == FINISHED || state == FAILED || state == CANCELED;
 	}
@@ -237,16 +245,24 @@ public class Execution implements Serializable {
 		partialInputChannelDeploymentDescriptors = null;
 	}
 
+	/**
+	 * Sets the initial state for the execution. The serialized state is then shipped via the
+	 * {@link TaskDeploymentDescriptor} to the TaskManagers.
+	 *
+	 * @param initialState Initial operator state
+	 * @param initialKeyGroupState Initial key group state (= partitioend state)
+	 * @param recoveryTimestamp Reocvery timestamp
+	 */
 	public void setInitialState(
 		SerializedValue<StateHandle<?>> initialState,
-		Map<Integer, SerializedValue<StateHandle<?>>> initialKvState,
+		Map<Integer, SerializedValue<StateHandle<?>>> initialKeyGroupState,
 		long recoveryTimestamp) {
 
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 		this.operatorState = initialState;
-		this.operatorKvState = initialKvState;
+		this.keyGroupState = initialKeyGroupState;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
@@ -375,7 +391,7 @@ public class Execution implements Serializable {
 				attemptId,
 				slot,
 				operatorState,
-				operatorKvState,
+				keyGroupState,
 				recoveryTimestamp,
 				attemptNumber);
 

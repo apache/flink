@@ -18,14 +18,6 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -70,7 +62,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 	
 	/** Default size for the write buffer */
-	private static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
+	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 	
 
 	/** The path to the directory for the checkpoint data, including the file system
@@ -237,10 +229,8 @@ public class FsStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(Environment env,
-		String operatorIdentifier,
-		TypeSerializer<?> keySerializer) throws Exception {
-		super.initializeForJob(env, operatorIdentifier, keySerializer);
+	public void initializeForJob(Environment env, String operatorIdentifier) throws Exception {
+		super.initializeForJob(env, operatorIdentifier);
 
 		Path dir = new Path(basePath, env.getJobID().toString());
 
@@ -253,18 +243,8 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
-	public void disposeAllStateForCurrentJob() throws Exception {
-		FileSystem fs = this.filesystem;
-		Path dir = this.checkpointDirectory;
-
-		if (fs != null && dir != null) {
-			this.filesystem = null;
-			this.checkpointDirectory = null;
-			fs.delete(dir, true);
-		}
-		else {
-			throw new IllegalStateException("state backend has not been initialized");
-		}
+	public <K> PartitionedFsStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) {
+		return new PartitionedFsStateBackend<K>(keySerializer, classLoader, this);
 	}
 
 	@Override
@@ -273,27 +253,6 @@ public class FsStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
-
-	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
-		return new FsValueState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
-		return new FsListState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
-		return new FsReducingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
-
-	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
-	}
 
 	@Override
 	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(
@@ -424,9 +383,11 @@ public class FsStateBackend extends AbstractStateBackend {
 		private boolean closed;
 
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
+			Path basePath,
+			FileSystem fs,
+			int bufferSize,
+			int localStateThreshold) {
+
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}

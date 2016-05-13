@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -26,34 +29,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
- */
-public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
-
-	@Override
-	protected MemoryStateBackend getStateBackend() throws Exception {
-		return new MemoryStateBackend();
-	}
-
-	@Override
-	protected void cleanup() throws Exception { }
-
-	// disable these because the verification does not work for this state backend
-	@Override
-	@Test
-	public void testValueStateRestoreWithWrongSerializers() {}
-
-	@Override
-	@Test
-	public void testListStateRestoreWithWrongSerializers() {}
-
-	@Override
-	@Test
-	public void testReducingStateRestoreWithWrongSerializers() {}
-
+public class MemoryStateBackendTest extends TestLogger {
 	@Test
 	public void testSerializableState() {
 		try {

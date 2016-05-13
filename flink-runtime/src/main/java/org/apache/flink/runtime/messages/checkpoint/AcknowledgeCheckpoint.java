@@ -19,16 +19,19 @@
 package org.apache.flink.runtime.messages.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
+
+import java.util.Map;
 
 /**
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
  * {@link org.apache.flink.runtime.jobmanager.JobManager} to signal that the checkpoint of an
  * individual task is completed.
  * 
- * This message may carry the handle to the task's state.
+ * This message may carry the handle to the task's state and the key group state.
  */
 public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements java.io.Serializable {
 
@@ -43,24 +46,36 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	 */
 	private final long stateSize;
 
+	/**
+	 * State handles and their sizes for the individual key groups assigned to the check-pointed
+	 * task. The key groups are indexed by their key group index.
+	 */
+	private final Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes;
+
 	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null, 0);
+		this(job, taskExecutionId, checkpointId, null, 0, null);
 	}
 
 	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			long checkpointId,
-			SerializedValue<StateHandle<?>> state,
-			long stateSize) {
+		JobID job,
+		ExecutionAttemptID taskExecutionId,
+		long checkpointId,
+		SerializedValue<StateHandle<?>> state,
+		long stateSize,
+		Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> keyGroupStateAndSizes) {
 
 		super(job, taskExecutionId, checkpointId);
 		this.state = state;
+		this.keyGroupStateAndSizes = keyGroupStateAndSizes;
 		this.stateSize = stateSize;
 	}
 
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
+	}
+
+	public Map<Integer, Tuple2<SerializedValue<StateHandle<?>>, Long>> getKeyGroupStateAndSizes() {
+		return keyGroupStateAndSizes;
 	}
 
 	public long getStateSize() {

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.japi.Creator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
@@ -70,7 +71,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinator {
 
-	static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	/** The number of recent checkpoints whose IDs are remembered */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
@@ -102,7 +103,7 @@ public class CheckpointCoordinator {
 
 	/** Checkpoint ID counter to ensure ascending IDs. In case of job manager failures, these
 	 * need to be ascending across job managers. */
-	protected final CheckpointIDCounter checkpointIdCounter;
+	final CheckpointIDCounter checkpointIdCounter;
 
 	/** Class loader used to deserialize the state handles (as they may be user-defined) */
 	private final ClassLoader userClassLoader;
@@ -151,15 +152,12 @@ public class CheckpointCoordinator {
 	/** Helper for tracking checkpoint statistics  */
 	private final CheckpointStatsTracker statsTracker;
 
-	protected final int numberKeyGroups;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
 			JobID job,
 			long baseInterval,
 			long checkpointTimeout,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -168,7 +166,7 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			RecoveryMode recoveryMode) throws Exception {
 
-		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE, numberKeyGroups,
+		this(job, baseInterval, checkpointTimeout, 0L, Integer.MAX_VALUE,
 				tasksToTrigger, tasksToWaitFor, tasksToCommitTo,
 				userClassLoader, checkpointIDCounter, completedCheckpointStore, recoveryMode,
 				new DisabledCheckpointStatsTracker());
@@ -180,7 +178,6 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
-			int numberKeyGroups,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
@@ -248,7 +245,6 @@ public class CheckpointCoordinator {
 			this.shutdownHook = null;
 		}
 
-		this.numberKeyGroups = numberKeyGroups;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -576,9 +572,8 @@ public class CheckpointCoordinator {
 				rememberRecentCheckpointId(checkpointId);
 
 				boolean haveMoreRecentPending = false;
-				Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
-				while (entries.hasNext()) {
-					PendingCheckpoint p = entries.next().getValue();
+				for (Map.Entry<Long, PendingCheckpoint> entry: pendingCheckpoints.entrySet()) {
+					PendingCheckpoint p = entry.getValue();
 					if (!p.isDiscarded() && p.getCheckpointTimestamp() >= checkpoint.getCheckpointTimestamp()) {
 						haveMoreRecentPending = true;
 						break;
@@ -654,7 +649,7 @@ public class CheckpointCoordinator {
 					message.getTaskExecutionId(),
 					message.getState(),
 					message.getStateSize(),
-					null)) { // TODO: Give KV-state to the acknowledgeTask method
+					message.getKeyGroupStateAndSizes())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.toCompletedCheckpoint();
 
@@ -808,32 +803,53 @@ public class CheckpointCoordinator {
 				ExecutionJobVertex executionJobVertex = tasks.get(taskGroupStateEntry.getKey());
 
 				if (executionJobVertex != null) {
-					// check that we only restore the state if the parallelism has not been changed
-					if (taskState.getParallelism() != executionJobVertex.getParallelism()) {
-						throw new RuntimeException("Cannot restore the latest checkpoint because " +
-							"the parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
-							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
-							"state object has a parallelism of " + taskState.getParallelism());
+					// check that the number of key groups have not changed
+					if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+						throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
+							"is currently not supported.");
 					}
 
 					int counter = 0;
 
-					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(numberKeyGroups, executionJobVertex.getParallelism());
+					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
+
+					if (hasNonPartitionedState && taskState.getParallelism() != executionJobVertex.getParallelism()) {
+						throw new IllegalStateException("Cannot restore the latest checkpoint because " +
+							"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
+							"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
+							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
+							"state object has a parallelism of " + taskState.getParallelism());
+					}
+
+					List<Set<Integer>> keyGroupPartitions = createKeyGroupPartitions(
+						executionJobVertex.getMaxParallelism(),
+						executionJobVertex.getParallelism());
 
 					for (int i = 0; i < executionJobVertex.getParallelism(); i++) {
-						SubtaskState subtaskState = taskState.getState(i);
 						SerializedValue<StateHandle<?>> state = null;
 
-						if (subtaskState != null) {
-							// count the number of executions for which we set a state
-							counter++;
-							state = subtaskState.getState();
+						if (hasNonPartitionedState) {
+							SubtaskState subtaskState = taskState.getState(i);
+
+							if (subtaskState != null) {
+								// count the number of executions for which we set a state
+								counter++;
+								state = subtaskState.getState();
+							}
 						}
 
-						Map<Integer, SerializedValue<StateHandle<?>>> kvStateForTaskMap = taskState.getUnwrappedKvStates(keyGroupPartitions.get(i));
+						Map<Integer, SerializedValue<StateHandle<?>>> keyGroupState = taskState
+							.getUnwrappedKeyGroupStates(keyGroupPartitions.get(i));
 
-						Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[i].getCurrentExecutionAttempt();
-						currentExecutionAttempt.setInitialState(state, kvStateForTaskMap, recoveryTimestamp);
+						Execution currentExecutionAttempt = executionJobVertex
+							.getTaskVertices()[i]
+							.getCurrentExecutionAttempt();
+
+						currentExecutionAttempt.setInitialState(state, keyGroupState, recoveryTimestamp);
 					}
 
 					if (allOrNothingState && counter > 0 && counter < executionJobVertex.getParallelism()) {
@@ -855,11 +871,14 @@ public class CheckpointCoordinator {
 	 * the set of key groups which is assigned to the same task. Each set of the returned list
 	 * constitutes a key group partition.
 	 *
+	 * IMPORTANT: The assignment of key groups to partitions has to be in sync with the
+	 * KeyGroupStreamPartitioner.
+	 *
 	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
 	 * @param parallelism Parallelism to generate the key group partitioning for
 	 * @return List of key group partitions
 	 */
-	protected List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
+	List<Set<Integer>> createKeyGroupPartitions(int numberKeyGroups, int parallelism) {
 		ArrayList<Set<Integer>> result = new ArrayList<>(parallelism);
 
 		for (int p = 0; p < parallelism; p++) {
@@ -879,29 +898,29 @@ public class CheckpointCoordinator {
 	//  Accessors
 	// --------------------------------------------------------------------------------------------
 
-	public int getNumberOfPendingCheckpoints() {
+	int getNumberOfPendingCheckpoints() {
 		return this.pendingCheckpoints.size();
 	}
 
-	public int getNumberOfRetainedSuccessfulCheckpoints() {
+	int getNumberOfRetainedSuccessfulCheckpoints() {
 		synchronized (lock) {
 			return completedCheckpointStore.getNumberOfRetainedCheckpoints();
 		}
 	}
 
-	public Map<Long, PendingCheckpoint> getPendingCheckpoints() {
+	Map<Long, PendingCheckpoint> getPendingCheckpoints() {
 		synchronized (lock) {
 			return new HashMap<Long, PendingCheckpoint>(this.pendingCheckpoints);
 		}
 	}
 
-	public List<CompletedCheckpoint> getSuccessfulCheckpoints() throws Exception {
+	List<CompletedCheckpoint> getSuccessfulCheckpoints() throws Exception {
 		synchronized (lock) {
 			return completedCheckpointStore.getAllCheckpoints();
 		}
 	}
 
-	protected long getAndIncrementCheckpointId() {
+	long getAndIncrementCheckpointId() {
 		try {
 			// this must happen outside the locked scope, because it communicates
 			// with external services (in HA mode) and may block for a while.
@@ -914,11 +933,11 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	protected ActorGateway getJobStatusListener() {
+	ActorGateway getJobStatusListener() {
 		return jobStatusListener;
 	}
 
-	protected void setJobStatusListener(ActorGateway jobStatusListener) {
+	void setJobStatusListener(ActorGateway jobStatusListener) {
 		this.jobStatusListener = jobStatusListener;
 	}
 
@@ -926,7 +945,7 @@ public class CheckpointCoordinator {
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
 
-	public void startCheckpointScheduler() {
+	void startCheckpointScheduler() {
 		synchronized (lock) {
 			if (shutdown) {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
@@ -949,7 +968,7 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void stopCheckpointScheduler() {
+	void stopCheckpointScheduler() {
 		synchronized (lock) {
 			triggerRequestQueued = false;
 			periodicScheduling = false;
@@ -979,7 +998,9 @@ public class CheckpointCoordinator {
 			}
 
 			if (jobStatusListener == null) {
-				Props props = Props.create(CheckpointCoordinatorDeActivator.class, this, leaderSessionID);
+				Props props = Props.create(
+					CheckpointCoordinatorDeActivator.class,
+					new CheckpointCoordinatorDeActivatorCreator(this, leaderSessionID));
 
 				// wrap the ActorRef in a AkkaActorGateway to support message decoration
 				jobStatusListener = new AkkaActorGateway(actorSystem.actorOf(props), leaderSessionID);
@@ -991,14 +1012,33 @@ public class CheckpointCoordinator {
 
 	// ------------------------------------------------------------------------
 
+	private static class CheckpointCoordinatorDeActivatorCreator implements Creator<CheckpointCoordinatorDeActivator> {
+
+		private static final long serialVersionUID = 8690426061660839304L;
+
+		private final transient CheckpointCoordinator checkpointCoordinator;
+		private final UUID leaderSessionID;
+
+		CheckpointCoordinatorDeActivatorCreator(
+			CheckpointCoordinator checkpointCoordinator,
+			UUID leaderSessionID) {
+			this.checkpointCoordinator = checkpointCoordinator;
+			this.leaderSessionID = leaderSessionID;
+		}
+
+		@Override
+		public CheckpointCoordinatorDeActivator create() throws Exception {
+			return new CheckpointCoordinatorDeActivator(checkpointCoordinator, leaderSessionID);
+		}
+	}
+
 	private class ScheduledTrigger extends TimerTask {
 
 		@Override
 		public void run() {
 			try {
 				triggerCheckpoint(System.currentTimeMillis());
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint", e);
 			}
 		}

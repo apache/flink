@@ -53,7 +53,7 @@ public class FsReducingState<K, N, V>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                           and can create a default state value.
 	 */
-	public FsReducingState(FsStateBackend backend,
+	public FsReducingState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		ReducingStateDescriptor<V> stateDesc) {
@@ -73,7 +73,7 @@ public class FsReducingState<K, N, V>
 *                           and can create a default state value.
 	 * @param state The map of key/value pairs to initialize the state with.
 	 */
-	public FsReducingState(FsStateBackend backend,
+	public FsReducingState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		ReducingStateDescriptor<V> stateDesc,
@@ -126,7 +126,7 @@ public class FsReducingState<K, N, V>
 		}
 	}
 	@Override
-	public KvStateSnapshot<K, N, ReducingState<V>, ReducingStateDescriptor<V>, FsStateBackend> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
@@ -142,7 +142,7 @@ public class FsReducingState<K, N, V>
 		}
 
 		@Override
-		public KvState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, V>> stateMap) {
+		public KvState<K, N, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, V>> stateMap) {
 			return new FsReducingState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}

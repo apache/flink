@@ -199,7 +199,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		JobVertexID jvid = new JobVertexID();
 
 		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
-		TaskState taskState = new TaskState(jvid, numberOfStates);
+		TaskState taskState = new TaskState(jvid, numberOfStates, numberOfStates);
 		taskGroupStates.put(jvid, taskState);
 
 		for (int i = 0; i < numberOfStates; i++) {

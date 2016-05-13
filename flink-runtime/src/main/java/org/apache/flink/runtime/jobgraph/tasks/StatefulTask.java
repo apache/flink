@@ -20,20 +20,23 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.state.StateHandle;
 
+import java.util.Map;
+
 /**
  * This interface must be implemented by any invokable that has recoverable state and participates
  * in checkpointing.
  */
-public interface StatefulTask<T extends StateHandle<?>> {
+public interface StatefulTask<T extends StateHandle<?>, K extends StateHandle<?>> {
 
 	/**
 	 * Sets the initial state of the operator, upon recovery. The initial state is typically
 	 * a snapshot of the state from a previous execution.
 	 * 
 	 * @param stateHandle The handle to the state.
+	 * @param keyGroupStateHandles State handles for the assigned key groups
 	 * @param recoveryTimestamp Global recovery timestamp.
 	 */
-	void setInitialState(T stateHandle, long recoveryTimestamp) throws Exception;
+	void setInitialState(T stateHandle, Map<Integer, K> keyGroupStateHandles, long recoveryTimestamp) throws Exception;
 
 	/**
 	 * This method is either called directly and asynchronously by the checkpoint

@@ -109,8 +109,7 @@ public class OperatorChain<OUT> {
 			this.allOperators[this.allOperators.length - 1] = headOperator;
 			
 			success = true;
-		}
-		finally {
+		} finally {
 			// make sure we clean up after ourselves in case of a failure after acquiring
 			// the first resources
 			if (!success) {

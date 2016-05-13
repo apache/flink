@@ -37,6 +37,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -88,8 +89,8 @@ public class StreamTaskAsyncCheckpointTest {
 			}
 
 			@Override
-			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-				super.acknowledgeCheckpoint(checkpointId, state);
+			public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state, Map<Integer, StateHandle<?>> kvStates) {
+				super.acknowledgeCheckpoint(checkpointId, state, kvStates);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -99,11 +100,11 @@ public class StreamTaskAsyncCheckpointTest {
 					e.printStackTrace();
 				}
 
-				assertTrue(state instanceof StreamTaskStateList);
-				StreamTaskStateList stateList = (StreamTaskStateList) state;
+				assertTrue(state instanceof StreamTaskState);
+				StreamTaskState stateList = (StreamTaskState) state;
 
 				// should be only one state
-				StreamTaskState taskState = stateList.getState(this.getUserClassLoader())[0];
+				StreamOperatorNonPartitionedState taskState = stateList.getState(this.getUserClassLoader())[0];
 				StateHandle<?> operatorState = taskState.getOperatorState();
 				assertTrue("It must be a TestStateHandle", operatorState instanceof TestStateHandle);
 				TestStateHandle testState = (TestStateHandle) operatorState;
@@ -158,8 +159,8 @@ public class StreamTaskAsyncCheckpointTest {
 
 
 		@Override
-		public StreamTaskState snapshotOperatorState(final long checkpointId, final long timestamp) throws Exception {
-			StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		public StreamOperatorNonPartitionedState snapshotNonPartitionedState(final long checkpointId, final long timestamp) throws Exception {
+			StreamOperatorNonPartitionedState taskState = super.snapshotNonPartitionedState(checkpointId, timestamp);
 
 			AsynchronousStateHandle<String> asyncState =
 				new DataInputViewAsynchronousStateHandle(checkpointId, timestamp);
@@ -167,11 +168,6 @@ public class StreamTaskAsyncCheckpointTest {
 			taskState.setOperatorState(asyncState);
 
 			return taskState;
-		}
-
-		@Override
-		public void restoreState(StreamTaskState taskState, long recoveryTimestamp) throws Exception {
-			super.restoreState(taskState, recoveryTimestamp);
 		}
 	}
 

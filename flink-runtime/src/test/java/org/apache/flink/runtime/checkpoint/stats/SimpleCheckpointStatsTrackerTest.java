@@ -280,8 +280,9 @@ public class SimpleCheckpointStatsTrackerTest {
 		JobID jobId = new JobID();
 		int minNumOperators = 4;
 		int maxNumOperators = 32;
-		int minParallelism = 4;
-		int maxParallelism = 16;
+		int minOperatorParallelism = 4;
+		int maxOperatorParallelism = 16;
+		int maxParallelism = 32;
 
 		// Use yuge numbers here in order to test that summing up state sizes
 		// does not overflow. This was a bug in the initial version, because
@@ -298,7 +299,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 		for (int i = 0; i < numOperators; i++) {
 			operatorIds[i] = new JobVertexID();
-			operatorParallelism[i] = RAND.nextInt(maxParallelism - minParallelism + 1) + minParallelism;
+			operatorParallelism[i] = RAND.nextInt(maxOperatorParallelism - minOperatorParallelism + 1) + minOperatorParallelism;
 		}
 
 		// Generate checkpoints
@@ -316,7 +317,7 @@ public class SimpleCheckpointStatsTrackerTest {
 				JobVertexID operatorId = operatorIds[operatorIndex];
 				int parallelism = operatorParallelism[operatorIndex];
 
-				TaskState taskState = new TaskState(operatorId, parallelism);
+				TaskState taskState = new TaskState(operatorId, parallelism, maxParallelism);
 
 				taskGroupStates.put(operatorId, taskState);
 

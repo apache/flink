@@ -54,7 +54,7 @@ public class FsFoldingState<K, N, T, ACC>
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                           and can create a default state value.
 	 */
-	public FsFoldingState(FsStateBackend backend,
+	public FsFoldingState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		FoldingStateDescriptor<T, ACC> stateDesc) {
@@ -74,7 +74,7 @@ public class FsFoldingState<K, N, T, ACC>
 *                           and can create a default state value.
 	 * @param state The map of key/value pairs to initialize the state with.
 	 */
-	public FsFoldingState(FsStateBackend backend,
+	public FsFoldingState(PartitionedFsStateBackend<K> backend,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
 		FoldingStateDescriptor<T, ACC> stateDesc,
@@ -120,7 +120,7 @@ public class FsFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, FsStateBackend> createHeapSnapshot(Path filePath) {
+	public KvStateSnapshot<K, N, PartitionedFsStateBackend<K>> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
 	}
 
@@ -137,7 +137,7 @@ public class FsFoldingState<K, N, T, ACC>
 		}
 
 		@Override
-		public KvState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, FsStateBackend> createFsState(FsStateBackend backend, HashMap<N, Map<K, ACC>> stateMap) {
+		public KvState<K, N, PartitionedFsStateBackend<K>> createFsState(PartitionedFsStateBackend<K> backend, HashMap<N, Map<K, ACC>> stateMap) {
 			return new FsFoldingState<>(backend, keySerializer, namespaceSerializer, stateDesc, stateMap);
 		}
 	}
