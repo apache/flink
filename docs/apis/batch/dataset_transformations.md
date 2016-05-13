@@ -644,8 +644,8 @@ In contrast to a reduce function, a group-reduce function is not
 implicitly combinable. In order to make a group-reduce function
 combinable it must implement the `GroupCombineFunction` interface.
 
-**Important**: The generic input and output types of 
-the `GroupCombineFunction` interface must be equal to the generic input type 
+**Important**: The generic input and output types of
+the `GroupCombineFunction` interface must be equal to the generic input type
 of the `GroupReduceFunction` as shown in the following example:
 
 <div class="codetabs" markdown="1">
@@ -655,7 +655,7 @@ of the `GroupReduceFunction` as shown in the following example:
 // Combinable GroupReduceFunction that computes a sum.
 public class MyCombinableGroupReducer implements
   GroupReduceFunction<Tuple2<String, Integer>, String>,
-  GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> 
+  GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
 {
   @Override
   public void reduce(Iterable<Tuple2<String, Integer>> in,
@@ -683,7 +683,7 @@ public class MyCombinableGroupReducer implements
       sum += curr.f1;
     }
     // emit tuple with key and sum
-    out.collect(new Tuple2<>(key, sum)); 
+    out.collect(new Tuple2<>(key, sum));
   }
 }
 ~~~
@@ -1379,8 +1379,8 @@ val ratings: DataSet[Ratings] = // [...]
 val weights: DataSet[(String, Double)] = // [...]
 
 val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
-  (rating, weight, out: Collector[(String, Double)] =>
-    if (weight._2 > 0.1) out.collect(left.name, left.points * right._2)
+  (rating, weight, out: Collector[(String, Double)]) =>
+    if (weight._2 > 0.1) out.collect(rating.name, rating.points * weight._2)
 }
 
 ~~~
