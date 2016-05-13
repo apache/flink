@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
@@ -74,4 +75,119 @@ public class BinaryInputFormatTest {
 		Assert.assertEquals("3. split has block size length.", blockSize, inputSplits[2].getLength());
 	}
 	
+	private File createBinaryInputFile(String fileName, int blockSize, int numBlocks) throws IOException {
+		// create temporary file with 3 blocks
+		final File tempFile = File.createTempFile(fileName, "tmp");
+		tempFile.deleteOnExit();
+		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+		try {
+			for (int i = 0; i < blockSize * numBlocks; i++) {
+				fileOutputStream.write(new byte[] { 1 });
+			}
+		} finally {
+			fileOutputStream.close();
+		}
+		return tempFile;
+	}
+	
+	@Test
+	public void testCreateInputSplitsWithMulitpleFiles() throws IOException {
+		final int blockInfoSize = new BlockInfo().getInfoSize();
+		final int blockSize = blockInfoSize + 8;
+		final int BLOCKS1 = 3;
+		final int BLOCKS2 = 5;
+		
+		final File tempFile = createBinaryInputFile("binary_input_format_test", blockSize, BLOCKS1);
+		final File tempFile2 = createBinaryInputFile("binary_input_format_test_2", blockSize, BLOCKS2);
+
+		final Configuration config = new Configuration();
+		config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
+		
+		final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
+		inputFormat.setFilePaths(tempFile.toURI().toString(), tempFile2.toURI().toString());
+		
+		inputFormat.configure(config);
+		
+		final int TOTAL_BLOCKS = BLOCKS1 + BLOCKS2;
+		FileInputSplit[] inputSplits = inputFormat.createInputSplits(TOTAL_BLOCKS);
+		
+		Assert.assertEquals("Returns requested numbers of splits.", TOTAL_BLOCKS, inputSplits.length);
+		for (int index = 0; index < inputSplits.length; index++) {
+			Assert.assertEquals(String.format("%d. split has block size length.", index), 
+					blockSize, inputSplits[index].getLength());
+		}
+	}
+	@Test
+	public void testGetStatisticsNonExistingFile() {
+		try {
+			final MyBinaryInputFormat format = new MyBinaryInputFormat();
+			format.setFilePath("file:///some/none/existing/directory/");
+			format.configure(new Configuration());
+			
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertNull("The file statistics should be null.", stats);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleNonExistingFile() {
+		try {
+			final MyBinaryInputFormat format = new MyBinaryInputFormat();
+			format.setFilePaths("file:///some/none/existing/directory/", "file:///another/none/existing/directory/");
+			format.configure(new Configuration());
+			
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertNull("The file statistics should be null.", stats);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetStatisticsSinglePaths() {
+		try {
+			final int blockInfoSize = new BlockInfo().getInfoSize();
+			final int blockSize = blockInfoSize + 8;
+			final int BLOCKS = 3;
+			
+			final File tempFile = createBinaryInputFile("binary_input_format_test", blockSize, BLOCKS);
+			final Configuration config = new Configuration();
+			config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
+			
+			final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
+			inputFormat.setFilePath(tempFile.toURI().toString());
+			BaseStatistics stats = inputFormat.getStatistics(null);
+			Assert.assertEquals("The file size statistics is wrong", blockSize * BLOCKS, stats.getTotalInputSize());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testGetStatisticsMultiplePaths() {
+		try {
+			final int blockInfoSize = new BlockInfo().getInfoSize();
+			final int blockSize = blockInfoSize + 8;
+			final int BLOCKS = 3;
+			final int BLOCKS2 = 5;
+			
+			final File tempFile = createBinaryInputFile("binary_input_format_test", blockSize, BLOCKS);
+			final File tempFile2 = createBinaryInputFile("binary_input_format_test_2", blockSize, BLOCKS2);
+			final Configuration config = new Configuration();
+			config.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, blockSize);
+			
+			final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
+			inputFormat.setFilePaths(tempFile.toURI().toString(), tempFile2.toURI().toString());
+			BaseStatistics stats = inputFormat.getStatistics(null);
+			Assert.assertEquals("The file size statistics is wrong", blockSize * (BLOCKS + BLOCKS2), stats.getTotalInputSize());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
 }
