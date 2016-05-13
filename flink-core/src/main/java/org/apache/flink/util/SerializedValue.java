@@ -66,6 +66,10 @@ public class SerializedValue<T> implements java.io.Serializable {
 		return serializedData.length;
 	}
 
+	public byte[] getSerializedData() {
+		return serializedData;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 

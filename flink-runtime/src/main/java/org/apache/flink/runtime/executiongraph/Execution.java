@@ -218,6 +218,14 @@ public class Execution implements Serializable {
 		return this.stateTimestamps[state.ordinal()];
 	}
 
+	public SerializedValue<StateHandle<?>> getOperatorState() {
+		return operatorState;
+	}
+
+	public Map<Integer, SerializedValue<StateHandle<?>>> getKeyGroupState() {
+		return keyGroupState;
+	}
+
 	public boolean isFinished() {
 		return state == FINISHED || state == FAILED || state == CANCELED;
 	}

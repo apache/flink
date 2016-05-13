@@ -818,7 +818,7 @@ public class CheckpointCoordinator {
 					boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
 
 					if (hasNonPartitionedState && taskState.getParallelism() != executionJobVertex.getParallelism()) {
-						throw new RuntimeException("Cannot restore the latest checkpoint because " +
+						throw new IllegalStateException("Cannot restore the latest checkpoint because " +
 							"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
 							"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
 							" has parallelism " + executionJobVertex.getParallelism() + " whereas the corresponding" +
@@ -870,6 +870,9 @@ public class CheckpointCoordinator {
 	 * Groups the available set of key groups into key group partitions. A key group partition is
 	 * the set of key groups which is assigned to the same task. Each set of the returned list
 	 * constitutes a key group partition.
+	 *
+	 * IMPORTANT: The assignment of key groups to partitions has to be in sync with the
+	 * KeyGroupStreamPartitioner.
 	 *
 	 * @param numberKeyGroups Number of available key groups (indexed from 0 to numberKeyGroups - 1)
 	 * @param parallelism Parallelism to generate the key group partitioning for
