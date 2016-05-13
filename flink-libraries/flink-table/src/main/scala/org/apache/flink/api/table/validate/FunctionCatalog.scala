@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.validate
 
+import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 import org.apache.flink.api.table.expressions._
@@ -28,16 +29,16 @@ import org.apache.flink.api.table.ValidationException
   */
 class FunctionCatalog {
 
-  private val functionBuilders = new CaseInsensitiveFunctionMap
+  private val functionBuilders = mutable.HashMap.empty[String, Class[_]]
 
   def registerFunction(name: String, builder: Class[_]): Unit =
-    functionBuilders.put(name, builder)
+    functionBuilders.put(name.toLowerCase, builder)
 
   /**
     * Lookup and create an expression if we find a match.
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
-    val funcClass = functionBuilders.get(name).getOrElse {
+    val funcClass = functionBuilders.get(name.toLowerCase).getOrElse {
       throw new ValidationException(s"undefined function $name")
     }
     withChildren(funcClass, children)
@@ -73,7 +74,7 @@ class FunctionCatalog {
     * Drop a function and return if the function existed.
     */
   def dropFunction(name: String): Boolean =
-    functionBuilders.remove(name).isDefined
+    functionBuilders.remove(name.toLowerCase).isDefined
 
   /**
     * Drop all registered functions.
@@ -120,23 +121,4 @@ object FunctionCatalog {
     buildInFunctions.foreach { case (n, c) => catalog.registerFunction(n, c) }
     catalog
   }
-}
-
-class CaseInsensitiveFunctionMap {
-  private val inner = new collection.mutable.HashMap[String, Class[_]]()
-
-  private def normalizer: String => String = _.toLowerCase
-
-  def apply(key: String): Class[_] = inner(normalizer(key))
-
-  def get(key: String): Option[Class[_]] = inner.get(normalizer(key))
-
-  def put(key: String, value: Class[_]): Option[Class[_]] =
-    inner.put(normalizer(key), value)
-
-  def remove(key: String): Option[Class[_]] = inner.remove(normalizer(key))
-
-  def iterator: Iterator[(String, Class[_])] = inner.toIterator
-
-  def clear(): Unit = inner.clear()
 }

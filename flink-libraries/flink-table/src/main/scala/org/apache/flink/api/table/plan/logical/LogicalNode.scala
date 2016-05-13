@@ -54,7 +54,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     // resolve references and function calls
     val exprResolved = expressionPostOrderTransform {
       case u @ UnresolvedFieldReference(name) =>
-        resolveChildren(name).getOrElse(u)
+        resolveReference(name).getOrElse(u)
       case c @ Call(name, children) if c.childrenValid =>
         tableEnv.getFunctionCatalog.lookupFunction(name, children)
     }
@@ -96,15 +96,9 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     * Resolves the given strings to a [[NamedExpression]] using the input from all child
     * nodes of this LogicalPlan.
     */
-  def resolveChildren(name: String): Option[NamedExpression] =
-    resolve(name, children.flatMap(_.output))
-
-  /**
-    * Performs attribute resolution given a name and a sequence of possible attributes.
-    */
-  def resolve(name: String, input: Seq[Attribute]): Option[NamedExpression] = {
-    // find all matches in input
-    val candidates = input.filter(_.name.equalsIgnoreCase(name))
+  def resolveReference(name: String): Option[NamedExpression] = {
+    val childrenOutput = children.flatMap(_.output)
+    val candidates = childrenOutput.filter(_.name.equalsIgnoreCase(name))
     if (candidates.length > 1) {
       failValidation(s"Reference $name is ambiguous")
     } else if (candidates.length == 0) {
@@ -115,21 +109,20 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
   }
 
   /**
-    * Runs [[postOrderTransform]] with `rule` on all expressions present in this query operator.
+    * Runs [[postOrderTransform]] with `rule` on all expressions present in this logical node.
     *
-    * @param rule the rule to be applied to every expression in this operator.
-    * @return
+    * @param rule the rule to be applied to every expression in this logical node.
     */
   def expressionPostOrderTransform(rule: PartialFunction[Expression, Expression]): LogicalNode = {
     var changed = false
 
-    @inline def expressionPostOrderTransform(e: Expression): Expression = {
-      val newE = e.postOrderTransform(rule)
-      if (newE.fastEquals(e)) {
+    def expressionPostOrderTransform(e: Expression): Expression = {
+      val newExpr = e.postOrderTransform(rule)
+      if (newExpr.fastEquals(e)) {
         e
       } else {
         changed = true
-        newE
+        newExpr
       }
     }
 
