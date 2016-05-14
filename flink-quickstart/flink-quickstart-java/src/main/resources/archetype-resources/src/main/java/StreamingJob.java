@@ -33,9 +33,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * 		mvn clean package
  * in the projects root directory.
  * You will find the jar in
- * 		target/flink-quickstart-0.1-SNAPSHOT.jar
- * From the cli you can then run
- * 		./bin/flink run -c  &lt;StreamingJob&gt; &lt;quickstart jar&gt;
+ * 		target/flink-quickstart-${version}.jar
+ * From the CLI you can then run
+ * 		./bin/flink run -c ${package}.StreamingJob target/flink-quickstart-${version}.jar
+ *
+ * For more information on the CLI see:
+ *
+ * http://flink.apache.org/docs/latest/apis/cli.html
  */
 public class StreamingJob {
 
@@ -47,10 +51,10 @@ public class StreamingJob {
 		 * Here, you can start creating your execution plan for Flink.
 		 *
 		 * Start with getting some data from the environment, like
-		 * env.readTextFile(textPath);
+		 * 	env.readTextFile(textPath);
 		 *
 		 * then, transform the resulting DataStream<String> using operations
-		 * like:
+		 * like
 		 * 	.filter()
 		 * 	.flatMap()
 		 * 	.join()

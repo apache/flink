@@ -32,9 +32,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * 		mvn clean package
  * in the projects root directory.
  * You will find the jar in
- * 		target/flink-quickstart-0.1-SNAPSHOT.jar
- * From the cli you can then run
- * 		./bin/flink run -c  &lt;BatchJob&gt; &lt;quickstart jar&gt;
+ * 		target/flink-quickstart-${version}.jar
+ * From the CLI you can then run
+ * 		./bin/flink run -c ${package}.BatchJob target/flink-quickstart-${version}.jar
+ *
+ * For more information on the CLI see:
+ *
+ * http://flink.apache.org/docs/latest/apis/cli.html
  */
 public class BatchJob {
 
@@ -46,10 +50,10 @@ public class BatchJob {
 		 * Here, you can start creating your execution plan for Flink.
 		 *
 		 * Start with getting some data from the environment, like
-		 * env.readTextFile(textPath);
+		 * 	env.readTextFile(textPath);
 		 *
 		 * then, transform the resulting DataSet<String> using operations
-		 * like:
+		 * like
 		 * 	.filter()
 		 * 	.flatMap()
 		 * 	.join()

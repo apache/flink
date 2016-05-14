@@ -32,11 +32,15 @@ import org.apache.flink.api.scala._
  *   mvn clean package
  * }}}
  * in the projects root directory. You will find the jar in
- * target/flink-quickstart-0.1-SNAPSHOT.jar
- * From the cli you can then run
+ * target/flink-quickstart-${version}.jar
+ * From the CLI you can then run
  * {{{
- *    ./bin/flink run -c <BatchJob> <quickstart jar>
+ *    ./bin/flink run -c ${package}.BatchJob target/flink-quickstart-${version}.jar
  * }}}
+ *
+ * For more information on the CLI see:
+ *
+ * http://flink.apache.org/docs/latest/apis/cli.html
  */
 object BatchJob {
   def main(args: Array[String]) {
@@ -47,10 +51,10 @@ object BatchJob {
      * Here, you can start creating your execution plan for Flink.
      *
      * Start with getting some data from the environment, like
-     * env.readTextFile(textPath);
+     *  env.readTextFile(textPath);
      *
      * then, transform the resulting DataSet[String] using operations
-     * like:
+     * like
      *   .filter()
      *   .flatMap()
      *   .join()
