@@ -62,7 +62,7 @@ Scala-Flink> counts.print()
 
 The print() command will automatically send the specified tasks to the JobManager for execution and will show the result of the computation in the terminal.
 
-It is possbile to write results to a file. However, in this case you need to call `execute`, to run your program:
+It is possible to write results to a file. However, in this case you need to call `execute`, to run your program:
 
 ~~~scala
 Scala-Flink> benv.execute("MyProgram")

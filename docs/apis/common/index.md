@@ -336,7 +336,7 @@ print()
 </div>
 
 Once you specified the complete program you need to **trigger the program execution** by calling
-`execute()` on the `StreamExecutionEnviroment`.
+`execute()` on the `StreamExecutionEnvironment`.
 Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local
 machine or submit your program for execution on a cluster.
 
@@ -1236,7 +1236,7 @@ Client can either be a Java or a Scala program. One example of such a Client is
 Flink's Command-line Interface (CLI).
 
 For the CLI client, the parallelism parameter can be specified with `-p`. For
-exampple:
+example:
 
     ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
 

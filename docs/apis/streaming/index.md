@@ -270,7 +270,7 @@ DataStream<String> result =
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
-	    and minBy is that min returns the minimun value, whereas minBy returns
+	    and minBy is that min returns the minimum value, whereas minBy returns
 	    the element that has the minimum value in this field (same for max and maxBy).</p>
     {% highlight java %}
 keyedStream.sum(0);
@@ -726,7 +726,7 @@ val result: DataStream[String] =
           <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
             <p>Aggregates the contents of a window. The difference between min
-	    and minBy is that min returns the minimun value, whereas minBy returns
+	    and minBy is that min returns the minimum value, whereas minBy returns
 	    the element that has the minimum value in this field (same for max and maxBy).</p>
     {% highlight scala %}
 windowedStream.sum(0)
@@ -1415,14 +1415,14 @@ Data sinks consume DataStreams and forward them to files, sockets, external syst
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataStreams:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 
 - `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
   delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 
 - `print()` / `printToErr()`  - Prints the *toString()* value
-of each element on the standard out / strandard error stream. Optionally, a prefix (msg) can be provided which is
+of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
 prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
 greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 
@@ -1443,14 +1443,14 @@ Data sinks consume DataStreams and forward them to files, sockets, external syst
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataStreams:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 
 - `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
   delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 
 - `print()` / `printToErr()`  - Prints the *toString()* value
-of each element on the standard out / strandard error stream. Optionally, a prefix (msg) can be provided which is
+of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
 prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
 greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 
@@ -1472,7 +1472,7 @@ OutputFormat. This means that not all elements send to the OutputFormat are imme
 in the target system. Also, in failure cases, those records might be lost.
 
 For reliable, exactly-once delivery of a stream into a file system, use the `flink-connector-filesystem`.
-Also, custom implementations through the `.addSink(...)` method can partiticpate in Flink's checkpointing
+Also, custom implementations through the `.addSink(...)` method can participate in Flink's checkpointing
 for exactly-once semantics.
 
 {% top %}
@@ -1494,7 +1494,7 @@ or a `filter`. Here, we show an example using filters. First, we define an `Iter
 IterativeStream<Integer> iteration = input.iterate();
 {% endhighlight %}
 
-Then, we specify the logic that will be executed inside the loop using a series of trasformations (here
+Then, we specify the logic that will be executed inside the loop using a series of transformations (here
 a simple `map` transformation)
 
 {% highlight java %}
@@ -1627,7 +1627,7 @@ Usage:
 LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 env.setBufferTimeout(timeoutMillis);
 
-env.genereateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
+env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -1660,7 +1660,7 @@ result data. This section give some hints how to ease the development of Flink p
 ### Local Execution Environment
 
 A `LocalStreamEnvironment` starts a Flink system within the same JVM process it was created in. If you
-start the LocalEnvironement from an IDE, you can set breakpoints in your code and easily debug your
+start the LocalEnvironment from an IDE, you can set breakpoints in your code and easily debug your
 program.
 
 A LocalEnvironment is created and used as follows:

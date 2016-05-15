@@ -84,7 +84,7 @@ Flink supports different notions of *time* in streaming programs.
 
 The first part of a Flink DataStream program is usually to set the base *time characteristic*. That setting
 defines how data stream sources behave (for example whether to assign timestamps), and what notion of
-time the window operations like `KeyedStream.timeWindow(Time.secondss(30))` refer to.
+time the window operations like `KeyedStream.timeWindow(Time.seconds(30))` refer to.
 
 The following example shows a Flink program that aggregates events in hourly time windows. The behavior of the
 windows adapts with the time characteristic.

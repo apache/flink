@@ -83,7 +83,7 @@ You can click on the components in the figure to learn more.
 ## Projects and Dependencies
 
 The Flink system code is divided into multiple sub-projects. The goal is to reduce the number of
-dependencies that a project implementing a Flink progam needs, as well as to faciltate easier testing
+dependencies that a project implementing a Flink program needs, as well as to faciltate easier testing
 of smaller sub-modules.
 
 The individual projects and their dependencies are shown in the figure below.
