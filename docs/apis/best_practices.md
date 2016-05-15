@@ -214,7 +214,7 @@ final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);
 
 // register the serializer included with Apache Thrift as the standard serializer
-// TBaseSerializer states it should be initalized as a default Kryo serializer
+// TBaseSerializer states it should be initialized as a default Kryo serializer
 env.getConfig().addDefaultKryoSerializer(MyCustomType.class, TBaseSerializer.class);
 
 {% endhighlight %}

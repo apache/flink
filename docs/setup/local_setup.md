@@ -102,7 +102,7 @@ Note: The ``bin`` folder of your Java Runtime Environment must be included in Wi
 $ cd flink
 $ cd bin
 $ start-local.bat
-Starting Flink job manager. Webinterface by default on http://localhost:8081/.
+Starting Flink job manager. Web interface by default on http://localhost:8081/.
 Do not close this batch window. Stop job manager by pressing Ctrl+C.
 ~~~
 

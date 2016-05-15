@@ -118,7 +118,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
 counts.writeAsCsv(outputPath, "\n", " ")
 ~~~
 
-The {% gh_link /flink-examples/flink-exampls-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `--input <path> --output <path>`. As test data, any text file will do.
 
 
 </div>
@@ -171,11 +171,11 @@ public static final class JoinVertexWithEdgesMatch
     @Override
     public void join(<Tuple2<Long, Double> page, Tuple2<Long, Long[]> adj,
                         Collector<Tuple2<Long, Double>> out) {
-        Long[] neigbors = adj.f1;
+        Long[] neighbors = adj.f1;
         double rank = page.f1;
         double rankToDistribute = rank / ((double) neigbors.length);
 
-        for (int i = 0; i < neigbors.length; i++) {
+        for (int i = 0; i < neighbors.length; i++) {
             out.collect(new Tuple2<Long, Double>(neighbors[i], rankToDistribute));
         }
     }

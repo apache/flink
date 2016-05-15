@@ -50,7 +50,7 @@ The followings have to be provided for the `RMQSource(…)` constructor in order
 - hostName: The RabbitMQ broker hostname.
 - queueName: The RabbitMQ queue name.
 - usesCorrelationId: `true` when correlation ids should be used, `false` otherwise (default is `false`).
-- deserializationScehma: Deserialization schema to turn messages into Java objects.
+- deserializationSchema: Deserialization schema to turn messages into Java objects.
 
 This source can be operated in three different modes:
 
