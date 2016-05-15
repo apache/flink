@@ -1514,7 +1514,7 @@ The following hints are available:
   partitioned) and builds a hash table from the first input. This strategy is good if the first
   input is smaller than the second, but both inputs are still large.
   *Note:* This is the default fallback strategy that the system uses if no size estimates can be made
-  and no pre-existing partitiongs and sort-orders can be re-used.
+  and no pre-existing partitions and sort-orders can be re-used.
 
 * `REPARTITION_HASH_SECOND`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the second input. This strategy is good if the second
@@ -1528,7 +1528,7 @@ The following hints are available:
 
 ### OuterJoin
 
-The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements.
+The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitrarily many (including none) elements.
 
 The elements of both DataSets are joined on one or more keys which can be specified using
 

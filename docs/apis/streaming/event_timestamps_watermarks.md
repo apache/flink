@@ -69,7 +69,7 @@ There are two ways to assign timestamps and generate Watermarks:
 Stream sources can also directly assign timestamps to the elements they produce and emit Watermarks. In that case,
 no Timestamp Assigner is needed.
 
-To assign a timestamp to an element in the soruce directly, the source must use the `collectWithTimestamp(...)`
+To assign a timestamp to an element in the source directly, the source must use the `collectWithTimestamp(...)`
 method on the `SourceContext`. To generate Watermarks, the source must call the `emitWatermark(Watermark)` function.
 
 Below is a simple example of a source *(non-checkpointed)* that assigns timestamps and generates Watermarks
