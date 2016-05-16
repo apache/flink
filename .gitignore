@@ -16,5 +16,8 @@ tmp
 *.jar
 *.log
 .DS_Store
-_site
-docs/api
+/docs/api
+/docs/content
+/docs/Gemfile.lock
+/docs/.bundle
+/docs/.rubydeps
