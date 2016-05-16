@@ -31,7 +31,6 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.graph.library.TriangleEnumerator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -82,23 +81,12 @@ public class TriangleListing {
 		DataSet tl;
 
 		if (scale > 32) {
-			if (parameters.has("enumerator")) {
-				tl = graph
-					.run(new TriangleEnumerator<LongValue,NullValue,NullValue>());
-			} else {
-				tl = graph
-					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
-			}
+			tl = graph
+				.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
 		} else {
-			if (parameters.has("enumerator")) {
-				tl = graph
-					.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-					.run(new TriangleEnumerator<IntValue, NullValue, NullValue>());
-			} else {
-				tl = graph
-					.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
-			}
+			tl = graph
+				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+				.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
 		}
 
 		switch (parameters.get("output", "")) {

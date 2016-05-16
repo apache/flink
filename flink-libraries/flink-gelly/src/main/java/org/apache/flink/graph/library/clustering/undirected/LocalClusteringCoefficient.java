@@ -31,10 +31,10 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
+import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.MathUtils;
 
 /**
  * The local clustering coefficient measures the connectedness of each vertex's
@@ -188,6 +188,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	extends Vertex<T, Tuple2<LongValue, LongValue>> {
 		public static final int HASH_SEED = 0xc23937c1;
 
+		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+
 		public Result() {
 			f1 = new Tuple2<>();
 		}
@@ -230,10 +232,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 		@Override
 		public int hashCode() {
-			long d = f1.f0.getValue();
-			long t = f1.f1.getValue();
-
-			return MathUtils.murmurHash(HASH_SEED, f0.hashCode(), (int)(d >>> 32), (int)d, (int)(t >>> 32), (int)t);
+			return hasher.reset()
+					.hash(f0.hashCode())
+					.hash(f1.f0.getValue())
+					.hash(f1.f1.getValue())
+					.hash();
 		}
 	}
 }

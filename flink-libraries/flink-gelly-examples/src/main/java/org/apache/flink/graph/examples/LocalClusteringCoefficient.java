@@ -110,7 +110,7 @@ public class LocalClusteringCoefficient {
 			System.out.println("neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0");
 			System.out.println("(neighborhood is a clique)");
 			System.out.println("");
-			System.out.println("This algorithm returns 3-tuples containing the vertex ID, the degree of");
+			System.out.println("This algorithm returns tuples containing the vertex ID, the degree of");
 			System.out.println("the vertex, and the number of edges between vertex neighbors. A neighborhood");
 			System.out.println("of size n contains (n choose 2) = n * (n-1) / 2 neighbor pairs so the");
 			System.out.println("Clustering Coefficient is neighbor edges / neighbor pairs");
