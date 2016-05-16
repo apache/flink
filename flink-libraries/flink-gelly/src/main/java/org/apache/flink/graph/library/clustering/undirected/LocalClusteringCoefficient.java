@@ -89,7 +89,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
-		// u
+		// u, 1
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
 			.flatMap(new SplitTriangles<K>())
 				.name("Split triangle vertices");
@@ -106,7 +106,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 				.setParallelism(littleParallelism)
 				.setIncludeZeroDegreeVertices(true));
 
-		// u, deg(u), neighbor edge count
+		// u, deg(u), triangle count
 		return vertexDegree
 			.leftOuterJoin(vertexTriangleCount)
 			.where(0)
@@ -121,7 +121,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private class SplitTriangles<T>
+	private static class SplitTriangles<T>
 	implements FlatMapFunction<Tuple3<T, T, T>, Tuple2<T, LongValue>> {
 		private Tuple2<T, LongValue> output = new Tuple2<>(null, new LongValue(1));
 
@@ -145,7 +145,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private class CountVertices<T>
+	private static class CountVertices<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
@@ -162,7 +162,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	@FunctionAnnotation.ForwardedFieldsFirst("0; 1->1.0")
 	@FunctionAnnotation.ForwardedFieldsSecond("0")
-	private class JoinVertexDegreeWithTriangleCount<T>
+	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, LongValue>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
 
@@ -186,10 +186,13 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	public static class Result<T>
 	extends Vertex<T, Tuple2<LongValue, LongValue>> {
-		public static final int HASH_SEED = 0xc23937c1;
+		private static final int HASH_SEED = 0xc23937c1;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
+		/**
+		 * The no-arg constructor instantiates contained objects.
+		 */
 		public Result() {
 			f1 = new Tuple2<>();
 		}
@@ -230,13 +233,20 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
 		}
 
+		public String toVerboseString() {
+			return "Vertex ID: " + f0
+				+ ", vertex degree: " + getDegree()
+				+ ", triangle count: " + getTriangleCount()
+				+ ", local clustering coefficient: " + getLocalClusteringCoefficientScore();
+		}
+
 		@Override
 		public int hashCode() {
 			return hasher.reset()
-					.hash(f0.hashCode())
-					.hash(f1.f0.getValue())
-					.hash(f1.f1.getValue())
-					.hash();
+				.hash(f0.hashCode())
+				.hash(f1.f0.getValue())
+				.hash(f1.f1.getValue())
+				.hash();
 		}
 	}
 }

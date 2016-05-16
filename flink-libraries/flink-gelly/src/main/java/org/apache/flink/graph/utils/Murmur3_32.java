@@ -18,10 +18,14 @@
 
 package org.apache.flink.graph.utils;
 
+import java.io.Serializable;
+
 /**
  * A resettable implementation of the 32-bit MurmurHash algorithm.
  */
-public class Murmur3_32 {
+public class Murmur3_32 implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	// initial seed, which can be reset
 	private final int seed;
@@ -60,6 +64,8 @@ public class Murmur3_32 {
 	 * @return this
 	 */
 	public Murmur3_32 hash(int input) {
+		count++;
+
 		input *= 0xcc9e2d51;
 		input = input << 15;
 		input *= 0x1b873593;

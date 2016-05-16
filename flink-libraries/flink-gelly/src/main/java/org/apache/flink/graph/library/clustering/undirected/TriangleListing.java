@@ -46,7 +46,7 @@ import java.util.List;
 /**
  * Generates a listing of distinct triangles from the input graph.
  * <br/>
- * A triangle is a 3-clique with vertices A, B, and C connected by edges
+ * A triangle is a 3-cycle with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
  * <br/>
  * The input graph must be a simple, undirected graph containing no duplicate
@@ -112,7 +112,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.setParallelism(littleParallelism)
 				.name("Filter by ID");
 
-		// u, v, (deg(u), deg(v))
+		// u, v, (edge value, deg(u), deg(v))
 		DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = input
 			.run(new EdgeDegreePair<K, VV, EV>()
 				.setParallelism(littleParallelism));
@@ -123,7 +123,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.setParallelism(littleParallelism)
 				.name("Filter by degree");
 
-		// u, v, w where (u, v) and (u, w) are edges in graph
+		// u, v, w where (u, v) and (u, w) are edges in graph, v < w
 		DataSet<Tuple3<K, K, K>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
@@ -131,7 +131,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				.setParallelism(littleParallelism)
 				.name("Generate triplets");
 
-		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph
+		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph, v < w
 		DataSet<Tuple3<K, K, K>> triangles = triplets
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
@@ -236,8 +236,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 
 				for (int i = 0; i < visitedCount; i++) {
 					output.f1 = visited.get(i);
-
-					// u, v, w
 					out.collect(output);
 				}
 
@@ -285,42 +283,16 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 				throws Exception {
 			T temp_val;
 
-			if (value.f0.compareTo(value.f1) <= 0) {
-				if (value.f1.compareTo(value.f2) <= 0) {
-					// a, b, c
-				} else {
-					if (value.f0.compareTo(value.f2) < 0) {
-						// a, c, b
-						temp_val = value.f1;
-						value.f1 = value.f2;
-						value.f2 = temp_val;
-					} else {
-						// b, c, a
-						temp_val = value.f0;
-						value.f0 = value.f2;
-						value.f2 = value.f1;
-						value.f1 = temp_val;
-					}
-				}
-			} else {
-				if (value.f0.compareTo(value.f2) > 0) {
-					if (value.f1.compareTo(value.f2) < 0) {
-						// c, a, b
-						temp_val = value.f0;
-						value.f0 = value.f1;
-						value.f1 = value.f2;
-						value.f2 = temp_val;
-					} else {
-						// c, b, a
-						temp_val = value.f0;
-						value.f0 = value.f2;
-						value.f2 = temp_val;
-					}
-				} else {
-					// b, a, c
-					temp_val = value.f0;
-					value.f0 = value.f1;
+			// by the triangle listing algorithm we know f1 < f2
+			if (value.f0.compareTo(value.f1) > 0) {
+				temp_val = value.f0;
+				value.f0 = value.f1;
+
+				if (temp_val.compareTo(value.f2) <= 0) {
 					value.f1 = temp_val;
+				} else {
+					value.f1 = value.f2;
+					value.f2 = temp_val;
 				}
 			}
 

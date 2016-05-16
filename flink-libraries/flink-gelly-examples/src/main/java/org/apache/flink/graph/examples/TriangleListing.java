@@ -56,12 +56,9 @@ public class TriangleListing {
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
-
-		if (! parameters.has("enumerator")) {
-			env.getConfig().enableObjectReuse();
-		}
 
 		// Generate RMat graph
 		int scale = parameters.getInt("scale", DEFAULT_SCALE);

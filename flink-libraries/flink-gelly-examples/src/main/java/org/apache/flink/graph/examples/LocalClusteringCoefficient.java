@@ -31,6 +31,7 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
+import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -88,7 +89,10 @@ public class LocalClusteringCoefficient {
 
 		switch (parameters.get("output", "")) {
 		case "print":
-			cc.print();
+			for (Object e: cc.collect()) {
+				Result result = (Result)e;
+				System.out.println(result.toVerboseString());
+			}
 			break;
 
 		case "hash":
@@ -111,9 +115,8 @@ public class LocalClusteringCoefficient {
 			System.out.println("(neighborhood is a clique)");
 			System.out.println("");
 			System.out.println("This algorithm returns tuples containing the vertex ID, the degree of");
-			System.out.println("the vertex, and the number of edges between vertex neighbors. A neighborhood");
-			System.out.println("of size n contains (n choose 2) = n * (n-1) / 2 neighbor pairs so the");
-			System.out.println("Clustering Coefficient is neighbor edges / neighbor pairs");
+			System.out.println("the vertex, the number of edges between vertex neighbors, and the local");
+			System.out.println("clustering coefficient.");
 			System.out.println("");
 			System.out.println("usage:");
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
