@@ -480,10 +480,11 @@ under the License.
 					</licenseFamilies>
 					<excludes>
 						<!-- Additional files like .gitignore etc.-->
-						<exclude>**/.*</exclude>
+						<exclude>**/.*/**</exclude>
 						<exclude>**/*.prefs</exclude>
 						<!-- Resource files which have values. -->
 						<exclude>**/resources/**</exclude>
+						<exclude>docs/Gemfile.lock</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
