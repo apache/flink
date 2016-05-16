@@ -8,25 +8,27 @@ files found here.
 
 # Requirements
 
-We use Markdown to write and Jekyll to translate the documentation to static
-HTML. You can install all needed software via:
+The dependencies are declared in the Gemfile in this directory. We use Markdown
+to write and Jekyll to translate the documentation to static HTML. All required
+dependencies are installed locally when you build the documentation through the
+`build_docs.sh` script. If you want to install the software manually, use Ruby's
+Bundler Gem to install all dependencies:
 
-    gem install jekyll
-    gem install redcarpet
-    sudo easy_install Pygments
+    gem install bundler
+    bundle install
 
-Redcarpet is needed for Markdown processing and the Python based Pygments is
-used for syntax highlighting.
+Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev`
+via apt to build native code.
 
 # Build
 
-The `docs/build_docs.sh` script calls Jekyll and generates the documentation to
-`docs/target`. You can then point your browser to `docs/target/index.html` and
-start reading.
+The `docs/build_docs.sh` script installs dependencies locally, calls Jekyll, and
+generates the documentation in `docs/content`. You can then point your browser
+to `docs/content/index.html` and start reading.
 
 If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
-start a web server at `localhost:4000` and continiously generate the docs.
-This is useful to preview changes locally.
+start a web server at `localhost:4000` and watch the docs directory for
+updates. Use this mode to preview changes locally.
 
 # Contribute
 

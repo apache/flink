@@ -16,6 +16,9 @@ tmp
 *.jar
 *.log
 .DS_Store
-_site
-docs/api
 flink-addons/flink-avro/src/test/java/org/apache/flink/api/java/record/io/avro/generated
+/docs/api
+/docs/content
+/docs/Gemfile.lock
+/docs/.bundle
+/docs/.rubydeps
