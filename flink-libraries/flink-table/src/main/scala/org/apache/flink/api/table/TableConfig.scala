@@ -32,7 +32,7 @@ class TableConfig extends Serializable {
   /**
    * Defines if all fields need to be checked for NULL first.
    */
-  private var nullCheck: Boolean = false
+  private var nullCheck: Boolean = true
 
   /**
     * Defines if efficient types (such as Tuple types or Atomic types)
