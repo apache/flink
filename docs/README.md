@@ -6,19 +6,17 @@ http://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-We use Markdown to write and Jekyll to translate the documentation to static HTML. Kramdown is
-needed for Markdown processing and the Python based Pygments is used for syntax highlighting. To run
-Javascript code from Ruby, you need to install a javascript runtime (e.g. `therubyracer`). You can
-install all needed software via the following commands:
+The dependencies are declared in the Gemfile in this directory. We use Markdown
+to write and Jekyll to translate the documentation to static HTML. All required
+dependencies are installed locally when you build the documentation through the
+`build_docs.sh` script. If you want to install the software manually, use Ruby's
+Bundler Gem to install all dependencies:
 
-    gem install jekyll -v 2.5.3
-    gem install kramdown -v 1.9.0
-    gem install pygments.rb -v 0.6.3
-    gem install therubyracer -v 0.12.2
-    sudo easy_install Pygments
+    gem install bundler
+    bundle install
 
-Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev` and
-`python-setuptools` packages via apt.
+Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev`
+via apt to build native code.
 
 # Using Dockerized Jekyll
 
@@ -35,11 +33,13 @@ The run.sh command brings you in a bash session where you can run following doc 
 
 # Build
 
-The `docs/build_docs.sh` script calls Jekyll and generates the documentation in `docs/target`. You
-can then point your browser to `docs/target/index.html` and start reading.
+The `docs/build_docs.sh` script installs dependencies locally, calls Jekyll, and
+generates the documentation in `docs/content`. You can then point your browser
+to `docs/content/index.html` and start reading.
 
-If you call the script with the preview flag `build_docs.sh -p`, Jekyll will start a web server at
-`localhost:4000` and watch the docs directory for updates. Use this mode to preview changes locally.
+If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
+start a web server at `localhost:4000` and watch the docs directory for
+updates. Use this mode to preview changes locally.
 
 # Contribute
 
