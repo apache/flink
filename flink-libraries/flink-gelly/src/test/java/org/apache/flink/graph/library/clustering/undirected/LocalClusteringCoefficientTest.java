@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.asm;
+package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.library.asm.LocalClusteringCoefficient.Result;
+import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient;
+import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;

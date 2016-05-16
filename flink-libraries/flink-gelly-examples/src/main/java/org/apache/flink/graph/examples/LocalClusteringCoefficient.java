@@ -43,7 +43,7 @@ import java.text.NumberFormat;
  * This example generates an undirected RMat graph with the given scale and
  * edge factor then calculates the local clustering coefficient for each vertex.
  *
- * @see org.apache.flink.graph.library.asm.LocalClusteringCoefficient
+ * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
 public class LocalClusteringCoefficient {
 
@@ -79,11 +79,11 @@ public class LocalClusteringCoefficient {
 
 		if (scale > 32) {
 			cc = graph
-				.run(new org.apache.flink.graph.library.asm.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+				.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 		} else {
 			cc = graph
 				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new org.apache.flink.graph.library.asm.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
+				.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
 		}
 
 		switch (parameters.get("output", "")) {

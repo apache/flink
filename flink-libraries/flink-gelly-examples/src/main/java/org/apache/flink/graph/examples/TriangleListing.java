@@ -44,7 +44,7 @@ import java.text.NumberFormat;
  * This example generates an undirected RMat graph with the given scale
  * and edge factor then lists all triangles.
  *
- * @see org.apache.flink.graph.library.asm.TriangleListing
+ * @see org.apache.flink.graph.library.clustering.undirected.TriangleListing
  */
 public class TriangleListing {
 
@@ -87,7 +87,7 @@ public class TriangleListing {
 					.run(new TriangleEnumerator<LongValue,NullValue,NullValue>());
 			} else {
 				tl = graph
-					.run(new org.apache.flink.graph.library.asm.TriangleListing<LongValue, NullValue, NullValue>());
+					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
 			}
 		} else {
 			if (parameters.has("enumerator")) {
@@ -97,7 +97,7 @@ public class TriangleListing {
 			} else {
 				tl = graph
 					.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-					.run(new org.apache.flink.graph.library.asm.TriangleListing<IntValue, NullValue, NullValue>());
+					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
 			}
 		}
 
