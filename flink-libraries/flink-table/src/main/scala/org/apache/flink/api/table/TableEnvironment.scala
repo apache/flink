@@ -21,26 +21,23 @@ package org.apache.flink.api.table
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
-import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
-
+import org.apache.calcite.tools.{FrameworkConfig, Frameworks}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
-import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
-import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaBatchTableEnv}
-import org.apache.flink.api.java.table.{StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.api.java.table.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
-import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.api.scala.table.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
+import org.apache.flink.api.scala.table.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.api.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.plan.cost.DataSetCostFactory
-import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.plan.schema.{RelTable, TransStreamTable}
+import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.validate.FunctionCatalog
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
@@ -73,16 +70,12 @@ abstract class TableEnvironment(val config: TableConfig) {
     .build
 
   // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
-  protected val relBuilder: RelBuilder = RelBuilder.create(frameworkConfig)
-
-  private val cluster: RelOptCluster = relBuilder
-    .values(Array("dummy"), new Integer(1))
-    .build().getCluster
+  protected val relBuilder: FlinkRelBuilder = FlinkRelBuilder.create(frameworkConfig)
 
   // the planner instance used to optimize queries of this TableEnvironment
-  private val planner: RelOptPlanner = cluster.getPlanner
+  private val planner: RelOptPlanner = relBuilder.getPlanner
 
-  private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
+  private val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuildIns
 
@@ -200,14 +193,19 @@ abstract class TableEnvironment(val config: TableConfig) {
     "TMP_" + attrNameCntr.getAndIncrement()
   }
 
-  /** Returns the [[RelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: RelBuilder = {
+  /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
+  private[flink] def getRelBuilder: FlinkRelBuilder = {
     relBuilder
   }
 
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
-  protected def getPlanner: RelOptPlanner = {
+  private[flink] def getPlanner: RelOptPlanner = {
     planner
+  }
+
+  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
+  private[flink] def getTypeFactory: FlinkTypeFactory = {
+    typeFactory
   }
 
   private[flink] def getFunctionCatalog: FunctionCatalog = {

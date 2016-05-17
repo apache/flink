@@ -19,9 +19,9 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.typeutils.{TypeCoercion, TypeConverter}
+import org.apache.flink.api.table.FlinkTypeFactory
+import org.apache.flink.api.table.typeutils.TypeCoercion
 import org.apache.flink.api.table.validate._
 
 case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
@@ -29,7 +29,12 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
   override def toString = s"$child.cast($resultType)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    relBuilder
+      .getRexBuilder
+      .makeCast(
+        typeFactory.createTypeFromTypeInfo(resultType),
+        child.toRexNode)
   }
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {

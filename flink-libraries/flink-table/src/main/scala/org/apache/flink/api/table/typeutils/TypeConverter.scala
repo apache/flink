@@ -21,75 +21,18 @@ package org.apache.flink.api.table.typeutils
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.core.JoinRelType._
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.table.{Row, TableException}
+import org.apache.flink.api.table.{FlinkTypeFactory, Row, TableException}
 
 import scala.collection.JavaConversions._
 
 object TypeConverter {
 
   val DEFAULT_ROW_TYPE = new RowTypeInfo(Seq(), Seq()).asInstanceOf[TypeInformation[Any]]
-
-  def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
-    case BOOLEAN_TYPE_INFO => BOOLEAN
-    case BYTE_TYPE_INFO => TINYINT
-    case SHORT_TYPE_INFO => SMALLINT
-    case INT_TYPE_INFO => INTEGER
-    case LONG_TYPE_INFO => BIGINT
-    case FLOAT_TYPE_INFO => FLOAT
-    case DOUBLE_TYPE_INFO => DOUBLE
-    case STRING_TYPE_INFO => VARCHAR
-    case BIG_DEC_TYPE_INFO => DECIMAL
-
-    // date/time types
-    case SqlTimeTypeInfo.DATE => DATE
-    case SqlTimeTypeInfo.TIME => TIME
-    case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
-
-    case CHAR_TYPE_INFO | CHAR_VALUE_TYPE_INFO =>
-      throw new TableException("Character type is not supported.")
-
-    case t@_ =>
-      throw new TableException(s"Type is not supported: $t")
-  }
-
-  def sqlTypeToTypeInfo(sqlType: SqlTypeName): TypeInformation[_] = sqlType match {
-    case BOOLEAN => BOOLEAN_TYPE_INFO
-    case TINYINT => BYTE_TYPE_INFO
-    case SMALLINT => SHORT_TYPE_INFO
-    case INTEGER => INT_TYPE_INFO
-    case BIGINT => LONG_TYPE_INFO
-    case FLOAT => FLOAT_TYPE_INFO
-    case DOUBLE => DOUBLE_TYPE_INFO
-    case VARCHAR | CHAR => STRING_TYPE_INFO
-    case DECIMAL => BIG_DEC_TYPE_INFO
-
-    // date/time types
-    case DATE => SqlTimeTypeInfo.DATE
-    case TIME => SqlTimeTypeInfo.TIME
-    case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
-    case INTERVAL_DAY_TIME | INTERVAL_YEAR_MONTH =>
-      throw new TableException("Intervals are not supported yet.")
-
-    case NULL =>
-      throw new TableException("Type NULL is not supported. " +
-        "Null values must have a supported type.")
-
-    // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
-    // are represented as integer
-    case SYMBOL => INT_TYPE_INFO
-
-    case _ =>
-      throw new TableException("Type " + sqlType.toString + " is not supported.")
-  }
 
   /**
     * Determines the return type of Flink operators based on the logical fields, the expected
@@ -117,7 +60,7 @@ object TypeConverter {
     : TypeInformation[Any] = {
     // convert to type information
     val logicalFieldTypes = logicalRowType.getFieldList map { relDataType =>
-      TypeConverter.sqlTypeToTypeInfo(relDataType.getType.getSqlTypeName)
+      FlinkTypeFactory.toTypeInfo(relDataType.getType)
     }
     // field names
     val logicalFieldNames = logicalRowType.getFieldNames.toList

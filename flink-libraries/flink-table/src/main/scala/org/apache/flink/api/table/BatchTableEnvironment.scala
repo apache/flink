@@ -123,7 +123,7 @@ abstract class BatchTableEnvironment(
     */
   override def sql(query: String): Table = {
 
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner)
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
     val parsed = planner.parse(query)
     // validate the sql query

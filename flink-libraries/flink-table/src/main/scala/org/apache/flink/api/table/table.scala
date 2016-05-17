@@ -17,16 +17,15 @@
  */
 package org.apache.flink.api.table
 
-import scala.collection.JavaConverters._
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.plan.logical
+import org.apache.flink.api.table.expressions.{Asc, ExpressionParser, UnresolvedAlias, Expression, Ordering}
+import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
-import org.apache.flink.api.table.typeutils.TypeConverter
+
+import scala.collection.JavaConverters._
 
 /**
   * A Table is the core component of the Table API.
@@ -423,7 +422,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, all = false)
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
       .validate(tableEnv))
   }
 
@@ -448,7 +447,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, all = true)
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
       .validate(tableEnv))
   }
 
@@ -598,7 +597,7 @@ class Table(
     val rowType = getRelNode.getRowType
     val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(f => TypeConverter.sqlTypeToTypeInfo(f.getType.getSqlTypeName)).toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
 
     // configure the table sink
     val configuredSink = sink.configure(fieldNames, fieldTypes)

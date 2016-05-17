@@ -21,17 +21,17 @@ package org.apache.flink.api.table.expressions.utils
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.tools.{Frameworks, RelBuilder}
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.functions.{Function, MapFunction}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.api.table._
 import org.apache.flink.api.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.api.table.runtime.FunctionCompiler
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{BatchTableEnvironment, Row, TableConfig, TableEnvironment}
 import org.junit.Assert._
 import org.junit.{After, Before}
 import org.mockito.Mockito._
@@ -48,7 +48,10 @@ abstract class ExpressionTestBase {
   // setup test utils
   private val tableName = "testTable"
   private val context = prepareContext(typeInfo)
-  private val planner = Frameworks.getPlanner(context._2.getFrameworkConfig)
+  private val planner = new FlinkPlannerImpl(
+    context._2.getFrameworkConfig,
+    context._2.getPlanner,
+    context._2.getTypeFactory)
 
   private def prepareContext(typeInfo: TypeInformation[Any]): (RelBuilder, TableEnvironment) = {
     // create DataSetTable
@@ -128,8 +131,6 @@ abstract class ExpressionTestBase {
     // extract RexNode
     val expr: RexNode = converted.rel.asInstanceOf[LogicalProject].getChildExps.get(0)
     testExprs.add((expr, expected))
-
-    planner.close()
   }
 
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {

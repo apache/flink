@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.batch.table;
 
+import java.util.HashMap;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -221,6 +222,38 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testAsWithPojoAndGenericTypes() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		List<PojoWithGeneric> data = new ArrayList<>();
+		data.add(new PojoWithGeneric("Peter", 28, new HashMap<String, String>(), new ArrayList<String>()));
+		HashMap<String, String> hm1 = new HashMap<>();
+		hm1.put("test1", "test1");
+		data.add(new PojoWithGeneric("Anna", 56, hm1, new ArrayList<String>()));
+		HashMap<String, String> hm2 = new HashMap<>();
+		hm2.put("abc", "cde");
+		data.add(new PojoWithGeneric("Lucy", 42, hm2, new ArrayList<String>()));
+
+		Table table = tableEnv
+			.fromDataSet(env.fromCollection(data),
+				"name AS a, " +
+				"age AS b, " +
+				"generic AS c, " +
+				"generic2 AS d")
+			.select("a, b, c, c as c2, d")
+			.select("a, b, c, c === c2, d");
+
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
+		List<Row> results = ds.collect();
+		String expected =
+			"Peter,28,{},true,[]\n" +
+			"Anna,56,{test1=test1},true,[]\n" +
+			"Lucy,42,{abc=cde},true,[]\n";
+		compareResultAsText(results, expected);
+	}
+
 	@Test(expected = TableException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -284,6 +317,31 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		public int age;
 		public double salary;
 		public String department;
+	}
+
+	@SuppressWarnings("unused")
+	public static class PojoWithGeneric {
+		public String name;
+		public int age;
+		public HashMap<String, String> generic;
+		public ArrayList<String> generic2;
+
+		public PojoWithGeneric() {
+			// default constructor
+		}
+
+		public PojoWithGeneric(String name, int age, HashMap<String, String> generic,
+				ArrayList<String> generic2) {
+			this.name = name;
+			this.age = age;
+			this.generic = generic;
+			this.generic2 = generic2;
+		}
+
+		@Override
+		public String toString() {
+			return name + "," + age + "," + generic + "," + generic2;
+		}
 	}
 
 	@SuppressWarnings("unused")

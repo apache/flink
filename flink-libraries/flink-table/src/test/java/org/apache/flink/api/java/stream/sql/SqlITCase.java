@@ -53,7 +53,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
-		List<String> expected = new ArrayList();
+		List<String> expected = new ArrayList<>();
 		expected.add("1,1,Hi");
 		expected.add("2,2,Hello");
 		expected.add("3,2,Hello world");
@@ -77,7 +77,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
-		List<String> expected = new ArrayList();
+		List<String> expected = new ArrayList<>();
 		expected.add("1,1,1");
 		expected.add("2,2,2");
 		expected.add("2,3,1");
@@ -108,7 +108,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
-		List<String> expected = new ArrayList();
+		List<String> expected = new ArrayList<>();
 		expected.add("1,1,Hi");
 		expected.add("2,2,Hello");
 		expected.add("3,2,Hello world");

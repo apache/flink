@@ -21,7 +21,6 @@ package org.apache.flink.api.table
 import java.util
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -30,47 +29,37 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
-import org.apache.calcite.sql.parser.{SqlParser, SqlParseException}
+import org.apache.calcite.sql.parser.{SqlParseException, SqlParser}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
-import org.apache.calcite.sql2rel.{RelDecorrelator, SqlToRelConverter, SqlRexConvertletTable}
-import org.apache.calcite.tools.{RelConversionException, ValidationException => CValidationException, Frameworks, FrameworkConfig}
-import org.apache.calcite.util.Util
+import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
+import org.apache.calcite.tools.{FrameworkConfig, RelConversionException, ValidationException => CValidationException}
+
 import scala.collection.JavaConversions._
 
-/** NOTE: this is heavily insipred by Calcite's PlannerImpl.
-  We need it in order to share the planner between the Table API relational plans
-  and the SQL relation plans that are created by the Calcite parser.
-  The only difference is that we initialize the RelOptPlanner planner
-  when instantiating, instead of creating a new one in the ready() method. **/
-class FlinkPlannerImpl(config: FrameworkConfig, var planner: RelOptPlanner) {
+/**
+  * NOTE: this is heavily inspired by Calcite's PlannerImpl.
+  * We need it in order to share the planner between the Table API relational plans
+  * and the SQL relation plans that are created by the Calcite parser.
+  * The main difference is that we do not create a new RelOptPlanner in the ready() method.
+  */
+class FlinkPlannerImpl(
+    config: FrameworkConfig,
+    planner: RelOptPlanner,
+    typeFactory: FlinkTypeFactory) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
   /** Holds the trait definitions to be registered with planner. May be null. */
   val traitDefs: ImmutableList[RelTraitDef[_ <: RelTrait]] = config.getTraitDefs
   val parserConfig: SqlParser.Config = config.getParserConfig
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
-  var defaultSchema: SchemaPlus = config.getDefaultSchema
+  val defaultSchema: SchemaPlus = config.getDefaultSchema
 
-  var typeFactory: JavaTypeFactory = null
   var validator: FlinkCalciteSqlValidator = null
   var validatedSqlNode: SqlNode = null
   var root: RelRoot = null
 
   private def ready() {
-    Frameworks.withPlanner(new Frameworks.PlannerAction[Unit] {
-      def apply(
-          cluster: RelOptCluster,
-          relOptSchema: RelOptSchema,
-          rootSchema: SchemaPlus): Unit = {
-
-        Util.discard(rootSchema)
-        typeFactory = cluster.getTypeFactory.asInstanceOf[JavaTypeFactory]
-        if (planner == null) {
-          planner = cluster.getPlanner
-        }
-      }
-    }, config)
     if (this.traitDefs != null) {
       planner.clearRelTraitDefs()
       for (traitDef <- this.traitDefs) {
@@ -95,9 +84,8 @@ class FlinkPlannerImpl(config: FrameworkConfig, var planner: RelOptPlanner) {
       validatedSqlNode = validator.validate(sqlNode)
     }
     catch {
-      case e: RuntimeException => {
+      case e: RuntimeException =>
         throw new CValidationException(e)
-      }
     }
     validatedSqlNode
   }

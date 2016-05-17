@@ -17,14 +17,14 @@
  */
 package org.apache.flink.api.table.expressions
 
-import java.sql.{Timestamp, Time, Date}
-import java.util.{TimeZone, Calendar}
+import java.sql.{Date, Time, Timestamp}
+import java.util.{Calendar, TimeZone}
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.table.FlinkTypeFactory
 
 object Literal {
   private[flink] def apply(l: Any): Literal = l match {
@@ -81,6 +81,11 @@ case class Null(resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(resultType))
+    val rexBuilder = relBuilder.getRexBuilder
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    rexBuilder
+      .makeCast(
+        typeFactory.createTypeFromTypeInfo(resultType),
+        rexBuilder.constantNull())
   }
 }
