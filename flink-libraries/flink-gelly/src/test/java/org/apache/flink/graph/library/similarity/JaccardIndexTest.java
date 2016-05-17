@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.asm;
+package org.apache.flink.graph.library.similarity;
 
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.DataSet;
@@ -27,7 +27,7 @@ import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.graph.library.asm.JaccardSimilarity.Result;
+import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -36,14 +36,14 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class JaccardSimilarityTest
+public class JaccardIndexTest
 extends AsmTestBase {
 
 	@Test
 	public void testSimpleGraph()
 			throws Exception {
-		DataSet<Result<IntValue>> js = undirectedSimpleGraph
-			.run(new JaccardSimilarity<IntValue, NullValue, NullValue>());
+		DataSet<Result<IntValue>> ji = undirectedSimpleGraph
+			.run(new JaccardIndex<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
 			"(0,1,(1,4))\n" +
@@ -58,17 +58,17 @@ extends AsmTestBase {
 			"(2,5,(1,3))\n" +
 			"(4,5,(1,1))\n";
 
-		TestBaseUtils.compareResultAsText(js.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
 
 	@Test
 	public void testCompleteGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> js = completeGraph
-			.run(new JaccardSimilarity<LongValue, NullValue, NullValue>()
+		DataSet<Result<LongValue>> ji = completeGraph
+			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
 				.setGroupSize(4));
 
-		for (Result<LongValue> result : js.collect()) {
+		for (Result<LongValue> result : ji.collect()) {
 			// the intersection includes every vertex
 			assertEquals(completeGraphVertexCount, result.getDistinctNeighborCount().getValue());
 
@@ -89,11 +89,11 @@ extends AsmTestBase {
 			.setSimpleGraph(true, false)
 			.generate();
 
-		DataSet<Result<LongValue>> js = graph
-			.run(new JaccardSimilarity<LongValue, NullValue, NullValue>()
+		DataSet<Result<LongValue>> ji = graph
+			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
 				.setGroupSize(4));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(js);
+		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ji);
 
 		assertEquals(13954, checksum.getCount());
 		assertEquals(0x0000179f83a2a873L, checksum.getChecksum());

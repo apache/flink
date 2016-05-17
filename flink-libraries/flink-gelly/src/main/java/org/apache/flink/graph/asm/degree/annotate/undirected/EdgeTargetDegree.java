@@ -42,6 +42,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	// Optional configuration
 	private boolean reduceOnSourceId = false;
 
+	private long maximumDegree = Long.MAX_VALUE;
+
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
 	/**
@@ -55,6 +57,18 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	 */
 	public EdgeTargetDegree<K, VV, EV> setReduceOnSourceId(boolean reduceOnSourceId) {
 		this.reduceOnSourceId = reduceOnSourceId;
+
+		return this;
+	}
+
+	/**
+	 * Filter out vertices with degree than the given maximum.
+	 *
+	 * @param maximumDegree maximum degree
+	 * @return this
+	 */
+	public EdgeTargetDegree<K, VV, EV> setMaximumDegree(long maximumDegree) {
+		this.maximumDegree = maximumDegree;
 
 		return this;
 	}
@@ -74,20 +88,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	@Override
 	public DataSet<Edge<K, Tuple2<EV, LongValue>>> run(Graph<K, VV, EV> input)
 			throws Exception {
-		DataSet<Vertex<K, LongValue>> vertexDegrees;
-
-		if (reduceOnSourceId) {
-			// s, d(s)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setParallelism(parallelism));
-		} else {
-			// t, d(t)
-			vertexDegrees = input
-				.run(new VertexDegree<K, VV, EV>()
-					.setReduceOnTargetId(true)
-					.setParallelism(parallelism));
-		}
+		// t, d(t)
+		DataSet<Vertex<K, LongValue>> vertexDegrees = input
+			.run(new VertexDegree<K, VV, EV>()
+				.setReduceOnTargetId(!reduceOnSourceId)
+				.setMaximumDegree(maximumDegree)
+				.setParallelism(parallelism));
 
 		// s, t, d(t)
 		return input.getEdges()

@@ -26,6 +26,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
+import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeFilter;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceId;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToTargetId;
@@ -45,6 +46,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	private boolean includeZeroDegreeVertices = false;
 
 	private boolean reduceOnTargetId = false;
+
+	private long maximumDegree = Long.MAX_VALUE;
 
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
@@ -74,6 +77,18 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 	 */
 	public VertexDegree<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
 		this.reduceOnTargetId = reduceOnTargetId;
+
+		return this;
+	}
+
+	/**
+	 * Filter out vertices with degree than the given maximum.
+	 *
+	 * @param maximumDegree maximum degree
+	 * @return this
+	 */
+	public VertexDegree<K, VV, EV> setMaximumDegree(long maximumDegree) {
+		this.maximumDegree = maximumDegree;
 
 		return this;
 	}
@@ -109,6 +124,13 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 			.reduce(new DegreeCount<K>())
 				.setParallelism(parallelism)
 				.name("Degree count");
+
+		if (maximumDegree < Long.MAX_VALUE) {
+			degree = degree
+				.filter(new DegreeFilter<K>(maximumDegree))
+					.setParallelism(parallelism)
+					.name("Degree filter");
+		}
 
 		if (includeZeroDegreeVertices) {
 			degree = input

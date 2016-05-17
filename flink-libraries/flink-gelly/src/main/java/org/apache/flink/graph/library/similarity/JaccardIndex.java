@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.asm;
+package org.apache.flink.graph.library.similarity;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -31,12 +31,12 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
-import org.apache.flink.graph.library.asm.JaccardSimilarity.Result;
+import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
+import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.MathUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,13 +56,25 @@ import java.util.List;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class JaccardSimilarity<K extends CopyableValue<K>, VV, EV>
+public class JaccardIndex<K extends CopyableValue<K>, VV, EV>
 implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 	public static final int DEFAULT_GROUP_SIZE = 64;
 
 	// Optional configuration
 	private int groupSize = DEFAULT_GROUP_SIZE;
+
+	private long maximumDegree = Long.MAX_VALUE;
+
+	private boolean unboundedScores = true;
+
+	private int minimumScoreNumerator = -1;
+
+	private int minimumScoreDenominator = 1;
+
+	private int maximumScoreNumerator = 1;
+
+	private int maximumScoreDenominator = -1;
 
 	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
@@ -74,8 +86,52 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param groupSize the group size for the quadratic expansion of neighbor pairs
 	 * @return this
 	 */
-	public JaccardSimilarity<K, VV, EV> setGroupSize(int groupSize) {
+	public JaccardIndex<K, VV, EV> setGroupSize(int groupSize) {
 		this.groupSize = groupSize;
+
+		return this;
+	}
+
+	/**
+	 * Filter out vertices with degree than the given maximum.
+	 *
+	 * @param maximumDegree maximum degree
+	 * @return this
+	 */
+	public JaccardIndex<K, VV, EV> setMaximumDegree(long maximumDegree) {
+		this.maximumDegree = maximumDegree;
+
+		return this;
+	}
+
+	/**
+	 * Filter out Jaccard Index scores less than the given minimum fraction.
+	 *
+	 * @param numerator numerator of the minimum score
+	 * @param denominator denominator of the minimum score
+	 * @return this
+	 * @see #setMaximumScore(int, int)
+	 */
+	public JaccardIndex<K, VV, EV> setMinimumScore(int numerator, int denominator) {
+		this.unboundedScores = false;
+		this.minimumScoreNumerator = numerator;
+		this.minimumScoreDenominator = denominator;
+
+		return this;
+	}
+
+	/**
+	 * Filter out Jaccard Index scores greater than the given maximum fraction.
+	 *
+	 * @param numerator numerator of the maximum score
+	 * @param denominator denominator of the maximum score
+	 * @return this
+	 * @see #setMinimumScore(int, int)
+	 */
+	public JaccardIndex<K, VV, EV> setMaximumScore(int numerator, int denominator) {
+		this.unboundedScores = false;
+		this.maximumScoreNumerator = numerator;
+		this.maximumScoreDenominator = denominator;
 
 		return this;
 	}
@@ -86,7 +142,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param littleParallelism operator parallelism
 	 * @return this
 	 */
-	public JaccardSimilarity<K, VV, EV> setLittleParallelism(int littleParallelism) {
+	public JaccardIndex<K, VV, EV> setLittleParallelism(int littleParallelism) {
 		this.littleParallelism = littleParallelism;
 
 		return this;
@@ -106,6 +162,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// s, t, d(t)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> neighborDegree = input
 			.run(new EdgeTargetDegree<K, VV, EV>()
+				.setMaximumDegree(maximumDegree)
 				.setParallelism(littleParallelism));
 
 		// group span, s, t, d(t)
@@ -135,7 +192,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// t, u, intersection, union
 		return twoPaths
 			.groupBy(0, 1)
-			.reduceGroup(new ComputeScores<K>())
+			.reduceGroup(new ComputeScores<K>(unboundedScores,
+					minimumScoreNumerator, minimumScoreDenominator,
+					maximumScoreNumerator, maximumScoreDenominator))
 				.name("Compute scores");
 	}
 
@@ -301,9 +360,29 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0; 1")
-	private static class ComputeScores<T>
+	private class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
+		private boolean unboundedScores;
+
+		private long minimumScoreNumerator;
+
+		private long minimumScoreDenominator;
+
+		private long maximumScoreNumerator;
+
+		private long maximumScoreDenominator;
+
 		private Result<T> output = new Result<>();
+
+		public ComputeScores(boolean unboundedScores,
+				int minimumScoreNumerator, int minimumScoreDenominator,
+				int maximumScoreNumerator, int maximumScoreDenominator) {
+			this.unboundedScores = unboundedScores;
+			this.minimumScoreNumerator = minimumScoreNumerator;
+			this.minimumScoreDenominator = minimumScoreDenominator;
+			this.maximumScoreNumerator = maximumScoreNumerator;
+			this.maximumScoreDenominator = maximumScoreDenominator;
+		}
 
 		@Override
 		public void reduce(Iterable<Tuple3<T, T, IntValue>> values, Collector<Result<T>> out)
@@ -316,22 +395,30 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 				count += 1;
 			}
 
-			output.f0 = edge.f0;
-			output.f1 = edge.f1;
-			output.f2.f0.setValue(count);
-			output.f2.f1.setValue(edge.f2.getValue() - count);
-			out.collect(output);
+			int distinctNeighbors = edge.f2.getValue() - count;
+
+			if (unboundedScores ||
+					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
+						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
+				output.f0 = edge.f0;
+				output.f1 = edge.f1;
+				output.f2.f0.setValue(count);
+				output.f2.f1.setValue(distinctNeighbors);
+				out.collect(output);
+			}
 		}
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Jaccard Similarity algorithm.
+	 * Wraps the vertex type to encapsulate results from the jaccard index algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
 	extends Edge<T, Tuple2<IntValue, IntValue>> {
 		public static final int HASH_SEED = 0x731f73e7;
+
+		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
 		public Result() {
 			f2 = new Tuple2<>(new IntValue(), new IntValue());
@@ -356,19 +443,24 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		}
 
 		/**
-		 * Get the Jaccard Similarity score, equal to the number of common
+		 * Get the Jaccard Index score, equal to the number of common
 		 * neighbors shared by the source and target vertices divided by the
 		 * number of distinct neighbors.
 		 *
-		 * @return Jaccard Similarity score
+		 * @return Jaccard Index score
 		 */
-		public double getJaccardSimilarityScore() {
+		public double getJaccardIndexScore() {
 			return getCommonNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
 		}
 
 		@Override
 		public int hashCode() {
-			return MathUtils.murmurHash(HASH_SEED, f0.hashCode(), f1.hashCode(), f2.f0.hashCode(), f2.f1.hashCode());
+			return hasher.reset()
+				.hash(f0.hashCode())
+				.hash(f1.hashCode())
+				.hash(f2.f0.getValue())
+				.hash(f2.f1.getValue())
+				.hash();
 		}
 	}
 }

@@ -31,6 +31,7 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
+import org.apache.flink.graph.library.similarity.JaccardIndex;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -44,7 +45,7 @@ import java.text.NumberFormat;
  * edge factor then calculates all non-zero Jaccard Similarity scores
  * between vertices.
  *
- * @see org.apache.flink.graph.library.asm.JaccardSimilarity
+ * @see JaccardIndex
  */
 public class JaccardSimilarity {
 
@@ -80,11 +81,11 @@ public class JaccardSimilarity {
 
 		if (scale > 32) {
 			js = graph
-				.run(new org.apache.flink.graph.library.asm.JaccardSimilarity<LongValue, NullValue, NullValue>());
+				.run(new JaccardIndex<LongValue, NullValue, NullValue>());
 		} else {
 			js = graph
 				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new org.apache.flink.graph.library.asm.JaccardSimilarity<IntValue, NullValue, NullValue>());
+				.run(new JaccardIndex<IntValue, NullValue, NullValue>());
 		}
 
 		switch (parameters.get("output", "")) {
