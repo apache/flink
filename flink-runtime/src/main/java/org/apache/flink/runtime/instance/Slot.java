@@ -244,7 +244,7 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return "Slot details { slot numbers: " + hierarchy() + " - " + " instance: " + instance + " - " + " state: " + getStateName(status) + " }";
+		return hierarchy() + " - " + instance + " - " + getStateName(status);
 	}
 
 	protected String hierarchy() {
