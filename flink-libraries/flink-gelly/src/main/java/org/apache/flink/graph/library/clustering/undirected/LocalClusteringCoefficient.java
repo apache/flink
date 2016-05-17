@@ -185,7 +185,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Clustering Coefficient algorithm.
+	 * Wraps the vertex type to encapsulate results from the local clustering coefficient algorithm.
 	 *
 	 * @param <T> ID type
 	 */

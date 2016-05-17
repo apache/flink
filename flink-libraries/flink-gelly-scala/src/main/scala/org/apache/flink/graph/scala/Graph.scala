@@ -1103,16 +1103,32 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @return a Dataset of Tuple2, with one tuple per vertex.
    * The first field of the Tuple2 is the vertex ID and the second field
    * is the aggregate value computed by the provided [[ReduceNeighborsFunction]].
-  */
+   */
   def reduceOnEdges(reduceEdgesFunction: ReduceEdgesFunction[EV], direction: EdgeDirection):
   DataSet[(K, EV)] = {
     wrap(jgraph.reduceOnEdges(reduceEdgesFunction, direction)).map(jtuple => (jtuple.f0,
       jtuple.f1))
   }
 
+  /**
+   * @param algorithm the algorithm to run on the Graph
+   * @return the result of the graph algorithm
+   */
   def run[T: TypeInformation : ClassTag](algorithm: GraphAlgorithm[K, VV, EV, T]):
   T = {
     jgraph.run(algorithm)
+  }
+
+  /**
+   * A GraphAnalytic is similar to a GraphAlgorithm but is terminal and results
+   * are retrieved via accumulators.  A Flink program has a single point of
+   * execution. A GraphAnalytic defers execution to the user to allow composing
+   * multiple analytics and algorithms into a single program.
+   *
+   * @param analytic the analytic to run on the Graph
+   */
+  def run[T: TypeInformation : ClassTag](analytic: GraphAnalytic[K, VV, EV, T])= {
+    jgraph.run(analytic)
   }
 
   /**

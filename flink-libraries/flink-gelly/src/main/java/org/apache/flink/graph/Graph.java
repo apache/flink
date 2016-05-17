@@ -18,20 +18,13 @@
 
 package org.apache.flink.graph;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.List;
-import java.util.Arrays;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -70,6 +63,13 @@ import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.graph.validation.GraphValidator;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Represents a Graph consisting of {@link Edge edges} and {@link Vertex
@@ -1785,6 +1785,20 @@ public class Graph<K, VV, EV> {
 	 */
 	public <T> T run(GraphAlgorithm<K, VV, EV, T> algorithm) throws Exception {
 		return algorithm.run(this);
+	}
+
+	/**
+	 * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is terminal
+	 * and results are retrieved via accumulators.  A Flink program has a single
+	 * point of execution. A {@code GraphAnalytic} defers execution to the user to
+	 * allow composing multiple analytics and algorithms into a single program.
+	 *
+	 * @param analytic the analytic to run on the Graph
+	 * @param <T> the result type
+	 * @throws Exception
+	 */
+	public <T> void run(GraphAnalytic<K, VV, EV, T> analytic) throws Exception {
+		analytic.run(this);
 	}
 
 	/**

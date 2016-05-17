@@ -286,11 +286,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 		@Override
 		public Tuple3<T, T, T> map(Tuple3<T, T, T> value)
 				throws Exception {
-			T temp_val;
-
 			// by the triangle listing algorithm we know f1 < f2
 			if (value.f0.compareTo(value.f1) > 0) {
-				temp_val = value.f0;
+				T temp_val = value.f0;
 				value.f0 = value.f1;
 
 				if (temp_val.compareTo(value.f2) <= 0) {
