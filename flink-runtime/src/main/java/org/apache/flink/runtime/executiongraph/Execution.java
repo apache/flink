@@ -406,7 +406,7 @@ public class Execution implements Serializable {
 					else {
 						if (!(success.equals(Messages.getAcknowledge()))) {
 							markFailed(new Exception("Failed to deploy the task to slot.Response was not of type Acknowledge.\n" +
-									"Please check sufficient memory is available for task threads for deployment:" + deployment + "\n" +
+									"Please check sufficient memory is available for task threads for " + this + "\n" +
 									"Slot Details:" + slot + ": "));
 						}
 					}
