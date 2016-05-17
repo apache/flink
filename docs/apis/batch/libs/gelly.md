@@ -1834,6 +1834,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [Summarization](#summarization)
 * [Jaccard Index](#jaccard-index)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
+* [Global Clustering Coefficient](#global-clustering-coefficient)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
@@ -2108,7 +2109,22 @@ See the [Triangle Enumeration](#triangle-enumeration) library method for a detai
 
 #### Usage
 The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing the vertex ID,
-vertex degree, and number of triangles containing the vertex. The vertex ID must be `Comparable` and `Copyable`.
+vertex degree, and number of triangles containing the vertex. The graph ID type must be `Comparable` and `Copyable`.
+
+### Global Clustering Coefficient
+
+#### Overview
+The global clustering coefficient measures the connectedness of a graph. Scores range from 0.0 (no edges between
+neighbors) to 1.0 (complete graph).
+
+#### Details
+See the [Local Clustering Coefficient](#local-clustering-coefficient) library method for a detailed explanation of
+clustering coefficient.
+
+#### Usage
+The algorithm takes a simple, undirected graph as input and outputs a result containing the total number of triplets and
+triangles in the graph. The graph ID type must be `Comparable` and `Copyable`.
+
 
 {% top %}
 
