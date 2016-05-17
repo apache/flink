@@ -45,7 +45,7 @@ There are several strategies for holding out data. FlinkML has convenience metho
 
 The simplest method of splitting is the `trainTestSplit`. This split takes a DataSet and a parameter *fraction*.  The *fraction* indicates the portion of the DataSet that should be allocated to the training set. This split also takes two additional optional parameters, *precise* and *seed*.  
 
-By default, the Split is done by randomly deciding weather or not an observation is assigned to the training DataSet with probability = *fraction*.  When *precise* is `true` however, additional steps are taken to ensure the training set is as close as possible to the length of the DataSet  $\cdot$ *fraction*.
+By default, the Split is done by randomly deciding whether or not an observation is assigned to the training DataSet with probability = *fraction*.  When *precise* is `true` however, additional steps are taken to ensure the training set is as close as possible to the length of the DataSet  $\cdot$ *fraction*.
 
 The method returns a new `TrainTestDataSet` object which has a `.training` attribute containing the training DataSet and a `.testing` attribute containing the testing DataSet.
 
@@ -64,13 +64,13 @@ When using `trainTestHoldout` splitter, the *fraction* `Double` is replaced by a
 
 In a *k-fold* strategy, the DataSet is split into *k* equal subsets. Then for each of the *k* subsets, a `TrainTestDataSet` is created where the subset is the `.training` DataSet, and the remaining subsets are the `.testing` set.
 
-For each training set, an algorithm is trained and then is evaluated based on the predictions based on the assosciated testing set. When an algorithm that has consistent grades (e.g. prediction errors) across held out datasets we can have some confidence that our approach (e.g. choice of algorithm / algorithm parameters / number of iterations) is robust against overfitting.
+For each training set, an algorithm is trained and then is evaluated based on the predictions based on the associated testing set. When an algorithm that has consistent grades (e.g. prediction errors) across held out datasets we can have some confidence that our approach (e.g. choice of algorithm / algorithm parameters / number of iterations) is robust against overfitting.
 
 <a href="https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation">K-Fold Cross Validatation</a>
 
 ### Multi-Random Splits
 
-The *multi-random* strategy can be thought of as a more general form of the *train-test-holdout* strategy. In fact, `.trainTestHoldoutSplit` is simple a wrapper for `multiRandomSplit` which also packages the datasets into a `trainTestHoldoutDataSet` object.
+The *multi-random* strategy can be thought of as a more general form of the *train-test-holdout* strategy. In fact, `.trainTestHoldoutSplit` is a simple wrapper for `multiRandomSplit` which also packages the datasets into a `trainTestHoldoutDataSet` object.
 
 The first major difference, is that `multiRandomSplit` takes an array of fractions of any length. E.g. one can create multiple holdout sets.  Alternatively, one could think of `kFoldSplit` as a wrapper for `multiRandomSplit` (which it is), the difference being `kFoldSplit` creates subsets of approximately equal size, where `multiRandomSplit` will create subsets of any size.
 
@@ -162,7 +162,7 @@ The various `Splitter` methods share many parameters.
 val data: DataSet[LabeledVector] = ...
 
 // A Simple Train-Test-Split
-val dataTrainTest: TrainTestDataSet = Splitter.trainTestSplit(data, 0.6, true )
+val dataTrainTest: TrainTestDataSet = Splitter.trainTestSplit(data, 0.6, true)
 
 // Create a train test holdout DataSet
 val dataTrainTestHO: trainTestHoldoutDataSet = Splitter.trainTestHoldoutSplit(data, Array(6.0, 3.0, 1.0))

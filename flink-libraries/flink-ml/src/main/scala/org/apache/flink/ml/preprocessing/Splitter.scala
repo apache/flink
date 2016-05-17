@@ -70,16 +70,18 @@ object Splitter {
     val leftSplit: DataSet[(Long, T)] = precise match {
       case false => indexedInput.sample(false, fraction, seed)
       case true => {
-        val count = indexedInput.count()
+        val count = indexedInput.count()  // todo: count only needed for precise and kills perf.
         val numOfSamples = math.round(fraction * count).toInt
         indexedInput.sampleWithSize(false, numOfSamples, seed)
       }
     }
 
-    val rightSplit: DataSet[T] = indexedInput.leftOuterJoin[(Long, T)](leftSplit)
+    val leftSplitLight = leftSplit.map(o => (o._1, false))
+
+    val rightSplit: DataSet[T] = indexedInput.leftOuterJoin[(Long, Boolean)](leftSplitLight)
       .where(0)
       .equalTo(0).apply {
-        (full: (Long,T) , left: (Long, T), collector: Collector[T]) =>
+        (full: (Long,T) , left: (Long, Boolean), collector: Collector[T]) =>
         if (left == null) {
           collector.collect(full._2)
         }
@@ -151,9 +153,9 @@ object Splitter {
     val fracs = Array.fill(kFolds)(1.0)
     val dataSetArray = multiRandomSplit(input, fracs, seed)
 
-    dataSetArray.map( ds => TrainTestDataSet(ds,
-                                             dataSetArray.filter(_ != ds)
-                                                         .reduce(_ union _) ))
+    dataSetArray.map( ds => TrainTestDataSet(dataSetArray.filter(_ != ds)
+                                                         .reduce(_ union _),
+                                             ds))
 
   }
 
@@ -189,7 +191,7 @@ object Splitter {
    * A wrapper for multiRandomSplit that yields a TrainTestHoldoutDataSet
    *
    * @param input           DataSet to be split
-   * @param fracArray       An array of three doubles, where the first element specifies the
+   * @param fracTuple       A tuple of three doubles, where the first element specifies the
    *                        size of the training set, the second element the testing set, and
    *                        the third element is the holdout set. These are proportional and
    *                        will be normalized internally.
@@ -198,12 +200,10 @@ object Splitter {
    */
   def trainTestHoldoutSplit[T: TypeInformation : ClassTag](
       input: DataSet[T],
-      fracArray: Array[Double] = Array(0.6,0.3,0.1),
+      fracTuple: Tuple3[Double, Double, Double] = (0.6,0.3,0.1),
       seed: Long = Utils.RNG.nextLong())
     : TrainTestHoldoutDataSet[T] = {
-    if (fracArray.length != 3) {
-      throw new IllegalArgumentException("fracArray must be an array of length 3")
-    }
+    val fracArray = Array(fracTuple._1, fracTuple._2, fracTuple._3)
     val dataSetArray = multiRandomSplit(input, fracArray, seed)
     TrainTestHoldoutDataSet(dataSetArray(0), dataSetArray(1), dataSetArray(2))
   }

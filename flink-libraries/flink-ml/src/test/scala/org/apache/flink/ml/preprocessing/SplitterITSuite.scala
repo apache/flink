@@ -70,18 +70,14 @@ class SplitterITSuite extends FlatSpec
     splitDataSets.length should equal(fracArray.length)
   }
 
-  it should "throw an exception if trainTestHoldoutSplit fracArray length is not 3" in {
+  it should "produce TrainTestDataSets in which training size is greater than testing size" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val dataSet = env.fromCollection(data)
 
-    intercept[IllegalArgumentException] {
-      val splitDataSets = Splitter.trainTestHoldoutSplit(dataSet, Array(0.25, 0.25, 0.05, 0.15))
-    }
+    val dataSetArray = Splitter.kFoldSplit(dataSet, 4)
 
-    intercept[IllegalArgumentException] {
-      val splitDataSets = Splitter.trainTestHoldoutSplit(dataSet, Array(0.25, 0.25))
-    }
+    (dataSetArray(1).testing.count() < dataSetArray(1).training.count()) should be(true)
 
   }
 
