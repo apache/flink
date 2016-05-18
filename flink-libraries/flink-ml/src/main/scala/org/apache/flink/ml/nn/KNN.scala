@@ -41,17 +41,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *       val trainingDS: DataSet[Vector] = ...
-  *       val testingDS: DataSet[Vector] = ...
+  *        val trainingDS: DataSet[Vector] = ...
+  *        val testingDS: DataSet[Vector] = ...
   *
-  *       val knn = KNN()
-  *         .setK(10)
-  *         .setBlocks(5)
-  *         .setDistanceMetric(EuclideanDistanceMetric())
+  *        val knn = KNN()
+  *          .setK(10)
+  *          .setBlocks(5)
+  *          .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *       knn.fit(trainingDS)
+  *        knn.fit(trainingDS)
   *
-  *       val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *        val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=
@@ -118,10 +118,10 @@ class KNN extends Predictor[KNN] {
   }
 
   /**
-   * Sets the Boolean variable that decides whether to use the QuadTree or not
-   */
+    * Sets the Boolean variable that decides whether to use the QuadTree or not
+    */
   def setUseQuadTree(useQuadTree: Boolean): KNN = {
-    if (useQuadTree){
+    if (useQuadTree) {
       require(parameters(DistanceMetric).isInstanceOf[SquaredEuclideanDistanceMetric] ||
         parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric])
     }
@@ -130,10 +130,10 @@ class KNN extends Predictor[KNN] {
   }
 
   /**
-   * Parameter a user can specify if one of the training or test sets are small
-   * @param sizeHint
-   * @return
-   */
+    * Parameter a user can specify if one of the training or test sets are small
+    * @param sizeHint
+    * @return
+    */
   def setSizeHint(sizeHint: CrossHint): KNN = {
     parameters.add(SizeHint, sizeHint)
     this
@@ -172,9 +172,9 @@ object KNN {
     */
   implicit def fitKNN[T <: FlinkVector : TypeInformation] = new FitOperation[KNN, T] {
     override def fit(
-      instance: KNN,
-      fitParameters: ParameterMap,
-      input: DataSet[T]): Unit = {
+                      instance: KNN,
+                      fitParameters: ParameterMap,
+                      input: DataSet[T]): Unit = {
       val resultParameters = instance.parameters ++ fitParameters
 
       require(resultParameters.get(K).isDefined, "K is needed for calculation")
@@ -195,9 +195,9 @@ object KNN {
   implicit def predictValues[T <: FlinkVector : ClassTag : TypeInformation] = {
     new PredictDataSetOperation[KNN, T, (FlinkVector, Array[FlinkVector])] {
       override def predictDataSet(
-        instance: KNN,
-        predictParameters: ParameterMap,
-        input: DataSet[T]): DataSet[(FlinkVector,
+                                   instance: KNN,
+                                   predictParameters: ParameterMap,
+                                   input: DataSet[T]): DataSet[(FlinkVector,
         Array[FlinkVector])] = {
         val resultParameters = instance.parameters ++ predictParameters
 
@@ -229,12 +229,11 @@ object KNN {
                 for ((training, testing) <- iter) {
                   val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
                     Ordering.by(_._4))
-
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
                   val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
-                    training.values.head.size + math.log(math.log(training.values.length) /
-                      math.log(4.0)) < math.log(training.values.length) / math.log(4.0) &&
+                    math.log(4.0) * training.values.head.size + math.log(math.log(training.values.length))
+                      < math.log(training.values.length) &&
                       (metric.isInstanceOf[EuclideanDistanceMetric] ||
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
@@ -275,13 +274,13 @@ object KNN {
   }
 
   def knnQueryWithQuadTree[T <: FlinkVector](
-    training: Vector[T],
-    testing: Vector[(Long, T)],
-    k: Int, metric: DistanceMetric,
-    queue: mutable.PriorityQueue[(FlinkVector,
-      FlinkVector, Long, Double)],
-    out: Collector[(FlinkVector,
-      FlinkVector, Long, Double)]) {
+                                              training: Vector[T],
+                                              testing: Vector[(Long, T)],
+                                              k: Int, metric: DistanceMetric,
+                                              queue: mutable.PriorityQueue[(FlinkVector,
+                                                FlinkVector, Long, Double)],
+                                              out: Collector[(FlinkVector,
+                                                FlinkVector, Long, Double)]) {
     /// find a bounding box
     val MinArr = Array.tabulate(training.head.size)(x => x)
     val MaxArr = Array.tabulate(training.head.size)(x => x)
@@ -291,11 +290,11 @@ object KNN {
     val maxVecTrain = MaxArr.map(i => training.map(x => x(i)).max + 0.01)
     val maxVecTest = MaxArr.map(i => testing.map(x => x._2(i)).max + 0.01)
 
-    val MinVec = DenseVector(MinArr.map(i => Array(minVecTrain(i), minVecTest(i)).min))
-    val MaxVec = DenseVector(MinArr.map(i => Array(maxVecTrain(i), maxVecTest(i)).max))
+    val MinVec = DenseVector(MinArr.map(i => math.min(minVecTrain(i), minVecTest(i))))
+    val MaxVec = DenseVector(MinArr.map(i => math.max(maxVecTrain(i), maxVecTest(i))))
 
     //default value of max elements/box is set to max(20,k)
-    val maxPerBox = Array(k, 20).max
+    val maxPerBox = math.max(k, 20)
     val trainingQuadTree = new QuadTree(MinVec, MaxVec, metric, maxPerBox)
 
     for (v <- training) {
@@ -330,12 +329,12 @@ object KNN {
   }
 
   def knnQueryBasic[T <: FlinkVector](
-    training: Vector[T],
-    testing: Vector[(Long, T)],
-    k: Int, metric: DistanceMetric,
-    queue: mutable.PriorityQueue[(FlinkVector,
-      FlinkVector, Long, Double)],
-    out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
+                                       training: Vector[T],
+                                       testing: Vector[(Long, T)],
+                                       k: Int, metric: DistanceMetric,
+                                       queue: mutable.PriorityQueue[(FlinkVector,
+                                         FlinkVector, Long, Double)],
+                                       out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     for ((id, vector) <- testing) {
       for (b <- training) {

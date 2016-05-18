@@ -81,12 +81,10 @@ class QuadTree(
     def overlap(
       queryPoint: Vector,
       radius: Double): Boolean = {
-      val count = (0 until queryPoint.size).filter { i =>
-        (queryPoint(i) - radius < center(i) + width(i) / 2) &&
-          (queryPoint(i) + radius > center(i) - width(i) / 2)
-      }.size
-
-      count == queryPoint.size
+      (0 until queryPoint.size).forall{ i =>
+          (queryPoint(i) - radius < center(i) + width(i) / 2) &&
+            (queryPoint(i) + radius > center(i) - width(i) / 2)
+      }
     }
 
     /** Tests if queryPoint is near a node
@@ -137,7 +135,7 @@ class QuadTree(
     def whichChild(queryPoint: Vector): Int = {
       (0 until queryPoint.size).map { i =>
         if (queryPoint(i) > center(i)) {
-          Math.pow(2, queryPoint.size - 1 - i).toInt
+          scala.math.pow(2, queryPoint.size - 1 - i).toInt
         } else {
           0
         }
@@ -316,7 +314,7 @@ class QuadTree(
     }
   }
 
-  /** Finds all objects within a neigiborhood of queryPoint of a specified radius
+  /** Finds all objects within a neighborhood of queryPoint of a specified radius
     * scope is modified from original 2D version in:
     * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
     *

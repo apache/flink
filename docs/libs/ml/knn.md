@@ -29,7 +29,7 @@ under the License.
 Implements an exact k-nearest neighbors algorithm.  Given a training set $A$ and a testing set $B$, the algorithm returns
 
 $$
-KNN(A,B, k) = \{ \left( b, KNN(b,A) \right) where b \in B and KNN(b, A, k) are the k-nearest points to b in A \}
+KNN(A,B, k) = \{ \left( b, KNN(b,A, k) \right) where b \in B and KNN(b, A, k) are the k-nearest points to b in A \}
 $$
 
 The brute-force approach is to compute the distance between every training and testing point.  To ease the brute-force computation of computing the distance between every traning point a quadtree is used.  The quadtree scales well in the number of training points, though poorly in the spatial dimension.  The algorithm will automatically choose whether or not to use the quadtree, though the user can override that decision by setting a parameter to force use or not use a quadtree. 
