@@ -14,12 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kinesis;
+package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
+import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.examples.ProduceIntoKinesis;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 
 import java.nio.ByteBuffer;
 
@@ -30,10 +33,12 @@ import java.nio.ByteBuffer;
  *  - A custom KinesisSerializationSchema
  *  - A custom KinesisPartitioner
  *
+ *  The streams "test-flink" and "flink-test-2" must exist.
+ *
  * Invocation:
  * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
  */
-public class ManualTest {
+public class ManualProducerTest {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool pt = ParameterTool.fromArgs(args);
@@ -55,7 +60,7 @@ public class ManualTest {
 					// every 10th element goes into a different stream
 					@Override
 					public String getTargetStream(String element) {
-						if(element.endsWith("0")) {
+						if(element.split("-")[0].endsWith("0")) {
 							return "flink-test-2";
 						}
 						return null; // send to default stream
