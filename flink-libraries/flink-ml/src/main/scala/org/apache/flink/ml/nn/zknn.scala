@@ -44,13 +44,13 @@ class zknn(k: Int) extends basicknn {
     * @param out collector of output
     * @tparam T FlinkVector
     */
-  def zknnQueryBasic[T <: FlinkVector](
-                                        training: Vector[T],
-                                        testing: Vector[(Long, T)],
-                                        k: Int, metric: DistanceMetric,
-                                        queue: mutable.PriorityQueue[(FlinkVector,
-                                          FlinkVector, Long, Double)],
-                                        out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
+  def zknnQuery[T <: FlinkVector](
+                                   training: Vector[T],
+                                   testing: Vector[(Long, T)],
+                                   k: Int, metric: DistanceMetric,
+                                   queue: mutable.PriorityQueue[(FlinkVector,
+                                     FlinkVector, Long, Double)],
+                                   out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     // normalize test and training set
     val dim = training.head.size
@@ -79,7 +79,8 @@ class zknn(k: Int) extends basicknn {
       val vNormalized = normalizePoint(v, testTrainMinMax._1, testTrainMinMax._2)
 
       for (i <- 0 until alpha) {
-        val zQueryShifted = zValue((Math.pow(2, bitMult) * (vNormalized.asBreeze + rSeq(i))).fromBreeze)
+        val zQueryShifted = zValue((Math.pow(2, bitMult) *
+          (vNormalized.asBreeze + rSeq(i))).fromBreeze)
 
         // get 2*gamma points about query point q, gamma points above and below based on z value
         // if there aren't gamma points above, still grab 2*gamma points
@@ -114,6 +115,7 @@ class zknn(k: Int) extends basicknn {
         }
       }
 
+      // grab original training set points and do a basic knn query
       val candidatesDenorm: Vector[FlinkVector] = candidates.map { x => training(x._1) }.toVector
       knnQueryBasic(candidatesDenorm, Vector((id, v)), k, metric, queue, out)
     }

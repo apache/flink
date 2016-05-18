@@ -70,7 +70,8 @@ class lshKNN() extends basicknn {
     // edge case: may not have k collisions
     // preprocess both training and test set so that
     // (1) each training bucket has at least k points and
-    // (2) each testing bucket is a collision.  Start W to be 1.0 and decrease/increase by factor of 2.
+    // (2) each testing bucket is a collision.  Start W to be 1.0 and
+    // decrease/increase by factor of 2.
 
     fillMapTrain(training, hashMapTrain, W, rSeq)
     increaseW = updateW(hashMapTrain, k, increaseW)
@@ -194,7 +195,8 @@ class lshKNN() extends basicknn {
     * @tparam T FlinkVector
     * @return Array of buckets
     */
-  def lshHash[T <: FlinkVector](in: T, randomDirections: ArrayBuffer[T], bParam: Double, wParam: Double):
+  def lshHash[T <: FlinkVector](in: T, randomDirections: ArrayBuffer[T],
+                                bParam: Double, wParam: Double):
   ArrayBuffer[Int] = {
     randomDirections.map { r =>
       ((in.dot(r) + bParam) / wParam).floor.toInt

@@ -281,7 +281,7 @@ object KNN {
                       metric, queue, out)
                   } else if (!exact && training.values.head.size < 30){
                     val zknnClass = new zknn(k)
-                    zknnClass.zknnQueryBasic(training.values, testing.values, k,
+                    zknnClass.zknnQuery(training.values, testing.values, k,
                       metric, queue, out)
                   } else if (lsh) {
                     val lshClass = new lshKNN()
