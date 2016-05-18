@@ -67,7 +67,7 @@ public class LocalClusteringCoefficient {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		long vertexCount = 1 << scale;
+		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
