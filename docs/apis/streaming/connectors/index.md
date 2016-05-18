@@ -35,6 +35,7 @@ Currently these systems are supported:
  * [Elasticsearch 2x](https://elastic.com) (sink)
  * [Hadoop FileSystem](http://hadoop.apache.org) (sink)
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
+ * [Amazon Kinesis Streams](http://aws.amazon.com/kinesis/streams/) (sink/source)
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
 
 To run an application using one of these connectors, additional third party

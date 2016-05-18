@@ -26,7 +26,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Twitter Streaming API allows to connect to the stream of tweets made available by Twitter. 
+The Twitter Streaming API provides access to the stream of tweets made available by Twitter. 
 Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream. 
 To use this connector, add the following dependency to your project:
 
@@ -42,13 +42,13 @@ Note that the streaming connectors are currently not part of the binary distribu
 See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Authentication
-In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
+In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
 
 #### Acquiring the authentication information
 First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) 
 or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by 
 clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions.
-After selecting the application, the API key and API secret (called `twitter-source.consumerKey` and `twitter-source.consumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. 
+After selecting the application, the API key and API secret (called `twitter-source.consumerKey` and `twitter-source.consumerSecret` in `TwitterSource` respectively) are located on the "API Keys" tab. 
 The necessary OAuth Access Token data (`twitter-source.token` and `twitter-source.tokenSecret` in `TwitterSource`) can be generated and acquired on the "Keys and Access Tokens" tab.
 Remember to keep these pieces of information secret and do not push them to public repositories.
  

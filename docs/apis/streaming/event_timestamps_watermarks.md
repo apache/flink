@@ -114,11 +114,11 @@ those timestamps will be overwritten by the TimestampAssigner. Similarly, Waterm
 ### Timestamp Assigners / Watermark Generators
 
 Timestamp Assigners take a stream and produce a new stream with timestamped elements and watermarks. If the
-original stream had timestamps or watermarks already, the timestamp assigner overwrites those.
+original stream had timestamps and/or watermarks already, the timestamp assigner overwrites them.
 
-The timestamp assigners occur usually immediately after the data source, but it is not strictly required to. A
-common pattern is for example to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
-In any case, the timestamp assigner needs to occur before the first operation on event time
+The timestamp assigners usually are specified immediately after the data source, but it is not strictly required to do so. A
+common pattern is, for example, to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
+In any case, the timestamp assigner needs to be specified before the first operation on event time
 (such as the first window operation). 
 
 **NOTE:** The remainder of this section presents the main interfaces a programmer has
@@ -168,8 +168,8 @@ withTimestampsAndWatermarks
 
 #### **With Periodic Watermarks**
 
-The `AssignerWithPeriodicWatermarks` assigns timestamps and generate watermarks periodically (possibly depending
-the stream elements, or purely based on processing time).
+The `AssignerWithPeriodicWatermarks` assigns timestamps and generates watermarks periodically (possibly depending 
+on the stream elements, or purely based on processing time).
 
 The interval (every *n* milliseconds) in which the watermark will be generated is defined via
 `ExecutionConfig.setAutoWatermarkInterval(...)`. Each time, the assigner's `getCurrentWatermark()` method will be

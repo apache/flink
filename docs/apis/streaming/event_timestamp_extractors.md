@@ -2,7 +2,7 @@
 title: "Pre-defined Timestamp Extractors / Watermark Emitters"
 
 sub-nav-group: streaming
-sub-nav-pos: 1
+sub-nav-pos: 2
 sub-nav-parent: eventtime
 ---
 <!--
@@ -27,7 +27,7 @@ under the License.
 * toc
 {:toc}
 
-As described in the [timestamps and watermark handling]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html) page,
+As described in [timestamps and watermark handling]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html),
 Flink provides abstractions that allow the programmer to assign their own timestamps and emit their own watermarks. More specifically, 
 one can do so by implementing one of the `AssignerWithPeriodicWatermarks` and `AssignerWithPunctuatedWatermarks` interfaces, depending 
 on their use-case. In a nutshell, the first will emit watermarks periodically, while the second does so based on some property of 
@@ -40,8 +40,8 @@ for custom assigner implementations.
 #### **Assigner with Ascending Timestamps**
 
 The simplest special case for *periodic* watermark generation is the case where timestamps seen by a given source task 
-occur in ascending order. In that case, the current timestamp can always act as a watermark, because no lower timestamps will 
-occur any more.
+occur in ascending order. In that case, the current timestamp can always act as a watermark, because no earlier timestamps will 
+arrive.
 
 Note that it is only necessary that timestamps are ascending *per parallel data source task*. For example, if
 in a specific setup one Kafka partition is read by one parallel data source instance, then it is only necessary that
@@ -74,11 +74,11 @@ val withTimestampsAndWatermarks = stream.assignAscendingTimestamps( _.getCreatio
 
 #### **Assigner which allows a fixed amount of record lateness**
 
-Another example of periodic watermark generation is the one where the watermark lags behind the maximum (event-time) timestamp 
-seen in the stream, by a fixed amount of time. This case covers scenarios where the maximum lateness that can be encountered in a 
+Another example of periodic watermark generation is when the watermark lags behind the maximum (event-time) timestamp
+seen in the stream by a fixed amount of time. This case covers scenarios where the maximum lateness that can be encountered in a 
 stream is known in advance, e.g. when creating a custom source containing elements with timestamps spread within a fixed period of 
-time for testing. For these cases, Flink provides the `BoundedOutOfOrdernessTimestampExtractor` which takes as argument 
-the `maxOutOfOrderness`, i.e. the maximum amount of time an element is allowed to be late, before being ignored when computing the 
+time for testing. For these cases, Flink provides the `BoundedOutOfOrdernessTimestampExtractor` which takes as an argument 
+the `maxOutOfOrderness`, i.e. the maximum amount of time an element is allowed to be late before being ignored when computing the 
 final result for the given window. Lateness corresponds to the result of `t - t_w`, where `t` is the (event-time) timestamp of an 
 element, and `t_w` that of the previous watermark. If `lateness > 0` then the element is considered late and is ignored when computing 
 the result of the job for its corresponding window.

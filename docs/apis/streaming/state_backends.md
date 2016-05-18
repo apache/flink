@@ -71,7 +71,7 @@ The MemoryStateBackend is encouraged for:
 
 ### The FsStateBackend
 
-The *FsStateBackend* is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+The *FsStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
 
 The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
@@ -82,7 +82,7 @@ The FsStateBackend is encouraged for:
 
 ### The RocksDBStateBackend
 
-The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
 
 The RocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) data base
 that is (per default) stored in the TaskManager data directories. Upon checkpointing, the whole

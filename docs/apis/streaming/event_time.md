@@ -62,7 +62,7 @@ Flink supports different notions of *time* in streaming programs.
     *processing time* operations.
 
 - **Ingestion time:** Ingestion time is the time that events enter Flink. At the source operator, each
-    records gets the source's current time as a timestamp, and time-based operations (like time windows)
+    record gets the source's current time as a timestamp, and time-based operations (like time windows)
     refer to that timestamp.
 
     *Ingestion Time* sits conceptually in between *Event Time* and *Processing Time*. Compared to
@@ -135,7 +135,7 @@ Note that in order to run this example in *Event Time*, the program needs to use
 source, or inject a *Timestamp Assigner & Watermark Generator*. Those functions describe how to access
 the event timestamps, and what timely out-of-orderness the event stream exhibits.
 
-The section below describes the general mechanism behind *Timestamps* and *Watermarks*. For a guide how
+The section below describes the general mechanism behind *Timestamps* and *Watermarks*. For a guide on how
 to use timestamp assignment and watermark generation in the Flink DataStream API, please refer to
 [Generating Timestamps / Watermarks]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html)
 
@@ -160,7 +160,7 @@ can progress by weeks in seconds.
 
 ------
 
-The mechanism in Flink to measure progress in event time are **Watermarks**.
+The mechanism in Flink to measure progress in event time is **Watermarks**.
 Watermarks flow as part of the data stream and carry a timestamp *t*. A *Watermark(t)* declares that event time has reached time
 *t* in that stream, meaning that all events with a timestamps *t' < t* have occurred.
 
@@ -197,7 +197,7 @@ The figure below shows an example of events and watermarks flowing through paral
 
 It is possible that certain elements violate the watermark condition, meaning that even after the *Watermark(t)* has occurred,
 more elements with timestamp *t' < t* will occur. In fact, in many real world setups, certain elements can be arbitrarily
-delayed, which it is impossible to define a time when all elements of a certain event timestamp have occurred.
+delayed, making it impossible to define a time when all elements of a certain event timestamp have occurred.
 Further more, even if the lateness can be bounded, delaying the watermarks by too much is often not desirable, because it delays
 the evaluation of the event time windows by too much.
 

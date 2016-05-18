@@ -26,7 +26,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Kinesis connector allows to produce data into an [Amazon AWS Kinesis Stream](http://aws.amazon.com/kinesis/streams/). 
+The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/). 
 
 To use the connector, add the following Maven dependency to your project:
 
@@ -57,7 +57,7 @@ See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster
 #### Usage of Consumer
 
 The `FlinkKinesisConsumer` can be used to pull data from multiple Kinesis streams within the same AWS region in parallel.
-It participates with Flink's distributed snapshot checkpointing and provides exactly-once processing guarantees. Note
+It participates in Flink's distributed snapshot checkpointing and provides exactly-once processing guarantees. Note
 that the current version can not handle resharding of Kinesis streams. When Kinesis streams are resharded, the consumer
 will fail and the Flink streaming job must be resubmitted.
 
@@ -85,8 +85,8 @@ DataStream<String> kinesisRecords = env.addSource(new FlinkKinesisConsumer<>(
 </div>
 
 The above is a simple example of using the consumer. Configuration for the consumer is supplied with a `java.util.Properties`
-instance, with which the configuration setting keys used can be found in `KinesisConfigConstants`. The example
-demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials is supplied using the basic method in which
+instance, the setting keys for which are enumerated in `KinesisConfigConstants`. The example
+demonstrates consuming a single Kinesis stream in the AWS region "us-east-1". The AWS credentials are supplied using the basic method in which
 the AWS access key ID and secret key are directly supplied in the configuration (other options are setting
 `KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE` to `ENV_VAR`, `SYS_PROP`, and `PROFILE`). Also, data is being consumed
 from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
@@ -94,11 +94,11 @@ to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from
 
 #### Usage of Producer
 
-The `FlinkKinesisProducer` is used for sending data from a Flink stream into a Kinesis stream. Note that the producer is not participating in 
+The `FlinkKinesisProducer` is used for putting data from a Flink stream onto a Kinesis stream. Note that the producer is not participating in 
 Flink's checkpointing and doesn't provide exactly-once processing guarantees. In case of a failure, data will be written again
 to Kinesis, leading to duplicates. This behavior is usually called "at-least-once" semantics.
 
-To produce data into a Kinesis stream, make sure that you have a stream created with the status "ACTIVE" in the AWS dashboard.
+To put data onto a Kinesis stream, make sure the stream is marked as "ACTIVE" in the AWS dashboard.
 
 For the monitoring to work, the user accessing the stream needs access to the Cloud watch service.
 

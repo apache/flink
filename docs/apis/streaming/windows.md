@@ -68,7 +68,7 @@ keyedStream.timeWindow(Time.seconds(5));
           <td><strong>Sliding time window</strong><br>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>
-             Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
+             Defines a window of 5 seconds, that "slides" by 1 second. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
              The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
@@ -138,7 +138,7 @@ keyedStream.timeWindow(Time.seconds(5))
           <td><strong>Sliding time window</strong><br>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>
-             Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
+             Defines a window of 5 seconds, that "slides" by 1 second. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at most 4 seconds)
              The notion of time is specified by the selected TimeCharacteristic (see <a href="{{ site.baseurl }}/apis/streaming/event_time.html">time</a>).
@@ -708,7 +708,7 @@ triggeredStream.evictor(CountEvictor.of(1000));
           </p>
     {% highlight java %}
 triggeredStream.evictor(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
-  public double (Double oldValue, Double newValue) {
+  public double getDelta (Double oldValue, Double newValue) {
       return newValue - oldValue;
   }
 }));
@@ -823,7 +823,7 @@ stream.timeWindow(Time.seconds(5))
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingEventTimeWindows.of((Time.seconds(5)))
+stream.window(TumblingEventTimeWindows.of(Time.seconds(5))
   .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -851,7 +851,7 @@ stream.timeWindow(Time.seconds(5))
 	</td>
         <td>
     {% highlight java %}
-stream.window(TumblingProcessingTimeWindows.of((Time.seconds(5)))
+stream.window(TumblingProcessingTimeWindows.of(Time.seconds(5))
   .trigger(ProcessingTimeTrigger.create())
     {% endhighlight %}
         </td>
@@ -933,7 +933,7 @@ nonKeyedStream.timeWindowAll(Time.seconds(5));
           <td><strong>Sliding time window all</strong><br>DataStream &rarr; WindowedStream</td>
           <td>
             <p>
-             Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
+             Defines a window of 5 seconds, that "slides" by 1 second. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at least 4 seconds)
              The notion of time used is controlled by the StreamExecutionEnvironment.
@@ -1003,7 +1003,7 @@ nonKeyedStream.timeWindowAll(Time.seconds(5));
           <td><strong>Sliding time window all</strong><br>DataStream &rarr; WindowedStream</td>
           <td>
             <p>
-             Defines a window of 5 seconds, that "slides" by 1 seconds. This means that elements are
+             Defines a window of 5 seconds, that "slides" by 1 second. This means that elements are
              grouped according to their timestamp in groups of 5 second duration, and elements can belong to more than
              one window (since windows overlap by at least 4 seconds)
              The notion of time used is controlled by the StreamExecutionEnvironment.

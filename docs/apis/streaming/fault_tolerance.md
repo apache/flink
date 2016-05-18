@@ -55,7 +55,7 @@ Other parameters for checkpointing include:
 
 - *number of concurrent checkpoints*: By default, the system will not trigger another checkpoint while one is still in progress. This ensures that the topology does not spend too much time on checkpoints and not make progress with processing the streams. It is possible to allow for multiple overlapping checkpoints, which is interesting for pipelines that have a certain processing delay (for example because the functions call external services that need some time to respond) but that still want to do very frequent checkpoints (100s of milliseconds) to re-process very little upon failures.
 
-- *checkpoint timeout*: The time after which a checkpoint-in-progress is aborted, if it did not complete until then.
+- *checkpoint timeout*: The time after which a checkpoint-in-progress is aborted, if it did not complete by then.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
