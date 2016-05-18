@@ -19,17 +19,31 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.table.Row;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class JDBCOutputFormatTest extends JDBCTestBase {
 
-	Tuple5<Integer,String, String, Double, String> tuple5 = new Tuple5<>();
-	
+	private JDBCOutputFormat jdbcOutputFormat;
+	private Tuple5<Integer, String, String, Double, String> tuple5 = new Tuple5<>();
+
+	@After
+	public void tearDown() throws IOException {
+		if (jdbcOutputFormat != null) {
+			jdbcOutputFormat.close();
+		}
+		jdbcOutputFormat = null;
+	}
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidDriver() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
@@ -102,58 +116,62 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(DRIVER_CLASS)
-				.setDBUrl(DB_URL)
-				.setQuery(SELECT_ALL_BOOKS)
-				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
-				.finish();
-		jdbcInputFormat.openInputFormat();
-		jdbcInputFormat.open(null);
-
-		Row row = new Row(tuple5.getArity());
-		while (!jdbcInputFormat.reachedEnd()) {
-			if (jdbcInputFormat.nextRecord(row) != null) {
+		try (
+				Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+				PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_BOOKS);
+				ResultSet resultSet = statement.executeQuery();
+				) {
+			while (resultSet.next()) {
+				Row row = new Row(tuple5.getArity());
+				for (int i = 0; i < tuple5.getArity(); i++) {
+					row.setField(i, resultSet.getObject(i+1));
+				}
 				jdbcOutputFormat.writeRecord(row);
 			}
+		} catch (SQLException e) {
+			Assert.fail("JDBC OutputFormat test failed. " + e.getMessage());
 		}
 
 		jdbcOutputFormat.close();
-		jdbcInputFormat.close();
-		jdbcInputFormat.closeInputFormat();
 
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(DRIVER_CLASS)
-				.setDBUrl(DB_URL)
-				.setQuery(SELECT_ALL_NEWBOOKS)
-				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
-				.finish();
-		jdbcInputFormat.openInputFormat();
-		jdbcInputFormat.open(null);
-
-		int recordCount = 0;
-		while (!jdbcInputFormat.reachedEnd()) {
-			row = jdbcInputFormat.nextRecord(row);
-			if (row == null) {
-				break;
-			}
-			if(row.productElement(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, row.productElement(0).getClass());}
-			if(row.productElement(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, row.productElement(1).getClass());}
-			if(row.productElement(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, row.productElement(2).getClass());}
-			if(row.productElement(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, row.productElement(3).getClass());}
-			if(row.productElement(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, row.productElement(4).getClass());}
-
-			for (int x = 0; x < 5; x++) {
-				if(JDBCTestBase.testData[recordCount][x]!=null) {
-					Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.productElement(x));
+		try (
+				Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+				PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
+				ResultSet resultSet = statement.executeQuery();
+				) {
+			int recordCount = 0;
+			while (resultSet.next()) {
+				Row row = new Row(tuple5.getArity());
+				for (int i = 0; i < tuple5.getArity(); i++) {
+					row.setField(i, resultSet.getObject(i + 1));
 				}
+				if (row.productElement(0) != null) {
+					Assert.assertEquals("Field 0 should be int", Integer.class, row.productElement(0).getClass());
+				}
+				if (row.productElement(1) != null) {
+					Assert.assertEquals("Field 1 should be String", String.class, row.productElement(1).getClass());
+				}
+				if (row.productElement(2) != null) {
+					Assert.assertEquals("Field 2 should be String", String.class, row.productElement(2).getClass());
+				}
+				if (row.productElement(3) != null) {
+					Assert.assertEquals("Field 3 should be float", Double.class, row.productElement(3).getClass());
+				}
+				if (row.productElement(4) != null) {
+					Assert.assertEquals("Field 4 should be int", Integer.class, row.productElement(4).getClass());
+				}
+
+				for (int x = 0; x < tuple5.getArity(); x++) {
+					if(JDBCTestBase.testData[recordCount][x]!=null) {
+						Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.productElement(x));
+					}
+				}
+
+				recordCount++;
 			}
-
-			recordCount++;
+			Assert.assertEquals(JDBCTestBase.testData.length, recordCount);
+		} catch (SQLException e) {
+			Assert.fail("JDBC OutputFormat test failed. " + e.getMessage());
 		}
-		Assert.assertEquals(JDBCTestBase.testData.length, recordCount);
-
-		jdbcInputFormat.close();
-		jdbcInputFormat.closeInputFormat();
 	}
 }

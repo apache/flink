@@ -26,7 +26,6 @@ import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -37,7 +36,9 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -48,17 +49,53 @@ import org.slf4j.LoggerFactory;
 /**
  * InputFormat to read data from a database and generate Rows.
  * The InputFormat has to be configured using the supplied InputFormatBuilder.
- * 
- * In order to query the JDBC source in parallel, you need to provide a parameterized
- * query template (i.e. a valid {@link PreparedStatement}) and a {@link ParameterValuesProvider} 
- * which provides binding values for the query parameters.
- * 
+ * A valid RowTypeInfo must be properly configured in the builder, e.g.: </br>
+ *
+ * <pre><code>
+ * TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
+ *		BasicTypeInfo.INT_TYPE_INFO,
+ *		BasicTypeInfo.STRING_TYPE_INFO,
+ *		BasicTypeInfo.STRING_TYPE_INFO,
+ *		BasicTypeInfo.DOUBLE_TYPE_INFO,
+ *		BasicTypeInfo.INT_TYPE_INFO
+ *	};
+ *
+ * RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes);
+ *
+ * Serializable[][] queryParameters = new String[2][1];
+ * queryParameters[0] = new String[]{"Kumar"};
+ * queryParameters[1] = new String[]{"Tan Ah Teck"};
+ *
+ * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+ *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+ *				.setDBUrl("jdbc:derby:memory:ebookshop")
+ *				.setQuery("select * from books")
+ *				.setRowTypeInfo(rowTypeInfo)
+ *				.finish();
+ * </code></pre>
+ *
+ * In order to query the JDBC source in parallel, you need to provide a
+ * parameterized query template (i.e. a valid {@link PreparedStatement}) and
+ * a {@link ParameterValuesProvider} which provides binding values for the
+ * query parameters. E.g.:</br>
+ *
+ * <pre><code>
+ * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+ *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+ *				.setDBUrl("jdbc:derby:memory:ebookshop")
+ *				.setQuery("select * from books WHERE author = ?")
+ *				.setRowTypeInfo(rowTypeInfo)
+ *				.setParametersProvider(new GenericParameterValuesProvider(queryParameters))
+ *				.finish();
+ * </code></pre>
+ *
  * @see Row
  * @see ParameterValuesProvider
  * @see PreparedStatement
  * @see DriverManager
  */
-public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
+@SuppressWarnings("rawtypes")
+public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements ResultTypeQueryable {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
@@ -70,6 +107,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	private String queryTemplate;
 	private int resultSetType;
 	private int resultSetConcurrency;
+	private RowTypeInfo rowTypeInfo;
 
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
@@ -79,6 +117,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	private Object[][] parameterValues;
 	
 	public JDBCInputFormat() {
+	}
+
+	@Override
+	public RowTypeInfo getProducedType() {
+		return rowTypeInfo;
 	}
 
 	@Override
@@ -131,12 +174,17 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 	}
 
 	/**
-	 * Connects to the source database and executes the query in a <b>parallel fashion</b> if
-	 * this {@link InputFormat} is built using a parameterized query (i.e. using a {@link PreparedStatement})
-	 * and a proper {@link ParameterValuesProvider}, in a <b>non-parallel fashion</b> otherwise. 
+	 * Connects to the source database and executes the query in a <b>parallel
+	 * fashion</b> if
+	 * this {@link InputFormat} is built using a parameterized query (i.e. using
+	 * a {@link PreparedStatement})
+	 * and a proper {@link ParameterValuesProvider}, in a <b>non-parallel
+	 * fashion</b> otherwise.
 	 *
-	 * @param inputSplit which is ignored if this InputFormat is executed as a non-parallel source,
-	 *  a "hook" to the query parameters otherwise (using its <i>splitNumber</i>)
+	 * @param inputSplit which is ignored if this InputFormat is executed as a
+	 *        non-parallel source,
+	 *        a "hook" to the query parameters otherwise (using its
+	 *        <i>splitNumber</i>)
 	 * @throws IOException if there's an error during the execution of the query
 	 */
 	@Override
@@ -202,7 +250,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 			resultSet.close();
 		} catch (SQLException se) {
 			LOG.info("Inputformat ResultSet couldn't be closed - " + se.getMessage());
-		} 
+		}
 	}
 
 	/**
@@ -228,15 +276,6 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 		try {
 			if (!hasNext) {
 				return null;
-			}
-			try {
-				//This throws a NPE when the TypeInfo is not passed to the InputFormat,
-				//i.e. KryoSerializer used to generate the passed row
-				row.productArity();
-			} catch(NullPointerException npe) {
-				ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-				row = new Row(resultSetMetaData.getColumnCount());
-				LOG.warn("TypeInfo not provided to the InputFormat. Row cannot be reused.");
 			}
 			for (int pos = 0; pos < row.productArity(); pos++) {
 				row.setField(pos, resultSet.getObject(pos + 1));
@@ -333,6 +372,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 			return this;
 		}
 
+		public JDBCInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
+			format.rowTypeInfo = rowTypeInfo;
+			return this;
+		}
+
 		public JDBCInputFormat finish() {
 			if (format.username == null) {
 				LOG.info("Username was not supplied separately.");
@@ -348,6 +392,9 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> {
 			}
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
+			}
+			if (format.rowTypeInfo == null) {
+				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
 			}
 			if (format.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");

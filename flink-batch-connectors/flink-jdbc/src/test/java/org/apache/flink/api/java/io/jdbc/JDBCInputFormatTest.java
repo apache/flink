@@ -22,17 +22,36 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.io.jdbc.split.GenericParameterValuesProvider;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.core.io.InputSplit;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class JDBCInputFormatTest extends JDBCTestBase {
+
+	private JDBCInputFormat jdbcInputFormat;
+
+	@After
+	public void tearDown() throws IOException {
+		if (jdbcInputFormat != null) {
+			jdbcInputFormat.close();
+		}
+		jdbcInputFormat = null;
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testUntypedRowInfo() throws IOException {
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+				.setDrivername("org.apache.derby.jdbc.idontexist")
+				.setDBUrl(DB_URL)
+				.setQuery(SELECT_ALL_BOOKS)
+				.finish();
+		jdbcInputFormat.openInputFormat();
+	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidDriver() throws IOException {
@@ -40,6 +59,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername("org.apache.derby.jdbc.idontexist")
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_ALL_BOOKS)
+				.setRowTypeInfo(rowTypeInfo)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -50,6 +70,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
 				.setQuery(SELECT_ALL_BOOKS)
+				.setRowTypeInfo(rowTypeInfo)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -60,6 +81,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery("iamnotsql")
+				.setRowTypeInfo(rowTypeInfo)
 				.finish();
 		jdbcInputFormat.openInputFormat();
 	}
@@ -69,6 +91,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setQuery(SELECT_ALL_BOOKS)
+				.setRowTypeInfo(rowTypeInfo)
 				.finish();
 	}
 
@@ -78,6 +101,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_ALL_BOOKS)
+				.setRowTypeInfo(rowTypeInfo)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		//this query does not exploit parallelism
@@ -120,6 +144,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
+				.setRowTypeInfo(rowTypeInfo)
 				.setParametersProvider(pramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -142,7 +167,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				if(next.productElement(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.productElement(2).getClass());}
 				if(next.productElement(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.productElement(3).getClass());}
 				if(next.productElement(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.productElement(4).getClass());}
-	
+
 				for (int x = 0; x < 5; x++) {
 					if(testData[recordCount][x]!=null) {
 						Assert.assertEquals(testData[recordCount][x], next.productElement(x));
@@ -166,6 +191,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR)
+				.setRowTypeInfo(rowTypeInfo)
 				.setParametersProvider(paramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
@@ -202,6 +228,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
 				.setQuery(SELECT_EMPTY)
+				.setRowTypeInfo(rowTypeInfo)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.openInputFormat();
@@ -215,36 +242,6 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat.close();
 		jdbcInputFormat.closeInputFormat();
 		Assert.assertEquals(0, recordsCnt);
-
-	}
-	
-	@Test
-	public void testUninitializedRow() throws IOException, InstantiationException, IllegalAccessException {
-		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
-				.setDrivername(DRIVER_CLASS)
-				.setDBUrl(DB_URL)
-				.setQuery(SELECT_ALL_BOOKS)
-				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
-				.finish();
-		jdbcInputFormat.openInputFormat();
-		jdbcInputFormat.open(null);
-		Row row = new KryoSerializer<Row>(Row.class, new ExecutionConfig()).createInstance();
-		int recordCount = 0;
-		while (!jdbcInputFormat.reachedEnd()) {
-			Row next = jdbcInputFormat.nextRecord(row);
-			if (next == null) {
-				break;
-			}
-			for (int x = 0; x < 5; x++) {
-				if(testData[recordCount][x]!=null) {
-					Assert.assertEquals(testData[recordCount][x], next.productElement(x));
-				}
-			}
-			recordCount++;
-		}
-		jdbcInputFormat.close();
-		jdbcInputFormat.closeInputFormat();
-		Assert.assertEquals(testData.length, recordCount);
 	}
 
 }

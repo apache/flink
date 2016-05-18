@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.java.io.jdbc.example;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
@@ -30,11 +33,11 @@ import org.apache.flink.api.java.io.jdbc.JDBCOutputFormat;
 import org.apache.flink.api.java.io.jdbc.JDBCTestBase;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.table.Row;
-import org.apache.flink.api.table.typeutils.RowTypeInfo;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class JDBCFullTest extends JDBCTestBase {
-	
+
 	@Test
 	public void test() throws Exception {
 		//run without parallelism
@@ -48,14 +51,15 @@ public class JDBCFullTest extends JDBCTestBase {
 		runTest(true);
 		
 	}
-	
-	private void runTest(boolean exploitParallelism) throws Exception {
+
+	private void runTest(boolean exploitParallelism) {
 		ExecutionEnvironment environment = ExecutionEnvironment.getExecutionEnvironment();
 		JDBCInputFormatBuilder inputBuilder = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
-				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS);
-		
+				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS)
+				.setRowTypeInfo(rowTypeInfo);
+
 		if(exploitParallelism) {
 			final int fetchSize = 1;
 			final Long min = new Long(JDBCTestBase.testData[0][0] + "");
@@ -65,27 +69,36 @@ public class JDBCFullTest extends JDBCTestBase {
 					.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
 					.setParametersProvider(new NumericBetweenParametersProvider(fetchSize, min, max));
 		}
-		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO
-		};
-		DataSet<Row> source = environment.createInput(inputBuilder.finish(), new RowTypeInfo(fieldTypes));
-		//when rowTypeInfo is not passed the IF should always re-instantiated a row in nextRecord()
-		//DataSet<Row> source = environment.createInput(inputBuilder.finish());
+		DataSet<Row> source = environment.createInput(inputBuilder.finish());
 
 		//NOTE: in this case (with Derby driver) setSqlTypes could be skipped, but
 		//some database, doens't handle correctly null values when no column type specified
 		//in PreparedStatement.setObject (see its javadoc for more details)
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
-			.setDrivername(JDBCTestBase.DRIVER_CLASS)
-			.setDBUrl(JDBCTestBase.DB_URL)
-			.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-			.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
-			.finish());
-		environment.execute();
+				.setDrivername(JDBCTestBase.DRIVER_CLASS)
+				.setDBUrl(JDBCTestBase.DB_URL)
+				.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
+				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
+				.finish());
+		try {
+			environment.execute();
+		} catch (Exception e) {
+			Assert.fail("JDBC full test failed. " + e.getMessage());
+		}
+
+		try (
+			Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
+			ResultSet resultSet = statement.executeQuery();
+		) {
+			int count = 0;
+			while (resultSet.next()) {
+				count++;
+			}
+			Assert.assertEquals(JDBCTestBase.testData.length, count);
+		} catch (SQLException e) {
+			Assert.fail("JDBC full test failed. " + e.getMessage());
+		}
 	}
 
 }

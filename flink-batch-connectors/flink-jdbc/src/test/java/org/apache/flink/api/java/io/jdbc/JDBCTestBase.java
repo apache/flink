@@ -17,14 +17,15 @@
  */
 package org.apache.flink.api.java.io.jdbc;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.junit.After;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -45,9 +46,6 @@ public class JDBCTestBase {
 	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
 	public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE author = ?";
 	
-	protected JDBCInputFormat jdbcInputFormat;
-	protected JDBCOutputFormat jdbcOutputFormat;
-
 	protected static Connection conn;
 
 	public static final Object[][] testData = {
@@ -61,7 +59,16 @@ public class JDBCTestBase {
 			{1008, ("A Teaspoon of Java 1.6"), ("Kevin Jones"), 88.88, 88},
 			{1009, ("A Teaspoon of Java 1.7"), ("Kevin Jones"), 99.99, 99},
 			{1010, ("A Teaspoon of Java 1.8"), ("Kevin Jones"), null, 1010}};
+
+	public static final TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
+		BasicTypeInfo.INT_TYPE_INFO,
+		BasicTypeInfo.STRING_TYPE_INFO,
+		BasicTypeInfo.STRING_TYPE_INFO,
+		BasicTypeInfo.DOUBLE_TYPE_INFO,
+		BasicTypeInfo.INT_TYPE_INFO
+	};
 	
+	public static final RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes);
 
 	public static String getCreateQuery(String tableName) {
 		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE ");
@@ -93,6 +100,7 @@ public class JDBCTestBase {
 	}
 	
 	public static final OutputStream DEV_NULL = new OutputStream() {
+		@Override
 		public void write(int b) {
 		}
 	};
@@ -172,11 +180,4 @@ public class JDBCTestBase {
 		}
 	}
 
-	@After
-	public void tearDown() throws IOException {
-		if(jdbcInputFormat!=null)
-			jdbcInputFormat.close();
-		jdbcInputFormat = null;
-	}
-	
 }
