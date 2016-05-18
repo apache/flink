@@ -107,8 +107,9 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
     try {
       defaultCtor.newInstance(newArgs: _*).asInstanceOf[A]
     } catch {
-      case e: java.lang.IllegalArgumentException =>
-        throw new IllegalArgumentException(s"Fail to copy treeNode ${getClass.getName}")
+      case e: Throwable =>
+        throw new RuntimeException(
+          s"Fail to copy treeNode ${getClass.getName}: ${e.getStackTraceString}")
     }
   }
 }

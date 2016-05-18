@@ -23,8 +23,8 @@ import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.typeinfo.{TypeInformation, AtomicType}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.typeutils.TypeConverter
-import org.apache.flink.streaming.api.datastream.DataStream
 
 abstract class FlinkTable[T](
     val typeInfo: TypeInformation[T],
@@ -33,13 +33,13 @@ abstract class FlinkTable[T](
   extends AbstractTable {
 
   if (fieldIndexes.length != fieldNames.length) {
-    throw new IllegalArgumentException(
+    throw new TableException(
       "Number of field indexes and field names must be equal.")
   }
 
   // check uniqueness of field names
   if (fieldNames.length != fieldNames.toSet.size) {
-    throw new IllegalArgumentException(
+    throw new TableException(
       "Table field names must be unique.")
   }
 
@@ -47,8 +47,8 @@ abstract class FlinkTable[T](
     typeInfo match {
       case cType: CompositeType[T] =>
         if (fieldNames.length != cType.getArity) {
-          throw new IllegalArgumentException(
-          s"Arity of DataStream type (" + cType.getFieldNames.deep + ") " +
+          throw new TableException(
+          s"Arity of type (" + cType.getFieldNames.deep + ") " +
             "not equal to number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes
@@ -56,7 +56,7 @@ abstract class FlinkTable[T](
           .map(TypeConverter.typeInfoToSqlType(_))
       case aType: AtomicType[T] =>
         if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
-          throw new IllegalArgumentException(
+          throw new TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
         }
         Array(TypeConverter.typeInfoToSqlType(aType))

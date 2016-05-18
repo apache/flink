@@ -19,9 +19,9 @@
 package org.apache.flink.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.stream.utils.{StreamTestData, StreamITCase}
+import org.apache.flink.api.scala.stream.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Assert._
@@ -108,7 +108,7 @@ class SelectITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testAsWithToFewFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -124,7 +124,7 @@ class SelectITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testAsWithToManyFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -140,7 +140,7 @@ class SelectITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testAsWithAmbiguousFields(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -157,7 +157,7 @@ class SelectITCase extends StreamingMultipleProgramsTestBase {
   }
 
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testOnlyFieldRefInAs(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
