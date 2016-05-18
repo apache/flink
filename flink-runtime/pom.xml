@@ -314,19 +314,6 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-					<excludes>
-						<exclude>**/TestData.java</exclude>
-					</excludes>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-			<plugin>
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin
 					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>

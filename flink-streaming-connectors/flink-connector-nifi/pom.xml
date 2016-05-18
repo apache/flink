@@ -83,13 +83,6 @@ under the License.
 					<rerunFailingTestsCount>3</rerunFailingTestsCount>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<rerunFailingTestsCount>3</rerunFailingTestsCount>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 
