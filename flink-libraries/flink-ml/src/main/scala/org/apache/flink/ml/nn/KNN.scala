@@ -254,14 +254,13 @@ object KNN {
             val crossed = crossTuned.mapPartition {
               (iter, out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
                 for ((training, testing) <- iter) {
-                  val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
-                    Ordering.by(_._4))
 
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
                   val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
-                    training.values.head.size + math.log(math.log(training.values.length) /
-                      math.log(4.0)) < math.log(training.values.length) / math.log(4.0) &&
+                    training.values.head.size * math.log(4.0) +
+                      math.log(math.log(training.values.length))
+                       < math.log(training.values.length)  &&
                       (metric.isInstanceOf[EuclideanDistanceMetric] ||
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
@@ -270,7 +269,7 @@ object KNN {
                       metric.isInstanceOf[SquaredEuclideanDistanceMetric]){
                       val quadTreeKNN = new QuadtreeKNN()
                       quadTreeKNN.knnQueryWithQuadTree(training.values, testing.values,
-                        k, metric, queue, out)
+                        k, metric, out)
                     } else {
                       throw new IllegalArgumentException(s" Error: metric must be" +
                         s" Euclidean or SquaredEuclidean!")
@@ -278,19 +277,19 @@ object KNN {
                   } else if (exact){
                     val basicknnClass = new basicknn()
                     basicknnClass.knnQueryBasic(training.values, testing.values, k,
-                      metric, queue, out)
+                      metric, out)
                   } else if (!exact && training.values.head.size < 30){
                     val zknnClass = new zknn(k)
                     zknnClass.zknnQuery(training.values, testing.values, k,
-                      metric, queue, out)
+                      metric, out)
                   } else if (lsh) {
                     val lshClass = new lshKNN()
                     lshClass.lshknnQuery(training.values, testing.values, k,
-                      metric, queue, out)
+                      metric, out)
                   } else {
                     val lshClass = new lshKNN()
                     lshClass.lshknnQuery(training.values, testing.values, k,
-                      metric, queue, out)
+                      metric, out)
                   }
                 }
               }

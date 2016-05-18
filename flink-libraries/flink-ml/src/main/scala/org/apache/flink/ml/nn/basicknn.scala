@@ -33,7 +33,6 @@ class basicknn {
     * @param testing test set
     * @param k number of neighbors to search for
     * @param metric distance used when computing the nearest neighbors
-    * @param queue a priority queue for basicknn query
     * @param out collector of output
     * @tparam T FlinkVector
     */
@@ -41,9 +40,10 @@ class basicknn {
                                        training: Vector[T],
                                        testing: Vector[(Long, T)],
                                        k: Int, metric: DistanceMetric,
-                                       queue: mutable.PriorityQueue[(FlinkVector,
-                                         FlinkVector, Long, Double)],
                                        out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
+
+    val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
+      Ordering.by(_._4))
 
     for ((id, vector) <- testing) {
       for (b <- training) {
