@@ -20,7 +20,7 @@ package org.apache.flink.metrics.graphite;
 import com.codahale.metrics.ScheduledReporter;
 import info.ganglia.gmetric4j.gmetric.GMetric;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.reporter.dropwizard.ScheduledDropwizardReporter;
+import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +52,7 @@ public class GangliaReporter extends ScheduledDropwizardReporter {
 
 			com.codahale.metrics.ganglia.GangliaReporter.Builder builder =
 				com.codahale.metrics.ganglia.GangliaReporter.forRegistry(registry);
-			
+
 			if (prefix != null) {
 				builder.prefixedWith(prefix);
 			}

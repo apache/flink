@@ -23,35 +23,47 @@ import org.apache.flink.annotation.PublicEvolving;
  * A Counter is a {@link org.apache.flink.metrics.Metric} that measures a count.
  */
 @PublicEvolving
-public interface Counter extends Metric {
+public final class Counter implements Metric {
+	private long count = 0;
+
 	/**
 	 * Increment the current count by 1.
 	 */
-	void inc();
+	public void inc() {
+		count++;
+	}
 
 	/**
 	 * Increment the current count by the given value.
 	 *
 	 * @param n value to increment the current count by
 	 */
-	void inc(long n);
+	public void inc(long n) {
+		count += n;
+	}
 
 	/**
 	 * Decrement the current count by 1.
 	 */
-	void dec();
+	public void dec() {
+		count--;
+	}
 
 	/**
 	 * Decrement the current count by the given value.
 	 *
 	 * @param n value to decrement the current count by
 	 */
-	void dec(long n);
+	public void dec(long n) {
+		count -= n;
+	}
 
 	/**
 	 * Returns the current count.
 	 *
 	 * @return current count
 	 */
-	long getCount();
+	public long getCount() {
+		return count;
+	}
 }

@@ -18,9 +18,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -34,6 +34,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-metrics-dropwizard</module>
 		<module>flink-metrics-ganglia</module>
 		<module>flink-metrics-graphite</module>
 		<module>flink-metrics-statsd</module>

@@ -18,6 +18,7 @@
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.reporter.MetricReporter;
 
 import java.util.List;
@@ -29,6 +30,14 @@ public class DummyReporter implements MetricReporter {
 
 	@Override
 	public void close() {
+	}
+
+	@Override
+	public void notifyOfAddedMetric(Metric metric, String name) {
+	}
+
+	@Override
+	public void notifyOfRemovedMetric(Metric metric, String name) {
 	}
 
 	@Override

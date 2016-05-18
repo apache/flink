@@ -15,37 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.reporter.dropwizard;
+package org.apache.flink.dropwizard;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.dropwizard.metrics.CounterWrapper;
+import org.apache.flink.dropwizard.metrics.GaugeWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.Timer;
-import org.apache.flink.metrics.impl.CounterMetric;
-import org.apache.flink.metrics.impl.GaugeMetric;
-import org.apache.flink.metrics.impl.HistogramMetric;
-import org.apache.flink.metrics.impl.MeterMetric;
-import org.apache.flink.metrics.impl.TimerMetric;
-import org.apache.flink.metrics.reporter.Listener;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * Base class for {@link org.apache.flink.metrics.reporter.MetricReporter} that wraps a
  * Dropwizard {@link com.codahale.metrics.Reporter}.
  */
 @PublicEvolving
-public abstract class ScheduledDropwizardReporter implements MetricReporter, Listener, Scheduled {
+public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled {
 	protected MetricRegistry registry;
 	protected ScheduledReporter reporter;
 
@@ -61,7 +52,11 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Lis
 
 	@Override
 	public synchronized void notifyOfAddedMetric(Metric metric, String name) {
-		registry.register(name, (com.codahale.metrics.Metric) metric);
+		if (metric instanceof Counter) {
+			registry.register(name, new CounterWrapper((Counter) metric));
+		} else if (metric instanceof Gauge) {
+			registry.register(name, new GaugeWrapper((Gauge) metric));
+		}
 	}
 
 	@Override
@@ -93,34 +88,12 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Lis
 	}
 
 	@Override
-	public synchronized void report(
-		Map<String, Gauge> gauges,
-		Map<String, Counter> counters,
-		Map<String, Histogram> histograms,
-		Map<String, Meter> meters,
-		Map<String, Timer> timers) {
-
-		TreeMap<String, com.codahale.metrics.Gauge> g = new TreeMap<>();
-		for (Map.Entry<String, Gauge> metric : gauges.entrySet()) {
-			g.put(metric.getKey(), (GaugeMetric) metric.getValue());
-		}
-		TreeMap<String, com.codahale.metrics.Counter> c = new TreeMap<>();
-		for (Map.Entry<String, Counter> metric : counters.entrySet()) {
-			c.put(metric.getKey(), (CounterMetric) metric.getValue());
-		}
-		TreeMap<String, com.codahale.metrics.Histogram> h = new TreeMap<>();
-		for (Map.Entry<String, Histogram> metric : histograms.entrySet()) {
-			h.put(metric.getKey(), (HistogramMetric) metric.getValue());
-		}
-		TreeMap<String, com.codahale.metrics.Meter> m = new TreeMap<>();
-		for (Map.Entry<String, Meter> metric : meters.entrySet()) {
-			m.put(metric.getKey(), (MeterMetric) metric.getValue());
-		}
-		TreeMap<String, com.codahale.metrics.Timer> t = new TreeMap<>();
-		for (Map.Entry<String, Timer> metric : timers.entrySet()) {
-			t.put(metric.getKey(), (TimerMetric) metric.getValue());
-		}
-
-		this.reporter.report(g, c, h, m, t);
+	public synchronized void report() {
+		this.reporter.report(
+			this.registry.getGauges(),
+			this.registry.getCounters(),
+			this.registry.getHistograms(),
+			this.registry.getMeters(),
+			this.registry.getTimers());
 	}
 }

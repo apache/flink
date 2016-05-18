@@ -20,6 +20,7 @@ package org.apache.flink.metrics.reporter;
 import com.codahale.metrics.Reporter;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
 
 import java.util.List;
 
@@ -44,6 +45,22 @@ public interface MetricReporter extends Reporter {
 	 * Closes this reporter. Should be used to close channels, streams and release resources.
 	 */
 	void close();
+
+	/**
+	 * Called when a new {@link org.apache.flink.metrics.Metric} was added.
+	 *
+	 * @param metric metric that was added
+	 * @param name   name of the metric
+	 */
+	void notifyOfAddedMetric(Metric metric, String name);
+
+	/**
+	 * Called when a {@link org.apache.flink.metrics.Metric} was removed.
+	 *
+	 * @param metric metric that was removed
+	 * @param name   name of the metric
+	 */
+	void notifyOfRemovedMetric(Metric metric, String name);
 
 	/**
 	 * Generates the reported name of a metric based on it's hierarchy/scope and associated name.

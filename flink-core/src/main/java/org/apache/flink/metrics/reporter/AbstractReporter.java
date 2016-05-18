@@ -17,27 +17,32 @@
  */
 package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 
-/**
- * Marker interface for reporters that require notifications about added/removed {@link org.apache.flink.metrics.Metric}s.
- */
-@PublicEvolving
-public interface Listener {
-	/**
-	 * Called when a new {@link org.apache.flink.metrics.Metric} was added.
-	 *
-	 * @param metric metric that was added
-	 * @param name   name of the metric
-	 */
-	void notifyOfAddedMetric(Metric metric, String name);
+import java.util.Map;
 
-	/**
-	 * Called when a {@link org.apache.flink.metrics.Metric} was removed.
-	 *
-	 * @param metric metric that was removed
-	 * @param name   name of the metric
-	 */
-	void notifyOfRemovedMetric(Metric metric, String name);
+public abstract class AbstractReporter implements MetricReporter {
+	protected Map<String, Gauge> gauges = new ConcurrentHashMap<>();
+	protected Map<String, Counter> counters = new ConcurrentHashMap<>();
+
+	@Override
+	public void notifyOfAddedMetric(Metric metric, String name) {
+		if (metric instanceof Counter) {
+			counters.put(name, (Counter) metric);
+		} else if (metric instanceof Gauge) {
+			gauges.put(name, (Gauge) metric);
+		}
+	}
+
+	@Override
+	public void notifyOfRemovedMetric(Metric metric, String name) {
+		if (metric instanceof Counter) {
+			counters.remove(name);
+		} else if (metric instanceof Gauge) {
+			gauges.remove(name);
+		}
+	}
 }

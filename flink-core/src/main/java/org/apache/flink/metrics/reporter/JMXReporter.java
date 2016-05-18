@@ -19,12 +19,9 @@ package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.impl.CounterMetric;
-import org.apache.flink.metrics.impl.GaugeMetric;
-import org.apache.flink.metrics.impl.HistogramMetric;
-import org.apache.flink.metrics.impl.MeterMetric;
-import org.apache.flink.metrics.impl.TimerMetric;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +34,6 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link org.apache.flink.metrics.reporter.MetricReporter} that exports {@link org.apache.flink.metrics.Metric}s via JMX.
@@ -46,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
 @Internal
-public class JMXReporter implements MetricReporter, Listener {
+public class JMXReporter implements MetricReporter {
 	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
 
 	private MBeanServer mBeanServer;
@@ -68,16 +64,10 @@ public class JMXReporter implements MetricReporter, Listener {
 			throw new IllegalArgumentException("Metric name did not conform to JMX ObjectName rules: " + name, e);
 		}
 
-		if (metric instanceof GaugeMetric) {
-			jmxMetric = new JmxGauge((GaugeMetric<?>) metric);
-		} else if (metric instanceof CounterMetric) {
-			jmxMetric = new JmxCounter((CounterMetric) metric);
-		} else if (metric instanceof HistogramMetric) {
-			jmxMetric = new JmxHistogram((HistogramMetric) metric);
-		} else if (metric instanceof MeterMetric) {
-			jmxMetric = new JmxMeter((MeterMetric) metric, TimeUnit.SECONDS);
-		} else if (metric instanceof TimerMetric) {
-			jmxMetric = new JmxTimer((TimerMetric) metric, TimeUnit.SECONDS, TimeUnit.MICROSECONDS);
+		if (metric instanceof Gauge) {
+			jmxMetric = new JmxGauge((Gauge<?>) metric);
+		} else if (metric instanceof Counter) {
+			jmxMetric = new JmxCounter((Counter) metric);
 		} else {
 			throw new IllegalArgumentException("Unknown metric type: " + metric.getClass());
 		}
@@ -146,9 +136,9 @@ public class JMXReporter implements MetricReporter, Listener {
 	}
 
 	private static class JmxCounter extends AbstractBean implements JmxCounterMBean {
-		private CounterMetric counter;
+		private Counter counter;
 
-		public JmxCounter(CounterMetric counter) {
+		public JmxCounter(Counter counter) {
 			this.counter = counter;
 		}
 
@@ -163,308 +153,15 @@ public class JMXReporter implements MetricReporter, Listener {
 	}
 
 	private static class JmxGauge extends AbstractBean implements JmxGaugeMBean {
-		private final GaugeMetric gauge;
+		private final Gauge gauge;
 
-		public JmxGauge(GaugeMetric gauge) {
+		public JmxGauge(Gauge gauge) {
 			this.gauge = gauge;
 		}
 
 		@Override
 		public Object getValue() {
 			return gauge.getValue();
-		}
-	}
-
-	public interface JmxHistogramMBean extends MetricMBean {
-		long getCount();
-
-		long getMin();
-
-		long getMax();
-
-		double getMean();
-
-		double getStdDev();
-
-		double get50thPercentile();
-
-		double get75thPercentile();
-
-		double get95thPercentile();
-
-		double get98thPercentile();
-
-		double get99thPercentile();
-
-		double get999thPercentile();
-
-		long[] values();
-	}
-
-	private static class JmxHistogram extends AbstractBean implements JmxHistogramMBean {
-		private final HistogramMetric metric;
-
-		private JmxHistogram(HistogramMetric metric) {
-			this.metric = metric;
-		}
-
-		@Override
-		public double get50thPercentile() {
-			return metric.getSnapshot().getMedian();
-		}
-
-		@Override
-		public long getCount() {
-			return metric.getCount();
-		}
-
-		@Override
-		public long getMin() {
-			return metric.getSnapshot().getMin();
-		}
-
-		@Override
-		public long getMax() {
-			return metric.getSnapshot().getMax();
-		}
-
-		@Override
-		public double getMean() {
-			return metric.getSnapshot().getMean();
-		}
-
-		@Override
-		public double getStdDev() {
-			return metric.getSnapshot().getStdDev();
-		}
-
-		@Override
-		public double get75thPercentile() {
-			return metric.getSnapshot().get75thPercentile();
-		}
-
-		@Override
-		public double get95thPercentile() {
-			return metric.getSnapshot().get95thPercentile();
-		}
-
-		@Override
-		public double get98thPercentile() {
-			return metric.getSnapshot().get98thPercentile();
-		}
-
-		@Override
-		public double get99thPercentile() {
-			return metric.getSnapshot().get99thPercentile();
-		}
-
-		@Override
-		public double get999thPercentile() {
-			return metric.getSnapshot().get999thPercentile();
-		}
-
-		@Override
-		public long[] values() {
-			return metric.getSnapshot().getValues();
-		}
-	}
-
-	public interface JmxMeterMBean extends MetricMBean {
-		long getCount();
-
-		double getMeanRate();
-
-		double getOneMinuteRate();
-
-		double getFiveMinuteRate();
-
-		double getFifteenMinuteRate();
-
-		String getRateUnit();
-	}
-
-	private static class JmxMeter extends AbstractBean implements JmxMeterMBean {
-		private final MeterMetric meter;
-		private final long rateFactor;
-		private final String rateUnit;
-
-		public JmxMeter(MeterMetric meter, TimeUnit rateUnit) {
-			this.meter = meter;
-			this.rateFactor = rateUnit.toSeconds(1);
-			this.rateUnit = "events/" + calculateRateUnit(rateUnit);
-		}
-
-		@Override
-		public long getCount() {
-			return meter.getCount();
-		}
-
-		@Override
-		public double getMeanRate() {
-			return meter.getMeanRate() * rateFactor;
-		}
-
-		@Override
-		public double getOneMinuteRate() {
-			return meter.getOneMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public double getFiveMinuteRate() {
-			return meter.getFiveMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public double getFifteenMinuteRate() {
-			return meter.getFifteenMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public String getRateUnit() {
-			return rateUnit;
-		}
-
-		private String calculateRateUnit(TimeUnit unit) {
-			final String s = unit.toString().toLowerCase();
-			return s.substring(0, s.length() - 1);
-		}
-	}
-
-	public interface JmxTimerMBean extends JmxMeterMBean {
-		double getMin();
-
-		double getMax();
-
-		double getMean();
-
-		double getStdDev();
-
-		double get50thPercentile();
-
-		double get75thPercentile();
-
-		double get95thPercentile();
-
-		double get98thPercentile();
-
-		double get99thPercentile();
-
-		double get999thPercentile();
-
-		long[] values();
-
-		String getDurationUnit();
-	}
-
-	private static class JmxTimer extends AbstractBean implements JmxTimerMBean {
-		private final TimerMetric metric;
-		private final double durationFactor;
-		private final String durationUnit;
-		private final long rateFactor;
-		private final String rateUnit;
-
-		private JmxTimer(TimerMetric metric, TimeUnit rateUnit, TimeUnit durationUnit) {
-			this.metric = metric;
-			this.durationFactor = 1.0 / durationUnit.toNanos(1);
-			this.durationUnit = durationUnit.toString().toLowerCase();
-			;
-			this.rateFactor = rateUnit.toSeconds(1);
-			this.rateUnit = "events/" + calculateRateUnit(rateUnit);
-		}
-
-		@Override
-		public double get50thPercentile() {
-			return metric.getSnapshot().getMedian() * durationFactor;
-		}
-
-		@Override
-		public double getMin() {
-			return metric.getSnapshot().getMin() * durationFactor;
-		}
-
-		@Override
-		public double getMax() {
-			return metric.getSnapshot().getMax() * durationFactor;
-		}
-
-		@Override
-		public double getMean() {
-			return metric.getSnapshot().getMean() * durationFactor;
-		}
-
-		@Override
-		public double getStdDev() {
-			return metric.getSnapshot().getStdDev() * durationFactor;
-		}
-
-		@Override
-		public double get75thPercentile() {
-			return metric.getSnapshot().get75thPercentile() * durationFactor;
-		}
-
-		@Override
-		public double get95thPercentile() {
-			return metric.getSnapshot().get95thPercentile() * durationFactor;
-		}
-
-		@Override
-		public double get98thPercentile() {
-			return metric.getSnapshot().get98thPercentile() * durationFactor;
-		}
-
-		@Override
-		public double get99thPercentile() {
-			return metric.getSnapshot().get99thPercentile() * durationFactor;
-		}
-
-		@Override
-		public double get999thPercentile() {
-			return metric.getSnapshot().get999thPercentile() * durationFactor;
-		}
-
-		@Override
-		public long[] values() {
-			return metric.getSnapshot().getValues();
-		}
-
-		@Override
-		public String getDurationUnit() {
-			return durationUnit;
-		}
-
-		@Override
-		public long getCount() {
-			return metric.getCount();
-		}
-
-		@Override
-		public double getMeanRate() {
-			return metric.getMeanRate() * rateFactor;
-		}
-
-		@Override
-		public double getOneMinuteRate() {
-			return metric.getOneMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public double getFiveMinuteRate() {
-			return metric.getFiveMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public double getFifteenMinuteRate() {
-			return metric.getFifteenMinuteRate() * rateFactor;
-		}
-
-		@Override
-		public String getRateUnit() {
-			return rateUnit;
-		}
-
-		private String calculateRateUnit(TimeUnit unit) {
-			final String s = unit.toString().toLowerCase();
-			return s.substring(0, s.length() - 1);
 		}
 	}
 }

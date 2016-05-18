@@ -18,7 +18,6 @@
 package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.reservoir.Reservoir;
 
 /**
  * A MetricGroup is a named container for {@link org.apache.flink.metrics.Metric}s and
@@ -57,72 +56,6 @@ public interface MetricGroup {
 	 * @return the registered counter
 	 */
 	Counter counter(String name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Meter} with Flink.
-	 *
-	 * @param name name of the meter
-	 * @return the registered meter
-	 */
-	Meter meter(int name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Meter} with Flink.
-	 *
-	 * @param name name of the meter
-	 * @return the registered meter
-	 */
-	Meter meter(String name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Timer} with Flink.
-	 *
-	 * @param name name of the timer
-	 * @return the registered timer
-	 */
-	Timer timer(int name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Timer} with Flink.
-	 *
-	 * @param name name of the timer
-	 * @return the registered timer
-	 */
-	Timer timer(String name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Histogram} with Flink.
-	 *
-	 * @param name name of the histogram
-	 * @return the registered histogram
-	 */
-	Histogram histogram(int name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Histogram} with Flink.
-	 *
-	 * @param name name of the histogram
-	 * @return the registered histogram
-	 */
-	Histogram histogram(String name);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Histogram} with Flink.
-	 *
-	 * @param name      name of the histogram
-	 * @param reservoir backing reservoir
-	 * @return the registered histogram
-	 */
-	Histogram histogram(int name, Reservoir reservoir);
-
-	/**
-	 * Creates and registers a new {@link org.apache.flink.metrics.Histogram} with Flink.
-	 *
-	 * @param name      name of the histogram
-	 * @param reservoir backing reservoir
-	 * @return the registered histogram
-	 */
-	Histogram histogram(String name, Reservoir reservoir);
 
 	/**
 	 * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.

@@ -20,7 +20,7 @@ package org.apache.flink.metrics.graphite;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.graphite.Graphite;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.reporter.dropwizard.ScheduledDropwizardReporter;
+import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;

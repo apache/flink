@@ -22,15 +22,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.Scope;
 import org.apache.flink.metrics.reporter.JMXReporter;
-import org.apache.flink.metrics.reporter.Listener;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
@@ -60,12 +57,6 @@ public class MetricRegistry {
 
 	private final Scope.ScopeFormat scopeConfig;
 
-	private Map<String, Gauge> gauges = new ConcurrentHashMap<>();
-	private Map<String, Counter> counters = new ConcurrentHashMap<>();
-	private Map<String, Histogram> histograms = new ConcurrentHashMap<>();
-	private Map<String, Meter> meters = new ConcurrentHashMap<>();
-	private Map<String, Timer> timers = new ConcurrentHashMap<>();
-
 	/**
 	 * Creates a new {@link MetricRegistry} and starts the configured reporter.
 	 */
@@ -91,7 +82,7 @@ public class MetricRegistry {
 				timer.schedule(new TimerTask() {
 					@Override
 					public void run() {
-						((Scheduled) reporter).report(gauges, counters, histograms, meters, timers);
+						((Scheduled) reporter).report();
 					}
 				}, millis, millis);
 			}
@@ -160,25 +151,8 @@ public class MetricRegistry {
 	public void register(Metric metric, String name, AbstractMetricGroup parent) {
 		String metricName = reporter.generateName(name, parent.generateScope());
 
-		if (metric instanceof Meter) {
-			meters.put(metricName, (Meter) metric);
-		}
-		if (metric instanceof Gauge) {
-			gauges.put(metricName, (Gauge) metric);
-		}
-		if (metric instanceof Histogram) {
-			histograms.put(metricName, (Histogram) metric);
-		}
-		if (metric instanceof Counter) {
-			counters.put(metricName, (Counter) metric);
-		}
-		if (metric instanceof Timer) {
-			timers.put(metricName, (Timer) metric);
-		}
 
-		if (reporter instanceof Listener) {
-			((Listener) this.reporter).notifyOfAddedMetric(metric, metricName);
-		}
+		this.reporter.notifyOfAddedMetric(metric, metricName);
 	}
 
 	/**
@@ -190,25 +164,7 @@ public class MetricRegistry {
 	 */
 	public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
 		String metricName = reporter.generateName(name, parent.generateScope());
-
-		if (metric instanceof Meter) {
-			meters.remove(metricName);
-		}
-		if (metric instanceof Gauge) {
-			gauges.remove(metricName);
-		}
-		if (metric instanceof Histogram) {
-			histograms.remove(metricName);
-		}
-		if (metric instanceof Counter) {
-			counters.remove(metricName);
-		}
-		if (metric instanceof Timer) {
-			timers.remove(metricName);
-		}
-
-		if (reporter instanceof Listener) {
-			((Listener) this.reporter).notifyOfRemovedMetric(metric, metricName);
-		}
+		
+		this.reporter.notifyOfRemovedMetric(metric, metricName);
 	}
 }

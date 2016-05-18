@@ -20,19 +20,9 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.Timer;
-import org.apache.flink.metrics.impl.CounterMetric;
-import org.apache.flink.metrics.impl.GaugeMetric;
-import org.apache.flink.metrics.impl.HistogramMetric;
-import org.apache.flink.metrics.impl.MeterMetric;
-import org.apache.flink.metrics.impl.TimerMetric;
-import org.apache.flink.metrics.reservoir.Reservoir;
-import org.apache.flink.metrics.reservoir.UniformReservoir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,56 +89,9 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 
 	@Override
 	public Counter counter(String name) {
-		CounterMetric c = new CounterMetric();
-		addMetric(name, c);
-		return c;
-	}
-
-	@Override
-	public Meter meter(int name) {
-		return meter("" + name);
-	}
-
-	@Override
-	public Meter meter(String name) {
-		MeterMetric c = new MeterMetric();
-		addMetric(name, c);
-		return c;
-	}
-
-	@Override
-	public Timer timer(int name) {
-		return timer("" + name);
-	}
-
-	@Override
-	public Timer timer(String name) {
-		TimerMetric c = new TimerMetric();
-		addMetric(name, c);
-		return c;
-	}
-
-	@Override
-	public Histogram histogram(int name) {
-		return histogram("" + name, new UniformReservoir());
-	}
-
-
-	@Override
-	public Histogram histogram(String name) {
-		return histogram(name, new UniformReservoir());
-	}
-
-	@Override
-	public Histogram histogram(int name, Reservoir reservoir) {
-		return histogram("" + name, reservoir);
-	}
-
-	@Override
-	public Histogram histogram(String name, Reservoir reservoir) {
-		Histogram c = new HistogramMetric(reservoir);
-		addMetric(name, c);
-		return c;
+		Counter counter = new Counter();
+		addMetric(name, counter);
+		return counter;
 	}
 
 	@Override
@@ -158,9 +101,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 
 	@Override
 	public <T> Gauge<T> gauge(String name, Gauge<T> gauge) {
-		Gauge g = new GaugeMetric<>(gauge);
-		addMetric(name, g);
-		return g;
+		addMetric(name, gauge);
+		return gauge;
 	}
 
 	protected MetricGroup addMetric(String name, Metric metric) {

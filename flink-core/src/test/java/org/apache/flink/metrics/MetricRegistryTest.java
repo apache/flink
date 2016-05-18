@@ -23,14 +23,12 @@ import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.Scope;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.metrics.groups.TaskMetricGroup;
-import org.apache.flink.metrics.reporter.Listener;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.metrics.util.TestReporter;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.Map;
 
 public class MetricRegistryTest {
 	/**
@@ -114,12 +112,7 @@ public class MetricRegistryTest {
 		public static int reportCount = 0;
 
 		@Override
-		public void report(
-			Map<String, Gauge> gauges,
-			Map<String, Counter> counters,
-			Map<String, Histogram> histograms,
-			Map<String, Meter> meters,
-			Map<String, Timer> timers) {
+		public void report() {
 			reportCount++;
 		}
 	}
@@ -176,7 +169,7 @@ public class MetricRegistryTest {
 		Assert.assertTrue(TestReporter6.removeCalled);
 	}
 
-	protected static class TestReporter6 extends TestReporter implements Listener {
+	protected static class TestReporter6 extends TestReporter {
 		public static boolean addCalled = false;
 		public static boolean removeCalled = false;
 

@@ -41,6 +41,12 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-dropwizard</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>info.ganglia.gmetric4j</groupId>
 			<artifactId>gmetric4j</artifactId>
 			<version>1.0.7</version>

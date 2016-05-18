@@ -18,13 +18,6 @@
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.Timer;
-
-import java.util.Map;
 
 /**
  * Marker interface for reporters that actively send out data periodically.
@@ -34,16 +27,6 @@ public interface Scheduled {
 	/**
 	 * Report the current measurements.
 	 * This method is called in regular intervals
-	 *
-	 * @param gauges     registered gauges
-	 * @param counters   registered counters
-	 * @param histograms registered histograms
-	 * @param meters     registered meters
-	 * @param timers     registered timers
 	 */
-	void report(Map<String, Gauge> gauges,
-				Map<String, Counter> counters,
-				Map<String, Histogram> histograms,
-				Map<String, Meter> meters,
-				Map<String, Timer> timers);
+	void report();
 }

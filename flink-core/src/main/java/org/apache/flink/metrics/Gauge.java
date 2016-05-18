@@ -23,11 +23,11 @@ import org.apache.flink.annotation.PublicEvolving;
  * A Gauge is a {@link org.apache.flink.metrics.Metric} that calculates a specific value at a point in time.
  */
 @PublicEvolving
-public interface Gauge<T> extends Metric {
+public abstract class Gauge<T> implements Metric {
 	/**
 	 * Calculates and returns the measured value.
 	 *
 	 * @return calculated value
 	 */
-	T getValue();
+	public abstract T getValue();
 }

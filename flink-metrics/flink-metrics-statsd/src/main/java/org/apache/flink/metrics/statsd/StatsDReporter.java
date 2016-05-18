@@ -20,12 +20,8 @@ package org.apache.flink.metrics.statsd;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.Timer;
-import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
-import org.apache.flink.metrics.reservoir.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  *
  * Ported since it was not present in maven central.
  */
-public class StatsDReporter implements MetricReporter, Scheduled {
+public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
 	public static final String ARG_HOST = "host";
@@ -113,12 +109,7 @@ public class StatsDReporter implements MetricReporter, Scheduled {
 	}
 
 	@Override
-	public void report(
-		Map<String, Gauge> gauges,
-		Map<String, Counter> counters,
-		Map<String, Histogram> histograms,
-		Map<String, Meter> meters,
-		Map<String, Timer> timers) {
+	public void report() {
 		for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
 			reportGauge(entry.getKey(), entry.getValue());
 		}
@@ -126,62 +117,6 @@ public class StatsDReporter implements MetricReporter, Scheduled {
 		for (Map.Entry<String, Counter> entry : counters.entrySet()) {
 			reportCounter(entry.getKey(), entry.getValue());
 		}
-
-		for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
-			reportHistogram(entry.getKey(), entry.getValue());
-		}
-
-		for (Map.Entry<String, Meter> entry : meters.entrySet()) {
-			reportMeter(entry.getKey(), entry.getValue());
-		}
-
-		for (Map.Entry<String, Timer> entry : timers.entrySet()) {
-			reportTimer(entry.getKey(), entry.getValue());
-		}
-	}
-
-	private void reportTimer(final String name, final Timer timer) {
-		final Snapshot snapshot = timer.createSnapshot();
-
-		send(name + "max", convertDuration(snapshot.getMax()));
-		send(name + "mean", convertDuration(snapshot.getMean()));
-		send(name + "min", convertDuration(snapshot.getMin()));
-		send(name + "stddev", convertDuration(snapshot.getStdDev()));
-		send(name + "p50", convertDuration(snapshot.getMedian()));
-		send(name + "p75", convertDuration(snapshot.get75thPercentile()));
-		send(name + "p95", convertDuration(snapshot.get95thPercentile()));
-		send(name + "p98", convertDuration(snapshot.get98thPercentile()));
-		send(name + "p99", convertDuration(snapshot.get99thPercentile()));
-		send(name + "p999", convertDuration(snapshot.get999thPercentile()));
-		
-		send(name + "count", "" + timer.getCount());
-		send(name + "m1_rate", (convertRate(timer.getOneMinuteRate())));
-		send(name + "m5_rate", (convertRate(timer.getFiveMinuteRate())));
-		send(name + "m15_rate", (convertRate(timer.getFifteenMinuteRate())));
-		send(name + "mean_rate", (convertRate(timer.getMeanRate())));
-	}
-
-	private void reportMeter(final String name, final Meter meter) {
-		send(name + "samples", meter.getCount());
-		send(name + "m1_rate", convertRate(meter.getOneMinuteRate()));
-		send(name + "m5_rate", convertRate(meter.getFiveMinuteRate()));
-		send(name + "m15_rate", convertRate(meter.getFifteenMinuteRate()));
-		send(name + "mean_rate", convertRate(meter.getMeanRate()));
-	}
-
-	private void reportHistogram(final String name, final Histogram histogram) {
-		final Snapshot snapshot = histogram.createSnapshot();
-		send(name + "samples", histogram.getCount());
-		send(name + "max", snapshot.getMax());
-		send(name + "mean", snapshot.getMean());
-		send(name + "min", snapshot.getMin());
-		send(name + "stddev", snapshot.getStdDev());
-		send(name + "p50", snapshot.getMedian());
-		send(name + "p75", snapshot.get75thPercentile());
-		send(name + "p95", snapshot.get95thPercentile());
-		send(name + "p98", snapshot.get98thPercentile());
-		send(name + "p99", snapshot.get99thPercentile());
-		send(name + "p999", snapshot.get999thPercentile());
 	}
 
 	private void reportCounter(final String name, final Counter counter) {
@@ -193,13 +128,5 @@ public class StatsDReporter implements MetricReporter, Scheduled {
 		if (value != null) {
 			send((name), value);
 		}
-	}
-
-	private double convertDuration(double duration) {
-		return duration * durationFactor;
-	}
-
-	private double convertRate(double rate) {
-		return rate * rateFactor;
 	}
 }

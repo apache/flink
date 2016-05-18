@@ -15,33 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.reservoir;
+package org.apache.flink.dropwizard.metrics;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.Counter;
 
-/**
- * A statistically representative reservoir of a data stream.
- */
-@PublicEvolving
-public interface Reservoir {
-	/**
-	 * Returns the number of values recorded.
-	 *
-	 * @return the number of values recorded
-	 */
-	int size();
+public class CounterWrapper extends com.codahale.metrics.Counter {
+	private final Counter counter;
 
-	/**
-	 * Adds a new recorded value to the reservoir.
-	 *
-	 * @param value a new recorded value
-	 */
-	void update(long value);
+	public CounterWrapper(Counter counter) {
+		this.counter = counter;
+	}
 
-	/**
-	 * Returns a snapshot of the reservoir's values.
-	 *
-	 * @return a snapshot of the reservoir's values
-	 */
-	Snapshot createSnapshot();
+	@Override
+	public long getCount() {
+		return this.counter.getCount();
+	}
 }

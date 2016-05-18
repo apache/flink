@@ -18,11 +18,13 @@
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 
 import java.util.List;
 
-public class TestReporter implements MetricReporter {
+public class TestReporter extends AbstractReporter {
 	@Override
 	public void open(Configuration config) {
 	}

@@ -19,7 +19,6 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.metrics.reporter.Listener;
 import org.apache.flink.metrics.util.TestReporter;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,14 +39,6 @@ public class MetricGroupTest {
 		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Counter);
 		Assert.assertEquals("counter", TestReporter1.lastPassedName);
 
-		root.meter("meter");
-		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Meter);
-		Assert.assertEquals("meter", TestReporter1.lastPassedName);
-
-		root.timer("timer");
-		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Timer);
-		Assert.assertEquals("timer", TestReporter1.lastPassedName);
-
 		root.gauge("gauge", new Gauge<Object>() {
 			@Override
 			public Object getValue() {
@@ -56,13 +47,9 @@ public class MetricGroupTest {
 		});
 		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Gauge);
 		Assert.assertEquals("gauge", TestReporter1.lastPassedName);
-
-		root.histogram("histogram");
-		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Histogram);
-		Assert.assertEquals("histogram", TestReporter1.lastPassedName);
 	}
 
-	protected static class TestReporter1 extends TestReporter implements Listener {
+	protected static class TestReporter1 extends TestReporter {
 		public static Metric lastPassedMetric;
 		public static String lastPassedName;
 

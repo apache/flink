@@ -15,31 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.impl;
+package org.apache.flink.dropwizard.metrics;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.metrics.Timer;
-import org.apache.flink.metrics.reservoir.Snapshot;
-import org.apache.flink.metrics.reservoir.dropwizard.DropwizardToFlinkSnapshotWrapper;
+import org.apache.flink.metrics.Gauge;
 
-/**
- * Wrapper class for DropWizard Timer.
- */
-@Internal
-public class TimerMetric extends com.codahale.metrics.Timer implements Timer {
-	private com.codahale.metrics.Timer.Context context;
+public class GaugeWrapper implements com.codahale.metrics.Gauge {
+	private final Gauge gauge;
 
-	@Override
-	public void start() {
-		this.context = super.time();
+	public GaugeWrapper(Gauge gauge) {
+		this.gauge = gauge;
 	}
 
 	@Override
-	public void stop() {
-		this.context.stop();
-	}
-
-	public Snapshot createSnapshot() {
-		return new DropwizardToFlinkSnapshotWrapper(this.getSnapshot());
+	public Object getValue() {
+		return this.gauge.getValue();
 	}
 }
