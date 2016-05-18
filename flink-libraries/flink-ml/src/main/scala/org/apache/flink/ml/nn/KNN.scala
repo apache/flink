@@ -41,17 +41,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *        val trainingDS: DataSet[Vector] = ...
-  *        val testingDS: DataSet[Vector] = ...
+  *         val trainingDS: DataSet[Vector] = ...
+  *         val testingDS: DataSet[Vector] = ...
   *
-  *        val knn = KNN()
-  *          .setK(10)
-  *          .setBlocks(5)
-  *          .setDistanceMetric(EuclideanDistanceMetric())
+  *         val knn = KNN()
+  *           .setK(10)
+  *           .setBlocks(5)
+  *           .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *        knn.fit(trainingDS)
+  *         knn.fit(trainingDS)
   *
-  *        val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *         val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=
@@ -227,8 +227,6 @@ object KNN {
             val crossed = crossTuned.mapPartition {
               (iter, out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
                 for ((training, testing) <- iter) {
-                  val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
-                    Ordering.by(_._4))
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
                   val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
@@ -238,9 +236,9 @@ object KNN {
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
-                    knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
+                    knnQueryWithQuadTree(training.values, testing.values, k, metric, out)
                   } else {
-                    knnQueryBasic(training.values, testing.values, k, metric, queue, out)
+                    knnQueryBasic(training.values, testing.values, k, metric, out)
                   }
                 }
               }
@@ -277,8 +275,6 @@ object KNN {
                                               training: Vector[T],
                                               testing: Vector[(Long, T)],
                                               k: Int, metric: DistanceMetric,
-                                              queue: mutable.PriorityQueue[(FlinkVector,
-                                                FlinkVector, Long, Double)],
                                               out: Collector[(FlinkVector,
                                                 FlinkVector, Long, Double)]) {
     /// find a bounding box
@@ -296,6 +292,9 @@ object KNN {
     //default value of max elements/box is set to max(20,k)
     val maxPerBox = math.max(k, 20)
     val trainingQuadTree = new QuadTree(MinVec, MaxVec, metric, maxPerBox)
+
+    val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
+      Ordering.by(_._4))
 
     for (v <- training) {
       trainingQuadTree.insert(v)
@@ -332,10 +331,11 @@ object KNN {
                                        training: Vector[T],
                                        testing: Vector[(Long, T)],
                                        k: Int, metric: DistanceMetric,
-                                       queue: mutable.PriorityQueue[(FlinkVector,
-                                         FlinkVector, Long, Double)],
                                        out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
+    val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
+      Ordering.by(_._4))
+    
     for ((id, vector) <- testing) {
       for (b <- training) {
         // (training vector, input vector, input key, distance)
