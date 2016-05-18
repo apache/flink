@@ -31,7 +31,6 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.graph.library.similarity.JaccardIndex;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -39,15 +38,15 @@ import org.apache.flink.types.NullValue;
 import java.text.NumberFormat;
 
 /**
- * Driver for the library implementation of Jaccard Similarity.
+ * Driver for the library implementation of Jaccard Index.
  *
  * This example generates an undirected RMat graph with the given scale and
- * edge factor then calculates all non-zero Jaccard Similarity scores
+ * edge factor then calculates all non-zero Jaccard Index scores
  * between vertices.
  *
- * @see JaccardIndex
+ * @see org.apache.flink.graph.library.similarity.JaccardIndex
  */
-public class JaccardSimilarity {
+public class JaccardIndex {
 
 	public static final int DEFAULT_SCALE = 10;
 
@@ -81,11 +80,11 @@ public class JaccardSimilarity {
 
 		if (scale > 32) {
 			js = graph
-				.run(new JaccardIndex<LongValue, NullValue, NullValue>());
+				.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
 		} else {
 			js = graph
 				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new JaccardIndex<IntValue, NullValue, NullValue>());
+				.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
 		}
 
 		switch (parameters.get("output", "")) {
@@ -116,9 +115,9 @@ public class JaccardSimilarity {
 				System.out.println("is the number of common neighbors divided by the number of distinct neighbors.");
 				System.out.println("");
 				System.out.println("usage:");
-				System.out.println("  JaccardSimilarity [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
-				System.out.println("  JaccardSimilarity [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
-				System.out.println("  JaccardSimilarity [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
+				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
+				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
+				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
 					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
 
 				return;

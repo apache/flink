@@ -37,6 +37,7 @@ import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,17 +65,15 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	// Optional configuration
 	private int groupSize = DEFAULT_GROUP_SIZE;
 
-	private long maximumDegree = Long.MAX_VALUE;
-
 	private boolean unboundedScores = true;
 
-	private int minimumScoreNumerator = -1;
+	private int minimumScoreNumerator = 0;
 
 	private int minimumScoreDenominator = 1;
 
 	private int maximumScoreNumerator = 1;
 
-	private int maximumScoreDenominator = -1;
+	private int maximumScoreDenominator = 0;
 
 	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
@@ -87,19 +86,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @return this
 	 */
 	public JaccardIndex<K, VV, EV> setGroupSize(int groupSize) {
+		Preconditions.checkArgument(groupSize > 0, "Group size must be greater than zero");
+
 		this.groupSize = groupSize;
-
-		return this;
-	}
-
-	/**
-	 * Filter out vertices with degree than the given maximum.
-	 *
-	 * @param maximumDegree maximum degree
-	 * @return this
-	 */
-	public JaccardIndex<K, VV, EV> setMaximumDegree(long maximumDegree) {
-		this.maximumDegree = maximumDegree;
 
 		return this;
 	}
@@ -113,6 +102,10 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @see #setMaximumScore(int, int)
 	 */
 	public JaccardIndex<K, VV, EV> setMinimumScore(int numerator, int denominator) {
+		Preconditions.checkArgument(numerator >= 0, "Minimum score numerator must be non-negative");
+		Preconditions.checkArgument(denominator > 0, "Minimum score denominator must be greater than zero");
+		Preconditions.checkArgument(numerator <= denominator, "Minimum score fraction must be less than or equal to one");
+
 		this.unboundedScores = false;
 		this.minimumScoreNumerator = numerator;
 		this.minimumScoreDenominator = denominator;
@@ -121,7 +114,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Filter out Jaccard Index scores greater than the given maximum fraction.
+	 * Filter out Jaccard Index scores greater than or equal to the given maximum fraction.
 	 *
 	 * @param numerator numerator of the maximum score
 	 * @param denominator denominator of the maximum score
@@ -129,6 +122,10 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @see #setMinimumScore(int, int)
 	 */
 	public JaccardIndex<K, VV, EV> setMaximumScore(int numerator, int denominator) {
+		Preconditions.checkArgument(numerator >= 0, "Maximum score numerator must be non-negative");
+		Preconditions.checkArgument(denominator > 0, "Maximum score denominator must be greater than zero");
+		Preconditions.checkArgument(numerator <= denominator, "Maximum score fraction must be less than or equal to one");
+
 		this.unboundedScores = false;
 		this.maximumScoreNumerator = numerator;
 		this.maximumScoreDenominator = denominator;
@@ -162,7 +159,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// s, t, d(t)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> neighborDegree = input
 			.run(new EdgeTargetDegree<K, VV, EV>()
-				.setMaximumDegree(maximumDegree)
 				.setParallelism(littleParallelism));
 
 		// group span, s, t, d(t)
@@ -399,7 +395,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 			if (unboundedScores ||
 					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
-						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
+						&& count * maximumScoreDenominator < distinctNeighbors * maximumScoreNumerator)) {
 				output.f0 = edge.f0;
 				output.f1 = edge.f1;
 				output.f2.f0.setValue(count);

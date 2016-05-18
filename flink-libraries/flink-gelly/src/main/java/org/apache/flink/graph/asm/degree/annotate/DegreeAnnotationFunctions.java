@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.degree.annotate;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -87,26 +86,6 @@ public class DegreeAnnotationFunctions {
 			LongValue count = left.f1;
 			count.setValue(count.getValue() + right.f1.getValue());
 			return left;
-		}
-	}
-
-	/**
-	 * Filter out vertices with degree than the given maximum.
-	 *
-	 * @param <K> ID type
-	 */
-	public static class DegreeFilter<K>
-	implements FilterFunction<Vertex<K, LongValue>> {
-		private long maximumDegree;
-
-		public DegreeFilter(long maximumDegree) {
-			this.maximumDegree = maximumDegree;
-		}
-
-		@Override
-		public boolean filter(Vertex<K, LongValue> value)
-				throws Exception {
-			return value.f1.getValue() <= maximumDegree;
 		}
 	}
 

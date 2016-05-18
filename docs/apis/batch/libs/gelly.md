@@ -2172,7 +2172,6 @@ DataSet<Vertex<K, LongValue>> degree = graph
         <p>Optional configuration:</p>
         <ul>
           <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with a degree of zero</p></li>
-          <li><p><strong>setMaximumDegree</strong>: filter out vertices with degree than the given maximum</p></li>
           <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
           <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
         </ul>
@@ -2190,7 +2189,6 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
 {% endhighlight %}
         <p>Optional configuration:</p>
         <ul>
-          <li><p><strong>setMaximumDegree</strong>: filter out vertices with degree than the given maximum</p></li>
           <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
           <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
         </ul>
@@ -2208,7 +2206,6 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
 {% endhighlight %}
         <p>Optional configuration:</p>
         <ul>
-          <li><p><strong>setMaximumDegree</strong>: filter out vertices with degree than the given maximum</p></li>
           <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
           <li><p><strong>setReduceOnSourceId</strong>: the degree can be counted from either the edge source or target IDs. By default the target IDs are counted. Reducing on source IDs may optimize the algorithm if the input edge list is sorted by source ID.</p></li>
         </ul>
@@ -2226,7 +2223,6 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
 {% endhighlight %}
         <p>Optional configuration:</p>
         <ul>
-          <li><p><strong>setMaximumDegree</strong>: filter out vertices with degree than the given maximum</p></li>
           <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
           <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
         </ul>
