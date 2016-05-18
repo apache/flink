@@ -908,7 +908,7 @@ under the License.
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.19.1</version>
 				<executions>
 					<execution>
 						<goals>
