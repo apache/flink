@@ -15,32 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.common.io.compression;
 
+import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.flink.annotation.Internal;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Collections;
 
-/**
- * Creates a new instance of a certain subclass of {@link java.util.zip.InflaterInputStream}.
- */
 @Internal
-public interface InflaterInputStreamFactory<T extends InputStream> {
+public class XZInputStreamFactory implements InflaterInputStreamFactory<XZCompressorInputStream> {
 
-	/**
-	 * Creates a {@link java.util.zip.InflaterInputStream} that wraps the given input stream.
-	 * @param in is the compressed input stream
-	 * @return the inflated input stream
-	 */
-	T create(InputStream in) throws IOException;
+	private static XZInputStreamFactory INSTANCE = null;
 
-	/**
-	 * Lists a collection of typical file extensions (e.g., "gz", "gzip") that are associated with the compression
-	 * algorithm in the {@link java.util.zip.InflaterInputStream} {@code T}.
-	 * @return a (possibly empty) collection of lower-case file extensions, without the period
-	 */
-	Collection<String> getCommonFileExtensions();
+	public static XZInputStreamFactory getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = new XZInputStreamFactory();
+		}
+		return INSTANCE;
+	}
+
+	@Override
+	public XZCompressorInputStream create(InputStream in) throws IOException {
+		return new XZCompressorInputStream(in, true);
+	}
+
+	@Override
+	public Collection<String> getCommonFileExtensions() {
+		return Collections.singleton("xz");
+	}
 }
