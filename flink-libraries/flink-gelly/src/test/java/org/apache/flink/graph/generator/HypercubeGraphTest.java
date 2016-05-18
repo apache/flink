@@ -54,8 +54,8 @@ extends AbstractGraphTest {
 		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
 			.generate();
 
-		assertEquals(1 << dimensions, graph.numberOfVertices());
-		assertEquals(dimensions * (1 << dimensions), graph.numberOfEdges());
+		assertEquals(1L << dimensions, graph.numberOfVertices());
+		assertEquals(dimensions * (1L << dimensions), graph.numberOfEdges());
 
 		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1;
 		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1;

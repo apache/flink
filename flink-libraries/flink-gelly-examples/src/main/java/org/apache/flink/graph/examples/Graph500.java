@@ -63,7 +63,7 @@ public class Graph500 {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		long vertexCount = 1 << scale;
+		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
 		boolean simplify = parameters.getBoolean("simplify", DEFAULT_SIMPLIFY);
