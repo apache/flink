@@ -100,7 +100,7 @@ class zknn(k: Int) extends basicknn {
           // grab 2*gamma points about index, consider edge cases when not
           // gamma points left/right of index
           if (posLen >= gamma && negLen >= gamma) {
-            candidates ++= zTrainShiftSort(i).slice(ind - gamma, ind + gamma).map (
+            candidates ++= zTrainShiftSort(i).slice(ind - gamma, ind + gamma).map(
               x => (x._1, x._2))
           } else if (posLen < gamma && posLen + negLen >= 2 * gamma) {
             candidates ++= zTrainShiftSort(i).slice(ind - 2 * gamma - posLen,
@@ -114,8 +114,8 @@ class zknn(k: Int) extends basicknn {
         }
       }
 
-      val candidatesDenorm : Vector[FlinkVector] = candidates.map { x => training(x._1)}.toVector
-      knnQueryBasic(candidatesDenorm, Vector((id,v)), k, metric, queue, out)
+      val candidatesDenorm: Vector[FlinkVector] = candidates.map { x => training(x._1) }.toVector
+      knnQueryBasic(candidatesDenorm, Vector((id, v)), k, metric, queue, out)
     }
 
   }

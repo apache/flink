@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.ml.nn
 
 import org.apache.flink.ml.metrics.distances.DistanceMetric
@@ -37,7 +55,8 @@ class lshKNN() extends basicknn {
                                      out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     val dim = training.head.size
-    val rSeq = ArrayBuffer.fill(alpha)(ArrayBuffer.fill(dim)(r.nextDouble).asInstanceOf[FlinkVector])
+    val rSeq = ArrayBuffer.fill(alpha)(ArrayBuffer.fill(dim)
+    (r.nextDouble).asInstanceOf[FlinkVector])
 
     val hashMapTrain = HashMap[ArrayBuffer[Int],
       scala.collection.mutable.Set[FlinkVector]]()
@@ -53,37 +72,37 @@ class lshKNN() extends basicknn {
     // (1) each training bucket has at least k points and
     // (2) each testing bucket is a collision.  Start W to be 1.0 and decrease/increase by factor of 2.
 
-    fillMapTrain(training, hashMapTrain, W,  rSeq)
+    fillMapTrain(training, hashMapTrain, W, rSeq)
     increaseW = updateW(hashMapTrain, k, increaseW)
 
     hashMapTrain.clear()
 
-    if (increaseW){
-      while (increaseW){
-        W = 2.0*W
+    if (increaseW) {
+      while (increaseW) {
+        W = 2.0 * W
         hashMapTrain.clear()
-        fillMapTrain(training, hashMapTrain, W,  rSeq)
+        fillMapTrain(training, hashMapTrain, W, rSeq)
         increaseW = updateW(hashMapTrain, k, increaseW)
 
       }
-      W = 0.5*W
+      W = 0.5 * W
     } else {
-      while (!increaseW){
-        W = 0.5*W
+      while (!increaseW) {
+        W = 0.5 * W
         hashMapTrain.clear()
-        fillMapTrain(training, hashMapTrain, W,  rSeq)
+        fillMapTrain(training, hashMapTrain, W, rSeq)
         increaseW = updateW(hashMapTrain, k, increaseW)
       }
-      W = 2.0*W
+      W = 2.0 * W
     }
 
     // Now W optimally satisfies (1)
     increaseW = false
     // test for (2)
-    for (v <- testing.map(x=>x._2)) {
+    for (v <- testing.map(x => x._2)) {
       var candidatePoints = new ArrayBuffer[FlinkVector]
       val hash = lshHash(v, rSeq, b, W)
-      if (hashMapTrain.contains(hash)){
+      if (hashMapTrain.contains(hash)) {
         numColl += hashMapTrain(hash).size
         candidatePoints ++= hashMapTrain(hash)
       }
@@ -95,7 +114,7 @@ class lshKNN() extends basicknn {
       while (increaseW) {
         W = 2.0 * W
         hashMapTrain.clear()
-        fillMapTrain(training, hashMapTrain, W,  rSeq)
+        fillMapTrain(training, hashMapTrain, W, rSeq)
 
         for (v <- testing.map(x => x._2)) {
           var candidatePoints = new ArrayBuffer[FlinkVector]
@@ -112,9 +131,9 @@ class lshKNN() extends basicknn {
 
     // Now W satisfies both (1) and (2)
     hashMapTrain.clear()
-    fillMapTrain(training, hashMapTrain, W,  rSeq)
+    fillMapTrain(training, hashMapTrain, W, rSeq)
 
-    for ((id,v) <- testing) {
+    for ((id, v) <- testing) {
       var candidatePoints = new ArrayBuffer[FlinkVector]
 
       val hash = lshHash(v, rSeq, b, W)
@@ -122,7 +141,7 @@ class lshKNN() extends basicknn {
         numColl += hashMapTrain(hash).size
         candidatePoints ++= hashMapTrain(hash)
       }
-      knnQueryBasic(candidatePoints.toVector, Vector((id,v)), k, metric, queue, out)
+      knnQueryBasic(candidatePoints.toVector, Vector((id, v)), k, metric, queue, out)
 
     }
   }
@@ -135,10 +154,9 @@ class lshKNN() extends basicknn {
     * @param rSeq sequence of random points to project onto
     * @tparam T FlinkVector
     */
-  def fillMapTrain[T <: FlinkVector](training : Vector[T], hashMapTrain :
+  def fillMapTrain[T <: FlinkVector](training: Vector[T], hashMapTrain:
   HashMap[ArrayBuffer[Int],
-    scala.collection.mutable.Set[FlinkVector]], W : Double,  rSeq: ArrayBuffer[T])
-   {
+    scala.collection.mutable.Set[FlinkVector]], W: Double, rSeq: ArrayBuffer[T]) {
     for (v <- training) {
       val hash = lshHash(v, rSeq, b, W)
       if (hashMapTrain.contains(hash)) {
@@ -156,15 +174,15 @@ class lshKNN() extends basicknn {
     * @param increaseW boolean to determine whether to increas W during iteration
     * @return an update of increaseW
     */
- def updateW(hashMapTrain : HashMap[ArrayBuffer[Int],
-    scala.collection.mutable.Set[FlinkVector]], k : Int, increaseW : Boolean) : Boolean = {
-   var res = increaseW
-   for (key <- hashMapTrain.keys){
-      if ( hashMapTrain(key).size < k){
+  def updateW(hashMapTrain: HashMap[ArrayBuffer[Int],
+    scala.collection.mutable.Set[FlinkVector]], k: Int, increaseW: Boolean): Boolean = {
+    var res = increaseW
+    for (key <- hashMapTrain.keys) {
+      if (hashMapTrain(key).size < k) {
         res = true
       }
     }
-   res
+    res
   }
 
   /**
@@ -178,8 +196,8 @@ class lshKNN() extends basicknn {
     */
   def lshHash[T <: FlinkVector](in: T, randomDirections: ArrayBuffer[T], bParam: Double, wParam: Double):
   ArrayBuffer[Int] = {
-    randomDirections.map{ r=>
-      ((in.dot(r) + bParam)/wParam).floor.toInt
+    randomDirections.map { r =>
+      ((in.dot(r) + bParam) / wParam).floor.toInt
     }
   }
 

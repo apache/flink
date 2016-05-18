@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
+import org.apache.flink.ml.math.{Vector => FlinkVector}
 import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
 DistanceMetric, EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
@@ -269,23 +269,28 @@ object KNN {
                     if (metric.isInstanceOf[EuclideanDistanceMetric] ||
                       metric.isInstanceOf[SquaredEuclideanDistanceMetric]){
                       val quadTreeKNN = new QuadtreeKNN()
-                      quadTreeKNN.knnQueryWithQuadTree(training.values, testing.values, k, metric, queue, out)
+                      quadTreeKNN.knnQueryWithQuadTree(training.values, testing.values,
+                        k, metric, queue, out)
                     } else {
                       throw new IllegalArgumentException(s" Error: metric must be" +
                         s" Euclidean or SquaredEuclidean!")
                     }
                   } else if (exact){
                     val basicknnClass = new basicknn()
-                    basicknnClass.knnQueryBasic(training.values, testing.values, k, metric, queue, out)
+                    basicknnClass.knnQueryBasic(training.values, testing.values, k,
+                      metric, queue, out)
                   } else if (!exact && training.values.head.size < 30){
                     val zknnClass = new zknn(k)
-                    zknnClass.zknnQueryBasic(training.values, testing.values, k, metric, queue, out)
+                    zknnClass.zknnQueryBasic(training.values, testing.values, k,
+                      metric, queue, out)
                   } else if (lsh) {
                     val lshClass = new lshKNN()
-                    lshClass.lshknnQuery(training.values, testing.values, k, metric, queue, out)
+                    lshClass.lshknnQuery(training.values, testing.values, k,
+                      metric, queue, out)
                   } else {
                     val lshClass = new lshKNN()
-                    lshClass.lshknnQuery(training.values, testing.values, k, metric, queue, out)
+                    lshClass.lshknnQuery(training.values, testing.values, k,
+                      metric, queue, out)
                   }
                 }
               }
@@ -317,6 +322,5 @@ object KNN {
       }
     }
   }
-
 
 }

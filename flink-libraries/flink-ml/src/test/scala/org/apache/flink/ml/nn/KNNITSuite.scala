@@ -166,33 +166,4 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     result.head._2 should be(answerForApproxBenchmark)
   }
 
-  it should "exact w/ and w/o quadtree should match for more than one testing points" in {
-
-    val knn = KNN()
-      .setK(3)
-      .setBlocks(3)
-      .setDistanceMetric(SquaredEuclideanDistanceMetric())
-      .setSizeHint(CrossHint.SECOND_IS_SMALL)
-      .setExact(true)
-      .setUseQuadTree(true)
-
-    // run knn join
-    knn.fit(trainingSetApprox)
-    val result = knn.predict(testingSetApprox).collect()
-
-    val knn2 = KNN()
-      .setK(3)
-      .setBlocks(3)
-      .setDistanceMetric(SquaredEuclideanDistanceMetric())
-      .setSizeHint(CrossHint.SECOND_IS_SMALL)
-      .setExact(true)
-      .setUseQuadTree(false)
-
-    // run knn join
-    knn2.fit(trainingSetApprox)
-    val result2 = knn2.predict(testingSetApprox).collect()
-    result2.head._2 should be(result.head._2)
-
-  }
-
 }
