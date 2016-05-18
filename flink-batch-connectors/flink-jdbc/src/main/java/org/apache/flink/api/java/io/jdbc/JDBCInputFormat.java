@@ -62,10 +62,6 @@ import org.slf4j.LoggerFactory;
  *
  * RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes);
  *
- * Serializable[][] queryParameters = new String[2][1];
- * queryParameters[0] = new String[]{"Kumar"};
- * queryParameters[1] = new String[]{"Tan Ah Teck"};
- *
  * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
  *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
  *				.setDBUrl("jdbc:derby:memory:ebookshop")
@@ -80,6 +76,11 @@ import org.slf4j.LoggerFactory;
  * query parameters. E.g.:</br>
  *
  * <pre><code>
+ *
+ * Serializable[][] queryParameters = new String[2][1];
+ * queryParameters[0] = new String[]{"Kumar"};
+ * queryParameters[1] = new String[]{"Tan Ah Teck"};
+ *
  * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
  *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
  *				.setDBUrl("jdbc:derby:memory:ebookshop")
@@ -112,10 +113,10 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
-	
+
 	private boolean hasNext;
 	private Object[][] parameterValues;
-	
+
 	public JDBCInputFormat() {
 	}
 
@@ -128,7 +129,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public void configure(Configuration parameters) {
 		//do nothing here
 	}
-	
+
 	@Override
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
@@ -146,7 +147,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
 		}
 	}
-	
+
 	@Override
 	public void closeInputFormat() {
 		//called once per inputFormat (on close)
@@ -159,7 +160,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		} finally {
 			statement = null;
 		}
-		
+
 		try {
 			if(dbConn != null) {
 				dbConn.close();
@@ -169,7 +170,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		} finally {
 			dbConn = null;
 		}
-		
+
 		parameterValues = null;
 	}
 
@@ -366,7 +367,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			format.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
-		
+
 		public JDBCInputFormatBuilder setParametersProvider(ParameterValuesProvider parameterValuesProvider) {
 			format.parameterValues = parameterValuesProvider.getParameterValues();
 			return this;

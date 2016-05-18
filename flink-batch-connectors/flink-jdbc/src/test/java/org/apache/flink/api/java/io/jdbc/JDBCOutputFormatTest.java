@@ -116,29 +116,21 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		try (
-				Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
-				PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_BOOKS);
-				ResultSet resultSet = statement.executeQuery();
-				) {
-			while (resultSet.next()) {
-				Row row = new Row(tuple5.getArity());
-				for (int i = 0; i < tuple5.getArity(); i++) {
-					row.setField(i, resultSet.getObject(i+1));
-				}
-				jdbcOutputFormat.writeRecord(row);
+		for (int i = 0; i < testData.length; i++) {
+			Row row = new Row(testData[i].length);
+			for (int j = 0; j < testData[i].length; j++) {
+				row.setField(j, testData[i][j]);
 			}
-		} catch (SQLException e) {
-			Assert.fail("JDBC OutputFormat test failed. " + e.getMessage());
+			jdbcOutputFormat.writeRecord(row);
 		}
 
 		jdbcOutputFormat.close();
 
 		try (
-				Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
-				PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
-				ResultSet resultSet = statement.executeQuery();
-				) {
+			Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
+			ResultSet resultSet = statement.executeQuery();
+		) {
 			int recordCount = 0;
 			while (resultSet.next()) {
 				Row row = new Row(tuple5.getArity());
@@ -162,7 +154,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				}
 
 				for (int x = 0; x < tuple5.getArity(); x++) {
-					if(JDBCTestBase.testData[recordCount][x]!=null) {
+					if (JDBCTestBase.testData[recordCount][x] != null) {
 						Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.productElement(x));
 					}
 				}
