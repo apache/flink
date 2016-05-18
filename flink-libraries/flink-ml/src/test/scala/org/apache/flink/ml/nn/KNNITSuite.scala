@@ -21,6 +21,7 @@ package org.apache.flink.ml.nn
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.Classification
+import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.{ManhattanDistanceMetric,
 SquaredEuclideanDistanceMetric}
@@ -48,17 +49,35 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
   val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
   val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
+  // for approximate methods add a single point very close to (0,0)
+  val trainingSetApprox = trainingSet.union(
+    env.fromElements(DenseVector(0.000001, 0.000001),DenseVector(0.000002, 0.000002)
+      ,DenseVector(0.000003, 0.000003)))
+
+  // add another point for approx (hack, now only can have one point)
+  val testingSetApprox = env.fromElements(DenseVector(0.0, 0.0))
+
   // calculate answer
   val answer = Classification.trainingData.map {
     v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
   }.sortBy(_._2).take(3).map(_._1).toArray
 
-  it should "calculate kNN join correctly without using a Quadtree" in {
+  // answer for exact search
+  val answerForApproxBenchmark = Classification.trainingData.union(Seq(
+    LabeledVector(1.0000, DenseVector(0.000001, 0.000001)),
+    LabeledVector(1.0000, DenseVector(0.000002, 0.000002)),
+    LabeledVector(1.0000, DenseVector(0.000003, 0.000003))))
+    .map {
+    v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
+  }.sortBy(_._2).take(3).map(_._1).toArray
+
+  it should "calculate exact kNN join correctly without using a Quadtree" in {
 
     val knn = KNN()
       .setK(3)
       .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setExact(true)
       .setUseQuadTree(false)
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
 
@@ -71,13 +90,14 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     result.head._2 should be(answer)
   }
 
-  it should "calculate kNN join correctly with a Quadtree" in {
+  it should "calculate exact kNN join correctly with a Quadtree" in {
 
     val knn = KNN()
       .setK(3)
       .setBlocks(2) // blocks set to 2 to make sure initial quadtree box is partitioned
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
       .setUseQuadTree(true)
+      .setExact(true)
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
 
     // run knn join
@@ -95,6 +115,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
         .setK(3)
         .setBlocks(10)
         .setDistanceMetric(ManhattanDistanceMetric())
+        .setExact(true)
         .setUseQuadTree(true)
 
       // run knn join
@@ -104,5 +125,74 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
-}
+  it should "calculate approximate kNN join correctly using z-values when 3 training" +
+    " points are much closer to a given test point" in {
 
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(1)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(false)
+      .setUseQuadTree(false)
+
+    // run knn join
+    knn.fit(trainingSetApprox)
+    val result = knn.predict(testingSetApprox).collect()
+
+    result.size should be(1)
+    result.head._1 should be(DenseVector(0.0, 0.0))
+    result.head._2 should be(answerForApproxBenchmark)
+  }
+
+  it should "calculate approximate kNN join correctly using lsh when 3 training" +
+    " points are much closer to a given test point" in {
+
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(1)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(false)
+      .setUseQuadTree(false)
+      .setUseLSH(true)
+
+    // run knn join
+    knn.fit(trainingSetApprox)
+    val result = knn.predict(testingSetApprox).collect()
+
+    result.size should be(1)
+    result.head._1 should be(DenseVector(0.0, 0.0))
+    result.head._2 should be(answerForApproxBenchmark)
+  }
+
+  it should "exact w/ and w/o quadtree should match for more than one testing points" in {
+
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(3)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(true)
+      .setUseQuadTree(true)
+
+    // run knn join
+    knn.fit(trainingSetApprox)
+    val result = knn.predict(testingSetApprox).collect()
+
+    val knn2 = KNN()
+      .setK(3)
+      .setBlocks(3)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(true)
+      .setUseQuadTree(false)
+
+    // run knn join
+    knn2.fit(trainingSetApprox)
+    val result2 = knn2.predict(testingSetApprox).collect()
+    result2.head._2 should be(result.head._2)
+
+  }
+
+}
