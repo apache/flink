@@ -27,7 +27,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.FlinkRel
 import org.apache.flink.api.table.runtime.MapRunner
-import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.api.table.{BatchTableEnvironment, TableConfig, TableException}
 
 import scala.collection.JavaConversions._
 
@@ -61,7 +61,7 @@ trait DataSetRel extends RelNode with FlinkRel {
         case SqlTypeName.DOUBLE => s + 8
         case SqlTypeName.VARCHAR => s + 12
         case SqlTypeName.CHAR => s + 1
-        case _ => throw new IllegalArgumentException("Unsupported data type encountered")
+        case _ => throw new TableException("Unsupported data type encountered")
       }
     }
 

@@ -23,7 +23,7 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -101,7 +101,7 @@ class ToTableITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testToTableWithToFewFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -111,7 +111,7 @@ class ToTableITCase(
       .toTable(tEnv, 'a, 'b)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testToTableWithToManyFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -121,7 +121,7 @@ class ToTableITCase(
       .toTable(tEnv, 'a, 'b, 'c, 'd)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testToTableWithAmbiguousFields(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -131,7 +131,7 @@ class ToTableITCase(
       .toTable(tEnv, 'a, 'b, 'b)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testToTableWithNonFieldReference1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -141,7 +141,7 @@ class ToTableITCase(
       .toTable(tEnv, 'a + 1, 'b, 'c)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[TableException])
   def testToTableWithNonFieldReference2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)

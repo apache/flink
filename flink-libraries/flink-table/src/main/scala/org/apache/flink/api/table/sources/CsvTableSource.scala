@@ -21,9 +21,9 @@ package org.apache.flink.api.table.sources
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.TupleCsvInputFormat
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.{TupleTypeInfoBase, TupleTypeInfo}
-import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TupleTypeInfoBase}
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.api.table.{Row, TableException}
 import org.apache.flink.core.fs.Path
 
 /**
@@ -52,11 +52,11 @@ class CsvTableSource(
   extends BatchTableSource[Tuple] {
 
   if (fieldNames.length != fieldTypes.length) {
-    throw new IllegalArgumentException("Number of field names and field types must be equal.")
+    throw new TableException("Number of field names and field types must be equal.")
   }
 
   if (fieldNames.length > 25) {
-    throw new IllegalArgumentException("Only up to 25 fields supported with this CsvTableSource.")
+    throw new TableException("Only up to 25 fields supported with this CsvTableSource.")
   }
 
   /** Returns the data of the table as a [[DataSet]] of [[Row]]. */

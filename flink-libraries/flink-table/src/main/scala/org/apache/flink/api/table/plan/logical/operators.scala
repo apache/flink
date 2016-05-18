@@ -46,7 +46,8 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
             case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
             case other => Alias(other, s"_c$i")
           }
-          case _ => throw new IllegalArgumentException
+          case _ =>
+            throw new RuntimeException("This should never be called and probably points to a bug.")
         }
     }
     Project(newProjectList, child)
