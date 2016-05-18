@@ -190,7 +190,7 @@ class JoinITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[PlanGenException])
   def testJoinNoEqualityPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
