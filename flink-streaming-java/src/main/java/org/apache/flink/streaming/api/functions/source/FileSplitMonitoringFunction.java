@@ -60,6 +60,12 @@ public class FileSplitMonitoringFunction<OUT>
 	private static final Logger LOG = LoggerFactory.getLogger(FileSplitMonitoringFunction.class);
 
 	/**
+	 * The minimum interval allowed between consecutive path scans. This is applicable if the
+	 * {@code watchType} is set to {@code REPROCESS_WITH_APPENDED}.
+	 */
+	public static final long MIN_MONITORING_INTERVAL = 100l;
+
+	/**
 	 * Specifies when computation will be triggered.
 	 */
 	public enum WatchType {
@@ -92,37 +98,21 @@ public class FileSplitMonitoringFunction<OUT>
 
 	private volatile boolean isRunning = true;
 
-	/**
-	 * This is the {@link Configuration} to be used to initialize the input format at the reader
-	 * (see {@link #open(Configuration)}). In streaming programs, whenever {@link #open(Configuration)} is called,
-	 * it is passed a new configuration, thus ignoring potential user-specified parameters. Now, we pass a
-	 * configuration object at the constructor, which is shipped to the remote tasks.
-	 */
-	private Configuration configuration;
-
 	public FileSplitMonitoringFunction(
-		FileInputFormat<OUT> format, String path, Configuration configuration,
-		WatchType watchType, int readerParallelism, long interval) {
+		FileInputFormat<OUT> format, String path,
+		FilePathFilter filter, WatchType watchType,
+		int readerParallelism, long interval) {
 
-		this(format, path, configuration, FilePathFilter.DefaultFilter.getInstance(), watchType, readerParallelism, interval);
-	}
+		if (watchType != WatchType.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
+			throw new IllegalArgumentException("The specified monitoring interval (" + interval + " ms) is " +
+				"smaller than the minimum allowed one (100 ms).");
+		}
+		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
+		this.path = Preconditions.checkNotNull(path, "Unspecified Path.");
+		this.pathFilter = Preconditions.checkNotNull(filter, "Unspecified File Path Filter.");
 
-	public FileSplitMonitoringFunction(
-		FileInputFormat<OUT> format, String path, Configuration configuration,
-		FilePathFilter filter, WatchType watchType, int readerParallelism, long interval) {
-
-		this.format = Preconditions.checkNotNull(format);
-		this.path = Preconditions.checkNotNull(path);
-		this.configuration = Preconditions.checkNotNull(configuration);
-
-		Preconditions.checkArgument(interval >= 100,
-			"The specified monitoring interval is smaller than the minimum allowed one (100 ms).");
 		this.interval = interval;
-
 		this.watchType = watchType;
-
-		this.pathFilter = Preconditions.checkNotNull(filter);
-
 		this.readerParallelism = Math.max(readerParallelism, 1);
 		this.globalModificationTime = Long.MIN_VALUE;
 	}
@@ -133,7 +123,7 @@ public class FileSplitMonitoringFunction<OUT>
 		LOG.info("Opening File Monitoring Source.");
 		
 		super.open(parameters);
-		format.configure(this.configuration);
+		format.configure(parameters);
 	}
 
 	@Override

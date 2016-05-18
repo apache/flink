@@ -20,19 +20,14 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FileSplitReadOperator;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -111,23 +106,10 @@ public class FileSplitMonitoringCheckpointingITCase extends StreamFaultTolerance
 		fc.start();
 
 		// create the monitoring source along with the necessary readers.
-		TextInputFormat format = new TextInputFormat(new org.apache.flink.core.fs.Path(localFsURI));
-		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
-		Configuration config = new Configuration();
-
-		format.setFilePath(localFsURI);
-		config.setString("input.file.path", localFsURI);
-
-		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, localFsURI, config,
-				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED,
-				env.getParallelism(), INTERVAL);
-
-		FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format, config);
 		TestingSinkFunction sink = new TestingSinkFunction();
-
-		DataStream<FileInputSplit> splits = env.addSource(monitoringFunction);
-		DataStream<String> inputStream = splits.transform("FileSplitReader", typeInfo, reader);
+		DataStream<String> inputStream = env.
+			readFileStream(localFsURI, INTERVAL,
+				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED);
 
 		inputStream.flatMap(new FlatMapFunction<String, String>() {
 			@Override

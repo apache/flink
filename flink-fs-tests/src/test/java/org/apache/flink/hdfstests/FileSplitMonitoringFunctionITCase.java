@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileSplitReadOperator;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
@@ -116,20 +117,18 @@ public class FileSplitMonitoringFunctionITCase extends StreamingProgramTestBase 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		format.setFilePath(hdfsURI);
 
-		Configuration config = new Configuration();
-		config.setString("input.file.path", hdfsURI);
-
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
 
 			FileSplitMonitoringFunction<String> monitoringFunction =
 				new FileSplitMonitoringFunction<>(format, hdfsURI,
-				config, FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED,
-				env.getParallelism(), INTERVAL);
+					FilePathFilter.DefaultFilter.getInstance(),
+					FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED,
+					env.getParallelism(), INTERVAL);
 
 			TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
-			FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format, config);
+			FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format);
 			TestingSinkFunction sink = new TestingSinkFunction(monitoringFunction);
 
 			DataStream<FileInputSplit> splits = env.addSource(monitoringFunction);

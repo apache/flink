@@ -91,7 +91,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 	 * followed by the checks in {@link #postSubmit}.
 	 */
 	@Test
-	public void runCheckpointedProgram() {
+	public void runCheckpointedProgram() throws Exception {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getLeaderRPCPort());
@@ -111,11 +111,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
 			for (; depth < 20; depth++) {
 				if (th instanceof SuccessException) {
-					try {
-						postSubmit();
-					} catch (Exception e1) {
-						e1.printStackTrace();
-					}
+					postSubmit();
 					return;
 				} else if (th.getCause() != null) {
 					th = th.getCause();

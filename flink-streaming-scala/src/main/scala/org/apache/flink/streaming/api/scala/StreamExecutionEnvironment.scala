@@ -19,8 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-
-import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
+import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,14 +27,13 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
-import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction.WatchType
+import org.apache.flink.streaming.api.functions.source.{FilePathFilter, SourceFunction}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
 import scala.collection.JavaConverters._
-
 import _root_.scala.language.implicitConversions
 
 @Public
@@ -454,6 +452,87 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
         DataStream[T] =
     asScalaStream(javaEnv.readFile(inputFormat, filePath))
 
+  /**
+    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
+    * Depending on the provided [[WatchType]], the source may periodically monitor (every
+    * `interval` ms) the path for new data ([[WatchType.REPROCESS_WITH_APPENDED]]), or process
+    * once the data currently in the path and exit ([[WatchType.PROCESS_ONCE]]).
+    *
+    * **NOTES ON CHECKPOINTING: ** If the `watchType` is set to [[WatchType.PROCESS_ONCE]],
+    * the source (which executes the
+    * [[org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction]])
+    * monitors the path ** once **, creates the
+    * [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]] to be processed, forwards
+    * them to the downstream
+    * [[org.apache.flink.streaming.api.functions.source.FileSplitReadOperator]] to read the
+    * actual data, and exits, without waiting for the readers to finish reading. This implies
+    * that no more checkpoint barriers are going to be forwarded after the source exits, thus
+    * having no checkpoints after that point.
+    *
+    * @param inputFormat
+    *          The input format used to create the data stream
+    * @param filePath
+    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
+    *          "hdfs://host:port/file/path")
+    * @param watchType
+    *          The mode in which the source should operate, i.e. monitor path and react
+    *          to new data, or process once and exit
+    * @param interval
+    *          In the case of periodic path monitoring, this specifies the interval (in millis)
+    *          between consecutive path scans
+    * @return The data stream that represents the data read from the given file
+    */
+  def readFile[T: TypeInformation](
+      inputFormat: FileInputFormat[T],
+      filePath: String,
+      watchType: WatchType,
+      interval: Long): DataStream[T] =
+    readFile(inputFormat, filePath, watchType, interval,
+      FilePathFilter.DefaultFilter.getInstance())
+
+  /**
+    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
+    * Depending on the provided [[WatchType]], the source may periodically monitor (every
+    * `interval` ms) the path for new data ([[WatchType.REPROCESS_WITH_APPENDED]]), or process
+    * once the data currently in the path and exit ([[WatchType.PROCESS_ONCE]]). In addition,
+    * if the path contains files not to be processed, the user can specify a custom
+    * [[FilePathFilter]].
+    *
+    * **NOTES ON CHECKPOINTING: ** If the `watchType` is set to [[WatchType.PROCESS_ONCE]],
+    * the source (which executes the
+    * [[org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction]])
+    * monitors the path <b>once</b>, creates the
+    * [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]] to be processed, forwards
+    * them to the downstream
+    * [[org.apache.flink.streaming.api.functions.source.FileSplitReadOperator]] to read the
+    * actual data, and exits, without waiting for the readers to finish reading. This implies
+    * that no more checkpoint barriers are going to be forwarded after the source exits, thus
+    * having no checkpoints after that point.
+    *
+    * @param inputFormat
+    *          The input format used to create the data stream
+    * @param filePath
+    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
+    *          "hdfs://host:port/file/path")
+    * @param watchType
+    *          The mode in which the source should operate, i.e. monitor path and react
+    *          to new data, or process once and exit
+    * @param interval
+    *          In the case of periodic path monitoring, this specifies the interval (in millis)
+    *          between consecutive path scans
+    * @param filter
+    *          The files to be excluded from the processing
+    * @return The data stream that represents the data read from the given file
+    */
+  def readFile[T: TypeInformation](
+      inputFormat: FileInputFormat[T],
+      filePath: String,
+      watchType: WatchType,
+      interval: Long,
+      filter: FilePathFilter): DataStream[T] = {
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter, typeInfo))
+  }
 
   /**
    * Creates a DataStream that contains the contents of file created while
@@ -462,9 +541,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * and the way file modifications are handled. By default it checks for only new files
    * every 100 milliseconds.
    *
+   * ** NOTES ON CHECKPOINTING: ** The source (which executes the
+   * [[org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction]])
+   * monitors the path, creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
+   * to be processed, forwards them to the downstream
+   * [[org.apache.flink.streaming.api.functions.source.FileSplitReadOperator]] to read the actual
+   * data, and exits, without waiting for the readers to finish reading.
+   * This implies that no more checkpoint barriers are going to be forwarded after
+   * the source exits, thus having no checkpoints.
+   *
    */
   def readFileStream(StreamPath: String, intervalMillis: Long = 100,
-                     watchType: WatchType = WatchType.ONLY_NEW_FILES): DataStream[String] =
+                     watchType: WatchType = WatchType.REPROCESS_WITH_APPENDED): DataStream[String] =
     asScalaStream(javaEnv.readFileStream(StreamPath, intervalMillis, watchType))
 
   /**

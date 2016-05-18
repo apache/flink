@@ -115,36 +115,41 @@ public class FileSplitMonitoringFunctionTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		Configuration config = new Configuration();
-		config.setString("input.file.path", hdfsURI);
-
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
-		FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format, config);
-		reader.setOutputType(typeInfo, new ExecutionConfig());
 
+		FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format);
 		OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader);
+
+		reader.setOutputType(typeInfo, new ExecutionConfig());
 		tester.open();
 
+		// create the necessary splits for the test
 		FileInputSplit[] splits = format.createInputSplits(
 			reader.getRuntimeContext().getNumberOfParallelSubtasks());
 
+		// and feed them to the operator
 		for(FileInputSplit split: splits) {
 			tester.processElement(new StreamRecord<>(split));
 		}
-		// this will also call the reader.close()
-		tester.close();
+
+		// then close the reader gracefully
+		synchronized (tester.getCheckpointLock()) {
+			tester.close();
+		}
 
 		/*
-		* Given that the reader is multithreaded, the test finishes before the reader finishes
-		* reading. This results in files being deleted before they are read, thus throwing an exception.
+		* Given that the reader is multithreaded, the test finishes before the reader thread finishes
+		* reading. This results in files being deleted by the test before being read, thus throwing an exception.
 		* In addition, even if file deletion happens at the end, the results are not ready for testing.
-		* To faces this, we wait until all the output is collected or until the waiting time exceeds 1000 ms, or 1s.
-		* */
+		* To face this, we wait until all the output is collected or until the waiting time exceeds 1000 ms, or 1s.
+		*/
+
 		long start = System.currentTimeMillis();
 		Queue<Object> output;
 		do {
 			output = tester.getOutput();
+			Thread.sleep(50);
 		} while ((output == null || output.size() != NO_OF_FILES * LINES_PER_FILE) && (System.currentTimeMillis() - start) < 1000);
 
 		Map<Integer, List<String>> actualFileContents = new HashMap<>();
@@ -184,10 +189,12 @@ public class FileSplitMonitoringFunctionTest {
 		}
 	}
 
-	private int getLineNo(String line) {
-		String[] tkns = line.split("\\s");
-		Assert.assertTrue(tkns.length == 6);
-		return Integer.parseInt(tkns[tkns.length - 1]);
+	private static class PathFilter implements FilePathFilter {
+
+		@Override
+		public boolean filterPath(Path filePath) {
+			return filePath.getName().startsWith("**");
+		}
 	}
 
 	@Test
@@ -208,15 +215,11 @@ public class FileSplitMonitoringFunctionTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-
-		Configuration config = new Configuration();
-		config.setString("input.file.path", hdfsURI);
-
 		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, config, new PathFilter(),
-				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED, 1, INTERVAL);
+			new FileSplitMonitoringFunction<>(format, hdfsURI, new PathFilter(),
+				FileSplitMonitoringFunction.WatchType.PROCESS_ONCE, 1, INTERVAL);
 
-		monitoringFunction.open(config);
+		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
 
 		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
@@ -230,42 +233,43 @@ public class FileSplitMonitoringFunctionTest {
 		}
 	}
 
-	private static class PathFilter implements FilePathFilter {
-
-		@Override
-		public boolean filterPath(Path filePath) {
-			return filePath.getName().startsWith("**");
-		}
-	}
-
 	@Test
-	public void testFileSplitMonitoring() throws Exception {
+	public void testFileSplitMonitoringReprocessWithAppended() throws Exception {
 		Set<String> uniqFilesFound = new HashSet<>();
 
-		FileCreator fc = new FileCreator(INTERVAL);
+		FileCreator fc = new FileCreator(INTERVAL, NO_OF_FILES);
 		fc.start();
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		Configuration config = new Configuration();
-		config.setString("input.file.path", hdfsURI);
-
 		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, config,
+			new FileSplitMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
 				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED, 1, INTERVAL);
-		monitoringFunction.open(config);
+
+		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
 
-		// wait until all the files are created
-		fc.join();
+		// wait until the sink also sees all the splits.
+		synchronized (uniqFilesFound) {
+			while (uniqFilesFound.size() < NO_OF_FILES) {
+				uniqFilesFound.wait(7 * INTERVAL);
+			}
+		}
 
+		Assert.assertTrue(fc.getFilesCreated().size() == NO_OF_FILES);
+		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
+
+		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
 		Set<String> fileNamesCreated = new HashSet<>();
 		for (org.apache.hadoop.fs.Path path: fc.getFilesCreated()) {
 			fileNamesCreated.add(path.toString());
 		}
 
-		Assert.assertTrue(uniqFilesFound.size() == NO_OF_FILES);
 		for(String file: uniqFilesFound) {
 			Assert.assertTrue(fileNamesCreated.contains(file));
+		}
+
+		for(org.apache.hadoop.fs.Path file: filesCreated) {
+			hdfs.delete(file, false);
 		}
 	}
 
@@ -273,30 +277,30 @@ public class FileSplitMonitoringFunctionTest {
 	public void testFileSplitMonitoringProcessOnce() throws Exception {
 		Set<String> uniqFilesFound = new HashSet<>();
 
-		FileCreator fc = new FileCreator(INTERVAL);
+		FileCreator fc = new FileCreator(INTERVAL, 1);
 		fc.start();
 
 		// to make sure that at least one file is created
-		Set<org.apache.hadoop.fs.Path> created = fc.getFilesCreated();
-		synchronized (created) {
-			if (created.size() == 0) {
-				created.wait();
+		Set<org.apache.hadoop.fs.Path> filesCreated = fc.getFilesCreated();
+		synchronized (filesCreated) {
+			if (filesCreated.size() == 0) {
+				filesCreated.wait();
 			}
 		}
 		Assert.assertTrue(fc.getFilesCreated().size() >= 1);
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		Configuration config = new Configuration();
-		config.setString("input.file.path", hdfsURI);
-
 		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, config,
+			new FileSplitMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
 				FileSplitMonitoringFunction.WatchType.PROCESS_ONCE, 1, INTERVAL);
-		monitoringFunction.open(config);
+
+		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
 
 		// wait until all the files are created
 		fc.join();
+
+		Assert.assertTrue(filesCreated.size() == NO_OF_FILES);
 
 		Set<String> fileNamesCreated = new HashSet<>();
 		for (org.apache.hadoop.fs.Path path: fc.getFilesCreated()) {
@@ -307,9 +311,19 @@ public class FileSplitMonitoringFunctionTest {
 		for(String file: uniqFilesFound) {
 			Assert.assertTrue(fileNamesCreated.contains(file));
 		}
+
+		for(org.apache.hadoop.fs.Path file: filesCreated) {
+			hdfs.delete(file, false);
+		}
 	}
 
 	// -------------		End of Tests
+
+	private int getLineNo(String line) {
+		String[] tkns = line.split("\\s");
+		Assert.assertTrue(tkns.length == 6);
+		return Integer.parseInt(tkns[tkns.length - 1]);
+	}
 
 	/**
 	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
@@ -319,11 +333,13 @@ public class FileSplitMonitoringFunctionTest {
 	private class FileCreator extends Thread {
 
 		private final long interval;
+		private final int noOfFilesBeforeNotifying;
 
 		private final Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
 
-		FileCreator(long interval) {
+		FileCreator(long interval, int notificationLim) {
 			this.interval = interval;
+			this.noOfFilesBeforeNotifying = notificationLim;
 		}
 
 		public void run() {
@@ -334,13 +350,13 @@ public class FileSplitMonitoringFunctionTest {
 
 					synchronized (filesCreated) {
 						filesCreated.add(file.f0);
-						filesCreated.notifyAll();
+						if (filesCreated.size() == noOfFilesBeforeNotifying) {
+							filesCreated.notifyAll();
+						}
 					}
 					Thread.sleep(interval);
 				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (InterruptedException e) {
+			} catch (IOException | InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
@@ -376,6 +392,9 @@ public class FileSplitMonitoringFunctionTest {
 				if (filesFound.size() == NO_OF_FILES) {
 					this.src.cancel();
 					this.src.close();
+					synchronized (filesFound) {
+						filesFound.notifyAll();
+					}
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -407,6 +426,7 @@ public class FileSplitMonitoringFunctionTest {
 		assert (hdfs != null);
 
 		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
+		Assert.assertTrue (!hdfs.exists(file));
 
 		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 		FSDataOutputStream stream = hdfs.create(tmp);

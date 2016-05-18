@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
+import org.apache.flink.streaming.api.functions.source.InputFormatSource;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -425,8 +425,8 @@ public class StreamGraphGenerator {
 				null,
 				source.getOutputType(),
 				"Source: " + source.getName());
-		if (source.getOperator().getUserFunction() instanceof FileSourceFunction) {
-			FileSourceFunction<T> fs = (FileSourceFunction<T>) source.getOperator().getUserFunction();
+		if (source.getOperator().getUserFunction() instanceof InputFormatSource) {
+			InputFormatSource<T> fs = (InputFormatSource<T>) source.getOperator().getUserFunction();
 			streamGraph.setInputFormat(source.getId(), fs.getFormat());
 		}
 		streamGraph.setParallelism(source.getId(), source.getParallelism());

@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 
 import java.io.Serializable;
@@ -29,7 +30,8 @@ import java.io.Serializable;
  *<p/>
  * A default implementation is the {@link DefaultFilter} which excludes files starting with ".", "_", or
  * contain the "_COPYING_" in their names. This can be retrieved by {@link DefaultFilter#getInstance()}.
- * */
+ */
+@PublicEvolving
 public interface FilePathFilter extends Serializable {
 
 	/**

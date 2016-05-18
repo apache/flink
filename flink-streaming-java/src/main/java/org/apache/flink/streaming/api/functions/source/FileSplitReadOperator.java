@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -59,26 +60,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * thread ({@link SplitReader}) actually reading the splits and emitting the elements, which is separate from
  * the thread forwarding the checkpoint barriers. The two threads sync on the {@link StreamTask#getCheckpointLock()}
  * so that the checkpoints reflect the current state.
- * */
+ */
+@Internal
 public class FileSplitReadOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
 	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSplitReadOperator.class);
 
-	private static final FileInputSplit EOF = new FileInputSplit(-1, null, -1, -1, null);
+	private static final FileInputSplit EOS = new FileInputSplit(-1, null, -1, -1, null);
 
 	private transient SplitReader<S, OUT> reader;
 	private transient TimestampedCollector<OUT> collector;
 
-	private Configuration configuration;
 	private FileInputFormat<OUT> format;
 	private TypeSerializer<OUT> serializer;
 
+	private Object checkpointLock;
+
 	private Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState;
 
-	public FileSplitReadOperator(FileInputFormat<OUT> format, Configuration configuration) {
+	public FileSplitReadOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
-		this.configuration = checkNotNull(configuration);
 	}
 
 	@Override
@@ -93,13 +95,13 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 		if (this.serializer == null) {
 			throw new IllegalStateException("The serializer has not been set. " +
 				"Probably the setOutputType() was not called and this should not have happened. " +
-				"Please Report it.");
+				"Please report it.");
 		}
 
-		this.format.configure(configuration);
+		this.format.configure(new Configuration());
 		this.collector = new TimestampedCollector<>(output);
 
-		Object checkpointLock = getContainingTask().getCheckpointLock();
+		this.checkpointLock = getContainingTask().getCheckpointLock();
 
 		this.reader = new SplitReader<>(format, serializer, collector, checkpointLock, readerState);
 		this.reader.start();
@@ -148,7 +150,6 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 		}
 		reader = null;
 		collector = null;
-		configuration = null;
 		format = null;
 		serializer = null;
 	}
@@ -163,8 +164,11 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 		if (reader != null && reader.isAlive() && reader.isRunning()) {
 			// add a dummy element to signal that no more splits will
 			// arrive and wait until the reader finishes
-			reader.addSplit(EOF);
-			reader.join();
+			reader.addSplit(EOS);
+
+			// we already have the checkpoint lock because close() is
+			// called by the StreamTask while having it.
+			checkpointLock.wait();
 		}
 		collector.close();
 	}
@@ -248,7 +252,7 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 						continue;
 					}
 
-					if (split.equals(EOF)) {
+					if (split.equals(EOS)) {
 						isRunning = false;
 						break;
 					}
@@ -259,6 +263,8 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 						}
 						this.format.open(split);
 					}
+
+					LOG.info("Reading split: " + split);
 
 					try {
 						OT nextElement = serializer.createInstance();
@@ -274,13 +280,17 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 						this.format.close();
 					}
 				}
-				LOG.info("Split Reader terminated, and exiting normally.");
 
 			} catch (Throwable e) {
 				if (isRunning) {
 					LOG.error("Caught exception processing split: ", split);
 				}
 				getContainingTask().failExternally(e);
+			} finally {
+				synchronized (checkpointLock) {
+					LOG.info("Reader terminated, and exiting...");
+					checkpointLock.notifyAll();
+				}
 			}
 		}
 
