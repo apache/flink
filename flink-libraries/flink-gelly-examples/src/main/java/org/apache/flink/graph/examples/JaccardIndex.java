@@ -41,7 +41,7 @@ import java.text.NumberFormat;
  * Driver for the library implementation of Jaccard Index.
  *
  * This example generates an undirected RMat graph with the given scale and
- * edge factor then calculates all non-zero Jaccard Index scores
+ * edge factor then calculates all non-zero Jaccard Index similarity scores
  * between vertices.
  *
  * @see org.apache.flink.graph.library.similarity.JaccardIndex
@@ -67,7 +67,7 @@ public class JaccardIndex {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		long vertexCount = 1 << scale;
+		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
@@ -112,7 +112,8 @@ public class JaccardIndex {
 				System.out.println("");
 				System.out.println("This algorithm returns 4-tuples containing two vertex IDs, the number of");
 				System.out.println("common neighbors, and the number of distinct neighbors. The Jaccard Index");
-				System.out.println("is the number of common neighbors divided by the number of distinct neighbors.");
+				System.out.println("similarity score is the number of common neighbors divided by the number");
+				System.out.println("of distinct neighbors.");
 				System.out.println("");
 				System.out.println("usage:");
 				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
