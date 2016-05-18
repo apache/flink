@@ -108,7 +108,7 @@ object FlinkRuleSets {
   )
 
   /**
-  * RuleSet to optimize plans for batch / DataSet execution
+  * RuleSet to optimize plans for stream / DataStream execution
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
 

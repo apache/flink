@@ -25,7 +25,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 import scala.collection.mutable.ArrayBuffer
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{Row, TableException}
 
 /**
  * TypeInformation for [[Row]].
@@ -39,10 +39,10 @@ class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]], fieldNames: Seq[String])
 {
 
   if (fieldTypes.length != fieldNames.length) {
-    throw new IllegalArgumentException("Number of field types and names is different.")
+    throw new TableException("Number of field types and names is different.")
   }
   if (fieldNames.length != fieldNames.toSet.size) {
-    throw new IllegalArgumentException("Field names are not unique.")
+    throw new TableException("Field names are not unique.")
   }
 
   def this(fieldTypes: Seq[TypeInformation[_]]) = {
