@@ -30,6 +30,8 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 
 public class LocalClusteringCoefficientTest
@@ -61,7 +63,11 @@ extends AsmTestBase {
 		DataSet<Result<LongValue>> cc = completeGraph
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 
-		for (Result<LongValue> result : cc.collect()) {
+		List<Result<LongValue>> results = cc.collect();
+
+		assertEquals(completeGraphVertexCount, results.size());
+
+		for (Result<LongValue> result : results) {
 			assertEquals(expectedDegree, result.getDegree().getValue());
 			assertEquals(expectedTriangleCount, result.getTriangleCount().getValue());
 		}
