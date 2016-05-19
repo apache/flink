@@ -85,8 +85,6 @@ under the License.
 	</dependencies>
 
 	<build>
-		<testSourceDirectory>src/main/java</testSourceDirectory>
-
 		<plugins>
 			<!-- Set the root directory for all tests to the project root.
 			We need this to be able to locate the final build (in flink-dist)
