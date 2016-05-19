@@ -1245,7 +1245,7 @@ public class TypeExtractor {
 	private static int countTypeInHierarchy(ArrayList<Type> typeHierarchy, Type type) {
 		int count = 0;
 		for (Type t : typeHierarchy) {
-			if (t == type || (isClassType(type) && t == typeToClass(type))) {
+			if (t == type || (isClassType(type) && t == typeToClass(type)) || (isClassType(t) && typeToClass(t) == type)) {
 				count++;
 			}
 		}
