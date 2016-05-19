@@ -354,8 +354,7 @@ DataSet<Tuple2<Integer, String>> result = data1.cross(data2);
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Produces the union of two data sets. This operation happens implicitly if more than one
-        data set is used for a specific function input.</p>
+        <p>Produces the union of two data sets.</p>
 {% highlight java %}
 DataSet<String> data1 = // [...]
 DataSet<String> data2 = // [...]
