@@ -68,7 +68,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 			RowTypeInfo rowTypeInfo, boolean[] includedFieldsMask) {
 
 		if (rowTypeInfo.getArity() == 0) {
-			throw new IllegalArgumentException("Tuple size must be greater than 0.");
+			throw new IllegalArgumentException("Row arity must be greater than 0.");
 		}
 
 		if (includedFieldsMask == null) {
