@@ -24,13 +24,13 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-metrics</artifactId>
+		<artifactId>flink-metric-reporters</artifactId>
 		<version>1.1-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-metrics-dropwizard</artifactId>
-	<name>flink-metrics-dropwizard</name>
+	<artifactId>flink-metric-reporters-ganglia</artifactId>
+	<name>flink-metric-reporters-ganglia</name>
 
 	<dependencies>
 		<dependency>
@@ -41,8 +41,26 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metric-reporters-dropwizard</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>info.ganglia.gmetric4j</groupId>
+			<artifactId>gmetric4j</artifactId>
+			<version>1.0.7</version>
+		</dependency>
+
+		<dependency>
 			<groupId>io.dropwizard.metrics</groupId>
 			<artifactId>metrics-core</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-ganglia</artifactId>
 			<version>${metrics.version}</version>
 		</dependency>
 	</dependencies>

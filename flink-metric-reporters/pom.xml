@@ -29,14 +29,14 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-metrics</artifactId>
-	<name>flink-metrics</name>
+	<artifactId>flink-metric-reporters</artifactId>
+	<name>flink-metric-reporters</name>
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-metrics-dropwizard</module>
-		<module>flink-metrics-ganglia</module>
-		<module>flink-metrics-graphite</module>
-		<module>flink-metrics-statsd</module>
+		<module>flink-metric-reporters-dropwizard</module>
+		<module>flink-metric-reporters-ganglia</module>
+		<module>flink-metric-reporters-graphite</module>
+		<module>flink-metric-reporters-statsd</module>
 	</modules>
 </project>
