@@ -90,6 +90,10 @@ public class PojoTypeExtractionTest {
 		public String[]	fancyArray;			 // generic type
 	}
 
+	public static class FancyCollectionSubtype<T> extends HashSet<T> {
+		private static final long serialVersionUID = -3494469602638179921L;
+	}
+
 	public static class ParentSettingGenerics extends PojoWithGenerics<Integer, Long> {
 		public String field3;
 	}
@@ -808,10 +812,49 @@ public class PojoTypeExtractionTest {
 		Assert.assertTrue(tti.getTypeAt(0) instanceof PojoTypeInfo);
 		Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
 	}
-	
-	// ------------------------------------------------------------------------
-	
-	public static class FancyCollectionSubtype<T> extends HashSet<T> {
-		private static final long serialVersionUID = -3494469602638179921L;
+
+	public static class PojoWithRecursiveGenericField<K,V> {
+		public PojoWithRecursiveGenericField<K,V> parent;
+		public PojoWithRecursiveGenericField(){}
 	}
+
+	@Test
+	public void testPojoWithRecursiveGenericField() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(PojoWithRecursiveGenericField.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass());
+	}
+
+	public static class MutualPojoA {
+		public MutualPojoB field;
+	}
+
+	public static class MutualPojoB {
+		public MutualPojoA field;
+	}
+
+	@Test
+	public void testPojosWithMutualRecursion() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MutualPojoB.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
+		Assert.assertTrue(pti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+	}
+
+	public static class Container<T> {
+		public T field;
+	}
+
+	public static class MyType extends Container<Container<Object>> {}
+
+	@Test
+	public void testRecursivePojoWithTypeVariable() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyType.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
+		Assert.assertTrue(pti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+	}
+
 }
