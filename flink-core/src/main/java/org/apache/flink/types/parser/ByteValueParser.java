@@ -32,14 +32,14 @@ public class ByteValueParser extends FieldParser<ByteValue> {
 	private ByteValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, ByteValue reusable) {
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, ByteValue reusable) {
 		int val = 0;
 		boolean neg = false;
 		
 		this.result = reusable;
 
-		final int delimLimit = limit-delimiter.length+1;
-		
+		final int delimLimit = limit-delimiter.length + 1;
+
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;

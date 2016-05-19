@@ -30,7 +30,7 @@ public class FloatParser extends FieldParser<Float> {
 	private float result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Float 
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Float
 		reusable) {
 
 		int i = startPos;

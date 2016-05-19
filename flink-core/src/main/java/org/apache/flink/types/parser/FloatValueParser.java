@@ -31,8 +31,8 @@ public class FloatValueParser extends FieldParser<FloatValue> {
 	private FloatValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, FloatValue reusable) {
-		
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, FloatValue reusable) {
+
 		int i = startPos;
 
 		final int delimLimit = limit - delimiter.length + 1;

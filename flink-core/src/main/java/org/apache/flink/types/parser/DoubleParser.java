@@ -32,7 +32,7 @@ public class DoubleParser extends FieldParser<Double> {
 	private double result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Double reusable) {
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Double reusable) {
 		int i = startPos;
 
 		final int delimLimit = limit - delimiter.length + 1;

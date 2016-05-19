@@ -32,11 +32,11 @@ public class LongValueParser extends FieldParser<LongValue> {
 	private LongValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, LongValue reusable) {
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, LongValue reusable) {
 		long val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit-delimiter.length + 1;
 
 		this.result = reusable;
 		
@@ -75,7 +75,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 					
 					if (i+1 >= limit) {
 						return limit;
-					} else if (i+1 < delimLimit && delimiterNext(bytes, i+1, delimiter)) {
+					} else if (i + 1 < delimLimit && delimiterNext(bytes, i + 1, delimiter)) {
 						return i + 1 + delimiter.length;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);

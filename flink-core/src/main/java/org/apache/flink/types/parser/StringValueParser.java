@@ -43,19 +43,19 @@ public class StringValueParser extends FieldParser<StringValue> {
 	}
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, StringValue reusable) {
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, StringValue reusable) {
 
 		this.result = reusable;
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit-delimiter.length + 1;
 
 		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
 			// quoted string parsing enabled and first character is a quote
 			i++;
 
 			// search for ending quote character, continue when it is escaped
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i - 1] == BACKSLASH)) {
 				i++;
 			}
 
@@ -67,11 +67,11 @@ public class StringValueParser extends FieldParser<StringValue> {
 				// check for proper termination
 				if (i == limit) {
 					// either by end of line
-					reusable.setValueAscii(bytes, startPos+1, i - startPos - 2);
+					reusable.setValueAscii(bytes, startPos + 1, i - startPos - 2);
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
-					reusable.setValueAscii(bytes, startPos+1, i - startPos - 2);
+					reusable.setValueAscii(bytes, startPos + 1, i - startPos - 2);
 					return i + delimiter.length;
 				} else {
 					// no proper termination

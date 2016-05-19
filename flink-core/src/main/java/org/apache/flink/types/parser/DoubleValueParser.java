@@ -31,8 +31,8 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 	private DoubleValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, DoubleValue reusable) {
-		
+	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, DoubleValue reusable) {
+
 		int i = startPos;
 
 		final int delimLimit = limit - delimiter.length + 1;
