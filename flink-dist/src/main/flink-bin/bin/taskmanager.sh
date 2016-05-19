@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-# Start/stop a Flink JobManager.
+# Start/stop a Flink TaskManager.
 USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
 
 STARTSTOP=$1
