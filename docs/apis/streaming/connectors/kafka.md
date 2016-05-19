@@ -142,18 +142,24 @@ for querying the list of topics and partitions.
 For this to work, the consumer needs to be able to access the consumers from the machine submitting the job to the Flink cluster.
 If you experience any issues with the Kafka consumer on the client side, the client log might contain information about failed requests, etc.
 
-##### The `DeserializationSchema`
+##### **The `DeserializationSchema`**
 
-The `FlinkKafkaConsumer08` needs to know how to turn the data in Kafka into Java objects. The 
+The Flink Kafka Consumer needs to know how to turn the binary data in Kafka into Java/Scala objects. The 
 `DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
 method gets called for each Kafka message, passing the value from Kafka.
+
+It is usually helpful to start from the `AbstractDeserializationSchema`, which takes care of describing the
+produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
+to implement the `getProducedType(...)` method themselves.
 
 For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
 the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
 
 For convenience, Flink provides the following schemas:
 1. `TypeInformationSerializationSchema` (and `TypeInformationKeyValueSerializationSchema`) which creates 
-    a schema based on a Flink `TypeInformation`.
+    a schema based on a Flink's `TypeInformation`. This is useful if the data is both written and read by Flink.
+    This schema is a performant Flink-specific alternative to other generic serialization approaches.
+ 
 2. `JsonDeserializationSchema` (and `JSONKeyValueDeserializationSchema`) which turns the serialized JSON 
     into an ObjectNode object, from which fields can be accessed using objectNode.get("field").as(Int/String/...)(). 
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as 
