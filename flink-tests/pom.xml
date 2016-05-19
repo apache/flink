@@ -333,21 +333,7 @@ under the License.
 					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
-			
-			<plugin>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-					<classpathDependencyExcludes>
-						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
-						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
-					</classpathDependencyExcludes>
-				</configuration>
-			</plugin>
-			
+
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
