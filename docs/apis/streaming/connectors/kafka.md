@@ -87,13 +87,13 @@ Then, import the connector in your maven project:
 
 Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
-#### Installing Apache Kafka
+### Installing Apache Kafka
 
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * On 32 bit computers [this](http://stackoverflow.com/questions/22325364/unrecognized-vm-option-usecompressedoops-when-running-kafka-from-my-ubuntu-in) problem may occur.
 * If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
 
-#### Kafka Consumer
+### Kafka Consumer
 
 Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions). It provides access to one or more Kafka topics.
 
@@ -142,18 +142,25 @@ for querying the list of topics and partitions.
 For this to work, the consumer needs to be able to access the consumers from the machine submitting the job to the Flink cluster.
 If you experience any issues with the Kafka consumer on the client side, the client log might contain information about failed requests, etc.
 
-##### The `DeserializationSchema`
+#### The `DeserializationSchema`
 
-The `FlinkKafkaConsumer08` needs to know how to turn the data in Kafka into Java objects. The 
+The Flink Kafka Consumer needs to know how to turn the binary data in Kafka into Java/Scala objects. The 
 `DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
 method gets called for each Kafka message, passing the value from Kafka.
+
+It is usually helpful to start from the `AbstractDeserializationSchema`, which takes care of describing the
+produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
+to implement the `getProducedType(...)` method themselves.
 
 For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
 the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
 
 For convenience, Flink provides the following schemas:
+
 1. `TypeInformationSerializationSchema` (and `TypeInformationKeyValueSerializationSchema`) which creates 
-    a schema based on a Flink `TypeInformation`.
+    a schema based on a Flink's `TypeInformation`. This is useful if the data is both written and read by Flink.
+    This schema is a performant Flink-specific alternative to other generic serialization approaches.
+ 
 2. `JsonDeserializationSchema` (and `JSONKeyValueDeserializationSchema`) which turns the serialized JSON 
     into an ObjectNode object, from which fields can be accessed using objectNode.get("field").as(Int/String/...)(). 
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as 
@@ -191,7 +198,7 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
-#### Kafka Producer
+### Kafka Producer
 
 The `FlinkKafkaProducer08` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
 records to partitions.
