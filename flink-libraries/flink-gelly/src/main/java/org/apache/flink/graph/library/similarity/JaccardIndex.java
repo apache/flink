@@ -43,11 +43,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Jaccard Index measures the similarity between vertex neighborhoods.
- * Scores range from 0.0 (no common neighbors) to 1.0 (all neighbors are common).
+ * The Jaccard Index measures the similarity between vertex neighborhoods and
+ * is computed as the number of shared numbers divided by the number of
+ * distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all
+ * neighbors are shared).
  * <br/>
  * This implementation produces similarity scores for each pair of vertices
- * in the graph with at least one common neighbor; equivalently, this is the
+ * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Jaccard Similarity coefficients.
  * <br/>
  * The input graph must be a simple, undirected graph containing no duplicate
@@ -81,6 +83,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * Override the default group size for the quadratic expansion of neighbor
 	 * pairs. Small groups generate more data whereas large groups distribute
 	 * computation less evenly among tasks.
+	 *
+	 * The default value should be near-optimal for all use cases.
 	 *
 	 * @param groupSize the group size for the quadratic expansion of neighbor pairs
 	 * @return this
@@ -348,10 +352,10 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Compute the counts of common and distinct neighbors. A two-path connecting
-	 * the vertices is emitted for each common neighbor. The number of distinct
+	 * Compute the counts of shared and distinct neighbors. A two-path connecting
+	 * the vertices is emitted for each shared neighbor. The number of distinct
 	 * neighbors is equal to the sum of degrees of the vertices minus the count
-	 * of common numbers, which are double-counted in the degree sum.
+	 * of shared numbers, which are double-counted in the degree sum.
 	 *
 	 * @param <T> ID type
 	 */
@@ -421,11 +425,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		}
 
 		/**
-		 * Get the common neighbor count.
+		 * Get the shared neighbor count.
 		 *
-		 * @return common neighbor count
+		 * @return shared neighbor count
 		 */
-		public IntValue getCommonNeighborCount() {
+		public IntValue getSharedNeighborCount() {
 			return f2.f0;
 		}
 
@@ -439,14 +443,21 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		}
 
 		/**
-		 * Get the Jaccard Index score, equal to the number of common
-		 * neighbors shared by the source and target vertices divided by the
-		 * number of distinct neighbors.
+		 * Get the Jaccard Index score, equal to the number of shared neighbors
+		 * of the source and target vertices divided by the number of distinct
+		 * neighbors.
 		 *
 		 * @return Jaccard Index score
 		 */
 		public double getJaccardIndexScore() {
-			return getCommonNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
+			return getSharedNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
+		}
+
+		public String toVerboseString() {
+			return "Vertex IDs: (" + f0 + ", " + f1
+				+ "), number of shared neighbors: " + getSharedNeighborCount()
+				+ ", number of distinct neighbors: " + getDistinctNeighborCount()
+				+ ", jaccard index score: " + getJaccardIndexScore();
 		}
 
 		@Override

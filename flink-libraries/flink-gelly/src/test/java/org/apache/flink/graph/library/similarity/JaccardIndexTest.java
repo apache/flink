@@ -108,7 +108,7 @@ extends AsmTestBase {
 			assertEquals(completeGraphVertexCount, result.getDistinctNeighborCount().getValue());
 
 			// the union only excludes the two vertices from the similarity score
-			assertEquals(completeGraphVertexCount - 2, result.getCommonNeighborCount().getValue());
+			assertEquals(completeGraphVertexCount - 2, result.getSharedNeighborCount().getValue());
 		}
 	}
 

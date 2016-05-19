@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.examples;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
@@ -31,6 +33,7 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
+import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -40,9 +43,9 @@ import java.text.NumberFormat;
 /**
  * Driver for the library implementation of Jaccard Index.
  *
- * This example generates an undirected RMat graph with the given scale and
- * edge factor then calculates all non-zero Jaccard Index similarity scores
- * between vertices.
+ * This example reads a simple, undirected graph from a CSV file or generates
+ * generates an undirected RMat graph with the given scale and edge factor
+ * then calculates all non-zero Jaccard Index similarity scores between vertices.
  *
  * @see org.apache.flink.graph.library.similarity.JaccardIndex
  */
@@ -54,6 +57,26 @@ public class JaccardIndex {
 
 	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
+	private static void printUsage() {
+		System.out.println(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
+			" neighborhoods and is computed as the number of shared numbers divided by the number of" +
+			" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
+			" shared).", 80));
+		System.out.println();
+		System.out.println(WordUtils.wrap("This algorithm returns 4-tuples containing two vertex IDs, the" +
+			" number of shared neighbors, and the number of distinct neighbors.", 80));
+		System.out.println();
+		System.out.println("usage: JaccardIndex --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println();
+		System.out.println("options:");
+		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
+		System.out.println();
+		System.out.println("  --output print");
+		System.out.println("  --output hash");
+		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	}
+
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -61,66 +84,85 @@ public class JaccardIndex {
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 
-		// Generate RMat graph
-		int scale = parameters.getInt("scale", DEFAULT_SCALE);
-		int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
+		DataSet ji;
 
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+		switch (parameters.get("input", "")) {
+			case "csv": {
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-		long vertexCount = 1L << scale;
-		long edgeCount = vertexCount * edgeFactor;
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+				Graph<LongValue, NullValue, NullValue> graph = Graph
+					.fromCsvReader(parameters.get("input_filename"), env)
+					.ignoreCommentsEdges("#")
+					.lineDelimiterEdges(lineDelimiter)
+					.fieldDelimiterEdges(fieldDelimiter)
+					.keyType(LongValue.class);
 
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.setSimpleGraph(true, clipAndFlip)
-			.generate();
+				ji = graph
+					.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
 
-		DataSet js;
+				} break;
 
-		if (scale > 32) {
-			js = graph
-				.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
-		} else {
-			js = graph
-				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
+			case "rmat": {
+				int scale = parameters.getInt("scale", DEFAULT_SCALE);
+				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
+
+				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+
+				long vertexCount = 1L << scale;
+				long edgeCount = vertexCount * edgeFactor;
+
+				boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+
+				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+					.setSimpleGraph(true, clipAndFlip)
+					.generate();
+
+				if (scale > 32) {
+					ji = graph
+						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
+				} else {
+					ji = graph
+						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
+				}
+				} break;
+
+			default:
+				printUsage();
+				return;
 		}
 
 		switch (parameters.get("output", "")) {
 			case "print":
-				js.print();
+				for (Object e: ji.collect()) {
+					Result result = (Result)e;
+					System.out.println(result.toVerboseString());
+				}
 				break;
 
 			case "hash":
-				System.out.println(DataSetUtils.checksumHashCode(js));
+				System.out.println(DataSetUtils.checksumHashCode(ji));
 				break;
 
 			case "csv":
-				String filename = parameters.get("filename");
+				String filename = parameters.get("output_filename");
 
-				String row_delimiter = parameters.get("row_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER);
-				String field_delimiter = parameters.get("field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-				js.writeAsCsv(filename, row_delimiter, field_delimiter);
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
+
+				ji.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
 				env.execute();
 				break;
 			default:
-				System.out.println("The Jaccard Index measures the similarity between vertex neighborhoods.");
-				System.out.println("Scores range from 0.0 (no common neighbors) to 1.0 (all neighbors are common).");
-				System.out.println("");
-				System.out.println("This algorithm returns 4-tuples containing two vertex IDs, the number of");
-				System.out.println("common neighbors, and the number of distinct neighbors. The Jaccard Index");
-				System.out.println("similarity score is the number of common neighbors divided by the number");
-				System.out.println("of distinct neighbors.");
-				System.out.println("");
-				System.out.println("usage:");
-				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
-				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
-				System.out.println("  JaccardIndex [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-					" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
-
+				printUsage();
 				return;
 		}
 
