@@ -942,6 +942,7 @@ under the License.
 							<includes>
 								<include>**/*ITCase.*</include>
 							</includes>
+							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
 				</executions>
