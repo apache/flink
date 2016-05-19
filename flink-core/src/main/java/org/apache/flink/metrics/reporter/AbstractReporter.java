@@ -17,12 +17,12 @@
  */
 package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractReporter implements MetricReporter {
 	protected Map<String, Gauge> gauges = new ConcurrentHashMap<>();
