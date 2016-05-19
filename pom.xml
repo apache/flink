@@ -915,8 +915,9 @@ under the License.
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
+						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 				<executions>
 					<execution>
