@@ -38,7 +38,7 @@ public class ByteValueParser extends FieldParser<ByteValue> {
 		
 		this.result = reusable;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 		
 		if (bytes[startPos] == '-') {
 			neg = true;
