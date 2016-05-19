@@ -28,6 +28,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
  * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
  * processed by Flink.
  * 
+ * <p>Note: In most cases, one should start from {@link AbstractDeserializationSchema}, which
+ * takes care of producing the return type information automatically.
+ * 
  * @param <T> The type created by the deserialization schema.
  */
 @Public
