@@ -353,7 +353,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		ResourceID resourceID = msg.resourceId();
 		try {
 			Preconditions.checkNotNull(resourceID);
-			WorkerType newWorker = workerRegistered(msg.resourceId());
+			WorkerType newWorker = workerRegistered(resourceID);
 			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
 			if (oldWorker != null) {
 				LOG.warn("Worker {} had been registered before.", resourceID);
@@ -363,7 +363,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				self());
 		} catch (Exception e) {
 			// This may happen on duplicate task manager registration message to the job manager
-			LOG.warn("TaskManager resource registration failed for {}", resourceID);
+			LOG.warn("TaskManager resource registration failed for {}", resourceID, e);
 
 			// tell the JobManager about the failure
 			String eStr = ExceptionUtils.stringifyException(e);
