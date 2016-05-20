@@ -20,7 +20,6 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.ParseException;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -30,6 +29,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -58,23 +58,139 @@ public class CsvInputFormatTest {
 	private static final String SECOND_PART = "That is the second part";
 
 	@Test
-	public void ignoreInvalidLines() {
+	public void testSplitCsvInputStreamInLargeBuffer() throws Exception {
+		testSplitCsvInputStream(1024 * 1024);
+	}
+
+	@Test
+	public void testSplitCsvInputStreamInSmallBuffer() throws Exception {
+		testSplitCsvInputStream(2);
+	}
+
+	private void testSplitCsvInputStream(int bufferSize) throws Exception {
+		final String fileContent =
+			"this is|1|2.0|\n"+
+			"a test|3|4.0|\n" +
+			"#next|5|6.0|\n" +
+			"asdadas|5|30.0|\n";
+
+		// create temporary file with 3 blocks
+		final File tempFile = File.createTempFile("input-stream-decoration-test", "tmp");
+		tempFile.deleteOnExit();
+
+		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+		fileOutputStream.write(fileContent.getBytes());
+		fileOutputStream.close();
+
+		// fix the number of blocks and the size of each one.
+		final int noOfBlocks = 3;
+
+		final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
+		CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
+		format.setLenient(true);
+		format.setBufferSize(bufferSize);
+
+		final Configuration config = new Configuration();
+		format.configure(config);
+
+		long[] offsetsAfterRecord = new long[]{ 15, 29, 42, 58};
+		long[] offsetAtEndOfSplit = new long[]{ 20, 40, 58};
+		int recordCounter = 0;
+		int splitCounter = 0;
+
+		FileInputSplit[] inputSplits = format.createInputSplits(noOfBlocks);
+		Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+
 		try {
-			
-			
+			for (FileInputSplit inputSplit : inputSplits) {
+				assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
+				splitCounter++;
+
+				format.open(inputSplit);
+				while (!format.reachedEnd()) {
+					if ((result = format.nextRecord(result)) != null) {
+						assertEquals((long) format.getCurrentChannelState().f1, offsetsAfterRecord[recordCounter]);
+						recordCounter++;
+
+						if (recordCounter == 1) {
+							assertNotNull(result);
+							assertEquals("this is", result.f0);
+							assertEquals(new Integer(1), result.f1);
+							assertEquals(new Double(2.0), result.f2);
+							assertEquals((long) format.getCurrentChannelState().f1, 15);
+						} else if (recordCounter == 2) {
+							assertNotNull(result);
+							assertEquals("a test", result.f0);
+							assertEquals(new Integer(3), result.f1);
+							assertEquals(new Double(4.0), result.f2);
+							assertEquals((long) format.getCurrentChannelState().f1, 29);
+						} else if (recordCounter == 3) {
+							assertNotNull(result);
+							assertEquals("#next", result.f0);
+							assertEquals(new Integer(5), result.f1);
+							assertEquals(new Double(6.0), result.f2);
+							assertEquals((long) format.getCurrentChannelState().f1, 42);
+						} else {
+							assertNotNull(result);
+							assertEquals("asdadas", result.f0);
+							assertEquals(new Integer(5), result.f1);
+							assertEquals(new Double(30.0), result.f2);
+							assertEquals((long) format.getCurrentChannelState().f1, 58);
+						}
+
+						// simulate checkpoint
+						Tuple2<FileInputSplit, Long> state = format.getCurrentChannelState();
+						FileInputSplit split = state.f0;
+						long offsetToRestore = state.f1;
+						Assert.assertEquals(split, inputSplit);
+
+						// create a new format
+						format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
+						format.setLenient(true);
+						format.setBufferSize(bufferSize);
+						format.configure(config);
+
+						// simulate the restore operation.
+						format.restore(split, offsetToRestore);
+						format.open(split);
+					} else {
+						result = new Tuple3<String, Integer, Double>();
+					}
+				}
+				format.close();
+			}
+		} finally {
+			Assert.assertEquals(recordCounter, 4);
+		}
+	}
+
+	@Test
+	public void ignoreInvalidLinesAndGetOffsetInLargeBuffer() {
+		ignoreInvalidLines(1024 * 1024);
+	}
+
+	@Test
+	public void ignoreInvalidLinesAndGetOffsetInSmallBuffer() {
+		ignoreInvalidLines(2);
+	}
+
+	private void ignoreInvalidLines(int bufferSize) {
+		try {
 			final String fileContent =  "#description of the data\n" + 
 										"header1|header2|header3|\n"+
 										"this is|1|2.0|\n"+
 										"//a comment\n" +
 										"a test|3|4.0|\n" +
-										"#next|5|6.0|\n";
-			
+										"#next|5|6.0|\n" +
+										"asdasdas";
+
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
 			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
 			format.setLenient(true);
-		
+			format.setBufferSize(bufferSize);
+
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
 			format.open(split);
@@ -86,21 +202,26 @@ public class CsvInputFormatTest {
 			assertEquals("this is", result.f0);
 			assertEquals(new Integer(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
-			
+			assertEquals((long) format.getCurrentChannelState().f1, 65);
+
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
 			assertEquals(new Integer(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
-			
+			assertEquals((long) format.getCurrentChannelState().f1, 91);
+
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("#next", result.f0);
 			assertEquals(new Integer(5), result.f1);
 			assertEquals(new Double(6.0), result.f2);
+			assertEquals((long) format.getCurrentChannelState().f1, 104);
 
 			result = format.nextRecord(result);
 			assertNull(result);
+			assertEquals(null, format.getCurrentChannelState().f0);
+			assertEquals(0, (long) format.getCurrentChannelState().f1);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();
