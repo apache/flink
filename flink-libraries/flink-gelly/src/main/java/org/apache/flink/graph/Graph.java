@@ -1788,7 +1788,12 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * @param analytic the algorithm to run on the Graph
+	 * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is terminal
+	 * and results are retrieved via accumulators.  A Flink program has a single
+	 * point of execution. A {@code GraphAnalytic} defers execution to the user to
+	 * allow composing multiple analytics and algorithms into a single program.
+	 *
+	 * @param analytic the analytic to run on the Graph
 	 * @param <T> the result type
 	 * @throws Exception
 	 */

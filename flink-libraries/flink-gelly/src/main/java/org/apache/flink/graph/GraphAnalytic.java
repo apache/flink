@@ -22,12 +22,10 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is
- * terminal and results are retrieved via accumulators.
- * <br/>
- * A Flink program has a single point of execution. A {@code GraphAnalytic}
- * defers execution to the user to allow composing multiple analytics and
- * algorithms into a single program.
+ * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is terminal
+ * and results are retrieved via accumulators.  A Flink program has a single
+ * point of execution. A {@code GraphAnalytic} defers execution to the user to
+ * allow composing multiple analytics and algorithms into a single program.
  *
  * @param <K> key type
  * @param <VV> vertex value type
