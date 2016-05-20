@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 import java.io.Serializable;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -149,4 +150,6 @@ public interface StreamOperator<OUT> extends Serializable {
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);
+	
+	MetricGroup getMetricGroup();
 }

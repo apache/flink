@@ -53,6 +53,7 @@ public class StreamConfig implements Serializable {
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
 	private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
 	private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
+	private static final String CHAIN_INDEX = "chainIndex";
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
@@ -386,6 +387,14 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
+	}
+
+	public void setChainIndex(int index) {
+		this.config.setInteger(CHAIN_INDEX, index);
+	}
+
+	public int getChainIndex() {
+		return this.config.getInteger(CHAIN_INDEX, 0);
 	}
 	
 	// ------------------------------------------------------------------------

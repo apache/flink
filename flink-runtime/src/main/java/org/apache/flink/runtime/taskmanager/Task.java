@@ -25,6 +25,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -201,6 +202,8 @@ public class Task implements Runnable {
 	/** atomic flag that makes sure the invokable is canceled exactly once upon error */
 	private final AtomicBoolean invokableHasBeenCanceled;
 
+	private final TaskMetricGroup metrics;
+
 	/** The invokable of this task, if initialized */
 	private volatile AbstractInvokable invokable;
 
@@ -239,7 +242,8 @@ public class Task implements Runnable {
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
 				FileCache fileCache,
-				TaskManagerRuntimeInfo taskManagerConfig)
+				TaskManagerRuntimeInfo taskManagerConfig,
+				TaskMetricGroup metricGroup)
 	{
 		this.taskInfo = checkNotNull(tdd.getTaskInfo());
 		this.jobId = checkNotNull(tdd.getJobID());
@@ -274,6 +278,7 @@ public class Task implements Runnable {
 		this.taskManagerConfig = checkNotNull(taskManagerConfig);
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
+		this.metrics = metricGroup;
 
 		// create the reader and writer structures
 
@@ -518,7 +523,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig);
+					writers, inputGates, jobManager, taskManagerConfig, metrics);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -683,6 +688,9 @@ public class Task implements Runnable {
 
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
+				
+				//Uncomment before Merging!!!
+				//metrics.close();
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
