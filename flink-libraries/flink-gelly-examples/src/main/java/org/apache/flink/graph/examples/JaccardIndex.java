@@ -44,8 +44,8 @@ import java.text.NumberFormat;
  * Driver for the library implementation of Jaccard Index.
  *
  * This example reads a simple, undirected graph from a CSV file or generates
- * generates an undirected RMat graph with the given scale and edge factor
- * then calculates all non-zero Jaccard Index similarity scores between vertices.
+ * an undirected RMat graph with the given scale and edge factor then calculates
+ * all non-zero Jaccard Index similarity scores between vertices.
  *
  * @see org.apache.flink.graph.library.similarity.JaccardIndex
  */
@@ -59,7 +59,7 @@ public class JaccardIndex {
 
 	private static void printUsage() {
 		System.out.println(WordUtils.wrap("The Jaccard Index measures the similarity between vertex" +
-			" neighborhoods and is computed as the number of shared numbers divided by the number of" +
+			" neighborhoods and is computed as the number of shared neighbors divided by the number of" +
 			" distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are" +
 			" shared).", 80));
 		System.out.println();

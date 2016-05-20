@@ -44,7 +44,7 @@ import java.util.List;
 
 /**
  * The Jaccard Index measures the similarity between vertex neighborhoods and
- * is computed as the number of shared numbers divided by the number of
+ * is computed as the number of shared neighbors divided by the number of
  * distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all
  * neighbors are shared).
  * <br/>

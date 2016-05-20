@@ -2055,7 +2055,7 @@ vertex and edge in the output graph stores the common group value and the number
 ### Jaccard Index
 
 #### Overview
-The Jaccard Index measures the similarity between vertex neighborhoods and is computed as the number of shared numbers
+The Jaccard Index measures the similarity between vertex neighborhoods and is computed as the number of shared neighbors
 divided by the number of distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are
 shared).
 
@@ -2071,6 +2071,10 @@ neighbors is emitted with the degree sum. Grouping on two-paths, the shared neig
 The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing two vertex IDs,
 the number of shared neighbors, and the number of distinct neighbors. The result class provides a method to compute the
 Jaccard Index score. The graph ID type must be `Comparable` and `Copyable`.
+
+* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setMaximumScore`: filter out Jaccard Index scores greater than or equal to the given maximum fraction
+* `setMinimumScore`: filter out Jaccard Index scores less than the given minimum fraction
 
 ### Local Clustering Coefficient
 
@@ -2095,7 +2099,7 @@ Graph Algorithms
 -----------
 
 The logic blocks with which the `Graph` API and top-level algorithms are assembled are accessible in Gelly as graph
-algorithms in the `org.apache.flink.graph` package. These algorithms provide optimization and tuning through
+algorithms in the `org.apache.flink.graph.asm` package. These algorithms provide optimization and tuning through
 configuration parameters and may provide implicit runtime reuse when processing the same input with a similar
 configuration.
 
@@ -2109,7 +2113,7 @@ configuration.
 
   <tbody>
     <tr>
-      <td>asm.degree.annotate.directed.<br/><strong>VertexInDegree</strong></td>
+      <td>degree.annotate.directed.<br/><strong>VertexInDegree</strong></td>
       <td>
         <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with the in-degree.</p>
 {% highlight java %}
@@ -2126,7 +2130,7 @@ DataSet<Vertex<K, LongValue>> inDegree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.directed.<br/><strong>VertexOutDegree</strong></td>
+      <td>degree.annotate.directed.<br/><strong>VertexOutDegree</strong></td>
       <td>
         <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with the out-degree.</p>
 {% highlight java %}
@@ -2143,7 +2147,7 @@ DataSet<Vertex<K, LongValue>> outDegree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
+      <td>degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
       <td>
         <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with both the out-degree and in-degree.</p>
 {% highlight java %}
@@ -2160,7 +2164,7 @@ DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.undirected.<br/><strong>VertexDegree</strong></td>
+      <td>degree.annotate.undirected.<br/><strong>VertexDegree</strong></td>
       <td>
         <p>Annotate vertices of an <a href="#graph-representation">undirected graph</a> with the degree.</p>
 {% highlight java %}
@@ -2179,7 +2183,7 @@ DataSet<Vertex<K, LongValue>> degree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.undirected.<br/><strong>EdgeSourceDegree</strong></td>
+      <td>degree.annotate.undirected.<br/><strong>EdgeSourceDegree</strong></td>
       <td>
         <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with degree of the source ID.</p>
 {% highlight java %}
@@ -2196,7 +2200,7 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> sourceDegree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.undirected.<br/><strong>EdgeTargetDegree</strong></td>
+      <td>degree.annotate.undirected.<br/><strong>EdgeTargetDegree</strong></td>
       <td>
         <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with degree of the target ID.</p>
 {% highlight java %}
@@ -2213,7 +2217,7 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
     </tr>
 
     <tr>
-      <td>asm.degree.annotate.undirected.<br/><strong>EdgeDegreePair</strong></td>
+      <td>degree.annotate.undirected.<br/><strong>EdgeDegreePair</strong></td>
       <td>
         <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with the degree of both the source and target degree ID.</p>
 {% highlight java %}
@@ -2230,50 +2234,43 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
     </tr>
 
     <tr>
-      <td>asm.translate.<br/><strong>TranslateGraphIds</strong></td>
+      <td>translate.<br/><strong>TranslateGraphIds</strong></td>
       <td>
         <p>Translate vertex and edge IDs using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
     <tr>
-      <td>asm.translate.<br/><strong>TranslateVertexValues</strong></td>
+      <td>translate.<br/><strong>TranslateVertexValues</strong></td>
       <td>
         <p>Translate vertex values using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
     <tr>
-      <td>asm.translate.<br/><strong>TranslateEdgeValues</strong></td>
+      <td>translate.<br/><strong>TranslateEdgeValues</strong></td>
       <td>
         <p>Translate edge values using the given <code>TranslateFunction</code>.</p>
 {% highlight java %}
 graph.run(new TranslateEdgeValues(new Nullify()));
 {% endhighlight %}
-      </td>
-    </tr>
-
-    <tr>
-      <td>library.similarity.<br/><strong>JaccardIndex</strong></td>
-      <td>
-        <p>Measures the similarity between vertex neighborhoods. The Jaccard Index score  is computed as the number of shared numbers divided by the number of distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are shared).</p>
-{% highlight java %}
-DataSet<Result> ji = graph
-  .run(new JaccardIndex()
-    .setMinimumScore(2, 5)
-    .setMaximumScore(7, 10));
-{% endhighlight %}
-        <p>Optional configuration:</p>
+        <p>Required configuration:</p>
         <ul>
-          <li><p><strong>setLittleParallelism</strong>: override the parallelism of operators processing small amounts of data</p></li>
-          <li><p><strong>setMaximumScore</strong>: filter out Jaccard Index scores greater than or equal to the given maximum fraction</p></li>
-          <li><p><strong>setMinimumScore</strong>: filter out Jaccard Index scores less than the given minimum fraction</p></li>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
         </ul>
       </td>
     </tr>
