@@ -49,4 +49,14 @@ implements GraphAnalytic<K, VV, EV, T> {
 		env.execute();
 		return getResult();
 	}
+
+	@Override
+	public T execute(String jobName)
+			throws Exception {
+		Preconditions.checkNotNull(jobName);
+		Preconditions.checkNotNull(env);
+
+		env.execute(jobName);
+		return getResult();
+	}
 }

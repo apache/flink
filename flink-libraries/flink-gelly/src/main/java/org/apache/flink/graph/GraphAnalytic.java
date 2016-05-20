@@ -55,6 +55,15 @@ public interface GraphAnalytic<K, VV, EV, T> {
 	T execute() throws Exception;
 
 	/**
+	 * Execute the program and return the result.
+	 *
+	 * @param jobName the name to assign to the job
+	 * @return the result
+	 * @throws Exception
+	 */
+	T execute(String jobName) throws Exception;
+
+	/**
 	 * All {@code GraphAnalytic} processing must be terminated by an
 	 * {@link OutputFormat}. Rather than obtained via accumulators rather than
 	 * returned by a {@link DataSet}.
