@@ -39,7 +39,7 @@ public class VertexOutDegree<K, VV, EV>
 implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 
 	// Optional configuration
-	private boolean includeZeroDegreeVertices = true;
+	private boolean includeZeroDegreeVertices = false;
 
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
 
@@ -80,7 +80,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 				.setParallelism(parallelism)
 				.name("Map edge to source ID");
 
-		// s, deg(s)
+		// s, d(s)
 		DataSet<Vertex<K, LongValue>> sourceDegree = sourceIds
 			.groupBy(0)
 			.reduce(new DegreeCount<K>())
@@ -88,8 +88,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 				.name("Degree count");
 
 		if (includeZeroDegreeVertices) {
-			sourceDegree = input
-				.getVertices()
+			sourceDegree = input.getVertices()
 				.leftOuterJoin(sourceDegree)
 				.where(0)
 				.equalTo(0)

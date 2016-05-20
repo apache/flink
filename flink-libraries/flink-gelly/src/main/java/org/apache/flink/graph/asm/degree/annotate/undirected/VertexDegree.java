@@ -111,8 +111,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 				.name("Degree count");
 
 		if (includeZeroDegreeVertices) {
-			degree = input
-				.getVertices()
+			degree = input.getVertices()
 				.leftOuterJoin(degree)
 				.where(0)
 				.equalTo(0)

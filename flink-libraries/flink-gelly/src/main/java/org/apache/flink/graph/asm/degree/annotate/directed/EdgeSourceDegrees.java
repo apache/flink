@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.degree.annotate.undirected;
+package org.apache.flink.graph.asm.degree.annotate.directed;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
@@ -27,37 +27,21 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeWithVertexDegree;
-import org.apache.flink.types.LongValue;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 
 /**
- * Annotates edges of an undirected graph with degree of the source vertex.
+ * Annotates edges of a directed graph with the degree, out-degree, and
+ * in-degree of the source vertex.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class EdgeSourceDegree<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
+public class EdgeSourceDegrees<K, VV, EV>
+implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, Degrees>>>> {
 
 	// Optional configuration
-	private boolean reduceOnTargetId = false;
-
 	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
-
-	/**
-	 * The degree can be counted from either the edge source or target IDs.
-	 * By default the source IDs are counted. Reducing on target IDs may
-	 * optimize the algorithm if the input edge list is sorted by target ID.
-	 *
-	 * @param reduceOnTargetId set to {@code true} if the input edge list
-	 *                         is sorted by target ID
-	 * @return this
-	 */
-	public EdgeSourceDegree<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
-		this.reduceOnTargetId = reduceOnTargetId;
-
-		return this;
-	}
 
 	/**
 	 * Override the operator parallelism.
@@ -65,19 +49,18 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	 * @param parallelism operator parallelism
 	 * @return this
 	 */
-	public EdgeSourceDegree<K, VV, EV> setParallelism(int parallelism) {
+	public EdgeSourceDegrees<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
 	}
 
 	@Override
-	public DataSet<Edge<K, Tuple2<EV, LongValue>>> run(Graph<K, VV, EV> input)
+	public DataSet<Edge<K, Tuple2<EV, Degrees>>> run(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, d(s)
-		DataSet<Vertex<K, LongValue>> vertexDegrees = input
-			.run(new VertexDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId)
+		DataSet<Vertex<K, Degrees>> vertexDegrees = input
+			.run(new VertexDegrees<K, VV, EV>()
 				.setParallelism(parallelism));
 
 		// s, t, d(s)
@@ -85,8 +68,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K, EV, LongValue>())
+			.with(new JoinEdgeWithVertexDegree<K, EV, Degrees>())
 				.setParallelism(parallelism)
-				.name("Edge source degree");
+				.name("Edge source degrees");
 	}
 }

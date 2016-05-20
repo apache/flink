@@ -30,7 +30,7 @@ import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.Join
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates edges of an undirected graph with degree of the target ID.
+ * Annotates edges of an undirected graph with degree of the target vertex.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -85,7 +85,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K, EV>())
+			.with(new JoinEdgeWithVertexDegree<K, EV, LongValue>())
 				.setParallelism(parallelism)
 				.name("Edge target degree");
 	}
