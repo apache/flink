@@ -120,7 +120,7 @@ public class JMXReporter implements MetricReporter {
 			fullName.append(value);
 			fullName.append(",");
 		}
-		fullName.append("name=" + name);
+		fullName.append("name=").append(name);
 
 		return fullName.toString();
 	}
@@ -153,9 +153,10 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	private static class JmxGauge extends AbstractBean implements JmxGaugeMBean {
-		private final Gauge gauge;
+		
+		private final Gauge<?> gauge;
 
-		public JmxGauge(Gauge gauge) {
+		public JmxGauge(Gauge<?> gauge) {
 			this.gauge = gauge;
 		}
 

@@ -26,12 +26,13 @@ import java.util.List;
  * Special {@link org.apache.flink.metrics.MetricGroup} that contains shareable pre-defined IO-related metrics.
  */
 public class IOMetricGroup extends AbstractMetricGroup {
+	
 	private final TaskMetricGroup parent;
 
-	private transient final Counter numBytesIn;
-	private transient final Counter numBytesOut;
-	private transient final Counter numRecordsIn;
-	private transient final Counter numRecordsOut;
+	private final Counter numBytesIn;
+	private final Counter numBytesOut;
+	private final Counter numRecordsIn;
+	private final Counter numRecordsOut;
 
 	public IOMetricGroup(MetricRegistry registry, TaskMetricGroup parent) {
 		super(registry);

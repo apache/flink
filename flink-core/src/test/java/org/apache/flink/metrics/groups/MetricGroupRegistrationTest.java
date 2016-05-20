@@ -15,41 +15,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics;
+package org.apache.flink.metrics.groups;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.util.TestReporter;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-public class MetricGroupTest {
+import static org.junit.Assert.*;
+
+public class MetricGroupRegistrationTest {
 	/**
 	 * Verifies that group methods instantiate the correct metric with the given name.
 	 */
 	@Test
 	public void testMetricInstantiation() {
 		Configuration config = new Configuration();
-
 		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter1.class.getName());
 
 		MetricGroup root = new TaskManagerMetricGroup(new MetricRegistry(config), "host", "id");
 
-		root.counter("counter");
-		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Counter);
-		Assert.assertEquals("counter", TestReporter1.lastPassedName);
+		Counter counter = root.counter("counter");
+		assertEquals(counter, TestReporter1.lastPassedMetric);
+		assertEquals("counter", TestReporter1.lastPassedName);
 
-		root.gauge("gauge", new Gauge<Object>() {
+		Gauge<Object> gauge = root.gauge("gauge", new Gauge<Object>() {
 			@Override
 			public Object getValue() {
 				return null;
 			}
 		});
-		Assert.assertTrue(TestReporter1.lastPassedMetric instanceof Gauge);
-		Assert.assertEquals("gauge", TestReporter1.lastPassedName);
+		
+		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
+		assertEquals("gauge", TestReporter1.lastPassedName);
 	}
 
-	protected static class TestReporter1 extends TestReporter {
+	public static class TestReporter1 extends TestReporter {
+		
 		public static Metric lastPassedMetric;
 		public static String lastPassedName;
 
@@ -60,8 +68,7 @@ public class MetricGroupTest {
 		}
 
 		@Override
-		public void notifyOfRemovedMetric(Metric metric, String name) {
-		}
+		public void notifyOfRemovedMetric(Metric metric, String name) {}
 	}
 
 	/**

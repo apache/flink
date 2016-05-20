@@ -27,12 +27,13 @@ import java.util.List;
  */
 @Internal
 public class GenericMetricGroup extends AbstractMetricGroup {
+	
 	private final AbstractMetricGroup parent;
 
 	private final String name;
 
 	protected GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, int name) {
-		this(registry, parent, "" + name);
+		this(registry, parent, String.valueOf(name));
 	}
 
 	protected GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {

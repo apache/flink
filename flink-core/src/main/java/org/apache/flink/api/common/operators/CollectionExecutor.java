@@ -59,15 +59,11 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.metrics.groups.JobMetricGroup;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.metrics.groups.NonRegisteringMetricsGroup;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -93,8 +89,6 @@ public class CollectionExecutor {
 	private final ExecutionConfig executionConfig;
 
 	private int iterationSuperstep;
-	
-	private JobMetricGroup jobMetricGroup;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -120,9 +114,7 @@ public class CollectionExecutor {
 		if (jobID == null) {
 			jobID = new JobID();
 		}
-		this.jobMetricGroup = 
-			new TaskManagerMetricGroup(new MetricRegistry(new Configuration()), "localhost", new AbstractID().toString())
-				.addJob(jobID, program.getJobName());
+
 		initCache(program.getCachedFiles());
 		Collection<? extends GenericDataSinkBase<?>> sinks = program.getDataSinks();
 		for (Operator<?> sink : sinks) {
@@ -202,7 +194,7 @@ public class CollectionExecutor {
 		TaskInfo taskInfo = new TaskInfo(typedSink.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
 
-		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedSink.getName());
+		MetricGroup metrics = NonRegisteringMetricsGroup.get();
 			
 		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
@@ -223,7 +215,7 @@ public class CollectionExecutor {
 		
 		RuntimeUDFContext ctx;
 
-		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, source.getName());
+		MetricGroup metrics = NonRegisteringMetricsGroup.get();
 		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
 					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
@@ -249,7 +241,7 @@ public class CollectionExecutor {
 		TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
 
-		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedOp.getName());
+		MetricGroup metrics = NonRegisteringMetricsGroup.get();
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
 					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);
@@ -291,7 +283,8 @@ public class CollectionExecutor {
 		TaskInfo taskInfo = new TaskInfo(typedOp.getName(), 0, 1, 0);
 		RuntimeUDFContext ctx;
 
-		MetricGroup metrics = this.jobMetricGroup.addTask(new AbstractID(), new AbstractID(), 0, typedOp.getName());
+		MetricGroup metrics = NonRegisteringMetricsGroup.get();
+	
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics) :
 				new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulators, metrics);

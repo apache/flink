@@ -31,9 +31,10 @@ public class OperatorGroupTest {
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
+		
 		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task").addOperator("operator");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
+			.addOperator("operator");
 
 		List<String> scope = operator.generateScope();
 		assertEquals(6, scope.size());
@@ -49,8 +50,8 @@ public class OperatorGroupTest {
 	public void testGenerateScopeWildcard() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task").addOperator("operator");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
+			.addOperator("operator");
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setOperatorFormat(Scope.concat(Scope.SCOPE_WILDCARD, "op", OperatorMetricGroup.SCOPE_OPERATOR_NAME));
@@ -70,8 +71,8 @@ public class OperatorGroupTest {
 	public void testGenerateScopeCustom() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task").addOperator("operator");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
+			.addOperator("operator");
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setOperatorFormat(Scope.concat("jobs", JobMetricGroup.SCOPE_JOB_NAME, "op", OperatorMetricGroup.SCOPE_OPERATOR_NAME));

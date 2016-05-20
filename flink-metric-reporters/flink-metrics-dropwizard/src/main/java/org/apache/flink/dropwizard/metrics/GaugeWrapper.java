@@ -19,15 +19,15 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Gauge;
 
-public class GaugeWrapper implements com.codahale.metrics.Gauge {
-	private final Gauge gauge;
+public class GaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
+	private final Gauge<T> gauge;
 
-	public GaugeWrapper(Gauge gauge) {
+	public GaugeWrapper(Gauge<T> gauge) {
 		this.gauge = gauge;
 	}
 
 	@Override
-	public Object getValue() {
+	public T getValue() {
 		return this.gauge.getValue();
 	}
 }

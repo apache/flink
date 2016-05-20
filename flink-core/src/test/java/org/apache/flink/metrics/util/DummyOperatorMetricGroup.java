@@ -22,19 +22,13 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 public class DummyOperatorMetricGroup extends OperatorMetricGroup {
+	
 	public DummyOperatorMetricGroup() {
 		super(new DummyMetricRegistry(), new DummyTaskMetricGroup(), "operator", 0);
 	}
 
 	@Override
-	protected MetricGroup addMetric(String name, Metric metric) {
-		return this;
-	}
-
-	@Override
-	public MetricGroup addGroup(int name) {
-		return addGroup("" + name);
-	}
+	protected void addMetric(String name, Metric metric) {}
 
 	@Override
 	public MetricGroup addGroup(String name) {

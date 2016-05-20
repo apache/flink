@@ -31,6 +31,7 @@ import java.util.List;
  */
 @PublicEvolving
 public interface MetricReporter extends Reporter {
+	
 	/**
 	 * Configures this reporter. Since reporters are instantiated generically and hence parameter-less,
 	 * this method is the place where the reporters set their basic fields based on configuration values.

@@ -23,6 +23,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 
 public class DummyTaskManagerMetricGroup extends TaskManagerMetricGroup {
+	
 	public DummyTaskManagerMetricGroup() {
 		super(new DummyMetricRegistry(), "host", "id");
 	}
@@ -32,14 +33,7 @@ public class DummyTaskManagerMetricGroup extends TaskManagerMetricGroup {
 	}
 
 	@Override
-	protected MetricGroup addMetric(String name, Metric metric) {
-		return this;
-	}
-
-	@Override
-	public MetricGroup addGroup(int name) {
-		return addGroup("" + name);
-	}
+	protected void addMetric(String name, Metric metric) {}
 
 	@Override
 	public MetricGroup addGroup(String name) {

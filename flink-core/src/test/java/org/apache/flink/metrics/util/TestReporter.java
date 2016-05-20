@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.reporter.AbstractReporter;
-import org.apache.flink.metrics.reporter.MetricReporter;
 
 import java.util.List;
 
 public class TestReporter extends AbstractReporter {
-	@Override
-	public void open(Configuration config) {
-	}
 
 	@Override
-	public void close() {
-	}
+	public void open(Configuration config) {}
+
+	@Override
+	public void close() {}
 
 	@Override
 	public String generateName(String name, List<String> scope) {

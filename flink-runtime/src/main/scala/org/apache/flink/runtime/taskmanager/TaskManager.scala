@@ -155,8 +155,8 @@ class TaskManager(
   /** Registry of metrics periodically transmitted to the JobManager */
   private val metricRegistry = TaskManager.createMetricsRegistry()
 
-  private var metricsRegistry : FlinkMetricRegistry = null
-  private var taskManagerMetricGroup : TaskManagerMetricGroup = null
+  private var metricsRegistry : FlinkMetricRegistry = _
+  private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
   /** Metric serialization */
   private val metricRegistryMapper: ObjectMapper = new ObjectMapper()
@@ -938,7 +938,7 @@ class TaskManager(
       libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
 
-    metricsRegistry = new FlinkMetricRegistry(this.config.configuration);
+    metricsRegistry = new FlinkMetricRegistry(config.configuration)
     
     taskManagerMetricGroup = 
       new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
@@ -1011,6 +1011,10 @@ class TaskManager(
 
     // disassociate the network environment
     network.disassociate()
+    
+    // stop the metrics reporters
+    metricsRegistry.shutdown()
+    metricsRegistry = null
   }
 
   protected def handleJobManagerDisconnect(jobManager: ActorRef, msg: String): Unit = {
@@ -1085,8 +1089,9 @@ class TaskManager(
       }
       
       val taskMetricGroup = taskManagerMetricGroup
-          .addJob(tdd.getJobID, jobName)
-          .addTask(tdd.getVertexID, tdd.getExecutionId, tdd.getIndexInSubtaskGroup, tdd.getTaskName)
+          .addTaskForJob(
+            tdd.getJobID, jobName,
+            tdd.getVertexID, tdd.getExecutionId, tdd.getIndexInSubtaskGroup, tdd.getTaskName)
 
       val task = new Task(
         tdd,
@@ -1224,16 +1229,16 @@ class TaskManager(
         registry.getSnapshot
       }
 
-        self ! decorateMessage(
-          UpdateTaskExecutionState(
-            new TaskExecutionState(
-              task.getJobID,
-              task.getExecutionId,
-              task.getExecutionState,
-              task.getFailureCause,
-              accumulators)
-          )
+      self ! decorateMessage(
+        UpdateTaskExecutionState(
+          new TaskExecutionState(
+            task.getJobID,
+            task.getExecutionId,
+            task.getExecutionState,
+            task.getFailureCause,
+            accumulators)
         )
+      )
     }
     else {
       log.error(s"Cannot find task with ID $executionID to unregister.")

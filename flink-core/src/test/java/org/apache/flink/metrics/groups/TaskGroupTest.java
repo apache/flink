@@ -28,12 +28,17 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 public class TaskGroupTest {
+
+	// ------------------------------------------------------------------------
+	//  scope tests
+	// ------------------------------------------------------------------------
+
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
+		
 		TaskMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
 
 		List<String> scope = operator.generateScope();
 		assertEquals(5, scope.size());
@@ -44,8 +49,7 @@ public class TaskGroupTest {
 	public void testGenerateScopeWilcard() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 		TaskMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setTaskFormat(Scope.concat(Scope.SCOPE_WILDCARD, "supertask", TaskMetricGroup.SCOPE_TASK_NAME));
@@ -64,8 +68,7 @@ public class TaskGroupTest {
 	public void testGenerateScopeCustom() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 		TaskMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job")
-			.addTask(new AbstractID(), new AbstractID(), 0, "task");
+			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setTaskFormat(Scope.concat(TaskManagerMetricGroup.SCOPE_TM_HOST, JobMetricGroup.SCOPE_JOB_NAME, "supertask", TaskMetricGroup.SCOPE_TASK_NAME));

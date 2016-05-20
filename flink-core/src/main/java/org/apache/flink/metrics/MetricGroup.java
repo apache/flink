@@ -15,31 +15,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A MetricGroup is a named container for {@link org.apache.flink.metrics.Metric}s and
- * {@link org.apache.flink.metrics.MetricGroup}s.
- * <p>
- * Instances of this class can be used to register new metrics with Flink and to create a nested hierarchy based on the
- * group names.
- * <p>
- * A MetricGroup is uniquely identified by it's place in the hierarchy and name.
+ * A MetricGroup is a named container for {@link Metric Metrics} and {@link MetricGroup MetricGroups}.
+ * 
+ * <p>Instances of this class can be used to register new metrics with Flink and to create a nested
+ * hierarchy based on the group names.
+ * 
+ * <p>A MetricGroup is uniquely identified by it's place in the hierarchy and name.
+ * 
+ * <p>Metrics groups can be {@link #close() closed}. Upon closing, they de-register all metrics
+ * from any metrics reporter and any internal maps. Note that even closed metrics groups
+ * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
+ * These metrics simply do not get reported any more, when created on a closed group.
  */
 @PublicEvolving
 public interface MetricGroup {
 
+	// ------------------------------------------------------------------------
+	//  Closing
+	// ------------------------------------------------------------------------
+	
 	/**
-	 * Recursively unregisters all {@link org.apache.flink.metrics.Metric}s contained in this
-	 * {@link org.apache.flink.metrics.MetricGroup}
+	 * Marks the group as closed.
+	 * Recursively unregisters all {@link Metric Metrics} contained in this group.
+	 * 
+	 * <p>Any metrics created after the call to this function will not be registered in
+	 * the {@link MetricRegistry} and not be reported to any reporter (like JMX).
 	 */
 	void close();
 
-	// -----------------------------------------------------------------------------------------------------------------
-	// Metrics
-	// -----------------------------------------------------------------------------------------------------------------
+	/**
+	 * Checks whether this MetricGroup has been closed. 
+	 * @return True if the group has been closed, false is the group is still open.
+	 */
+	boolean isClosed();
+
+	// ------------------------------------------------------------------------
+	//  Metrics
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates and registers a new {@link org.apache.flink.metrics.Counter} with Flink.
@@ -77,12 +95,12 @@ public interface MetricGroup {
 	 */
 	<T> Gauge<T> gauge(String name, Gauge<T> gauge);
 
-	// -----------------------------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 	// Groups
-	// -----------------------------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new {@link org.apache.flink.metrics.MetricGroup} and adds it to this groups sub-groups.
+	 * Creates a new MetricGroup and adds it to this groups sub-groups.
 	 *
 	 * @param name name of the group
 	 * @return the created group
@@ -90,7 +108,7 @@ public interface MetricGroup {
 	MetricGroup addGroup(int name);
 
 	/**
-	 * Creates a new {@link org.apache.flink.metrics.MetricGroup} and adds it to this groups sub-groups.
+	 * Creates a new MetricGroup and adds it to this groups sub-groups.
 	 *
 	 * @param name name of the group
 	 * @return the created group
