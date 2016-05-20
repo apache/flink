@@ -96,7 +96,7 @@ object L2Regularization extends RegularizationPenalty {
 
   /** Adds regularization to the loss value
     *
-    * The updated loss is `l + lambda * 1/2*||w||_2^2` where `l` is the old loss,
+    * The updated loss is `oldLoss + lambda * 1/2*||w||_2^2` where
     * `w` is the weight vector, and `lambda` is the regularization parameter
     *
     * @param oldLoss The loss to be updated
@@ -157,7 +157,7 @@ object L1Regularization extends RegularizationPenalty {
 
   /** Adds regularization to the loss value
     *
-    * The updated loss is `l + lambda * ||w||_1` where `l` is the old loss,
+    * The updated loss is `oldLoss + lambda * ||w||_1` where
     * `w` is the weight vector and `lambda` is the regularization parameter
     *
     * @param oldLoss The loss to be updated
@@ -201,7 +201,7 @@ object NoRegularization extends RegularizationPenalty {
   /**
    * Returns the unmodified loss value
    *
-   * The updated loss is `l` where `l` is the old loss,
+   * The updated loss is `oldLoss`
    *
    * @param oldLoss The loss to be updated
    * @param weightVector The gradient used to update the loss

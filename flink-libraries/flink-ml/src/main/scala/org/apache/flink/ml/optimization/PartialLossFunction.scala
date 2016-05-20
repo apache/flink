@@ -69,7 +69,7 @@ object SquaredLoss extends PartialLossFunction {
 /** Logistic loss function which can be used with the [[GenericLossFunction]]
   *
   *
-  * The [[LogisticLoss]] function implements `log(1 + exp(prediction*label))`
+  * The [[LogisticLoss]] function implements `log(1 + -exp(prediction*label))`
   * for binary classification with label in {-1, 1}
   */
 object LogisticLoss extends PartialLossFunction {

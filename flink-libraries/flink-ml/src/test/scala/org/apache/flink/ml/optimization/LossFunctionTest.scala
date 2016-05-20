@@ -21,19 +21,14 @@ package org.apache.flink.ml.optimization
 import org.apache.flink.ml.common.{LabeledVector, WeightVector}
 import org.apache.flink.ml.math.DenseVector
 import org.scalatest.{Matchers, FlatSpec}
-
-import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 
 
-class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
+class LossFunctionTest extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The optimization Loss Function implementations"
 
   it should "calculate squared loss and gradient correctly" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    env.setParallelism(2)
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
@@ -49,9 +44,6 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
   }
 
   it should "calculate logistic loss and gradient correctly" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    env.setParallelism(2)
 
     val lossFunction = GenericLossFunction(LogisticLoss, LinearPrediction)
 
@@ -81,9 +73,6 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
   }
 
   it should "calculate hinge loss and gradient correctly" in {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    env.setParallelism(2)
 
     val lossFunction = GenericLossFunction(HingeLoss, LinearPrediction)
 

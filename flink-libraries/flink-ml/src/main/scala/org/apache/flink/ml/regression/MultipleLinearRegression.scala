@@ -190,7 +190,7 @@ object MultipleLinearRegression {
 
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-      val optimizer = SimpleGradientDescent()
+      val optimizer = GradientDescent()
         .setIterations(numberOfIterations)
         .setStepsize(stepsize)
         .setLossFunction(lossFunction)
