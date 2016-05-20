@@ -22,11 +22,10 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.util.SerializedValue;
 
 
-import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -128,7 +127,7 @@ public class ExecutionConfig implements Serializable {
 
 	// ------------------------------- User code values --------------------------------------------
 
-	private transient GlobalJobParameters globalJobParameters;
+	private GlobalJobParameters globalJobParameters;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -144,22 +143,6 @@ public class ExecutionConfig implements Serializable {
 	private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
 
 	private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
-
-	// ----------------------- Helper values for serialized user objects ---------------------------
-
-	private SerializedValue<GlobalJobParameters> serializedGlobalJobParameters;
-
-	private SerializedValue<LinkedHashMap<Class<?>, SerializableSerializer<?>>> serializedRegisteredTypesWithKryoSerializers;
-
-	private SerializedValue<LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>> serializedRegisteredTypesWithKryoSerializerClasses;
-
-	private SerializedValue<LinkedHashMap<Class<?>, SerializableSerializer<?>>> serializedDefaultKryoSerializers;
-
-	private SerializedValue<LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>> serializedDefaultKryoSerializerClasses;
-
-	private SerializedValue<LinkedHashSet<Class<?>>> serializedRegisteredKryoTypes;
-
-	private SerializedValue<LinkedHashSet<Class<?>>> serializedRegisteredPojoTypes;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -695,79 +678,6 @@ public class ExecutionConfig implements Serializable {
 		this.autoTypeRegistrationEnabled = false;
 	}
 
-	/**
-	 * Deserializes user code objects given a user code class loader
-	 *
-	 * @param userCodeClassLoader User code class loader
-	 * @throws IOException Thrown if an IOException occurs while loading the classes
-	 * @throws ClassNotFoundException Thrown if the given class cannot be loaded
-	 */
-	public void deserializeUserCode(ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
-		if (serializedRegisteredKryoTypes != null) {
-			registeredKryoTypes = serializedRegisteredKryoTypes.deserializeValue(userCodeClassLoader);
-		} else {
-			registeredKryoTypes = new LinkedHashSet<>();
-		}
-
-		if (serializedRegisteredPojoTypes != null) {
-			registeredPojoTypes = serializedRegisteredPojoTypes.deserializeValue(userCodeClassLoader);
-		} else {
-			registeredPojoTypes = new LinkedHashSet<>();
-		}
-
-		if (serializedRegisteredTypesWithKryoSerializerClasses != null) {
-			registeredTypesWithKryoSerializerClasses = serializedRegisteredTypesWithKryoSerializerClasses.deserializeValue(userCodeClassLoader);
-		} else {
-			registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
-		}
-
-		if (serializedRegisteredTypesWithKryoSerializers != null) {
-			registeredTypesWithKryoSerializers = serializedRegisteredTypesWithKryoSerializers.deserializeValue(userCodeClassLoader);
-		} else {
-			registeredTypesWithKryoSerializerClasses = new LinkedHashMap<>();
-		}
-
-		if (serializedDefaultKryoSerializers != null) {
-			defaultKryoSerializers = serializedDefaultKryoSerializers.deserializeValue(userCodeClassLoader);
-		} else {
-			defaultKryoSerializers = new LinkedHashMap<>();
-
-		}
-
-		if (serializedDefaultKryoSerializerClasses != null) {
-			defaultKryoSerializerClasses = serializedDefaultKryoSerializerClasses.deserializeValue(userCodeClassLoader);
-		} else {
-			defaultKryoSerializerClasses = new LinkedHashMap<>();
-		}
-
-		if (serializedGlobalJobParameters != null) {
-			globalJobParameters = serializedGlobalJobParameters.deserializeValue(userCodeClassLoader);
-		}
-	}
-
-	public void serializeUserCode() throws IOException {
-		serializedRegisteredKryoTypes = new SerializedValue<>(registeredKryoTypes);
-		registeredKryoTypes = null;
-
-		serializedRegisteredPojoTypes = new SerializedValue<>(registeredPojoTypes);
-		registeredPojoTypes = null;
-
-		serializedRegisteredTypesWithKryoSerializerClasses = new SerializedValue<>(registeredTypesWithKryoSerializerClasses);
-		registeredTypesWithKryoSerializerClasses = null;
-
-		serializedRegisteredTypesWithKryoSerializers = new SerializedValue<>(registeredTypesWithKryoSerializers);
-		registeredTypesWithKryoSerializers = null;
-
-		serializedDefaultKryoSerializers = new SerializedValue<>(defaultKryoSerializers);
-		defaultKryoSerializers = null;
-
-		serializedDefaultKryoSerializerClasses = new SerializedValue<>(defaultKryoSerializerClasses);
-		defaultKryoSerializerClasses = null;
-
-		serializedGlobalJobParameters = new SerializedValue<>(globalJobParameters);
-		globalJobParameters = null;
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
@@ -854,10 +764,10 @@ public class ExecutionConfig implements Serializable {
 		 * Convert UserConfig into a {@code Map<String, String>} representation.
 		 * This can be used by the runtime, for example for presenting the user config in the web frontend.
 		 *
-		 * @return Key/Value representation of the UserConfig, or null.
+		 * @return Key/Value representation of the UserConfig
 		 */
 		public Map<String, String> toMap() {
-			return null;
+			return Collections.emptyMap();
 		}
 	}
 }

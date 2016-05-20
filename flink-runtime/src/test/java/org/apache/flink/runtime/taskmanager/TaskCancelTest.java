@@ -74,7 +74,7 @@ public class TaskCancelTest {
 			flink.start();
 
 			// Setup
-			final JobGraph jobGraph = new JobGraph("Cancel Big Union", new ExecutionConfig());
+			final JobGraph jobGraph = new JobGraph("Cancel Big Union");
 
 			JobVertex[] sources = new JobVertex[numberOfSources];
 			SlotSharingGroup group = new SlotSharingGroup();

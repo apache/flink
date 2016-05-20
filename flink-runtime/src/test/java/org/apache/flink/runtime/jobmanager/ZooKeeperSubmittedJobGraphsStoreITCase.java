@@ -261,7 +261,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	private SubmittedJobGraph createSubmittedJobGraph(JobID jobId, long start) {
-		final JobGraph jobGraph = new JobGraph(jobId, "Test JobGraph", new ExecutionConfig());
+		final JobGraph jobGraph = new JobGraph(jobId, "Test JobGraph");
 
 		final JobVertex jobVertex = new JobVertex("Test JobVertex");
 		jobVertex.setParallelism(1);

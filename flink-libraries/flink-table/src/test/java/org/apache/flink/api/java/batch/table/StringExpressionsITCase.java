@@ -21,10 +21,10 @@ package org.apache.flink.api.java.batch.table;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.TableEnvironment;
+import org.apache.flink.api.table.ValidationException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
@@ -64,6 +64,26 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testSubstringWithByteStart() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+		DataSet<Tuple2<String, Byte>> ds = env.fromElements(
+			new Tuple2<>("AAAA", (byte) 2),
+			new Tuple2<>("BBBB", (byte) 1));
+
+		Table in = tableEnv.fromDataSet(ds, "a, b");
+
+		Table result = in
+			.select("a.substring(1, b)");
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "AA\nB";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
 	public void testSubstringWithMaxEnd() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -83,7 +103,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonWorkingSubstring1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -102,7 +122,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		resultSet.collect();
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testNonWorkingSubstring2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -121,7 +141,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		resultSet.collect();
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForStringComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -132,7 +152,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForIntegerEqualsComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -143,7 +163,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(res, Row.class);
 	}
 
-	@Test(expected = CodeGenException.class)
+	@Test(expected = ValidationException.class)
 	public void testGeneratedCodeForIntegerGreaterComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);

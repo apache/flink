@@ -348,14 +348,13 @@ DataSet<Integer> data1 = // [...]
 DataSet<String> data2 = // [...]
 DataSet<Tuple2<Integer, String>> result = data1.cross(data2);
 {% endhighlight %}
-      <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
+      <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is advised to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
       <td><strong>Union</strong></td>
       <td>
-        <p>Produces the union of two data sets. This operation happens implicitly if more than one
-        data set is used for a specific function input.</p>
+        <p>Produces the union of two data sets.</p>
 {% highlight java %}
 DataSet<String> data1 = // [...]
 DataSet<String> data2 = // [...]
@@ -560,7 +559,7 @@ val output: DataSet[(Int, String, Doublr)] = input.aggregate(SUM, 0).aggregate(M
   <p>You can also use short-hand syntax for minimum, maximum, and sum aggregations.</p>
 {% highlight scala %}
 val input: DataSet[(Int, String, Double)] = // [...]
-val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
+val output: DataSet[(Int, String, Double)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
     </tr>
@@ -1100,7 +1099,7 @@ DataSet:
 - `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
   delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 - `print()` / `printToErr()` / `print(String msg)` / `printToErr(String msg)` - Prints the *toString()* value
-of each element on the standard out / strandard error stream. Optionally, a prefix (msg) can be provided which is
+of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
 prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
 greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 - `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
@@ -1135,7 +1134,7 @@ values.writeAsCsv("file:///path/to/the/result/file", "\n", "|");
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
 values.writeAsText("file:///path/to/the/result/file");
 
-// this wites values as strings using a user-defined TextFormatter object
+// this writes values as strings using a user-defined TextFormatter object
 values.writeAsFormattedText("file:///path/to/the/result/file",
     new TextFormatter<Tuple2<Integer, Integer>>() {
         public String format (Tuple2<Integer, Integer> value) {
@@ -1199,12 +1198,12 @@ using an
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataSet:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 - `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
   delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 - `print()` / `printToErr()` - Prints the *toString()* value of each element on the
-  standard out / strandard error stream.
+  standard out / standard error stream.
 - `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
   custom object-to-bytes conversion.
 - `output()`/ `OutputFormat` - Most generic output method, for data sinks that are not file based
@@ -1237,7 +1236,7 @@ values.writeAsCsv("file:///path/to/the/result/file", "\n", "|")
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
 values.writeAsText("file:///path/to/the/result/file");
 
-// this wites values as strings using a user-defined formatting
+// this writes values as strings using a user-defined formatting
 values map { tuple => tuple._1 + " - " + tuple._2 }
   .writeAsText("file:///path/to/the/result/file")
 {% endhighlight %}
@@ -1616,7 +1615,7 @@ result data. This section give some hints how to ease the development of Flink p
 ### Local Execution Environment
 
 A `LocalEnvironment` starts a Flink system within the same JVM process it was created in. If you
-start the LocalEnvironement from an IDE, you can set breakpoints in your code and easily debug your
+start the LocalEnvironment from an IDE, you can set breakpoints in your code and easily debug your
 program.
 
 A LocalEnvironment is created and used as follows:

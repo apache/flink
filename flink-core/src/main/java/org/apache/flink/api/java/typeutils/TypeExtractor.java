@@ -53,6 +53,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -271,7 +272,7 @@ public class TypeExtractor {
 		}
 		return new TypeExtractor().privateCreateTypeInfo(InputFormat.class, inputFormatInterface.getClass(), 0, null, null);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Generic extraction methods
 	// --------------------------------------------------------------------------------------------
@@ -595,7 +596,7 @@ public class TypeExtractor {
 			}
 			
 			if(curT == Tuple0.class) {
-				return new TupleTypeInfo(Tuple0.class, new TypeInformation<?>[0]);
+				return new TupleTypeInfo(Tuple0.class);
 			}
 			
 			// check if immediate child of Tuple has generics
@@ -1030,6 +1031,20 @@ public class TypeExtractor {
 					throw new InvalidTypesException("Basic type '" + typeInfo + "' expected but was '" + actual + "'.");
 				}
 				
+			}
+			// check for Java SQL time types
+			else if (typeInfo instanceof SqlTimeTypeInfo) {
+
+				TypeInformation<?> actual;
+				// check if SQL time type at all
+				if (!(type instanceof Class<?>) || (actual = SqlTimeTypeInfo.getInfoFor((Class<?>) type)) == null) {
+					throw new InvalidTypesException("SQL time type expected.");
+				}
+				// check if correct SQL time type
+				if (!typeInfo.equals(actual)) {
+					throw new InvalidTypesException("SQL time type '" + typeInfo + "' expected but was '" + actual + "'.");
+				}
+
 			}
 			// check for Java Tuples
 			else if (typeInfo instanceof TupleTypeInfo) {
@@ -1519,6 +1534,12 @@ public class TypeExtractor {
 		TypeInformation<OUT> basicTypeInfo = BasicTypeInfo.getInfoFor(clazz);
 		if (basicTypeInfo != null) {
 			return basicTypeInfo;
+		}
+
+		// check for SQL time types
+		TypeInformation<OUT> timeTypeInfo = SqlTimeTypeInfo.getInfoFor(clazz);
+		if (timeTypeInfo != null) {
+			return timeTypeInfo;
 		}
 		
 		// check for subclasses of Value

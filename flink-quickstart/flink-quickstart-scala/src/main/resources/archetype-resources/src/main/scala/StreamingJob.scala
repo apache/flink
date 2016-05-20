@@ -21,10 +21,10 @@ package ${package}
 import org.apache.flink.api.scala._
 
 /**
- * Skeleton for a Flink Job.
+ * Skeleton for a Flink Streaming Job.
  *
- * For a full example of a Flink Job, see the WordCountJob.scala file in the
- * same package/directory or have a look at the website.
+ * For a full example of a Flink Streaming Job, see the SocketTextStreamWordCount.java
+ * file in the same package/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
  * cluster. Just type
@@ -32,22 +32,29 @@ import org.apache.flink.api.scala._
  *   mvn clean package
  * }}}
  * in the projects root directory. You will find the jar in
- * target/flink-quickstart-0.1-SNAPSHOT-Sample.jar
+ * target/flink-quickstart-${version}.jar
+ * From the CLI you can then run
+ * {{{
+ *    ./bin/flink run -c ${package}.StreamingJob target/flink-quickstart-${version}.jar
+ * }}}
  *
+ * For more information on the CLI see:
+ *
+ * http://flink.apache.org/docs/latest/apis/cli.html
  */
-object Job {
+object StreamingJob {
   def main(args: Array[String]) {
-    // set up the execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    // set up the streaming execution environment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     /**
      * Here, you can start creating your execution plan for Flink.
      *
      * Start with getting some data from the environment, like
-     * env.readTextFile(textPath);
+     *  env.readTextFile(textPath);
      *
-     * then, transform the resulting DataSet[String] using operations
-     * like:
+     * then, transform the resulting DataStream[String] using operations
+     * like
      *   .filter()
      *   .flatMap()
      *   .join()
@@ -56,16 +63,11 @@ object Job {
      * and many more.
      * Have a look at the programming guide:
      *
-     * http://flink.apache.org/docs/latest/apis/batch/index.html
-     *
-     * and the examples
-     *
-     * http://flink.apache.org/docs/latest/apis/batch/examples.html
+     * http://flink.apache.org/docs/latest/apis/streaming/index.html
      *
      */
 
-
     // execute program
-    env.execute("Flink Scala API Skeleton")
+    env.execute("Flink Streaming Scala API Skeleton")
   }
 }

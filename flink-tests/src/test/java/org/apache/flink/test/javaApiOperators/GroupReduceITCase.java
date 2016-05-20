@@ -1033,7 +1033,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		// check if automatic type registration with Kryo worked
 		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(BigInt.class));
-		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
+		Assert.assertFalse(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
 
 		String expected = null;
 

@@ -18,13 +18,14 @@ package ${package};
  * limitations under the License.
  */
 
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 
 /**
- * Skeleton for a Flink Job.
+ * Skeleton for a Flink Streaming Job.
  *
- * For a full example of a Flink Job, see the WordCountJob.java file in the
- * same package/directory or have a look at the website.
+ * For a full example of a Flink Streaming Job, see the SocketTextStreamWordCount.java
+ * file in the same package/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
  * cluster.
@@ -32,15 +33,19 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * 		mvn clean package
  * in the projects root directory.
  * You will find the jar in
- * 		target/flink-quickstart-0.1-SNAPSHOT-Sample.jar
+ * 		target/flink-quickstart-${version}.jar
+ * From the CLI you can then run
+ * 		./bin/flink run -c ${package}.StreamingJob target/flink-quickstart-${version}.jar
  *
+ * For more information on the CLI see:
+ *
+ * http://flink.apache.org/docs/latest/apis/cli.html
  */
-public class Job {
+public class StreamingJob {
 
 	public static void main(String[] args) throws Exception {
-		// set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
+		// set up the streaming execution environment
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		/**
 		 * Here, you can start creating your execution plan for Flink.
@@ -48,24 +53,21 @@ public class Job {
 		 * Start with getting some data from the environment, like
 		 * 	env.readTextFile(textPath);
 		 *
-		 * then, transform the resulting DataSet<String> using operations
+		 * then, transform the resulting DataStream<String> using operations
 		 * like
 		 * 	.filter()
 		 * 	.flatMap()
 		 * 	.join()
 		 * 	.coGroup()
+		 *
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
-		 * http://flink.apache.org/docs/latest/apis/batch/index.html
-		 *
-		 * and the examples
-		 *
-		 * http://flink.apache.org/docs/latest/apis/batch/examples.html
+		 * http://flink.apache.org/docs/latest/apis/streaming/index.html
 		 *
 		 */
 
 		// execute program
-		env.execute("Flink Java API Skeleton");
+		env.execute("Flink Streaming Java API Skeleton");
 	}
 }

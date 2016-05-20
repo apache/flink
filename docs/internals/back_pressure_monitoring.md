@@ -54,7 +54,7 @@ In order to not overload the task managers with stack trace samples, the web int
 
 ## Configuration
 
-You can configure the number of samples for the job manager with the following confiugration keys:
+You can configure the number of samples for the job manager with the following configuration keys:
 
 - `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: 60000, 1 min).
 - `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: 100).

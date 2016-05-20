@@ -15,9 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
+
+package org.apache.flink.api.common.typeutils.base;
+
+import java.sql.Time;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * General Exception for all errors during table handling.
+ * A test for the {@link SqlTimeSerializer}.
  */
-class TableException(msg: String) extends RuntimeException(msg)
+public class SqlTimeSerializerTest extends SerializerTestBase<Time> {
+
+	@Override
+	protected TypeSerializer<Time> createSerializer() {
+		return new SqlTimeSerializer();
+	}
+
+	@Override
+	protected int getLength() {
+		return 8;
+	}
+
+	@Override
+	protected Class<Time> getTypeClass() {
+		return Time.class;
+	}
+
+	@Override
+	protected Time[] getTestData() {
+		return new Time[] {
+			new Time(0L),
+			Time.valueOf("00:00:00"),
+			Time.valueOf("02:42:85"),
+			Time.valueOf("14:15:59"),
+			Time.valueOf("18:00:45")
+		};
+	}
+}

@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +163,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		KinesisProducerConfiguration config = new KinesisProducerConfiguration();
 		config.setRegion(this.region);
 		config.setCredentialsProvider(new StaticCredentialsProvider(new BasicAWSCredentials(this.accessKey, this.secretKey)));
+		//config.setCollectionMaxCount(1);
+		//config.setAggregationMaxCount(1);
 		producer = new KinesisProducer(config);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override

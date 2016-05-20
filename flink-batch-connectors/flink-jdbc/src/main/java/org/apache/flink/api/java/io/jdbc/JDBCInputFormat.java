@@ -19,87 +19,219 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.sql.Array;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
-
-import org.apache.flink.api.common.io.NonParallelInput;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.Arrays;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.types.NullValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * InputFormat to read data from a database and generate tuples.
+ * InputFormat to read data from a database and generate Rows.
  * The InputFormat has to be configured using the supplied InputFormatBuilder.
- * 
- * @param <OUT>
- * @see Tuple
+ * A valid RowTypeInfo must be properly configured in the builder, e.g.: </br>
+ *
+ * <pre><code>
+ * TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
+ *		BasicTypeInfo.INT_TYPE_INFO,
+ *		BasicTypeInfo.STRING_TYPE_INFO,
+ *		BasicTypeInfo.STRING_TYPE_INFO,
+ *		BasicTypeInfo.DOUBLE_TYPE_INFO,
+ *		BasicTypeInfo.INT_TYPE_INFO
+ *	};
+ *
+ * RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes);
+ *
+ * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+ *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+ *				.setDBUrl("jdbc:derby:memory:ebookshop")
+ *				.setQuery("select * from books")
+ *				.setRowTypeInfo(rowTypeInfo)
+ *				.finish();
+ * </code></pre>
+ *
+ * In order to query the JDBC source in parallel, you need to provide a
+ * parameterized query template (i.e. a valid {@link PreparedStatement}) and
+ * a {@link ParameterValuesProvider} which provides binding values for the
+ * query parameters. E.g.:</br>
+ *
+ * <pre><code>
+ *
+ * Serializable[][] queryParameters = new String[2][1];
+ * queryParameters[0] = new String[]{"Kumar"};
+ * queryParameters[1] = new String[]{"Tan Ah Teck"};
+ *
+ * JDBCInputFormat jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+ *				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
+ *				.setDBUrl("jdbc:derby:memory:ebookshop")
+ *				.setQuery("select * from books WHERE author = ?")
+ *				.setRowTypeInfo(rowTypeInfo)
+ *				.setParametersProvider(new GenericParameterValuesProvider(queryParameters))
+ *				.finish();
+ * </code></pre>
+ *
+ * @see Row
+ * @see ParameterValuesProvider
+ * @see PreparedStatement
  * @see DriverManager
  */
-public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput {
-	private static final long serialVersionUID = 1L;
+public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements ResultTypeQueryable {
 
+	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
 
 	private String username;
 	private String password;
 	private String drivername;
 	private String dbURL;
-	private String query;
+	private String queryTemplate;
 	private int resultSetType;
 	private int resultSetConcurrency;
+	private RowTypeInfo rowTypeInfo;
 
 	private transient Connection dbConn;
-	private transient Statement statement;
+	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 
-	private int[] columnTypes = null;
+	private boolean hasNext;
+	private Object[][] parameterValues;
 
 	public JDBCInputFormat() {
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
+	public RowTypeInfo getProducedType() {
+		return rowTypeInfo;
 	}
 
-	/**
-	 * Connects to the source database and executes the query.
-	 *
-	 * @param ignored
-	 * @throws IOException
-	 */
 	@Override
-	public void open(InputSplit ignored) throws IOException {
+	public void configure(Configuration parameters) {
+		//do nothing here
+	}
+
+	@Override
+	public void openInputFormat() {
+		//called once per inputFormat (on open)
 		try {
-			establishConnection();
-			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
-			resultSet = statement.executeQuery(query);
+			Class.forName(drivername);
+			if (username == null) {
+				dbConn = DriverManager.getConnection(dbURL);
+			} else {
+				dbConn = DriverManager.getConnection(dbURL, username, password);
+			}
+			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
 		} catch (SQLException se) {
-			close();
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
 		}
 	}
 
-	private void establishConnection() throws SQLException, ClassNotFoundException {
-		Class.forName(drivername);
-		if (username == null) {
-			dbConn = DriverManager.getConnection(dbURL);
-		} else {
-			dbConn = DriverManager.getConnection(dbURL, username, password);
+	@Override
+	public void closeInputFormat() {
+		//called once per inputFormat (on close)
+		try {
+			if(statement != null) {
+				statement.close();
+			}
+		} catch (SQLException se) {
+			LOG.info("Inputformat Statement couldn't be closed - " + se.getMessage());
+		} finally {
+			statement = null;
+		}
+
+		try {
+			if(dbConn != null) {
+				dbConn.close();
+			}
+		} catch (SQLException se) {
+			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
+		} finally {
+			dbConn = null;
+		}
+
+		parameterValues = null;
+	}
+
+	/**
+	 * Connects to the source database and executes the query in a <b>parallel
+	 * fashion</b> if
+	 * this {@link InputFormat} is built using a parameterized query (i.e. using
+	 * a {@link PreparedStatement})
+	 * and a proper {@link ParameterValuesProvider}, in a <b>non-parallel
+	 * fashion</b> otherwise.
+	 *
+	 * @param inputSplit which is ignored if this InputFormat is executed as a
+	 *        non-parallel source,
+	 *        a "hook" to the query parameters otherwise (using its
+	 *        <i>splitNumber</i>)
+	 * @throws IOException if there's an error during the execution of the query
+	 */
+	@Override
+	public void open(InputSplit inputSplit) throws IOException {
+		try {
+			if (inputSplit != null && parameterValues != null) {
+				for (int i = 0; i < parameterValues[inputSplit.getSplitNumber()].length; i++) {
+					Object param = parameterValues[inputSplit.getSplitNumber()][i];
+					if (param instanceof String) {
+						statement.setString(i + 1, (String) param);
+					} else if (param instanceof Long) {
+						statement.setLong(i + 1, (Long) param);
+					} else if (param instanceof Integer) {
+						statement.setInt(i + 1, (Integer) param);
+					} else if (param instanceof Double) {
+						statement.setDouble(i + 1, (Double) param);
+					} else if (param instanceof Boolean) {
+						statement.setBoolean(i + 1, (Boolean) param);
+					} else if (param instanceof Float) {
+						statement.setFloat(i + 1, (Float) param);
+					} else if (param instanceof BigDecimal) {
+						statement.setBigDecimal(i + 1, (BigDecimal) param);
+					} else if (param instanceof Byte) {
+						statement.setByte(i + 1, (Byte) param);
+					} else if (param instanceof Short) {
+						statement.setShort(i + 1, (Short) param);
+					} else if (param instanceof Date) {
+						statement.setDate(i + 1, (Date) param);
+					} else if (param instanceof Time) {
+						statement.setTime(i + 1, (Time) param);
+					} else if (param instanceof Timestamp) {
+						statement.setTimestamp(i + 1, (Timestamp) param);
+					} else if (param instanceof Array) {
+						statement.setArray(i + 1, (Array) param);
+					} else {
+						//extends with other types if needed
+						throw new IllegalArgumentException("open() failed. Parameter " + i + " of type " + param.getClass() + " is not handled (yet)." );
+					}
+				}
+				if (LOG.isDebugEnabled()) {
+					LOG.debug(String.format("Executing '%s' with parameters %s", queryTemplate, Arrays.deepToString(parameterValues[inputSplit.getSplitNumber()])));
+				}
+			}
+			resultSet = statement.executeQuery();
+			hasNext = resultSet.next();
+		} catch (SQLException se) {
+			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		}
 	}
 
@@ -110,23 +242,13 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 */
 	@Override
 	public void close() throws IOException {
+		if(resultSet == null) {
+			return;
+		}
 		try {
 			resultSet.close();
 		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
-		}
-		try {
-			statement.close();
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
-		}
-		try {
-			dbConn.close();
-		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
-		} catch (NullPointerException npe) {
+			LOG.info("Inputformat ResultSet couldn't be closed - " + se.getMessage());
 		}
 	}
 
@@ -138,147 +260,32 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	 */
 	@Override
 	public boolean reachedEnd() throws IOException {
-		try {
-			if (resultSet.isLast()) {
-				close();
-				return true;
-			}
-			return false;
-		} catch (SQLException se) {
-			throw new IOException("Couldn't evaluate reachedEnd() - " + se.getMessage(), se);
-		}
+		return !hasNext;
 	}
 
 	/**
 	 * Stores the next resultSet row in a tuple
 	 *
-	 * @param tuple
-	 * @return tuple containing next row
+	 * @param row row to be reused.
+	 * @return row containing next {@link Row}
 	 * @throws java.io.IOException
 	 */
 	@Override
-	public OUT nextRecord(OUT tuple) throws IOException {
+	public Row nextRecord(Row row) throws IOException {
 		try {
-			resultSet.next();
-			if (columnTypes == null) {
-				extractTypes(tuple);
+			if (!hasNext) {
+				return null;
 			}
-			addValue(tuple);
-			return tuple;
+			for (int pos = 0; pos < row.productArity(); pos++) {
+				row.setField(pos, resultSet.getObject(pos + 1));
+			}
+			//update hasNext after we've read the record
+			hasNext = resultSet.next();
+			return row;
 		} catch (SQLException se) {
-			close();
 			throw new IOException("Couldn't read data - " + se.getMessage(), se);
 		} catch (NullPointerException npe) {
-			close();
 			throw new IOException("Couldn't access resultSet", npe);
-		}
-	}
-
-	private void extractTypes(OUT tuple) throws SQLException, IOException {
-		ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-		columnTypes = new int[resultSetMetaData.getColumnCount()];
-		if (tuple.getArity() != columnTypes.length) {
-			close();
-			throw new IOException("Tuple size does not match columncount");
-		}
-		for (int pos = 0; pos < columnTypes.length; pos++) {
-			columnTypes[pos] = resultSetMetaData.getColumnType(pos + 1);
-		}
-	}
-
-	/**
-	 * Enters data value from the current resultSet into a Record.
-	 *
-	 * @param reuse Target Record.
-	 */
-	private void addValue(OUT reuse) throws IOException, SQLException {
-		for (int pos = 0; pos < columnTypes.length; pos++) {
-			try {
-				switch (columnTypes[pos]) {
-					case java.sql.Types.NULL:
-						reuse.setField(NullValue.getInstance(), pos);
-						break;
-					case java.sql.Types.BOOLEAN:
-						reuse.setField(resultSet.getBoolean(pos + 1), pos);
-						break;
-					case java.sql.Types.BIT:
-						reuse.setField(resultSet.getBoolean(pos + 1), pos);
-						break;
-					case java.sql.Types.CHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
-						break;
-					case java.sql.Types.NCHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
-						break;
-					case java.sql.Types.VARCHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
-						break;
-					case java.sql.Types.LONGVARCHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
-						break;
-					case java.sql.Types.LONGNVARCHAR:
-						reuse.setField(resultSet.getString(pos + 1), pos);
-						break;
-					case java.sql.Types.TINYINT:
-						reuse.setField(resultSet.getShort(pos + 1), pos);
-						break;
-					case java.sql.Types.SMALLINT:
-						reuse.setField(resultSet.getShort(pos + 1), pos);
-						break;
-					case java.sql.Types.BIGINT:
-						reuse.setField(resultSet.getLong(pos + 1), pos);
-						break;
-					case java.sql.Types.INTEGER:
-						reuse.setField(resultSet.getInt(pos + 1), pos);
-						break;
-					case java.sql.Types.FLOAT:
-						reuse.setField(resultSet.getDouble(pos + 1), pos);
-						break;
-					case java.sql.Types.REAL:
-						reuse.setField(resultSet.getFloat(pos + 1), pos);
-						break;
-					case java.sql.Types.DOUBLE:
-						reuse.setField(resultSet.getDouble(pos + 1), pos);
-						break;
-					case java.sql.Types.DECIMAL:
-						reuse.setField(resultSet.getBigDecimal(pos + 1).doubleValue(), pos);
-						break;
-					case java.sql.Types.NUMERIC:
-						reuse.setField(resultSet.getBigDecimal(pos + 1).doubleValue(), pos);
-						break;
-					case java.sql.Types.DATE:
-						reuse.setField(resultSet.getDate(pos + 1).toString(), pos);
-						break;
-					case java.sql.Types.TIME:
-						reuse.setField(resultSet.getTime(pos + 1).getTime(), pos);
-						break;
-					case java.sql.Types.TIMESTAMP:
-						reuse.setField(resultSet.getTimestamp(pos + 1).toString(), pos);
-						break;
-					case java.sql.Types.SQLXML:
-						reuse.setField(resultSet.getSQLXML(pos + 1).toString(), pos);
-						break;
-					default:
-						throw new SQLException("Unsupported sql-type [" + columnTypes[pos] + "] on column [" + pos + "]");
-
-						// case java.sql.Types.BINARY:
-						// case java.sql.Types.VARBINARY:
-						// case java.sql.Types.LONGVARBINARY:
-						// case java.sql.Types.ARRAY:
-						// case java.sql.Types.JAVA_OBJECT:
-						// case java.sql.Types.BLOB:
-						// case java.sql.Types.CLOB:
-						// case java.sql.Types.NCLOB:
-						// case java.sql.Types.DATALINK:
-						// case java.sql.Types.DISTINCT:
-						// case java.sql.Types.OTHER:
-						// case java.sql.Types.REF:
-						// case java.sql.Types.ROWID:
-						// case java.sql.Types.STRUCT:
-				}
-			} catch (NullPointerException npe) {
-				throw new IOException("Encountered null value for column " + pos + ". Decimal, Numeric, Date, Time, Timestamp and SQLXML columns may not contain NULL values.");
-			}
 		}
 	}
 
@@ -289,17 +296,20 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 
 	@Override
 	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		GenericInputSplit[] split = {
-			new GenericInputSplit(0, 1)
-		};
-		return split;
+		if (parameterValues == null) {
+			return new GenericInputSplit[]{new GenericInputSplit(0, 1)};
+		}
+		GenericInputSplit[] ret = new GenericInputSplit[parameterValues.length];
+		for (int i = 0; i < ret.length; i++) {
+			ret[i] = new GenericInputSplit(i, ret.length);
+		}
+		return ret;
 	}
 
 	@Override
 	public InputSplitAssigner getInputSplitAssigner(InputSplit[] inputSplits) {
 		return new DefaultInputSplitAssigner(inputSplits);
 	}
-	
 
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
@@ -314,6 +324,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 
 		public JDBCInputFormatBuilder() {
 			this.format = new JDBCInputFormat();
+			//using TYPE_FORWARD_ONLY for high performance reads
 			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
 			this.format.resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 		}
@@ -339,7 +350,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 		}
 
 		public JDBCInputFormatBuilder setQuery(String query) {
-			format.query = query;
+			format.queryTemplate = query;
 			return this;
 		}
 
@@ -353,6 +364,16 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 			return this;
 		}
 
+		public JDBCInputFormatBuilder setParametersProvider(ParameterValuesProvider parameterValuesProvider) {
+			format.parameterValues = parameterValuesProvider.getParameterValues();
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
+			format.rowTypeInfo = rowTypeInfo;
+			return this;
+		}
+
 		public JDBCInputFormat finish() {
 			if (format.username == null) {
 				LOG.info("Username was not supplied separately.");
@@ -363,14 +384,21 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 			if (format.dbURL == null) {
 				throw new IllegalArgumentException("No database URL supplied");
 			}
-			if (format.query == null) {
+			if (format.queryTemplate == null) {
 				throw new IllegalArgumentException("No query supplied");
 			}
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
+			if (format.rowTypeInfo == null) {
+				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
+			}
+			if (format.parameterValues == null) {
+				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
+			}
 			return format;
 		}
+
 	}
 
 }

@@ -111,8 +111,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       stringLiteralFlink | singleQuoteStringLiteral |
       boolLiteral | nullLiteral
 
-  lazy val fieldReference: PackratParser[Expression] = ident ^^ {
-    case sym => UnresolvedFieldReference(sym)
+  lazy val fieldReference: PackratParser[NamedExpression] = ident ^^ {
+    sym => UnresolvedFieldReference(sym)
   }
 
   lazy val atom: PackratParser[Expression] =
@@ -155,7 +155,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixAs: PackratParser[Expression] =
     composite ~ "." ~ AS ~ "(" ~ fieldReference ~ ")" ^^ {
-    case e ~ _ ~ _ ~ _ ~ target ~ _ => Naming(e, target.name)
+    case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
   lazy val suffixEval: PackratParser[Expression] =
@@ -165,27 +165,23 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixFunctionCall =
     composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args : _*)
+    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
   }
 
   lazy val suffixTrim = composite ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
       expression ~ ")" ^^ {
     case operand ~ _ ~ trimType ~ _ ~ trimCharacter ~ _ =>
       val flag = trimType match {
-        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
-        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
-        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
+        case "BOTH" => TrimConstants.TRIM_BOTH
+        case "LEADING" => TrimConstants.TRIM_LEADING
+        case "TRAILING" => TrimConstants.TRIM_TRAILING
       }
-      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+      Trim(flag, trimCharacter, operand)
   }
 
   lazy val suffixTrimWithoutArgs = composite <~ ".trim" ~ opt("()") ^^ {
     case e =>
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
-        BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
-        e)
+      Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
   }
 
   lazy val suffixed: PackratParser[Expression] =
@@ -223,7 +219,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixAs: PackratParser[Expression] =
     AS ~ "(" ~ expression ~ "," ~ fieldReference ~ ")" ^^ {
-    case _ ~ _ ~ e ~ _ ~ target ~ _ => Naming(e, target.name)
+    case _ ~ _ ~ e ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
   lazy val prefixEval: PackratParser[Expression] = composite ~
@@ -232,27 +228,23 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val prefixFunctionCall = functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-    case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args: _*)
+    case name ~ _ ~ args ~ _ => Call(name.toUpperCase, args)
   }
 
   lazy val prefixTrim = "trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~ expression ~
       "," ~ expression ~ ")" ^^ {
     case _ ~ trimType ~ _ ~ trimCharacter ~ _ ~ operand ~ _ =>
       val flag = trimType match {
-        case "BOTH" => BuiltInFunctionConstants.TRIM_BOTH
-        case "LEADING" => BuiltInFunctionConstants.TRIM_LEADING
-        case "TRAILING" => BuiltInFunctionConstants.TRIM_TRAILING
+        case "BOTH" => TrimConstants.TRIM_BOTH
+        case "LEADING" => TrimConstants.TRIM_LEADING
+        case "TRAILING" => TrimConstants.TRIM_TRAILING
       }
-      Call(BuiltInFunctionNames.TRIM, flag, trimCharacter, operand)
+      Trim(flag, trimCharacter, operand)
   }
 
   lazy val prefixTrimWithoutArgs = "trim(" ~ expression ~ ")" ^^ {
     case _ ~ operand ~ _ =>
-      Call(
-        BuiltInFunctionNames.TRIM,
-        BuiltInFunctionConstants.TRIM_BOTH,
-        BuiltInFunctionConstants.TRIM_DEFAULT_CHAR,
-        operand)
+      Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, operand)
   }
 
   lazy val prefixed: PackratParser[Expression] =
@@ -322,7 +314,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   // alias
 
   lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
-    case e ~ _ ~ name => Naming(e, name.name)
+    case e ~ _ ~ name => Alias(e, name.name)
   } | logic
 
   lazy val expression: PackratParser[Expression] = alias

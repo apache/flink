@@ -840,7 +840,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// add producing topology
 		Properties producerProps = new Properties();
-		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 14));
+		producerProps.setProperty("max.request.size", Integer.toString(1024 * 1024 * 15));
 		producerProps.setProperty("retries", "3");
 		producerProps.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerConnectionStrings);
 

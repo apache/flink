@@ -18,57 +18,49 @@
 
 package org.apache.flink.api.table.plan
 
-import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.table.TableEnvironment
-
 import org.apache.flink.api.table.expressions._
 
 object RexNodeTranslator {
 
   /**
-    * Extracts all aggregation expressions (zero, one, or more) from an expression, translates
-    * these aggregation expressions into Calcite AggCalls, and replaces the original aggregation
-    * expressions by field accesses expressions.
+    * Extracts all aggregation expressions (zero, one, or more) from an expression,
+    * and replaces the original aggregation expressions by field accesses expressions.
     */
-  def extractAggCalls(
+  def extractAggregations(
     exp: Expression,
-    tableEnv: TableEnvironment): Pair[Expression, List[AggCall]] = {
-
-    val relBuilder = tableEnv.getRelBuilder
+    tableEnv: TableEnvironment): Pair[Expression, List[NamedExpression]] = {
 
     exp match {
       case agg: Aggregation =>
         val name = tableEnv.createUniqueAttributeName()
-        val aggCall = agg.toAggCall(name)(relBuilder)
+        val aggCall = Alias(agg, name)
         val fieldExp = new UnresolvedFieldReference(name)
         (fieldExp, List(aggCall))
-      case n@Naming(agg: Aggregation, name) =>
-        val aggCall = agg.toAggCall(name)(relBuilder)
+      case n @ Alias(agg: Aggregation, name) =>
         val fieldExp = new UnresolvedFieldReference(name)
-        (fieldExp, List(aggCall))
+        (fieldExp, List(n))
       case l: LeafExpression =>
         (l, Nil)
       case u: UnaryExpression =>
-        val c = extractAggCalls(u.child, tableEnv)
-        (u.makeCopy(List(c._1)), c._2)
+        val c = extractAggregations(u.child, tableEnv)
+        (u.makeCopy(Array(c._1)), c._2)
       case b: BinaryExpression =>
-        val l = extractAggCalls(b.left, tableEnv)
-        val r = extractAggCalls(b.right, tableEnv)
-        (b.makeCopy(List(l._1, r._1)), l._2 ::: r._2)
-      case e: Eval =>
-        val c = extractAggCalls(e.condition, tableEnv)
-        val t = extractAggCalls(e.ifTrue, tableEnv)
-        val f = extractAggCalls(e.ifFalse, tableEnv)
-        (e.makeCopy(List(c._1, t._1, f._1)), c._2 ::: t._2 ::: f._2)
+        val l = extractAggregations(b.left, tableEnv)
+        val r = extractAggregations(b.right, tableEnv)
+        (b.makeCopy(Array(l._1, r._1)), l._2 ::: r._2)
 
       // Scalar functions
-      case c@Call(name, args@_*) =>
-        val newArgs = args.map(extractAggCalls(_, tableEnv)).toList
-        (c.makeCopy(name :: newArgs.map(_._1)), newArgs.flatMap(_._2))
+      case c @ Call(name, args) =>
+        val newArgs = args.map(extractAggregations(_, tableEnv))
+        (c.makeCopy((name :: newArgs.map(_._1) :: Nil).toArray), newArgs.flatMap(_._2).toList)
 
-      case e@AnyRef =>
-        throw new IllegalArgumentException(
-          s"Expression $e of type ${e.getClass} not supported yet")
+      case e: Expression =>
+        val newArgs = e.productIterator.map {
+          case arg: Expression =>
+            extractAggregations(arg, tableEnv)
+        }
+        (e.makeCopy(newArgs.map(_._1).toArray), newArgs.flatMap(_._2).toList)
     }
   }
 }

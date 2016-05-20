@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -50,7 +50,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new JobID(),
 			"test",
 			new Configuration(),
-			new ExecutionConfig(),
+			ExecutionConfigTest.getSerializedConfig(),
 			new FiniteDuration(1, TimeUnit.DAYS),
 			new NoRestartStrategy(),
 			Collections.<BlobKey>emptyList(),

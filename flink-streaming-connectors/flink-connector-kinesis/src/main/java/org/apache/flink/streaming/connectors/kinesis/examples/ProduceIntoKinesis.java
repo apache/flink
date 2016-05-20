@@ -22,11 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
-import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
-import org.apache.flink.streaming.connectors.kinesis.KinesisSerializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
-
-import java.nio.ByteBuffer;
 
 /**
  * This is an example on how to produce data into Kinesis

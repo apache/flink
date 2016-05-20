@@ -38,7 +38,7 @@ class TableProgramsTestBase(
     val conf = new TableConfig
     tableConfigMode match {
       case NULL =>
-        conf.setNullCheck(true)
+        conf.setNullCheck(false)
       case EFFICIENT =>
         conf.setEfficientTypeUsage(true)
       case _ => // keep default

@@ -45,7 +45,13 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
 
-		ExecutionConfig ec = graph.getExecutionConfig();
+		ExecutionConfig ec;
+		try {
+			ec = graph.getSerializedExecutionConfig().deserializeValue(graph.getUserClassLoader());
+		} catch (Exception e) {
+			throw new RuntimeException("Couldn't deserialize ExecutionConfig.", e);
+		}
+
 		if (ec != null) {
 			gen.writeObjectFieldStart("execution-config");
 			

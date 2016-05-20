@@ -166,7 +166,7 @@ Bolts can accesses input tuple fields via name (additionally to access via index
 To use this feature with embedded Bolts, you need to have either a
 
  1. [POJO]({{site.baseurl}}/apis/batch/index.html#pojos) type input stream or
- 2. [Tuple]({{site.baseurl}}/apis/batch/index.html#tuples-and-case-classes) type input stream and spedify the input schema (ie, name-to-index-mapping)
+ 2. [Tuple]({{site.baseurl}}/apis/batch/index.html#tuples-and-case-classes) type input stream and specify the input schema (i.e. name-to-index-mapping)
 
 For POJO input types, Flink accesses the fields via reflection.
 For this case, Flink expects either a corresponding public member variable or public getter method.
@@ -261,7 +261,7 @@ An example of a finite Spout that emits records for 10 seconds only:
 <div data-lang="java" markdown="1">
 ~~~java
 public class TimedFiniteSpout extends BaseRichSpout implements FiniteSpout {
-	[...] // implemente open(), nextTuple(), ...
+	[...] // implement open(), nextTuple(), ...
 
 	private long starttime = System.currentTimeMillis();
 

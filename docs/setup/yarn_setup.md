@@ -221,7 +221,7 @@ Note: It is possible to combine `-m yarn-cluster` with a detached YARN submissio
 Flink's YARN client has the following configuration parameters to control how to behave in case of container failures. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
 
 - `yarn.reallocate-failed`: This parameter controls whether Flink should reallocate failed TaskManager containers. Default: true
-- `yarn.maximum-failed-containers`: The maximum number of failed containers the ApplicationMaster accepts until it fails the YARN session. Default: The number of initally requested TaskManagers (`-n`).
+- `yarn.maximum-failed-containers`: The maximum number of failed containers the ApplicationMaster accepts until it fails the YARN session. Default: The number of initially requested TaskManagers (`-n`).
 - `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
 
 ## Debugging a failed YARN session
@@ -240,11 +240,11 @@ yarn logs -applicationId <application ID>
 
 Note that it takes a few seconds after the session has finished until the logs show up.
 
-### YARN Client console & Webinterfaces
+### YARN Client console & Web interfaces
 
 The Flink YARN client also prints error messages in the terminal if errors occur during runtime (for example if a TaskManager stops working after some time).
 
-In addition to that, there is the YARN Resource Manager webinterface (by default on port 8088). The port of the Resource Manager web interface is determined by the `yarn.resourcemanager.webapp.address` configuration value.
+In addition to that, there is the YARN Resource Manager web interface (by default on port 8088). The port of the Resource Manager web interface is determined by the `yarn.resourcemanager.webapp.address` configuration value.
 
 It allows to access log files for running YARN applications and shows diagnostics for failed apps.
 
@@ -261,7 +261,7 @@ ranges configured, users can also submit jobs to Flink crossing the firewall.
 
 Currently, two services are needed to submit a job:
 
- * The JobManager (ApplicatonMaster in YARN)
+ * The JobManager (ApplicationMaster in YARN)
  * The BlobServer running within the JobManager.
 
 When submitting a job to Flink, the BlobServer will distribute the jars with the user code to all worker nodes (TaskManagers).

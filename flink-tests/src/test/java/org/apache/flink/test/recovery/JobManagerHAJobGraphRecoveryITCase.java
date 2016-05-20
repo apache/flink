@@ -440,7 +440,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	 * Creates a simple blocking JobGraph.
 	 */
 	private static JobGraph createBlockingJobGraph() {
-		JobGraph jobGraph = new JobGraph("Blocking program", new ExecutionConfig());
+		JobGraph jobGraph = new JobGraph("Blocking program");
 
 		JobVertex jobVertex = new JobVertex("Blocking Vertex");
 		jobVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);

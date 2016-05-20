@@ -84,11 +84,12 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	@Override
 	@PublicEvolving
 	public int getFieldIndex(String fieldName) {
-		int fieldIndex = Integer.parseInt(fieldName.substring(1));
-		if (fieldIndex >= getArity()) {
-			return -1;
+		for (int i = 0; i < fieldNames.length; i++) {
+			if (fieldNames[i].equals(fieldName)) {
+				return i;
+			}
 		}
-		return fieldIndex;
+		return -1;
 	}
 
 	@SuppressWarnings("unchecked")

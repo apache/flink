@@ -563,7 +563,7 @@ The degree of parallelism of a task can be specified in Flink on different level
 
 ### Execution Environment Level
 
-Flink programs are executed in the context of an [execution environmentt](#program-skeleton). An
+Flink programs are executed in the context of an [execution environment](#program-skeleton). An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
 parallelism of an operator.

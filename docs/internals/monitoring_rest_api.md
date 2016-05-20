@@ -39,7 +39,7 @@ The monitoring API is backed by a web server that runs as part of the *JobManage
 
 In the case of multiple JobManagers (for high availability), each JobManager will run its own instance of the monitoring API, which offers information about completed and running job while that JobManager was elected the cluster leader.
 
-**NOTE:** Currently, the monitoring API is started together with the new web dashboard. To enable it, one need to add the following entry to the `flink-conf.yaml` in order to activate the new dashboard instread of the old dashboard: `jobmanager.new-web-frontend: true`
+**NOTE:** Currently, the monitoring API is started together with the new web dashboard. To enable it, one need to add the following entry to the `flink-conf.yaml` in order to activate the new dashboard instead of the old dashboard: `jobmanager.new-web-frontend: true`
 
 
 ## Developing
@@ -169,11 +169,11 @@ Sample Result:
 
 **`/joboverview/running`**
 
-Jobs, groupes by status, each with a small summary of its status. The same as `/joboverview`, but containing only currently running jobs.
+Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only currently running jobs.
 
 **`/joboverview/completed`**
 
-Jobs, groupes by status, each with a small summary of its status. The same as `/joboverview`, but containing only completed (finished, canceled, or failed) jobs.
+Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only completed (finished, canceled, or failed) jobs.
 
 
 ### Details of a Running or Completed Job

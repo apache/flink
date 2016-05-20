@@ -644,8 +644,8 @@ In contrast to a reduce function, a group-reduce function is not
 implicitly combinable. In order to make a group-reduce function
 combinable it must implement the `GroupCombineFunction` interface.
 
-**Important**: The generic input and output types of 
-the `GroupCombineFunction` interface must be equal to the generic input type 
+**Important**: The generic input and output types of
+the `GroupCombineFunction` interface must be equal to the generic input type
 of the `GroupReduceFunction` as shown in the following example:
 
 <div class="codetabs" markdown="1">
@@ -655,7 +655,7 @@ of the `GroupReduceFunction` as shown in the following example:
 // Combinable GroupReduceFunction that computes a sum.
 public class MyCombinableGroupReducer implements
   GroupReduceFunction<Tuple2<String, Integer>, String>,
-  GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> 
+  GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
 {
   @Override
   public void reduce(Iterable<Tuple2<String, Integer>> in,
@@ -683,7 +683,7 @@ public class MyCombinableGroupReducer implements
       sum += curr.f1;
     }
     // emit tuple with key and sum
-    out.collect(new Tuple2<>(key, sum)); 
+    out.collect(new Tuple2<>(key, sum));
   }
 }
 ~~~
@@ -1379,8 +1379,8 @@ val ratings: DataSet[Ratings] = // [...]
 val weights: DataSet[(String, Double)] = // [...]
 
 val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
-  (rating, weight, out: Collector[(String, Double)] =>
-    if (weight._2 > 0.1) out.collect(left.name, left.points * right._2)
+  (rating, weight, out: Collector[(String, Double)]) =>
+    if (weight._2 > 0.1) out.collect(rating.name, rating.points * weight._2)
 }
 
 ~~~
@@ -1514,7 +1514,7 @@ The following hints are available:
   partitioned) and builds a hash table from the first input. This strategy is good if the first
   input is smaller than the second, but both inputs are still large.
   *Note:* This is the default fallback strategy that the system uses if no size estimates can be made
-  and no pre-existing partitiongs and sort-orders can be re-used.
+  and no pre-existing partitions and sort-orders can be re-used.
 
 * `REPARTITION_HASH_SECOND`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the second input. This strategy is good if the second
@@ -1528,7 +1528,7 @@ The following hints are available:
 
 ### OuterJoin
 
-The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements.
+The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitrarily many (including none) elements.
 
 The elements of both DataSets are joined on one or more keys which can be specified using
 

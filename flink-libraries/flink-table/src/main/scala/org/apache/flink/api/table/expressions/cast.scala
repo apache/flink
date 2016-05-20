@@ -21,18 +21,27 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.typeutils.TypeConverter
+import org.apache.flink.api.table.typeutils.{TypeCoercion, TypeConverter}
+import org.apache.flink.api.table.validate._
 
-case class Cast(child: Expression, tpe: TypeInformation[_]) extends UnaryExpression {
+case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
 
-  override def toString = s"$child.cast($tpe)"
+  override def toString = s"$child.cast($resultType)"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(tpe))
+    relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
   }
 
-  override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
+  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
-    copy(child, tpe).asInstanceOf[this.type]
+    copy(child, resultType).asInstanceOf[this.type]
+  }
+
+  override def validateInput(): ExprValidationResult = {
+    if (TypeCoercion.canCast(child.resultType, resultType)) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")
+    }
   }
 }
