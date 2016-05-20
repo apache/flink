@@ -19,6 +19,7 @@ package org.apache.flink.metrics.util;
 
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.groups.Scope;
 
@@ -26,8 +27,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DummyMetricGroup extends AbstractMetricGroup {
+
 	public DummyMetricGroup() {
-		super(new DummyMetricRegistry());
+		this(new DummyMetricRegistry());
+	}
+	
+	public DummyMetricGroup(MetricRegistry registry) {
+		super(registry);
 	}
 
 	@Override
@@ -41,14 +47,8 @@ public class DummyMetricGroup extends AbstractMetricGroup {
 	}
 
 	@Override
-	protected MetricGroup addMetric(String name, Metric metric) {
-		return this;
-	}
-
-	@Override
-	public MetricGroup addGroup(int name) {
-		return addGroup("" + name);
-	}
+	protected void addMetric(String name, Metric metric) {}
+	
 
 	@Override
 	public MetricGroup addGroup(String name) {

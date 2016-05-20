@@ -20,12 +20,13 @@ package org.apache.flink.metrics;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A Counter is a {@link org.apache.flink.metrics.Metric} that measures a count.
+ * A Counter is a {@link Metric} that measures a count.
  */
 @PublicEvolving
 public final class Counter implements Metric {
-	private long count = 0;
-
+	
+	private long count;
+	
 	/**
 	 * Increment the current count by 1.
 	 */

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
@@ -25,7 +26,8 @@ import org.apache.flink.metrics.Metric;
 import java.util.Map;
 
 public abstract class AbstractReporter implements MetricReporter {
-	protected Map<String, Gauge> gauges = new ConcurrentHashMap<>();
+	
+	protected Map<String, Gauge<?>> gauges = new ConcurrentHashMap<>();
 	protected Map<String, Counter> counters = new ConcurrentHashMap<>();
 
 	@Override
@@ -33,7 +35,7 @@ public abstract class AbstractReporter implements MetricReporter {
 		if (metric instanceof Counter) {
 			counters.put(name, (Counter) metric);
 		} else if (metric instanceof Gauge) {
-			gauges.put(name, (Gauge) metric);
+			gauges.put(name, (Gauge<?>) metric);
 		}
 	}
 

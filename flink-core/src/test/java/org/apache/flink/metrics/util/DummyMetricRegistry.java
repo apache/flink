@@ -15,18 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricRegistry;
 
 public class DummyMetricRegistry extends MetricRegistry {
-	private static final Configuration config;
-
-	static {
-		config = new Configuration();
-		config.setString(KEY_METRICS_REPORTER_CLASS, DummyReporter.class.getCanonicalName());
-	}
 
 	public DummyMetricRegistry() {
 		super(new Configuration());

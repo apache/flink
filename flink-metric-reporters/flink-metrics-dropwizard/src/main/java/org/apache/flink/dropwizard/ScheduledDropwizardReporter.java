@@ -55,7 +55,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		if (metric instanceof Counter) {
 			registry.register(name, new CounterWrapper((Counter) metric));
 		} else if (metric instanceof Gauge) {
-			registry.register(name, new GaugeWrapper((Gauge) metric));
+			registry.register(name, new GaugeWrapper((Gauge<?>) metric));
 		}
 	}
 

@@ -110,7 +110,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public void report() {
-		for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
+		for (Map.Entry<String, Gauge<?>> entry : gauges.entrySet()) {
 			reportGauge(entry.getKey(), entry.getValue());
 		}
 

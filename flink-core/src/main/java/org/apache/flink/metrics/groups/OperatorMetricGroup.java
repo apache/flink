@@ -20,6 +20,8 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricRegistry;
 
+import java.util.Collections;
+
 import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
 
 /**
@@ -27,6 +29,7 @@ import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
  */
 @Internal
 public class OperatorMetricGroup extends ComponentMetricGroup {
+
 	public static final String SCOPE_OPERATOR_DESCRIPTOR = "operator";
 	public static final String SCOPE_OPERATOR_NAME = Scope.format("operator_name");
 	public static final String SCOPE_OPERATOR_SUBTASK_INDEX = Scope.format("subtask_index");
@@ -35,12 +38,20 @@ public class OperatorMetricGroup extends ComponentMetricGroup {
 
 	protected OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup task, String name, int subTaskIndex) {
 		super(registry, task, registry.getScopeConfig().getOperatorFormat());
+
 		this.formats.put(SCOPE_OPERATOR_NAME, name);
-		this.formats.put(SCOPE_OPERATOR_SUBTASK_INDEX, "" + subTaskIndex);
+		this.formats.put(SCOPE_OPERATOR_SUBTASK_INDEX, String.valueOf(subTaskIndex));
 	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	protected String getScopeFormat(Scope.ScopeFormat format) {
 		return format.getOperatorFormat();
+	}
+
+	@Override
+	protected Iterable<? extends ComponentMetricGroup> subComponents() {
+		return Collections.emptyList();
 	}
 }

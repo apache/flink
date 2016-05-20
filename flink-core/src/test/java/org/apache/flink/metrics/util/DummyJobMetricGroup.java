@@ -24,6 +24,7 @@ import org.apache.flink.metrics.groups.JobMetricGroup;
 import org.apache.flink.util.AbstractID;
 
 public class DummyJobMetricGroup extends JobMetricGroup {
+	
 	public DummyJobMetricGroup() {
 		super(new DummyMetricRegistry(), new DummyTaskManagerMetricGroup(), new JobID(), "job");
 	}
@@ -34,14 +35,10 @@ public class DummyJobMetricGroup extends JobMetricGroup {
 	}
 
 	@Override
-	protected MetricGroup addMetric(String name, Metric metric) {
-		return this;
-	}
+	public void removeTaskMetricGroup(AbstractID executionId) {}
 
 	@Override
-	public MetricGroup addGroup(int name) {
-		return addGroup("" + name);
-	}
+	protected void addMetric(String name, Metric metric) {}
 
 	@Override
 	public MetricGroup addGroup(String name) {

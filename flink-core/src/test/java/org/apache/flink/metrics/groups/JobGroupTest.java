@@ -20,6 +20,7 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.util.AbstractID;
 import org.junit.Test;
 
 import java.util.List;
@@ -30,10 +31,12 @@ public class JobGroupTest {
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		JobMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job");
 
-		List<String> scope = operator.generateScope();
+		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
+				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
+		JobMetricGroup jmGroup = tmGroup.parent();
+
+		List<String> scope = jmGroup.generateScope();
 		assertEquals(4, scope.size());
 		assertEquals("job", scope.get(3));
 	}
@@ -41,13 +44,15 @@ public class JobGroupTest {
 	@Test
 	public void testGenerateScopeWildcard() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		JobMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job");
+
+		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
+				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
+		JobMetricGroup jmGroup = tmGroup.parent();
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setJobFormat(Scope.concat(Scope.SCOPE_WILDCARD, "superjob", JobMetricGroup.SCOPE_JOB_NAME));
 
-		List<String> scope = operator.generateScope(format);
+		List<String> scope = jmGroup.generateScope(format);
 		assertEquals(5, scope.size());
 		assertEquals("superjob", scope.get(3));
 		assertEquals("job", scope.get(4));
@@ -56,13 +61,15 @@ public class JobGroupTest {
 	@Test
 	public void testGenerateScopeCustom() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		JobMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addJob(new JobID(), "job");
+
+		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
+				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
+		JobMetricGroup jmGroup = tmGroup.parent();
 
 		Scope.ScopeFormat format = new Scope.ScopeFormat();
 		format.setJobFormat(Scope.concat(TaskManagerMetricGroup.SCOPE_TM_HOST, "superjob", JobMetricGroup.SCOPE_JOB_NAME));
 
-		List<String> scope = operator.generateScope(format);
+		List<String> scope = jmGroup.generateScope(format);
 		assertEquals(3, scope.size());
 		assertEquals("host", scope.get(0));
 		assertEquals("superjob", scope.get(1));

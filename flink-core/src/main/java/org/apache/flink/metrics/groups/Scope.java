@@ -73,13 +73,12 @@ public class Scope {
 	 * Simple container for component scope format strings.
 	 */
 	public static class ScopeFormat {
+		
 		private String operatorFormat = OperatorMetricGroup.DEFAULT_SCOPE_OPERATOR;
 		private String taskFormat = TaskMetricGroup.DEFAULT_SCOPE_TASK;
 		private String jobFormat = JobMetricGroup.DEFAULT_SCOPE_JOB;
 		private String taskManagerFormat = TaskManagerMetricGroup.DEFAULT_SCOPE_TM;
-
-		public ScopeFormat() {
-		}
+		
 
 		public ScopeFormat setOperatorFormat(String format) {
 			this.operatorFormat = format;

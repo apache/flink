@@ -60,6 +60,7 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,15 +92,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * {@link org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable} have only data
  * readers, -writers, and certain event callbacks. The task connects those to the
  * network stack and actor messages, and tracks the state of the execution and
- * handles exceptions.</p>
+ * handles exceptions.
  *
  * <p>Tasks have no knowledge about how they relate to other tasks, or whether they
  * are the first attempt to execute the task, or a repeated attempt. All of that
  * is only known to the JobManager. All the task knows are its own runnable code,
  * the task's configuration, and the IDs of the intermediate results to consume and
- * produce (if any).</p>
+ * produce (if any).
  *
- * <p>Each Task is run by one dedicated thread.</p>
+ * <p>Each Task is run by one dedicated thread.
  */
 public class Task implements Runnable {
 
@@ -129,6 +130,7 @@ public class Task implements Runnable {
 	/** TaskInfo object for this task */
 	private final TaskInfo taskInfo;
 
+	/** The name of the task, including subtask indexes */
 	private final String taskNameWithSubtask;
 
 	/** The job-wide configuration object */
@@ -157,6 +159,9 @@ public class Task implements Runnable {
 
 	/** The BroadcastVariableManager to be used by this task */
 	private final BroadcastVariableManager broadcastVariableManager;
+
+	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
+	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	private final ResultPartition[] producedPartitions;
 
@@ -193,6 +198,9 @@ public class Task implements Runnable {
 	/** The thread that executes the task */
 	private final Thread executingThread;
 
+	/** Parent group for all metrics of this task */
+	private final TaskMetricGroup metrics;
+
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
 	//  (which means that they introduce memory barriers), to establish
@@ -201,8 +209,6 @@ public class Task implements Runnable {
 
 	/** atomic flag that makes sure the invokable is canceled exactly once upon error */
 	private final AtomicBoolean invokableHasBeenCanceled;
-
-	private final TaskMetricGroup metrics;
 
 	/** The invokable of this task, if initialized */
 	private volatile AbstractInvokable invokable;
@@ -215,15 +221,12 @@ public class Task implements Runnable {
 
 	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized */
 	private volatile ExecutorService asyncCallDispatcher;
-	
+
 	/** The handle to the state that the operator was initialized with. Will be set to null after the
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
 	private volatile long recoveryTs;
-
-	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
-	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -688,9 +691,6 @@ public class Task implements Runnable {
 
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
-				
-				//Uncomment before Merging!!!
-				//metrics.close();
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
@@ -702,6 +702,16 @@ public class Task implements Runnable {
 				String message = "FATAL - exception in task resource cleanup";
 				LOG.error(message, t);
 				notifyFatalError(message, t);
+			}
+			
+			// un-register the metrics at the end so that the task may already be
+			// counted as finished when this happens
+			// errors here will only be logged
+			try {
+				metrics.close();
+			}
+			catch (Throwable t) {
+				LOG.error("Error during metrics de-registration", t);
 			}
 		}
 	}
