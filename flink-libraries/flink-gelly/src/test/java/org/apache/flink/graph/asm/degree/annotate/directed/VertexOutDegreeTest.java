@@ -38,7 +38,8 @@ extends AsmTestBase {
 	public void testWithSimpleGraph()
 			throws Exception {
 		DataSet<Vertex<IntValue, LongValue>> vertexDegrees = directedSimpleGraph
-			.run(new VertexOutDegree<IntValue, NullValue, NullValue>());
+			.run(new VertexOutDegree<IntValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true));
 
 		String expectedResult =
 			"(0,2)\n" +
@@ -78,7 +79,8 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		ChecksumHashCode outDegreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new VertexOutDegree<LongValue, NullValue, NullValue>()));
+			.run(new VertexOutDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true)));
 
 		assertEquals(902, outDegreeChecksum.getCount());
 		assertEquals(0x0000000000e1e99cL, outDegreeChecksum.getChecksum());

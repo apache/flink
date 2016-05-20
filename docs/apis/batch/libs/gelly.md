@@ -2147,17 +2147,62 @@ DataSet<Vertex<K, LongValue>> outDegree = graph
     </tr>
 
     <tr>
-      <td>degree.annotate.directed.<br/><strong>VertexDegreePair</strong></td>
+      <td>degree.annotate.directed.<br/><strong>VertexDegrees</strong></td>
       <td>
-        <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with both the out-degree and in-degree.</p>
+        <p>Annotate vertices of a <a href="#graph-representation">directed graph</a> with the degree, out-degree, and in-degree.</p>
 {% highlight java %}
-DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> pairDegree = graph
-  .run(new VertexDegreePair()
+DataSet<Vertex<K, Tuple2<LongValue, LongValue>>> degrees = graph
+  .run(new VertexDegrees()
     .setIncludeZeroDegreeVertices(true));
 {% endhighlight %}
         <p>Optional configuration:</p>
         <ul>
           <li><p><strong>setIncludeZeroDegreeVertices</strong>: by default only the edge set is processed for the computation of degree; when this flag is set an additional join is performed against the vertex set in order to output vertices with out- and in-degree of zero</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.directed.<br/><strong>EdgeSourceDegrees</strong></td>
+      <td>
+        <p>Annotate edges of a <a href="#graph-representation">directed graph</a> with the degree, out-degree, and in-degree of the source ID.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple2<EV, Degrees>>> sourceDegrees = graph
+  .run(new EdgeSourceDegrees());
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.directed.<br/><strong>EdgeTargetDegrees</strong></td>
+      <td>
+        <p>Annotate edges of a <a href="#graph-representation">directed graph</a> with the degree, out-degree, and in-degree of the target ID.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple2<EV, Degrees>>> targetDegrees = graph
+  .run(new EdgeTargetDegrees();
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
+      <td>degree.annotate.directed.<br/><strong>EdgeDegreesPair</strong></td>
+      <td>
+        <p>Annotate edges of a <a href="#graph-representation">directed graph</a> with the degree, out-degree, and in-degree of both the source and target vertices.</p>
+{% highlight java %}
+DataSet<Edge<K, Tuple2<EV, Degrees>>> degrees = graph
+  .run(new EdgeDegreesPair());
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
           <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
         </ul>
       </td>
@@ -2219,7 +2264,7 @@ DataSet<Edge<K, Tuple2<EV, LongValue>>> targetDegree = graph
     <tr>
       <td>degree.annotate.undirected.<br/><strong>EdgeDegreePair</strong></td>
       <td>
-        <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with the degree of both the source and target degree ID.</p>
+        <p>Annotate edges of an <a href="#graph-representation">undirected graph</a> with the degree of both the source and target vertices.</p>
 {% highlight java %}
 DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
   .run(new EdgeDegreePair()

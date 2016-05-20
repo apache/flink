@@ -23,6 +23,7 @@ import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -31,23 +32,39 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-public class VertexInDegreeTest
+public class VertexDegreesTest
 extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
+	public void testWithSimpleDirectedGraph()
 			throws Exception {
-		DataSet<Vertex<IntValue, LongValue>> vertexDegrees = directedSimpleGraph
-			.run(new VertexInDegree<IntValue, NullValue, NullValue>()
-				.setIncludeZeroDegreeVertices(true));
+		DataSet<Vertex<IntValue, Degrees>> vertexDegrees = directedSimpleGraph
+			.run(new VertexDegrees<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
-			"(0,0)\n" +
-			"(1,1)\n" +
-			"(2,2)\n" +
-			"(3,2)\n" +
-			"(4,1)\n" +
-			"(5,1)";
+			"(0,(2,2,0))\n" +
+			"(1,(3,2,1))\n" +
+			"(2,(3,1,2))\n" +
+			"(3,(4,2,2))\n" +
+			"(4,(1,0,1))\n" +
+			"(5,(1,0,1))";
+
+		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
+	}
+
+	@Test
+	public void testWithSimpleUndirectedGraph()
+			throws Exception {
+		DataSet<Vertex<IntValue, Degrees>> vertexDegrees = undirectedSimpleGraph
+			.run(new VertexDegrees<IntValue, NullValue, NullValue>());
+
+		String expectedResult =
+			"(0,(2,2,2))\n" +
+			"(1,(3,3,3))\n" +
+			"(2,(3,3,3))\n" +
+			"(3,(4,4,4))\n" +
+			"(4,(1,1,1))\n" +
+			"(5,(1,1,1))";
 
 		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}
@@ -55,34 +72,33 @@ extends AsmTestBase {
 	@Test
 	public void testWithEmptyGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue, LongValue>> vertexDegrees;
+		DataSet<Vertex<LongValue, Degrees>> vertexDegrees;
 
 		vertexDegrees = emptyGraph
-			.run(new VertexInDegree<LongValue, NullValue, NullValue>()
+			.run(new VertexDegrees<LongValue, NullValue, NullValue>()
 				.setIncludeZeroDegreeVertices(false));
 
 		assertEquals(0, vertexDegrees.collect().size());
 
 		vertexDegrees = emptyGraph
-			.run(new VertexInDegree<LongValue, NullValue, NullValue>()
+			.run(new VertexDegrees<LongValue, NullValue, NullValue>()
 				.setIncludeZeroDegreeVertices(true));
 
 		String expectedResult =
-			"(0,0)\n" +
-			"(1,0)\n" +
-			"(2,0)";
+			"(0,(0,0,0))\n" +
+			"(1,(0,0,0))\n" +
+			"(2,(0,0,0))";
 
 		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}
 
 	@Test
 	public void testWithRMatGraph()
-			throws Exception {
-		ChecksumHashCode inDegreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new VertexInDegree<LongValue, NullValue, NullValue>()
-				.setIncludeZeroDegreeVertices(true)));
+	throws Exception {
+		ChecksumHashCode degreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
+			.run(new VertexDegrees<LongValue, NullValue, NullValue>()));
 
-		assertEquals(902, inDegreeChecksum.getCount());
-		assertEquals(0x0000000000e1e99cL, inDegreeChecksum.getChecksum());
+		assertEquals(902, degreeChecksum.getCount());
+		assertEquals(0x0000015384f40cb6L, degreeChecksum.getChecksum());
 	}
 }
