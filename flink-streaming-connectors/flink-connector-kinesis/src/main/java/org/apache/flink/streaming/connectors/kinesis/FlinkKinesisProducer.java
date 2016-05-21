@@ -17,8 +17,6 @@
 package org.apache.flink.streaming.connectors.kinesis;
 
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -30,7 +28,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,9 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
+import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The FlinkKinesisProducer allows to produce from a Flink DataStream into Kinesis.
@@ -48,12 +52,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisProducer.class);
 
-	/* AWS region of the stream */
-	private final String region;
-
-	/* Access and secret key of the user */
-	private final String accessKey;
-	private final String secretKey;
+	/** Properties to parametrize settings such as AWS service region, access key etc. */
+	private final Properties configProps;
 
 	/* Flag controlling the error behavior of the producer */
 	private boolean failOnError = false;
@@ -91,14 +91,13 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	 * Create a new FlinkKinesisProducer.
 	 * This is a constructor supporting Flink's {@see SerializationSchema}.
 	 *
-	 * @param region AWS region of the stream
-	 * @param accessKey Access key of a user with permission to access the stream (ideally also with access to Cloud Watch)
-	 * @param secretKey Secret key of the user
 	 * @param schema Serialization schema for the data type
+	 * @param configProps The properties used to configure AWS credentials and AWS region
 	 */
-	public FlinkKinesisProducer(String region, String accessKey, String secretKey, final SerializationSchema<OUT> schema) {
+	public FlinkKinesisProducer(final SerializationSchema<OUT> schema, Properties configProps) {
+
 		// create a simple wrapper for the serialization schema
-		this(region, accessKey, secretKey, new KinesisSerializationSchema<OUT>() {
+		this(new KinesisSerializationSchema<OUT>() {
 			@Override
 			public ByteBuffer serialize(OUT element) {
 				// wrap into ByteBuffer
@@ -109,13 +108,22 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 			public String getTargetStream(OUT element) {
 				return null;
 			}
-		});
+		}, configProps);
 	}
 
-	public FlinkKinesisProducer(String region, String accessKey, String secretKey, KinesisSerializationSchema<OUT> schema) {
-		this.region = Objects.requireNonNull(region);
-		this.accessKey = Objects.requireNonNull(accessKey);
-		this.secretKey = Objects.requireNonNull(secretKey);
+	/**
+	 * Create a new FlinkKinesisProducer.
+	 * This is a constructor supporting {@see KinesisSerializationSchema}.
+	 *
+	 * @param schema Kinesis serialization schema for the data type
+	 * @param configProps The properties used to configure AWS credentials and AWS region
+	 */
+	public FlinkKinesisProducer(KinesisSerializationSchema<OUT> schema, Properties configProps) {
+		this.configProps = checkNotNull(configProps, "configProps can not be null");
+
+		// check the configuration properties for any conflicting settings
+		KinesisConfigUtil.validateConfiguration(this.configProps);
+
 		ClosureCleaner.ensureSerializable(Objects.requireNonNull(schema));
 		this.schema = schema;
 	}
@@ -160,12 +168,20 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
-		KinesisProducerConfiguration config = new KinesisProducerConfiguration();
-		config.setRegion(this.region);
-		config.setCredentialsProvider(new StaticCredentialsProvider(new BasicAWSCredentials(this.accessKey, this.secretKey)));
-		//config.setCollectionMaxCount(1);
-		//config.setAggregationMaxCount(1);
-		producer = new KinesisProducer(config);
+		KinesisProducerConfiguration producerConfig = new KinesisProducerConfiguration();
+
+		producerConfig.setRegion(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION));
+		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
+		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)) {
+			producerConfig.setCollectionMaxCount(
+					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)));
+		}
+		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)) {
+			producerConfig.setAggregationMaxCount(
+					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)));
+		}
+
+		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
 			public void onSuccess(UserRecordResult result) {
@@ -192,7 +208,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 			this.customPartitioner.initialize(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks());
 		}
 
-		LOG.info("Started Kinesis producer instance for region '{}'", this.region);
+		LOG.info("Started Kinesis producer instance for region '{}'", producerConfig.getRegion());
 	}
 
 	@Override

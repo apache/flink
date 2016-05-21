@@ -22,7 +22,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
+import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+
+import java.util.Properties;
 
 /**
  * This is an example on how to produce data into Kinesis
@@ -37,11 +40,13 @@ public class ProduceIntoKinesis {
 
 		DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
 
+		Properties kinesisProducerConfig = new Properties();
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, pt.getRequired("region"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, pt.getRequired("accessKey"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, pt.getRequired("secretKey"));
+
 		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
-				pt.getRequired("region"),
-				pt.getRequired("accessKey"),
-				pt.getRequired("secretKey"),
-				new SimpleStringSchema());
+				new SimpleStringSchema(), kinesisProducerConfig);
 
 		kinesis.setFailOnError(true);
 		kinesis.setDefaultStream("flink-test");
