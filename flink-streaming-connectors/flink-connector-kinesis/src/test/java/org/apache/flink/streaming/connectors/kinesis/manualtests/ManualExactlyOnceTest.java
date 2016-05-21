@@ -108,10 +108,13 @@ public class ManualExactlyOnceTest {
 						// start data generator
 						DataStream<String> simpleStringStream = see.addSource(new EventsGenerator(TOTAL_EVENT_COUNT)).setParallelism(1);
 
-						FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(pt.getRequired("region"),
-								pt.getRequired("accessKey"),
-								pt.getRequired("secretKey"),
-								new SimpleStringSchema());
+						Properties producerProps = new Properties();
+						producerProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, pt.getRequired("accessKey"));
+						producerProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, pt.getRequired("secretKey"));
+						producerProps.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, pt.getRequired("region"));
+
+						FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(),
+								producerProps);
 
 						kinesis.setFailOnError(true);
 						kinesis.setDefaultStream(streamName);

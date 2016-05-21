@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ReferenceKinesisShardTopologies;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,12 +36,12 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.lang.reflect.Field;
-import java.util.Properties;
-import java.util.List;
 import java.util.ArrayList;
-import java.util.UUID;
-import java.util.HashMap;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -56,7 +57,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
  * and tests for the methods called throughout the source life cycle with mocked KinesisProxy.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(FlinkKinesisConsumer.class)
+@PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
 public class FlinkKinesisConsumerTest {
 
 	@Rule
@@ -69,13 +70,13 @@ public class FlinkKinesisConsumerTest {
 	@Test
 	public void testMissingAwsRegionInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("AWS region must be set");
+		exception.expectMessage("The AWS region ('" + KinesisConfigConstants.CONFIG_AWS_REGION + "') must be set in the config.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -88,30 +89,32 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
 	public void testCredentialProviderTypeDefaultToBasicButNoCredentialsSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Need to set values for AWS Access Key ID and Secret Key");
+		exception.expectMessage("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
+				"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
 	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Need to set values for AWS Access Key ID and Secret Key");
+		exception.expectMessage("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
+				"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "BASIC");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -125,7 +128,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKeyId");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -140,7 +143,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, "wrongInitPosition");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -154,7 +157,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES, "unparsableInt");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -168,7 +171,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF, "unparsableLong");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	@Test
@@ -182,7 +185,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
 		testConfig.setProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET, "unparsableInt");
 
-		FlinkKinesisConsumer.validatePropertiesConfig(testConfig);
+		KinesisConfigUtil.validateConfiguration(testConfig);
 	}
 
 	// ----------------------------------------------------------------------
@@ -485,6 +488,7 @@ public class FlinkKinesisConsumerTest {
 
 		// mock FlinkKinesisConsumer utility static methods
 		mockStatic(FlinkKinesisConsumer.class);
+		mockStatic(KinesisConfigUtil.class);
 
 		try {
 			// assume assignShards static method is correct by mocking
@@ -496,7 +500,7 @@ public class FlinkKinesisConsumerTest {
 				.thenReturn(fakeAssignedShardListToThisConsumerTask);
 
 			// assume validatePropertiesConfig static method is correct by mocking
-			PowerMockito.doNothing().when(FlinkKinesisConsumer.class, "validatePropertiesConfig", Mockito.any(Properties.class));
+			PowerMockito.doNothing().when(KinesisConfigUtil.class, "validateConfiguration", Mockito.any(Properties.class));
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException("Error when power mocking static methods of FlinkKinesisConsumer", e);
