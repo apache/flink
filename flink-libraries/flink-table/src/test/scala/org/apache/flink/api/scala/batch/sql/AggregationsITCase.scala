@@ -23,8 +23,7 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import TableProgramsTestBase.TableConfigMode
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{TableException, Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -213,7 +212,7 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -228,7 +227,7 @@ class AggregationsITCase(
     tEnv.sql(sqlQuery).toDataSet[Row]
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testGroupedDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -243,7 +242,7 @@ class AggregationsITCase(
     tEnv.sql(sqlQuery).toDataSet[Row]
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testGroupingSetAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

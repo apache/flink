@@ -25,8 +25,7 @@ import org.apache.flink.api.scala.batch.utils.SortTestUtils._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.{Row, TableEnvironment}
+import org.apache.flink.api.table.{TableException, Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -61,7 +60,7 @@ class SortITCase(
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testOrderByOffset(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -73,7 +72,7 @@ class SortITCase(
     tEnv.sql(sqlQuery).toDataSet[Row]
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testOrderByFirst(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
