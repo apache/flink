@@ -265,16 +265,6 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	@PublicEvolving
 	public abstract int getFieldIndex(String fieldName);
 
-	@PublicEvolving
-	public static class InvalidFieldReferenceException extends IllegalArgumentException {
-
-		private static final long serialVersionUID = 1L;
-
-		public InvalidFieldReferenceException(String s) {
-			super(s);
-		}
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof CompositeType) {

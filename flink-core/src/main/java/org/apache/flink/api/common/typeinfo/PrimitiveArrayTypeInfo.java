@@ -40,6 +40,7 @@ import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerial
 import org.apache.flink.api.common.typeutils.base.array.PrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
+import org.apache.flink.api.java.typeutils.FieldAccessor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -136,6 +137,23 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
+	}
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(int pos, ExecutionConfig config) {
+		return new FieldAccessor.ArrayFieldAccessor<>(pos, this);
+	}
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(String pos, ExecutionConfig config) {
+		try {
+			return new FieldAccessor.ArrayFieldAccessor<>(Integer.parseInt(pos), this);
+		} catch (NumberFormatException ex) {
+			throw new InvalidFieldReferenceException
+				("A field expression on an array must be an integer index (that might be given as a string).");
+		}
 	}
 
 	/**
