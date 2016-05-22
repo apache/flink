@@ -406,4 +406,15 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     env.execute()
     expected = "1,(1,1,Hi)\n2,(2,2,Hello)"
   }
+
+  @Test
+  def testWithScalaOptionValues(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromElements(None, Some("a"), Some("b"))
+    val ds2 = env.fromElements(None, Some("a"))
+    val joinDs = ds1.join(ds2).where("_").equalTo("_")
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "None,None\nSome(a),Some(a)"
+  }
 }
