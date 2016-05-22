@@ -24,7 +24,6 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.{Row, TableEnvironment, TableException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -190,7 +189,7 @@ class JoinITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testJoinNoEqualityPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -246,7 +245,7 @@ class JoinITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testFullOuterJoin(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -262,7 +261,7 @@ class JoinITCase(
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testLeftOuterJoin(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -278,7 +277,7 @@ class JoinITCase(
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testRightOuterJoin(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

@@ -26,11 +26,10 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.typeutils.{TypeConverter, RowTypeInfo}
+import org.apache.flink.api.table.typeutils.TypeConverter
 import TypeConverter._
 import org.apache.flink.api.table.typeutils.RowTypeInfo
-import org.apache.flink.api.table.{Row, TableConfig}
+import org.apache.flink.api.table.{TableException, Row, TableConfig}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -96,7 +95,7 @@ object AggregateUtil {
 
     if (groupingOffsetMapping.length != groupings.length ||
         aggOffsetMapping.length != namedAggregates.length) {
-      throw new PlanGenException("Could not find output field in input data type " +
+      throw new TableException("Could not find output field in input data type " +
           "or aggregate functions.")
     }
 
@@ -138,11 +137,11 @@ object AggregateUtil {
         if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
           aggFieldIndexes(index) = 0
         } else {
-          throw new PlanGenException("Aggregate fields should not be empty.")
+          throw new TableException("Aggregate fields should not be empty.")
         }
       } else {
         if (argList.size() > 1) {
-          throw new PlanGenException("Currently, do not support aggregate on multi fields.")
+          throw new TableException("Currently, do not support aggregate on multi fields.")
         }
         aggFieldIndexes(index) = argList.get(0)
       }
@@ -163,7 +162,7 @@ object AggregateUtil {
             case DOUBLE =>
               new DoubleSumAggregate
             case sqlType: SqlTypeName =>
-              throw new PlanGenException("Sum aggregate does no support type:" + sqlType)
+              throw new TableException("Sum aggregate does no support type:" + sqlType)
           }
         }
         case _: SqlAvgAggFunction => {
@@ -181,7 +180,7 @@ object AggregateUtil {
             case DOUBLE =>
               new DoubleAvgAggregate
             case sqlType: SqlTypeName =>
-              throw new PlanGenException("Avg aggregate does no support type:" + sqlType)
+              throw new TableException("Avg aggregate does no support type:" + sqlType)
           }
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
@@ -200,7 +199,7 @@ object AggregateUtil {
               case DOUBLE =>
                 new DoubleMinAggregate
               case sqlType: SqlTypeName =>
-                throw new PlanGenException("Min aggregate does no support type:" + sqlType)
+                throw new TableException("Min aggregate does no support type:" + sqlType)
             }
           } else {
             sqlTypeName match {
@@ -217,14 +216,14 @@ object AggregateUtil {
               case DOUBLE =>
                 new DoubleMaxAggregate
               case sqlType: SqlTypeName =>
-                throw new PlanGenException("Max aggregate does no support type:" + sqlType)
+                throw new TableException("Max aggregate does no support type:" + sqlType)
             }
           }
         }
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggregate
         case unSupported: SqlAggFunction =>
-          throw new PlanGenException("unsupported Function: " + unSupported.getName)
+          throw new TableException("unsupported Function: " + unSupported.getName)
       }
       setAggregateDataOffset(index)
     }
