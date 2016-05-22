@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.Row
 
 /**
@@ -43,47 +43,54 @@ import org.apache.flink.api.table.Row
 trait Aggregate[T] extends Serializable {
 
   /**
-   * Initiate the intermediate aggregate value in Row.
-   * @param intermediate
-   */
-  def initiate(intermediate: Row): Unit
-
-  /**
-   * Transform the aggregate field value into intermediate aggregate data.
-   * @param value
-   * @param intermediate
-   */
+    * Transform the aggregate field value into intermediate aggregate data.
+    *
+    * @param value The value to insert into the intermediate aggregate row.
+    * @param intermediate The intermediate aggregate row into which the value is inserted.
+    */
   def prepare(value: Any, intermediate: Row): Unit
 
   /**
-   * Merge intermediate aggregate data into aggregate buffer.
-   * @param intermediate
-   * @param buffer
-   */
+    * Initiate the intermediate aggregate value in Row.
+    *
+    * @param intermediate The intermediate aggregate row to initiate.
+    */
+  def initiate(intermediate: Row): Unit
+
+  /**
+    * Merge intermediate aggregate data into aggregate buffer.
+    *
+    * @param intermediate The intermediate aggregate row to merge.
+    * @param buffer The aggregate buffer into which the intermedidate is merged.
+    */
   def merge(intermediate: Row, buffer: Row): Unit
 
   /**
-   * Calculate the final aggregated result based on aggregate buffer.
-   * @param buffer
-   * @return
-   */
+    * Calculate the final aggregated result based on aggregate buffer.
+    *
+    * @param buffer The aggregate buffer from which the final aggregate is computed.
+    * @return The final result of the aggregate.
+    */
   def evaluate(buffer: Row): T
 
   /**
-   * Intermediate aggregate value types.
-   * @return
-   */
-  def intermediateDataType: Array[SqlTypeName]
+    * Intermediate aggregate value types.
+    *
+    * @return The types of the intermediate fields of this aggregate.
+    */
+  def intermediateDataType: Array[TypeInformation[_]]
 
   /**
-   * Set the aggregate data offset in Row.
-   * @param aggOffset
-   */
+    * Set the aggregate data offset in Row.
+    *
+    * @param aggOffset The offset of this aggregate in the intermediate aggregate rows.
+    */
   def setAggOffsetInRow(aggOffset: Int)
 
   /**
     * Whether aggregate function support partial aggregate.
-   * @return
-   */
+    *
+    * @return True if the aggregate supports partial aggregation, False otherwise.
+    */
   def supportPartial: Boolean = false
 }

@@ -26,8 +26,8 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{SqlTypeFactoryImpl, SqlTypeName}
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupReduceFunction, MapFunction}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.typeutils.TypeConverter
-import TypeConverter._
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{TableException, Row, TableConfig}
 
@@ -73,14 +73,8 @@ object AggregateUtil {
     val aggFieldIndexes = aggregateFunctionsAndFieldIndexes._1
     val aggregates = aggregateFunctionsAndFieldIndexes._2
 
-    val bufferDataType: RelRecordType =
+    val mapReturnType: RowTypeInfo =
       createAggregateBufferDataType(groupings, aggregates, inputType)
-
-    val mapReturnType = determineReturnType(
-        bufferDataType,
-        Some(TypeConverter.DEFAULT_ROW_TYPE),
-        config.getNullCheck,
-        config.getEfficientTypeUsage)
 
     val mapFunction = new AggregateMapFunction[Row, Row](
         aggregates, aggFieldIndexes, groupings,
@@ -240,25 +234,22 @@ object AggregateUtil {
   private def createAggregateBufferDataType(
       groupings: Array[Int],
       aggregates: Array[Aggregate[_]],
-      inputType: RelDataType): RelRecordType = {
+      inputType: RelDataType): RowTypeInfo = {
 
     // get the field data types of group keys.
-    val groupingTypes: Seq[RelDataTypeField] = groupings.map(inputType.getFieldList.get(_))
+    val groupingTypes: Seq[TypeInformation[_]] = groupings
+      .map(inputType.getFieldList.get(_).getType.getSqlTypeName)
+      .map(TypeConverter.sqlTypeToTypeInfo)
 
     val aggPartialNameSuffix = "agg_buffer_"
     val factory = new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
 
-    // get all the aggregate buffer value data type by their SqlTypeName.
-    val aggTypes: Seq[RelDataTypeField] =
-      aggregates.flatMap(_.intermediateDataType).zipWithIndex.map {
-        case (typeName: SqlTypeName, index: Int) =>
-          val fieldDataType = factory.createSqlType(typeName)
-          new RelDataTypeFieldImpl(aggPartialNameSuffix + index,
-            groupings.length + index, fieldDataType)
-      }
+    // get all field data types of all intermediate aggregates
+    val aggTypes: Seq[TypeInformation[_]] = aggregates.flatMap(_.intermediateDataType)
 
+    // concat group key types and aggregation types
     val allFieldTypes = groupingTypes ++: aggTypes
-    val partialType = new RelRecordType(allFieldTypes.toList)
+    val partialType = new RowTypeInfo(allFieldTypes)
     partialType
   }
 

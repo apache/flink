@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
 abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
@@ -27,6 +27,7 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
 
   /**
    * Accessed in MapFunction, prepare the input of partial aggregate.
+   *
    * @param value
    * @param intermediate
    */
@@ -41,6 +42,7 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
   /**
    * Accessed in CombineFunction and GroupReduceFunction, merge partial
    * aggregate result into aggregate buffer.
+   *
    * @param intermediate
    * @param buffer
    */
@@ -52,6 +54,7 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
 
   /**
    * Return the final aggregated result based on aggregate buffer.
+   *
    * @param buffer
    * @return
    */
@@ -67,11 +70,8 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
 }
 
 class ByteMaxAggregate extends MaxAggregate[Byte] {
-  private val intermediateType = Array(SqlTypeName.TINYINT)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.BYTE_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Byte.MinValue)
@@ -79,11 +79,8 @@ class ByteMaxAggregate extends MaxAggregate[Byte] {
 }
 
 class ShortMaxAggregate extends MaxAggregate[Short] {
-  private val intermediateType = Array(SqlTypeName.SMALLINT)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.SHORT_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Short.MinValue)
@@ -91,11 +88,8 @@ class ShortMaxAggregate extends MaxAggregate[Short] {
 }
 
 class IntMaxAggregate extends MaxAggregate[Int] {
-  private val intermediateType = Array(SqlTypeName.INTEGER)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.INT_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Int.MinValue)
@@ -103,11 +97,8 @@ class IntMaxAggregate extends MaxAggregate[Int] {
 }
 
 class LongMaxAggregate extends MaxAggregate[Long] {
-  private val intermediateType = Array(SqlTypeName.BIGINT)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Long.MinValue)
@@ -115,11 +106,8 @@ class LongMaxAggregate extends MaxAggregate[Long] {
 }
 
 class FloatMaxAggregate extends MaxAggregate[Float] {
-  private val intermediateType = Array(SqlTypeName.FLOAT)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.FLOAT_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Float.MinValue)
@@ -127,11 +115,8 @@ class FloatMaxAggregate extends MaxAggregate[Float] {
 }
 
 class DoubleMaxAggregate extends MaxAggregate[Double] {
-  private val intermediateType = Array(SqlTypeName.DOUBLE)
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.DOUBLE_TYPE_INFO)
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Double.MinValue)
