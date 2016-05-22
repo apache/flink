@@ -121,8 +121,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		out.defaultWriteObject();
 		out.writeInt(fields.length);
 		for (Field field: fields) {
-			out.writeObject(field.getDeclaringClass());
-			out.writeUTF(field.getName());
+			FieldSerializer.serializeField(field, out);
 		}
 	}
 
@@ -132,23 +131,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		int numFields = in.readInt();
 		fields = new Field[numFields];
 		for (int i = 0; i < numFields; i++) {
-			Class<?> clazz = (Class<?>)in.readObject();
-			String fieldName = in.readUTF();
-			fields[i] = null;
-			// try superclasses as well
-			while (clazz != null) {
-				try {
-					fields[i] = clazz.getDeclaredField(fieldName);
-					fields[i].setAccessible(true);
-					break;
-				} catch (NoSuchFieldException e) {
-					clazz = clazz.getSuperclass();
-				}
-			}
-			if (fields[i] == null) {
-				throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
-						+ " (" + fieldName + ")");
-			}
+			fields[i] = FieldSerializer.deserializeField(in);
 		}
 
 		cl = Thread.currentThread().getContextClassLoader();

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.functions.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.util.FieldAccessor;
+import org.apache.flink.api.java.typeutils.FieldAccessor;
 
 @Internal
 public class ComparableAggregator<T> extends AggregationFunction<T> {
@@ -51,7 +51,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 			AggregationType aggregationType,
 			boolean first,
 			ExecutionConfig config) {
-		this(aggregationType, FieldAccessor.create(positionToAggregate, typeInfo, config), first);
+		this(aggregationType, typeInfo.getFieldAccessor(positionToAggregate, config), first);
 	}
 
 	public ComparableAggregator(String field,
@@ -59,7 +59,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 			AggregationType aggregationType,
 			boolean first,
 			ExecutionConfig config) {
-		this(aggregationType, FieldAccessor.create(field, typeInfo, config), first);
+		this(aggregationType, typeInfo.getFieldAccessor(field,config), first);
 	}
 
 

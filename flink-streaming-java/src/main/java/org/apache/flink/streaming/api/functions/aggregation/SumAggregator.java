@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.streaming.util.FieldAccessor;
+import org.apache.flink.api.java.typeutils.FieldAccessor;
 
 @Internal
 public class SumAggregator<T> extends AggregationFunction<T> {
@@ -36,7 +36,7 @@ public class SumAggregator<T> extends AggregationFunction<T> {
 	private final boolean isTuple;
 
 	public SumAggregator(int pos, TypeInformation<T> typeInfo, ExecutionConfig config) {
-		fieldAccessor = FieldAccessor.create(pos, typeInfo, config);
+		fieldAccessor = typeInfo.getFieldAccessor(pos, config);
 		adder = SumFunction.getForClass(fieldAccessor.getFieldType().getTypeClass());
 		if (typeInfo instanceof TupleTypeInfo) {
 			isTuple = true;
@@ -48,7 +48,7 @@ public class SumAggregator<T> extends AggregationFunction<T> {
 	}
 
 	public SumAggregator(String field, TypeInformation<T> typeInfo, ExecutionConfig config) {
-		fieldAccessor = FieldAccessor.create(field, typeInfo, config);
+		fieldAccessor = typeInfo.getFieldAccessor(field, config);
 		adder = SumFunction.getForClass(fieldAccessor.getFieldType().getTypeClass());
 		if (typeInfo instanceof TupleTypeInfo) {
 			isTuple = true;

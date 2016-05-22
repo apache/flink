@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operator;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -166,7 +167,7 @@ public class DataSinkTest {
 			.sortLocalOutput(5, Order.DESCENDING);
 	}
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
+	@Test(expected = InvalidFieldReferenceException.class)
 	public void testFailTupleInv() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment
@@ -284,7 +285,7 @@ public class DataSinkTest {
 			.sortLocalOutput(1, Order.DESCENDING);
 	}
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
+	@Test(expected = InvalidFieldReferenceException.class)
 	public void testFailPojoInvalidField() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -64,8 +65,8 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
 	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
-			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
-			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
+					+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
+					+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
 
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
@@ -132,7 +133,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		//   gives only some undefined order.
 		return false;
 	}
-	
+
 
 	@Override
 	@PublicEvolving
@@ -264,6 +265,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
+	@PublicEvolving
 	protected TypeComparatorBuilder<T> createTypeComparatorBuilder() {
 		return new PojoTypeComparatorBuilder();
 	}
@@ -317,7 +319,39 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
 	}
-	
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(String fieldExpression, ExecutionConfig config) {
+		
+		FieldAccessor.FieldExpression decomp = FieldAccessor.decomposeFieldExpression(fieldExpression);
+
+		// get field
+		PojoField field = null;
+		TypeInformation<?> fieldType = null;
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i].getField().getName().equals(decomp.head)) {
+				field = fields[i];
+				fieldType = fields[i].getTypeInformation();
+				break;
+			}
+		}
+		if (field == null) {
+			throw new InvalidFieldReferenceException("Unable to find field \""+decomp.head+"\" in type "+this+".");
+		}
+
+		if(decomp.tail == null) {
+			@SuppressWarnings("unchecked")
+			FieldAccessor<F,F> innerAccessor = new FieldAccessor.SimpleFieldAccessor<F>((TypeInformation<F>) fieldType);
+			return new FieldAccessor.PojoFieldAccessor<T, F, F>(field.getField(), innerAccessor);
+		} else {
+			@SuppressWarnings("unchecked")
+			FieldAccessor<Object,F> innerAccessor =
+					(FieldAccessor<Object,F>)fieldType.<F>getFieldAccessor(decomp.tail, config);
+			return new FieldAccessor.PojoFieldAccessor<T, Object, F>(field.getField(), innerAccessor);
+		}
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof PojoTypeInfo) {

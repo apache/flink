@@ -385,7 +385,7 @@ while a key can be specified on a DataStream using
 {% highlight java %}
 DataStream<...> input = // [...]
 DataStream<...> windowed = input
-  .key(/*define key here*/)
+  .keyBy(/*define key here*/)
   .window(/*window specification*/);
 {% endhighlight %}
 
@@ -418,7 +418,7 @@ val keyed = input.keyBy(0)
 </div>
 </div>
 
-The tuples is grouped on the first field (the one of
+The tuples are grouped on the first field (the one of
 Integer type).
 
 <div class="codetabs" markdown="1">

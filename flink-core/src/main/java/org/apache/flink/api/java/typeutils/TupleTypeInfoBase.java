@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.typeinfo.InvalidFieldReferenceException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 
@@ -203,7 +206,34 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		TypeInformation<X> typed = (TypeInformation<X>) this.types[pos];
 		return typed;
 	}
-	
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(int pos, ExecutionConfig config) {
+		return new FieldAccessor.SimpleTupleFieldAccessor<T, F>(pos, this);
+	}
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(String fieldExpression, ExecutionConfig config) {
+		FieldAccessor.FieldExpression decomp = FieldAccessor.decomposeFieldExpression(fieldExpression);
+		int fieldPos = this.getFieldIndex(decomp.head);
+		if (fieldPos == -1) {
+			try {
+				fieldPos = Integer.parseInt(decomp.head);
+			} catch (NumberFormatException ex) {
+				throw new InvalidFieldReferenceException("Tried to select field \"" + decomp.head
+					+ "\" on " + this.toString());
+			}
+		}
+		if (decomp.tail == null) {
+			return new FieldAccessor.SimpleTupleFieldAccessor<T, F>(fieldPos, this);
+		} else {
+			FieldAccessor<?, F> innerAccessor = getTypeAt(fieldPos).getFieldAccessor(decomp.tail, config);
+			return new FieldAccessor.RecursiveTupleFieldAccessor<>(fieldPos, innerAccessor);
+		}
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof TupleTypeInfoBase) {
