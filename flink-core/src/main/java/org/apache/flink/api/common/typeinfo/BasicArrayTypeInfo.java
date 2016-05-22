@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
+import org.apache.flink.api.java.typeutils.FieldAccessor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -117,6 +118,23 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 			return (TypeSerializer<T>) new GenericArraySerializer<C>(
 				this.componentInfo.getTypeClass(),
 				this.componentInfo.createSerializer(executionConfig));
+		}
+	}
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(int pos, ExecutionConfig config) {
+		return new FieldAccessor.ArrayFieldAccessor<>(pos, this);
+	}
+
+	@Override
+	@PublicEvolving
+	public <F> FieldAccessor<T, F> getFieldAccessor(String pos, ExecutionConfig config) {
+		try {
+			return new FieldAccessor.ArrayFieldAccessor<>(Integer.parseInt(pos), this);
+		} catch (NumberFormatException ex) {
+			throw new InvalidFieldReferenceException
+				("A field expression on an array must be an integer index (that might be given as a string).");
 		}
 	}
 

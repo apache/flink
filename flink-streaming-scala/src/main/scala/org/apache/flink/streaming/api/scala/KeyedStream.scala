@@ -216,6 +216,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current maximum of the data stream at
    * the given position by the given key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to maximize. This is applicable to
+   *            Tuple types, basic and primitive array types, Scala case classes,
+   *            and primitive types (which is considered as having one field).
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
   
@@ -223,6 +227,14 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current maximum of the data stream at
    * the given field by the given key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore, an array index can also be specified in case of an array of
+   *            a primitive or basic type; or "0" or "*" can be specified in case of a
+   *            basic type (which is considered as having only one field).
    */
   def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
   
@@ -230,6 +242,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given position by the given key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, basic and primitive array types, Scala case classes,
+   *            and primitive types (which is considered as having one field).
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
   
@@ -237,6 +253,14 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given field by the given key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore, an array index can also be specified in case of an array of
+   *            a primitive or basic type; or "0" or "*" can be specified in case of a
+   *            basic type (which is considered as having only one field).
    */
   def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
@@ -244,6 +268,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that sums the data stream at the given position by the given 
    * key. An independent aggregate is kept per key.
    *
+   * @param position
+   *            The field position in the data points to sum. This is applicable to
+   *            Tuple types, basic and primitive array types, Scala case classes,
+   *            and primitive types (which is considered as having one field).
    */
   def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
   
@@ -251,6 +279,14 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Applies an aggregation that sums the data stream at the given field by the given 
    * key. An independent aggregate is kept per key.
    *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore, an array index can also be specified in case of an array of
+   *            a primitive or basic type; or "0" or "*" can be specified in case of a
+   *            basic type (which is considered as having only one field).
    */
   def sum(field: String): DataStream[T] =  aggregate(AggregationType.SUM, field)
 
@@ -259,34 +295,58 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * the given position by the given key. An independent aggregate is kept per key. 
    * When equality, the first element is returned with the minimal value.
    *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, basic and primitive array types, Scala case classes,
+   *            and primitive types (which is considered as having one field).
    */
   def minBy(position: Int): DataStream[T] = aggregate(AggregationType
     .MINBY, position)
     
    /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given field by the given key. An independent aggregate is kept per key.
-   * When equality, the first element is returned with the minimal value.
-   *
-   */
+    * Applies an aggregation that that gives the current minimum element of the data stream by
+    * the given field by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the minimal value.
+    *
+    * @param field
+    *            In case of a POJO, Scala case class, or Tuple type, the
+    *            name of the (public) field on which to perform the aggregation.
+    *            Additionally, a dot can be used to drill down into nested
+    *            objects, as in `"field1.fieldxy"`.
+    *            Furthermore, an array index can also be specified in case of an array of
+    *            a primitive or basic type; or "0" or "*" can be specified in case of a
+    *            basic type (which is considered as having only one field).
+    */
   def minBy(field: String): DataStream[T] = aggregate(AggregationType
     .MINBY, field )
 
    /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
-   *
-   */
+    * Applies an aggregation that that gives the current maximum element of the data stream by
+    * the given position by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the maximal value.
+    *
+    * @param position
+    *            The field position in the data points to minimize. This is applicable to
+    *            Tuple types, basic and primitive array types, Scala case classes,
+    *            and primitive types (which is considered as having one field).
+    */
   def maxBy(position: Int): DataStream[T] =
     aggregate(AggregationType.MAXBY, position)
     
    /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given field by the given key. An independent aggregate is kept per key. 
-   * When equality, the first element is returned with the maximal value.
-   *
-   */
+    * Applies an aggregation that that gives the current maximum element of the data stream by
+    * the given field by the given key. An independent aggregate is kept per key.
+    * When equality, the first element is returned with the maximal value.
+    *
+    * @param field
+    *            In case of a POJO, Scala case class, or Tuple type, the
+    *            name of the (public) field on which to perform the aggregation.
+    *            Additionally, a dot can be used to drill down into nested
+    *            objects, as in `"field1.fieldxy"`.
+    *            Furthermore, an array index can also be specified in case of an array of
+    *            a primitive or basic type; or "0" or "*" can be specified in case of a
+    *            basic type (which is considered as having only one field).
+    */
   def maxBy(field: String): DataStream[T] =
     aggregate(AggregationType.MAXBY, field)
     

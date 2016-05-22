@@ -142,8 +142,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		out.defaultWriteObject();
 		out.writeInt(keyFields.length);
 		for (Field field: keyFields) {
-			out.writeObject(field.getDeclaringClass());
-			out.writeUTF(field.getName());
+			FieldSerializer.serializeField(field, out);
 		}
 	}
 
@@ -153,23 +152,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		int numKeyFields = in.readInt();
 		keyFields = new Field[numKeyFields];
 		for (int i = 0; i < numKeyFields; i++) {
-			Class<?> clazz = (Class<?>) in.readObject();
-			String fieldName = in.readUTF();
-			// try superclasses as well
-			while (clazz != null) {
-				try {
-					Field field = clazz.getDeclaredField(fieldName);
-					field.setAccessible(true);
-					keyFields[i] = field;
-					break;
-				} catch (NoSuchFieldException e) {
-					clazz = clazz.getSuperclass();
-				}
-			}
-			if (keyFields[i] == null ) {
-				throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
-						+ " (" + fieldName + ")");
-			}
+			keyFields[i] = FieldSerializer.deserializeField(in);
 		}
 	}
 
