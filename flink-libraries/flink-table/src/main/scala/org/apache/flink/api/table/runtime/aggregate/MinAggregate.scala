@@ -20,9 +20,8 @@ package org.apache.flink.api.table.runtime.aggregate
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
-abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
+abstract  class MinAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T]{
 
-  private val numeric = implicitly[Numeric[T]]
   protected var minIndex: Int = _
 
   /**
@@ -49,7 +48,8 @@ abstract  class MinAggregate[T: Numeric] extends Aggregate[T]{
   override def merge(partial: Row, buffer: Row): Unit = {
     val partialValue = partial.productElement(minIndex).asInstanceOf[T]
     val bufferValue = buffer.productElement(minIndex).asInstanceOf[T]
-    buffer.setField(minIndex, numeric.min(partialValue, bufferValue))
+    val min: T = if (ord.compare(partialValue, bufferValue) < 0) partialValue else bufferValue
+    buffer.setField(minIndex, min)
   }
 
   /**
@@ -120,5 +120,14 @@ class DoubleMinAggregate extends MinAggregate[Double] {
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(minIndex, Double.MaxValue)
+  }
+}
+
+class BooleanMinAggregate extends MinAggregate[Boolean] {
+
+  override def intermediateDataType = Array(BasicTypeInfo.BOOLEAN_TYPE_INFO)
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(minIndex, true)
   }
 }

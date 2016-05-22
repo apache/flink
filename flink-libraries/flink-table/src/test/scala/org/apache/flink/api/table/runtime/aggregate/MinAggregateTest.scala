@@ -91,3 +91,32 @@ class DoubleMinAggregateTest extends MinAggregateTestBase[Double] {
 
   override def aggregator: Aggregate[Double] = new DoubleMinAggregate()
 }
+
+class BooleanMinAggregateTest extends AggregateTestBase[Boolean] {
+
+  override def inputValueSets: Seq[Seq[Boolean]] = Seq(
+    Seq(
+      false,
+      false,
+      false
+    ),
+    Seq(
+      true,
+      true,
+      true
+    ),
+    Seq(
+      true,
+      false,
+      null.asInstanceOf[Boolean],
+      true,
+      false,
+      true,
+      null.asInstanceOf[Boolean]
+    )
+  )
+
+  override def expectedResults: Seq[Boolean] = Seq(false, true, false)
+
+  override def aggregator: Aggregate[Boolean] = new BooleanMinAggregate()
+}
