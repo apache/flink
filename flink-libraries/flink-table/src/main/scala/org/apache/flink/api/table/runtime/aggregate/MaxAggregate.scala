@@ -20,9 +20,8 @@ package org.apache.flink.api.table.runtime.aggregate
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
-abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
+abstract class MaxAggregate[T](implicit ord: Ordering[T]) extends Aggregate[T] {
 
-  private val numeric = implicitly[Numeric[T]]
   protected var maxIndex = -1
 
   /**
@@ -49,7 +48,8 @@ abstract class MaxAggregate[T: Numeric] extends Aggregate[T] {
   override def merge(intermediate: Row, buffer: Row): Unit = {
     val partialValue = intermediate.productElement(maxIndex).asInstanceOf[T]
     val bufferValue = buffer.productElement(maxIndex).asInstanceOf[T]
-    buffer.setField(maxIndex, numeric.max(partialValue, bufferValue))
+    val max: T = if (ord.compare(partialValue, bufferValue) > 0) partialValue else bufferValue
+    buffer.setField(maxIndex, max)
   }
 
   /**
@@ -120,5 +120,14 @@ class DoubleMaxAggregate extends MaxAggregate[Double] {
 
   override def initiate(intermediate: Row): Unit = {
     intermediate.setField(maxIndex, Double.MinValue)
+  }
+}
+
+class BooleanMaxAggregate extends MaxAggregate[Boolean] {
+
+  override def intermediateDataType = Array(BasicTypeInfo.BOOLEAN_TYPE_INFO)
+
+  override def initiate(intermediate: Row): Unit = {
+    intermediate.setField(maxIndex, false)
   }
 }

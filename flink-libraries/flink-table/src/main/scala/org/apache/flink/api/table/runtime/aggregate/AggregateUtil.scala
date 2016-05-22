@@ -192,6 +192,8 @@ object AggregateUtil {
                 new FloatMinAggregate
               case DOUBLE =>
                 new DoubleMinAggregate
+              case BOOLEAN =>
+                new BooleanMinAggregate
               case sqlType: SqlTypeName =>
                 throw new TableException("Min aggregate does no support type:" + sqlType)
             }
@@ -209,6 +211,8 @@ object AggregateUtil {
                 new FloatMaxAggregate
               case DOUBLE =>
                 new DoubleMaxAggregate
+              case BOOLEAN =>
+                new BooleanMaxAggregate
               case sqlType: SqlTypeName =>
                 throw new TableException("Max aggregate does no support type:" + sqlType)
             }
