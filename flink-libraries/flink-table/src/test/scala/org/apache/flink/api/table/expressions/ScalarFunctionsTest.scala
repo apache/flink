@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expression
+package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.expression.utils.ExpressionEvaluator
+import org.apache.flink.api.table.expressions.utils.ExpressionEvaluator
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
 import org.apache.flink.api.table.expressions.{Expression, ExpressionParser}
