@@ -91,3 +91,32 @@ class DoubleMaxAggregateTest extends MaxAggregateTestBase[Double] {
 
   override def aggregator: Aggregate[Double] = new DoubleMaxAggregate()
 }
+
+class BooleanMaxAggregateTest extends AggregateTestBase[Boolean] {
+
+  override def inputValueSets: Seq[Seq[Boolean]] = Seq(
+    Seq(
+      false,
+      false,
+      false
+    ),
+    Seq(
+      true,
+      true,
+      true
+    ),
+    Seq(
+      true,
+      false,
+      null.asInstanceOf[Boolean],
+      true,
+      false,
+      true,
+      null.asInstanceOf[Boolean]
+    )
+  )
+
+  override def expectedResults: Seq[Boolean] = Seq(false, true, true)
+
+  override def aggregator: Aggregate[Boolean] = new BooleanMaxAggregate()
+}
