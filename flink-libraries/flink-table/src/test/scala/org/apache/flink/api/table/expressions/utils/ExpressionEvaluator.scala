@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expression.utils
+package org.apache.flink.api.table.expressions.utils
 
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.RexNode
