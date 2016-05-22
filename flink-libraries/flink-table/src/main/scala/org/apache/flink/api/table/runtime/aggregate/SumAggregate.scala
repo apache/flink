@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.Row
 
 abstract class SumAggregate[T: Numeric]
@@ -57,49 +57,25 @@ abstract class SumAggregate[T: Numeric]
 }
 
 class ByteSumAggregate extends SumAggregate[Byte] {
-  private val partialType = Array(SqlTypeName.TINYINT)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.BYTE_TYPE_INFO)
 }
 
 class ShortSumAggregate extends SumAggregate[Short] {
-  private val partialType = Array(SqlTypeName.SMALLINT)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.SHORT_TYPE_INFO)
 }
 
 class IntSumAggregate extends SumAggregate[Int] {
-  private val partialType = Array(SqlTypeName.INTEGER)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.INT_TYPE_INFO)
 }
 
 class LongSumAggregate extends SumAggregate[Long] {
-  private val partialType = Array(SqlTypeName.BIGINT)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
 }
 
 class FloatSumAggregate extends SumAggregate[Float] {
-  private val partialType = Array(SqlTypeName.FLOAT)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.FLOAT_TYPE_INFO)
 }
 
 class DoubleSumAggregate extends SumAggregate[Double] {
-  private val partialType = Array(SqlTypeName.DOUBLE)
-
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.DOUBLE_TYPE_INFO)
 }
