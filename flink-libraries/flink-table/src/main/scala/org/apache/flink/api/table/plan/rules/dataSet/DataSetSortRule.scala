@@ -23,6 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.{LogicalJoin, LogicalSort}
+import org.apache.flink.api.table.TableException
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSort}
 
 class DataSetSortRule
@@ -37,6 +38,15 @@ class DataSetSortRule
     */
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort = call.rel(0).asInstanceOf[LogicalSort]
+
+    if (sort.offset != null) {
+      throw new TableException("ORDER BY OFFSET is currently not supported.")
+    }
+
+    if (sort.fetch != null) {
+      throw new TableException("ORDER BY FETCH is currently not supported.")
+    }
+
     sort.offset == null && sort.fetch == null
   }
 
