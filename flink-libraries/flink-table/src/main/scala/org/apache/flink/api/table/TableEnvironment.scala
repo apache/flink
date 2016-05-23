@@ -147,13 +147,13 @@ abstract class TableEnvironment(val config: TableConfig) {
   def sql(query: String): Table
 
   /**
-    * Emits a [[Table]] to a [[TableSink]].
+    * Writes a [[Table]] to a [[TableSink]].
     *
-    * @param table The [[Table]] to emit.
-    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit
+  private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit
 
   /**
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.

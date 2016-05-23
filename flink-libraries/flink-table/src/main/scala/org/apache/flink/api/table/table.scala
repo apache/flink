@@ -315,16 +315,16 @@ class Table(
   }
 
   /**
-    * Emits the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
+    * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
     *
-    * A batch [[Table]] can only be emitted by a
+    * A batch [[Table]] can only be written to a
     * [[org.apache.flink.api.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
     * [[org.apache.flink.api.table.sinks.StreamTableSink]].
     *
-    * @param sink The [[TableSink]] to which the [[Table]] is emitted.
+    * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  def toSink[T](sink: TableSink[T]): Unit = {
+  def writeToSink[T](sink: TableSink[T]): Unit = {
 
     // get schema information of table
     val rowType = getRelNode.getRowType
@@ -336,7 +336,7 @@ class Table(
     val configuredSink = sink.configure(fieldNames, fieldTypes)
 
     // emit the table to the configured table sink
-    tableEnv.emitToSink(this, configuredSink)
+    tableEnv.writeToSink(this, configuredSink)
   }
 }
 
