@@ -25,6 +25,7 @@ import org.apache.flink.api.scala.batch.utils.SortTestUtils._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala._
+import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -58,6 +59,30 @@ class SortITCase(
     val result = results.filterNot(_.isEmpty).sortBy(p => p.head).reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+  }
+
+  @Test(expected = classOf[PlanGenException])
+  def testOrderByOffset(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 OFFSET 2 ROWS"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
+    tEnv.sql(sqlQuery).toDataSet[Row]
+  }
+
+  @Test(expected = classOf[PlanGenException])
+  def testOrderByFirst(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 FETCH NEXT 2 ROWS ONLY"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
+    tEnv.sql(sqlQuery).toDataSet[Row]
   }
 
 }
