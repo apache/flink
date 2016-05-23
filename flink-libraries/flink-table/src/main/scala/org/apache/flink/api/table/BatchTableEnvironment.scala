@@ -31,7 +31,6 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
@@ -252,15 +251,17 @@ abstract class BatchTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new PlanGenException(
+        throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
-            "Please consider filing a bug report.", e)
+            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
       case t: TableException =>
-        throw new PlanGenException(
+        throw new TableException(
         s"Cannot generate a valid execution plan for the given query: \n\n" +
           s"${RelOptUtil.toString(relNode)}\n" +
-          t.msg)
+          s"${t.msg}\n" +
+          s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
         throw a.getCause
     }
