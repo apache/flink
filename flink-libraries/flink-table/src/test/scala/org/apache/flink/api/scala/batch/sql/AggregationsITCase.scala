@@ -23,6 +23,7 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import TableProgramsTestBase.TableConfigMode
+import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -210,5 +211,50 @@ class AggregationsITCase(
     val expected = "1,3,2"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[PlanGenException])
+  def testDistinctAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT sum(_1) as a, count(distinct _3) as b FROM MyTable"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
+
+    // must fail. distinct aggregates are not supported
+    tEnv.sql(sqlQuery).toDataSet[Row]
+  }
+
+  @Test(expected = classOf[PlanGenException])
+  def testGroupedDistinctAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT _2, avg(distinct _1) as a, count(_3) as b FROM MyTable GROUP BY _2"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
+
+    // must fail. distinct aggregates are not supported
+    tEnv.sql(sqlQuery).toDataSet[Row]
+  }
+
+  @Test(expected = classOf[PlanGenException])
+  def testGroupingSetAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT _2, _3, avg(_1) as a FROM MyTable GROUP BY GROUPING SETS (_2, _3)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds)
+
+    // must fail. grouping sets are not supported
+    tEnv.sql(sqlQuery).toDataSet[Row]
   }
 }
