@@ -923,7 +923,7 @@ under the License.
 				</configuration>
 				<executions>
 					<execution>
-						<id>unit-tests</id>
+						<id>default-test</id>
 						<phase>test</phase>
 						<goals>
 							<goal>test</goal>
