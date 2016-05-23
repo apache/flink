@@ -685,12 +685,12 @@ SQL queries can be executed on DataStream Tables by adding the `STREAM` SQL keyw
 
 {% top %}
 
-Emit a Table to external sinks
+Write Tables to external sinks
 ----
 
-A `Table` can be emitted to a `TableSink`, which is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ), and others. A batch `Table` can only be emitted by a `BatchTableSink`, a streaming table requires a `StreamTableSink` (a `TableSink` can implement both interfaces). 
+A `Table` can be written to a `TableSink`, which is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). A batch `Table` can only be written to a `BatchTableSink`, a streaming table requires a `StreamTableSink`. A `TableSink` can implement both interfaces at the same time. 
 
-Currently, Flink only provides a `CsvTableSink` that writes a batch or streaming `Table` to CSV-formatted files. A custom `TableSource` can be defined by implementing the `BatchTableSink` and/or `StreamTableSink` interface. 
+Currently, Flink only provides a `CsvTableSink` that writes a batch or streaming `Table` to CSV-formatted files. A custom `TableSink` can be defined by implementing the `BatchTableSink` and/or `StreamTableSink` interface. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -703,8 +703,8 @@ Table result = ...
 
 // create a TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
-// add a TableSink to emit the result Table
-result.toSink(sink);
+// write the result Table to the TableSink
+result.writeToSink(sink);
 
 // execute the program
 env.execute();
@@ -721,8 +721,8 @@ val result: Table = ...
 
 // create a TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
-// add a TableSink to emit the result Table
-result.toSink(sink)
+// write the result Table to the TableSink
+result.writeToSink(sink)
 
 // execute the program
 env.execute()
@@ -737,5 +737,5 @@ Runtime Configuration
 The Table API provides a configuration (the so-called `TableConfig`) to modify runtime behavior. It can be accessed either through `TableEnvironment` or passed to the `toDataSet`/`toDataStream` method when using Scala implicit conversion.
 
 ### Null Handling
-By default, the Table API supports `null` values. Null handling can be disabled by setting the `nullCheck` property in the `TableConfig` to `false`.
+By default, the Table API supports `null` values. Null handling can be disabled to improve preformance by setting the `nullCheck` property in the `TableConfig` to `false`.
 
