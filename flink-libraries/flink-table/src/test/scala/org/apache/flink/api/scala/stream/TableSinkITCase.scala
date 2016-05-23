@@ -53,7 +53,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
     val results = input.toTable(tEnv, 'a, 'b, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
-      .toSink(new CsvTableSink(path))
+      .writeToSink(new CsvTableSink(path))
 
     env.execute()
 
