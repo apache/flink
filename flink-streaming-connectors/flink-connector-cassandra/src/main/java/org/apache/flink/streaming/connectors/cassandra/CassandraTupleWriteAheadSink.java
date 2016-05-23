@@ -30,19 +30,19 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.runtime.operators.GenericAtLeastOnceSink;
+import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a 
+ * Sink that emits its input elements into a Cassandra database. This sink stores incoming records within a
  * {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only commits them to cassandra
  * if a checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericAtLeastOnceSink<IN> {
+public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 

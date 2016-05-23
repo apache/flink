@@ -28,7 +28,7 @@ import org.junit.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<Integer>, GenericAtLeastOnceSinkTest.ListSink> {
+public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
 	@Override
 	protected ListSink createSink() throws Exception {
 		return new ListSink();
@@ -101,7 +101,7 @@ public class GenericAtLeastOnceSinkTest extends AtLeastOnceSinkTestBase<Tuple1<I
 	/**
 	 * Simple sink that stores all records in a public list.
 	 */
-	public static class ListSink extends GenericAtLeastOnceSink<Tuple1<Integer>> {
+	public static class ListSink extends GenericWriteAheadSink<Tuple1<Integer>> {
 		public List<Integer> values = new ArrayList<>();
 
 		public ListSink() throws Exception {

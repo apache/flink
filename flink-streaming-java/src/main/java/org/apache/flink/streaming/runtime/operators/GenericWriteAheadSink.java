@@ -48,8 +48,8 @@ import java.util.UUID;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
-	protected static final Logger LOG = LoggerFactory.getLogger(GenericAtLeastOnceSink.class);
+public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
+	protected static final Logger LOG = LoggerFactory.getLogger(GenericWriteAheadSink.class);
 	private final CheckpointCommitter committer;
 	private transient AbstractStateBackend.CheckpointStateOutputView out;
 	protected final TypeSerializer<IN> serializer;
@@ -57,7 +57,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 
 	private ExactlyOnceState state = new ExactlyOnceState();
 
-	public GenericAtLeastOnceSink(CheckpointCommitter committer, TypeSerializer<IN> serializer, String jobID) throws Exception {
+	public GenericWriteAheadSink(CheckpointCommitter committer, TypeSerializer<IN> serializer, String jobID) throws Exception {
 		this.committer = committer;
 		this.serializer = serializer;
 		this.id = UUID.randomUUID().toString();
@@ -70,6 +70,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 		committer.setOperatorId(id);
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
+		cleanState();
 	}
 
 	public void close() throws Exception {
@@ -112,6 +113,21 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 		out = null;
 	}
 
+	private void cleanState() throws Exception {
+		synchronized (this.state.pendingHandles) { //remove all handles that were already committed
+			Set<Long> pastCheckpointIds = this.state.pendingHandles.keySet();
+			Set<Long> checkpointsToRemove = new HashSet<>();
+			for (Long pastCheckpointId : pastCheckpointIds) {
+				if (committer.isCheckpointCommitted(pastCheckpointId)) {
+					checkpointsToRemove.add(pastCheckpointId);
+				}
+			}
+			for (Long toRemove : checkpointsToRemove) {
+				this.state.pendingHandles.remove(toRemove);
+			}
+		}
+	}
+
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		super.notifyOfCompletedCheckpoint(checkpointId);
@@ -145,6 +161,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	 * @param value value to be written
 	 * @throws Exception
 	 */
+
 	protected abstract void sendValues(Iterable<IN> value, long timestamp) throws Exception;
 
 	@Override
@@ -190,6 +207,10 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 				stateSize += pair.f1.getStateSize();
 			}
 			return stateSize;
+		}
+
+		public String toString() {
+			return this.pendingHandles.toString();
 		}
 	}
 }

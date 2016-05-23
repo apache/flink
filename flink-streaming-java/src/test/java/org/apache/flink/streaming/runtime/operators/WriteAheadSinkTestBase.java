@@ -33,7 +33,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-public abstract class AtLeastOnceSinkTestBase<IN, S extends GenericAtLeastOnceSink<IN>> {
+public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> {
 
 	protected class OperatorExposingTask<IN> extends OneInputStreamTask<IN, IN> {
 		public OneInputStreamOperator<IN, IN> getOperator() {

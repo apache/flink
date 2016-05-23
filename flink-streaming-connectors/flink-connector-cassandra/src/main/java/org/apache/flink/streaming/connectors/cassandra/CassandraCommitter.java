@@ -37,9 +37,10 @@ public class CassandraCommitter extends CheckpointCommitter {
 	private String keySpace = "flink_auxiliary";
 	private String table = "checkpoints_";
 
-	private transient PreparedStatement deleteStatement;
 	private transient PreparedStatement updateStatement;
 	private transient PreparedStatement selectStatement;
+
+	private long lastCommitterCheckpointID = -1;
 
 	public CassandraCommitter(ClusterBuilder builder) {
 		this.builder = builder;
@@ -96,16 +97,14 @@ public class CassandraCommitter extends CheckpointCommitter {
 		cluster = builder.getCluster();
 		session = cluster.connect();
 
-		deleteStatement = session.prepare(String.format("DELETE FROM %s.%s where sink_id='%s' and sub_id=%d;", keySpace, table, operatorId, subtaskId));
 		updateStatement = session.prepare(String.format("UPDATE %s.%s set checkpoint_id=? where sink_id='%s' and sub_id=%d;", keySpace, table, operatorId, subtaskId));
 		selectStatement = session.prepare(String.format("SELECT checkpoint_id FROM %s.%s where sink_id='%s' and sub_id=%d;", keySpace, table, operatorId, subtaskId));
 
-		session.execute(String.format("INSERT INTO %s.%s (sink_id, sub_id, checkpoint_id) values ('%s', %d, " + -1 + ");", keySpace, table, operatorId, subtaskId));
+		session.execute(String.format("INSERT INTO %s.%s (sink_id, sub_id, checkpoint_id) values ('%s', %d, " + -1 + ") IF NOT EXISTS;", keySpace, table, operatorId, subtaskId));
 	}
 
 	@Override
 	public void close() throws Exception {
-		session.executeAsync(deleteStatement.bind());
 		try {
 			session.close();
 		} catch (Exception e) {
@@ -121,11 +120,14 @@ public class CassandraCommitter extends CheckpointCommitter {
 	@Override
 	public void commitCheckpoint(long checkpointID) {
 		session.execute(updateStatement.bind(checkpointID));
+		this.lastCommitterCheckpointID = checkpointID;
 	}
 
 	@Override
 	public boolean isCheckpointCommitted(long checkpointID) {
-		long lastId = session.execute(selectStatement.bind()).one().getLong("checkpoint_id");
-		return checkpointID <= lastId;
+		if (this.lastCommitterCheckpointID == -1) {
+			this.lastCommitterCheckpointID = session.execute(selectStatement.bind()).one().getLong("checkpoint_id");
+		}
+		return checkpointID <= this.lastCommitterCheckpointID;
 	}
 }
