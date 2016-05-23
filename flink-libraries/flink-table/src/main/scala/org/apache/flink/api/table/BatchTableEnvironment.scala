@@ -136,16 +136,16 @@ abstract class BatchTableEnvironment(
   }
 
   /**
-    * Emits a [[Table]] to a [[TableSink]].
+    * Writes a [[Table]] to a [[TableSink]].
     *
     * Internally, the [[Table]] is translated into a [[DataSet]] and handed over to the
-    * [[TableSink]] to emit it.
+    * [[TableSink]] to write it.
     *
-    * @param table The [[Table]] to emit.
-    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
     */
-  override private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit = {
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = {
 
     sink match {
       case batchSink: BatchTableSink[T] =>
