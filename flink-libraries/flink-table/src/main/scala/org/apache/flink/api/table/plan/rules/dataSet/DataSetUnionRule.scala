@@ -32,14 +32,6 @@ class DataSetUnionRule
       "DataSetUnionRule")
   {
 
-  /**
-   * Only translate UNION ALL
-   */
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val union: LogicalUnion = call.rel(0).asInstanceOf[LogicalUnion]
-    union.all
-  }
-
   def convert(rel: RelNode): RelNode = {
 
     val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
@@ -52,7 +44,8 @@ class DataSetUnionRule
       traitSet,
       convLeft,
       convRight,
-      rel.getRowType)
+      rel.getRowType,
+      rel.asInstanceOf[LogicalUnion].all)
   }
 }
 

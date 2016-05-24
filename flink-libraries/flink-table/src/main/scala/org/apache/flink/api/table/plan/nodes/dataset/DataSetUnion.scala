@@ -38,7 +38,8 @@ class DataSetUnion(
     traitSet: RelTraitSet,
     left: RelNode,
     right: RelNode,
-    rowType: RelDataType)
+    rowType: RelDataType,
+    all: Boolean)
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -50,16 +51,19 @@ class DataSetUnion(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      rowType
+      rowType,
+      all
     )
   }
 
+  private val allStr: String = if (all) "All" else ""
+
   override def toString: String = {
-    "Union(union: (${rowType.getFieldNames.asScala.toList.mkString(\", \")}))"
+    s"Union$allStr(union: (${rowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("union", unionSelectionToString)
+    super.explainTerms(pw).item(s"union$allStr", unionSelectionToString)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -69,7 +73,7 @@ class DataSetUnion(
       rows + metadata.getRowCount(child)
     }
 
-    planner.getCostFactory.makeCost(rowCnt, 0, 0)
+    planner.getCostFactory.makeCost(if (all) rowCnt else rowCnt * 0.1, 0, 0)
   }
 
   override def translateToPlan(
@@ -78,7 +82,11 @@ class DataSetUnion(
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-    leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
+    if (all) {
+      leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
+    } else {
+      leftDataSet.union(rightDataSet).distinct().asInstanceOf[DataSet[Any]]
+    }
   }
 
   private def unionSelectionToString: String = {

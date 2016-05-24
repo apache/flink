@@ -43,7 +43,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUnion() throws Exception {
+	public void testUnionAll() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
@@ -62,7 +62,45 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUnionWithFilter() throws Exception {
+	public void testUnionWithOneColumn() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+
+		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
+		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c");
+
+		Table selected = in1.select("b").union(in2.select("b"));
+
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "1\n" + "2\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testUnion() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
+
+		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
+		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e");
+
+		Table selected = in1.select("a, b").union(in2.select("a, b"));
+
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "1,1\n" + "2,2\n" + "2,3\n" + "3,2\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testUnionAllWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
@@ -126,7 +164,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUnionWithAggregation() throws Exception {
+	public void testUnionAllWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
@@ -145,7 +183,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUnionWithJoin() throws Exception {
+	public void testUnionAllWithJoin() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
