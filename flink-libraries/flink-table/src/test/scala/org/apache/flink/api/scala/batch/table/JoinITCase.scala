@@ -107,9 +107,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
-    // must fail. Field 'foo does not exist
-    .where('foo === 'e)
-    .select('c, 'g)
+      // must fail. Field 'foo does not exist
+      .where('foo === 'e)
+      .select('c, 'g)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -121,9 +121,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
-    // must fail. Field 'a is Int, and 'g is String
-    .where('a === 'g)
-    .select('c, 'g).collect()
+      // must fail. Field 'a is Int, and 'g is String
+      .where('a === 'g)
+      .select('c, 'g).collect()
   }
 
   @Test(expected = classOf[ValidationException])
@@ -135,9 +135,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'c)
 
     ds1.join(ds2)
-    // must fail. Both inputs share the same field 'c
-    .where('a === 'd)
-    .select('c, 'g)
+      // must fail. Both inputs share the same field 'c
+      .where('a === 'd)
+      .select('c, 'g)
   }
 
   @Test(expected = classOf[TableException])
@@ -149,9 +149,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
-    // must fail. No equality join predicate
-    .where('d === 'f)
-    .select('c, 'g).collect()
+      // must fail. No equality join predicate
+      .where('d === 'f)
+      .select('c, 'g).collect()
   }
 
   @Test(expected = classOf[TableException])
@@ -163,9 +163,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     ds1.join(ds2)
-    // must fail. No equality join predicate
-    .where('a < 'd)
-    .select('c, 'g).collect()
+      // must fail. No equality join predicate
+      .where('a < 'd)
+      .select('c, 'g).collect()
   }
 
   @Test
@@ -301,10 +301,13 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds1.leftOuterJoin(ds2, 'a < 3 && 'b === 'd.cast(TypeInformation.of(classOf[Long])))
+    val joinT = ds2.leftOuterJoin(ds1, 'a < 3 && 'b === 'd.cast(TypeInformation.of(classOf[Long])))
                 .select('c, 'g)
 
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n"
+    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
+      "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" + "null,CDE\n" +
+      "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
+      "null,IJK\n" + "null,JKL\n" + "null,KLM\n"
     val results = joinT.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

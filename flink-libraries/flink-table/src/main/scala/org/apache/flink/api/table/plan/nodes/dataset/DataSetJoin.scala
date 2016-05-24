@@ -155,7 +155,7 @@ class DataSetJoin(
     }
 
     if (nullCheck && !config.getNullCheck) {
-      throw new TableException("Null check in TableEnvironment must be enabled for outer joins.")
+      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
     }
 
     val generator = new CodeGenerator(

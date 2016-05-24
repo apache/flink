@@ -18,9 +18,7 @@
 package org.apache.flink.api.table.expressions
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.UnresolvedException
@@ -66,25 +64,6 @@ case class ResolvedFieldReference(
     } else {
       ResolvedFieldReference(newName, resultType)
     }
-  }
-}
-
-private[flink] case class JoinFieldReference(override val name: String,
-                              left : RelNode,
-                              right : RelNode)
-  extends LeafExpression {
-  override def toString = "\"" + name
-
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val joinInputField = if (left.getRowType.getFieldNames.contains(name)) {
-      val field = left.getRowType.getField(name, false, false)
-      (field.getIndex, field.getType)
-    } else {
-      val field = right.getRowType.getField(name, false, false)
-      (field.getIndex + left.getRowType.getFieldCount, field.getType)
-    }
-
-    new RexInputRef(joinInputField._1, joinInputField._2)
   }
 }
 

@@ -41,7 +41,6 @@ class DataSetJoinRule
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
     !joinInfo.pairs().isEmpty
-
   }
 
   override def convert(rel: RelNode): RelNode = {

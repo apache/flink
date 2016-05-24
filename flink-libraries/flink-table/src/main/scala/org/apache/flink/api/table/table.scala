@@ -18,14 +18,10 @@
 package org.apache.flink.api.table
 
 import scala.collection.JavaConverters._
-
 import org.apache.calcite.rel.RelNode
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
@@ -253,7 +249,7 @@ class Table(
     * }}}
     */
   def join(right: Table): Table = {
-    join(right, new Literal(true, TypeInformation.of(classOf[Boolean])), JoinType.INNER)
+    join(right, None, JoinType.INNER)
   }
 
   /**
@@ -285,7 +281,7 @@ class Table(
     * }}}
     */
   def join(right: Table, joinPredicate: Expression): Table = {
-    join(right, joinPredicate, JoinType.INNER)
+    join(right, Some(joinPredicate), JoinType.INNER)
   }
 
   /**
@@ -293,7 +289,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -310,7 +306,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -319,7 +315,7 @@ class Table(
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, joinPredicate, JoinType.LEFT_OUTER)
+    join(right, Some(joinPredicate), JoinType.LEFT_OUTER)
   }
 
   /**
@@ -327,7 +323,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -344,7 +340,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -353,7 +349,7 @@ class Table(
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, joinPredicate, JoinType.RIGHT_OUTER)
+    join(right, Some(joinPredicate), JoinType.RIGHT_OUTER)
   }
 
   /**
@@ -361,7 +357,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -378,7 +374,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enables.
+    * have nullCheck enabled.
     *
     * Example:
     *
@@ -387,30 +383,24 @@ class Table(
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
-    join(right, joinPredicate, JoinType.FULL_OUTER)
-  }
-
-  private def flinkJoinTypeToCalcite(joinType: JoinType) = joinType match {
-    case JoinType.INNER => JoinRelType.INNER
-    case JoinType.LEFT_OUTER => JoinRelType.LEFT
-    case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
-    case JoinType.FULL_OUTER => JoinRelType.FULL
+    join(right, Some(joinPredicate), JoinType.FULL_OUTER)
   }
 
   private def join(right: Table, joinPredicate: String, joinType: JoinType): Table = {
     val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
-    join(right, joinPredicateExpr, joinType)
+    join(right, Some(joinPredicateExpr), joinType)
   }
 
-  private def join(right: Table, joinPredicate: Expression, joinType: JoinType): Table = {
+  private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
 
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
-    new Table(tableEnv,
-              Join(this.logicalPlan, right.logicalPlan, JoinType.INNER, None).validate(tableEnv))
-    }
+    new Table(
+      tableEnv,
+      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate).validate(tableEnv))
+  }
 
   /**
     * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations

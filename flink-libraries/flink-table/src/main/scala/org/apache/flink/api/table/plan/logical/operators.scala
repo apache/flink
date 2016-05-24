@@ -19,14 +19,14 @@ package org.apache.flink.api.table.plan.logical
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table._
 import org.apache.flink.api.table.expressions._
@@ -269,22 +269,60 @@ case class Join(
     condition: Option[Expression]) extends BinaryNode {
 
   override def output: Seq[Attribute] = {
-    joinType match {
-      case JoinType.INNER => left.output ++ right.output
-      case j => throw new ValidationException(s"Unsupported JoinType: $j")
+    left.output ++ right.output
+  }
+
+  private case class JoinFieldReference(
+    name: String,
+    resultType: TypeInformation[_],
+    left: RelNode,
+    right: RelNode) extends Attribute {
+
+    override def toString = s"'$name"
+
+    override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+      val joinInputField = if (left.getRowType.getFieldNames.contains(name)) {
+        val field = left.getRowType.getField(name, false, false)
+        (field.getIndex, field.getType)
+      } else {
+        val field = right.getRowType.getField(name, false, false)
+        (field.getIndex + left.getRowType.getFieldCount, field.getType)
+      }
+
+      new RexInputRef(joinInputField._1, joinInputField._2)
+    }
+
+    override def withName(newName: String): Attribute = {
+      if (newName == name) {
+        this
+      } else {
+        JoinFieldReference(newName, resultType, left, right)
+      }
     }
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    joinType match {
-      case JoinType.INNER =>
-        left.construct(relBuilder)
-        right.construct(relBuilder)
-        relBuilder.join(JoinRelType.INNER,
-          condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)))
-      case _ =>
-        throw new ValidationException(s"Unsupported JoinType: $joinType")
+    left.construct(relBuilder)
+    right.construct(relBuilder)
+    val partialFunction: PartialFunction[Expression, Expression] = {
+      case field: ResolvedFieldReference => new JoinFieldReference(
+        field.name,
+        field.resultType,
+        relBuilder.peek(2, 0),
+        relBuilder.peek(2, 1))
     }
+
+    val transformedExpression = condition.map(_.postOrderTransform(partialFunction))
+                                .map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true))
+
+    relBuilder.join(flinkJoinTypeToCalcite(joinType), transformedExpression)
+  }
+
+  private def flinkJoinTypeToCalcite(joinType: JoinType) = joinType match {
+    case JoinType.INNER => JoinRelType.INNER
+    case JoinType.LEFT_OUTER => JoinRelType.LEFT
+    case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
+    case JoinType.FULL_OUTER => JoinRelType.FULL
   }
 
   private def ambiguousName: Set[String] =
