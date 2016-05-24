@@ -18,12 +18,12 @@
 
 package org.apache.flink.metrics.reporter;
 
-import org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractReporter implements MetricReporter {
 	
