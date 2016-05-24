@@ -39,7 +39,7 @@ class UnionITCase(
   extends TableProgramsTestBase(mode, configMode) {
 
   @Test
-  def testUnion(): Unit = {
+  def testUnionAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -54,7 +54,22 @@ class UnionITCase(
   }
 
   @Test
-  def testTernaryUnion(): Unit = {
+  def testUnion(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+
+    val unionDs = ds1.union(ds2).select('c)
+
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testTernaryUnionAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -72,21 +87,18 @@ class UnionITCase(
   }
 
   @Test
-  def testUnionWithFilter(): Unit = {
+  def testTernaryUnion(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds3 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
+    val unionDs = ds1.union(ds2).union(ds3).select('c)
 
-    val results = joinDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hallo\n"
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -113,50 +125,6 @@ class UnionITCase(
 
     // must fail. Union inputs have different field types.
     ds1.unionAll(ds2)
-  }
-
-  @Test
-  def testUnionWithAggregation(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
-
-    val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).select('c.count)
-
-    val results = unionDs.toDataSet[Row].collect()
-    val expected = "18"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testUnionWithJoin(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv,'a, 'b, 'd, 'c, 'e)
-    val ds3 = CollectionDataSets.getSmall5TupleDataSet(env).toTable(tEnv, 'a2, 'b2, 'd2, 'c2, 'e2)
-
-    val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c))
-      .join(ds3.select('a2, 'b2, 'c2))
-      .where('a ==='a2).select('c, 'c2)
-
-    val results = joinDs.toDataSet[Row].collect()
-    val expected = "Hi,Hallo\n" + "Hallo,Hallo\n" +
-      "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
-      "Hallo Welt,Hallo Welt\n" + "Hallo Welt wie,Hallo Welt\n" +
-      "Hallo Welt,Hallo Welt wie\n" + "Hallo Welt wie,Hallo Welt wie\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ValidationException])

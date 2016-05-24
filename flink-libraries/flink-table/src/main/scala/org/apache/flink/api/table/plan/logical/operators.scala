@@ -236,13 +236,13 @@ case class Aggregate(
   }
 }
 
-case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
+case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
-    relBuilder.union(true)
+    relBuilder.union(all)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
