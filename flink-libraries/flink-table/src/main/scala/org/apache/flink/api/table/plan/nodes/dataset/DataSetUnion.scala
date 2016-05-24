@@ -73,7 +73,10 @@ class DataSetUnion(
       rows + metadata.getRowCount(child)
     }
 
-    planner.getCostFactory.makeCost(if (all) rowCnt else rowCnt * 0.1, 0, 0)
+    planner.getCostFactory.makeCost(
+      rowCnt,
+      if (all) 0 else rowCnt,
+      if (all) 0 else rowCnt)
   }
 
   override def translateToPlan(

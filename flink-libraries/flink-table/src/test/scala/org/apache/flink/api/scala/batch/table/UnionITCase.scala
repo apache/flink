@@ -102,25 +102,6 @@ class UnionITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
-  def testUnionAllWithFilter(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
-
-    val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
-
-    val results = joinDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hallo\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
   @Test(expected = classOf[ValidationException])
   def testUnionDifferentFieldNames(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
@@ -144,50 +125,6 @@ class UnionITCase(
 
     // must fail. Union inputs have different field types.
     ds1.unionAll(ds2)
-  }
-
-  @Test
-  def testUnionWithAggregation(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
-
-    val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).select('c.count)
-
-    val results = unionDs.toDataSet[Row].collect()
-    val expected = "18"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testUnionWithJoin(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv,'a, 'b, 'd, 'c, 'e)
-    val ds3 = CollectionDataSets.getSmall5TupleDataSet(env).toTable(tEnv, 'a2, 'b2, 'd2, 'c2, 'e2)
-
-    val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c))
-      .join(ds3.select('a2, 'b2, 'c2))
-      .where('a ==='a2).select('c, 'c2)
-
-    val results = joinDs.toDataSet[Row].collect()
-    val expected = "Hi,Hallo\n" + "Hallo,Hallo\n" +
-      "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
-      "Hallo Welt,Hallo Welt\n" + "Hallo Welt wie,Hallo Welt\n" +
-      "Hallo Welt,Hallo Welt wie\n" + "Hallo Welt wie,Hallo Welt wie\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ValidationException])
