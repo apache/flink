@@ -260,6 +260,29 @@ class Table(
   }
 
   /**
+    * Union two [[Table]]s with duplicate records removed.
+    * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.union(right)
+    * }}}
+    */
+  def union(right: Table): Table = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Union on stream tables is currently not supported.")
+    }
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+    }
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+  }
+
+  /**
     * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
     *
@@ -276,7 +299,7 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, true).validate(tableEnv))
   }
 
   /**
