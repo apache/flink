@@ -18,7 +18,7 @@
 
 package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.hadoop.shaded.org.jboss.netty.util.internal.ConcurrentHashMap;
+import org.jboss.netty.util.internal.ConcurrentHashMap;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
