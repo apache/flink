@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStateBackend;
 import org.apache.flink.runtime.state.PartitionedStateBackend;
+import org.apache.flink.runtime.state.PartitionedStateBackendFactory;
 import org.apache.flink.runtime.state.PartitionedStateSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -54,10 +55,9 @@ import java.util.Map;
  */
 public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KEY> {
 
-	// state backend to be used as the factory for PartitionedStateBackends
-	private final AbstractStateBackend stateBackend;
+	private final PartitionedStateBackendFactory partitionedStateBackendFactory;
 
-	private final TypeSerializer<KEY> keySerializer;
+	private final TypeSerializer<KEY> keyTypeSerializer;
 
 	// Assigns keys to their key groups
 	private final KeyGroupAssigner<KEY> keyGroupAssigner;
@@ -75,11 +75,11 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 	private PartitionedStateBackend<KEY> currentPartitionedStateBackend = null;
 
 	public GenericKeyGroupStateBackend(
-		AbstractStateBackend abstractStateBackend,
-		TypeSerializer<KEY> keySerializer,
+		PartitionedStateBackendFactory partitionedStateBackendFactory,
+		TypeSerializer<KEY> keyTypeSerializer,
 		KeyGroupAssigner<KEY> keyGroupAssigner) {
-		this.stateBackend = Preconditions.checkNotNull(abstractStateBackend);
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.partitionedStateBackendFactory = Preconditions.checkNotNull(partitionedStateBackendFactory);
+		this.keyTypeSerializer = Preconditions.checkNotNull(keyTypeSerializer);
 		this.keyGroupAssigner = Preconditions.checkNotNull(keyGroupAssigner);
 
 		partitionedStateBackends = new HashMap<>();
@@ -94,7 +94,7 @@ public class GenericKeyGroupStateBackend<KEY> implements KeyGroupStateBackend<KE
 			PartitionedStateBackend<KEY> partitionedStateBackend;
 			try {
 				// create a new state backend for the given key group
-				partitionedStateBackend = stateBackend.createPartitionedStateBackend(keySerializer);
+				partitionedStateBackend = partitionedStateBackendFactory.createPartitionedStateBackend(keyTypeSerializer);
 			} catch (Exception e) {
 				throw new RuntimeException("Could not create the partitioned state backend for " +
 					"key group index " + keyGroupIndex + ".", e);

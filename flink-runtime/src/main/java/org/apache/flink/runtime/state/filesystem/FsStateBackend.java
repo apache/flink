@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.KeyGroupStateBackend;
+import org.apache.flink.runtime.state.PartitionedStateBackendFactory;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.generic.GenericKeyGroupStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +52,7 @@ import java.util.UUID;
  *
  * {@code hdfs://namenode:port/flink-checkpoints/<job-id>/chk-17/6ba7b810-9dad-11d1-80b4-00c04fd430c8 }
  */
-public class FsStateBackend extends AbstractStateBackend {
+public class FsStateBackend extends AbstractStateBackend implements PartitionedStateBackendFactory {
 
 	private static final long serialVersionUID = -8191916350224044011L;
 
@@ -240,6 +244,11 @@ public class FsStateBackend extends AbstractStateBackend {
 		filesystem.mkdirs(dir);
 
 		checkpointDirectory = dir;
+	}
+
+	@Override
+	public <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
+		return new GenericKeyGroupStateBackend<>(this, keySerializer, keyGroupAssigner);
 	}
 
 	@Override

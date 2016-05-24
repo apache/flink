@@ -60,19 +60,6 @@ public abstract class AbstractStateBackend implements AutoCloseable, Serializabl
 	}
 
 	/**
-	 * Creates a partitioned version of this state backend.
-	 *
-	 * This method is only used by the GenericKeyGroupStateBackend to for each key group a
-	 * partitioned state backend which backs this key group.
-	 *
-	 * @param keySerializer Key serializer for the partitioned states
-	 * @param <K> Type of the key
-	 * @return PartitionedStateBackend
-	 * @throws Exception
-	 */
-	public abstract <K> PartitionedStateBackend<K> createPartitionedStateBackend(TypeSerializer<K> keySerializer) throws Exception;
-
-	/**
 	 * Creates a key group state backend for this abstract state backend.
 	 *
 	 * @param keySerializer Key serializer for the partitioned states
@@ -80,9 +67,7 @@ public abstract class AbstractStateBackend implements AutoCloseable, Serializabl
 	 * @param <K> Type of the key
 	 * @return KeyGroupStateBackend
 	 */
-	public <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
-		return new GenericKeyGroupStateBackend<K>(this, keySerializer, keyGroupAssigner);
-	}
+	public abstract <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner);
 
 	// ------------------------------------------------------------------------
 	//  storing state for a checkpoint

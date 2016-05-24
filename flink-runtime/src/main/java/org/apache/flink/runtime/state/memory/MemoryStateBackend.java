@@ -18,11 +18,15 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.KeyGroupStateBackend;
 import org.apache.flink.runtime.state.PartitionedStateBackend;
+import org.apache.flink.runtime.state.PartitionedStateBackendFactory;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.generic.GenericKeyGroupStateBackend;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,7 +37,7 @@ import java.io.Serializable;
  * capabilities to spill to disk. Checkpoints are serialized and the serialized data is
  * transferred
  */
-public class MemoryStateBackend extends AbstractStateBackend {
+public class MemoryStateBackend extends AbstractStateBackend implements PartitionedStateBackendFactory {
 
 	private static final long serialVersionUID = 4109305377809414635L;
 
@@ -96,6 +100,11 @@ public class MemoryStateBackend extends AbstractStateBackend {
 		SerializedStateHandle<S> handle = new SerializedStateHandle<>(state);
 		checkSize(handle.getSizeOfSerializedState(), maxStateSize);
 		return new SerializedStateHandle<S>(state);
+	}
+
+	@Override
+	public <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
+		return new GenericKeyGroupStateBackend<>(this, keySerializer, keyGroupAssigner);
 	}
 
 	@Override

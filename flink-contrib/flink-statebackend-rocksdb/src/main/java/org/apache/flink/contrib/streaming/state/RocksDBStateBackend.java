@@ -26,14 +26,18 @@ import java.util.List;
 import java.util.UUID;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.KeyGroupAssigner;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupStateBackend;
+import org.apache.flink.runtime.state.PartitionedStateBackendFactory;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.api.common.state.StateBackend;
 
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.generic.GenericKeyGroupStateBackend;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.slf4j.Logger;
@@ -54,7 +58,7 @@ import static java.util.Objects.requireNonNull;
  * using the methods {@link #setPredefinedOptions(PredefinedOptions)} and
  * {@link #setOptions(OptionsFactory)}.
  */
-public class RocksDBStateBackend extends AbstractStateBackend {
+public class RocksDBStateBackend extends AbstractStateBackend implements PartitionedStateBackendFactory {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
@@ -188,6 +192,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				initializedDbBasePaths = dirs.toArray(new File[dirs.size()]);
 			}
 		}
+	}
+
+	@Override
+	public <K> KeyGroupStateBackend<K> createKeyGroupStateBackend(TypeSerializer<K> keySerializer, KeyGroupAssigner<K> keyGroupAssigner) {
+		return new GenericKeyGroupStateBackend<>(this, keySerializer, keyGroupAssigner);
 	}
 
 	@Override
