@@ -44,7 +44,7 @@ class AggregateMapFunction[IN, OUT](
 
   override def map(value: IN): OUT = {
     
-    val input = value.asInstanceOf[Product]
+    val input = value.asInstanceOf[Row]
     for (i <- 0 until aggregates.length) {
       val fieldValue = input.productElement(aggFields(i))
       aggregates(i).prepare(fieldValue, output)
