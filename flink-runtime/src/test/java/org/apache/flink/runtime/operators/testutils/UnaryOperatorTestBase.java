@@ -115,7 +115,8 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		this.executionConfig = executionConfig;
 		this.comparators = new ArrayList<TypeComparator<IN>>(2);
 
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageInfo = new TaskManagerRuntimeInfo(
+				"localhost", new Configuration(), System.getProperty("java.io.tmpdir"));
 	}
 
 	@Parameterized.Parameters

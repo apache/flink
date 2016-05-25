@@ -45,23 +45,11 @@ public class ResourceID implements Serializable {
 		return resourceId;
 	}
 
-	/**
-	 * Generate a random resource id.
-	 * @return A random resource id.
-	 */
-	public static ResourceID generate() {
-		return new ResourceID(new AbstractID().toString());
-	}
-
 	@Override
 	public final boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		} else if (o == null || !(o instanceof ResourceID)) {
-			return false;
-		} else {
-			return resourceId.equals(((ResourceID) o).resourceId);
-		}
+		return this == o ||
+				(o != null && o.getClass() == ResourceID.class && 
+					this.resourceId.equals(((ResourceID) o).resourceId));
 	}
 
 	@Override
@@ -71,8 +59,18 @@ public class ResourceID implements Serializable {
 
 	@Override
 	public String toString() {
-		return "ResourceID{" +
-			"resourceId='" + resourceId + '\'' +
-			'}';
+		return "ResourceID (" + resourceId + ')';
+	}
+
+	// ------------------------------------------------------------------------
+	//  factory
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Generate a random resource id.
+	 * @return A random resource id.
+	 */
+	public static ResourceID generate() {
+		return new ResourceID(new AbstractID().toString());
 	}
 }

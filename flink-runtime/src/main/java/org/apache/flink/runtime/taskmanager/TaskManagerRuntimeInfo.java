@@ -20,6 +20,9 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Encapsulation of TaskManager runtime information, like hostname and configuration.
  */
@@ -33,14 +36,32 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	/** configuration that the TaskManager was started with */
 	private final Configuration configuration;
 
+	/** list of temporary file directories */
+	private final String[] tmpDirectories;
+	
+	/**
+	 * Creates a runtime info.
+	 * 
+	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
+	 * @param configuration The configuration that the TaskManager was started with.
+	 * @param tmpDirectory The temporary file directory.   
+	 */
+	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String tmpDirectory) {
+		this(hostname, configuration, new String[] { tmpDirectory });
+	}
+	
 	/**
 	 * Creates a runtime info.
 	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
 	 * @param configuration The configuration that the TaskManager was started with.
+	 * @param tmpDirectories The list of temporary file directories.   
 	 */
-	public TaskManagerRuntimeInfo(String hostname, Configuration configuration) {
-		this.hostname = hostname;
-		this.configuration = configuration;
+	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String[] tmpDirectories) {
+		checkArgument(tmpDirectories.length > 0);
+		this.hostname = checkNotNull(hostname);
+		this.configuration = checkNotNull(configuration);
+		this.tmpDirectories = tmpDirectories;
+		
 	}
 
 	/**
@@ -57,5 +78,13 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	 */
 	public Configuration getConfiguration() {
 		return configuration;
+	}
+
+	/**
+	 * Gets the list of temporary file directories.
+	 * @return The list of temporary file directories.
+	 */
+	public String[] getTmpDirectories() {
+		return tmpDirectories;
 	}
 }

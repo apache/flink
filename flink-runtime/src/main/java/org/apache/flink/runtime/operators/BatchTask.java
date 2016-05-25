@@ -659,14 +659,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						getEnvironment().getInputGate(currentReaderOffset),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						new UnionInputGate(readers),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -701,14 +705,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			final int groupSize = this.config.getBroadcastGroupSize(i);
 			if (groupSize == 1) {
 				// non-union case
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						getEnvironment().getInputGate(currentReaderOffset),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+						new UnionInputGate(readers),
+						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -765,8 +773,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 *
 	 * NOTE: This method must be invoked after the invocation of {@code #initInputReaders()} and
 	 * {@code #initInputSerializersAndComparators(int)}!
-	 *
-	 * @param numInputs
 	 */
 	protected void initLocalStrategies(int numInputs) throws Exception {
 

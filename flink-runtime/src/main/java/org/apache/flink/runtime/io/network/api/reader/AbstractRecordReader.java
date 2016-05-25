@@ -45,14 +45,22 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 	private boolean isFinished;
 
+	/**
+	 * Creates a new AbstractRecordReader that de-serializes records from the given input gate and
+	 * can spill partial records to disk, if they grow large.
+	 *
+	 * @param inputGate The input gate to read from.
+	 * @param tmpDirectories The temp directories. USed for spilling if the reader concurrently
+	 *                       reconstructs multiple large records.
+	 */
 	@SuppressWarnings("unchecked")
-	protected AbstractRecordReader(InputGate inputGate) {
+	protected AbstractRecordReader(InputGate inputGate, String[] tmpDirectories) {
 		super(inputGate);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>(tmpDirectories);
 		}
 	}
 
