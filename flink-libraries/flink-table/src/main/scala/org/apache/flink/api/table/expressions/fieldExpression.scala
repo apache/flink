@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.rex.{RexInputRef, RexNode}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.UnresolvedException
 import org.apache.flink.api.table.validate.{ExprValidationResult, ValidationFailure}

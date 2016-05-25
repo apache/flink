@@ -192,9 +192,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2)
-                .where('a === 'd)
-                .groupBy('a, 'd)
-                .select('b.sum, 'g.count)
+      .where('a === 'd)
+      .groupBy('a, 'd)
+      .select('b.sum, 'g.count)
 
     val expected = "6,3\n" + "4,2\n" + "1,1"
     val results = joinT.toDataSet[Row] collect()
@@ -211,10 +211,10 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds3 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'j, 'k, 'l)
 
     val joinT = ds1.join(ds2)
-                .where(Literal(true))
-                .join(ds3)
-                .where('a === 'd && 'e === 'k)
-                .select('a, 'f, 'l)
+      .where(Literal(true))
+      .join(ds3)
+      .where('a === 'd && 'e === 'k)
+      .select('a, 'f, 'l)
 
     val expected = "2,1,Hello\n" + "2,1,Hello world\n" + "1,0,Hi"
     val results = joinT.toDataSet[Row] collect()
@@ -292,8 +292,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
-  def testLeftJoinWithFilterInJoinCondition(): Unit = {
+  @Test(expected = classOf[ValidationException])
+  def testNoJoinCondition(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     tEnv.getConfig.setNullCheck(true)
@@ -301,15 +301,19 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val joinT = ds2.leftOuterJoin(ds1, 'a < 3 && 'b === 'd.cast(TypeInformation.of(classOf[Long])))
-                .select('c, 'g)
+    val joinT = ds2.leftOuterJoin(ds1, 'b === 'd && 'b < 3).select('c, 'g)
+  }
 
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
-      "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" + "null,CDE\n" +
-      "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
-      "null,IJK\n" + "null,JKL\n" + "null,KLM\n"
-    val results = joinT.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Test(expected = classOf[ValidationException])
+  def testNoEquiJoin(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setNullCheck(true)
+
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)
   }
 
   @Test
@@ -327,6 +331,22 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       "Hello world,Hallo Welt wie gehts?\n" + "Hello world,ABC\n" + "null,BCD\n" + "null,CDE\n" +
       "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "I am fine.,HIJ\n" +
       "I am fine.,IJK\n" + "null,JKL\n" + "null,KLM\n"
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testRightJoinWithNotOnlyEquiJoin(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.getConfig.setNullCheck(true)
+
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.rightOuterJoin(ds2, "a = d && b < h").select('c, 'g)
+
+    val expected = "Hello world,BCD\n"
     val results = joinT.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

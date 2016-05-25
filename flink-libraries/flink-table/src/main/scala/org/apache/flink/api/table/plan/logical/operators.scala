@@ -275,21 +275,20 @@ case class Join(
   private case class JoinFieldReference(
     name: String,
     resultType: TypeInformation[_],
-    left: RelNode,
-    right: RelNode) extends Attribute {
+    left: LogicalNode,
+    right: LogicalNode) extends Attribute {
 
     override def toString = s"'$name"
 
     override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-      val joinInputField = if (left.getRowType.getFieldNames.contains(name)) {
-        val field = left.getRowType.getField(name, false, false)
-        (field.getIndex, field.getType)
-      } else {
-        val field = right.getRowType.getField(name, false, false)
-        (field.getIndex + left.getRowType.getFieldCount, field.getType)
-      }
+      val joinInputField = left.output.zipWithIndex.find(_._1.name == name)
+                           .orElse(
+                             right.output.zipWithIndex.find(_._1.name == name)
+                             .map(x => (x._1, left.output.length + x._2))).get
 
-      new RexInputRef(joinInputField._1, joinInputField._2)
+      new RexInputRef(joinInputField._2,
+                      relBuilder.getTypeFactory
+                      .createSqlType(TypeConverter.typeInfoToSqlType(joinInputField._1.resultType)))
     }
 
     override def withName(newName: String): Attribute = {
@@ -301,28 +300,26 @@ case class Join(
     }
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    left.construct(relBuilder)
-    right.construct(relBuilder)
+  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
+    val node = super.resolveExpressions(tableEnv).asInstanceOf[Join]
     val partialFunction: PartialFunction[Expression, Expression] = {
       case field: ResolvedFieldReference => new JoinFieldReference(
         field.name,
         field.resultType,
-        relBuilder.peek(2, 0),
-        relBuilder.peek(2, 1))
+        left,
+        right)
     }
-
-    val transformedExpression = condition.map(_.postOrderTransform(partialFunction))
-                                .map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true))
-
-    relBuilder.join(flinkJoinTypeToCalcite(joinType), transformedExpression)
+    val resolvedCondition = node.condition.map(_.postOrderTransform(partialFunction))
+    new Join(node.left, node.right, node.joinType, resolvedCondition)
   }
 
-  private def flinkJoinTypeToCalcite(joinType: JoinType) = joinType match {
-    case JoinType.INNER => JoinRelType.INNER
-    case JoinType.LEFT_OUTER => JoinRelType.LEFT
-    case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
-    case JoinType.FULL_OUTER => JoinRelType.FULL
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    left.construct(relBuilder)
+    right.construct(relBuilder)
+    relBuilder
+    .join(
+      TypeConverter.flinkJoinTypeToRelType(joinType),
+      condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)))
   }
 
   private def ambiguousName: Set[String] =
@@ -336,10 +333,33 @@ case class Join(
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
       failValidation(s"filter expression ${resolvedJoin.condition} is not a boolean")
-    } else if (!ambiguousName.isEmpty) {
+    } else if (ambiguousName.nonEmpty) {
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
+
+    resolvedJoin.condition.foreach(testJoinCondition(_))
     resolvedJoin
+  }
+
+  private def testJoinCondition(expression: Expression): Unit = {
+    def checkIfJoinCondition(exp : Expression) = if (exp.children.exists(!_.isInstanceOf[JoinFieldReference])) {
+      failValidation(s"Only join predicates supported. For non-join predicates use Table#where.")
+    }
+
+    var equiJoinFound = false
+    def validateConditions(exp: Expression) : Unit = exp match {
+      case x: And => x.children.foreach(validateConditions(_))
+      case x: EqualTo =>
+        equiJoinFound = true
+        checkIfJoinCondition(exp)
+      case x: BinaryComparison => checkIfJoinCondition(exp)
+      case x => failValidation(s"Unsupported condition type: ${x.getClass.getSimpleName}.")
+    }
+
+    validateConditions(expression)
+    if (!equiJoinFound) {
+      failValidation(s"At least one equi-join required.")
+    }
   }
 }
 

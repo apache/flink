@@ -76,13 +76,14 @@ class DataSetJoin(
   }
 
   override def toString: String = {
-    s"$joinName(where: ($joinConditionToString), join: ($joinSelectionToString))"
+    s"$joinTypeToString(where: ($joinConditionToString), join: ($joinSelectionToString))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("where", joinConditionToString)
       .item("join", joinSelectionToString)
+      .item("joinType", joinTypeToString)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -213,7 +214,7 @@ class DataSetJoin(
     getExpressionString(joinCondition, inFields, None)
   }
 
-  private def joinName = joinType match {
+  private def joinTypeToString = joinType match {
     case JoinRelType.INNER => "Join"
     case JoinRelType.LEFT=> "LeftOuterJoin"
     case JoinRelType.RIGHT => "RightOuterJoin"

@@ -51,22 +51,22 @@ class DataSetJoinRule
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
     val joinInfo = join.analyzeCondition
 
-        new DataSetJoin(
-          rel.getCluster,
-          traitSet,
-          convLeft,
-          convRight,
-          rel.getRowType,
-          join.getCondition,
-          join.getRowType,
-          joinInfo,
-          joinInfo.pairs.toList,
-          join.getJoinType,
-          null,
-          description)
-    }
-
+    new DataSetJoin(
+      rel.getCluster,
+      traitSet,
+      convLeft,
+      convRight,
+      rel.getRowType,
+      join.getCondition,
+      join.getRowType,
+      joinInfo,
+      joinInfo.pairs.toList,
+      join.getJoinType,
+      null,
+      description)
   }
+
+}
 
 object DataSetJoinRule {
   val INSTANCE: RelOptRule = new DataSetJoinRule

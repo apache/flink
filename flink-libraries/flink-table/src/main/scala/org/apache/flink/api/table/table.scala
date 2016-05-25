@@ -261,7 +261,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.join(right, "a = b && c > 3")
+    *   left.join(right, "a = b")
     * }}}
     */
   def join(right: Table, joinPredicate: String): Table = {
@@ -277,7 +277,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.join(right, 'a === 'b && 'c > 3).select('a, 'b, 'd)
+    *   left.join(right, 'a === 'b).select('a, 'b, 'd)
     * }}}
     */
   def join(right: Table, joinPredicate: Expression): Table = {
@@ -294,7 +294,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.leftOuterJoin(right, "a = b && c > 3").select('a, 'b, 'd)
+    *   left.leftOuterJoin(right, "a = b").select('a, 'b, 'd)
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -311,7 +311,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.leftOuterJoin(right, 'a === 'b && 'c > 3).select('a, 'b, 'd)
+    *   left.leftOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: Expression): Table = {
@@ -328,7 +328,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.rightOuterJoin(right, "a = b && c > 3").select('a, 'b, 'd)
+    *   left.rightOuterJoin(right, "a = b").select('a, 'b, 'd)
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -345,7 +345,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.rightOuterJoin(right, 'a === 'b && 'c > 3).select('a, 'b, 'd)
+    *   left.rightOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
     * }}}
     */
   def rightOuterJoin(right: Table, joinPredicate: Expression): Table = {
@@ -362,7 +362,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.fullOuterJoin(right, "a = b && c > 3").select('a, 'b, 'd)
+    *   left.fullOuterJoin(right, "a = b").select('a, 'b, 'd)
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -379,7 +379,7 @@ class Table(
     * Example:
     *
     * {{{
-    *   left.fullOuterJoin(right, 'a === 'b && 'c > 3).select('a, 'b, 'd)
+    *   left.fullOuterJoin(right, 'a === 'b).select('a, 'b, 'd)
     * }}}
     */
   def fullOuterJoin(right: Table, joinPredicate: Expression): Table = {
