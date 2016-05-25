@@ -188,6 +188,8 @@ public class CliFrontendParser {
 
 	private static Options getJobManagerAddressOption(Options options) {
 		options.addOption(ADDRESS_OPTION);
+		yarnSessionCLi.getYARNAttachCLIOptions(options);
+
 		return options;
 	}
 
@@ -280,6 +282,10 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: info [OPTIONS] <jar-file> <arguments>");
 		formatter.setSyntaxPrefix("  \"info\" action options:");
 		formatter.printHelp(" ", getInfoOptionsWithoutDeprecatedOptions(new Options()));
+		formatter.setSyntaxPrefix("  Additional arguments if -m " + CliFrontend.YARN_DEPLOY_JOBMANAGER + " is set:");
+		Options yarnOpts = new Options();
+		yarnSessionCLi.getYARNSessionCLIOptions(yarnOpts);
+		formatter.printHelp(" ", yarnOpts);
 		System.out.println();
 	}
 
@@ -316,6 +322,10 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: cancel [OPTIONS] <Job ID>");
 		formatter.setSyntaxPrefix("  \"cancel\" action options:");
 		formatter.printHelp(" ", getCancelOptions(new Options()));
+		formatter.setSyntaxPrefix("  Additional arguments if -m " + CliFrontend.YARN_DEPLOY_JOBMANAGER + " is set:");
+		Options yarnOpts = new Options();
+		yarnSessionCLi.getYARNSessionCLIOptions(yarnOpts);
+		formatter.printHelp(" ", yarnOpts);
 		System.out.println();
 	}
 
