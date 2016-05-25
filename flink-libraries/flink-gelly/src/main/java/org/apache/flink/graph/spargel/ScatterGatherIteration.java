@@ -18,18 +18,15 @@
 
 package org.apache.flink.graph.spargel;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -40,8 +37,14 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.utils.GraphUtils;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * This class represents iterative graph computations, programmed in a scatter-gather perspective.
@@ -151,11 +154,10 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		// check whether the numVertices option is set and, if so, compute the total number of vertices
 		// and set it within the messaging and update functions
 
+		DataSet<LongValue> numberOfVertices = null;
 		if (this.configuration != null && this.configuration.isOptNumVertices()) {
 			try {
-				long numberOfVertices = graph.numberOfVertices();
-				messagingFunction.setNumberOfVertices(numberOfVertices);
-				updateFunction.setNumberOfVertices(numberOfVertices);
+				numberOfVertices = GraphUtils.count(this.initialVertices);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -173,9 +175,9 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		// check whether the degrees option is set and, if so, compute the in and the out degrees and
 		// add them to the vertex value
 		if(this.configuration != null && this.configuration.isOptDegrees()) {
-			return createResultVerticesWithDegrees(graph, messagingDirection, messageTypeInfo);
+			return createResultVerticesWithDegrees(graph, messagingDirection, messageTypeInfo, numberOfVertices);
 		} else {
-			return createResultSimpleVertex(messagingDirection, messageTypeInfo);
+			return createResultSimpleVertex(messagingDirection, messageTypeInfo, numberOfVertices);
 		}
 	}
 
@@ -246,6 +248,10 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
+				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
+				this.vertexUpdateFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
+			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.vertexUpdateFunction.init(getIterationRuntimeContext());
 			}
@@ -368,10 +374,13 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
+				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
+				this.messagingFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
+			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.messagingFunction.init(getIterationRuntimeContext());
 			}
-			
 			this.messagingFunction.preSuperstep();
 		}
 		
@@ -459,7 +468,8 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 	 */
 	private CoGroupOperator<?, ?, Tuple2<K, Message>> buildMessagingFunction(
 			DeltaIteration<Vertex<K, VV>, Vertex<K, VV>> iteration,
-			TypeInformation<Tuple2<K, Message>> messageTypeInfo, int whereArg, int equalToArg) {
+			TypeInformation<Tuple2<K, Message>> messageTypeInfo, int whereArg, int equalToArg,
+			DataSet<LongValue> numberOfVertices) {
 
 		// build the messaging function (co group)
 		CoGroupOperator<?, ?, Tuple2<K, Message>> messages;
@@ -474,6 +484,9 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		if(this.configuration != null) {
 			for (Tuple2<String, DataSet<?>> e : this.configuration.getMessagingBcastVars()) {
 				messages = messages.withBroadcastSet(e.f1, e.f0);
+			}
+			if (this.configuration.isOptNumVertices()) {
+				messages = messages.withBroadcastSet(numberOfVertices, "number of vertices");
 			}
 		}
 
@@ -493,7 +506,8 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 	 */
 	private CoGroupOperator<?, ?, Tuple2<K, Message>> buildMessagingFunctionVerticesWithDegrees(
 			DeltaIteration<Vertex<K, Tuple3<VV, Long, Long>>, Vertex<K, Tuple3<VV, Long, Long>>> iteration,
-			TypeInformation<Tuple2<K, Message>> messageTypeInfo, int whereArg, int equalToArg) {
+			TypeInformation<Tuple2<K, Message>> messageTypeInfo, int whereArg, int equalToArg,
+			DataSet<LongValue> numberOfVertices) {
 
 		// build the messaging function (co group)
 		CoGroupOperator<?, ?, Tuple2<K, Message>> messages;
@@ -509,6 +523,9 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		if (this.configuration != null) {
 			for (Tuple2<String, DataSet<?>> e : this.configuration.getMessagingBcastVars()) {
 				messages = messages.withBroadcastSet(e.f1, e.f0);
+			}
+			if (this.configuration.isOptNumVertices()) {
+				messages = messages.withBroadcastSet(numberOfVertices, "number of vertices");
 			}
 		}
 
@@ -546,10 +563,11 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 	 *
 	 * @param messagingDirection
 	 * @param messageTypeInfo
+	 * @param numberOfVertices
 	 * @return the operator
 	 */
 	private DataSet<Vertex<K, VV>> createResultSimpleVertex(EdgeDirection messagingDirection,
-		TypeInformation<Tuple2<K, Message>> messageTypeInfo) {
+		TypeInformation<Tuple2<K, Message>> messageTypeInfo, DataSet<LongValue> numberOfVertices) {
 
 		DataSet<Tuple2<K, Message>> messages;
 
@@ -561,14 +579,14 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		switch (messagingDirection) {
 			case IN:
-				messages = buildMessagingFunction(iteration, messageTypeInfo, 1, 0);
+				messages = buildMessagingFunction(iteration, messageTypeInfo, 1, 0, numberOfVertices);
 				break;
 			case OUT:
-				messages = buildMessagingFunction(iteration, messageTypeInfo, 0, 0);
+				messages = buildMessagingFunction(iteration, messageTypeInfo, 0, 0, numberOfVertices);
 				break;
 			case ALL:
-				messages = buildMessagingFunction(iteration, messageTypeInfo, 1, 0)
-						.union(buildMessagingFunction(iteration, messageTypeInfo, 0, 0)) ;
+				messages = buildMessagingFunction(iteration, messageTypeInfo, 1, 0, numberOfVertices)
+						.union(buildMessagingFunction(iteration, messageTypeInfo, 0, 0, numberOfVertices)) ;
 				break;
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
@@ -580,6 +598,10 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		// build the update function (co group)
 		CoGroupOperator<?, ?, Vertex<K, VV>> updates =
 				messages.coGroup(iteration.getSolutionSet()).where(0).equalTo(0).with(updateUdf);
+
+		if (this.configuration != null && this.configuration.isOptNumVertices()) {
+			updates = updates.withBroadcastSet(numberOfVertices, "number of vertices");
+		}
 
 		configureUpdateFunction(updates);
 
@@ -593,11 +615,12 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 	 * @param graph
 	 * @param messagingDirection
 	 * @param messageTypeInfo
+	 * @param numberOfVertices
 	 * @return the operator
 	 */
 	@SuppressWarnings("serial")
 	private DataSet<Vertex<K, VV>> createResultVerticesWithDegrees(Graph<K, VV, EV> graph, EdgeDirection messagingDirection,
-			TypeInformation<Tuple2<K, Message>> messageTypeInfo) {
+			TypeInformation<Tuple2<K, Message>> messageTypeInfo, DataSet<LongValue> numberOfVertices) {
 
 		DataSet<Tuple2<K, Message>> messages;
 
@@ -636,14 +659,14 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		switch (messagingDirection) {
 			case IN:
-				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 1, 0);
+				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 1, 0, numberOfVertices);
 				break;
 			case OUT:
-				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 0, 0);
+				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 0, 0, numberOfVertices);
 				break;
 			case ALL:
-				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 1, 0)
-						.union(buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 0, 0)) ;
+				messages = buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 1, 0, numberOfVertices)
+						.union(buildMessagingFunctionVerticesWithDegrees(iteration, messageTypeInfo, 0, 0, numberOfVertices)) ;
 				break;
 			default:
 				throw new IllegalArgumentException("Illegal edge direction");
@@ -656,6 +679,10 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		// build the update function (co group)
 		CoGroupOperator<?, ?, Vertex<K, Tuple3<VV, Long, Long>>> updates =
 				messages.coGroup(iteration.getSolutionSet()).where(0).equalTo(0).with(updateUdf);
+
+		if (this.configuration != null && this.configuration.isOptNumVertices()) {
+			updates = updates.withBroadcastSet(numberOfVertices, "number of vertices");
+		}
 
 		configureUpdateFunction(updates);
 

@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.library;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
@@ -31,6 +28,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {
@@ -72,9 +72,9 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 5, 3))
+        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
         		.collect();
-        
+
         compareWithDelta(result, 0.01);
 	}
 
@@ -85,14 +85,13 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
 				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 5, 3))
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
         		.collect();
         
         compareWithDelta(result, 0.01);
 	}
 
-	private void compareWithDelta(List<Vertex<Long, Double>> result,
-																double delta) {
+	private void compareWithDelta(List<Vertex<Long, Double>> result, double delta) {
 
 		String resultString = "";
         for (Vertex<Long, Double> v : result) {

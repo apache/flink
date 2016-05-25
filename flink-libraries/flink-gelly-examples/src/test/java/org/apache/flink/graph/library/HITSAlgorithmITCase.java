@@ -56,20 +56,6 @@ public class HITSAlgorithmITCase extends MultipleProgramsTestBase{
 	}
 
 	@Test
-	public void testHITSWithTenIterationsAndNumOfVertices() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		Graph<Long, Double, NullValue> graph = Graph.fromDataSet(
-				HITSData.getVertexDataSet(env),
-				HITSData.getEdgeDataSet(env),
-				env);
-
-		List<Vertex<Long, Tuple2<DoubleValue, DoubleValue>>> result = graph.run(new HITSAlgorithm<Long, Double, NullValue>(10, 5)).collect();
-		
-		compareWithDelta(result, 1e-7);
-	}
-
-	@Test
 	public void testHITSWithConvergeThreshold() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -79,20 +65,6 @@ public class HITSAlgorithmITCase extends MultipleProgramsTestBase{
 				env);
 
 		List<Vertex<Long, Tuple2<DoubleValue, DoubleValue>>> result = graph.run(new HITSAlgorithm<Long, Double, NullValue>(1e-7)).collect();
-
-		compareWithDelta(result, 1e-7);
-	}
-
-	@Test
-	public void testHITSWithConvergeThresholdAndNumOfVertices() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		Graph<Long, Double, NullValue> graph = Graph.fromDataSet(
-				HITSData.getVertexDataSet(env),
-				HITSData.getEdgeDataSet(env),
-				env);
-
-		List<Vertex<Long, Tuple2<DoubleValue, DoubleValue>>> result = graph.run(new HITSAlgorithm<Long, Double, NullValue>(1e-7, 5)).collect();
 
 		compareWithDelta(result, 1e-7);
 	}

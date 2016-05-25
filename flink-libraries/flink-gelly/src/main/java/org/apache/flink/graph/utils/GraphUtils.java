@@ -19,11 +19,17 @@
 package org.apache.flink.graph.utils;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.util.AbstractID;
+
+import static org.apache.flink.api.java.typeutils.ValueTypeInfo.LONG_VALUE_TYPE_INFO;
 
 public class GraphUtils {
 
@@ -49,5 +55,57 @@ public class GraphUtils {
 		checksum.add(res.<Utils.ChecksumHashCode>getAccumulatorResult(edgesId));
 
 		return checksum;
+	}
+
+	/**
+	 * Count the number of elements in a DataSet.
+	 *
+	 * @param input DataSet of elements to be counted
+	 * @param <T> element type
+	 * @return count
+	 */
+	public static <T> DataSet<LongValue> count(DataSet<T> input) {
+		return input
+			.map(new MapTo<T, LongValue>(new LongValue(1)))
+				.returns(LONG_VALUE_TYPE_INFO)
+			.reduce(new AddLongValue());
+	}
+
+	/**
+	 * Map each element to a value.
+	 *
+	 * @param <I> input type
+	 * @param <O> output type
+	 */
+	public static class MapTo<I, O>
+	implements MapFunction<I, O> {
+		private final O value;
+
+		/**
+		 * Map each element to the given object.
+		 *
+		 * @param value the object to emit for each element
+		 */
+		public MapTo(O value) {
+			this.value = value;
+		}
+
+		@Override
+		public O map(I o) throws Exception {
+			return value;
+		}
+	}
+
+	/**
+	 * Add {@link LongValue} elements.
+	 */
+	public static class AddLongValue
+	implements ReduceFunction<LongValue> {
+		@Override
+		public LongValue reduce(LongValue value1, LongValue value2)
+				throws Exception {
+			value1.setValue(value1.getValue() + value2.getValue());
+			return value1;
+		}
 	}
 }
