@@ -21,14 +21,14 @@ package org.apache.flink.metrics;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A MetricGroup is a named container for {@link Metric Metrics} and {@link MetricGroup MetricGroups}.
+ * A MetricGroup is a named container for {@link Metric Metrics} and further metric subgroups.
  * 
  * <p>Instances of this class can be used to register new metrics with Flink and to create a nested
  * hierarchy based on the group names.
  * 
  * <p>A MetricGroup is uniquely identified by it's place in the hierarchy and name.
  * 
- * <p>Metrics groups can be {@link #close() closed}. Upon closing, they de-register all metrics
+ * <p>Metrics groups can be {@link #close() closed}. Upon closing, the group de-register all metrics
  * from any metrics reporter and any internal maps. Note that even closed metrics groups
  * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
  * These metrics simply do not get reported any more, when created on a closed group.
@@ -39,7 +39,7 @@ public interface MetricGroup {
 	// ------------------------------------------------------------------------
 	//  Closing
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Marks the group as closed.
 	 * Recursively unregisters all {@link Metric Metrics} contained in this group.

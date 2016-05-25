@@ -106,7 +106,9 @@ public class SpanningRecordSerializationTest {
 	
 	private void testSpillingDeserializer(Util.MockRecords records, int segmentSize) throws Exception {
 		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-		RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>();
+		RecordDeserializer<SerializationTestType> deserializer = 
+				new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>(
+						new String[] { System.getProperty("java.io.tmpdir") });
 		
 		test(records, segmentSize, serializer, deserializer);
 	}

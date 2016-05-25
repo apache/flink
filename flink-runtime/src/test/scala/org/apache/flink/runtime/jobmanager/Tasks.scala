@@ -64,7 +64,11 @@ object Tasks {
   class Forwarder extends AbstractInvokable {
 
     override def invoke(): Unit = {
-      val reader = new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
+      val reader = new RecordReader[IntValue](
+        getEnvironment.getInputGate(0),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
+      
       val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
 
       try {
@@ -88,7 +92,10 @@ object Tasks {
   class Receiver extends AbstractInvokable {
 
     override def invoke(): Unit = {
-      val reader = new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
+      val reader = new RecordReader[IntValue](
+        getEnvironment.getInputGate(0),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
 
       val i1 = reader.next()
       val i2 = reader.next()
@@ -140,7 +147,10 @@ object Tasks {
   class AgnosticReceiver extends AbstractInvokable {
 
     override def invoke(): Unit = {
-      val reader= new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
+      val reader= new RecordReader[IntValue](
+        getEnvironment.getInputGate(0),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
 
       while(reader.next() != null){}
     }
@@ -149,8 +159,15 @@ object Tasks {
   class AgnosticBinaryReceiver extends AbstractInvokable {
 
     override def invoke(): Unit = {
-      val reader1 = new RecordReader[IntValue](getEnvironment.getInputGate(0), classOf[IntValue])
-      val reader2 = new RecordReader[IntValue](getEnvironment.getInputGate(1), classOf[IntValue])
+      val reader1 = new RecordReader[IntValue](
+        getEnvironment.getInputGate(0),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
+      
+      val reader2 = new RecordReader[IntValue](
+        getEnvironment.getInputGate(1),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
 
       while(reader1.next() != null){}
       while(reader2.next() != null){}
@@ -162,9 +179,20 @@ object Tasks {
     override def invoke(): Unit = {
       val env = getEnvironment
 
-      val reader1 = new RecordReader[IntValue](env.getInputGate(0), classOf[IntValue])
-      val reader2 = new RecordReader[IntValue](env.getInputGate(1), classOf[IntValue])
-      val reader3 = new RecordReader[IntValue](env.getInputGate(2), classOf[IntValue])
+      val reader1 = new RecordReader[IntValue](
+        env.getInputGate(0),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
+      
+      val reader2 = new RecordReader[IntValue](
+        env.getInputGate(1),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
+      
+      val reader3 = new RecordReader[IntValue](
+        env.getInputGate(2),
+        classOf[IntValue],
+        getEnvironment.getTaskManagerInfo.getTmpDirectories)
 
       while(reader1.next() != null){}
       while(reader2.next() != null){}
