@@ -122,6 +122,13 @@ public abstract class AbstractFlinkYarnClient {
 	public abstract AbstractFlinkYarnCluster deploy() throws Exception;
 
 	/**
+	 * Attach to an existing Flink YARN session.
+	 *
+	 * @param appId YARN application ID of existing YARN session.
+	 */
+	public abstract AbstractFlinkYarnCluster attach(String appId) throws Exception;
+
+	/**
 	 * @param detachedMode If true, the Flink YARN client is non-blocking. That means it returns
 	 *                        once Flink has been started successfully on YARN.
 	 */

@@ -938,8 +938,15 @@ public class CliFrontend {
 	 * @param options Command line options
 	 */
 	protected void updateConfig(CommandLineOptions options) {
-		if(options.getJobManagerAddress() != null){
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
+		if(options.getJobManagerAddress() != null) {
+			final InetSocketAddress jobManagerAddress;
+			if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
+				jobManagerAddress = CliFrontendParser.getFlinkYarnSessionCli()
+					.attachFlinkYarnClient(options.getCommandLine())
+					.getJobManagerAddress();
+			} else {
+				jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
+			}
 			writeJobManagerAddressToConfig(jobManagerAddress);
 		}
 	}

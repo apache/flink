@@ -65,6 +65,8 @@ public class FlinkYarnSessionCli {
 	// the prefix transformation is used by the CliFrontend static constructor.
 	private final Option QUERY;
 	// --- or ---
+	private final Option APPLICATION_ID;
+	// --- or ---
 	private final Option QUEUE;
 	private final Option SHIP_PATH;
 	private final Option FLINK_JAR;
@@ -91,6 +93,7 @@ public class FlinkYarnSessionCli {
 
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
 		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
+		APPLICATION_ID = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
 		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
 		SHIP_PATH = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
 		FLINK_JAR = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
@@ -104,6 +107,35 @@ public class FlinkYarnSessionCli {
 		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 	}
 
+	/**
+	 * Attaches a new Yarn Client to running YARN application.
+	 *
+	 */
+	public AbstractFlinkYarnCluster attachFlinkYarnClient(CommandLine cmd) {
+		AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
+		if (flinkYarnClient == null) {
+			return null;
+		}
+
+		if (!cmd.hasOption(APPLICATION_ID.getOpt())) {
+			LOG.error("Missing required argument " + APPLICATION_ID.getOpt());
+			printUsage();
+			return null;
+		}
+
+		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
+		GlobalConfiguration.loadConfiguration(confDirPath);
+		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
+		flinkYarnClient.setFlinkConfiguration(flinkConfiguration);
+		flinkYarnClient.setConfigurationDirectory(confDirPath);
+
+		try {
+			return flinkYarnClient.attach(cmd.getOptionValue(APPLICATION_ID.getOpt()));
+		} catch (Exception e) {
+			LOG.error("Could not attach to YARN session", e);
+			return null;
+		}
+	}
 	/**
 	 * Creates a new Yarn Client.
 	 * @param cmd the command line to parse options from
@@ -375,6 +407,10 @@ public class FlinkYarnSessionCli {
 		options.addOption(DETACHED);
 		options.addOption(STREAMING);
 		options.addOption(NAME);
+	}
+
+	public void getYARNAttachCLIOptions(Options options) {
+		options.addOption(APPLICATION_ID);
 	}
 
 	public int run(String[] args) {
