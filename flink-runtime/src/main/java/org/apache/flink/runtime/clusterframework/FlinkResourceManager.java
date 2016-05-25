@@ -49,6 +49,7 @@ import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.messages.UnRegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -93,7 +94,7 @@ import static java.util.Objects.requireNonNull;
  * </ol>
  *
  */
-public abstract class FlinkResourceManager<WorkerType extends ResourceID> extends FlinkUntypedActor {
+public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrievable> extends FlinkUntypedActor {
 
 	/** The exit code with which the process is stopped in case of a fatal error */
 	protected static final int EXIT_CODE_FATAL_ERROR = -13;
@@ -356,7 +357,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			WorkerType newWorker = workerRegistered(resourceID);
 			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
 			if (oldWorker != null) {
-				LOG.warn("Worker {} had been registered before.", resourceID);
+				LOG.warn("TaskManager {} had been registered before.", resourceID);
+			} else {
+				LOG.info("TaskManager {} has registered.", resourceID);
 			}
 			jobManager.tell(decorateMessage(
 				new RegisterResourceSuccessful(taskManager, msg)),
@@ -507,8 +510,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 					// put the consolidated TaskManagers into our bookkeeping
 					for (WorkerType worker : consolidated) {
-						registeredWorkers.put(worker, worker);
-						toHandle.remove(worker);
+						ResourceID resourceID = worker.getResourceID();
+						registeredWorkers.put(resourceID, worker);
+						toHandle.remove(resourceID);
 					}
 				}
 				catch (Throwable t) {
