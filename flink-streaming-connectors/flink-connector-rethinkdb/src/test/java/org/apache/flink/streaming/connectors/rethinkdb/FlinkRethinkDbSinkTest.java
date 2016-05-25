@@ -32,10 +32,12 @@ import org.mockito.Mockito;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
 
 import org.mockito.runners.MockitoJUnitRunner;
 
 import com.rethinkdb.RethinkDB;
+import com.rethinkdb.gen.ast.Db;
 import com.rethinkdb.gen.ast.Insert;
 import com.rethinkdb.gen.ast.Table;
 import com.rethinkdb.net.Connection;
@@ -56,6 +58,9 @@ public class FlinkRethinkDbSinkTest {
 	@Mock(answer=Answers.RETURNS_DEEP_STUBS)
 	private Table mockRethinkDBTable;
 	
+	@Mock(answer=Answers.RETURNS_DEEP_STUBS)
+	protected Db mockDb;
+
 	@Mock(answer=Answers.RETURNS_DEEP_STUBS)
 	protected Insert mockInsert;
 
@@ -82,12 +87,13 @@ public class FlinkRethinkDbSinkTest {
 		when(mockRethinkDB.connection()).thenReturn(builder);
 		when(builder.hostname("localhost").port(28015).user("admin", "").connect()).
 			thenReturn(mockRethinkDBConnection);
+		when(mockRethinkDB.db(any())).thenReturn(mockDb);
 	}	
 	
 	@Test
 	public void testOpen() throws Exception {
 		
-		when(mockRethinkDB.table(Mockito.eq(JSON_TEST_TABLE))).thenReturn(mockRethinkDBTable);
+		when(mockRethinkDB.db(any()).table(Mockito.eq(JSON_TEST_TABLE))).thenReturn(mockRethinkDBTable);
 		
 		sink.open(new Configuration());
 		
@@ -109,7 +115,7 @@ public class FlinkRethinkDbSinkTest {
 	@Test
 	public void testInvokeSuccess() throws Exception {
 		result.put(FlinkRethinkDbSink.RESULT_ERROR_KEY, 0L);
-		when(mockRethinkDB.table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
+		when(mockRethinkDB.db(Mockito.any()).table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
 		
 		JSONObject json = new JSONObject();
 		json.put("key1", "value1");
@@ -130,7 +136,7 @@ public class FlinkRethinkDbSinkTest {
 	public void testInvokeErrors() throws Exception {
 		
 		result.put(FlinkRethinkDbSink.RESULT_ERROR_KEY, 1L);
-		when(mockRethinkDB.table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
+		when(mockRethinkDB.db(Mockito.any()).table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
 		
 		JSONObject json = new JSONObject();
 		json.put("key1", "value1");
