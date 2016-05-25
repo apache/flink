@@ -97,10 +97,10 @@ public class JaccardIndex {
 
 				Graph<LongValue, NullValue, NullValue> graph = Graph
 					.fromCsvReader(parameters.get("input_filename"), env)
-					.ignoreCommentsEdges("#")
-					.lineDelimiterEdges(lineDelimiter)
-					.fieldDelimiterEdges(fieldDelimiter)
-					.keyType(LongValue.class);
+						.ignoreCommentsEdges("#")
+						.lineDelimiterEdges(lineDelimiter)
+						.fieldDelimiterEdges(fieldDelimiter)
+						.keyType(LongValue.class);
 
 				ji = graph
 					.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());

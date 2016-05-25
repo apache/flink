@@ -220,6 +220,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 *
 	 * @param <T> ID type
 	 */
+	@ForwardedFields("0")
 	private static final class GenerateTriplets<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple2<T, T>, Tuple3<T, T, T>> {
 		private Tuple3<T, T, T> output = new Tuple3<>();

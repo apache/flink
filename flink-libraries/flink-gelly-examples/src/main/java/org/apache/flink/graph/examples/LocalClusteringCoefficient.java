@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.examples;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -33,7 +34,6 @@ import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
-import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -43,9 +43,11 @@ import java.text.NumberFormat;
 /**
  * Driver for the library implementation of Local Clustering Coefficient.
  *
- * This example generates an undirected RMat graph with the given scale and
- * edge factor then calculates the local clustering coefficient for each vertex.
+ * This example reads a simple directed or undirected graph from a CSV file or
+ * generates an RMat graph with the given scale and edge factor then calculates
+ * the local clustering coefficient for each vertex.
  *
+ * @see org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient
  * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
 public class LocalClusteringCoefficient {
@@ -56,76 +58,148 @@ public class LocalClusteringCoefficient {
 
 	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
+	private static void printUsage() {
+		System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
+			" vertex's neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0 (neighborhood" +
+			" is a clique).", 80));
+		System.out.println();
+		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
+			" the vertex, the number of edges between vertex neighbors, and the local clustering coefficient.", 80));
+		System.out.println();
+		System.out.println("usage: LocalClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println();
+		System.out.println("options:");
+		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
+		System.out.println("  --input rmat [--scale SCALE] [--edge_factor EDGE_FACTOR]");
+		System.out.println();
+		System.out.println("  --output print");
+		System.out.println("  --output hash");
+		System.out.println("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]");
+	}
+
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
+		if (!parameters.has("directed")) {
+			printUsage();
+			return;
+		}
+		boolean directedAlgorithm = parameters.getBoolean("directed");
 
-		// Generate RMat graph
-		int scale = parameters.getInt("scale", DEFAULT_SCALE);
-		int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
+		DataSet lcc;
 
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+		switch (parameters.get("input", "")) {
+			case "csv": {
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-		long vertexCount = 1L << scale;
-		long edgeCount = vertexCount * edgeFactor;
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("input_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+				Graph<LongValue, NullValue, NullValue> graph = Graph
+					.fromCsvReader(parameters.get("input_filename"), env)
+						.ignoreCommentsEdges("#")
+						.lineDelimiterEdges(lineDelimiter)
+						.fieldDelimiterEdges(fieldDelimiter)
+						.keyType(LongValue.class);
 
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate()
-			.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+				if (directedAlgorithm) {
+					lcc = graph
+						.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+				} else {
+					lcc = graph
+						.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+				}
 
-		DataSet cc;
+			} break;
 
-		if (scale > 32) {
-			cc = graph
-				.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
-		} else {
-			cc = graph
-				.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-				.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
+			case "rmat": {
+				int scale = parameters.getInt("scale", DEFAULT_SCALE);
+				int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
+
+				RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
+
+				long vertexCount = 1L << scale;
+				long edgeCount = vertexCount * edgeFactor;
+
+				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+					.generate();
+
+				if (directedAlgorithm) {
+					if (scale > 32) {
+						lcc = graph
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>())
+							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+					} else {
+						lcc = graph
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>())
+							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
+					}
+				} else {
+					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
+
+					graph = graph
+						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+
+					if (scale > 32) {
+						lcc = graph
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
+							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+					} else {
+						lcc = graph
+							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
+							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
+					}
+				}
+			} break;
+
+			default:
+				printUsage();
+				return;
 		}
 
 		switch (parameters.get("output", "")) {
-		case "print":
-			for (Object e: cc.collect()) {
-				Result result = (Result)e;
-				System.out.println(result.toVerboseString());
-			}
-			break;
+			case "print":
+				if (directedAlgorithm) {
+					for (Object e: lcc.collect()) {
+						org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result result =
+							(org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result) e;
+						System.out.println(result.toVerboseString());
+					}
+				} else {
+					for (Object e: lcc.collect()) {
+						org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result result =
+							(org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result) e;
+						System.out.println(result.toVerboseString());
+					}
+				}
+				break;
 
-		case "hash":
-			System.out.println(DataSetUtils.checksumHashCode(cc));
-			break;
+			case "hash":
+				System.out.println(DataSetUtils.checksumHashCode(lcc));
+				break;
 
-		case "csv":
-			String filename = parameters.get("filename");
+			case "csv":
+				String filename = parameters.get("output_filename");
 
-			String row_delimiter = parameters.get("row_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER);
-			String field_delimiter = parameters.get("field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+				String lineDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
 
-			cc.writeAsCsv(filename, row_delimiter, field_delimiter);
+				String fieldDelimiter = StringEscapeUtils.unescapeJava(
+					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-			env.execute();
-			break;
-		default:
-			System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
-					" vertex's neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0 (neighborhood" +
-					" is a clique).", 80));
-			System.out.println();
-			System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
-					" the vertex, the number of edges between vertex neighbors, and the local clustering coefficient.", 80));
-			System.out.println();
-			System.out.println("usage:");
-			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
-			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");
-			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output csv" +
-				" --filename FILENAME [--row_delimiter ROW_DELIMITER] [--field_delimiter FIELD_DELIMITER]");
+				lcc.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-			return;
+				env.execute();
+				break;
+			default:
+				printUsage();
+				return;
 		}
 
 		JobExecutionResult result = env.getLastJobExecutionResult();
