@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -24,7 +25,7 @@ import org.apache.flink.annotation.PublicEvolving;
  */
 @PublicEvolving
 public abstract class Gauge<T> implements Metric {
-	
+
 	/**
 	 * Calculates and returns the measured value.
 	 *

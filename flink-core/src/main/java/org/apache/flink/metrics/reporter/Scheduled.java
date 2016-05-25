@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Marker interface for reporters that actively send out data periodically.
+ * Interface for reporters that actively send out data periodically.
  */
 @PublicEvolving
 public interface Scheduled {
+
 	/**
-	 * Report the current measurements.
-	 * This method is called in regular intervals
+	 * Report the current measurements. This method is called periodically by the
+	 * metrics registry that uses the reoprter.
 	 */
 	void report();
 }

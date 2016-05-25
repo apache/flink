@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -30,8 +28,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.util.DummyMetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -42,6 +41,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "serial" })
 public class InnerJoinOperatorBaseTest implements Serializable {
@@ -107,10 +109,22 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		try {
 			final TaskInfo taskInfo = new TaskInfo("op", 0, 1, 0);
 			ExecutionConfig executionConfig = new ExecutionConfig();
+			
 			executionConfig.disableObjectReuse();
-			List<Tuple2<Double, String>> resultSafe = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskInfo, null, executionConfig, new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>(), new DummyMetricGroup()), executionConfig);
+			List<Tuple2<Double, String>> resultSafe = base.executeOnCollections(inputData1, inputData2,
+					new RuntimeUDFContext(taskInfo, null, executionConfig,
+							new HashMap<String, Future<Path>>(),
+							new HashMap<String, Accumulator<?, ?>>(),
+							new UnregisteredMetricsGroup()),
+					executionConfig);
+			
 			executionConfig.enableObjectReuse();
-			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskInfo, null, executionConfig, new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>(), new DummyMetricGroup()), executionConfig);
+			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2,
+					new RuntimeUDFContext(taskInfo, null, executionConfig,
+							new HashMap<String, Future<Path>>(),
+							new HashMap<String, Accumulator<?, ?>>(),
+							new UnregisteredMetricsGroup()),
+					executionConfig);
 
 			assertEquals(expected, new HashSet<>(resultSafe));
 			assertEquals(expected, new HashSet<>(resultRegular));

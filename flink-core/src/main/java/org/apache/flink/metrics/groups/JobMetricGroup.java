@@ -21,57 +21,92 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerJobScopeFormat;
 import org.apache.flink.util.AbstractID;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.metrics.groups.TaskManagerMetricGroup.DEFAULT_SCOPE_TM;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Special {@link org.apache.flink.metrics.MetricGroup} representing a Job.
+ * Special {@link org.apache.flink.metrics.MetricGroup} representing everything belonging to
+ * a specific job, running on the TaskManager.
  * 
- * <p>Contains extra logic for adding tasks.
+ * <p>Contains extra logic for adding Tasks ({@link TaskMetricGroup}).
  */
 @Internal
 public class JobMetricGroup extends ComponentMetricGroup {
 
-	public static final String SCOPE_JOB_DESCRIPTOR = "job";
-	public static final String SCOPE_JOB_ID = Scope.format("job_id");
-	public static final String SCOPE_JOB_NAME = Scope.format("job_name");
-	public static final String DEFAULT_SCOPE_JOB_COMPONENT = Scope.concat(SCOPE_JOB_NAME);
-	public static final String DEFAULT_SCOPE_JOB = Scope.concat(DEFAULT_SCOPE_TM, DEFAULT_SCOPE_JOB_COMPONENT);
-
-	// ------------------------------------------------------------------------
+	/** The metrics group that contains this group */
+	private final TaskManagerMetricGroup parent;
 
 	/** Map from execution attempt ID (task identifier) to task metrics */
 	private final Map<AbstractID, TaskMetricGroup> tasks = new HashMap<>();
-	
+
+	/** The ID of the job represented by this metrics group */
 	private final JobID jobId;
+
+	/** The name of the job represented by this metrics group */
+	@Nullable
+	private final String jobName;
 
 	// ------------------------------------------------------------------------
 
-	public JobMetricGroup(MetricRegistry registry, TaskManagerMetricGroup taskManager, JobID jobId, String jobName) {
-		super(registry, taskManager, registry.getScopeConfig().getJobFormat());
+	public JobMetricGroup(
+			MetricRegistry registry,
+			TaskManagerMetricGroup parent,
+			JobID jobId,
+			@Nullable String jobName) {
 		
+		this(registry, checkNotNull(parent), registry.getScopeFormats().getJobFormat(), jobId, jobName);
+	}
+
+	public JobMetricGroup(
+			MetricRegistry registry,
+			TaskManagerMetricGroup parent,
+			TaskManagerJobScopeFormat scopeFormat, 
+			JobID jobId,
+			@Nullable String jobName) {
+
+		super(registry, scopeFormat.formatScope(parent, jobId, jobName));
+
+		this.parent = checkNotNull(parent);
 		this.jobId = checkNotNull(jobId);
-		this.formats.put(SCOPE_JOB_ID, jobId.toString());
-		this.formats.put(SCOPE_JOB_NAME, checkNotNull(jobName));
+		this.jobName = jobName;
+	}
+
+	public final TaskManagerMetricGroup parent() {
+		return parent;
+	}
+
+	public JobID jobId() {
+		return jobId;
+	}
+
+	@Nullable
+	public String jobName() {
+		return jobName;
 	}
 
 	// ------------------------------------------------------------------------
 	//  adding / removing tasks
 	// ------------------------------------------------------------------------
 
-	public TaskMetricGroup addTask(AbstractID vertexId, AbstractID executionId, int subtaskIndex, String name) {
-		checkNotNull(vertexId);
+	public TaskMetricGroup addTask(
+			AbstractID vertexId,
+			AbstractID executionId,
+			String taskName,
+			int subtaskIndex,
+			int attemptNumber) {
+		
 		checkNotNull(executionId);
-		checkNotNull(name);
 
 		synchronized (this) {
 			if (!isClosed()) {
-				TaskMetricGroup task = new TaskMetricGroup(registry, this, vertexId, executionId, subtaskIndex, name);
+				TaskMetricGroup task = new TaskMetricGroup(registry, this, 
+						vertexId, executionId, taskName, subtaskIndex, attemptNumber);
 				tasks.put(executionId, task);
 				return task;
 			} else {
@@ -82,7 +117,7 @@ public class JobMetricGroup extends ComponentMetricGroup {
 
 	public void removeTaskMetricGroup(AbstractID executionId) {
 		checkNotNull(executionId);
-		
+
 		boolean removeFromParent = false;
 		synchronized (this) {
 			if (!isClosed() && tasks.remove(executionId) != null && tasks.isEmpty()) {
@@ -91,25 +126,16 @@ public class JobMetricGroup extends ComponentMetricGroup {
 				close();
 			}
 		}
-		
+
 		// IMPORTANT: removing from the parent must happen while holding the this group's lock,
 		//      because it would violate the "first parent then subgroup" lock acquisition order
 		if (removeFromParent) {
-			((TaskManagerMetricGroup) parent()).removeJobMetricsGroup(jobId, this);
+			parent.removeJobMetricsGroup(jobId, this);
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	//  component group behavior
-	// ------------------------------------------------------------------------
-	
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return tasks.values();
-	}
-
-	@Override
-	protected String getScopeFormat(Scope.ScopeFormat format) {
-		return format.getJobFormat();
 	}
 }

@@ -15,10 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.dropwizard;
 
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.metrics.CounterWrapper;
@@ -26,19 +29,19 @@ import org.apache.flink.dropwizard.metrics.GaugeWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Base class for {@link org.apache.flink.metrics.reporter.MetricReporter} that wraps a
  * Dropwizard {@link com.codahale.metrics.Reporter}.
  */
 @PublicEvolving
-public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled {
-	protected MetricRegistry registry;
-	protected ScheduledReporter reporter;
+public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled, Reporter {
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
@@ -46,25 +49,24 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	public static final String ARG_CONVERSION_RATE = "rateConversion";
 	public static final String ARG_CONVERSION_DURATION = "durationConversion";
 
+	// ------------------------------------------------------------------------
+
+	protected final MetricRegistry registry;
+
+	protected ScheduledReporter reporter;
+
+	private final Map<Gauge<?>, String> gauges = new HashMap<>();
+	private final Map<Counter, String> counters = new HashMap<>();
+
+	// ------------------------------------------------------------------------
+
 	protected ScheduledDropwizardReporter() {
 		this.registry = new MetricRegistry();
 	}
 
-	@Override
-	public synchronized void notifyOfAddedMetric(Metric metric, String name) {
-		if (metric instanceof Counter) {
-			registry.register(name, new CounterWrapper((Counter) metric));
-		} else if (metric instanceof Gauge) {
-			registry.register(name, new GaugeWrapper((Gauge<?>) metric));
-		}
-	}
-
-	@Override
-	public synchronized void notifyOfRemovedMetric(Metric metric, String name) {
-		registry.remove(name);
-	}
-
-	public abstract ScheduledReporter getReporter(Configuration config);
+	// ------------------------------------------------------------------------
+	//  life cycle
+	// ------------------------------------------------------------------------
 
 	@Override
 	public void open(Configuration config) {
@@ -76,24 +78,60 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		this.reporter.stop();
 	}
 
+	// ------------------------------------------------------------------------
+	//  adding / removing metrics
+	// ------------------------------------------------------------------------
+
 	@Override
-	public String generateName(String name, List<String> scope) {
-		StringBuilder sb = new StringBuilder();
-		for (String s : scope) {
-			sb.append(s);
-			sb.append('.');
+	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		final String fullName = group.getScopeString() + '.' + metricName;
+
+		synchronized (this) {
+			if (metric instanceof Counter) {
+				counters.put((Counter) metric, fullName);
+				registry.register(fullName, new CounterWrapper((Counter) metric));
+			}
+			else if (metric instanceof Gauge) {
+				gauges.put((Gauge<?>) metric, fullName);
+				registry.register(fullName, GaugeWrapper.fromGauge((Gauge<?>) metric));
+			}
 		}
-		sb.append(name);
-		return sb.toString();
 	}
 
 	@Override
-	public synchronized void report() {
-		this.reporter.report(
-			this.registry.getGauges(),
-			this.registry.getCounters(),
-			this.registry.getHistograms(),
-			this.registry.getMeters(),
-			this.registry.getTimers());
+	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		synchronized (this) {
+			String fullName;
+			
+			if (metric instanceof Counter) {
+				fullName = counters.remove(metric);
+			} else if (metric instanceof Gauge) {
+				fullName = gauges.remove(metric);
+			} else {
+				fullName = null;
+			}
+			
+			if (fullName != null) {
+				registry.remove(fullName);
+			}
+		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  scheduled reporting
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void report() {
+		synchronized (this) {
+			this.reporter.report(
+				this.registry.getGauges(),
+				this.registry.getCounters(),
+				this.registry.getHistograms(),
+				this.registry.getMeters(),
+				this.registry.getTimers());
+		}
+	}
+
+	public abstract ScheduledReporter getReporter(Configuration config);
 }

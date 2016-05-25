@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerScopeFormat;
 import org.apache.flink.util.AbstractID;
-import org.junit.Test;
 
-import java.util.List;
+import org.junit.Test;
 
 import static org.junit.Assert.*;
 
@@ -55,9 +56,9 @@ public class TaskManagerGroupTest {
 		final AbstractID execution13 = new AbstractID();
 		final AbstractID execution21 = new AbstractID();
 		
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, 17, "test");
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, 13, "test");
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, 7, "test");
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 0);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 1);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 2);
 		
 		assertEquals(2, group.numRegisteredJobMetricGroups());
 		assertFalse(tmGroup11.parent().isClosed());
@@ -77,7 +78,7 @@ public class TaskManagerGroupTest {
 		assertEquals(1, group.numRegisteredJobMetricGroups());
 		
 		// add one more to job one
-		TaskMetricGroup tmGroup13 = group.addTaskForJob(jid1, jobName1, vertex13, execution13, 0, "test");
+		TaskMetricGroup tmGroup13 = group.addTaskForJob(jid1, jobName1, vertex13, execution13, "test", 0, 0);
 		tmGroup12.close();
 		tmGroup13.close();
 
@@ -108,9 +109,9 @@ public class TaskManagerGroupTest {
 		final AbstractID execution12 = new AbstractID();
 		final AbstractID execution21 = new AbstractID();
 
-		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, 17, "test");
-		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, 13, "test");
-		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, 7, "test");
+		TaskMetricGroup tmGroup11 = group.addTaskForJob(jid1, jobName1, vertex11, execution11, "test", 17, 1);
+		TaskMetricGroup tmGroup12 = group.addTaskForJob(jid1, jobName1, vertex12, execution12, "test", 13, 2);
+		TaskMetricGroup tmGroup21 = group.addTaskForJob(jid2, jobName2, vertex21, execution21, "test", 7, 1);
 		
 		group.close();
 		
@@ -120,48 +121,25 @@ public class TaskManagerGroupTest {
 	}
 	
 	// ------------------------------------------------------------------------
-	//  scope tests
+	//  scope name tests
 	// ------------------------------------------------------------------------
 
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		TaskManagerMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "localhost", "id");
 
-		List<String> scope = operator.generateScope();
-		assertEquals(3, scope.size());
-		assertEquals("host", scope.get(0));
-		assertEquals("taskmanager", scope.get(1));
-		assertEquals("id", scope.get(2));
-	}
-
-	@Test
-	public void testGenerateScopeWildcard() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-		TaskManagerMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id");
-
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setTaskManagerFormat(Scope.concat(Scope.SCOPE_WILDCARD, "superhost", TaskManagerMetricGroup.SCOPE_TM_HOST));
-
-		List<String> scope = operator.generateScope(format);
-		assertEquals(2, scope.size());
-		assertEquals("superhost", scope.get(0));
-		assertEquals("host", scope.get(1));
+		assertArrayEquals(new String[] { "localhost", "taskmanager", "id" }, group.getScopeComponents());
+		assertEquals("localhost.taskmanager.id", group.getScopeString());
 	}
 
 	@Test
 	public void testGenerateScopeCustom() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		TaskManagerMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id");
+		TaskManagerScopeFormat format = new TaskManagerScopeFormat("constant.<host>.foo.<host>");
+		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, format, "host", "id");
 
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setTaskManagerFormat(Scope.concat("h", TaskManagerMetricGroup.SCOPE_TM_HOST, "t", TaskManagerMetricGroup.SCOPE_TM_ID));
-
-		List<String> scope = operator.generateScope(format);
-		assertEquals(4, scope.size());
-		assertEquals("h", scope.get(0));
-		assertEquals("host", scope.get(1));
-		assertEquals("t", scope.get(2));
-		assertEquals("id", scope.get(3));
+		assertArrayEquals(new String[] { "constant", "host", "foo", "host" }, group.getScopeComponents());
+		assertEquals("constant.host.foo.host", group.getScopeString());
 	}
 }

@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.OperatorScopeFormat;
 
 import java.util.Collections;
 
-import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator.
@@ -30,26 +32,29 @@ import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
 @Internal
 public class OperatorMetricGroup extends ComponentMetricGroup {
 
-	public static final String SCOPE_OPERATOR_DESCRIPTOR = "operator";
-	public static final String SCOPE_OPERATOR_NAME = Scope.format("operator_name");
-	public static final String SCOPE_OPERATOR_SUBTASK_INDEX = Scope.format("subtask_index");
-	public static final String DEFAULT_SCOPE_OPERATOR_COMPONENT = Scope.concat(SCOPE_OPERATOR_NAME, SCOPE_OPERATOR_SUBTASK_INDEX);
-	public static final String DEFAULT_SCOPE_OPERATOR = Scope.concat(DEFAULT_SCOPE_JOB, DEFAULT_SCOPE_OPERATOR_COMPONENT);
+	/** The task metric group that contains this operator metric groups */
+	private final TaskMetricGroup parent;
 
-	protected OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup task, String name, int subTaskIndex) {
-		super(registry, task, registry.getScopeConfig().getOperatorFormat());
+	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, String operatorName) {
+		this(registry, parent, registry.getScopeFormats().getOperatorFormat(), operatorName);
+	}
 
-		this.formats.put(SCOPE_OPERATOR_NAME, name);
-		this.formats.put(SCOPE_OPERATOR_SUBTASK_INDEX, String.valueOf(subTaskIndex));
+	public OperatorMetricGroup(
+			MetricRegistry registry,
+			TaskMetricGroup parent,
+			OperatorScopeFormat scopeFormat,
+			String operatorName) {
+
+		super(registry, scopeFormat.formatScope(parent, operatorName));
+		this.parent = checkNotNull(parent);
 	}
 
 	// ------------------------------------------------------------------------
-
-	@Override
-	protected String getScopeFormat(Scope.ScopeFormat format) {
-		return format.getOperatorFormat();
+	
+	public final TaskMetricGroup parent() {
+		return parent;
 	}
-
+	
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {
 		return Collections.emptyList();

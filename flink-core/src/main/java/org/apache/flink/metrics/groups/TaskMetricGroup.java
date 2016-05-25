@@ -20,12 +20,13 @@ package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskScopeFormat;
 import org.apache.flink.util.AbstractID;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -35,47 +36,109 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class TaskMetricGroup extends ComponentMetricGroup {
-	
-	public static final String SCOPE_TASK_DESCRIPTOR = "task";
-	public static final String SCOPE_TASK_ID = Scope.format("task_id");
-	public static final String SCOPE_TASK_NAME = Scope.format("task_name");
-	public static final String SCOPE_TASK_ATTEMPT = Scope.format("task_attempt");
-	public static final String SCOPE_TASK_SUBTASK_INDEX = Scope.format("subtask_index");
-	public static final String DEFAULT_SCOPE_TASK_COMPONENT = SCOPE_TASK_NAME;
-	public static final String DEFAULT_SCOPE_TASK = Scope.concat(DEFAULT_SCOPE_JOB, DEFAULT_SCOPE_TASK_COMPONENT);
 
+	/** The job metrics group containing this task metrics group */
+	private final JobMetricGroup parent;
 
 	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
 	private final IOMetricGroup ioMetrics;
-
-	private final AbstractID executionId;
 	
+	/** The execution Id uniquely identifying the executed task represented by this metrics group */
+	private final AbstractID executionId;
+
+	@Nullable
+	private final AbstractID vertexId;
+	
+	@Nullable
+	private final String taskName;
+
 	private final int subtaskIndex;
 
-	protected TaskMetricGroup(
+	private final int attemptNumber;
+
+	// ------------------------------------------------------------------------
+
+	public TaskMetricGroup(
 			MetricRegistry registry,
 			JobMetricGroup parent,
-			AbstractID taskId,
+			@Nullable AbstractID vertexId,
 			AbstractID executionId,
+			@Nullable String taskName,
 			int subtaskIndex,
-			String name) {
-
-		super(registry, parent, registry.getScopeConfig().getTaskFormat());
-
-		this.executionId = executionId;
-		this.subtaskIndex = subtaskIndex;
+			int attemptNumber) {
 		
-		this.formats.put(SCOPE_TASK_ID, taskId.toString());
-		this.formats.put(SCOPE_TASK_ATTEMPT, executionId.toString());
-		this.formats.put(SCOPE_TASK_NAME, checkNotNull(name));
-		this.formats.put(SCOPE_TASK_SUBTASK_INDEX, String.valueOf(subtaskIndex));
+		this(registry, parent, registry.getScopeFormats().getTaskFormat(),
+				vertexId, executionId, taskName, subtaskIndex, attemptNumber);
+	}
+
+	public TaskMetricGroup(
+			MetricRegistry registry,
+			JobMetricGroup parent,
+			TaskScopeFormat scopeFormat, 
+			@Nullable AbstractID vertexId,
+			AbstractID executionId,
+			@Nullable String taskName,
+			int subtaskIndex,
+			int attemptNumber) {
+
+		super(registry, scopeFormat.formatScope(
+				parent, vertexId, executionId, taskName, subtaskIndex, attemptNumber));
+
+		this.parent = checkNotNull(parent);
+		this.executionId = checkNotNull(executionId);
+		this.vertexId = vertexId;
+		this.taskName = taskName;
+		this.subtaskIndex = subtaskIndex;
+		this.attemptNumber = attemptNumber;
 
 		this.ioMetrics = new IOMetricGroup(registry, this);
 	}
 
+	// ------------------------------------------------------------------------
+	//  properties
+	// ------------------------------------------------------------------------
+
+	public final JobMetricGroup parent() {
+		return parent;
+	}
+
+	public AbstractID executionId() {
+		return executionId;
+	}
+
+	@Nullable
+	public AbstractID vertexId() {
+		return vertexId;
+	}
+
+	@Nullable
+	public String taskName() {
+		return taskName;
+	}
+
+	public int subtaskIndex() {
+		return subtaskIndex;
+	}
+
+	public int attemptNumber() {
+		return attemptNumber;
+	}
+
+	/**
+	 * Returns the IOMetricGroup for this task.
+	 *
+	 * @return IOMetricGroup for this task.
+	 */
+	public IOMetricGroup getIOMetricGroup() {
+		return ioMetrics;
+	}
+
+	// ------------------------------------------------------------------------
+	//  operators and cleanup
+	// ------------------------------------------------------------------------
 	public OperatorMetricGroup addOperator(String name) {
-		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, name, this.subtaskIndex);
+		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, name);
 
 		synchronized (this) {
 			OperatorMetricGroup previous = operators.put(name, operator);
@@ -93,27 +156,10 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 	@Override
 	public void close() {
 		super.close();
-		parent().removeTaskMetricGroup(executionId);
+		parent.removeTaskMetricGroup(executionId);
 	}
 
-	/**
-	 * Returns the IOMetricGroup for this task.
-	 *
-	 * @return IOMetricGroup for this task.
-	 */
-	public IOMetricGroup getIOMetricGroup() {
-		return this.ioMetrics;
-	}
-
-	@Override
-	protected JobMetricGroup parent() {
-		return (JobMetricGroup) super.parent();
-	}
-
-	@Override
-	protected String getScopeFormat(Scope.ScopeFormat format) {
-		return format.getTaskFormat();
-	}
+	// ------------------------------------------------------------------------
 
 	@Override
 	protected Iterable<? extends ComponentMetricGroup> subComponents() {

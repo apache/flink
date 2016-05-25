@@ -25,14 +25,12 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
 
+import org.apache.flink.metrics.groups.scope.ScopeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,31 +53,58 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	/** shared logger */
 	private static final Logger LOG = LoggerFactory.getLogger(MetricGroup.class);
 
-	private static final String METRIC_NAME_REGEX = "[a-zA-Z0-9]*";
-	
-	/** The pattern that metric and group names have to match */
-	private static final Pattern METRIC_NAME_PATTERN = Pattern.compile(METRIC_NAME_REGEX);
-
 	// ------------------------------------------------------------------------
 
 	/** The registry that this metrics group belongs to */
 	protected final MetricRegistry registry;
 
 	/** All metrics that are directly contained in this group */
-	protected final Map<String, Metric> metrics = new HashMap<>();
+	private final Map<String, Metric> metrics = new HashMap<>();
 
 	/** All metric subgroups of this group */
-	protected final Map<String, MetricGroup> groups = new HashMap<>();
+	private final Map<String, MetricGroup> groups = new HashMap<>();
+
+	/** The metrics scope represented by this group.
+	 *  For example ["host-7", "taskmanager-2", "window_word_count", "my-mapper" ]. */
+	private final String[] scopeComponents;
+
+	/** The metrics scope represented by this group, as a concatenated string, lazily computed.
+	 * For example: "host-7.taskmanager-2.window_word_count.my-mapper" */
+	private String scopeString;
 
 	/** Flag indicating whether this group has been closed */
 	private volatile boolean closed;
 
 	// ------------------------------------------------------------------------
-	
-	public AbstractMetricGroup(MetricRegistry registry) {
+
+	public AbstractMetricGroup(MetricRegistry registry, String[] scope) {
 		this.registry = checkNotNull(registry);
+		this.scopeComponents = checkNotNull(scope);
 	}
 
+	/**
+	 * Gets the scope as an array of the scope components, for example
+	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
+	 * 
+	 * @see #getScopeString() 
+	 */
+	public String[] getScopeComponents() {
+		return scopeComponents;
+	}
+
+	/**
+	 * Gets the scope as a single delimited string, for example
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper"}
+	 *
+	 * @see #getScopeComponents()
+	 */
+	public String getScopeString() {
+		if (scopeString == null) {
+			scopeString = ScopeFormat.concat(scopeComponents);
+		}
+		return scopeString;
+	}
+	
 	// ------------------------------------------------------------------------
 	//  Closing
 	// ------------------------------------------------------------------------
@@ -109,25 +134,6 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	public final boolean isClosed() {
 		return closed;
 	}
-
-	// -----------------------------------------------------------------------------------------------------------------
-	//  Scope
-	// -----------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * Generates the full scope based on the default/configured format that applies to all metrics within this group.
-	 *
-	 * @return generated scope
-	 */
-	public abstract List<String> generateScope();
-
-	/**
-	 * Generates the full scope based on the given format that applies to all metrics within this group.
-	 *
-	 * @param format format string
-	 * @return generated scope
-	 */
-	public abstract List<String> generateScope(Scope.ScopeFormat format);
 
 	// -----------------------------------------------------------------------------------------------------------------
 	//  Metrics
@@ -164,11 +170,8 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	 * @param metric the metric to register
 	 */
 	protected void addMetric(String name, Metric metric) {
-		Matcher nameMatcher = METRIC_NAME_PATTERN.matcher(name);
-		if (!nameMatcher.matches()) {
-			throw new IllegalArgumentException("Metric names may not contain special characters or spaces. " +
-					"Allowed is: " + METRIC_NAME_REGEX);
-		}
+		// early reject names that will later cause issues
+		checkAllowedCharacters(name);
 
 		// add the metric only if the group is still open
 		synchronized (this) {
@@ -185,7 +188,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 						// we warn here, rather than failing, because metrics are tools that should not fail the
 						// program when used incorrectly
 						LOG.warn("Name collision: Adding a metric with the same name as a metric subgroup: '" +
-								name + "'. Metric might not get properly reported. (" + generateScope() + ')');
+								name + "'. Metric might not get properly reported. (" + scopeString + ')');
 					}
 
 					registry.register(metric, name, this);
@@ -197,7 +200,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 					// we warn here, rather than failing, because metrics are tools that should not fail the
 					// program when used incorrectly
 					LOG.warn("Name collision: Group already contains a Metric with the name '" +
-							name + "'. Metric will not be reported. (" + generateScope() + ')');
+							name + "'. Metric will not be reported. (" + scopeString + ')');
 				}
 			}
 		}
@@ -221,7 +224,7 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 				// program when used incorrectly
 				if (metrics.containsKey(name)) {
 					LOG.warn("Name collision: Adding a metric subgroup with the same name as an existing metric: '" +
-							name + "'. Metric might not get properly reported. (" + generateScope() + ')');
+							name + "'. Metric might not get properly reported. (" + scopeString + ')');
 				}
 
 				MetricGroup newGroup = new GenericMetricGroup(registry, this, name);
@@ -240,6 +243,23 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 				GenericMetricGroup closedGroup = new GenericMetricGroup(registry, this, name);
 				closedGroup.close();
 				return closedGroup;
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Fast implementation to check if a string has only alphanumeric characters.
+	 * Compared to a regular expression, this is about an order of magnitude faster.
+	 */
+	private static void checkAllowedCharacters(String name) {
+		for (int i = 0; i < name.length(); i++) {
+			final char c = name.charAt(i);
+			if (c < 0x30 || (c >= 0x3a && c <= 0x40) || (c > 0x5a && c <= 0x60) || c > 0x7a) {
+				throw new IllegalArgumentException("Metric names may only contain [a-zA-Z0-9].");
 			}
 		}
 	}

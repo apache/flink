@@ -21,12 +21,11 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerScopeFormat;
 import org.apache.flink.util.AbstractID;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a TaskManager.
@@ -37,22 +36,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
-	public static final String SCOPE_HOST_DESCRIPTOR = "host";
-	public static final String SCOPE_TM_DESCRIPTOR = "taskmanager";
-	public static final String SCOPE_TM_HOST = Scope.format("host");
-	public static final String SCOPE_TM_ID = Scope.format("tm_id");
-	public static final String DEFAULT_SCOPE_TM_COMPONENT = Scope.concat(SCOPE_TM_HOST, "taskmanager", SCOPE_TM_ID);
-	public static final String DEFAULT_SCOPE_TM = DEFAULT_SCOPE_TM_COMPONENT;
-
-	// ------------------------------------------------------------------------
-	
 	private final Map<JobID, JobMetricGroup> jobs = new HashMap<>();
 
-	public TaskManagerMetricGroup(MetricRegistry registry, String host, String taskManagerId) {
-		super(registry, null, registry.getScopeConfig().getTaskManagerFormat());
+	private final String hostname;
 
-		this.formats.put(SCOPE_TM_HOST, checkNotNull(host));
-		this.formats.put(SCOPE_TM_ID, checkNotNull(taskManagerId));
+	private final String taskManagerId;
+
+
+	public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
+		this(registry, registry.getScopeFormats().getTaskManagerFormat(), hostname, taskManagerId);
+	}
+
+	public TaskManagerMetricGroup(
+			MetricRegistry registry,
+			TaskManagerScopeFormat scopeFormat,
+			String hostname, String taskManagerId) {
+
+		super(registry, scopeFormat.formatScope(hostname, taskManagerId));
+		this.hostname = hostname;
+		this.taskManagerId = taskManagerId;
+	}
+
+	public String hostname() {
+		return hostname;
+	}
+
+	public String taskManagerId() {
+		return taskManagerId;
 	}
 
 	// ------------------------------------------------------------------------
@@ -64,9 +74,10 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 			String jobName,
 			AbstractID vertexID,
 			AbstractID executionId,
+			String taskName,
 			int subtaskIndex,
-			String taskName) {
-		
+			int attemptNumber) {
+
 		// we cannot strictly lock both our map modification and the job group modification
 		// because it might lead to a deadlock
 		while (true) {
@@ -80,28 +91,30 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 					jobs.put(jobId, currentJobGroup);
 				}
 			}
-		
+
 			// try to add another task. this may fail if we found a pre-existing job metrics
 			// group and it is closed concurrently
-			TaskMetricGroup taskGroup = currentJobGroup.addTask(vertexID, executionId, subtaskIndex, taskName);
+			TaskMetricGroup taskGroup = currentJobGroup.addTask(
+					vertexID, executionId, taskName, subtaskIndex, attemptNumber);
+
 			if (taskGroup != null) {
 				// successfully added the next task
 				return taskGroup;
 			}
-			
+
 			// else fall through the loop
 		}
 	}
-	
+
 	public void removeJobMetricsGroup(JobID jobId, JobMetricGroup group) {
 		if (jobId == null || group == null || !group.isClosed()) {
 			return;
 		}
-		
+
 		synchronized (this) {
 			// optimistically remove the currently contained group, and check later if it was correct
 			JobMetricGroup containedGroup = jobs.remove(jobId);
-			
+
 			// check if another group was actually contained, and restore that one
 			if (containedGroup != null && containedGroup != group) {
 				jobs.put(jobId, containedGroup);
@@ -111,15 +124,6 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup {
 
 	public int numRegisteredJobMetricGroups() {
 		return jobs.size();
-	}
-
-	// ------------------------------------------------------------------------
-	//  component group behavior
-	// ------------------------------------------------------------------------
-
-	@Override
-	protected String getScopeFormat(Scope.ScopeFormat format) {
-		return format.getTaskManagerFormat();
 	}
 
 	@Override

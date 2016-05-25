@@ -24,34 +24,20 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
- * Metrics group that does not register any metrics.
+ * A special {@link MetricGroup} that does not register any metrics at the metrics registry
+ * and any reporters.
+ * 
+ * <p>This metrics group appears always closed ({@link #isClosed()}).
  */
 @Internal
-public class NonRegisteringMetricsGroup implements MetricGroup {
-
-	// ------------------------------------------------------------------------
-	//  singleton
-	// ------------------------------------------------------------------------
-
-	private static final NonRegisteringMetricsGroup INSTANCE = new NonRegisteringMetricsGroup();
-
-	public static NonRegisteringMetricsGroup get() {
-		return INSTANCE;
-	}
-
-	/** Private constructor to prevent instantiation */
-	private NonRegisteringMetricsGroup() {}
-
-	// ------------------------------------------------------------------------
-	//  metrics group
-	// ------------------------------------------------------------------------
+public class UnregisteredMetricsGroup implements MetricGroup {
 
 	@Override
 	public void close() {}
 
 	@Override
 	public boolean isClosed() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -82,6 +68,6 @@ public class NonRegisteringMetricsGroup implements MetricGroup {
 
 	@Override
 	public MetricGroup addGroup(String name) {
-		return new NonRegisteringMetricsGroup();
+		return new UnregisteredMetricsGroup();
 	}
 }

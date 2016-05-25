@@ -18,33 +18,45 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.groups.AbstractMetricGroup;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Base interface for custom metric reporters.
+ */
+@PublicEvolving
 public abstract class AbstractReporter implements MetricReporter {
-	
-	protected Map<String, Gauge<?>> gauges = new ConcurrentHashMap<>();
-	protected Map<String, Counter> counters = new ConcurrentHashMap<>();
+
+	protected final Map<Gauge<?>, String> gauges = new HashMap<>();
+	protected final Map<Counter, String> counters = new HashMap<>();
 
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String name) {
-		if (metric instanceof Counter) {
-			counters.put(name, (Counter) metric);
-		} else if (metric instanceof Gauge) {
-			gauges.put(name, (Gauge<?>) metric);
+	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		final String name = group.getScopeString() + '.' + metricName;
+
+		synchronized (this) {
+			if (metric instanceof Counter) {
+				counters.put((Counter) metric, name);
+			} else if (metric instanceof Gauge) {
+				gauges.put((Gauge<?>) metric, name);
+			}
 		}
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String name) {
-		if (metric instanceof Counter) {
-			counters.remove(name);
-		} else if (metric instanceof Gauge) {
-			gauges.remove(name);
+	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		synchronized (this) {
+			if (metric instanceof Counter) {
+				counters.remove(metric);
+			} else if (metric instanceof Gauge) {
+				gauges.remove(metric);
+			}
 		}
 	}
 }

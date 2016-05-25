@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Gauge;
 
 public class GaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
+	
 	private final Gauge<T> gauge;
 
 	public GaugeWrapper(Gauge<T> gauge) {
@@ -29,5 +31,11 @@ public class GaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
 	@Override
 	public T getValue() {
 		return this.gauge.getValue();
+	}
+
+	public static <T> GaugeWrapper<T> fromGauge(Gauge<?> gauge) {
+		@SuppressWarnings("unchecked")
+		Gauge<T> typedGauge = (Gauge<T>) gauge;
+		return new GaugeWrapper<>(typedGauge); 
 	}
 }

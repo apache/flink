@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.reporter;
 
 import org.apache.flink.annotation.Internal;
@@ -22,46 +23,76 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+
+import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * {@link org.apache.flink.metrics.reporter.MetricReporter} that exports {@link org.apache.flink.metrics.Metric}s via JMX.
+ * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
  *
  * Largely based on the JmxReporter class of the dropwizard metrics library
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
 @Internal
 public class JMXReporter implements MetricReporter {
-	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
-
-	private MBeanServer mBeanServer;
 
 	private static final String PREFIX = "org.apache.flink.metrics:";
 	private static final String KEY_PREFIX = "key";
 
+	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
+
+	// ------------------------------------------------------------------------
+
+	/** The server where the management beans are registered and deregistered */
+	private final MBeanServer mBeanServer;
+
+	/** The names under which the registered metrics have been added to the MBeanServer */ 
+	private final Map<Metric, ObjectName> registeredMetrics;
+
+	/**
+	 * Creates a new JMXReporter
+	 */
 	public JMXReporter() {
 		this.mBeanServer = ManagementFactory.getPlatformMBeanServer();
+		this.registeredMetrics = new HashMap<>();
 	}
 
+	// ------------------------------------------------------------------------
+	//  life cycle
+	// ------------------------------------------------------------------------
+
 	@Override
-	public void notifyOfAddedMetric(Metric metric, String name) {
+	public void open(Configuration config) {}
+
+	@Override
+	public void close() {}
+
+	// ------------------------------------------------------------------------
+	//  adding / removing metrics
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
+		final String name = generateJmxName(metricName, group.getScopeComponents());
+
 		AbstractBean jmxMetric;
 		ObjectName jmxName;
 		try {
 			jmxName = new ObjectName(name);
 		} catch (MalformedObjectNameException e) {
-			throw new IllegalArgumentException("Metric name did not conform to JMX ObjectName rules: " + name, e);
+			LOG.error("Metric name did not conform to JMX ObjectName rules: " + name, e);
+			return;
 		}
 
 		if (metric instanceof Gauge) {
@@ -69,67 +100,136 @@ public class JMXReporter implements MetricReporter {
 		} else if (metric instanceof Counter) {
 			jmxMetric = new JmxCounter((Counter) metric);
 		} else {
-			throw new IllegalArgumentException("Unknown metric type: " + metric.getClass());
+			LOG.error("Unknown metric type: " + metric.getClass().getName());
+			return;
 		}
 
 		try {
-			mBeanServer.registerMBean(jmxMetric, jmxName);
-		} catch (NotCompliantMBeanException e) { //implementation error on our side
+			synchronized (this) {
+				mBeanServer.registerMBean(jmxMetric, jmxName);
+				registeredMetrics.put(metric, jmxName);
+			}
+		} catch (NotCompliantMBeanException e) {
+			// implementation error on our side
 			LOG.error("Metric did not comply with JMX MBean naming rules.", e);
 		} catch (InstanceAlreadyExistsException e) {
 			LOG.error("A metric with the name " + jmxName + " was already registered.", e);
-		} catch (MBeanRegistrationException e) {
-			LOG.error("Failed to register metric.", e);
+		} catch (Throwable t) {
+			LOG.error("Failed to register metric", t);
 		}
 	}
 
 	@Override
-	public void notifyOfRemovedMetric(Metric metric, String name) {
+	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			mBeanServer.unregisterMBean(new ObjectName(name));
-		} catch (MBeanRegistrationException e) {
-			LOG.error("Un-registering metric failed.", e);
-		} catch (MalformedObjectNameException e) {
-			LOG.error("Un-registering metric failed due to invalid name.", e);
+			synchronized (this) {
+				final ObjectName jmxName = registeredMetrics.remove(metric);
+
+				// remove the metric if it is known. if it is not known, ignore the request
+				if (jmxName != null) {
+					mBeanServer.unregisterMBean(jmxName);
+				}
+			}
 		} catch (InstanceNotFoundException e) {
-			//alright then
+			// alright then
+		} catch (Throwable t) {
+			// never propagate exceptions - the metrics reporter should not affect the stability
+			// of the running system
+			LOG.error("Un-registering metric failed", t);
 		}
 	}
 
-	@Override
-	public void open(Configuration config) {
-	}
+	// ------------------------------------------------------------------------
+	//  Utilities 
+	// ------------------------------------------------------------------------
 
-	@Override
-	public void close() {
-	}
+	static String generateJmxName(String metricName, String[] scopeComponents) {
+		final StringBuilder nameBuilder = new StringBuilder(128);
+		nameBuilder.append(PREFIX);
 
-	@Override
-	public String generateName(String name, List<String> origin) {
-		StringBuilder fullName = new StringBuilder();
+		for (int x = 0; x < scopeComponents.length; x++) {
+			// write keyX=
+			nameBuilder.append(KEY_PREFIX);
+			nameBuilder.append(x);
+			nameBuilder.append("=");
 
-		fullName.append(PREFIX);
-		for (int x = 0; x < origin.size(); x++) {
-			fullName.append(KEY_PREFIX);
-			fullName.append(x);
-			fullName.append("=");
-			String value = origin.get(x);
-			value = value.replaceAll("\"", "");
-			value = value.replaceAll(" ", "_");
-			value = value.replaceAll("[,=;:?'*]", "-");
-			fullName.append(value);
-			fullName.append(",");
+			// write scopeName component
+			nameBuilder.append(replaceInvalidChars(scopeComponents[x]));
+			nameBuilder.append(",");
 		}
-		fullName.append("name=").append(name);
 
-		return fullName.toString();
+		// write the name
+		nameBuilder.append("name=").append(replaceInvalidChars(metricName));
+
+		return nameBuilder.toString();
+	}
+	
+	/**
+	 * Lightweight method to replace unsupported characters.
+	 * If the string does not contain any unsupported characters, this method creates no
+	 * new string (and in fact no new objects at all).
+	 * 
+	 * <p>Replacements:
+	 * 
+	 * <ul>
+	 *     <li>{@code "} is removed</li>
+	 *     <li>{@code space} is replaced by {@code _} (underscore)</li>
+	 *     <li>{@code , = ; : ? ' *} are replaced by {@code -} (hyphen)</li>
+	 * </ul>
+	 */
+	static String replaceInvalidChars(String str) {
+		char[] chars = null;
+		final int strLen = str.length();
+		int pos = 0;
+		
+		for (int i = 0; i < strLen; i++) {
+			final char c = str.charAt(i);
+			switch (c) {
+				case '"':
+					// remove character by not moving cursor
+					if (chars == null) {
+						chars = str.toCharArray();
+					}
+					break;
+
+				case ' ':
+					if (chars == null) {
+						chars = str.toCharArray();
+					}
+					chars[pos++] = '_';
+					break;
+				
+				case ',':
+				case '=':
+				case ';':
+				case ':':
+				case '?':
+				case '\'':
+				case '*':
+					if (chars == null) {
+						chars = str.toCharArray();
+					}
+					chars[pos++] = '-';
+					break;
+
+				default:
+					if (chars != null) {
+						chars[pos] = c;
+					}
+					pos++;
+			}
+		}
+		
+		return chars == null ? str : new String(chars, 0, pos);
 	}
 
-	public interface MetricMBean {
-	}
+	// ------------------------------------------------------------------------
+	//  Interfaces and base classes for JMX beans 
+	// ------------------------------------------------------------------------
 
-	private abstract static class AbstractBean implements MetricMBean {
-	}
+	public interface MetricMBean {}
+
+	private abstract static class AbstractBean implements MetricMBean {}
 
 	public interface JmxCounterMBean extends MetricMBean {
 		long getCount();
@@ -153,7 +253,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	private static class JmxGauge extends AbstractBean implements JmxGaugeMBean {
-		
+
 		private final Gauge<?> gauge;
 
 		public JmxGauge(Gauge<?> gauge) {

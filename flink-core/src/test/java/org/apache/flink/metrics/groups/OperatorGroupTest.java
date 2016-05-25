@@ -15,73 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.util.AbstractID;
+
 import org.junit.Test;
 
-import java.util.List;
-
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class OperatorGroupTest {
+
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
-		
-		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
-			.addOperator("operator");
 
-		List<String> scope = operator.generateScope();
-		assertEquals(6, scope.size());
-		assertEquals("host", scope.get(0));
-		assertEquals("taskmanager", scope.get(1));
-		assertEquals("id", scope.get(2));
-		assertEquals("job", scope.get(3));
-		assertEquals("operator", scope.get(4));
-		assertEquals("0", scope.get(5));
-	}
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+		TaskMetricGroup taskGroup = new TaskMetricGroup(
+				registry, jmGroup,  new AbstractID(),  new AbstractID(), "aTaskName", 11, 0);
+		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, "myOpName");
 
-	@Test
-	public void testGenerateScopeWildcard() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
-			.addOperator("operator");
+		assertArrayEquals(
+				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", "myOpName", "11" },
+				opGroup.getScopeComponents());
 
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setOperatorFormat(Scope.concat(Scope.SCOPE_WILDCARD, "op", OperatorMetricGroup.SCOPE_OPERATOR_NAME));
-
-		List<String> scope = operator.generateScope(format);
-		assertEquals(7, scope.size());
-		assertEquals("host", scope.get(0));
-		assertEquals("taskmanager", scope.get(1));
-		assertEquals("id", scope.get(2));
-		assertEquals("job", scope.get(3));
-		assertEquals("task", scope.get(4));
-		assertEquals("op", scope.get(5));
-		assertEquals("operator", scope.get(6));
-	}
-
-	@Test
-	public void testGenerateScopeCustom() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-		OperatorMetricGroup operator = new TaskManagerMetricGroup(registry, "host", "id")
-			.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task")
-			.addOperator("operator");
-
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setOperatorFormat(Scope.concat("jobs", JobMetricGroup.SCOPE_JOB_NAME, "op", OperatorMetricGroup.SCOPE_OPERATOR_NAME));
-
-		List<String> scope = operator.generateScope(format);
-		assertEquals(4, scope.size());
-		assertEquals("jobs", scope.get(0));
-		assertEquals("job", scope.get(1));
-		assertEquals("op", scope.get(2));
-		assertEquals("operator", scope.get(3));
+		assertEquals(
+				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11",
+				opGroup.getScopeString());
 	}
 }

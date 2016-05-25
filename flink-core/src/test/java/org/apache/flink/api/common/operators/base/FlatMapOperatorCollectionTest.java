@@ -29,8 +29,9 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.util.DummyMetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -79,7 +80,11 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 		final TaskInfo taskInfo = new TaskInfo("Test UDF", 0, 4, 0);
 		// run on collections
 		final List<String> result = getTestFlatMapOperator(udf)
-				.executeOnCollections(input, new RuntimeUDFContext(taskInfo,  null, executionConfig, new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>(), new DummyMetricGroup()), executionConfig);
+				.executeOnCollections(input,
+						new RuntimeUDFContext(
+							taskInfo,  null, executionConfig, new HashMap<String, Future<Path>>(),
+							new HashMap<String, Accumulator<?, ?>>(), new UnregisteredMetricsGroup()),
+						executionConfig);
 
 		Assert.assertEquals(input.size(), result.size());
 		Assert.assertEquals(input, result);

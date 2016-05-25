@@ -35,6 +35,9 @@ under the License.
 	<packaging>jar</packaging>
 
 	<dependencies>
+		
+		<!-- core dependencies -->
+		
 		<dependency>
 			<!-- Together with the dependency management section in flink-parent, this
 			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
@@ -46,14 +49,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -77,6 +72,17 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime_2.10</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		
 	</dependencies>
 
 	<build>

@@ -15,64 +15,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricRegistry;
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerJobScopeFormat;
+import org.apache.flink.metrics.groups.scope.ScopeFormat.TaskManagerScopeFormat;
+
 import org.junit.Test;
 
-import java.util.List;
-
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class JobGroupTest {
+
 	@Test
 	public void testGenerateScopeDefault() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 
-		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
-				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
-		JobMetricGroup jmGroup = tmGroup.parent();
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 
-		List<String> scope = jmGroup.generateScope();
-		assertEquals(4, scope.size());
-		assertEquals("job", scope.get(3));
-	}
+		assertArrayEquals(
+				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName"},
+				jmGroup.getScopeComponents());
 
-	@Test
-	public void testGenerateScopeWildcard() {
-		MetricRegistry registry = new MetricRegistry(new Configuration());
-
-		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
-				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
-		JobMetricGroup jmGroup = tmGroup.parent();
-
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setJobFormat(Scope.concat(Scope.SCOPE_WILDCARD, "superjob", JobMetricGroup.SCOPE_JOB_NAME));
-
-		List<String> scope = jmGroup.generateScope(format);
-		assertEquals(5, scope.size());
-		assertEquals("superjob", scope.get(3));
-		assertEquals("job", scope.get(4));
+		assertEquals(
+				"theHostName.taskmanager.test-tm-id.myJobName",
+				jmGroup.getScopeString());
 	}
 
 	@Test
 	public void testGenerateScopeCustom() {
 		MetricRegistry registry = new MetricRegistry(new Configuration());
 
-		TaskMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id")
-				.addTaskForJob(new JobID(), "job", new AbstractID(), new AbstractID(), 0, "task");
-		JobMetricGroup jmGroup = tmGroup.parent();
+		TaskManagerScopeFormat tmFormat = new TaskManagerScopeFormat("abc");
+		TaskManagerJobScopeFormat jmFormat = new TaskManagerJobScopeFormat("some-constant.<job_name>", tmFormat);
 
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setJobFormat(Scope.concat(TaskManagerMetricGroup.SCOPE_TM_HOST, "superjob", JobMetricGroup.SCOPE_JOB_NAME));
+		JobID jid = new JobID();
 
-		List<String> scope = jmGroup.generateScope(format);
-		assertEquals(3, scope.size());
-		assertEquals("host", scope.get(0));
-		assertEquals("superjob", scope.get(1));
-		assertEquals("job", scope.get(2));
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, jmFormat, jid, "myJobName");
+
+		assertArrayEquals(
+				new String[] { "some-constant", "myJobName" },
+				jmGroup.getScopeComponents());
+
+		assertEquals(
+				"some-constant.myJobName",
+				jmGroup.getScopeString());
+	}
+
+	@Test
+	public void testGenerateScopeCustomWildcard() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+
+		TaskManagerScopeFormat tmFormat = new TaskManagerScopeFormat("peter.<tm_id>");
+		TaskManagerJobScopeFormat jmFormat = new TaskManagerJobScopeFormat("*.some-constant.<job_id>", tmFormat);
+
+		JobID jid = new JobID();
+
+		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, tmFormat, "theHostName", "test-tm-id");
+		JobMetricGroup jmGroup = new JobMetricGroup(registry, tmGroup, jmFormat, jid, "myJobName");
+
+		assertArrayEquals(
+				new String[] { "peter", "test-tm-id", "some-constant", jid.toString() },
+				jmGroup.getScopeComponents());
+
+		assertEquals(
+				"peter.test-tm-id.some-constant." + jid,
+				jmGroup.getScopeString());
 	}
 }
