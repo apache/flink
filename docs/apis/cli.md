@@ -105,6 +105,10 @@ The command line can be used to
 
         ./bin/flink list -r
 
+-   List running Flink jobs inside Flink YARN session:
+
+        ./bin/flink list -m yarn-cluster -yid <yarnApplicationID> -r
+
 -   Cancel a job:
 
         ./bin/flink cancel <jobID>
@@ -252,6 +256,12 @@ Action "list" lists running and scheduled programs.
                                    configuration.
      -r,--running                  Show only running programs and their JobIDs
      -s,--scheduled                Show only scheduled programs and their JobIDs
+  Additional arguments if -m yarn-cluster is set:
+     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
+                                   connect to. Must not be set if JobManager HA
+                                   is used. In this case, JobManager RPC
+                                   location is automatically retrieved from
+                                   Zookeeper.
 
 
 Action "cancel" cancels a running program.
@@ -264,6 +274,12 @@ Action "cancel" cancels a running program.
                                    job. Use this flag to connect to a different
                                    JobManager than the one specified in the
                                    configuration.
+  Additional arguments if -m yarn-cluster is set:
+     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
+                                   connect to. Must not be set if JobManager HA
+                                   is used. In this case, JobManager RPC
+                                   location is automatically retrieved from
+                                   Zookeeper.
 
 
 Action "stop" stops a running program (streaming jobs only). There are no strong consistency
@@ -275,6 +291,12 @@ guarantees for a stop request.
                                    to connect. Use this flag to connect to a
                                    different JobManager than the one specified
                                    in the configuration.
+  Additional arguments if -m yarn-cluster is set:
+     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
+                                   connect to. Must not be set if JobManager HA
+                                   is used. In this case, JobManager RPC
+                                   location is automatically retrieved from
+                                   Zookeeper.
 
 
 Action "savepoint" triggers savepoints for a running job or disposes existing ones.
@@ -288,4 +310,10 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
                                     job. Use this flag to connect to a different
                                     JobManager than the one specified in the
                                     configuration.
+  Additional arguments if -m yarn-cluster is set:
+     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
+                                   connect to. Must not be set if JobManager HA
+                                   is used. In this case, JobManager RPC
+                                   location is automatically retrieved from
+                                   Zookeeper.
 ~~~

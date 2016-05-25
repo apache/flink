@@ -800,6 +800,10 @@ public class CliFrontend {
 	 */
 	protected void updateConfig(CommandLineOptions options) {
 		if(options.getJobManagerAddress() != null){
+			if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
+				jobManagerAddress = CliFrontendParser.getFlinkYarnSessionCli()
+					.attachFlinkYarnClient(options.getCommandLine())
+					.getJobManagerAddress();
 			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
 			writeJobManagerAddressToConfig(config, jobManagerAddress);
 		}
