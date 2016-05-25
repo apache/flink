@@ -65,12 +65,13 @@ public class TaskMetricGroup extends ComponentMetricGroup {
 
 		this.executionId = executionId;
 		this.subtaskIndex = subtaskIndex;
-		this.ioMetrics = new IOMetricGroup(registry, this);
 		
 		this.formats.put(SCOPE_TASK_ID, taskId.toString());
 		this.formats.put(SCOPE_TASK_ATTEMPT, executionId.toString());
 		this.formats.put(SCOPE_TASK_NAME, checkNotNull(name));
 		this.formats.put(SCOPE_TASK_SUBTASK_INDEX, String.valueOf(subtaskIndex));
+
+		this.ioMetrics = new IOMetricGroup(registry, this);
 	}
 
 	public OperatorMetricGroup addOperator(String name) {
