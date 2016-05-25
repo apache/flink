@@ -143,6 +143,34 @@ Note that in this case its not possible to stop the YARN session using Flink.
 
 Use the YARN utilities (`yarn application -kill <appId>`) to stop the YARN session.
 
+#### Attach to an existing Session
+
+Use the following command to start a session
+
+~~~bash
+./bin/yarn-session.sh
+~~~
+
+This command will show you the following overview:
+
+~~~bash
+Usage:
+   Required
+     -id,--applicationId <yarnAppId> YARN application Id
+~~~
+
+As already mentioned, `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable must be set to read the YARN and HDFS configuration.
+
+**Example:** Issue the following command to attach to running Flink YARN session `application_1463870264508_0029`:
+
+~~~bash
+./bin/yarn-session.sh -id application_1463870264508_0029
+~~~
+
+Attaching to a running session uses YARN ResourceManager to determine Job Manager RPC port.
+
+Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
+
 ### Submit Job to Flink
 
 Use the following command to submit a Flink program to the YARN cluster:
