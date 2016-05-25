@@ -443,6 +443,21 @@ public class FlinkYarnSessionCli {
 			}
 			System.out.println(description);
 			return 0;
+		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) {
+			yarnCluster = attachFlinkYarnClient(cmd);
+
+			if (detachedMode) {
+				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
+					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
+					"yarn application -kill "+yarnCluster.getApplicationId());
+			} else {
+				runInteractiveCli(yarnCluster);
+
+				if (!yarnCluster.hasBeenStopped()) {
+					LOG.info("Command Line Interface requested session shutdown");
+					yarnCluster.shutdown(false);
+				}
+			}
 		} else {
 			AbstractFlinkYarnClient flinkYarnClient = createFlinkYarnClient(cmd);
 
