@@ -1,22 +1,24 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *  * Licensed to the Apache Software Foundation (ASF) under one
+ *  * or more contributor license agreements.  See the NOTICE file
+ *  * distributed with this work for additional information
+ *  * regarding copyright ownership.  The ASF licenses this file
+ *  * to you under the Apache License, Version 2.0 (the
+ *  * "License"); you may not use this file except in compliance
+ *  * with the License.  You may obtain a copy of the License at
+ *  *
+ *  *     http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  * Unless required by applicable law or agreed to in writing, software
+ *  * distributed under the License is distributed on an "AS IS" BASIS,
+ *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  * See the License for the specific language governing permissions and
+ *  * limitations under the License.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
-package org.apache.flink.graph.library.metric.undirected;
+package org.apache.flink.graph.library.metric.directed;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -28,10 +30,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
-import org.apache.flink.graph.library.metric.undirected.VertexMetrics.Result;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
 import org.apache.flink.types.CopyableValue;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
@@ -40,7 +42,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Compute the number of vertices, number of edges, and number of triplets in
- * an undirected graph.
+ * a directed graph.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -53,8 +55,6 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	// Optional configuration
 	private boolean includeZeroDegreeVertices = false;
-
-	private boolean reduceOnTargetId = false;
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -69,21 +69,6 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 */
 	public VertexMetrics<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
 		this.includeZeroDegreeVertices = includeZeroDegreeVertices;
-
-		return this;
-	}
-
-	/**
-	 * The degree can be counted from either the edge source or target IDs.
-	 * By default the source IDs are counted. Reducing on target IDs may
-	 * optimize the algorithm if the input edge list is sorted by target ID.
-	 *
-	 * @param reduceOnTargetId set to {@code true} if the input edge list
-	 *                         is sorted by target ID
-	 * @return this
-	 */
-	public VertexMetrics<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
-		this.reduceOnTargetId = reduceOnTargetId;
 
 		return this;
 	}
@@ -105,10 +90,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			throws Exception {
 		super.run(input);
 
-		DataSet<Vertex<K, LongValue>> vertexDegree = input
-			.run(new VertexDegree<K, VV, EV>()
+		DataSet<Vertex<K, Degrees>> vertexDegree = input
+			.run(new VertexDegrees<K, VV, EV>()
 				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices)
-				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
 
 		vertexDegree
@@ -135,7 +119,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * @param <T> ID type
 	 */
 	private static class VertexMetricsHelper<T>
-	extends RichOutputFormat<Vertex<T, LongValue>> {
+	extends RichOutputFormat<Vertex<T, Degrees>> {
 		private final String id;
 
 		private long vertexCount;
@@ -162,11 +146,12 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		public void open(int taskNumber, int numTasks) throws IOException {}
 
 		@Override
-		public void writeRecord(Vertex<T, LongValue> record) throws IOException {
-			long degree = record.f1.getValue();
+		public void writeRecord(Vertex<T, Degrees> record) throws IOException {
+			long degree = record.f1.getDegree().getValue();
+			long outDegree = record.f1.getOutDegree().getValue();
 
 			vertexCount++;
-			edgeCount += degree;
+			edgeCount += outDegree;
 			tripletCount += degree * (degree - 1) / 2;
 		}
 
@@ -222,8 +207,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		@Override
 		public String toString() {
 			return "vertex count: " + vertexCount
-					+ ", edge count:" + edgeCount
-					+ ", triplet count: " + tripletCount;
+				+ ", edge count:" + edgeCount
+				+ ", triplet count: " + tripletCount;
 		}
 
 		@Override

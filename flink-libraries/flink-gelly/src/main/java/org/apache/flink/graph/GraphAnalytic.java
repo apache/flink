@@ -38,7 +38,7 @@ public interface GraphAnalytic<K, VV, EV, T> {
 	 * This method must be called after the program has executed:
 	 *  1) "run" analytics and algorithms
 	 *  2) call ExecutionEnvironment.execute()
-	 *  3) get analytics results
+	 *  3) get analytic results
 	 *
 	 * @return the result
 	 */

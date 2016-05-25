@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.clustering.undirected;
+package org.apache.flink.graph.library.clustering.directed;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
+import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -40,7 +40,7 @@ extends AsmTestBase {
 	@Test
 	public void testSimpleGraph()
 			throws Exception {
-		DataSet<Result<IntValue>> cc = undirectedSimpleGraph
+		DataSet<Result<IntValue>> cc = directedSimpleGraph
 			.run(new LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
@@ -58,7 +58,7 @@ extends AsmTestBase {
 	public void testCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedTriangleCount = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedTriangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
 
 		DataSet<Result<LongValue>> cc = completeGraph
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
@@ -76,10 +76,10 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
+		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>()));
 
 		assertEquals(902, checksum.getCount());
-		assertEquals(0x000001cab2d3677bL, checksum.getChecksum());
+		assertEquals(0x000001bf83866775L, checksum.getChecksum());
 	}
 }

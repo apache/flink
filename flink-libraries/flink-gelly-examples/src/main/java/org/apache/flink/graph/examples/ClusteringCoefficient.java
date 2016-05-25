@@ -28,7 +28,7 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
+import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.translate.LongValueToIntValue;
 import org.apache.flink.graph.asm.translate.TranslateGraphIds;
 import org.apache.flink.graph.generator.RMatGraph;
@@ -41,16 +41,19 @@ import org.apache.flink.types.NullValue;
 import java.text.NumberFormat;
 
 /**
- * Driver for the library implementation of Triangle Listing.
+ * Driver for the library implementations of Global and Local Clustering Coefficient.
  *
  * This example reads a simple directed or undirected graph from a CSV file or
- * generates an RMat graph with the given scale and edge factor then lists
- * all triangles.
+ * generates an RMat graph with the given scale and edge factor then calculates
+ * the local clustering coefficient for each vertex and the global clustering
+ * coefficient for the graph.
  *
- * @see org.apache.flink.graph.library.clustering.directed.TriangleListing
- * @see org.apache.flink.graph.library.clustering.undirected.TriangleListing
+ * @see org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient
+ * @see org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient
+ * @see org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient
+ * @see org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient
  */
-public class TriangleListing {
+public class ClusteringCoefficient {
 
 	public static final int DEFAULT_SCALE = 10;
 
@@ -59,12 +62,15 @@ public class TriangleListing {
 	public static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	private static void printUsage() {
-		System.out.println(WordUtils.wrap("Lists all triangles in a graph.", 80));
+		System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
+			" vertex's neighborhood and the global clustering coefficient measures the connectedness of the graph." +
+			" Scores range from 0.0 (no edges between neighbors or vertices) to 1.0 (neighborhood or graph" +
+			" is a clique).", 80));
 		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
-			" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
+		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
+			" the vertex, and the number of edges between vertex neighbors.", 80));
 		System.out.println();
-		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
+		System.out.println("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();
 		System.out.println("options:");
 		System.out.println("  --input csv --input_filename FILENAME [--input_line_delimiter LINE_DELIMITER] [--input_field_delimiter FIELD_DELIMITER]");
@@ -87,7 +93,9 @@ public class TriangleListing {
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
-		DataSet tl;
+		// global and local clustering coefficient results
+		GraphAnalytic gcc;
+		DataSet lcc;
 
 		switch (parameters.get("input", "")) {
 			case "csv": {
@@ -105,13 +113,16 @@ public class TriangleListing {
 						.keyType(LongValue.class);
 
 				if (directedAlgorithm) {
-					tl = graph
-						.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+					gcc = graph
+						.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>());
+					lcc = graph
+						.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 				} else {
-					tl = graph
-						.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+					gcc = graph
+						.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>());
+					lcc = graph
+						.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 				}
-
 			} break;
 
 			case "rmat": {
@@ -128,30 +139,43 @@ public class TriangleListing {
 
 				if (directedAlgorithm) {
 					if (scale > 32) {
-						tl = graph
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>())
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<LongValue, NullValue, NullValue>());
+						Graph<LongValue, NullValue, NullValue> newGraph = graph
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+
+						gcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>());
+						lcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 					} else {
-						tl = graph
+						Graph<IntValue, NullValue, NullValue> newGraph = graph
 							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>())
-							.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<IntValue, NullValue, NullValue>());
+							.run(new org.apache.flink.graph.asm.simple.directed.Simplify<IntValue, NullValue, NullValue>());
+
+						gcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>());
+						lcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
 					}
 				} else {
 					boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
-					graph = graph
-						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
-
 					if (scale > 32) {
-						tl = graph
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<LongValue, NullValue, NullValue>());
+						Graph<LongValue, NullValue, NullValue> newGraph = graph
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+
+						gcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<LongValue, NullValue, NullValue>());
+						lcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 					} else {
-						tl = graph
+						Graph<IntValue, NullValue, NullValue> newGraph = graph
 							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
-							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
-							.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<IntValue, NullValue, NullValue>());
+							.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<IntValue, NullValue, NullValue>(clipAndFlip));
+
+						gcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient<IntValue, NullValue, NullValue>());
+						lcc = newGraph
+							.run(new org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
 					}
 				}
 			} break;
@@ -164,18 +188,24 @@ public class TriangleListing {
 		switch (parameters.get("output", "")) {
 			case "print":
 				if (directedAlgorithm) {
-					for (Object e: tl.collect()) {
-						org.apache.flink.graph.library.clustering.directed.TriangleListing.Result result =
-							(org.apache.flink.graph.library.clustering.directed.TriangleListing.Result) e;
+					for (Object e: lcc.collect()) {
+						org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result result =
+							(org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result)e;
 						System.out.println(result.toVerboseString());
 					}
 				} else {
-					tl.print();
+					for (Object e: lcc.collect()) {
+						org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result result =
+							(org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result)e;
+						System.out.println(result.toVerboseString());
+					}
 				}
+				System.out.println(gcc.getResult());
 				break;
 
 			case "hash":
-				System.out.println(DataSetUtils.checksumHashCode(tl));
+				System.out.println(DataSetUtils.checksumHashCode(lcc));
+				System.out.println(gcc.getResult());
 				break;
 
 			case "csv":
@@ -187,10 +217,11 @@ public class TriangleListing {
 				String fieldDelimiter = StringEscapeUtils.unescapeJava(
 					parameters.get("output_field_delimiter", CsvOutputFormat.DEFAULT_FIELD_DELIMITER));
 
-				tl.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
+				lcc.writeAsCsv(filename, lineDelimiter, fieldDelimiter);
 
-				env.execute();
+				System.out.println(gcc.execute());
 				break;
+
 			default:
 				printUsage();
 				return;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.clustering.undirected;
+package org.apache.flink.graph.library.clustering.directed;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -24,12 +24,12 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
-import org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
+import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
@@ -47,8 +47,8 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * neighbors is equivalent to counting the number of triangles which include
  * the vertex.
  * <br/>
- * The input graph must be a simple, undirected graph containing no duplicate
- * edges or self-loops.
+ * The input graph must be a simple graph containing no duplicate edges or
+ * self-loops.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -88,13 +88,13 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	@Override
 	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
 			throws Exception {
-		// u, v, w
-		DataSet<Tuple3<K,K,K>> triangles = input
+		// u, v, w, bitmask
+		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K,VV,EV>()
 				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
-		// u, 1
+		// u, edge count
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
 			.flatMap(new SplitTriangles<K>())
 				.name("Split triangle vertices");
@@ -106,8 +106,8 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 				.name("Count triangles");
 
 		// u, deg(u)
-		DataSet<Vertex<K, LongValue>> vertexDegree = input
-			.run(new VertexDegree<K, VV, EV>()
+		DataSet<Vertex<K, Degrees>> vertexDegree = input
+			.run(new VertexDegrees<K, VV, EV>()
 				.setParallelism(littleParallelism)
 				.setIncludeZeroDegreeVertices(true));
 
@@ -126,20 +126,29 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private static class SplitTriangles<T>
-	implements FlatMapFunction<Tuple3<T, T, T>, Tuple2<T, LongValue>> {
-		private Tuple2<T, LongValue> output = new Tuple2<>(null, new LongValue(1));
+	private class SplitTriangles<T>
+	implements FlatMapFunction<TriangleListing.Result<T>, Tuple2<T, LongValue>> {
+		private LongValue one = new LongValue(1);
+
+		private LongValue two = new LongValue(2);
+
+		private Tuple2<T, LongValue> output = new Tuple2<>();
 
 		@Override
-		public void flatMap(Tuple3<T, T, T> value, Collector<Tuple2<T, LongValue>> out)
+		public void flatMap(TriangleListing.Result<T> value, Collector<Tuple2<T, LongValue>> out)
 				throws Exception {
+			byte bitmask = value.f3.getValue();
+
 			output.f0 = value.f0;
+			output.f1 = ((bitmask & 0b000011) == 0b000011) ? two : one;
 			out.collect(output);
 
 			output.f0 = value.f1;
+			output.f1 = ((bitmask & 0b001100) == 0b001100) ? two : one;
 			out.collect(output);
 
 			output.f0 = value.f2;
+			output.f1 = ((bitmask & 0b110000) == 0b110000) ? two : one;
 			out.collect(output);
 		}
 	}
@@ -150,7 +159,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private static class CountTriangles<T>
+	private class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
@@ -165,19 +174,19 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFieldsFirst("0; 1->1.0")
+	@FunctionAnnotation.ForwardedFieldsFirst("0; 1.0->1.0")
 	@FunctionAnnotation.ForwardedFieldsSecond("0")
-	private static class JoinVertexDegreeWithTriangleCount<T>
-	implements JoinFunction<Vertex<T, LongValue>, Tuple2<T, LongValue>, Result<T>> {
+	private class JoinVertexDegreeWithTriangleCount<T>
+	implements JoinFunction<Vertex<T, Degrees>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
 
 		private Result<T> output = new Result<>();
 
 		@Override
-		public Result<T> join(Vertex<T, LongValue> vertexAndDegree, Tuple2<T, LongValue> vertexAndTriangleCount)
+		public Result<T> join(Vertex<T, Degrees> vertexAndDegree, Tuple2<T, LongValue> vertexAndTriangleCount)
 				throws Exception {
 			output.f0 = vertexAndDegree.f0;
-			output.f1.f0 = vertexAndDegree.f1;
+			output.f1.f0 = vertexAndDegree.f1.f0;
 			output.f1.f1 = (vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1;
 
 			return output;
@@ -191,10 +200,13 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	public static class Result<T>
 	extends Vertex<T, Tuple2<LongValue, LongValue>> {
-		private static final int HASH_SEED = 0xc23937c1;
+		public static final int HASH_SEED = 0x37a208c4;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
+		/**
+		 * No-args constructor.
+		 */
 		public Result() {
 			f1 = new Tuple2<>();
 		}
@@ -230,7 +242,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		 */
 		public double getLocalClusteringCoefficientScore() {
 			long degree = getDegree().getValue();
-			long neighborPairs = degree * (degree - 1) / 2;
+			long neighborPairs = degree * (degree - 1);
 
 			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
 		}
