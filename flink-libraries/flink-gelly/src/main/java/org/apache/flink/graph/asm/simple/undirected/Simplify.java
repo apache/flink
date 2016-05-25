@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingGraph;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -40,7 +40,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class Simplify<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
+extends GraphAlgorithmDelegatingGraph<K, VV, EV, K, VV, EV> {
 
 	// Required configuration
 	private boolean clipAndFlip;
@@ -77,7 +77,35 @@ implements GraphAlgorithm<K, VV, EV, Graph<K, VV, EV>> {
 	}
 
 	@Override
-	public Graph<K, VV, EV> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return Simplify.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingGraph other) {
+		Preconditions.checkNotNull(other);
+
+		if (! Simplify.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		Simplify rhs = (Simplify) other;
+
+		// verify that configurations can be merged
+
+		if (clipAndFlip != rhs.clipAndFlip) {
+			return false;
+		}
+
+		// merge configurations
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public Graph<K, VV, EV> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// Edges
 		DataSet<Edge<K, EV>> edges = input

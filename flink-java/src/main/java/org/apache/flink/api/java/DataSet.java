@@ -1749,7 +1749,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	protected static void checkSameExecutionContext(DataSet<?> set1, DataSet<?> set2) {
-		if (set1.context != set2.context) {
+		if (set1.getExecutionEnvironment() != set2.getExecutionEnvironment()) {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}

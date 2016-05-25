@@ -24,10 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeDegreeWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
@@ -40,7 +41,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class EdgeDegreesPair<K, VV, EV>
-implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, Degrees, Degrees>>>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Edge<K, Tuple3<EV, Degrees, Degrees>>> {
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;
@@ -58,7 +59,27 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, Degrees, Degrees
 	}
 
 	@Override
-	public DataSet<Edge<K, Tuple3<EV, Degrees, Degrees>>> run(Graph<K, VV, EV> input)
+	protected String getAlgorithmName() {
+		return EdgeDegreesPair.class.getName();
+	}
+
+	@Override
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
+		Preconditions.checkNotNull(other);
+
+		if (! EdgeDegreesPair.class.isAssignableFrom(other.getClass())) {
+			return false;
+		}
+
+		EdgeDegreesPair rhs = (EdgeDegreesPair) other;
+
+		parallelism = Math.min(parallelism, rhs.parallelism);
+
+		return true;
+	}
+
+	@Override
+	public DataSet<Edge<K, Tuple3<EV, Degrees, Degrees>>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, d(s)
 		DataSet<Edge<K, Tuple2<EV, Degrees>>> edgeSourceDegrees = input
