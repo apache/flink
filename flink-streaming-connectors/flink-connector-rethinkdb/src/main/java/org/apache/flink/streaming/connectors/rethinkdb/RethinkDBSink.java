@@ -73,7 +73,7 @@ import com.rethinkdb.net.Connection;
  * 
  * @param <OUT> a value that can be transformed into a {@link org.json.simple.JSONArray;} or {@link org.json.simple.JSONObject}
  */
-public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Serializable{
+public class RethinkDBSink<OUT> extends RichSinkFunction<OUT> implements Serializable{
 
 	/**
 	 * Serial version for the class
@@ -83,7 +83,7 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 	/**
 	 * Logger for the class
 	 */
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkRethinkDbSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RethinkDBSink.class);
 
 	/**
 	 * Conflict resolution option key in case document ids are same 
@@ -159,7 +159,7 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 	 * @param table
 	 * @param schema
 	 */
-	public FlinkRethinkDbSink(String hostname, int hostport, String database, String table, 
+	public RethinkDBSink(String hostname, int hostport, String database, String table, 
 			JSONSerializationSchema<OUT> schema) {
 		this(hostname, hostport, database, table, schema, ConflictStrategy.update);
 	}
@@ -173,7 +173,7 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 	 * @param schema serialization converter
 	 * @param conflict resolution strategy for document id conflict
 	 */
-	public FlinkRethinkDbSink(String hostname, int hostport, String database, String table, 
+	public RethinkDBSink(String hostname, int hostport, String database, String table, 
 			JSONSerializationSchema<OUT> schema, 
 			ConflictStrategy conflict) {
 		this.hostname = Objects.requireNonNull(hostname);
@@ -212,8 +212,8 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 	 * Set username and password. If username and password are not provided,
 	 * then default username (admin) and blank password are used.
 	 * 
-	 * @param username
-	 * @param password
+	 * @param username cannot be blank/null
+	 * @param password cannot be null
 	 * 
 	 * @throws IllegalArgumentException if arguments is null or empty
 	 */
@@ -225,11 +225,7 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 			this.username = username;
 		}
 		
-		if ( StringUtils.isBlank(password) ) {
-			throw new IllegalArgumentException("password " + password + " cannot be null or empty" ); 
-		} else {
-			this.password = password;
-		}
+		this.password = (password == null) ? "" : password;
 	}
 	
 	/**
@@ -284,6 +280,48 @@ public class FlinkRethinkDbSink<OUT> extends RichSinkFunction<OUT> implements Se
 	 */
 	protected Table getRdbTable() {
 		return getRethinkDB().db(databaseName).table(tableName);
+	}
+
+	/**
+	 * @return the hostname
+	 */
+	public String getHostname() {
+		return hostname;
+	}
+
+	/**
+	 * @return the hostport
+	 */
+	public int getHostport() {
+		return hostport;
+	}
+
+	/**
+	 * @return the tableName
+	 */
+	public String getTableName() {
+		return tableName;
+	}
+
+	/**
+	 * @return the databaseName
+	 */
+	public String getDatabaseName() {
+		return databaseName;
+	}
+
+	/**
+	 * @return the username
+	 */
+	public String getUsername() {
+		return username;
+	}
+
+	/**
+	 * @return the password
+	 */
+	public String getPassword() {
+		return password;
 	}
 
 }

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.rethinkdb.integration;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.rethinkdb.FlinkRethinkDbSink;
+import org.apache.flink.streaming.connectors.rethinkdb.RethinkDBSink;
 import org.apache.flink.streaming.connectors.rethinkdb.StringJSONSerializationSchema;
 
 /**
@@ -34,8 +34,8 @@ public class RethinkDBITCase {
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
 		String hostname = parameterTool.get("hostname", "localhost");
 		int hostport = parameterTool.getInt("hostport", 28015);
-		String dbname = parameterTool.get("dbname", "test");
-		String table = parameterTool.get("table", "JsonTestTable");
+		String dbname = parameterTool.get("dbname", "testdb");
+		String table = parameterTool.get("table", "testtable");
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
@@ -46,7 +46,7 @@ public class RethinkDBITCase {
 		DataStream<String> stringStreamWithOutId = 
 				see.addSource(new JSONEventGenerator(false));
 
-		FlinkRethinkDbSink<String> sink = new FlinkRethinkDbSink<String>(
+		RethinkDBSink<String> sink = new RethinkDBSink<String>(
 				hostname, hostport, dbname, table,
 				new StringJSONSerializationSchema());
 

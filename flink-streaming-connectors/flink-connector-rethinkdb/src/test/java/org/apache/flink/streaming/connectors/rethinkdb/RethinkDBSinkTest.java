@@ -43,11 +43,11 @@ import com.rethinkdb.gen.ast.Table;
 import com.rethinkdb.net.Connection;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FlinkRethinkDbSinkTest {
+public class RethinkDBSinkTest {
 
 	private static final String JSON_TEST_TABLE = "JsonTestTable";
 
-	protected FlinkRethinkDbSink<String> sink;
+	protected RethinkDBSink<String> sink;
 
 	@Mock
 	protected RethinkDB mockRethinkDB;
@@ -72,7 +72,7 @@ public class FlinkRethinkDbSinkTest {
 	@Before
 	public void setUp() {
 		mockRethinkDBTable = mock(Table.class);
-		sink = new FlinkRethinkDbSink<String>
+		sink = new RethinkDBSink<String>
 			("localhost", 28015, "test", JSON_TEST_TABLE, new StringJSONSerializationSchema()){
 				private static final long serialVersionUID = 1L;
 				@Override
@@ -114,19 +114,19 @@ public class FlinkRethinkDbSinkTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testInvokeSuccess() throws Exception {
-		result.put(FlinkRethinkDbSink.RESULT_ERROR_KEY, 0L);
+		result.put(RethinkDBSink.RESULT_ERROR_KEY, 0L);
 		when(mockRethinkDB.db(Mockito.any()).table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
 		
 		JSONObject json = new JSONObject();
 		json.put("key1", "value1");
 
 		when(mockRethinkDBTable.insert(json)).thenReturn(mockInsert);
-		when(mockInsert.optArg(FlinkRethinkDbSink.CONFLICT_OPT,
+		when(mockInsert.optArg(RethinkDBSink.CONFLICT_OPT,
 				ConflictStrategy.update.toString())).thenReturn(mockInsert);
 		sink.open(new Configuration());
 		sink.invoke(json.toString());
 		
-		verify(mockInsert).optArg(FlinkRethinkDbSink.CONFLICT_OPT,
+		verify(mockInsert).optArg(RethinkDBSink.CONFLICT_OPT,
 				ConflictStrategy.update.toString());
 		verify(mockRethinkDBTable).insert(json);
 	}
@@ -135,14 +135,14 @@ public class FlinkRethinkDbSinkTest {
 	@Test(expected=RuntimeException.class)
 	public void testInvokeErrors() throws Exception {
 		
-		result.put(FlinkRethinkDbSink.RESULT_ERROR_KEY, 1L);
+		result.put(RethinkDBSink.RESULT_ERROR_KEY, 1L);
 		when(mockRethinkDB.db(Mockito.any()).table(JSON_TEST_TABLE)).thenReturn(mockRethinkDBTable);
 		
 		JSONObject json = new JSONObject();
 		json.put("key1", "value1");
 
 		when(mockRethinkDBTable.insert(json)).thenReturn(mockInsert);
-		when(mockInsert.optArg(FlinkRethinkDbSink.CONFLICT_OPT,
+		when(mockInsert.optArg(RethinkDBSink.CONFLICT_OPT,
 				ConflictStrategy.update.toString())).thenReturn(mockInsert);
 		sink.open(new Configuration());
 		
@@ -150,9 +150,9 @@ public class FlinkRethinkDbSinkTest {
 			sink.invoke(json.toString());
 		}
 		finally {
-			verify(mockInsert).optArg(FlinkRethinkDbSink.CONFLICT_OPT,
+			verify(mockInsert).optArg(RethinkDBSink.CONFLICT_OPT,
 					ConflictStrategy.update.toString());
-			verify(mockInsert).optArg(FlinkRethinkDbSink.CONFLICT_OPT,
+			verify(mockInsert).optArg(RethinkDBSink.CONFLICT_OPT,
 				ConflictStrategy.update.toString());
 		}
 	}
@@ -167,13 +167,28 @@ public class FlinkRethinkDbSinkTest {
 		sink.setUsernameAndPassword("", "abcd");
 	}
 
-	@Test(expected=IllegalArgumentException.class)
-	public void testNullPassword() throws Exception {
-		sink.setUsernameAndPassword("user", null);
+	@Test
+	public void testDefaultUserNameAndPassword() throws Exception {
+		assertEquals("Password should be equal", "", sink.getPassword());
+		assertEquals("Username should be equal", "admin", sink.getUsername());
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test
+	public void testSetUserNameAndPassword() throws Exception {
+		sink.setUsernameAndPassword("u1", "abcd");
+		assertEquals("Password should be equal", "abcd", sink.getPassword());
+		assertEquals("Username should be equal", "u1", sink.getUsername());
+	}
+
+	@Test
+	public void testNullPassword() throws Exception {
+		sink.setUsernameAndPassword("user", null);
+		assertEquals("Password should be equal", "", sink.getPassword());
+	}
+
+	@Test
 	public void testEmptyPassword() throws Exception {
 		sink.setUsernameAndPassword("abcd", "");
+		assertEquals("Password should be equal", "", sink.getPassword());
 	}
 }
