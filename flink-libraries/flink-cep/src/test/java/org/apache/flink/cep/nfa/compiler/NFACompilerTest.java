@@ -65,9 +65,9 @@ public class NFACompilerTest extends TestLogger {
 			}
 		});
 
-		TypeInformation<Event> typeInformation = (TypeInformation<Event>) TypeExtractor.createTypeInfo(Event.class);
+		TypeInformation<Event> typeInformation = TypeExtractor.createTypeInfo(Event.class);
 
-		NFA<Event> nfa = NFACompiler.<Event>compile(pattern, typeInformation.createSerializer(new ExecutionConfig()));
+		NFA<Event> nfa = NFACompiler.compile(pattern, typeInformation.createSerializer(new ExecutionConfig()), false);
 
 		Set<State<Event>> states = nfa.getStates();
 

@@ -43,7 +43,7 @@ import static org.junit.Assert.assertEquals;
 public class NFATest extends TestLogger {
 	@Test
 	public void testSimpleNFA() {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
 		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
@@ -197,7 +197,7 @@ public class NFATest extends TestLogger {
 		Set<Map<String, T>> actualPatterns = new HashSet<>();
 
 		for (StreamEvent<T> streamEvent: inputs) {
-			Collection<Map<String, T>> matchedPatterns = nfa.process(streamEvent.getEvent(), streamEvent.getTimestamp());
+			Collection<Map<String, T>> matchedPatterns = nfa.process(streamEvent.getEvent(), streamEvent.getTimestamp()).f0;
 
 			actualPatterns.addAll(matchedPatterns);
 		}
@@ -207,7 +207,7 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testNFASerialization() throws IOException, ClassNotFoundException {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
 
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
@@ -251,7 +251,7 @@ public class NFATest extends TestLogger {
 	}
 
 	private NFA<Event> createStartEndNFA(long windowLength) {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), windowLength, false);
 
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
