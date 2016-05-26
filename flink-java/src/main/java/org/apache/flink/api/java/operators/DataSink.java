@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
@@ -264,17 +265,16 @@ public class DataSink<T> {
 	/**
 	 * Sets the parallelism for this data sink.
 	 * The degree must be 1 or more.
-	 * 
-	 * @param parallelism The parallelism for this data sink.
+	 *
+	 * @param parallelism The parallelism for this data sink. A value equal to {@link ExecutionConfig#PARALLELISM_DEFAULT}
+	 *        will use the system default.
 	 * @return This data sink with set parallelism.
 	 */
 	public DataSink<T> setParallelism(int parallelism) {
-		if (parallelism != ExecutionConfig.PARALLELISM_UNKNOWN) {
-			if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
-				throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-			}
-			this.parallelism = parallelism;
-		}
+		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The parallelism of an operator must be at least 1.");
+
+		this.parallelism = parallelism;
 
 		return this;
 	}

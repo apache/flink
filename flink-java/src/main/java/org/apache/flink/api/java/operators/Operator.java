@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Base class of all operators in the Java API.
@@ -89,18 +90,14 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * The parallelism must be 1 or more.
 	 * 
 	 * @param parallelism The parallelism for this operator. A value equal to {@link ExecutionConfig#PARALLELISM_DEFAULT}
-	 *        will use the system default and a value equal to {@link ExecutionConfig#PARALLELISM_UNKNOWN} will leave
-	 *        the parallelism unchanged.
+	 *        will use the system default.
 	 * @return The operator with set parallelism.
 	 */
 	public O setParallelism(int parallelism) {
-		if (parallelism != ExecutionConfig.PARALLELISM_UNKNOWN) {
-			if (parallelism < 1 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
-				throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-			}
+		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+			"The parallelism of an operator must be at least 1.");
 
-			this.parallelism = parallelism;
-		}
+		this.parallelism = parallelism;
 
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;

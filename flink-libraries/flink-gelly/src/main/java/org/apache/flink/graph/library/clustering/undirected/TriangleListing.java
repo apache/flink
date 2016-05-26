@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -38,10 +37,13 @@ import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
@@ -65,7 +67,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	// Optional configuration
 	private boolean sortTriangleVertices = false;
 
-	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Normalize the triangle listing such that for each result (K0, K1, K2)
@@ -87,6 +89,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 	 * @return this
 	 */
 	public TriangleListing<K, VV, EV> setLittleParallelism(int littleParallelism) {
+		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.littleParallelism = littleParallelism;
 
 		return this;

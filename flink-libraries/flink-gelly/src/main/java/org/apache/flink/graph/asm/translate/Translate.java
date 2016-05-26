@@ -30,7 +30,6 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
 
 /**
  * Methods for translation of the type or modification of the data of graph
@@ -53,7 +52,7 @@ public class Translate {
 	 * @return translated vertices
 	 */
 	public static <OLD, NEW, VV> DataSet<Vertex<NEW, VV>> translateVertexIds(DataSet<Vertex<OLD, VV>> vertices, TranslateFunction<OLD, NEW> translator) {
-		return translateVertexIds(vertices, translator, PARALLELISM_UNKNOWN);
+		return translateVertexIds(vertices, translator, PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -71,8 +70,6 @@ public class Translate {
 	public static <OLD, NEW, VV> DataSet<Vertex<NEW, VV>> translateVertexIds(DataSet<Vertex<OLD, VV>> vertices, TranslateFunction<OLD, NEW> translator, int parallelism) {
 		Preconditions.checkNotNull(vertices);
 		Preconditions.checkNotNull(translator);
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
-			"The parallelism must be greater than zero.");
 
 		Class<Vertex<NEW, VV>> vertexClass = (Class<Vertex<NEW, VV>>)(Class<? extends Vertex>) Vertex.class;
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Vertex<OLD, VV>>) vertices.getType()).getTypeAt(0);
@@ -130,7 +127,7 @@ public class Translate {
 	 * @return translated edges
 	 */
 	public static <OLD, NEW, EV> DataSet<Edge<NEW, EV>> translateEdgeIds(DataSet<Edge<OLD, EV>> edges, TranslateFunction<OLD, NEW> translator) {
-		return translateEdgeIds(edges, translator, PARALLELISM_UNKNOWN);
+		return translateEdgeIds(edges, translator, PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -148,8 +145,6 @@ public class Translate {
 	public static <OLD, NEW, EV> DataSet<Edge<NEW, EV>> translateEdgeIds(DataSet<Edge<OLD, EV>> edges, TranslateFunction<OLD, NEW> translator, int parallelism) {
 		Preconditions.checkNotNull(edges);
 		Preconditions.checkNotNull(translator);
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
-			"The parallelism must be greater than zero.");
 
 		Class<Edge<NEW, EV>> edgeClass = (Class<Edge<NEW, EV>>)(Class<? extends Edge>) Edge.class;
 		TypeInformation<OLD> oldType = ((TupleTypeInfo<Edge<OLD, EV>>) edges.getType()).getTypeAt(0);
@@ -208,7 +203,7 @@ public class Translate {
 	 * @return translated vertices
 	 */
 	public static <K, OLD, NEW> DataSet<Vertex<K, NEW>> translateVertexValues(DataSet<Vertex<K, OLD>> vertices, TranslateFunction<OLD, NEW> translator) {
-		return translateVertexValues(vertices, translator, PARALLELISM_UNKNOWN);
+		return translateVertexValues(vertices, translator, PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -226,8 +221,6 @@ public class Translate {
 	public static <K, OLD, NEW> DataSet<Vertex<K, NEW>> translateVertexValues(DataSet<Vertex<K, OLD>> vertices, TranslateFunction<OLD, NEW> translator, int parallelism) {
 		Preconditions.checkNotNull(vertices);
 		Preconditions.checkNotNull(translator);
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
-			"The parallelism must be greater than zero.");
 
 		Class<Vertex<K, NEW>> vertexClass = (Class<Vertex<K, NEW>>)(Class<? extends Vertex>) Vertex.class;
 		TypeInformation<K> idType = ((TupleTypeInfo<Vertex<K, OLD>>) vertices.getType()).getTypeAt(0);
@@ -285,7 +278,7 @@ public class Translate {
 	 * @return translated edges
 	 */
 	public static <K, OLD, NEW> DataSet<Edge<K, NEW>> translateEdgeValues(DataSet<Edge<K, OLD>> edges, TranslateFunction<OLD, NEW> translator) {
-		return translateEdgeValues(edges, translator, PARALLELISM_UNKNOWN);
+		return translateEdgeValues(edges, translator, PARALLELISM_DEFAULT);
 	}
 
 	/**
@@ -303,8 +296,6 @@ public class Translate {
 	public static <K, OLD, NEW> DataSet<Edge<K, NEW>> translateEdgeValues(DataSet<Edge<K, OLD>> edges, TranslateFunction<OLD, NEW> translator, int parallelism) {
 		Preconditions.checkNotNull(edges);
 		Preconditions.checkNotNull(translator);
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
-			"The parallelism must be greater than zero.");
 
 		Class<Edge<K, NEW>> edgeClass = (Class<Edge<K, NEW>>)(Class<? extends Edge>) Edge.class;
 		TypeInformation<K> idType = ((TupleTypeInfo<Edge<K, OLD>>) edges.getType()).getTypeAt(0);

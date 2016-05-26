@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,6 +27,8 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Annotates edges of a directed graph with the degree, out-degree, and
@@ -41,7 +42,7 @@ public class EdgeSourceDegrees<K, VV, EV>
 implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, Degrees>>>> {
 
 	// Optional configuration
-	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the operator parallelism.
