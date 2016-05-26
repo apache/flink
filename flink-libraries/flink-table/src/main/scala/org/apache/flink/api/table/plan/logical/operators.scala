@@ -272,46 +272,29 @@ case class Join(
     left.output ++ right.output
   }
 
-  private object JoinFieldReference {
-
-    def apply(
-      name: String,
-      resultType: TypeInformation[_],
-      left: LogicalNode,
-      right: LogicalNode): JoinFieldReference = {
-
-      val joinInputField = left.output.zipWithIndex.find(_._1.name == name).map(_._2)
-                           .orElse(right.output.zipWithIndex.find(_._1.name == name).map(x => left.output.length + x._2))
-                           .getOrElse(
-                             throw new NoSuchElementException(s"""Could not find field: $name"""))
-                           .asInstanceOf[Int]
-
-      new JoinFieldReference(name, resultType, left, right, joinInputField)
-    }
-
-  }
-
   private case class JoinFieldReference(
     name: String,
     resultType: TypeInformation[_],
     left: LogicalNode,
-    right: LogicalNode,
-    joinedIndex: Int) extends Attribute {
+    right: LogicalNode) extends Attribute {
+
+    val isFromLeftInput = left.output.map(_.name).contains(name)
+
+    val (indexInInput, indexInJoin) = if (isFromLeftInput) {
+      val indexInLeft = left.output.map(_.name).indexOf(name)
+      (indexInLeft, indexInLeft)
+    } else {
+      val indexInRight = right.output.map(_.name).indexOf(name)
+      (indexInRight, indexInRight + left.output.length)
+    }
 
     override def toString = s"'$name"
 
     override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-
-      val atr = if (joinedIndex < left.output.length) {
-        left.output(joinedIndex)
-      } else {
-        right.output(joinedIndex - left.output.length)
-      }
-
-      new RexInputRef(
-        joinedIndex,
-        relBuilder.getTypeFactory
-        .createSqlType(TypeConverter.typeInfoToSqlType(atr.resultType)))
+      // look up type of field
+      val fieldType = relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
+      // create a new RexInputRef with index offset
+      new RexInputRef(indexInJoin, fieldType)
     }
 
     override def withName(newName: String): Attribute = {
@@ -321,10 +304,7 @@ case class Join(
         JoinFieldReference(newName, resultType, left, right)
       }
     }
-
-    def belongsToLeft = joinedIndex < left.output.length
   }
-
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     val node = super.resolveExpressions(tableEnv).asInstanceOf[Join]
@@ -342,8 +322,7 @@ case class Join(
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
-    relBuilder
-    .join(
+    relBuilder.join(
       TypeConverter.flinkJoinTypeToRelType(joinType),
       condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)))
   }
@@ -368,13 +347,11 @@ case class Join(
   }
 
   private def testJoinCondition(expression: Expression): Unit = {
-    def checkIfJoinCondition(exp : BinaryComparison) =
-      if (exp.children match {
-        case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil  =>
-          x.belongsToLeft == y.belongsToLeft
-        case _ => true
-      }) {
-        failValidation(s"Only join predicates supported. For non-join predicates use Table#where.")
+    def checkIfJoinCondition(exp : BinaryComparison) = exp.children match {
+        case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil
+          if x.isFromLeftInput != y.isFromLeftInput => Unit
+        case _ => failValidation(
+          s"Only join predicates supported. For non-join predicates use Table#where.")
       }
 
     var equiJoinFound = false
