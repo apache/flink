@@ -150,6 +150,21 @@ public class RethinkDBSink<OUT> extends RichSinkFunction<OUT> implements Seriali
 	 */
 	private String password = DEFAULT_PASSWORD;
 
+	/**
+	 * Set durability
+	 * 
+	 * @param durability
+	 * 
+	 * @see #Durability
+	 */
+	public void setDurability(Durability durability) {
+		this.durability = durability;
+	}
+
+	/**
+	 * Durability configuration
+	 */
+	protected Durability durability = Durability.hard;
 	
 	/**
 	 * Constructor for RethinkDB sink
@@ -241,7 +256,9 @@ public class RethinkDBSink<OUT> extends RichSinkFunction<OUT> implements Seriali
 		
 		Object json = serializationSchema.toJSON(value);
 		LOG.debug("Object/Json: {}/{}", value, json);
-		Insert insert = getRdbTable().insert(json).optArg(CONFLICT_OPT, conflict.toString());
+		Insert insert = getRdbTable().insert(json)
+				.optArg(CONFLICT_OPT, conflict.toString())
+				.optArg("durability", durability.name());
 		HashMap<String,Object> result = runInsert(insert);
 		
 		LOG.debug("Object/Json/Result: {}/{}/{}", value, json, result);

@@ -22,8 +22,8 @@
         </encoder>
     </appender>
 
-    <root level="DEBUG">
+    <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>
-    <logger name="org.apache.flink.streaming" level="DEBUG"/>
+    <logger name="org.apache.flink.streaming" level="WARN"/>
 </configuration>
