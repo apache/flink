@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,21 +31,20 @@ import java.io.IOException;
 /**
  * Specialized comparator for NullValue based on CopyableValueComparator.
  */
+@Internal
 public class NullValueComparator extends TypeComparator<NullValue> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final boolean ascendingComparison;
-
-	private final NullValue reference = new NullValue();
-
-	private final NullValue tempReference = new NullValue();
-
 	private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
 
-	public NullValueComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
+	private final static NullValueComparator INSTANCE = new NullValueComparator();
+
+	public static NullValueComparator getInstance() {
+		return INSTANCE;
 	}
+
+	private NullValueComparator() {}
 
 	@Override
 	public int hash(NullValue record) {
@@ -52,34 +52,26 @@ public class NullValueComparator extends TypeComparator<NullValue> {
 	}
 
 	@Override
-	public void setReference(NullValue toCompare) {
-		toCompare.copyTo(reference);
-	}
+	public void setReference(NullValue toCompare) {}
 
 	@Override
 	public boolean equalToReference(NullValue candidate) {
-		return candidate.equals(this.reference);
+		return true;
 	}
 
 	@Override
 	public int compareToReference(TypeComparator<NullValue> referencedComparator) {
-		NullValue otherRef = ((NullValueComparator) referencedComparator).reference;
-		int comp = otherRef.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
+		return 0;
 	}
 
 	@Override
 	public int compare(NullValue first, NullValue second) {
-		int comp = first.compareTo(second);
-		return ascendingComparison ? comp : -comp;
+		return 0;
 	}
 
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		reference.read(firstSource);
-		tempReference.read(secondSource);
-		int comp = reference.compareTo(tempReference);
-		return ascendingComparison ? comp : -comp;
+		return 0;
 	}
 
 	@Override
@@ -89,7 +81,7 @@ public class NullValueComparator extends TypeComparator<NullValue> {
 
 	@Override
 	public int getNormalizeKeyLen() {
-		return reference.getMaxNormalizedKeyLen();
+		return NullValue.getInstance().getMaxNormalizedKeyLen();
 	}
 
 	@Override
@@ -104,12 +96,12 @@ public class NullValueComparator extends TypeComparator<NullValue> {
 
 	@Override
 	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
+		return false;
 	}
 
 	@Override
 	public TypeComparator<NullValue> duplicate() {
-		return new NullValueComparator(ascendingComparison);
+		return NullValueComparator.getInstance();
 	}
 
 	@Override
@@ -140,14 +132,5 @@ public class NullValueComparator extends TypeComparator<NullValue> {
 	@Override
 	public NullValue readWithKeyDenormalization(NullValue reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// serialization
-	// --------------------------------------------------------------------------------------------
-
-	private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
-		// read basic object and the type
-		s.defaultReadObject();
 	}
 }

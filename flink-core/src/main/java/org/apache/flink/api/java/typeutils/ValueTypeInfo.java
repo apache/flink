@@ -42,7 +42,6 @@ import org.apache.flink.api.common.typeutils.base.LongValueComparator;
 import org.apache.flink.api.common.typeutils.base.LongValueSerializer;
 import org.apache.flink.api.common.typeutils.base.NullValueComparator;
 import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
-import org.apache.flink.api.common.typeutils.base.RecordSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortValueComparator;
 import org.apache.flink.api.common.typeutils.base.ShortValueSerializer;
 import org.apache.flink.api.common.typeutils.base.StringValueComparator;
@@ -60,7 +59,6 @@ import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
-import org.apache.flink.types.Record;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
@@ -172,9 +170,6 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		else if (NullValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<T>) NullValueSerializer.INSTANCE;
 		}
-		else if (Record.class.isAssignableFrom(type)) {
-			return (TypeSerializer<T>) RecordSerializer.INSTANCE;
-		}
 		else if (ShortValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<T>) ShortValueSerializer.INSTANCE;
 		}
@@ -219,7 +214,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 			return (TypeComparator<T>) new LongValueComparator(sortOrderAscending);
 		}
 		else if (NullValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<T>) new NullValueComparator(sortOrderAscending);
+			return (TypeComparator<T>) NullValueComparator.getInstance();
 		}
 		else if (ShortValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<T>) new ShortValueComparator(sortOrderAscending);

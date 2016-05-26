@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,6 +31,7 @@ import java.io.IOException;
 /**
  * Specialized comparator for BooleanValue based on CopyableValueComparator.
  */
+@Internal
 public class BooleanValueComparator extends TypeComparator<BooleanValue> {
 
 	private static final long serialVersionUID = 1L;
@@ -140,14 +142,5 @@ public class BooleanValueComparator extends TypeComparator<BooleanValue> {
 	@Override
 	public BooleanValue readWithKeyDenormalization(BooleanValue reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// serialization
-	// --------------------------------------------------------------------------------------------
-
-	private void readObject(java.io.ObjectInputStream s) throws IOException, ClassNotFoundException {
-		// read basic object and the type
-		s.defaultReadObject();
 	}
 }
