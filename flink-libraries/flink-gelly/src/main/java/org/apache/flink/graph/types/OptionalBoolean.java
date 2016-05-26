@@ -18,24 +18,41 @@
 
 package org.apache.flink.graph.types;
 
+import org.apache.flink.graph.GraphAlgorithm;
+
 /**
- * A boolean value with a third, "unset" state.
+ * A multi-state boolean.
+ * <br/>
+ * This class is used by {@link GraphAlgorithm} configuration options to set a
+ * default value which can be overwritten. The default value is also used when
+ * algorithm configurations are merged and conflict.
  */
 public class OptionalBoolean {
 
-	private final boolean defaultValue;
+	protected enum State {
+		UNSET,
+		FALSE,
+		TRUE,
+		CONFLICTING
+	}
 
-	private Boolean value = null;
+	private State state = State.UNSET;
+
+	private final boolean valueIfUnset;
+
+	private final boolean valueIfConflicting;
 
 	/**
 	 * An {@code OptionalBoolean} has three possible states: true, false, and
 	 * "unset". The value is set when merged with a value of true or false. The
 	 * state returns to unset either explicitly or when true is merged with false.
 	 *
-	 * @param defaultValue the value to return when the object's state is unset
+	 * @param valueIfUnset the value to return when the object's state is unset
+	 * @param valueIfConflicting the value to return when the object's state is conflicting
 	 */
-	public OptionalBoolean(boolean defaultValue) {
-		this.defaultValue = defaultValue;
+	public OptionalBoolean(boolean valueIfUnset, boolean valueIfConflicting) {
+		this.valueIfUnset = valueIfUnset;
+		this.valueIfConflicting = valueIfConflicting;
 	}
 
 	/**
@@ -44,7 +61,18 @@ public class OptionalBoolean {
 	 * @return boolean state
 	 */
 	public boolean get() {
-		return (value == null) ? defaultValue : value;
+		switch (state) {
+			case UNSET:
+				return valueIfUnset;
+			case FALSE:
+				return false;
+			case TRUE:
+				return true;
+			case CONFLICTING:
+				return valueIfConflicting;
+			default:
+				throw new RuntimeException("Unknown state");
+		}
 	}
 
 	/**
@@ -53,39 +81,55 @@ public class OptionalBoolean {
 	 * @param value boolean state
 	 */
 	public void set(boolean value) {
-		this.value = value;
+		this.state = (value ? State.TRUE : State.FALSE);
 	}
 
 	/**
 	 * Reset to the unset state.
 	 */
 	public void unset() {
-		this.value = null;
+		this.state = State.UNSET;
 	}
 
 	/**
-	 * The mismatched states are true with false and false with true.
+	 * Get the actual state.
 	 *
-	 * @param other object to test for mismatch
-	 * @return whether the objects are mismatched
+	 * @return actual state
 	 */
-	public boolean isMismatchedWith(OptionalBoolean other) {
-		return (value != null && other.value != null && !value.equals(other.value));
+	protected State getState() {
+		return state;
+	}
+
+	/**
+	 * The conflicting states are true with false and false with true.
+	 *
+	 * @param other object to test with
+	 * @return whether the objects conflict
+	 */
+	public boolean conflictsWith(OptionalBoolean other) {
+		return state == State.CONFLICTING
+			|| other.state == State.CONFLICTING
+			|| (state == State.TRUE && other.state == State.FALSE)
+			|| (state == State.FALSE && other.state == State.TRUE);
 	}
 
 	/**
 	 * State transitions:
-	 *  if the states are the same then keep the same state
-	 *  if the states are mismatched then change to the unset state
-	 *  if in an unset state then change to the other state
+	 *  if the states are the same then no change
+	 *  if either state is unset then change to the other state
+	 *  if the states are conflicting then set to the conflicting state
 	 *
 	 * @param other object from which to merge state
 	 */
 	public void mergeWith(OptionalBoolean other) {
-		if ((value == null && other.value == null) || isMismatchedWith(other)) {
-			value = null;
+		if (state == other.state) {
+			// no change in state
+		} else if (state == State.UNSET) {
+			state = other.state;
+		} else if (other.state == State.UNSET) {
+			// no change in state
 		} else {
-			value = (value == null) ? other.value : value;
+			state = State.CONFLICTING;
 		}
 	}
 }

@@ -42,12 +42,12 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexDegree<K, VV, EV>
-extends DelegatingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
+extends DelegatingGraphAlgorithm<K, VV, EV, Vertex<K, LongValue>> {
 
 	// Optional configuration
-	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false);
+	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
 
-	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false);
+	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
 
 	private int parallelism = PARALLELISM_DEFAULT;
 
@@ -113,7 +113,7 @@ extends DelegatingGraphAlgorithm<K, VV, EV, DataSet<Vertex<K, LongValue>>> {
 
 		// verify that configurations can be merged
 
-		if (includeZeroDegreeVertices.isMismatchedWith(rhs.includeZeroDegreeVertices)) {
+		if (includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices)) {
 			return false;
 		}
 

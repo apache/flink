@@ -36,11 +36,11 @@ import java.util.Map;
 
 /**
  * A {@link GraphAlgorithm} transforms an input {@link Graph} into an output of
- * type {@code T}. A {@code DelegatingGraphAlgorithm} wraps the algorithm
- * result with a delegating proxy object. The delegated object can be replaced
- * when the same algorithm is run on the same input with a mergeable configuration.
- * This allows algorithms to be composed of implicitly reusable algorithms
- * without publicly sharing intermediate {@link DataSet}s.
+ * type {@code T}. A {@code DelegatingGraphAlgorithm} wraps the resultant
+ * {@link DataSet} with a delegating proxy object. The delegated object can be
+ * replaced when the same algorithm is run on the same input with a mergeable
+ * configuration. This allows algorithms to be composed of implicitly reusable
+ * algorithms without publicly sharing intermediate {@link DataSet}s.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -48,7 +48,7 @@ import java.util.Map;
  * @param <T> output type
  */
 public abstract class DelegatingGraphAlgorithm<K, VV, EV, T>
-implements GraphAlgorithm<K, VV, EV, T> {
+implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 
 	// each algorithm and input pair may map to multiple configurations
 	private static Map<DelegatingGraphAlgorithm, List<DelegatingGraphAlgorithm>> cache =
@@ -56,7 +56,7 @@ implements GraphAlgorithm<K, VV, EV, T> {
 
 	private Graph<K,VV,EV> input;
 
-	private Delegate<T> delegate;
+	private Delegate<DataSet<T>> delegate;
 
 	/**
 	 * Algorithms are identified by name rather than by class to allow subclassing.
@@ -71,7 +71,8 @@ implements GraphAlgorithm<K, VV, EV, T> {
 	 * before merging individual fields.
 	 *
 	 * @param other the algorithm with which to compare and merge
-	 * @returns true iff configuration has been merged and output can be reused
+	 * @returns true if and only if configuration has been merged and the
+	 *          algorithm's output can be reused
 	 */
 	protected abstract boolean mergeConfiguration(DelegatingGraphAlgorithm other);
 
@@ -82,7 +83,7 @@ implements GraphAlgorithm<K, VV, EV, T> {
 	 * @return the algorithm's output
 	 * @throws Exception
 	 */
-	protected abstract T runInternal(Graph<K, VV, EV> input) throws Exception;
+	protected abstract DataSet<T> runInternal(Graph<K, VV, EV> input) throws Exception;
 
 	@Override
 	public final int hashCode() {
@@ -116,7 +117,7 @@ implements GraphAlgorithm<K, VV, EV, T> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public final T run(Graph<K, VV, EV> input)
+	public final DataSet<T> run(Graph<K, VV, EV> input)
 			throws Exception {
 		this.input = input;
 
@@ -124,7 +125,7 @@ implements GraphAlgorithm<K, VV, EV, T> {
 			for (DelegatingGraphAlgorithm<K, VV, EV, T> other : cache.get(this)) {
 				if (mergeConfiguration(other)) {
 					// configuration has been merged so generate new output
-					T output = runInternal(input);
+					DataSet<T> output = runInternal(input);
 
 					// update delegatee object and reuse delegate
 					other.delegate.setObject(output);
@@ -136,10 +137,10 @@ implements GraphAlgorithm<K, VV, EV, T> {
 		}
 
 		// no mergeable configuration found so generate new output
-		T output = runInternal(input);
+		DataSet<T> output = runInternal(input);
 
 		// create a new delegate to wrap the algorithm output
-		delegate = new Delegate<T>(output);
+		delegate = new Delegate<DataSet<T>>(output);
 
 		// cache this result
 		if (cache.containsKey(this)) {
