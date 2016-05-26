@@ -83,8 +83,19 @@ class DataSetUnion(
       tableEnv: BatchTableEnvironment,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
+    var leftDataSet: DataSet[Any] = null
+    var rightDataSet: DataSet[Any] = null
+
+    expectedType match {
+      case None =>
+        leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+        rightDataSet =
+          right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, Some(leftDataSet.getType))
+      case _ =>
+        leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
+        rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, expectedType)
+    }
+
     if (all) {
       leftDataSet.union(rightDataSet).asInstanceOf[DataSet[Any]]
     } else {
