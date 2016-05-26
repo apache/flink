@@ -356,7 +356,7 @@ case class Join(
 
     var equiJoinFound = false
     def validateConditions(exp: Expression, isAndBranch: Boolean): Unit = exp match {
-      case x: And => x.children.foreach(validateConditions(_, isAndBranch = true))
+      case x: And => x.children.foreach(validateConditions(_, isAndBranch))
       case x: Or => x.children.foreach(validateConditions(_, isAndBranch = false))
       case x: EqualTo =>
         if (isAndBranch) {
