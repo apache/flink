@@ -272,23 +272,46 @@ case class Join(
     left.output ++ right.output
   }
 
+  private object JoinFieldReference {
+
+    def apply(
+      name: String,
+      resultType: TypeInformation[_],
+      left: LogicalNode,
+      right: LogicalNode): JoinFieldReference = {
+
+      val joinInputField = left.output.zipWithIndex.find(_._1.name == name).map(_._2)
+                           .orElse(right.output.zipWithIndex.find(_._1.name == name).map(x => left.output.length + x._2))
+                           .getOrElse(
+                             throw new NoSuchElementException(s"""Could not find field: $name"""))
+                           .asInstanceOf[Int]
+
+      new JoinFieldReference(name, resultType, left, right, joinInputField)
+    }
+
+  }
+
   private case class JoinFieldReference(
     name: String,
     resultType: TypeInformation[_],
     left: LogicalNode,
-    right: LogicalNode) extends Attribute {
+    right: LogicalNode,
+    joinedIndex: Int) extends Attribute {
 
     override def toString = s"'$name"
 
     override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-      val joinInputField = left.output.zipWithIndex.find(_._1.name == name)
-                           .orElse(
-                             right.output.zipWithIndex.find(_._1.name == name)
-                             .map(x => (x._1, left.output.length + x._2))).get
 
-      new RexInputRef(joinInputField._2,
-                      relBuilder.getTypeFactory
-                      .createSqlType(TypeConverter.typeInfoToSqlType(joinInputField._1.resultType)))
+      val atr = if (joinedIndex < left.output.length) {
+        left.output(joinedIndex)
+      } else {
+        right.output(joinedIndex - left.output.length)
+      }
+
+      new RexInputRef(
+        joinedIndex,
+        relBuilder.getTypeFactory
+        .createSqlType(TypeConverter.typeInfoToSqlType(atr.resultType)))
     }
 
     override def withName(newName: String): Attribute = {
@@ -298,12 +321,15 @@ case class Join(
         JoinFieldReference(newName, resultType, left, right)
       }
     }
+
+    def belongsToLeft = joinedIndex < left.output.length
   }
+
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     val node = super.resolveExpressions(tableEnv).asInstanceOf[Join]
     val partialFunction: PartialFunction[Expression, Expression] = {
-      case field: ResolvedFieldReference => new JoinFieldReference(
+      case field: ResolvedFieldReference => JoinFieldReference(
         field.name,
         field.resultType,
         left,
@@ -342,21 +368,29 @@ case class Join(
   }
 
   private def testJoinCondition(expression: Expression): Unit = {
-    def checkIfJoinCondition(exp : Expression) = if (exp.children.exists(!_.isInstanceOf[JoinFieldReference])) {
-      failValidation(s"Only join predicates supported. For non-join predicates use Table#where.")
-    }
+    def checkIfJoinCondition(exp : BinaryComparison) =
+      if (exp.children match {
+        case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil  =>
+          x.belongsToLeft == y.belongsToLeft
+        case _ => true
+      }) {
+        failValidation(s"Only join predicates supported. For non-join predicates use Table#where.")
+      }
 
     var equiJoinFound = false
-    def validateConditions(exp: Expression) : Unit = exp match {
-      case x: And => x.children.foreach(validateConditions(_))
+    def validateConditions(exp: Expression, isAndBranch: Boolean): Unit = exp match {
+      case x: And => x.children.foreach(validateConditions(_, isAndBranch = true))
+      case x: Or => x.children.foreach(validateConditions(_, isAndBranch = false))
       case x: EqualTo =>
-        equiJoinFound = true
-        checkIfJoinCondition(exp)
-      case x: BinaryComparison => checkIfJoinCondition(exp)
+        if (isAndBranch) {
+          equiJoinFound = true
+        }
+        checkIfJoinCondition(x)
+      case x: BinaryComparison => checkIfJoinCondition(x)
       case x => failValidation(s"Unsupported condition type: ${x.getClass.getSimpleName}.")
     }
 
-    validateConditions(expression)
+    validateConditions(expression, isAndBranch = true)
     if (!equiJoinFound) {
       failValidation(s"At least one equi-join required.")
     }
