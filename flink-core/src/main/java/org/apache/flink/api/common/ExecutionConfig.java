@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.util.Preconditions;
 
 
 import java.io.Serializable;
@@ -72,13 +73,6 @@ public class ExecutionConfig implements Serializable {
 	 * be used to reset the parallelism back to the default state.
 	 */
 	public static final int PARALLELISM_DEFAULT = -1;
-
-	/**
-	 * The flag value indicating an unknown or unset parallelism. This value is
-	 * not a valid parallelism and indicates that the parallelism should remain
-	 * unchanged.
-	 */
-	public static final int PARALLELISM_UNKNOWN = -2;
 
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
@@ -225,13 +219,11 @@ public class ExecutionConfig implements Serializable {
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		if (parallelism != PARALLELISM_UNKNOWN) {
-			if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
-				throw new IllegalArgumentException(
-					"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
-			}
-			this.parallelism = parallelism;
-		}
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism of an operator must be at least 1.");
+
+		this.parallelism = parallelism;
+
 		return this;
 	}
 

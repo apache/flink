@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.similarity;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
@@ -41,6 +40,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * The Jaccard Index measures the similarity between vertex neighborhoods and
@@ -77,7 +78,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 	private int maximumScoreDenominator = 0;
 
-	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the default group size for the quadratic expansion of neighbor
@@ -144,6 +145,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @return this
 	 */
 	public JaccardIndex<K, VV, EV> setLittleParallelism(int littleParallelism) {
+		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.littleParallelism = littleParallelism;
 
 		return this;
