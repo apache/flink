@@ -347,11 +347,12 @@ case class Join(
   }
 
   private def testJoinCondition(expression: Expression): Unit = {
+
     def checkIfJoinCondition(exp : BinaryComparison) = exp.children match {
         case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil
           if x.isFromLeftInput != y.isFromLeftInput => Unit
-        case _ => failValidation(
-          s"Only join predicates supported. For non-join predicates use Table#where.")
+        case x => failValidation(
+          s"Invalid non-join predicate $exp. For non-join predicates use Table#where.")
       }
 
     var equiJoinFound = false
@@ -364,12 +365,13 @@ case class Join(
         }
         checkIfJoinCondition(x)
       case x: BinaryComparison => checkIfJoinCondition(x)
-      case x => failValidation(s"Unsupported condition type: ${x.getClass.getSimpleName}.")
+      case x => failValidation(
+        s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
     }
 
     validateConditions(expression, isAndBranch = true)
     if (!equiJoinFound) {
-      failValidation(s"At least one equi-join required.")
+      failValidation(s"Invalid join condition: $expression. At least one equi-join required.")
     }
   }
 }
