@@ -99,6 +99,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	// ------------------------------------------------------------------------
 
 	@Override
+	public boolean hasBroadcastVariable(String name) {
+		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
+	}
+
+	@Override
 	public <RT> List<RT> getBroadcastVariable(String name) {
 		throw new UnsupportedOperationException("Broadcast variables can only be used in DataSet programs");
 	}
