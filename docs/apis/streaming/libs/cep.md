@@ -435,7 +435,7 @@ class MyPatternFlatSelectFunction<IN, OUT> implements PatternFlatSelectFunction<
 </div>
 
 <div data-lang="scala" markdown="1">
-The `select` method takes a section function as argument, which is called for each matching event sequence.
+The `select` method takes a selection function as argument, which is called for each matching event sequence.
 It receives a map of string/event pairs of the matched events.
 The string is defined by the name of the state to which the event has been matched.
 The selection function returns exactly one result per call.
@@ -460,6 +460,72 @@ def flatSelectFn(pattern : mutable.Map[String, IN], collector : Collector[OUT]) 
     }
 }
 {% endhighlight %}
+</div>
+</div>
+
+### Handling Timed Out Partial Patterns
+
+Whenever a pattern has a window length associated via the `within` key word, it is possible that partial event patterns will be discarded because they exceed the window length.
+In order to react to these timeout events the `select` and `flatSelect` API calls allow to specify a timeout handler.
+This timeout handler is called for each partial event pattern which has timed out.
+The timeout handler receives all so far matched events of the partial pattern and the timestamp when the timeout was detected.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+In order to treat partial patterns, the `select` and `flatSelect` API calls offer an overloaded version which takes as the first parameter a `PatternTimeoutFunction`/`PatternFlatTimeoutFunction` and as second parameter the known `PatternSelectFunction`/`PatternFlatSelectFunction`.
+The return type of the timeout function can be different from the select function.
+The timeout event and the select event are wrapped in `Either.Left` and `Either.Right` respectively so that the resulting data stream is of type `org.apache.flink.types.Either`.
+
+{% highlight java %}
+PatternStream<Event> patternStream = CEP.pattern(input, pattern);
+
+DataStream<Either<TimeoutEvent, ComplexEvent>> result = patternStream.select(
+    new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
+    new PatternSelectFunction<Event, ComplexEvent>() {...}
+);
+
+DataStream<Either<TimeoutEvent, ComplexEvent>> flatResult = patternStream.flatSelect(
+    new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
+    new PatternFlatSelectFunction<Event, ComplexEvent>() {...}
+);
+{% endhighlight %}
+
+</div>
+
+<div data-lang="scala" markdown="1">
+In order to treat partial patterns, the `select` API call offers an overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
+The timeout function is called with a map of string-event pairs of the partial match which has timed out and a long indicating when the timeout occurred.
+The string is defined by the name of the state to which the event has been matched.
+The timeout function returns exactly one result per call.
+The return type of the timeout function can be different from the select function.
+The timeout event and the select event are wrapped in `Left` and `Right` respectively so that the resulting data stream is of type `Either`.
+
+{% highlight scala %}
+val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
+
+DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.select{
+    (pattern: mutable.Map[String, Event], timestamp: Long) => TimeoutEvent()
+} {
+    pattern: mutable.Map[String, Event] => ComplexEvent()
+}
+{% endhighlight %}
+
+The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
+In contrast to the `select` functions, the `flatSelect` functions are called with an `Collector`.
+The collector can be used to emit an arbitrary number of events.
+
+{% highlight scala %}
+val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
+
+DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect{
+    (pattern: mutable.Map[String, Event], timestamp: Long, out: Collector[TimeoutEvent]) => 
+        out.collect(TimeoutEvent())
+} {
+    (pattern: mutable.Map[String, Event], out: Collector[ComplexEvent]) => 
+        out.collect(ComplexEvent())
+}
+{% endhighlight %}
+
 </div>
 </div>
 

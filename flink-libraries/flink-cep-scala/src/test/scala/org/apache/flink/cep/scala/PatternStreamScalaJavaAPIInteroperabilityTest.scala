@@ -23,13 +23,18 @@ import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap}
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.util.{Collector, TestLogger}
+import org.apache.flink.types.{Either => FEither}
+import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
+
+import java.lang.{Long => JLong}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import org.junit.Assert._
 import org.junit.Test
 
-class PatternStreamScalaJavaAPIInteroperabiliyTest extends TestLogger {
+class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
 
   @Test
   @throws[Exception]
@@ -75,6 +80,44 @@ class PatternStreamScalaJavaAPIInteroperabiliyTest extends TestLogger {
       getUserFunction.flatMap(inParam, outParam)
     //verify output parameter forwarding and that flatMap function was actually called
     assertEquals(inList, outList.get(0))
+  }
+
+  @Test
+  @throws[Exception]
+  def testTimeoutHandling: Unit = {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+    val dummyDataStream: DataStream[String] = env.fromElements()
+    val pattern: Pattern[String, _] = Pattern.begin[String]("dummy")
+    val pStream: PatternStream[String] = CEP.pattern(dummyDataStream, pattern)
+    val inParam = mutable.Map("begin" -> "barfoo").asJava
+    val outList = new java.util.ArrayList[Either[String, String]]
+    val output = new ListCollector[Either[String, String]](outList)
+    val expectedOutput = List(Right("match"), Right("barfoo"), Left("timeout"), Left("barfoo"))
+      .asJava
+
+    val result: DataStream[Either[String, String]] = pStream.flatSelect {
+        (pattern: mutable.Map[String, String], timestamp: Long, out: Collector[String]) =>
+          out.collect("timeout")
+          out.collect(pattern("begin"))
+      } {
+        (pattern: mutable.Map[String, String], out: Collector[String]) =>
+          //verifies input parameter forwarding
+          assertEquals(inParam, pattern.asJava)
+          out.collect("match")
+          out.collect(pattern("begin"))
+      }
+
+    val fun = extractUserFunction[
+      StreamFlatMap[
+        FEither[
+          FTuple2[JMap[String, String], JLong],
+          JMap[String, String]],
+        Either[String, String]]](result)
+
+    fun.getUserFunction.flatMap(FEither.Right(inParam), output)
+    fun.getUserFunction.flatMap(FEither.Left(FTuple2.of(inParam, 42L)), output)
+
+    assertEquals(expectedOutput, outList)
   }
 
   def extractUserFunction[T](dataStream: DataStream[_]) = {

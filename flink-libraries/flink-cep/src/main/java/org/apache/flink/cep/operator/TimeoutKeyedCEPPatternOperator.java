@@ -19,25 +19,27 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.types.Either;
 
 import java.util.Collection;
 import java.util.Map;
 
-/**
- * CEP pattern operator which only returns fully matched event patterns stored in a {@link Map}. The
- * events are indexed by the event names associated in the pattern specification.
- *
- * @param <IN> Type of the input events
- */
-public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN, Map<String, IN>> {
-	private static final long serialVersionUID = 376300194236250645L;
+public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> {
+	private static final long serialVersionUID = 3570542177814518158L;
 
-	public CEPPatternOperator(TypeSerializer<IN> inputSerializer, boolean isProcessingTime, NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime, nfaFactory);
+	public TimeoutKeyedCEPPatternOperator(
+		TypeSerializer<IN> inputSerializer,
+		boolean isProcessingTime,
+		KeySelector<IN, KEY> keySelector,
+		TypeSerializer<KEY> keySerializer,
+		NFACompiler.NFAFactory<IN> nfaFactory) {
+
+		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
 	}
 
 	@Override
@@ -47,14 +49,22 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN, Map<S
 			timestamp);
 
 		Collection<Map<String, IN>> matchedPatterns = patterns.f0;
+		Collection<Tuple2<Map<String, IN>, Long>> partialPatterns = patterns.f1;
+
+		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord = new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(
+			null,
+			timestamp);
 
 		if (!matchedPatterns.isEmpty()) {
-			StreamRecord<Map<String, IN>> streamRecord = new StreamRecord<Map<String, IN>>(
-				null,
-				timestamp);
+			for (Map<String, IN> matchedPattern : matchedPatterns) {
+				streamRecord.replace(Either.Right(matchedPattern));
+				output.collect(streamRecord);
+			}
+		}
 
-			for (Map<String, IN> pattern: matchedPatterns) {
-				streamRecord.replace(pattern);
+		if (!partialPatterns.isEmpty()) {
+			for (Tuple2<Map<String, IN>, Long> partialPattern: partialPatterns) {
+				streamRecord.replace(Either.Left(partialPattern));
 				output.collect(streamRecord);
 			}
 		}
