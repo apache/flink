@@ -374,4 +374,23 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testJoinOrderWithCross(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a1, 'b1, 'c1)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a2, 'b2, 'c2)
+    val ds3 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a3, 'b3, 'c3)
+
+    val joinT = ds1.join(ds2).join(ds3)
+      .where('a1 === 'a3)
+      .where('b2 === 'b3)
+      .select('a1, 'b2)
+
+    val expected = "1,1\n" + "2,2\n" + "2,2\n" + "3,2\n" + "3,2\n"
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
 }
