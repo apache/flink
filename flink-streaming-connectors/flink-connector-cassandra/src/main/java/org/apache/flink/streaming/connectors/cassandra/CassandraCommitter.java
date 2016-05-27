@@ -40,7 +40,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 	private transient PreparedStatement updateStatement;
 	private transient PreparedStatement selectStatement;
 
-	private long lastCommitterCheckpointID = -1;
+	private long lastCommittedCheckpointID = -1;
 
 	public CassandraCommitter(ClusterBuilder builder) {
 		this.builder = builder;
@@ -74,7 +74,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 		cluster = builder.getCluster();
 		session = cluster.connect();
 
-		session.execute(String.format("CREATE KEYSPACE IF NOT EXISTS %s with replication={'class':'SimpleStrategy', 'replication_factor':3};", keySpace));
+		session.execute(String.format("CREATE KEYSPACE IF NOT EXISTS %s with replication={'class':'SimpleStrategy', 'replication_factor':1};", keySpace));
 		session.execute(String.format("CREATE TABLE IF NOT EXISTS %s.%s (sink_id text, sub_id int, checkpoint_id bigint, PRIMARY KEY (sink_id, sub_id));", keySpace, table));
 
 		try {
@@ -105,6 +105,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 	@Override
 	public void close() throws Exception {
+		this.lastCommittedCheckpointID = -1;
 		try {
 			session.close();
 		} catch (Exception e) {
@@ -120,14 +121,14 @@ public class CassandraCommitter extends CheckpointCommitter {
 	@Override
 	public void commitCheckpoint(long checkpointID) {
 		session.execute(updateStatement.bind(checkpointID));
-		this.lastCommitterCheckpointID = checkpointID;
+		this.lastCommittedCheckpointID = checkpointID;
 	}
 
 	@Override
 	public boolean isCheckpointCommitted(long checkpointID) {
-		if (this.lastCommitterCheckpointID == -1) {
-			this.lastCommitterCheckpointID = session.execute(selectStatement.bind()).one().getLong("checkpoint_id");
+		if (this.lastCommittedCheckpointID == -1) {
+			this.lastCommittedCheckpointID = session.execute(selectStatement.bind()).one().getLong("checkpoint_id");
 		}
-		return checkpointID <= this.lastCommitterCheckpointID;
+		return checkpointID <= this.lastCommittedCheckpointID;
 	}
 }

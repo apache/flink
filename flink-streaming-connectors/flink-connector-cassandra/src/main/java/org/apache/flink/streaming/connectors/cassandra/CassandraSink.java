@@ -253,7 +253,7 @@ public class CassandraSink<IN> {
 		 * idempotent updates.
 		 *
 		 * @param committer CheckpointCommitter, that stores informationa bout completed checkpoints in an external
-		 *                  resource. By default this information is stored within a separate table within Cassandra.      
+		 *                  resource. By default this information is stored within a separate table within Cassandra.
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> enableWriteAheadLog(CheckpointCommitter committer) {
@@ -269,7 +269,7 @@ public class CassandraSink<IN> {
 		 * @throws Exception
 		 */
 		public abstract CassandraSink<IN> build() throws Exception;
-		
+
 		protected void sanityCheck() {
 			if (query == null || query.length() == 0) {
 				throw new IllegalArgumentException("Query must not be null or empty.");
