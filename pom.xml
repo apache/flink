@@ -744,6 +744,62 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<version>0.7.0</version>
+				<configuration>
+					<oldVersion>
+						<dependency>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>${project.artifactId}</artifactId>
+							<version>1.0.0</version>
+							<type>${project.packaging}</type>
+						</dependency>
+					</oldVersion>
+					<newVersion>
+						<file>
+							<path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+						</file>
+					</newVersion>
+					<parameter>
+						<onlyModified>true</onlyModified>
+						<includes>
+							<include>@org.apache.flink.annotation.Public</include>
+						</includes>
+						<excludes>
+							<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
+							<exclude>@org.apache.flink.annotation.Internal</exclude>
+						</excludes>
+						<accessModifier>public</accessModifier>
+						<breakBuildOnModifications>false</breakBuildOnModifications>
+						<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+						<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+						<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
+						<includeSynthetic>true</includeSynthetic>
+						<ignoreMissingClasses>false</ignoreMissingClasses>
+						<skipPomModules>true</skipPomModules>
+						<!-- Don't break build on newly added maven modules -->
+						<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+					</parameter>
+					<skip>false</skip>
+					<dependencies>
+						<dependency>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-annotations</artifactId>
+							<version>${project.version}</version>
+						</dependency>
+					</dependencies>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals>
+							<goal>cmp</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

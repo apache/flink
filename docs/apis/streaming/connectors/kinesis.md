@@ -41,6 +41,16 @@ To use the connector, add the following Maven dependency to your project:
 **The `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/) (ASL).
 Linking to the flink-connector-kinesis will include ASL licensed code into your application.**
 
+The `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central as part of
+Flink releases because of the licensing issue. Therefore, you need to build the connector yourself from the source.
+
+Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
+{% highlight bash %}
+mvn clean install -Pinclude-kinesis -DskipTests
+{% endhighlight %}
+
+
+
 Note that the streaming connectors are not part of the binary distribution. 
 See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
@@ -58,7 +68,6 @@ Before consuming data from Kinesis streams, make sure that all streams are creat
 {% highlight java %}
 Properties kinesisConsumerConfig = new Properties();
 kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-kinesisConsumerConfig.put(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE, "BASIC");
 kinesisConsumerConfig.put(
     KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
     "aws_access_key_id_here");
@@ -93,18 +102,18 @@ To produce data into a Kinesis stream, make sure that you have a stream created 
 
 For the monitoring to work, the user accessing the stream needs access to the Cloud watch service.
 
-The Kinesis producer expects at least the following arguments: `FlinkKinesisProducer(String region, String accessKey, String secretKey, final SerializationSchema<OUT> schema)`.
-
-
-Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is 
-done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
-Otherwise, the returned stream name is used.
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>("<aws region>",
-        "<accessKey>", "<secretKey>", new SimpleStringSchema());
+Properties kinesisProducerConfig = new Properties();
+kinesisProducerConfig.put(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID,
+    "aws_access_key_id_here");
+kinesisProducerConfig.put(
+    KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY,
+    "aws_secret_key_here");
+FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 
 kinesis.setFailOnError(true);
 kinesis.setDefaultStream("test-flink");
@@ -114,21 +123,15 @@ DataStream<String> simpleStringStream = ...;
 simpleStringStream.addSink(kinesis);
 {% endhighlight %}
 </div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val kinesis = new FlinkKinesisProducer[String]("<aws region>",
-        "<accessKey>", "<secretKey>", new SimpleStringSchema());
-
-kinesis.setFailOnError(true);
-kinesis.setDefaultStream("test-flink");
-kinesis.setDefaultPartition("0");
-
-val simpleStringStream: DataStream[String] = ...;
-simpleStringStream.addSink(kinesis);
-{% endhighlight %}
-</div>
 </div>
 
+The above is a simple example of using the producer. Configuration for the producer with the mandatory configuration values is supplied with a `java.util.Properties`
+instance as described above for the consumer. The example demonstrates producing a single Kinesis stream in the AWS region "us-east-1".
 
+Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSchema`. The `KinesisSerializationSchema` allows to send the data to multiple streams. This is 
+done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
+Otherwise, the returned stream name is used.
+
+Other optional configuration keys can be found in `KinesisConfigConstants`.
 		
 		

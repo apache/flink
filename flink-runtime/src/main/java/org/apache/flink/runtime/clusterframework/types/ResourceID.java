@@ -26,7 +26,7 @@ import java.io.Serializable;
 /**
  * Class for Resource Ids assigned at the FlinkResourceManager.
  */
-public class ResourceID implements Serializable {
+public final class ResourceID implements ResourceIDRetrievable, Serializable {
 
 	private static final long serialVersionUID = 42L;
 
@@ -45,19 +45,11 @@ public class ResourceID implements Serializable {
 		return resourceId;
 	}
 
-	/**
-	 * Generate a random resource id.
-	 * @return A random resource id.
-	 */
-	public static ResourceID generate() {
-		return new ResourceID(new AbstractID().toString());
-	}
-
 	@Override
 	public final boolean equals(Object o) {
 		if (this == o) {
 			return true;
-		} else if (o == null || !(o instanceof ResourceID)) {
+		} else if (o == null || o.getClass() != getClass()) {
 			return false;
 		} else {
 			return resourceId.equals(((ResourceID) o).resourceId);
@@ -74,5 +66,22 @@ public class ResourceID implements Serializable {
 		return "ResourceID{" +
 			"resourceId='" + resourceId + '\'' +
 			'}';
+	}
+
+	/**
+	 * A ResourceID can always retrieve a ResourceID.
+	 * @return This instance.
+	 */
+	@Override
+	public ResourceID getResourceID() {
+		return this;
+	}
+	
+	/**
+	 * Generate a random resource id.
+	 * @return A random resource id.
+	 */
+	public static ResourceID generate() {
+		return new ResourceID(new AbstractID().toString());
 	}
 }

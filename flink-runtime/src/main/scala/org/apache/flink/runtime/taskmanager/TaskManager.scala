@@ -187,7 +187,8 @@ class TaskManager(
 
   private val runtimeInfo = new TaskManagerRuntimeInfo(
        connectionInfo.getHostname(),
-       new UnmodifiableConfiguration(config.configuration))
+       new UnmodifiableConfiguration(config.configuration),
+       config.tmpDirPaths)
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------

@@ -208,7 +208,10 @@ public class MockEnvironment implements Environment {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+		return new TaskManagerRuntimeInfo(
+				"localhost",
+				new UnmodifiableConfiguration(new Configuration()),
+				System.getProperty("java.io.tmpdir"));
 	}
 
 	@Override

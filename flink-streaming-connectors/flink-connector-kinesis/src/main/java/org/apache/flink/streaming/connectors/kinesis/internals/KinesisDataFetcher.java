@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Kinesis Data Fetcher that consumes data from a specific set of Kinesis shards.

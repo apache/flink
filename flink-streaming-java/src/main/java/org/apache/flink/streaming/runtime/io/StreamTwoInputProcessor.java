@@ -139,7 +139,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
+					ioManager.getSpillingDirectoriesPaths());
 		}
 
 		// determine which unioned channels belong to input 1 and which belong to input 2

@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * type {@code float}.
  */
 @Public
-public class FloatValue implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
+public class FloatValue implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue>, Key<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
 	private float value;

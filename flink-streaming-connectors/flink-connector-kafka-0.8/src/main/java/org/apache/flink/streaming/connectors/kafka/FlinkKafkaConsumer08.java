@@ -36,6 +36,7 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -48,8 +49,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
-import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
-import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getLongFromConfig;
+import static org.apache.flink.util.PropertiesUtil.getInt;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -186,7 +186,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		validateZooKeeperConfig(props);
 
 		this.invalidOffsetBehavior = getInvalidOffsetBehavior(props);
-		this.autoCommitInterval = getLongFromConfig(props, "auto.commit.interval.ms", 60000);
+		this.autoCommitInterval = PropertiesUtil.getLong(props, "auto.commit.interval.ms", 60000);
 
 		// Connect to a broker to get the partitions for all topics
 		List<KafkaTopicPartition> partitionInfos = 
@@ -231,15 +231,15 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	public static List<KafkaTopicPartitionLeader> getPartitionsForTopic(List<String> topics, Properties properties) {
 		String seedBrokersConfString = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
-		final int numRetries = getIntFromConfig(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
+		final int numRetries = getInt(properties, GET_PARTITIONS_RETRIES_KEY, DEFAULT_GET_PARTITIONS_RETRIES);
 
 		checkNotNull(seedBrokersConfString, "Configuration property %s not set", ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
 		String[] seedBrokers = seedBrokersConfString.split(",");
 		List<KafkaTopicPartitionLeader> partitions = new ArrayList<>();
 
 		final String clientId = "flink-kafka-consumer-partition-lookup";
-		final int soTimeout = getIntFromConfig(properties, "socket.timeout.ms", 30000);
-		final int bufferSize = getIntFromConfig(properties, "socket.receive.buffer.bytes", 65536);
+		final int soTimeout = getInt(properties, "socket.timeout.ms", 30000);
+		final int bufferSize = getInt(properties, "socket.receive.buffer.bytes", 65536);
 
 		Random rnd = new Random();
 		retryLoop: for (int retry = 0; retry < numRetries; retry++) {

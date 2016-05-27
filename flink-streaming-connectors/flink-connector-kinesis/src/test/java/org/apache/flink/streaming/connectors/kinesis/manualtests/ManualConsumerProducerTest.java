@@ -52,9 +52,12 @@ public class ManualConsumerProducerTest {
 
 		DataStream<String> simpleStringStream = see.addSource(new ProduceIntoKinesis.EventsGenerator());
 
-		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(pt.getRequired("region"),
-				pt.getRequired("accessKey"),
-				pt.getRequired("secretKey"),
+		Properties kinesisProducerConfig = new Properties();
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, pt.getRequired("region"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, pt.getRequired("accessKey"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, pt.getRequired("secretKey"));
+
+		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
 				new KinesisSerializationSchema<String>() {
 					@Override
 					public ByteBuffer serialize(String element) {
@@ -69,7 +72,9 @@ public class ManualConsumerProducerTest {
 						}
 						return null; // send to default stream
 					}
-				});
+				},
+				kinesisProducerConfig
+		);
 
 		kinesis.setFailOnError(true);
 		kinesis.setDefaultStream("test-flink");

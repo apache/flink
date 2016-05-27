@@ -21,7 +21,7 @@ import com.amazonaws.services.kinesis.model.Shard;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information

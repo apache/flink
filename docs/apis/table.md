@@ -423,7 +423,7 @@ Table result = in.groupBy("a").select("a, b.sum as d");
     <tr>
       <td><strong>Join</strong></td>
       <td>
-        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and an equality join predicate must be defined using a where or filter operator.</p>
+        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -431,9 +431,57 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td><strong>LeftOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL LEFT OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.leftOuterJoin(right, "a = d").select("a, b, e");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>RightOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL RIGHT OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.rightOuterJoin(right, "a = d").select("a, b, e");
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td><strong>FullOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL FULL OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.fullOuterJoin(right, "a = d").select("a, b, e");
+{% endhighlight %}
+      </td>
+    </tr>
 
     <tr>
       <td><strong>Union</strong></td>
+      <td>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical schema, i.e., field names and types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.union(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>UnionAll</strong></td>
       <td>
         <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical schema, i.e., field names and types.</p>
 {% highlight java %}
@@ -542,9 +590,57 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td><strong>LeftOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL LEFT OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight scala %}
+val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
+val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
+val result = left.leftOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>RightOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL RIGHT OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight scala %}
+val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
+val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
+val result = left.rightOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
+{% endhighlight %}
+      </td>
+    </tr>
+    
+    <tr>
+      <td><strong>FullOuterJoin</strong></td>
+      <td>
+        <p>Similar to a SQL FULL OUTER JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+{% highlight scala %}
+val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
+val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
+val result = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
+{% endhighlight %}
+      </td>
+    </tr>
 
     <tr>
       <td><strong>Union</strong></td>
+      <td>
+        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical schema(field names and types).</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
+val result = left.union(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>UnionAll</strong></td>
       <td>
         <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical schema(field names and types).</p>
 {% highlight scala %}
@@ -687,13 +783,12 @@ Among others, the following SQL features are not supported, yet:
 
 - Time data types (`DATE`, `TIME`, `TIMESTAMP`, `INTERVAL`) and `DECIMAL` types
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
-- Outer joins
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
-- Set operations except `UNION ALL` (`INTERSECT`, `UNION`, `EXCEPT`) 
+- `INTERSECT` and `EXCEPT` set operations
 
-*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products. Certain rewrites during optimization (e.g., subquery decorrelation) can result in unsupported operations such as outer joins.* 
+*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.* 
 
 ### SQL on Streaming Tables
 

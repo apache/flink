@@ -72,7 +72,9 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	
 	@Override
 	public void invoke() throws Exception {
-		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
+		this.headEventReader = new MutableRecordReader<IntValue>(
+				getEnvironment().getInputGate(0),
+				getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
@@ -184,7 +186,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		// read (and thereby process all events in the handler's event handling functions)
 		try {
-			while (this.headEventReader.next(rec)) {
+			if (this.headEventReader.next(rec)) {
 				throw new RuntimeException("Synchronization task must not see any records!");
 			}
 		} catch (InterruptedException iex) {
