@@ -18,12 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -41,6 +37,10 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
+
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -156,9 +156,11 @@ public interface RuntimeContext {
 	DoubleCounter getDoubleCounter(String name);
 
 	/**
-	 * Convenience function to create a counter object for histograms.
+	 * Convenience function to create a counter object for histograms that allow only integer values.
+	 * @deprecated Usage of {@link LongHistogram} is encouraged.
 	 */
 	@PublicEvolving
+	@Deprecated
 	Histogram getHistogram(String name);
 
 	/**

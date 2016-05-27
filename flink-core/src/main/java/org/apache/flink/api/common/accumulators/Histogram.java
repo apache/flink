@@ -30,7 +30,11 @@ import java.util.TreeMap;
  *
  * This class does not extend to continuous values later, because it makes no
  * attempt to put the data in bins.
+ *
+ * @deprecated Usage of {@link LongHistogram} is encouraged.
  */
+@Deprecated
+
 @Public
 public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>> {
 
