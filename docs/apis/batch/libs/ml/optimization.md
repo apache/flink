@@ -262,7 +262,7 @@ The full list of supported prediction functions can be found [here](#prediction-
           </p>
         </td>
         <td class="text-center">$\log\left(1+\exp\left( -y ~ \wv^T \cdot \x\right)\right), \quad y \in \{-1, +1\}$</td>
-        <td class="text-center">$\frac{-y}{1+\exp\(y ~ \wv^T \cdot \x)}$</td>
+        <td class="text-center">$\frac{-y}{1+\exp\left(y ~ \wv^T \cdot \x\right)}$</td>
       </tr>
       <tr>
         <td><strong>HingeLoss</strong></td>
