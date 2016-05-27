@@ -323,7 +323,7 @@ class TaskManager(
       }
 
     case Disconnect(msg) =>
-      handleJobManagerDisconnect(sender(), s"ResourceManager requested disconnect: $msg")
+      handleJobManagerDisconnect(sender(), s"JobManager requested disconnect: $msg")
       triggerTaskManagerRegistration()
 
     case msg: StopCluster =>

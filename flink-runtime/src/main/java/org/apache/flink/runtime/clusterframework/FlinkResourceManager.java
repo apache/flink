@@ -404,7 +404,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 * @param leaderAddress The address (Akka URL) of the new leader. Null if there is currently no leader.
 	 * @param leaderSessionID The unique session ID marking the leadership session.
 	 */
-	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
+	private void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
 		LOG.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
 
 		// disconnect from the current leader (no-op if no leader yet)
@@ -426,7 +426,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	 *
 	 * @param leaderAddress The akka actor URL of the new leader JobManager.
 	 */
-	private void triggerConnectingToJobManager(String leaderAddress) {
+	protected void triggerConnectingToJobManager(String leaderAddress) {
+
 		LOG.info("Trying to associate with JobManager leader " + leaderAddress);
 
 		final Object registerMessage = decorateMessage(new RegisterResourceManager(self()));
