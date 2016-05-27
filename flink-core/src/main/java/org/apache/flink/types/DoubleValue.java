@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * type {@code double}.
  */
 @Public
-public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
+public class DoubleValue implements Comparable<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue>, Key<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
 	private double value;
