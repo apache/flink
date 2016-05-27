@@ -32,6 +32,7 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.accumulators.LongHistogram;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -127,6 +128,11 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public Histogram getHistogram(String name) {
 		return (Histogram) getAccumulator(name, Histogram.class);
+	}
+
+	@Override
+	public LongHistogram getLongHistogram(String name) {
+		return (LongHistogram) getAccumulator(name, LongHistogram.class);
 	}
 
 	@Override

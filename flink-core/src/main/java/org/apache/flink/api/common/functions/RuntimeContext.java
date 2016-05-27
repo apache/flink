@@ -30,6 +30,7 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.accumulators.LongHistogram;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -159,6 +160,12 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	Histogram getHistogram(String name);
+
+	/**
+	 * Convenience function to create a counter object for long histograms.
+	 */
+	@PublicEvolving
+	LongHistogram getLongHistogram(String name);
 	
 	// --------------------------------------------------------------------------------------------
 

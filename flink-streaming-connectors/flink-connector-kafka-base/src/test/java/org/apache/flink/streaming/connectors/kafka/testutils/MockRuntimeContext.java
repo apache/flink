@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.accumulators.LongHistogram;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.state.ListState;
@@ -144,6 +145,11 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	@Override
 	public Histogram getHistogram(String name) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public LongHistogram getLongHistogram(String name) {
 		throw new UnsupportedOperationException();
 	}
 
