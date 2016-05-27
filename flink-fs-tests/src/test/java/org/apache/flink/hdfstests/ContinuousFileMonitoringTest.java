@@ -27,8 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.FilePathFilter;
-import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FileSplitReadOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -53,7 +53,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-public class FileSplitMonitoringFunctionTest {
+public class ContinuousFileMonitoringTest {
 
 	private static final int NO_OF_FILES = 10;
 	private static final int LINES_PER_FILE = 10;
@@ -117,7 +117,7 @@ public class FileSplitMonitoringFunctionTest {
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-		FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format);
+		ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
 		OneInputStreamOperatorTestHarness<FileInputSplit, String> tester =
 			new OneInputStreamOperatorTestHarness<>(reader);
 
@@ -215,9 +215,9 @@ public class FileSplitMonitoringFunctionTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, new PathFilter(),
-				FileSplitMonitoringFunction.WatchType.PROCESS_ONCE, 1, INTERVAL);
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI, new PathFilter(),
+				ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
@@ -241,9 +241,9 @@ public class FileSplitMonitoringFunctionTest {
 		fc.start();
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
-				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED, 1, INTERVAL);
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
+				ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
@@ -290,9 +290,9 @@ public class FileSplitMonitoringFunctionTest {
 		Assert.assertTrue(fc.getFilesCreated().size() >= 1);
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
-		FileSplitMonitoringFunction<String> monitoringFunction =
-			new FileSplitMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
-				FileSplitMonitoringFunction.WatchType.PROCESS_ONCE, 1, INTERVAL);
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
+				ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
@@ -327,7 +327,7 @@ public class FileSplitMonitoringFunctionTest {
 
 	/**
 	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
-	 * It serves for testing the file monitoring functionality of the {@link FileSplitMonitoringFunction}.
+	 * It serves for testing the file monitoring functionality of the {@link ContinuousFileMonitoringFunction}.
 	 * The files are filled with data by the {@link #fillWithData(String, String, int, String)} method.
 	 * */
 	private class FileCreator extends Thread {
@@ -368,11 +368,11 @@ public class FileSplitMonitoringFunctionTest {
 
 	private class TestingSourceContext implements SourceFunction.SourceContext<FileInputSplit> {
 
-		private final FileSplitMonitoringFunction src;
+		private final ContinuousFileMonitoringFunction src;
 		private final Set<String> filesFound;
 		private final Object lock = new Object();
 
-		TestingSourceContext(FileSplitMonitoringFunction monitoringFunction, Set<String> uniqFilesFound) {
+		TestingSourceContext(ContinuousFileMonitoringFunction monitoringFunction, Set<String> uniqFilesFound) {
 			this.filesFound = uniqFilesFound;
 			this.src = monitoringFunction;
 		}

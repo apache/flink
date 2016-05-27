@@ -145,14 +145,13 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 					this.checkEquals(this.getRecord(readCount), record);
 
 					if (!input.reachedEnd()) {
-						Tuple2<FileInputSplit, Tuple2<Long, Long>> state = input.getCurrentChannelState();
+						Tuple2<FileInputSplit, Tuple2<Long, Long>> state = input.getCurrentState();
 						Assert.assertEquals(state.f0, inputSplit);
 
 						input = this.createInputFormat();
-						input.restore(state.f0, state.f1);
-						input.open(state.f0);
+						input.reopen(state.f0, state.f1);
 					} else {
-						Tuple2<FileInputSplit, Tuple2<Long, Long>> state = input.getCurrentChannelState();
+						Tuple2<FileInputSplit, Tuple2<Long, Long>> state = input.getCurrentState();
 						Assert.assertEquals(state.f0, null);
 
 					}

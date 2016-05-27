@@ -86,7 +86,7 @@ public class CsvInputFormatTest {
 		final int noOfBlocks = 3;
 
 		final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-		CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
+		CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
 		format.setLenient(true);
 		format.setBufferSize(bufferSize);
 
@@ -99,69 +99,65 @@ public class CsvInputFormatTest {
 		int splitCounter = 0;
 
 		FileInputSplit[] inputSplits = format.createInputSplits(noOfBlocks);
-		Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+		Tuple3<String, Integer, Double> result = new Tuple3<>();
 
-		try {
-			for (FileInputSplit inputSplit : inputSplits) {
-				assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
-				splitCounter++;
+		for (FileInputSplit inputSplit : inputSplits) {
+			assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
+			splitCounter++;
 
-				format.open(inputSplit);
-				while (!format.reachedEnd()) {
-					if ((result = format.nextRecord(result)) != null) {
-						assertEquals((long) format.getCurrentChannelState().f1, offsetsAfterRecord[recordCounter]);
-						recordCounter++;
+			format.open(inputSplit);
+			while (!format.reachedEnd()) {
+				if ((result = format.nextRecord(result)) != null) {
+					assertEquals((long) format.getCurrentState().f1, offsetsAfterRecord[recordCounter]);
+					recordCounter++;
 
-						if (recordCounter == 1) {
-							assertNotNull(result);
-							assertEquals("this is", result.f0);
-							assertEquals(new Integer(1), result.f1);
-							assertEquals(new Double(2.0), result.f2);
-							assertEquals((long) format.getCurrentChannelState().f1, 15);
-						} else if (recordCounter == 2) {
-							assertNotNull(result);
-							assertEquals("a test", result.f0);
-							assertEquals(new Integer(3), result.f1);
-							assertEquals(new Double(4.0), result.f2);
-							assertEquals((long) format.getCurrentChannelState().f1, 29);
-						} else if (recordCounter == 3) {
-							assertNotNull(result);
-							assertEquals("#next", result.f0);
-							assertEquals(new Integer(5), result.f1);
-							assertEquals(new Double(6.0), result.f2);
-							assertEquals((long) format.getCurrentChannelState().f1, 42);
-						} else {
-							assertNotNull(result);
-							assertEquals("asdadas", result.f0);
-							assertEquals(new Integer(5), result.f1);
-							assertEquals(new Double(30.0), result.f2);
-							assertEquals((long) format.getCurrentChannelState().f1, 58);
-						}
-
-						// simulate checkpoint
-						Tuple2<FileInputSplit, Long> state = format.getCurrentChannelState();
-						FileInputSplit split = state.f0;
-						long offsetToRestore = state.f1;
-						Assert.assertEquals(split, inputSplit);
-
-						// create a new format
-						format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
-						format.setLenient(true);
-						format.setBufferSize(bufferSize);
-						format.configure(config);
-
-						// simulate the restore operation.
-						format.restore(split, offsetToRestore);
-						format.open(split);
+					if (recordCounter == 1) {
+						assertNotNull(result);
+						assertEquals("this is", result.f0);
+						assertEquals(new Integer(1), result.f1);
+						assertEquals(new Double(2.0), result.f2);
+						assertEquals((long) format.getCurrentState().f1, 15);
+					} else if (recordCounter == 2) {
+						assertNotNull(result);
+						assertEquals("a test", result.f0);
+						assertEquals(new Integer(3), result.f1);
+						assertEquals(new Double(4.0), result.f2);
+						assertEquals((long) format.getCurrentState().f1, 29);
+					} else if (recordCounter == 3) {
+						assertNotNull(result);
+						assertEquals("#next", result.f0);
+						assertEquals(new Integer(5), result.f1);
+						assertEquals(new Double(6.0), result.f2);
+						assertEquals((long) format.getCurrentState().f1, 42);
 					} else {
-						result = new Tuple3<String, Integer, Double>();
+						assertNotNull(result);
+						assertEquals("asdadas", result.f0);
+						assertEquals(new Integer(5), result.f1);
+						assertEquals(new Double(30.0), result.f2);
+						assertEquals((long) format.getCurrentState().f1, 58);
 					}
+
+					// simulate checkpoint
+					Tuple2<FileInputSplit, Long> state = format.getCurrentState();
+					FileInputSplit split = state.f0;
+					long offsetToRestore = state.f1;
+					Assert.assertEquals(split, inputSplit);
+
+					// create a new format
+					format = new TupleCsvInputFormat<>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
+					format.setLenient(true);
+					format.setBufferSize(bufferSize);
+					format.configure(config);
+
+					// simulate the restore operation.
+					format.reopen(split, offsetToRestore);
+				} else {
+					result = new Tuple3<>();
 				}
-				format.close();
 			}
-		} finally {
-			Assert.assertEquals(recordCounter, 4);
+			format.close();
 		}
+		Assert.assertEquals(4, recordCounter);
 	}
 
 	@Test
@@ -202,26 +198,26 @@ public class CsvInputFormatTest {
 			assertEquals("this is", result.f0);
 			assertEquals(new Integer(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
-			assertEquals((long) format.getCurrentChannelState().f1, 65);
+			assertEquals((long) format.getCurrentState().f1, 65);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
 			assertEquals(new Integer(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
-			assertEquals((long) format.getCurrentChannelState().f1, 91);
+			assertEquals((long) format.getCurrentState().f1, 91);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("#next", result.f0);
 			assertEquals(new Integer(5), result.f1);
 			assertEquals(new Double(6.0), result.f2);
-			assertEquals((long) format.getCurrentChannelState().f1, 104);
+			assertEquals((long) format.getCurrentState().f1, 104);
 
 			result = format.nextRecord(result);
 			assertNull(result);
-			assertEquals(null, format.getCurrentChannelState().f0);
-			assertEquals(0, (long) format.getCurrentChannelState().f1);
+			assertEquals(null, format.getCurrentState().f0);
+			assertEquals(0, (long) format.getCurrentState().f1);
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();

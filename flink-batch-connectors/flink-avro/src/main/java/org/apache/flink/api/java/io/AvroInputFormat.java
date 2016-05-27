@@ -71,10 +71,6 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient long lastSync;
 
-	private transient FileInputSplit restoredSplit;
-
-	private transient Tuple2<Long, Long> restoredState;
-
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
@@ -113,23 +109,27 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
+		dataFileReader = initReader(split);
+		dataFileReader.sync(split.getStart());
+		lastSync = dataFileReader.previousSync();
+	}
 
+	private DataFileReader<E> initReader(FileInputSplit split) throws IOException {
 		DatumReader<E> datumReader;
 
 		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
 			datumReader = new GenericDatumReader<E>();
 		} else {
 			datumReader = org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)
-					? new SpecificDatumReader<E>(avroValueType) : new ReflectDatumReader<E>(avroValueType);
+				? new SpecificDatumReader<E>(avroValueType) : new ReflectDatumReader<E>(avroValueType);
 		}
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Opening split {}", split);
 		}
 
 		this.currSplit = split;
 		SeekableInput in = new FSDataInputStreamWrapper(stream, split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
-		dataFileReader = (DataFileReader) DataFileReader.openReader(in, datumReader);
+		DataFileReader<E> dataFileReader = (DataFileReader) DataFileReader.openReader(in, datumReader);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Loaded SCHEMA: {}", dataFileReader.getSchema());
@@ -137,30 +137,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 		end = split.getStart() + split.getLength();
 		recordsReadSinceLastSync = 0;
-
-		if(this.restoredSplit == null) {
-			dataFileReader.sync(split.getStart());
-			lastSync = dataFileReader.previousSync();
-		} else {
-
-			if (!this.restoredSplit.equals(split)) {
-				throw new RuntimeException("Tried to open at the wrong split after recovery.");
-			}
-
-			// go to the block we stopped
-			currSplit = this.restoredSplit;
-			lastSync = this.restoredState.f0;
-			dataFileReader.seek(lastSync);
-
-			// read until the record we were before the checkpoint
-			// and discard the values
-			for(int i = 0; i < this.restoredState.f1; i++) {
-				dataFileReader.next(null);
-				recordsReadSinceLastSync++;
-			}
-		}
-		this.restoredSplit = null;
-		this.restoredState = null;
+		return dataFileReader;
 	}
 
 	@Override
@@ -202,7 +179,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentChannelState() throws IOException {
+	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentState() throws IOException {
 		if (this.reachedEnd()) {
 			return new Tuple2<>(null, new Tuple2<>(0L, 0L));
 		}
@@ -212,8 +189,26 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Tuple2<Long, Long> state) {
-		this.restoredSplit = split;
-		this.restoredState = state;
+	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+		if (split == null) {
+			throw new RuntimeException("Called reopen() on a null split.");
+		}
+
+		this.open(split);
+		if (state != null) {
+			dataFileReader = initReader(split);
+
+			// go to the block we stopped
+			currSplit = split;
+			lastSync = state.f0;
+			dataFileReader.seek(lastSync);
+
+			// read until the record we were before the checkpoint and discard the values
+			long recordsToDiscard = state.f1;
+			for(int i = 0; i < recordsToDiscard; i++) {
+				dataFileReader.next(null);
+				recordsReadSinceLastSync++;
+			}
+		}
 	}
 }

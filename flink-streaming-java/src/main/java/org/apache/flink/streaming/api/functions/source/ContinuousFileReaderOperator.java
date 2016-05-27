@@ -55,17 +55,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This is the operator that reads the {@link FileInputSplit FileInputSplits} received from
- * the preceding {@link FileSplitMonitoringFunction}. This operator will receive just the split descriptors
+ * the preceding {@link ContinuousFileMonitoringFunction}. This operator will receive just the split descriptors
  * and then read and emit records. This may lead to increased backpressure. To avoid this, we have another
  * thread ({@link SplitReader}) actually reading the splits and emitting the elements, which is separate from
  * the thread forwarding the checkpoint barriers. The two threads sync on the {@link StreamTask#getCheckpointLock()}
  * so that the checkpoints reflect the current state.
  */
 @Internal
-public class FileSplitReadOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
+public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends AbstractStreamOperator<OUT>
 	implements OneInputStreamOperator<FileInputSplit, OUT>, OutputTypeConfigurable<OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSplitReadOperator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileReaderOperator.class);
 
 	private static final FileInputSplit EOS = new FileInputSplit(-1, null, -1, -1, null);
 
@@ -79,7 +79,7 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 
 	private Tuple3<List<FileInputSplit>, FileInputSplit, S> readerState;
 
-	public FileSplitReadOperator(FileInputFormat<OUT> format) {
+	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
 	}
 
@@ -187,6 +187,10 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 
 		private final Queue<FileInputSplit> pendingSplits;
 
+		private FileInputSplit currentSplit = null;
+
+		private S restoredFormatState = null;
+
 		SplitReader(FileInputFormat<OT> format,
 					TypeSerializer<OT> serializer,
 					TimestampedCollector<OT> collector,
@@ -207,19 +211,12 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 				FileInputSplit current = restoredState.f1;
 				S formatState = restoredState.f2;
 
-				if (this.format instanceof CheckpointableInputFormat && current != null) {
-					((CheckpointableInputFormat) format).restore(current, formatState);
-				} else {
-					LOG.warn("The format used is not checkpointable.");
-				}
-
-				if (current != null) {
-					pendingSplits.add(current);
-				}
-
 				for (FileInputSplit split : pending) {
 					pendingSplits.add(split);
 				}
+
+				this.currentSplit = current;
+				this.restoredFormatState = formatState;
 			}
 		}
 
@@ -236,35 +233,55 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 
 		@Override
 		public void run() {
-			FileInputSplit split = null;
 			try {
 				while (this.isRunning) {
 
-					// get the next split to read.
-					// locking is needed because checkpointing will
-					// ask for a consistent snapshot of the list.
-					synchronized (lock) {
-						split = this.pendingSplits.peek();
-					}
+					if (this.currentSplit != null) {
 
-					if (split == null) {
-						Thread.sleep(50);
-						continue;
-					}
-
-					if (split.equals(EOS)) {
-						isRunning = false;
-						break;
-					}
-
-					synchronized (checkpointLock) {
-						synchronized (lock) {
-							split = this.pendingSplits.poll();
+						if (currentSplit.equals(EOS)) {
+							isRunning = false;
+							break;
 						}
-						this.format.open(split);
+
+						if (this.format instanceof CheckpointableInputFormat && restoredFormatState != null) {
+							((CheckpointableInputFormat) format).reopen(currentSplit, restoredFormatState);
+						} else {
+							// this is the case of a non-checkpointable input format that will reprocess the last split.
+							LOG.info("Format " + this.format.getClass().getName() + " used is not checkpointable.");
+							format.open(currentSplit);
+						}
+
+						// reset the restored state to null for the next iteration
+						this.restoredFormatState = null;
+
+					} else {
+
+						// get the next split to read.
+						// locking is needed because checkpointing will
+						// ask for a consistent snapshot of the list.
+						synchronized (lock) {
+							currentSplit = this.pendingSplits.peek();
+						}
+
+						if (currentSplit == null) {
+							Thread.sleep(50);
+							continue;
+						}
+
+						if (currentSplit.equals(EOS)) {
+							isRunning = false;
+							break;
+						}
+
+						synchronized (checkpointLock) {
+							synchronized (lock) {
+								currentSplit = this.pendingSplits.poll();
+							}
+							this.format.open(currentSplit);
+						}
 					}
 
-					LOG.info("Reading split: " + split);
+					LOG.info("Reading split: " + currentSplit);
 
 					try {
 						OT nextElement = serializer.createInstance();
@@ -276,14 +293,17 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 								}
 							}
 						} while (nextElement != null && !format.reachedEnd());
+
 					} finally {
+						// close and prepare for the next iteration
 						this.format.close();
+						this.currentSplit = null;
 					}
 				}
 
 			} catch (Throwable e) {
 				if (isRunning) {
-					LOG.error("Caught exception processing split: ", split);
+					LOG.error("Caught exception processing split: ", currentSplit);
 				}
 				getContainingTask().failExternally(e);
 			} finally {
@@ -308,13 +328,17 @@ public class FileSplitReadOperator<OUT, S extends Serializable> extends Abstract
 				}
 
 				if (this.format instanceof CheckpointableInputFormat) {
-					formatState = ((CheckpointableInputFormat) format).getCurrentChannelState();
+					formatState = ((CheckpointableInputFormat) format).getCurrentState();
+					if (formatState.f0 != null && !formatState.f0.equals(currentSplit)) {
+						throw new RuntimeException("The currently processed input split does not match the one returned by the input format.");
+					}
+
+					return new Tuple3<>(snapshot, formatState.f0, formatState.f1);
 				} else {
-					LOG.warn("The format used is not checkpointable.");
+					LOG.info("The format used is not checkpointable. The current input split will be restarted upon recovery.");
+					return new Tuple3<>(snapshot, currentSplit, null);
 				}
 			}
-
-			return new Tuple3<>(snapshot, formatState.f0, formatState.f1);
 		}
 
 		public void cancel() {

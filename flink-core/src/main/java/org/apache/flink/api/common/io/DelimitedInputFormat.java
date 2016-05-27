@@ -82,6 +82,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 */
 	private static int MAX_SAMPLE_LEN;
 
+	private boolean restoring = false;
+
 	static { loadGlobalConfigParams(); }
 	
 	protected static void loadGlobalConfigParams() {
@@ -137,9 +139,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private transient int limit;
 
 	private transient FileInputSplit currSplit;
-
-	private transient FileInputSplit restoredSplit;
-	private transient Long restoredOffset;
 
 	private transient byte[] currBuffer;		// buffer in which current record byte sequence is found
 	private transient int currOffset;			// offset in above buffer
@@ -418,10 +417,26 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
+		initBuffers(split);
 
+		this.offset = splitStart;
+		if (this.splitStart != 0) {
+			this.stream.seek(offset);
+			readLine();
+			// if the first partial record already pushes the stream over
+			// the limit of our split, then no record starts within this split
+			if (this.overLimit) {
+				this.end = true;
+			}
+		} else {
+			fillBuffer();
+		}
+	}
+
+	private void initBuffers(FileInputSplit split) {
 		this.currSplit = split;
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
-		
+
 		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
 			this.readBuffer = new byte[this.bufferSize];
 		}
@@ -433,38 +448,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		this.limit = 0;
 		this.overLimit = false;
 		this.end = false;
-
-		if (this.splitStart != 0 && this.restoredSplit == null) {
-			this.stream.seek(this.splitStart);
-			this.offset = this.splitStart;
-			readLine();
-
-			// if the first partial record already pushes the stream over the limit of our split, then no
-			// record starts within this split
-			if (this.overLimit) {
-				this.end = true;
-			}
-		} else if (this.restoredSplit != null) {
-
-			if (!this.restoredSplit.equals(split)) {
-				throw new RuntimeException("Tried to open at the wrong split after recovery.");
-			}
-
-			// this is the case where we restart from a specific offset within a split (e.g. after a node failure)
-			this.stream.seek(this.restoredOffset);
-			this.currSplit = this.restoredSplit;
-			this.offset = this.restoredOffset;
-			this.splitLength = this.splitStart + this.splitLength - this.offset;
-
-			if (splitLength <= 0) {
-				this.end = true;
-			}
-		} else {
-			fillBuffer();
-			this.offset = 0;
-		}
-		this.restoredSplit = null;
-		this.restoredOffset = null;
 	}
 
 	/**
@@ -652,7 +635,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<FileInputSplit, Long> getCurrentChannelState() throws IOException {
+	public Tuple2<FileInputSplit, Long> getCurrentState() throws IOException {
 		if (reachedEnd()) {
 			return new Tuple2<>(null, 0l);
 		}
@@ -660,8 +643,29 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Long state) {
-		this.restoredSplit = split;
-		this.restoredOffset = state;
+	public void reopen(FileInputSplit split, Long state) throws IOException {
+		if (split == null) {
+			throw new RuntimeException("Called reopen() on a null split.");
+		}
+
+		this.open(split);
+		if (state != null) {
+			initBuffers(split);
+
+			// this is the case where we restart from a specific offset within a split (e.g. after a node failure)
+			this.currSplit = split;
+			this.offset = state;
+
+			this.stream.seek(this.offset);
+			if (split.getLength() == -1) {
+				// this is the case for unsplittable files
+				fillBuffer();
+			} else {
+				this.splitLength = this.splitStart + split.getLength() - this.offset;
+				if (splitLength <= 0) {
+					this.end = true;
+				}
+			}
+		}
 	}
 }

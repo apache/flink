@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.FilePathFilter;
-import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FileSplitReadOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
@@ -48,7 +48,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-public class FileSplitMonitoringFunctionITCase extends StreamingProgramTestBase {
+public class ContinuousFileMonitoringFunctionITCase extends StreamingProgramTestBase {
 
 	private static final int NO_OF_FILES = 10;
 	private static final int LINES_PER_FILE = 10;
@@ -121,14 +121,14 @@ public class FileSplitMonitoringFunctionITCase extends StreamingProgramTestBase 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(1);
 
-			FileSplitMonitoringFunction<String> monitoringFunction =
-				new FileSplitMonitoringFunction<>(format, hdfsURI,
+			ContinuousFileMonitoringFunction<String> monitoringFunction =
+				new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 					FilePathFilter.DefaultFilter.getInstance(),
-					FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED,
+					ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_CONTINUOUSLY,
 					env.getParallelism(), INTERVAL);
 
 			TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
-			FileSplitReadOperator<String, ?> reader = new FileSplitReadOperator<>(format);
+			ContinuousFileReaderOperator<String, ?> reader = new ContinuousFileReaderOperator<>(format);
 			TestingSinkFunction sink = new TestingSinkFunction(monitoringFunction);
 
 			DataStream<FileInputSplit> splits = env.addSource(monitoringFunction);
@@ -160,13 +160,13 @@ public class FileSplitMonitoringFunctionITCase extends StreamingProgramTestBase 
 
 	private static class TestingSinkFunction extends RichSinkFunction<String> {
 
-		private final FileSplitMonitoringFunction src;
+		private final ContinuousFileMonitoringFunction src;
 
 		private int elementCounter = 0;
 		private Map<Integer, Integer> elementCounters = new HashMap<>();
 		private Map<Integer, List<String>> collectedContent = new HashMap<>();
 
-		TestingSinkFunction(FileSplitMonitoringFunction monitoringFunction) {
+		TestingSinkFunction(ContinuousFileMonitoringFunction monitoringFunction) {
 			this.src = monitoringFunction;
 		}
 
@@ -243,7 +243,7 @@ public class FileSplitMonitoringFunctionITCase extends StreamingProgramTestBase 
 
 	/**
 	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
-	 * It serves for testing the file monitoring functionality of the {@link FileSplitMonitoringFunction}.
+	 * It serves for testing the file monitoring functionality of the {@link ContinuousFileMonitoringFunction}.
 	 * The files are filled with data by the {@link #fillWithData(String, String, int, String)} method.
 	 * */
 	private class FileCreator implements Runnable {

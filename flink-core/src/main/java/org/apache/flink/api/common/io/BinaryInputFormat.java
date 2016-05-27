@@ -75,10 +75,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	private transient FileInputSplit currSplit = null;
 
-	private transient FileInputSplit restoredSplit;
-
-	private transient Tuple2<Long, Long> restoredState;
-
 	/**
 	 * The number of records already read from the block.
 	 * This is used to decide if the end of the block has been
@@ -208,6 +204,20 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		return new BlockInfo();
 	}
 
+	private BlockInfo createAndReadBlockInfo() throws IOException {
+		BlockInfo blockInfo = new BlockInfo();
+		if (this.splitLength > blockInfo.getInfoSize()) {
+			// At first we go and read  the block info containing the recordCount, the accumulatedRecordCount
+			// and the firstRecordStart offset in the current block. This is written at the end of the block and
+			// is of fixed size, currently 3 * Long.SIZE.
+
+			// TODO: seek not supported by compressed streams. Will throw exception
+			this.stream.seek(this.splitStart + this.splitLength - blockInfo.getInfoSize());
+			blockInfo.read(new DataInputViewStreamWrapper(this.stream));
+		}
+		return blockInfo;
+	}
+
 	/**
 	 * Fill in the statistics. The last modification time and the total input size are prefilled.
 	 *
@@ -222,8 +232,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 			return null;
 		}
 
-		BlockInfo blockInfo = this.createBlockInfo();
-
+		BlockInfo blockInfo = new BlockInfo();
 		long totalCount = 0;
 		for (FileStatus file : files) {
 			// invalid file
@@ -265,44 +274,16 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		super.open(split);
 
 		this.currSplit = split;
-		this.blockInfo = this.createBlockInfo();
-		if (this.splitLength > this.blockInfo.getInfoSize()) {
-			// At first we go and read  the block info containing the recordCount, the accumulatedRecordCount
-			// and the firstRecordStart offset in the current block. This is written at the end of the block and
-			// is of fixed size, currently 3 * Long.SIZE.
-
-			// TODO: seek not supported by compressed streams. Will throw exception
-			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
-			this.blockInfo.read(new DataInputViewStreamWrapper(this.stream));
-		}
+		this.blockInfo = this.createAndReadBlockInfo();
 
 		// We set the size of the BlockBasedInput to splitLength as each split contains one block.
 		// After reading the block info, we seek in the file to the correct position.
 		
-		if(this.restoredSplit == null) {
-			this.readRecords = 0;
-			this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
-			this.blockBasedInput = new BlockBasedInput(this.stream,
-				(int) blockInfo.getFirstRecordStart(), this.splitLength);
-		} else {
-
-			if (!this.restoredSplit.equals(split)) {
-				throw new RuntimeException("Tried to open at the wrong split after recovery.");
-			}
-
-			// go to the block we stopped
-			this.currSplit = this.restoredSplit;
-
-			long blockPos = this.restoredState.f0;
-			this.readRecords = this.restoredState.f1;
-
-			this.stream.seek(this.splitStart + blockPos);
-			this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
-		}
+		this.readRecords = 0;
+		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
+		this.blockBasedInput = new BlockBasedInput(this.stream,
+			(int) blockInfo.getFirstRecordStart(), this.splitLength);
 		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
-		this.restoredSplit = null;
-		this.restoredState = null;
-
 	}
 
 	@Override
@@ -326,12 +307,18 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	 * Reads the content of a block of data. The block contains its {@link BlockInfo}
 	 * at the end, and this method takes this into account when reading the data.
 	 */
-	private class BlockBasedInput extends FilterInputStream {
+	protected class BlockBasedInput extends FilterInputStream {
 		private final int maxPayloadSize;
 
 		private int blockPos;
 
-		BlockBasedInput(FSDataInputStream in, int startPos, long length) {
+		public BlockBasedInput(FSDataInputStream in, int blockSize) {
+			super(in);
+			this.blockPos = (int) BinaryInputFormat.this.blockInfo.getFirstRecordStart();
+			this.maxPayloadSize = blockSize - BinaryInputFormat.this.blockInfo.getInfoSize();
+		}
+		
+		public BlockBasedInput(FSDataInputStream in, int startPos, long length) {
 			super(in);
 			this.blockPos = startPos;
 			this.maxPayloadSize = (int) (length - BinaryInputFormat.this.blockInfo.getInfoSize());
@@ -389,7 +376,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentChannelState() throws IOException {
+	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentState() throws IOException {
 		if (this.reachedEnd()) {
 			return new Tuple2<>(null, new Tuple2<>(0L, 0L));
 		}
@@ -402,8 +389,22 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	}
 
 	@Override
-	public void restore(FileInputSplit split, Tuple2<Long, Long> state) {
-		this.restoredSplit = split;
-		this.restoredState = state;
+	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+		if (split == null) {
+			throw new RuntimeException("Called reopen() on a null split.");
+		}
+
+		this.open(split);
+		if (state != null) {
+			this.currSplit = split;
+			this.blockInfo = this.createAndReadBlockInfo();
+
+			long blockPos = state.f0;
+			this.readRecords = state.f1;
+
+			this.stream.seek(this.splitStart + blockPos);
+			this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
+			this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
+		}
 	}
 }

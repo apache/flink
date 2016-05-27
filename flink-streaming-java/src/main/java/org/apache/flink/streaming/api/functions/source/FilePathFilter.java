@@ -22,14 +22,10 @@ import org.apache.flink.core.fs.Path;
 import java.io.Serializable;
 
 /**
- * An interface to be implemented by the user when using the {@link FileSplitMonitoringFunction}.
+ * An interface to be implemented by the user when using the {@link ContinuousFileMonitoringFunction}.
  * The {@link #filterPath(Path)} method is responsible for deciding if a path is eligible for further
  * processing or not. This can serve to exclude temporary or partial files that
  * are still being written.
- *
- *<p/>
- * A default implementation is the {@link DefaultFilter} which excludes files starting with ".", "_", or
- * contain the "_COPYING_" in their names. This can be retrieved by {@link DefaultFilter#getInstance()}.
  */
 @PublicEvolving
 public interface FilePathFilter extends Serializable {
@@ -44,14 +40,14 @@ public interface FilePathFilter extends Serializable {
 	 *     return filePath.getName().startsWith(".") || filePath.getName().contains("_COPYING_");
 	 * }
 	 * }</pre>
-	 * */
+	 */
 	boolean filterPath(Path filePath);
 
 	/**
 	 * The default file path filtering method and is used
 	 * if no other such function is provided. This filter leaves out
 	 * files starting with ".", "_", and "_COPYING_".
-	 * */
+	 */
 	public class DefaultFilter implements FilePathFilter {
 
 		private static DefaultFilter instance = null;

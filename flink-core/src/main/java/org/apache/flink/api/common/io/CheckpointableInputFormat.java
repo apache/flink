@@ -41,7 +41,7 @@ public interface CheckpointableInputFormat<S extends InputSplit, T extends Seria
 	 *
 	 * @throws Exception Thrown if the creation of the state object failed.
 	 */
-	Tuple2<S, T> getCurrentChannelState() throws IOException;
+	Tuple2<S, T> getCurrentState() throws IOException;
 
 	/**
 	 * Restores the state of a parallel instance reading from an {@link InputFormat}.
@@ -56,5 +56,5 @@ public interface CheckpointableInputFormat<S extends InputSplit, T extends Seria
 	 * @param state The state from which to start from. This can contain the offset,
 	 *                 but also other data, depending on the input format.
 	 */
-	void restore(S split, T state);
+	void reopen(S split, T state) throws IOException;
 }

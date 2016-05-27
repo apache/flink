@@ -47,30 +47,30 @@ import java.util.Map;
  * i) monitoring a user-provided path, ii) deciding which files should be further read and processed,
  * iii) creating the {@link FileInputSplit FileInputSplits} corresponding to those files, and iv) assigning
  * them to downstream tasks for further reading and processing. Which splits will be further processed
- * depends on the user-provided {@link FileSplitMonitoringFunction.WatchType} and the {@link FilePathFilter}.
+ * depends on the user-provided {@link ProcessingMode} and the {@link FilePathFilter}.
  * The splits of the files to be read are then forwarded to the downstream
- * {@link FileSplitReadOperator} which can have parallelism greater than one.
+ * {@link ContinuousFileReaderOperator} which can have parallelism greater than one.
  */
 @Internal
-public class FileSplitMonitoringFunction<OUT>
+public class ContinuousFileMonitoringFunction<OUT>
 	extends RichSourceFunction<FileInputSplit> implements Checkpointed<Tuple3<List<Tuple2<Long, List<FileInputSplit>>>, Tuple2<Long, List<FileInputSplit>>, Long>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSplitMonitoringFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileMonitoringFunction.class);
 
 	/**
 	 * The minimum interval allowed between consecutive path scans. This is applicable if the
-	 * {@code watchType} is set to {@code REPROCESS_WITH_APPENDED}.
+	 * {@code watchType} is set to {@code PROCESS_CONTINUOUSLY}.
 	 */
 	public static final long MIN_MONITORING_INTERVAL = 100l;
 
 	/**
 	 * Specifies when computation will be triggered.
 	 */
-	public enum WatchType {
+	public enum ProcessingMode {
 		PROCESS_ONCE,				// Processes the current content of a file/path only ONCE, and stops monitoring.
-		REPROCESS_WITH_APPENDED		// Reprocesses the whole file when new data is appended.
+		PROCESS_CONTINUOUSLY		// Reprocesses the whole file when new data is appended.
 	}
 
 	/** The path to monitor. */
@@ -85,8 +85,8 @@ public class FileSplitMonitoringFunction<OUT>
 	/** How often to monitor the state of the directory for new data. */
 	private final long interval;
 
-	/** Which new data to process (see {@link WatchType}. */
-	private final WatchType watchType;
+	/** Which new data to process (see {@link ProcessingMode}. */
+	private final ProcessingMode watchType;
 
 	private List<Tuple2<Long, List<FileInputSplit>>> splitsToFwdOrderedAscByModTime;
 
@@ -98,12 +98,12 @@ public class FileSplitMonitoringFunction<OUT>
 
 	private volatile boolean isRunning = true;
 
-	public FileSplitMonitoringFunction(
+	public ContinuousFileMonitoringFunction(
 		FileInputFormat<OUT> format, String path,
-		FilePathFilter filter, WatchType watchType,
+		FilePathFilter filter, ProcessingMode watchType,
 		int readerParallelism, long interval) {
 
-		if (watchType != WatchType.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
+		if (watchType != ProcessingMode.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
 			throw new IllegalArgumentException("The specified monitoring interval (" + interval + " ms) is " +
 				"smaller than the minimum allowed one (100 ms).");
 		}
@@ -131,7 +131,7 @@ public class FileSplitMonitoringFunction<OUT>
 		FileSystem fileSystem = FileSystem.get(new URI(path));
 
 		switch (watchType) {
-			case REPROCESS_WITH_APPENDED:
+			case PROCESS_CONTINUOUSLY:
 				while (isRunning) {
 					monitorDirAndForwardSplits(fileSystem, context);
 					Thread.sleep(interval);
@@ -228,7 +228,7 @@ public class FileSplitMonitoringFunction<OUT>
 
 	/**
 	 * Creates the input splits for the path to be forwarded to the downstream tasks of the
-	 * {@link FileSplitReadOperator}. Those tasks are going to read their contents for further
+	 * {@link ContinuousFileReaderOperator}. Those tasks are going to read their contents for further
 	 * processing. Splits belonging to files in the {@code eligibleFiles} list are the ones
 	 * that are shipped for further processing.
 	 * @param eligibleFiles The files to process.

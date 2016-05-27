@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.FileSplitMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -51,9 +51,9 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
-public class FileSplitMonitoringCheckpointingITCase extends StreamFaultToleranceTestBase {
+public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
 
-	private static final int NO_OF_FILES = 4;
+	private static final int NO_OF_FILES = 9;
 	private static final int LINES_PER_FILE = 200;
 	private static final int NO_OF_RETRIES = 3;
 	private static final int PARALLELISM = 4;
@@ -108,8 +108,7 @@ public class FileSplitMonitoringCheckpointingITCase extends StreamFaultTolerance
 		// create the monitoring source along with the necessary readers.
 		TestingSinkFunction sink = new TestingSinkFunction();
 		DataStream<String> inputStream = env.
-			readFileStream(localFsURI, INTERVAL,
-				FileSplitMonitoringFunction.WatchType.REPROCESS_WITH_APPENDED);
+			readTextFile(localFsURI, ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_CONTINUOUSLY, INTERVAL);
 
 		inputStream.flatMap(new FlatMapFunction<String, String>() {
 			@Override
@@ -160,7 +159,7 @@ public class FileSplitMonitoringCheckpointingITCase extends StreamFaultTolerance
 
 	/**
 	 * A separate thread creating {@link #NO_OF_FILES} files, one file every {@link #INTERVAL} milliseconds.
-	 * It serves for testing the file monitoring functionality of the {@link FileSplitMonitoringFunction}.
+	 * It serves for testing the file monitoring functionality of the {@link ContinuousFileMonitoringFunction}.
 	 * The files are filled with data by the {@link #fillWithData(String, String, int, String)} method.
 	 * */
 	private class FileCreator extends Thread {
