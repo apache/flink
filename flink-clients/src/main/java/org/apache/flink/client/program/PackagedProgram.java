@@ -484,6 +484,10 @@ public class PackagedProgram {
 	
 	private static void callMainMethod(Class<?> entryClass, String[] args) throws ProgramInvocationException {
 		Method mainMethod;
+		if (!Modifier.isPublic(entryClass.getModifiers())) {
+			throw new ProgramInvocationException("The class " + entryClass.getName() + " must be public.");
+		}
+
 		try {
 			mainMethod = entryClass.getMethod("main", String[].class);
 		} catch (NoSuchMethodException e) {
