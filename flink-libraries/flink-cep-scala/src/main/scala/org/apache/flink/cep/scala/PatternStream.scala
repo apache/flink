@@ -21,11 +21,15 @@ import java.util.{Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
+import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.util.Collector
 import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
 import java.lang.{Long => JLong}
+
+import org.apache.flink.cep.operator.CEPOperatorUtils
+import org.apache.flink.cep.scala.pattern.Pattern
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -42,6 +46,10 @@ import scala.collection.mutable
 class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
   private[flink] def wrappedPatternStream = jPatternStream
+
+  def getPattern: Pattern[T, T] = Pattern(jPatternStream.getPattern.asInstanceOf[JPattern[T, T]])
+
+  def getInputStream: DataStream[T] = asScalaStream(jPatternStream.getInputStream())
 
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
@@ -83,7 +91,9 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     patternSelectFunction: PatternSelectFunction[T, R])
   : DataStream[Either[L, R]] = {
 
-    val patternStream = jPatternStream.createTimeoutPatternStream()
+    val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
+      jPatternStream.getInputStream(),
+      jPatternStream.getPattern())
 
     val cleanedSelect = cleanClosure(patternSelectFunction)
     val cleanedTimeout = cleanClosure(patternTimeoutFunction)
@@ -146,7 +156,10 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     patternFlatTimeoutFunction: PatternFlatTimeoutFunction[T, L],
     patternFlatSelectFunction: PatternFlatSelectFunction[T, R])
   : DataStream[Either[L, R]] = {
-    val patternStream = jPatternStream.createTimeoutPatternStream()
+    val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
+      jPatternStream.getInputStream(),
+      jPatternStream.getPattern()
+    )
 
     val cleanedSelect = cleanClosure(patternFlatSelectFunction)
     val cleanedTimeout = cleanClosure(patternFlatTimeoutFunction)
