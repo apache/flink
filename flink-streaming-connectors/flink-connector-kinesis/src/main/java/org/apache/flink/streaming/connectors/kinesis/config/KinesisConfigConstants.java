@@ -57,6 +57,12 @@ public class KinesisConfigConstants {
 	/** The AWS region of the Kinesis streams to be pulled ("us-east-1" is used if not set) */
 	public static final String CONFIG_AWS_REGION = "aws.region";
 
+	/** Maximum number of items to pack into an PutRecords request. **/
+	public static final String CONFIG_PRODUCER_COLLECTION_MAX_COUNT = "aws.producer.collectionMaxCount";
+
+	/** Maximum number of items to pack into an aggregated record. **/
+	public static final String CONFIG_PRODUCER_AGGREGATION_MAX_COUNT = "aws.producer.aggregationMaxCount";
+
 
 	// ------------------------------------------------------------------------
 	//  Default configuration values

@@ -21,10 +21,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
+import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.examples.ProduceIntoKinesis;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 
 import java.nio.ByteBuffer;
+import java.util.Properties;
 
 /**
  * This is a manual test for the AWS Kinesis connector in Flink.
@@ -48,9 +50,12 @@ public class ManualProducerTest {
 
 		DataStream<String> simpleStringStream = see.addSource(new ProduceIntoKinesis.EventsGenerator());
 
-		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(pt.getRequired("region"),
-				pt.getRequired("accessKey"),
-				pt.getRequired("secretKey"),
+		Properties kinesisProducerConfig = new Properties();
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, pt.getRequired("region"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, pt.getRequired("accessKey"));
+		kinesisProducerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, pt.getRequired("secretKey"));
+
+		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
 				new KinesisSerializationSchema<String>() {
 					@Override
 					public ByteBuffer serialize(String element) {
@@ -65,7 +70,9 @@ public class ManualProducerTest {
 						}
 						return null; // send to default stream
 					}
-				});
+				},
+				kinesisProducerConfig
+		);
 
 		kinesis.setFailOnError(true);
 		kinesis.setDefaultStream("test-flink");
