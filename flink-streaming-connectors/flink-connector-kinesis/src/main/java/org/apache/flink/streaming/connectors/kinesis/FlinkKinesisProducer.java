@@ -33,6 +33,7 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerial
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.util.PropertiesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,12 +174,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		producerConfig.setRegion(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION));
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
 		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)) {
-			producerConfig.setCollectionMaxCount(
-					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)));
+			producerConfig.setCollectionMaxCount(PropertiesUtil.getLong(configProps,
+					KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT, producerConfig.getCollectionMaxCount(), LOG));
 		}
 		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)) {
-			producerConfig.setAggregationMaxCount(
-					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)));
+			producerConfig.setAggregationMaxCount(PropertiesUtil.getLong(configProps,
+					KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT, producerConfig.getAggregationMaxCount(), LOG));
 		}
 
 		producer = new KinesisProducer(producerConfig);

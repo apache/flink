@@ -15,16 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.util;
+package org.apache.flink.util;
+
+import org.slf4j.Logger;
 
 import java.util.Properties;
 
 /**
- * Simple utilities, used by the Flink Kafka Consumers.
+ * Simple utilities for getting typed values from Properties.
  */
-public class KafkaUtils {
+public class PropertiesUtil {
 
-	public static int getIntFromConfig(Properties config, String key, int defaultValue) {
+	/**
+	 * Get integer from properties.
+	 * This method throws an exception if the integer is not valid.
+	 *
+	 * @param config Properties
+	 * @param key key in Properties
+	 * @param defaultValue default value if value is not set
+	 * @return default or value of key
+	 * @throws IllegalArgumentException
+	 */
+	public static int getInt(Properties config, String key, int defaultValue) {
 		String val = config.getProperty(key);
 		if (val == null) {
 			return defaultValue;
@@ -38,7 +50,17 @@ public class KafkaUtils {
 		}
 	}
 
-	public static long getLongFromConfig(Properties config, String key, long defaultValue) {
+	/**
+	 * Get long from properties.
+	 * This method throws an exception if the long is not valid.
+	 *
+	 * @param config Properties
+	 * @param key key in Properties
+	 * @param defaultValue default value if value is not set
+	 * @return default or value of key
+	 * @throws IllegalArgumentException
+	 */
+	public static long getLong(Properties config, String key, long defaultValue) {
 		String val = config.getProperty(key);
 		if (val == null) {
 			return defaultValue;
@@ -51,9 +73,28 @@ public class KafkaUtils {
 			}
 		}
 	}
-	
+
+	/**
+	 * Get long from properties.
+	 * This method only logs if the long is not valid.
+	 *
+	 * @param config Properties
+	 * @param key key in Properties
+	 * @param defaultValue default value if value is not set
+	 * @return default or value of key
+	 * @throws IllegalArgumentException
+	 */
+	public static long getLong(Properties config, String key, long defaultValue, Logger logger) {
+		try {
+			return getLong(config, key, defaultValue);
+		} catch(IllegalArgumentException iae) {
+			logger.warn(iae.getMessage());
+			return defaultValue;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	
 	/** Private default constructor to prevent instantiation */
-	private KafkaUtils() {}
+	private PropertiesUtil() {}
 }

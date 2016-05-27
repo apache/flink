@@ -41,6 +41,16 @@ To use the connector, add the following Maven dependency to your project:
 **The `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/) (ASL).
 Linking to the flink-connector-kinesis will include ASL licensed code into your application.**
 
+The `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central as part of
+Flink releases because of the licensing issue. Therefore, you need to build the connector yourself from the source.
+
+Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
+{% highlight bash %}
+mvn clean install -Pinclude-kinesis -DskipTests
+{% endhighlight %}
+
+
+
 Note that the streaming connectors are not part of the binary distribution. 
 See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 

@@ -98,43 +98,38 @@ public class KinesisConfigUtil {
 			}
 		}
 
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES)) {
+		validateOptionalIntProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES,
+				"Invalid value given for describeStream stream operation retry count. Must be a valid integer value.");
+
+		validateOptionalIntProperty(config, KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET,
+				"Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
+
+		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF,
+				"Invalid value given for describeStream stream operation backoff milliseconds. Must be a valid long value.");
+
+		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT,
+				"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid long value.");
+
+		validateOptionalLongProperty(config, KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT,
+				"Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid long value.");
+	}
+
+	private static void validateOptionalLongProperty(Properties config, String key, String message) {
+		if (config.containsKey(key)) {
 			try {
-				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES));
+				Long.parseLong(config.getProperty(key));
 			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for describeStream stream operation retry count. Must be a valid integer value.");
+				throw new IllegalArgumentException(message);
 			}
 		}
+	}
 
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF)) {
+	private static void validateOptionalIntProperty(Properties config, String key, String message) {
+		if (config.containsKey(key)) {
 			try {
-				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF));
+				Integer.parseInt(config.getProperty(key));
 			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for describeStream stream operation backoff milliseconds. Must be a valid long value.");
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET)) {
-			try {
-				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)) {
-			try {
-				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid long value.");
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)) {
-			try {
-				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid long value.");
+				throw new IllegalArgumentException(message);
 			}
 		}
 	}
