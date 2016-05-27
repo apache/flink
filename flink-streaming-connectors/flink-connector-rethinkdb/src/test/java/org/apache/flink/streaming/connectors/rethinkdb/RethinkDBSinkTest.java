@@ -91,6 +91,16 @@ public class RethinkDBSinkTest {
 	}	
 	
 	@Test
+	public void testGetters() throws Exception {
+		assertEquals("test", sink.getDatabaseName());
+		assertEquals(JSON_TEST_TABLE, sink.getTableName());
+		assertEquals(28015, sink.getHostport());
+		assertEquals("localhost", sink.getHostname());
+		assertEquals("admin", sink.getUsername());
+		assertEquals("", sink.getPassword());
+	}
+	
+	@Test
 	public void testOpen() throws Exception {
 		
 		when(mockRethinkDB.db(any()).table(Mockito.eq(JSON_TEST_TABLE))).thenReturn(mockRethinkDBTable);
@@ -190,5 +200,50 @@ public class RethinkDBSinkTest {
 	public void testEmptyPassword() throws Exception {
 		sink.setUsernameAndPassword("abcd", "");
 		assertEquals("Password should be equal", "", sink.getPassword());
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testNullDurablity() throws Exception {
+		sink.setDurability(null);
+	}
+
+	@Test
+	public void testDurabilityToSoft() throws Exception {
+		assertEquals("Durability should be equal", Durability.hard, sink.getDurability());		
+		sink.setDurability(Durability.soft);
+		assertEquals("Durability should be equal", Durability.soft, sink.getDurability());
+	}
+
+	@Test
+	public void testDurabilityToHard() throws Exception {
+		assertEquals("Durability should be equal", Durability.hard, sink.getDurability());		
+		sink.setDurability(Durability.hard);
+		assertEquals("Durability should be equal", Durability.hard, sink.getDurability());
+	}
+
+	@Test
+	public void testConflictToError() throws Exception {
+		assertEquals("Conflict should be equal", ConflictStrategy.update, sink.getConflictStrategy());		
+		sink.setConflictStrategy(ConflictStrategy.error);
+		assertEquals("ConflictStrategy should be equal", ConflictStrategy.error, sink.getConflictStrategy());
+	}
+
+	@Test
+	public void testConflictToUpdate() throws Exception {
+		assertEquals("Conflict should be equal", ConflictStrategy.update, sink.getConflictStrategy());		
+		sink.setConflictStrategy(ConflictStrategy.update);
+		assertEquals("ConflictStrategy should be equal", ConflictStrategy.update, sink.getConflictStrategy());
+	}
+
+	@Test
+	public void testConflictToReplace() throws Exception {
+		assertEquals("Conflict should be equal", ConflictStrategy.update, sink.getConflictStrategy());		
+		sink.setConflictStrategy(ConflictStrategy.replace);
+		assertEquals("ConflictStrategy should be equal", ConflictStrategy.replace, sink.getConflictStrategy());
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testNullConflictStrategy() throws Exception {
+		sink.setConflictStrategy(null);
 	}
 }

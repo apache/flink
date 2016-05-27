@@ -16,34 +16,31 @@
  */
 package org.apache.flink.streaming.connectors.rethinkdb;
 
+import static org.junit.Assert.assertEquals;
+
 import org.json.simple.JSONArray;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * JSONArray serialization schema which just returns the input JSONArray object
- * 
- * @see RethinkDbSerializationSchema<T>
- * 
- * @see org.json.simple.JSONArray
- * @see org.json.simple.JSONObject
- */
-public class JSONArraySerializationSchema implements JSONSerializationSchema<JSONArray>{
+public class JSONArraySerializationSchemaTest {
 
-	/**
-	 * Serial version of the class
-	 */
-	private static final long serialVersionUID = -1911725512036206214L;
-
-	/**
-     * Convert json to JSON object
-     * 
-     * @param input json array
-     * @return JSONObject or JSONArray
-     * 
-     * @throws ParseException in case of problems parsing input string
-     */
-	@Override
-	public Object toJSON(JSONArray input) throws Exception {
-		return input;
+	protected JSONArraySerializationSchema schema;
+	
+	@Before
+	public void setUp() {
+		schema = new JSONArraySerializationSchema();
+	}
+	
+	@Test
+	public void testToJSONWithJSONArray() throws Exception {
+		JSONArray array = new JSONArray();
+		JSONArray result = (JSONArray) schema.toJSON(array);
+		assertEquals(array, result);
 	}
 
+	@Test
+	public void testToJSONWithNull() throws Exception {
+		JSONArray result = (JSONArray) schema.toJSON(null);
+		assertEquals(null, result);
+	}
 }

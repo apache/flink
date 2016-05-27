@@ -151,17 +151,6 @@ public class RethinkDBSink<OUT> extends RichSinkFunction<OUT> implements Seriali
 	private String password = DEFAULT_PASSWORD;
 
 	/**
-	 * Set durability
-	 * 
-	 * @param durability
-	 * 
-	 * @see #Durability
-	 */
-	public void setDurability(Durability durability) {
-		this.durability = durability;
-	}
-
-	/**
 	 * Durability configuration
 	 */
 	protected Durability durability = Durability.hard;
@@ -283,6 +272,47 @@ public class RethinkDBSink<OUT> extends RichSinkFunction<OUT> implements Seriali
 		rethinkDbConnection.close();
 		
 		super.close();
+	}
+
+	/**
+	 * Set durability
+	 * 
+	 * @param durability cannot be <code>null</code>
+	 * 
+	 * @throws IllegalArgumentException if durability is <code>null</code>
+	 * 
+	 * @see #Durability
+	 */
+	public void setDurability(Durability durability) {
+		if ( durability == null ) {
+			throw new IllegalArgumentException("Durability cannot be null " + durability);
+		}
+		this.durability = durability;
+	}
+
+	/**
+	 * @return the durability
+	 */
+	public Durability getDurability() {
+		return durability;
+	}
+
+	/**
+	 * @return the conflict
+	 */
+	public ConflictStrategy getConflictStrategy() {
+		return conflict;
+	}
+
+	/**
+	 * @param conflict the conflict to set
+	 */
+	public void setConflictStrategy(ConflictStrategy conflict) {
+		if ( conflict == null ) {
+			throw new IllegalArgumentException("ConflictStrategy cannot be null " + conflict);
+		}
+		
+		this.conflict = conflict;
 	}
 
 	/**
