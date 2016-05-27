@@ -64,6 +64,7 @@ public interface RuntimeContext {
 	 * 
 	 * @return The metric group for this parallel subtask.
 	 */
+	@PublicEvolving
 	MetricGroup getMetricGroup();
 
 	/**
