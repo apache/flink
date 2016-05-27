@@ -189,8 +189,16 @@ public class NFAITCase extends TestLogger {
 		timeoutPattern2.put("start", new Event(2, "start", 1.0));
 		timeoutPattern2.put("middle", new Event(3, "middle", 1.0));
 
+		Map<String, Event> timeoutPattern3 = new HashMap<>();
+		timeoutPattern3.put("start", new Event(1, "start", 1.0));
+
+		Map<String, Event> timeoutPattern4 = new HashMap<>();
+		timeoutPattern4.put("start", new Event(2, "start", 1.0));
+
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern1, 11L));
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern2, 13L));
+		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern3, 11L));
+		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern4, 13L));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
 			private static final long serialVersionUID = 7907391379273505897L;
@@ -230,7 +238,7 @@ public class NFAITCase extends TestLogger {
 		}
 
 		assertEquals(1, resultingPatterns.size());
-		assertEquals(2, resultingTimeoutPatterns.size());
+		assertEquals(expectedTimeoutPatterns.size(), resultingTimeoutPatterns.size());
 
 		assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
 	}
