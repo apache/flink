@@ -378,7 +378,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestExecuteTwice {
+	public static final class TestExecuteTwice {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -388,7 +388,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestEager {
+	public static final class TestEager {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -396,7 +396,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestGetRuntime {
+	public static final class TestGetRuntime {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -405,7 +405,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestGetJobID {
+	public static final class TestGetJobID {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -414,7 +414,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestGetAccumulator {
+	public static final class TestGetAccumulator {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -423,7 +423,7 @@ public class ClientTest {
 		}
 	}
 
-	private static final class TestGetAllAccumulator {
+	public static final class TestGetAllAccumulator {
 
 		public static void main(String args[]) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
