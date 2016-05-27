@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The FlinkKinesisProducer allows to produce from a Flink DataStream into Kinesis.
@@ -172,8 +172,15 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 
 		producerConfig.setRegion(configProps.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION));
 		producerConfig.setCredentialsProvider(AWSUtil.getCredentialsProvider(configProps));
-		//config.setCollectionMaxCount(1);
-		//config.setAggregationMaxCount(1);
+		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)) {
+			producerConfig.setCollectionMaxCount(
+					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)));
+		}
+		if (configProps.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)) {
+			producerConfig.setAggregationMaxCount(
+					Long.parseLong(configProps.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)));
+		}
+
 		producer = new KinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override

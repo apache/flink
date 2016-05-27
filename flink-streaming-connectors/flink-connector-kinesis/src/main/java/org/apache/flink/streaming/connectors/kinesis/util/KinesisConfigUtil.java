@@ -24,7 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstan
 
 import java.util.Properties;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utilities for Flink Kinesis connector configuration.
@@ -119,6 +119,22 @@ public class KinesisConfigUtil {
 				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET));
 			} catch (NumberFormatException e) {
 				throw new IllegalArgumentException("Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
+			}
+		}
+
+		if (config.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT)) {
+			try {
+				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid long value.");
+			}
+		}
+
+		if (config.containsKey(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT)) {
+			try {
+				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_PRODUCER_AGGREGATION_MAX_COUNT));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Invalid value given for maximum number of items to pack into an aggregated record. Must be a valid long value.");
 			}
 		}
 	}
