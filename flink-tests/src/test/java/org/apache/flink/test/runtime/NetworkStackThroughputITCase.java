@@ -18,27 +18,28 @@
 
 package org.apache.flink.test.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
 import org.junit.Ignore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.test.util.JavaProgramTestBase;
 
 @Ignore
 public class NetworkStackThroughputITCase {
@@ -195,7 +196,11 @@ public class NetworkStackThroughputITCase {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordReader<SpeedTestRecord> reader = new RecordReader<>(getEnvironment().getInputGate(0), SpeedTestRecord.class);
+			RecordReader<SpeedTestRecord> reader = new RecordReader<>(
+					getEnvironment().getInputGate(0),
+					SpeedTestRecord.class,
+					getEnvironment().getTaskManagerInfo().getTmpDirectories());
+
 			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
 
 			try {
@@ -215,7 +220,10 @@ public class NetworkStackThroughputITCase {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordReader<SpeedTestRecord> reader = new RecordReader<>(getEnvironment().getInputGate(0), SpeedTestRecord.class);
+			RecordReader<SpeedTestRecord> reader = new RecordReader<>(
+					getEnvironment().getInputGate(0),
+					SpeedTestRecord.class,
+					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
 			try {
 				boolean isSlow = getTaskConfiguration().getBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, false);

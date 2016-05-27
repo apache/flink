@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.Map;
-import java.util.Objects;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -87,8 +87,9 @@ public class YarnTaskManagerRunner {
 		}
 
 		// Infer the resource identifier from the environment variable
-		String containerID = Objects.requireNonNull(System.getenv(Environment.CONTAINER_ID.key()));
+		String containerID = Preconditions.checkNotNull(envs.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID));
 		final ResourceID resourceId = new ResourceID(containerID);
+		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		ugi.doAs(new PrivilegedAction<Object>() {
 			@Override

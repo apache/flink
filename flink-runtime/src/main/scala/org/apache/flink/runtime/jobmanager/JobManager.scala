@@ -440,8 +440,8 @@ class JobManager(
 
       val taskManager = msg.getTaskManager
       val resourceId = msg.getResourceID
-      log.warn(s"TaskManager's resource id $resourceId is not registered with ResourceManager. " +
-        s"Refusing registration.")
+      log.warn(s"TaskManager's resource id $resourceId failed to register at ResourceManager. " +
+        s"Refusing registration because of\n${msg.getMessage}.")
 
       taskManager ! decorateMessage(
         RefuseRegistration(new IllegalStateException(

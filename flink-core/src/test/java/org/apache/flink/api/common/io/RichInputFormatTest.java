@@ -27,6 +27,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.util.DummyMetricGroup;
 import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,7 +41,7 @@ public class RichInputFormatTest {
 	public void testCheckRuntimeContextAccess() {
 		final SerializedInputFormat<Value> inputFormat = new SerializedInputFormat<Value>();
 		final TaskInfo taskInfo = new TaskInfo("test name", 1, 3, 0);
-		inputFormat.setRuntimeContext(new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>()));
+		inputFormat.setRuntimeContext(new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>(), new DummyMetricGroup()));
 
 		Assert.assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		Assert.assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);

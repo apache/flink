@@ -27,7 +27,6 @@ import org.apache.calcite.tools.Programs
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanGenException
 import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
@@ -137,16 +136,16 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Emits a [[Table]] to a [[TableSink]].
+    * Writes a [[Table]] to a [[TableSink]].
     *
     * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
-    * [[TableSink]] to emit it.
+    * [[TableSink]] to write it.
     *
-    * @param table The [[Table]] to emit.
-    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
-  override private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit = {
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = {
 
     sink match {
       case streamSink: StreamTableSink[T] =>
@@ -255,10 +254,11 @@ abstract class StreamTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new PlanGenException(
+        throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
-            "Please consider filing a bug report.", e)
+            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
     }
 
     dataStreamPlan match {

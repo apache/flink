@@ -46,7 +46,8 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
             case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
             case other => Alias(other, s"_c$i")
           }
-          case _ => throw new IllegalArgumentException
+          case _ =>
+            throw new RuntimeException("This should never be called and probably points to a bug.")
         }
     }
     Project(newProjectList, child)
@@ -235,13 +236,13 @@ case class Aggregate(
   }
 }
 
-case class Union(left: LogicalNode, right: LogicalNode) extends BinaryNode {
+case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
-    relBuilder.union(true)
+    relBuilder.union(all)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {

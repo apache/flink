@@ -66,7 +66,7 @@ public class TriangleListing {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		long vertexCount = 1 << scale;
+		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
@@ -107,7 +107,7 @@ public class TriangleListing {
 			break;
 		default:
 			System.out.println("Lists all distinct triangles in the generated RMat graph.");
-			System.out.println("");
+			System.out.println();
 			System.out.println("usage:");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
 			System.out.println("  TriangleListing [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");

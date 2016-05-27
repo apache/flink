@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
@@ -32,41 +33,44 @@ public class ResourceID implements Serializable {
 	private final String resourceId;
 
 	public ResourceID(String resourceId) {
+		Preconditions.checkNotNull(resourceId, "ResourceID must not be null");
 		this.resourceId = resourceId;
 	}
 
-	public String getResourceId() {
+	/**
+	 * Gets the Resource Id as string
+	 * @return Stringified version of the ResourceID
+	 */
+	public final String getResourceIdString() {
 		return resourceId;
 	}
 
+	@Override
+	public final boolean equals(Object o) {
+		return this == o ||
+				(o != null && o.getClass() == ResourceID.class && 
+					this.resourceId.equals(((ResourceID) o).resourceId));
+	}
+
+	@Override
+	public final int hashCode() {
+		return resourceId.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return "ResourceID (" + resourceId + ')';
+	}
+
+	// ------------------------------------------------------------------------
+	//  factory
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Generate a random resource id.
 	 * @return A random resource id.
 	 */
 	public static ResourceID generate() {
 		return new ResourceID(new AbstractID().toString());
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		} else if (o == null || getClass() != o.getClass()) {
-			return false;
-		} else {
-			return resourceId.equals(((ResourceID) o).resourceId);
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return resourceId.hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return "ResourceID{" +
-			"resourceId='" + resourceId + '\'' +
-			'}';
 	}
 }

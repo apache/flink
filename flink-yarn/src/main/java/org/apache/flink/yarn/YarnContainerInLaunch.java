@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.hadoop.yarn.api.records.Container;
 
 import static java.util.Objects.requireNonNull;
@@ -26,17 +27,22 @@ import static java.util.Objects.requireNonNull;
  * This class describes a container in which a TaskManager is being launched (or
  * has been launched) but where the TaskManager has not properly registered, yet.
  */
-public class YarnContainerInLaunch {
-	
+public class YarnContainerInLaunch extends ResourceID {
+
 	private final Container container;
-	
+
 	private final long timestamp;
-	
+
+	public YarnContainerInLaunch(Container container) {
+		this(container, System.currentTimeMillis());
+	}
+
 	public YarnContainerInLaunch(Container container, long timestamp) {
+		super(container.getId().toString());
 		this.container = requireNonNull(container);
 		this.timestamp = timestamp;
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	public Container container() {

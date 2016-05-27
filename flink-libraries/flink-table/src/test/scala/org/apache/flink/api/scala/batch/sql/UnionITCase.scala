@@ -39,7 +39,7 @@ class UnionITCase(
   extends TableProgramsTestBase(mode, configMode) {
 
   @Test
-  def testUnion(): Unit = {
+  def testUnionAll(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -58,16 +58,31 @@ class UnionITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  //TODO: activate for EFFICIENT mode
+  @Test
+  def testUnion(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT c FROM t1 UNION (SELECT c FROM t2)"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
+    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
+    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   @Test
   def testUnionWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
 
     val sqlQuery = "SELECT c FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))" +
@@ -85,16 +100,11 @@ class UnionITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  //TODO: activate for EFFICIENT mode
   @Test
   def testUnionWithAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    if (tEnv.getConfig.getEfficientTypeUsage) {
-      return
-    }
 
     val sqlQuery = "SELECT count(c) FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))"

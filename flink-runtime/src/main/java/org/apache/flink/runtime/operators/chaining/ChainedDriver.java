@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -50,6 +51,8 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	protected ExecutionConfig executionConfig;
 
 	protected boolean objectReuseEnabled = false;
+	
+	protected MetricGroup metrics;
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
@@ -60,14 +63,15 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 		this.taskName = taskName;
 		this.outputCollector = outputCollector;
 		this.userCodeClassLoader = userCodeClassLoader;
+		this.metrics = parent.getEnvironment().getMetricGroup().addOperator(taskName);
 
 		Environment env = parent.getEnvironment();
 
 		if (parent instanceof BatchTask) {
-			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext();
+			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext(metrics);
 		} else {
 			this.udfContext = new DistributedRuntimeUDFContext(env.getTaskInfo(), userCodeClassLoader,
-					parent.getExecutionConfig(), env.getDistributedCacheEntries(), accumulatorMap
+					parent.getExecutionConfig(), env.getDistributedCacheEntries(), accumulatorMap, metrics
 			);
 		}
 

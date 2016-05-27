@@ -73,6 +73,10 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** The default heartbeat interval during regular operation */
 	private static final int DEFAULT_YARN_HEARTBEAT_INTERVAL_MS = 5000;
 
+	/** Environment variable name of the final container id used by the Flink ResourceManager.
+	 * Container ID generation may vary across Hadoop versions. */
+	final static String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
+
 	/** The containers where a TaskManager is starting and we are waiting for it to register */
 	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
 
@@ -210,7 +214,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 
 			final long now = System.currentTimeMillis();
 			for (Container c : containersFromPreviousAttempts) {
-				containersInLaunch.put(new ResourceID(c.getId().toString()), new YarnContainerInLaunch(c, now));
+				YarnContainerInLaunch containerInLaunch = new YarnContainerInLaunch(c, now);
+				containersInLaunch.put(containerInLaunch, containerInLaunch);
 			}
 
 			// adjust the progress indicator
@@ -332,7 +337,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		if (inLaunch == null) {
 			throw new Exception("Cannot register Worker - unknown resource id " + resourceID);
 		} else {
-			return new RegisteredYarnWorkerNode(resourceID, inLaunch.container());
+			return new RegisteredYarnWorkerNode(inLaunch.container());
 		}
 	}
 
@@ -346,7 +351,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			if (yci != null) {
 				LOG.info("YARN container consolidation recognizes Resource {} ", resourceID);
 
-				accepted.add(new RegisteredYarnWorkerNode(resourceID, yci.container()));
+				accepted.add(new RegisteredYarnWorkerNode(yci.container()));
 			}
 			else {
 				LOG.info("YARN container consolidation does not recognize TaskManager {}",
@@ -382,24 +387,26 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			// decide whether to return the container, or whether to start a TaskManager
 			if (numRegistered + containersInLaunch.size() < numRequired) {
 				// start a TaskManager
-				final ResourceID containerIdString = new ResourceID(container.getId().toString());
-				final long now = System.currentTimeMillis();
-				containersInLaunch.put(containerIdString, new YarnContainerInLaunch(container, now));
+				final YarnContainerInLaunch containerInLaunch = new YarnContainerInLaunch(container);
+				containersInLaunch.put(containerInLaunch, containerInLaunch);
 
-				String message = "Launching TaskManager in container " + containerIdString
+				String message = "Launching TaskManager in container " + containerInLaunch
 					+ " on host " + container.getNodeId().getHost();
 				LOG.info(message);
 				sendInfoMessage(message);
 
 				try {
+					// set a special environment variable to uniquely identify this container
+					taskManagerLaunchContext.getEnvironment()
+						.put(ENV_FLINK_CONTAINER_ID, containerInLaunch.getResourceIdString());
 					nodeManagerClient.startContainer(container, taskManagerLaunchContext);
 				}
 				catch (Throwable t) {
 					// failed to launch the container
-					containersInLaunch.remove(containerIdString);
+					containersInLaunch.remove(containerInLaunch);
 
 					// return container, a new one will be requested eventually
-					LOG.error("Could not start TaskManager in container " + containerIdString, t);
+					LOG.error("Could not start TaskManager in container " + containerInLaunch, t);
 					containersBeingReturned.put(container.getId(), container);
 					resourceManagerClient.releaseAssignedContainer(container.getId());
 				}

@@ -29,8 +29,16 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractRecordRe
 
 	private T currentRecord;
 
-	public RecordReader(InputGate inputGate, Class<T> recordType) {
-		super(inputGate);
+	/**
+	 * Creates a new RecordReader that de-serializes records from the given input gate and
+	 * can spill partial records to disk, if they grow large.
+	 *
+	 * @param inputGate The input gate to read from.
+	 * @param tmpDirectories The temp directories. USed for spilling if the reader concurrently
+	 *                       reconstructs multiple large records.
+	 */
+	public RecordReader(InputGate inputGate, Class<T> recordType, String[] tmpDirectories) {
+		super(inputGate, tmpDirectories);
 
 		this.recordType = recordType;
 	}
@@ -73,10 +81,7 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractRecordRe
 		try {
 			return recordType.newInstance();
 		}
-		catch (InstantiationException e) {
-			throw new RuntimeException("Cannot instantiate class " + recordType.getName(), e);
-		}
-		catch (IllegalAccessException e) {
+		catch (InstantiationException | IllegalAccessException e) {
 			throw new RuntimeException("Cannot instantiate class " + recordType.getName(), e);
 		}
 	}

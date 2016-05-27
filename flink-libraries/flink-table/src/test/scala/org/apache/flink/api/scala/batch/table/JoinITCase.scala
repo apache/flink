@@ -21,8 +21,7 @@ package org.apache.flink.api.scala.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.{ValidationException, Row, TableEnvironment}
+import org.apache.flink.api.table.{TableException, ValidationException, Row, TableEnvironment}
 import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
@@ -140,7 +139,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       .select('c, 'g)
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testNoEqualityJoinPredicate1(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -154,7 +153,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       .select('c, 'g).collect()
   }
 
-  @Test(expected = classOf[PlanGenException])
+  @Test(expected = classOf[TableException])
   def testNoEqualityJoinPredicate2(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

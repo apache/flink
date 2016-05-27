@@ -61,9 +61,6 @@ public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	// Key for storing it in the Job Configuration
-	public static final String CONFIG_KEY = "runtime.config";
-
 	/**
 	 * The constant to use for the parallelism, if the system should use the number
 	 * of currently available slots.

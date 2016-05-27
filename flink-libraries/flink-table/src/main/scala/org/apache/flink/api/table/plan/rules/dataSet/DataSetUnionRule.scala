@@ -22,6 +22,7 @@ import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalUnion
+import org.apache.calcite.rel.rules.UnionToDistinctRule
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
 
 class DataSetUnionRule
@@ -33,7 +34,9 @@ class DataSetUnionRule
   {
 
   /**
-   * Only translate UNION ALL
+   * Only translate UNION ALL.
+   * Note: A distinct Union are translated into
+   * an Aggregate on top of a UNION ALL by [[UnionToDistinctRule]]
    */
   override def matches(call: RelOptRuleCall): Boolean = {
     val union: LogicalUnion = call.rel(0).asInstanceOf[LogicalUnion]

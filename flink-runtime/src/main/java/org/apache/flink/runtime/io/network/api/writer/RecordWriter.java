@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -206,6 +207,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for(RecordSerializer<?> serializer : serializers) {
 			serializer.setReporter(reporter);
+		}
+	}
+
+	/**
+	 * Sets the metric group for this RecordWriter.
+	 * @param metrics
+     */
+	public void setMetricGroup(IOMetricGroup metrics) {
+		for(RecordSerializer<?> serializer : serializers) {
+			serializer.instantiateMetrics(metrics);
 		}
 	}
 

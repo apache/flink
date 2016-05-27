@@ -260,6 +260,29 @@ class Table(
   }
 
   /**
+    * Union two [[Table]]s with duplicate records removed.
+    * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.union(right)
+    * }}}
+    */
+  def union(right: Table): Table = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Union on stream tables is currently not supported.")
+    }
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
+    }
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, false).validate(tableEnv))
+  }
+
+  /**
     * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
     *
@@ -276,7 +299,7 @@ class Table(
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
-    new Table(tableEnv, Union(logicalPlan, right.logicalPlan).validate(tableEnv))
+    new Table(tableEnv, Union(logicalPlan, right.logicalPlan, true).validate(tableEnv))
   }
 
   /**
@@ -315,16 +338,16 @@ class Table(
   }
 
   /**
-    * Emits the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
+    * Writes the [[Table]] to a [[TableSink]]. A [[TableSink]] defines an external storage location.
     *
-    * A batch [[Table]] can only be emitted by a
+    * A batch [[Table]] can only be written to a
     * [[org.apache.flink.api.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
     * [[org.apache.flink.api.table.sinks.StreamTableSink]].
     *
-    * @param sink The [[TableSink]] to which the [[Table]] is emitted.
+    * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  def toSink[T](sink: TableSink[T]): Unit = {
+  def writeToSink[T](sink: TableSink[T]): Unit = {
 
     // get schema information of table
     val rowType = getRelNode.getRowType
@@ -336,7 +359,7 @@ class Table(
     val configuredSink = sink.configure(fieldNames, fieldTypes)
 
     // emit the table to the configured table sink
-    tableEnv.emitToSink(this, configuredSink)
+    tableEnv.writeToSink(this, configuredSink)
   }
 }
 
