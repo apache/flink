@@ -86,10 +86,19 @@ The KNN implementation can be controlled by the following parameters:
         <td><strong>Blocks</strong></td>
         <td>
           <p>
-            Sets the number of blocks into which the input data will be split. This number should be set
-            at least to the degree of parallelism. If no value is specified, then the parallelism of the
+            Sets the number of blocks into which the input data will be split. This number
+             should be set at least to the degree of parallelism. If no value is specified, then the parallelism of the
             input [[DataSet]] is used as the number of blocks.
             (Default value: <strong>None</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>computeExactKNNParam</strong></td>
+        <td>
+          <p>
+             A boolean variable that specifies whether to do an exact knn query
+            (Default value: <strong>false</strong>)
           </p>
         </td>
       </tr>
@@ -97,15 +106,33 @@ The KNN implementation can be controlled by the following parameters:
         <td><strong>UseQuadTreeParam</strong></td>
         <td>
           <p>
-             A boolean variable that whether or not to use a Quadtree to partition the training set to potentially simplify the KNN search.  If no value is specified, the code will automatically decide whether or not to use a Quadtree.  Use of a Quadtree scales well with the number of training and testing points, though poorly with the dimension.
+             A boolean variable that whether or not to use a Quadtree to partition the training
+              set to potentially simplify the KNN search.  If no value is specified, the code will
+               automatically decide whether or not to use a Quadtree.  Use of a Quadtree
+                scales well with the number of training and testing points, though poorly
+                 with the dimension.
             (Default value: <strong>None</strong>)
           </p>
         </td>
       </tr>
       <tr>
+        <td><strong>UseLSHParam</strong></td>
+        <td>
+          <p>
+             A boolean variable that whether or not to use the LSH method for the approximate
+             knn query
+            (Default value: <strong>None</strong>)
+          </p>
+        </td>
+      </tr>
+
+      <tr>
         <td><strong>SizeHint</strong></td>
         <td>
-          <p>Specifies whether the training set or test set is small to optimize the cross product operation needed for the KNN search.  If the training set is small this should be `CrossHint.FIRST_IS_SMALL` and set to `CrossHint.SECOND_IS_SMALL` if the test set is small.
+          <p>Specifies whether the training set or test set is small to optimize the cross
+           product operation needed for the KNN search.  If the training set is small this
+            should be `CrossHint.FIRST_IS_SMALL` and set to `CrossHint.SECOND_IS_SMALL` if
+             the test set is small.
              (Default value: <strong>None</strong>)
           </p>
         </td>

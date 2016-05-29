@@ -41,7 +41,8 @@ import Breeze._
 
 class zKNN extends basicKNN {
 
-  val alpha = 2 // number of times we randomly shift points
+  val alpha = 2
+  // number of times we randomly shift points
   val r = scala.util.Random
 
   /**

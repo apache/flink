@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.nn
 
+
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.utils._
@@ -41,17 +42,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *       val trainingDS: DataSet[Vector] = ...
-  *       val testingDS: DataSet[Vector] = ...
+  *         val trainingDS: DataSet[Vector] = ...
+  *         val testingDS: DataSet[Vector] = ...
   *
-  *       val knn = KNN()
-  *         .setK(10)
-  *         .setBlocks(5)
-  *         .setDistanceMetric(EuclideanDistanceMetric())
+  *         val knn = KNN()
+  *           .setK(10)
+  *           .setBlocks(5)
+  *           .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *       knn.fit(trainingDS)
+  *         knn.fit(trainingDS)
   *
-  *       val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *         val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=
@@ -69,7 +70,7 @@ import scala.reflect.ClassTag
   * at least to the degree of parallelism. If no value is specified, then the parallelism of the
   * input [[DataSet]] is used as the number of blocks. (Default value: '''None''')
   *
-  *   * - [[org.apache.flink.ml.nn.KNN.computeExactKNNParam]]
+  * - [[org.apache.flink.ml.nn.KNN.computeExactKNNParam]]
   * A boolean variable that whether or not to do an exact or approximate knn query
   * (Default value:  ```false```)
   *
@@ -80,9 +81,13 @@ import scala.reflect.ClassTag
   * with the number of training and testing points, though poorly with the dimension.
   * (Default value:  ```None```)
   *
-  *   * - [[org.apache.flink.ml.nn.KNN.UseLSHParam]]
+  * - [[org.apache.flink.ml.nn.KNN.UseLSHParam]]
   * A boolean variable that whether or not to use a LSH based hashing
-  * (Default value:  ```false```)
+  * (Default value:  ```None```)
+  *
+  *   * - [[org.apache.flink.ml.nn.KNN.UseZValuesParam]]
+  * A boolean variable that whether or not to use a z-value based hashing
+  * (Default value:  ```None```)
   *
   * - [[org.apache.flink.ml.nn.KNN.SizeHint]]
   * Specifies whether the training set or test set is small to optimize the cross
@@ -129,32 +134,65 @@ class KNN extends Predictor[KNN] {
     * @param computeExactKNN Sets whether to do exact or approximate KNN search
     */
   def setExact(computeExactKNN: Boolean): KNN = {
+    if (computeExactKNN && parameters.get(UseLSHParam).isDefined) {
+      require(!parameters.get(UseLSHParam).get, "parameters setExact and" +
+        " setUseLSH cannot both be true!!\"")
+    }
+    if (computeExactKNN && parameters.get(UseZValuesParam).isDefined) {
+      require(!parameters.get(UseZValuesParam).get, "parameters setExact and" +
+        " setUseZValues cannot both be true!!\"")
+    }
     parameters.add(computeExactKNNParam, computeExactKNN)
     this
   }
 
-  /**
-   * Sets the Boolean variable that decides whether to use the QuadTree or not
-   */
+  /** Sets whether to use Quadtree
+    * @param useQuadTree Boolean variable that decides whether to use the QuadTree
+    */
   def setUseQuadTree(useQuadTree: Boolean): KNN = {
     if (useQuadTree) {
       require(parameters(DistanceMetric).isInstanceOf[SquaredEuclideanDistanceMetric] ||
-        parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric])
+        parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric],
+        "when using the quadtree, metric must be Euclidean!")
+      if (parameters.get(computeExactKNNParam).isDefined) {
+        require(parameters.get(computeExactKNNParam).get, "parameters setUseZValues and" +
+          "when using quadtree, setExact cannot be false!")
+      }
     }
     parameters.add(UseQuadTreeParam, useQuadTree)
     this
   }
 
+  /** Sets whether to use z-value based approximate KNN
+    * @param UseZValues Boolean variable that decides whether to LSH based approximate KNN
+    */
+  def setUseZValues(UseZValues: Boolean): KNN = {
+    if (UseZValues && parameters.get(computeExactKNNParam).isDefined) {
+      require(!parameters.get(computeExactKNNParam).get, "parameters setUseZValues and" +
+        " setExact cannot both be true!!\"")
+    }
+    parameters.add(UseZValuesParam, UseZValues)
+    this
+  }
+
+  /** Sets whether to use LSH based approximate KNN
+    * @param UseLSH Boolean variable that decides whether to LSH based approximate KNN
+    */
   def setUseLSH(UseLSH: Boolean): KNN = {
+    if (UseLSH && parameters.get(computeExactKNNParam).isDefined) {
+      require(!parameters.get(computeExactKNNParam).get, "parameters setUseLSH and" +
+        " setExact cannot both be true!!\"")
+    }
+
     parameters.add(UseLSHParam, UseLSH)
     this
   }
 
-  /**
-   * Parameter a user can specify if one of the training or test sets are small
-   * @param sizeHint
-   * @return
-   */
+  /** Sets hint for when one of the training or test set is small
+    * Parameter a user can specify if one of the training or test sets are small
+    * @param sizeHint use FIRST_IS_SMALL or SECOND_IS_SMALL
+    *                 if the training and test sets are respectively small
+    */
   def setSizeHint(sizeHint: CrossHint): KNN = {
     parameters.add(SizeHint, sizeHint)
     this
@@ -184,8 +222,12 @@ object KNN {
     val defaultValue: Option[Boolean] = None
   }
 
+  case object UseZValuesParam extends Parameter[Boolean] {
+    val defaultValue: Option[Boolean] = None
+  }
+
   case object UseLSHParam extends Parameter[Boolean] {
-    val defaultValue: Option[Boolean] = Some(false)
+    val defaultValue: Option[Boolean] = None
   }
 
   case object SizeHint extends Parameter[CrossHint] {
@@ -201,12 +243,20 @@ object KNN {
     */
   implicit def fitKNN[T <: FlinkVector : TypeInformation] = new FitOperation[KNN, T] {
     override def fit(
-      instance: KNN,
-      fitParameters: ParameterMap,
-      input: DataSet[T]): Unit = {
+                      instance: KNN,
+                      fitParameters: ParameterMap,
+                      input: DataSet[T]): Unit = {
       val resultParameters = instance.parameters ++ fitParameters
 
       require(resultParameters.get(K).isDefined, "K is needed for calculation")
+
+      // if using z-values, make sure dimension <= 30
+      if (resultParameters.get(UseZValuesParam).isDefined) {
+        if (resultParameters.get(UseZValuesParam).get) {
+          require(input.first(1).collect().head.size <= 30, "dimension of points" +
+            "should be <= 30 when using z-values!")
+        }
+      }
 
       val blocks = resultParameters.get(Blocks).getOrElse(input.getParallelism)
       val partitioner = FlinkMLTools.ModuloKeyPartitioner
@@ -224,9 +274,9 @@ object KNN {
   implicit def predictValues[T <: FlinkVector : ClassTag : TypeInformation] = {
     new PredictDataSetOperation[KNN, T, (FlinkVector, Array[FlinkVector])] {
       override def predictDataSet(
-        instance: KNN,
-        predictParameters: ParameterMap,
-        input: DataSet[T]): DataSet[(FlinkVector,
+                                   instance: KNN,
+                                   predictParameters: ParameterMap,
+                                   input: DataSet[T]): DataSet[(FlinkVector,
         Array[FlinkVector])] = {
         val resultParameters = instance.parameters ++ predictParameters
 
@@ -264,13 +314,13 @@ object KNN {
                   val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
                     training.values.head.size * math.log(4.0) +
                       math.log(math.log(training.values.length))
-                       < math.log(training.values.length)  &&
+                      < math.log(training.values.length) &&
                       (metric.isInstanceOf[EuclideanDistanceMetric] ||
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
                     if (metric.isInstanceOf[EuclideanDistanceMetric] ||
-                      metric.isInstanceOf[SquaredEuclideanDistanceMetric]){
+                      metric.isInstanceOf[SquaredEuclideanDistanceMetric]) {
                       val quadTreeKNN = new QuadtreeKNN()
                       quadTreeKNN.knnQueryWithQuadTree(training.values, testing.values,
                         k, metric, out)
@@ -278,16 +328,17 @@ object KNN {
                       throw new IllegalArgumentException(s" Error: metric must be" +
                         s" Euclidean or SquaredEuclidean!")
                     }
-                  } else if (exact){
+                  } else if (exact) {
                     val basicKNNClass = new basicKNN()
                     basicKNNClass.knnQueryBasic(training.values, testing.values, k, metric, out)
-                  } else if (!exact && training.values.head.size < 30){
+                  } else if (!exact && training.values.head.size < 30) {
                     val zKNNClass = new zKNN()
                     zKNNClass.zknnQuery(training.values, testing.values, k, metric, out)
                   } else if (lsh) {
                     val lshKNNClass = new lshKNN()
                     lshKNNClass.lshknnQuery(training.values, testing.values, k, metric, out)
-                  } else { // when not exact and dim > 30, use LSH
+                  } else {
+                    // when not exact and dim > 30, use LSH
                     val lshKNNClass = new lshKNN()
                     lshKNNClass.lshknnQuery(training.values, testing.values, k, metric, out)
                   }

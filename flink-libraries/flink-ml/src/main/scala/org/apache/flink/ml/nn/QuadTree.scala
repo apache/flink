@@ -81,7 +81,7 @@ class QuadTree(
     def overlap(
                  queryPoint: Vector,
                  radius: Double): Boolean = {
-      (0 until queryPoint.size).forall{ i =>
+      (0 until queryPoint.size).forall { i =>
         (queryPoint(i) - radius < center(i) + width(i) / 2) &&
           (queryPoint(i) + radius > center(i) - width(i) / 2)
       }

@@ -43,6 +43,48 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
+  it should "throw an exception setExact is true and setUseLSH is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseLSH(true)
+        .setExact(true)
+    }
+
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setExact(true)
+        .setUseLSH(true)
+    }
+  }
+
+  it should "throw an exception setExact is true and setUseZvalues is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseZValues(true)
+        .setExact(true)
+    }
+
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setExact(true)
+        .setUseZValues(true)
+    }
+  }
+
+  it should "throw an exception setExact is false and setUseQuadtree is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseQuadTree(true)
+        .setExact(false)
+    }
+
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setExact(false)
+        .setUseQuadTree(true)
+    }
+  }
+
   val env = ExecutionEnvironment.getExecutionEnvironment
 
   // prepare data
@@ -70,8 +112,8 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     LabeledVector(1.0000, DenseVector(0.000002, 0.000002)),
     LabeledVector(1.0000, DenseVector(0.000003, 0.000003))))
     .map {
-    v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
-  }.sortBy(_._2).take(3).map(_._1).toArray
+      v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
+    }.sortBy(_._2).take(3).map(_._1).toArray
 
   it should "calculate exact kNN join correctly without using a Quadtree" in {
 
@@ -87,7 +129,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     knn.fit(trainingSet)
     val result = knn.predict(testingSet).collect()
 
-    result.head._2.foreach(x=>println(x))
+    result.head._2.foreach(x => println(x))
     result.size should be(1)
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
