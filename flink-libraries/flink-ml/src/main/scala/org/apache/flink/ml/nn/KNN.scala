@@ -42,17 +42,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *         val trainingDS: DataSet[Vector] = ...
-  *         val testingDS: DataSet[Vector] = ...
+  *           val trainingDS: DataSet[Vector] = ...
+  *           val testingDS: DataSet[Vector] = ...
   *
-  *         val knn = KNN()
-  *           .setK(10)
-  *           .setBlocks(5)
-  *           .setDistanceMetric(EuclideanDistanceMetric())
+  *           val knn = KNN()
+  *             .setK(10)
+  *             .setBlocks(5)
+  *             .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *         knn.fit(trainingDS)
+  *           knn.fit(trainingDS)
   *
-  *         val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *           val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=
@@ -83,9 +83,9 @@ import scala.reflect.ClassTag
   *
   * - [[org.apache.flink.ml.nn.KNN.UseLSHParam]]
   * A boolean variable that whether or not to use a LSH based hashing
-  * (Default value:  ```None```)
+  * (Default value:  ```false```)
   *
-  *   * - [[org.apache.flink.ml.nn.KNN.UseZValuesParam]]
+  * * - [[org.apache.flink.ml.nn.KNN.UseZValuesParam]]
   * A boolean variable that whether or not to use a z-value based hashing
   * (Default value:  ```None```)
   *
@@ -157,6 +157,8 @@ class KNN extends Predictor[KNN] {
       if (parameters.get(computeExactKNNParam).isDefined) {
         require(parameters.get(computeExactKNNParam).get, "parameters setUseZValues and" +
           "when using quadtree, setExact cannot be false!")
+      } else {
+        setExact(true)
       }
     }
     parameters.add(UseQuadTreeParam, useQuadTree)
@@ -167,9 +169,18 @@ class KNN extends Predictor[KNN] {
     * @param UseZValues Boolean variable that decides whether to LSH based approximate KNN
     */
   def setUseZValues(UseZValues: Boolean): KNN = {
-    if (UseZValues && parameters.get(computeExactKNNParam).isDefined) {
-      require(!parameters.get(computeExactKNNParam).get, "parameters setUseZValues and" +
-        " setExact cannot both be true!!\"")
+    if (UseZValues) {
+      if (parameters.get(computeExactKNNParam).isDefined) {
+        require(!parameters.get(computeExactKNNParam).get, "parameters setUseZValues and" +
+          " setExact cannot both be true!!\"")
+      } else {
+        setExact(false)
+      }
+
+      if (parameters.get(UseLSHParam).isDefined) {
+        require(!parameters.get(UseLSHParam).get, "parameters setUseZvalues and" +
+          " setUseLSH cannot both be true!!\"")
+      }
     }
     parameters.add(UseZValuesParam, UseZValues)
     this
@@ -179,9 +190,17 @@ class KNN extends Predictor[KNN] {
     * @param UseLSH Boolean variable that decides whether to LSH based approximate KNN
     */
   def setUseLSH(UseLSH: Boolean): KNN = {
-    if (UseLSH && parameters.get(computeExactKNNParam).isDefined) {
-      require(!parameters.get(computeExactKNNParam).get, "parameters setUseLSH and" +
-        " setExact cannot both be true!!\"")
+    if (UseLSH) {
+      if (parameters.get(computeExactKNNParam).isDefined) {
+        require(!parameters.get(computeExactKNNParam).get, "parameters setUseLSH and" +
+          " setExact cannot both be true!!\"")
+      } else {
+        setExact(false)
+      }
+      if (parameters.get(UseZValuesParam).isDefined) {
+        require(!parameters.get(UseZValuesParam).get, "parameters setUseLSH and" +
+          " setUseZvalues cannot both be true!!\"")
+      }
     }
 
     parameters.add(UseLSHParam, UseLSH)
@@ -215,7 +234,7 @@ object KNN {
   }
 
   case object computeExactKNNParam extends Parameter[Boolean] {
-    val defaultValue: Option[Boolean] = Some(false)
+    val defaultValue: Option[Boolean] = None
   }
 
   case object UseQuadTreeParam extends Parameter[Boolean] {
@@ -227,7 +246,7 @@ object KNN {
   }
 
   case object UseLSHParam extends Parameter[Boolean] {
-    val defaultValue: Option[Boolean] = None
+    val defaultValue: Option[Boolean] = Some(false)
   }
 
   case object SizeHint extends Parameter[CrossHint] {

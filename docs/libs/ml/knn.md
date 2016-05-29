@@ -115,6 +115,17 @@ The KNN implementation can be controlled by the following parameters:
           </p>
         </td>
       </tr>
+            <tr>
+              <td><strong>UseZValuesParam</strong></td>
+              <td>
+                <p>
+                   A boolean variable that whether or not to use z-value hashing for the approximate
+                   knn query
+                  (Default value: <strong>None</strong>)
+                </p>
+              </td>
+            </tr>
+
       <tr>
         <td><strong>UseLSHParam</strong></td>
         <td>
