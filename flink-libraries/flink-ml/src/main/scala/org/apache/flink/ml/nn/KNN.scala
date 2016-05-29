@@ -136,8 +136,12 @@ class KNN extends Predictor[KNN] {
   /**
    * Sets the Boolean variable that decides whether to use the QuadTree or not
    */
-  def setUseQuadTree(UseQuadTree: Boolean): KNN = {
-    parameters.add(UseQuadTreeParam, UseQuadTree)
+  def setUseQuadTree(useQuadTree: Boolean): KNN = {
+    if (useQuadTree) {
+      require(parameters(DistanceMetric).isInstanceOf[SquaredEuclideanDistanceMetric] ||
+        parameters(DistanceMetric).isInstanceOf[EuclideanDistanceMetric])
+    }
+    parameters.add(UseQuadTreeParam, useQuadTree)
     this
   }
 
@@ -275,21 +279,17 @@ object KNN {
                         s" Euclidean or SquaredEuclidean!")
                     }
                   } else if (exact){
-                    val basicknnClass = new basicknn()
-                    basicknnClass.knnQueryBasic(training.values, testing.values, k,
-                      metric, out)
+                    val basicKNNClass = new basicKNN()
+                    basicKNNClass.knnQueryBasic(training.values, testing.values, k, metric, out)
                   } else if (!exact && training.values.head.size < 30){
-                    val zknnClass = new zknn(k)
-                    zknnClass.zknnQuery(training.values, testing.values, k,
-                      metric, out)
+                    val zKNNClass = new zKNN()
+                    zKNNClass.zknnQuery(training.values, testing.values, k, metric, out)
                   } else if (lsh) {
-                    val lshClass = new lshKNN()
-                    lshClass.lshknnQuery(training.values, testing.values, k,
-                      metric, out)
-                  } else {
-                    val lshClass = new lshKNN()
-                    lshClass.lshknnQuery(training.values, testing.values, k,
-                      metric, out)
+                    val lshKNNClass = new lshKNN()
+                    lshKNNClass.lshknnQuery(training.values, testing.values, k, metric, out)
+                  } else { // when not exact and dim > 30, use LSH
+                    val lshKNNClass = new lshKNN()
+                    lshKNNClass.lshknnQuery(training.values, testing.values, k, metric, out)
                   }
                 }
               }

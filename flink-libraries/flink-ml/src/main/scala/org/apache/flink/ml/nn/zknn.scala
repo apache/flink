@@ -23,15 +23,25 @@ import org.apache.flink.ml.metrics.distances.DistanceMetric
 import org.apache.flink.util.Collector
 
 import scala.collection.immutable.Vector
-import scala.collection.mutable
 import scala.collection.mutable.Set
 
 import Breeze._
 
-class zknn(k: Int) extends basicknn {
+/**
+  * z-value based approach for doing an approximate knn query
+  *
+  * This method hashes the points to one-dimensional space using
+  * the z-value hashing function to do a quick knn search
+  *
+  * Since the z-value involves formin a binary string out of
+  * the coordinate values, this only applies to dimension ~ 30
+  *
+  * For dimensions larger than 30, LSH is used
+  */
 
-  val alpha = 2
-  val gamma = k
+class zKNN extends basicKNN {
+
+  val alpha = 2 // number of times we randomly shift points
   val r = scala.util.Random
 
   /**
@@ -40,7 +50,6 @@ class zknn(k: Int) extends basicknn {
     * @param testing test set
     * @param k number of neighbors to search for
     * @param metric distance used when computing the nearest neighbors
-    * @param queue a priority queue for basicknn query
     * @param out collector of output
     * @tparam T FlinkVector
     */
@@ -53,6 +62,8 @@ class zknn(k: Int) extends basicknn {
     // normalize test and training set
     val dim = training.head.size
     val bitMult = (30.0 / (dim.toDouble + 1.0)).floor.toInt
+
+    val gamma = k
 
     // normalize test and training sets, zip training set.
     val testTrainMinMax = getNormalizingParameters(training.union(testing.map(test => test._2)))

@@ -22,17 +22,22 @@ import org.apache.flink.ml.metrics.distances.DistanceMetric
 import org.apache.flink.util.Collector
 
 import scala.collection.immutable.Vector
-import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import org.apache.flink.ml.math.{Vector => FlinkVector}
 
 /**
-  * Locality Sensitive Hashing (LSH) based k-nearest neighbors query
+  * Locality Sensitive Hashing (LSH) based approximate knn query
+  *
+  * This method projects onto alpha number of random directions
+  * and parameters of the hashing functions are tweaked so that
+  * each bucket has at least k points and each testing point
+  * lies in a bucket
+  *
   */
-class lshKNN() extends basicknn {
+class lshKNN extends basicKNN {
 
-  val alpha = 2
-  val b = 1.0
+  val alpha = 5 // number of hash functions
+  val b = 1.0 // b and W0 are parameters for the hashing functions
   val W0 = 1.0
   val r = scala.util.Random
 
@@ -42,7 +47,7 @@ class lshKNN() extends basicknn {
     * @param testing test set
     * @param k number of neighbors to search for
     * @param metric distance used when computing the nearest neighbors
-    * @param out
+    * @param out collector of output
     * @tparam T FlinkVector
     */
   def lshknnQuery[T <: FlinkVector](

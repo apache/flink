@@ -17,9 +17,9 @@
  */
 
 import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
-import org.apache.flink.ml.nn.QuadtreeKNN
+import org.apache.flink.ml.nn.QuadTree
 import org.apache.flink.test.util.FlinkTestBase
-import org.apache.flink.ml.math.{Breeze, Vector, DenseVector}
+import org.apache.flink.ml.math.{Vector, DenseVector}
 
 import org.scalatest.{Matchers, FlatSpec}
 
@@ -36,9 +36,8 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val minVec = DenseVector(-1.0, -0.5)
     val maxVec = DenseVector(1.0, 0.5)
-    val quadTreeKNN = new QuadtreeKNN()
 
-    val myTree = new quadTreeKNN.QuadTree(minVec, maxVec, EuclideanDistanceMetric(), 3)
+    val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric(), 3)
 
     myTree.insert(DenseVector(-0.25, 0.3).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.20, 0.31).asInstanceOf[Vector])

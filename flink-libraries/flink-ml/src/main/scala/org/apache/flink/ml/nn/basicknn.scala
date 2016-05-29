@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector
 import scala.collection.immutable.Vector
 import scala.collection.mutable
 
-class basicknn {
+class basicKNN {
 
   /**
     *
