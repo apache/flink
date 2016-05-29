@@ -142,6 +142,11 @@ class KNN extends Predictor[KNN] {
       require(!parameters.get(UseZValuesParam).get, "parameters setExact and" +
         " setUseZValues cannot both be true!!\"")
     }
+
+    if (!computeExactKNN && parameters.get(UseQuadTreeParam).isDefined){
+      require(!parameters.get(UseQuadTreeParam).get, "parameter setExact cannot" +
+        "be false while useQuadTree is true")
+    }
     parameters.add(computeExactKNNParam, computeExactKNN)
     this
   }
