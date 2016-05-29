@@ -48,8 +48,6 @@ class zknn(k: Int) extends basicknn {
                                    training: Vector[T],
                                    testing: Vector[(Long, T)],
                                    k: Int, metric: DistanceMetric,
-                                   queue: mutable.PriorityQueue[(FlinkVector,
-                                     FlinkVector, Long, Double)],
                                    out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     // normalize test and training set
@@ -117,7 +115,7 @@ class zknn(k: Int) extends basicknn {
 
       // grab original training set points and do a basic knn query
       val candidatesDenorm: Vector[FlinkVector] = candidates.map { x => training(x._1) }.toVector
-      knnQueryBasic(candidatesDenorm, Vector((id, v)), k, metric, queue, out)
+      knnQueryBasic(candidatesDenorm, Vector((id, v)), k, metric, out)
     }
 
   }

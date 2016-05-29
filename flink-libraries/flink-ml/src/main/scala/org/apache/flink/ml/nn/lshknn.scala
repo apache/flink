@@ -42,7 +42,6 @@ class lshKNN() extends basicknn {
     * @param testing test set
     * @param k number of neighbors to search for
     * @param metric distance used when computing the nearest neighbors
-    * @param queue a priority queue
     * @param out
     * @tparam T FlinkVector
     */
@@ -50,8 +49,6 @@ class lshKNN() extends basicknn {
                                      training: Vector[T],
                                      testing: Vector[(Long, T)],
                                      k: Int, metric: DistanceMetric,
-                                     queue: mutable.PriorityQueue[(FlinkVector,
-                                       FlinkVector, Long, Double)],
                                      out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     val dim = training.head.size
@@ -142,7 +139,7 @@ class lshKNN() extends basicknn {
         numColl += hashMapTrain(hash).size
         candidatePoints ++= hashMapTrain(hash)
       }
-      knnQueryBasic(candidatePoints.toVector, Vector((id, v)), k, metric, queue, out)
+      knnQueryBasic(candidatePoints.toVector, Vector((id, v)), k, metric, out)
 
     }
   }

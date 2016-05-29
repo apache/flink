@@ -32,7 +32,7 @@ class zknn_benchmark extends FlatSpec {
   // Generate trainingSet
   val r = scala.util.Random
 
-  val  nFill = 64000
+  val  nFill = 80000
   /////////////////////////////////////////6d
   val rSeq6D = Seq.fill(nFill)(DenseVector(r.nextDouble + 1.0, r.nextDouble + 1.0,
     r.nextDouble + 1.0, r.nextDouble + 1.0,
@@ -56,8 +56,8 @@ class zknn_benchmark extends FlatSpec {
   // run knn join
   zknn1.fit(trainingSet6D)
   val result_approx1 = zknn1.predict(testingSet6D).collect()
+/*
 
-  /*
   // exact
   var t0_exact = System.nanoTime()
   // ACTUAL CALL TO kNN
@@ -75,8 +75,8 @@ class zknn_benchmark extends FlatSpec {
   val result = knn.predict(testingSet6D).collect()
 
   var tf_exact = System.nanoTime()
-*/
 
+*/
   // approx
   var t0_approx = System.nanoTime()
   // ACTUAL CALL TO kNN
@@ -95,6 +95,4 @@ class zknn_benchmark extends FlatSpec {
 
   println("Elapsed time approx =       : " + (tf_approx - t0_approx)/1000000000 + "s")
   //println("Elapsed time exact =       : " + (tf_exact - t0_exact)/1000000000 + "s")
-
-  println("")
 }

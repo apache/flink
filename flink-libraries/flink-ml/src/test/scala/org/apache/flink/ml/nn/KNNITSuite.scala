@@ -51,8 +51,10 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   // for approximate methods add a single point very close to (0,0)
   val trainingSetApprox = trainingSet.union(
-    env.fromElements(DenseVector(0.000001, 0.000001),DenseVector(0.000002, 0.000002)
-      ,DenseVector(0.000003, 0.000003)))
+    env.fromElements(
+      DenseVector(0.000001, 0.000001),
+      DenseVector(0.000002, 0.000002),
+      DenseVector(0.000003, 0.000003)))
 
   // add another point for approx (hack, now only can have one point)
   val testingSetApprox = env.fromElements(DenseVector(0.0, 0.0))
@@ -85,9 +87,11 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     knn.fit(trainingSet)
     val result = knn.predict(testingSet).collect()
 
+    result.head._2.foreach(x=>println(x))
     result.size should be(1)
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
+
   }
 
   it should "calculate exact kNN join correctly with a Quadtree" in {

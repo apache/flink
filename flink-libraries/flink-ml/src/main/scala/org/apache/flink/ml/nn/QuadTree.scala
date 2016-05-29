@@ -37,8 +37,6 @@ class QuadtreeKNN() {
                                               training: Vector[T],
                                               testing: Vector[(Long, T)],
                                               k: Int, metric: DistanceMetric,
-                                              queue: mutable.PriorityQueue[(FlinkVector,
-                                                FlinkVector, Long, Double)],
                                               out: Collector[(FlinkVector,
                                                 FlinkVector, Long, Double)]) {
     /// find a bounding box
@@ -56,6 +54,9 @@ class QuadtreeKNN() {
     //default value of max elements/box is set to max(20,k)
     val maxPerBox = Array(k, 20).max
     val trainingQuadTree = new QuadTree(Min, Max, metric, maxPerBox)
+
+    val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
+      Ordering.by(_._4))
 
     for (v <- training) {
       trainingQuadTree.insert(v)
