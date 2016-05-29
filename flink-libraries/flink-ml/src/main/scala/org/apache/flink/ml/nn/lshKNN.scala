@@ -33,6 +33,9 @@ import org.apache.flink.ml.math.{Vector => FlinkVector}
   * each bucket has at least k points and each testing point
   * lies in a bucket
   *
+  * backgrond paper:
+  * http://www.slaney.org/malcolm/yahoo/Slaney2008-LSHTutorial.pdf
+  *
   */
 class lshKNN extends basicKNN {
 

@@ -37,6 +37,14 @@ import Breeze._
   * the coordinate values, this only applies to dimension ~ 30
   *
   * For dimensions larger than 30, LSH is used
+  *
+  * Relevant papers include:
+  * MapReduce z-value based knn:
+  * https://www.cs.utah.edu/~lifeifei/papers/mrknnj.pdf
+  *
+  * non-distributed z-value based knn:
+  * http://cs.sjtu.edu.cn/~yaobin/papers/icde10_knn.pdf
+  *
   */
 
 class zKNN extends basicKNN {
@@ -132,7 +140,7 @@ class zKNN extends basicKNN {
 
   }
 
-  /**
+  /** Gets parameters for later use in normalizePoint
     *
     * @param vec a collection of points (FlinkVectors)
     * @tparam T FlinkVector
@@ -150,7 +158,9 @@ class zKNN extends basicKNN {
     (DenseVector(minVec), DenseVector(maxVec))
   }
 
-  /**
+  /** Normalizes points to unit cube.  This is done to remove negative numbers
+    * when computing the z-value and to have more control over the size of the
+    * bit string when computing z-values
     *
     * @param p Point to be normalized
     * @param minArr min values of the that collection
@@ -167,24 +177,8 @@ class zKNN extends basicKNN {
       i => (p(i) - minArr(i)) / (maxArr(i) - minArr(i))))
   }
 
-  /**
-    *
-    * @param p Point to be denormalized
-    * @param minArr min values of the non-normalized version of arr
-    * @param maxArr max values of the non-normalized version of arr
-    * @tparam T FlinkVector
-    * @return denormalized points (i.e. points in their original form)
-    */
-  def denormalizePoint[T <: FlinkVector](p: T, minArr: FlinkVector, maxArr: FlinkVector):
-  FlinkVector = {
-    val dim = p.size
-
-    val tabArr = Array.tabulate(dim)(x => x)
-    DenseVector(tabArr.map(
-      i => p(i) * (maxArr(i) - minArr(i)) + minArr(i)))
-  }
-
-  /**
+  /** Given a sorted set, does a binary search to find the index for which a point
+    * not in a sorted set  -- in this case a set of z-values -- is closest to
     *
     * @param arr sorted array of points and their z-values
     * @param P a point and it's z-value not in the array
@@ -207,7 +201,10 @@ class zKNN extends basicKNN {
     getIndexHelper(arr, P, 0, arr.length - 1)
   }
 
-  /**
+  /** Computes the z-value of a point.  This is done by interleaving the
+    * bits of each coordinate.  For example the binary representation of
+    * (2,6) is (010, 110) and the z-value is
+    * 011100 = 28
     *
     * @param in a point (i.e. FlinkVector)
     * @tparam T FlinkVector
@@ -217,7 +214,8 @@ class zKNN extends basicKNN {
     Integer.parseInt(interleave(in.asBreeze.map(x => x.toInt.toBinaryString)), 2)
   }
 
-  /**
+  /** Helper function for zValue that does the actual interleaving
+    * of the bit strings of each coordinate
     *
     * @param in a point (FlinkVector) represented as a binary string
     * @return the binary string needed to compute the z-value
