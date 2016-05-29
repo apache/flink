@@ -68,9 +68,10 @@ class zKNN extends basicKNN {
                                    k: Int, metric: DistanceMetric,
                                    out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
-    // normalize test and training set
+    // bitMult is used to maximize the number of
+    // bits in the binary string when computing z-values
     val dim = training.head.size
-    val bitMult = (30.0 / (dim.toDouble + 1.0)).floor.toInt
+    val bitMult = 30 / (dim + 1)
 
     val gamma = k
 
@@ -149,11 +150,10 @@ class zKNN extends basicKNN {
   def getNormalizingParameters[T <: FlinkVector](vec: Vector[T]):
   (FlinkVector, FlinkVector) = {
 
-    val MinArr = Array.tabulate(vec.head.size)(x => x)
-    val MaxArr = Array.tabulate(vec.head.size)(x => x)
+    val tabArr = Array.tabulate(vec.head.size)(x => x)
 
-    val minVec = MinArr.map(i => vec.map(x => x(i)).min)
-    val maxVec = MaxArr.map(i => vec.map(x => x(i)).max)
+    val minVec = tabArr.map(i => vec.map(x => x(i)).min)
+    val maxVec = tabArr.map(i => vec.map(x => x(i)).max)
 
     (DenseVector(minVec), DenseVector(maxVec))
   }
@@ -189,7 +189,7 @@ class zKNN extends basicKNN {
                                           P: (T, Int)): Int = {
     def getIndexHelper(arr: Array[(T, Int)],
                        P: ((T, Int)), low: Int, high: Int): Int = {
-      val i = ((high + low) / 2.0).floor.toInt
+      val i = (high + low) / 2
       if (P._2 >= arr(i)._2 && P._2 <= arr(i + 1)._2) {
         i
       } else if (P._2 < arr(i)._2) {

@@ -42,17 +42,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *           val trainingDS: DataSet[Vector] = ...
-  *           val testingDS: DataSet[Vector] = ...
+  *            val trainingDS: DataSet[Vector] = ...
+  *            val testingDS: DataSet[Vector] = ...
   *
-  *           val knn = KNN()
-  *             .setK(10)
-  *             .setBlocks(5)
-  *             .setDistanceMetric(EuclideanDistanceMetric())
+  *            val knn = KNN()
+  *              .setK(10)
+  *              .setBlocks(5)
+  *              .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *           knn.fit(trainingDS)
+  *            knn.fit(trainingDS)
   *
-  *           val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *            val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=

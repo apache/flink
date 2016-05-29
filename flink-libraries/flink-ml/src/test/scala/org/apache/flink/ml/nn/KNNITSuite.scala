@@ -78,12 +78,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
         .setExact(false)
     }
 
-    intercept[IllegalArgumentException] {
-      KNN().setK(3)
-        .setExact(false)
-        .setUseQuadTree(true)
-    }
-  }
+   }
 
   val env = ExecutionEnvironment.getExecutionEnvironment
 
