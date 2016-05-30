@@ -77,7 +77,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	private List<MemorySegment> memory;
 
-	private volatile boolean canceled;
+	private volatile boolean running;
 
 	private boolean objectReuseEnabled = false;
 
@@ -87,7 +87,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 	@Override
 	public void setup(TaskContext<ReduceFunction<T>, T> context) {
 		taskContext = context;
-		canceled = false;
+		running = false;
 	}
 
 	@Override
@@ -165,8 +165,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 			case SORTED_PARTIAL_REDUCE:
 				if (objectReuseEnabled) {
 					T value = serializer.createInstance();
-
-					while (!canceled && (value = in.next(value)) != null) {
+					while (!running && (value = in.next(value)) != null) {
 						numRecordsIn.inc();
 
 						// try writing to the sorter first
@@ -185,7 +184,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 					}
 				} else {
 					T value;
-					while (!canceled && (value = in.next()) != null) {
+					while (!running && (value = in.next()) != null) {
 						numRecordsIn.inc();
 
 						// try writing to the sorter first
@@ -212,9 +211,9 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 				table.open();
 				if (objectReuseEnabled) {
 					T value = serializer.createInstance();
-
-					while (!canceled && (value = in.next(value)) != null) {
+					while (!running && (value = in.next(value)) != null) {
 						numRecordsIn.inc();
+
 						try {
 							table.processRecordWithReduce(value);
 						} catch (EOFException ex) {
@@ -226,7 +225,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 					}
 				} else {
 					T value;
-					while (!canceled && (value = in.next()) != null) {
+					while (!running && (value = in.next()) != null) {
 						numRecordsIn.inc();
 						try {
 							table.processRecordWithReduce(value);
@@ -273,7 +272,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 				T value = reuse1;
 
 				// iterate over key groups
-				while (!canceled && value != null) {
+				while (!running && value != null) {
 					comparator.setReference(value);
 
 					// iterate within a key group
@@ -308,7 +307,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 				T value = input.next();
 
 				// iterate over key groups
-				while (!canceled && value != null) {
+				while (!running && value != null) {
 					comparator.setReference(value);
 					T res = value;
 
@@ -346,7 +345,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	@Override
 	public void cancel() {
-		canceled = true;
+		running = true;
 
 		cleanup();
 	}
