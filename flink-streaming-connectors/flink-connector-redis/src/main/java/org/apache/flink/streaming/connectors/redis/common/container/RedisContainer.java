@@ -262,7 +262,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		try {
 			jedis.close();
 		} catch (Exception e) {
-			LOG.error("Failed to close (return) instance to pool");
+			LOG.error("Failed to close (return) instance to pool {}", e.getMessage());
 		}
 	}
 }
