@@ -313,6 +313,20 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 - `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
 
+## Queryable State
+
+### Server
+
+- `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
+- `query.server.network-threads`: Number of network (Netty's event loop) Threads for queryable state server (Default: `0`, picks number of slots).
+- `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
+
+### Client
+
+- `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
+- `query.client.lookup.num-retries`: Number of retries on KvState lookup failure due to unavailable JobManager (Default: `3`).
+- `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
+
 ## Metrics
 
 - `metrics.reporters`: The list of named reporters, i.e. "foo,bar".

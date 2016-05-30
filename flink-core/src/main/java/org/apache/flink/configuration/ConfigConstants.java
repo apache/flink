@@ -1066,6 +1066,44 @@ public final class ConfigConstants {
 	/** ZooKeeper default leader port. */
 	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
 
+	// ------------------------- Queryable state ------------------------------
+
+	/** Port to bind KvState server to. */
+	public static final String QUERYABLE_STATE_SERVER_PORT = "query.server.port";
+
+	/** Number of network (event loop) threads for the KvState server. */
+	public static final String QUERYABLE_STATE_SERVER_NETWORK_THREADS = "query.server.network-threads";
+
+	/** Number of query threads for the KvState server. */
+	public static final String QUERYABLE_STATE_SERVER_QUERY_THREADS = "query.server.query-threads";
+
+	/** Default port to bind KvState server to (0 => pick random free port). */
+	public static final int DEFAULT_QUERYABLE_STATE_SERVER_PORT = 0;
+
+	/** Default Number of network (event loop) threads for the KvState server (0 => #slots). */
+	public static final int DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS = 0;
+
+	/** Default number of query threads for the KvState server (0 => #slots). */
+	public static final int DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS = 0;
+
+	/** Number of network (event loop) threads for the KvState client. */
+	public static final String QUERYABLE_STATE_CLIENT_NETWORK_THREADS = "query.client.network-threads";
+
+	/** Number of retries on location lookup failures. */
+	public static final String QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES = "query.client.lookup.num-retries";
+
+	/** Retry delay on location lookup failures (millis). */
+	public static final String QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = "query.client.lookup.retry-delay";
+
+	/** Default number of query threads for the KvState client (0 => #cores) */
+	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_NETWORK_THREADS = 0;
+
+	/** Default number of retries on location lookup failures. */
+	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRIES = 3;
+
+	/** Default retry delay on location lookup failures. */
+	public static final int DEFAULT_QUERYABLE_STATE_CLIENT_LOOKUP_RETRY_DELAY = 1000;
+
 	// ----------------------------- Environment Variables ----------------------------
 
 	/** The environment variable name which contains the location of the configuration directory */

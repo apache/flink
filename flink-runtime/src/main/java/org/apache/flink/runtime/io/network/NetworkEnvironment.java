@@ -45,11 +45,11 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
+import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.query.netty.AtomicKvStateRequestStats;
-import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,21 +242,33 @@ public class NetworkEnvironment {
 				try {
 					kvStateRegistry = new KvStateRegistry();
 
-					kvStateServer = new KvStateServer(
-							connectionInfo.address(),
-							0,
-							1,
-							10,
-							kvStateRegistry,
-							new AtomicKvStateRequestStats());
+					if (nettyConfig.isDefined()) {
+						int numNetworkThreads = configuration.queryServerNetworkThreads();
+						if (numNetworkThreads == 0) {
+							numNetworkThreads = nettyConfig.get().getNumberOfSlots();
+						}
 
-					kvStateServer.start();
+						int numQueryThreads = configuration.queryServerNetworkThreads();
+						if (numQueryThreads == 0) {
+							numQueryThreads = nettyConfig.get().getNumberOfSlots();
+						}
 
-					KvStateRegistryListener listener = new JobManagerKvStateRegistryListener(
-							jobManagerGateway,
-							kvStateServer.getAddress());
+						kvStateServer = new KvStateServer(
+								connectionInfo.address(),
+								configuration.queryServerPort(),
+								numNetworkThreads,
+								numQueryThreads,
+								kvStateRegistry,
+								new DisabledKvStateRequestStats());
 
-					kvStateRegistry.registerListener(listener);
+						kvStateServer.start();
+
+						KvStateRegistryListener listener = new JobManagerKvStateRegistryListener(
+								jobManagerGateway,
+								kvStateServer.getAddress());
+
+						kvStateRegistry.registerListener(listener);
+					}
 				} catch (Throwable t) {
 					throw new IOException("Failed to instantiate KvState management components: "
 							+ t.getMessage(), t);
