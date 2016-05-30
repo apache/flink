@@ -180,4 +180,4 @@ text.addSink(new ElasticsearchSink(config, transports, new IndexRequestBuilder[S
 The difference is that we now need to provide a list of Elasticsearch Nodes
 to which the sink should connect using a `TransportClient`.
 
-More about information about Elasticsearch can be found [here](https://elastic.co).
+More information about Elasticsearch can be found [here](https://elastic.co).

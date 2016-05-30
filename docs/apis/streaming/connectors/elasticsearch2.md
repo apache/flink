@@ -141,4 +141,4 @@ This will buffer elements and Action Requests before sending to the cluster. The
 This now provides a list of Elasticsearch Nodes
 to which the sink should connect via a `TransportClient`.
 
-More about information about Elasticsearch can be found [here](https://elastic.co).
+More information about Elasticsearch can be found [here](https://elastic.co).
