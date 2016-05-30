@@ -81,8 +81,8 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
 
     /**
-      * Tests search for nearby neighbors, make sure the right object is contained in neighbor search
-      * the neighbor search will contain more points
+      * Tests search for nearby neighbors, make sure the right object is contained in neighbor
+      * search the neighbor search will contain more points
       */
     val neighborsComputed = myTree.searchNeighbors(DenseVector(0.7001, 0.45001), 0.001)
     val isNeighborInSearch = neighborsComputed.contains(DenseVector(0.7, 0.45))
