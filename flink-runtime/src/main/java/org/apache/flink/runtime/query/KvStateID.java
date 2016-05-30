@@ -16,31 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.runtime.query;
 
+import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.AbstractID;
 
-import javax.xml.bind.DatatypeConverter;
-
 /**
- * A class for statistically unique job vertex IDs.
+ * Identifier for {@link KvState} instances.
+ *
+ * <p>Assigned when registering state at the {@link KvStateRegistry}.
  */
-public class JobVertexID extends AbstractID {
-	
+public class KvStateID extends AbstractID {
+
 	private static final long serialVersionUID = 1L;
-	
-	public JobVertexID() {
+
+	public KvStateID() {
 		super();
 	}
-	public JobVertexID(byte[] bytes) {
-		super(bytes);
-	}
 
-	public JobVertexID(long lowerPart, long upperPart) {
+	public KvStateID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
 	}
 
-	public static JobVertexID fromHexString(String hexString) {
-		return new JobVertexID(DatatypeConverter.parseHexBinary(hexString));
-	}
 }
