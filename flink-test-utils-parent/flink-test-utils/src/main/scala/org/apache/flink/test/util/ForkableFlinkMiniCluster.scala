@@ -165,6 +165,31 @@ class ForkableFlinkMiniCluster(
       classOf[TestingTaskManager])
   }
 
+  def addTaskManager(): Unit = {
+    if (useSingleActorSystem) {
+      (jobManagerActorSystems, taskManagerActors) match {
+        case (Some(jmSystems), Some(tmActors)) =>
+          val index = numTaskManagers
+          taskManagerActors = Some(tmActors :+ startTaskManager(index, jmSystems(0)))
+          numTaskManagers += 1
+        case _ => throw new IllegalStateException("Cluster has not been started properly.")
+      }
+    } else {
+      (taskManagerActorSystems, taskManagerActors) match {
+        case (Some(tmSystems), Some(tmActors)) =>
+          val index = numTaskManagers
+          val newTmSystem = startTaskManagerActorSystem(index)
+          val newTmActor = startTaskManager(index, newTmSystem)
+
+          taskManagerActorSystems = Some(tmSystems :+ newTmSystem)
+          taskManagerActors = Some(tmActors :+ newTmActor)
+
+          numTaskManagers += 1
+        case _ => throw new IllegalStateException("Cluster has not been started properly.")
+      }
+    }
+  }
+
   def restartLeadingJobManager(): Unit = {
     this.synchronized {
       (jobManagerActorSystems, jobManagerActors) match {
