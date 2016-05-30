@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.runtime.query.netty.message;
 
-import org.apache.flink.util.AbstractID;
-
-import javax.xml.bind.DatatypeConverter;
+import org.apache.flink.runtime.query.netty.KvStateServer;
 
 /**
- * A class for statistically unique job vertex IDs.
+ * Expected message types when communicating with the {@link KvStateServer}.
  */
-public class JobVertexID extends AbstractID {
-	
-	private static final long serialVersionUID = 1L;
-	
-	public JobVertexID() {
-		super();
-	}
-	public JobVertexID(byte[] bytes) {
-		super(bytes);
-	}
+public enum KvStateRequestType {
 
-	public JobVertexID(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
-	}
+	/** Request a KvState instance. */
+	REQUEST,
 
-	public static JobVertexID fromHexString(String hexString) {
-		return new JobVertexID(DatatypeConverter.parseHexBinary(hexString));
-	}
+	/** Successful response to a KvStateRequest. */
+	REQUEST_RESULT,
+
+	/** Failure response to a KvStateRequest. */
+	REQUEST_FAILURE,
+
+	/** Generic server failure. */
+	SERVER_FAILURE
+
 }
