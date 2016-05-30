@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.taskmanager.MultiShotLatch;
+import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,6 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -63,7 +64,7 @@ import static org.junit.Assert.fail;
  * Tests for timestamps, watermarks, and event-time sources.
  */
 @SuppressWarnings("serial")
-public class TimestampITCase {
+public class TimestampITCase extends TestLogger {
 
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int NUM_TASK_SLOTS = 3;

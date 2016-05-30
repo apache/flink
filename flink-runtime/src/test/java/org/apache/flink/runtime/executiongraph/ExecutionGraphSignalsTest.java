@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StoppingException;
@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -128,7 +130,7 @@ public class ExecutionGraphSignalsTest {
 			jobId,
 			jobName,
 			cfg,
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		eg.attachJobGraph(ordered);

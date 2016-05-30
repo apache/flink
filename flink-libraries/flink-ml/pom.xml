@@ -34,6 +34,9 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
+
+		<!-- core dependencies -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_2.10</artifactId>
@@ -47,10 +50,11 @@
 			<version>0.12</version>
 		</dependency>
 
+		<!-- test dependencies -->
+
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -58,15 +62,6 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -74,7 +69,6 @@
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

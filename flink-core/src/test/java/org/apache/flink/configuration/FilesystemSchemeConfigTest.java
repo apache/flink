@@ -31,6 +31,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -111,11 +112,11 @@ public class FilesystemSchemeConfigTest {
 				Field f = FileSystem.class.getDeclaredField("defaultScheme");
 				f.setAccessible(true);
 				f.set(null, null);
-			} catch (IllegalAccessException e) {
+			} catch (IllegalAccessException | NoSuchFieldException e) {
 				e.printStackTrace();
-			} catch (NoSuchFieldException e) {
-				e.printStackTrace();
+				fail("Cannot reset default scheme: " + e.getMessage());
 			}
+			
 			confFile.delete();
 			testFile.delete();
 			tmpDir.delete();
@@ -124,13 +125,14 @@ public class FilesystemSchemeConfigTest {
 
 	private File getTmpDir() {
 		File tmpDir = new File(CommonTestUtils.getTempDir() + File.separator
-			+ CommonTestUtils.getRandomDirectoryName() + File.separator);
-		tmpDir.mkdirs();
+			+ UUID.randomUUID().toString() + File.separator);
+		
+		assertTrue(tmpDir.mkdirs());
 
 		return tmpDir;
 	}
 
 	private File createRandomFile(File path, String suffix) {
-		return new File(path.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + suffix);
+		return new File(path.getAbsolutePath() + File.separator + UUID.randomUUID() + suffix);
 	}
 }

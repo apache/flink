@@ -68,7 +68,7 @@ under the License.
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
-		<module>flink-test-utils</module>
+		<module>flink-test-utils-parent</module>
 		<module>flink-libraries</module>
 		<module>flink-scala-shell</module>
 		<module>flink-quickstart</module>
@@ -105,6 +105,7 @@ under the License.
 		<curator.version>2.8.0</curator.version>
 		<jackson.version>2.7.4</jackson.version>
 		<metrics.version>3.1.0</metrics.version>
+		<junit.version>4.11</junit.version>
 	</properties>
 
 	<dependencies>
@@ -148,7 +149,7 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<version>${junit.version}</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>

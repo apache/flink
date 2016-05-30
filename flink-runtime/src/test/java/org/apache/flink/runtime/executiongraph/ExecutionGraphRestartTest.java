@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.Futures;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
@@ -39,7 +38,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -86,7 +87,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"test job",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -141,7 +142,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(),
 			"test job",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new FixedDelayRestartStrategy(1, 0L));
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -197,7 +198,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"Test job",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000));
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -226,7 +227,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"TestJob",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				// We want to manually control the restart and delay
 				new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
@@ -344,7 +345,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"TestJob",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				// We want to manually control the restart and delay
 				new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
@@ -427,7 +428,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(),
 			"Test job",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new FixedDelayRestartStrategy(1, 1000)));
 
@@ -498,7 +499,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(),
 			"test job",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new FixedDelayRestartStrategy(1, 1000));
 
@@ -594,7 +595,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"test job",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000000));
 
@@ -648,7 +649,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"test job",
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000000));
 

@@ -30,7 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -47,6 +47,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 public class ExecutionGraphDeploymentTest {
@@ -85,7 +87,7 @@ public class ExecutionGraphDeploymentTest {
 				jobId, 
 				"some job", 
 				new Configuration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 
@@ -288,8 +290,8 @@ public class ExecutionGraphDeploymentTest {
 			TestingUtils.directExecutionContext(), 
 			jobId, 
 			"some job", 
-			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new Configuration(), 
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		

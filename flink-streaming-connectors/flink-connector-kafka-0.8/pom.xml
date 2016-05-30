@@ -41,25 +41,27 @@ under the License.
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-base_2.10</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-base_2.10</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
+		<!-- core dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-curator-recipes</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-base_2.10</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -116,6 +118,8 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- test dependencies -->
+		
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
@@ -125,16 +129,16 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-curator-recipes</artifactId>
+			<artifactId>flink-connector-kafka-base_2.10</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

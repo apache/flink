@@ -18,11 +18,11 @@
 
 package org.apache.flink.ml.classification
 
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 import org.apache.flink.ml.math.DenseVector
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.FlinkTestBase
 
 class SVMITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
