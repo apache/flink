@@ -19,6 +19,7 @@
 package org.apache.flink.ml.math
 
 import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+import org.apache.flink.ml.math.Breeze._
 
 /** Base trait for Vectors
   *
@@ -81,6 +82,13 @@ trait Vector extends Serializable {
       false
     }
   }
+
+  def +(other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
+
+  def -(other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
+
+  def *(scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
+
 }
 
 object Vector{
