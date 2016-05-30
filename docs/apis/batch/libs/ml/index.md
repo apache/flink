@@ -49,6 +49,10 @@ FlinkML currently supports the following algorithms:
 * [Multiple linear regression](multiple_linear_regression.html)
 * [Optimization Framework](optimization.html)
 
+### Unsupervised Learning
+
+* [k-Nearest neighbors join](knn.html)
+
 ### Data Preprocessing
 
 * [Polynomial Features](polynomial_features.html)

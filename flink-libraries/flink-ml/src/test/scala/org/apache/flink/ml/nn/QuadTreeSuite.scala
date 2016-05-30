@@ -24,17 +24,18 @@ import org.apache.flink.ml.math.{Vector, DenseVector}
 
 import org.scalatest.{Matchers, FlatSpec}
 
-/** Test of Quadtree class
-  * Constructor for the Quadtree class:
-  * class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double])
+/** Tests of [[QuadTree]] class
   *
+  * Constructor for the [[QuadTree]] class:
+  * {{{
+  * class QuadTree(minVec: ListBuffer[Double], maxVec: ListBuffer[Double])
+  * }}}
   */
 
 class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
-  behavior of "The QuadTree Class"
+  behavior of "QuadTree Class"
 
   it should "partition into equal size sub-boxes and search for nearby objects properly" in {
-
     val minVec = DenseVector(-1.0, -0.5)
     val maxVec = DenseVector(1.0, 0.5)
 
@@ -44,26 +45,18 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     myTree.insert(DenseVector(-0.20, 0.31).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.21, 0.29).asInstanceOf[Vector])
 
-    var a = myTree.root.getCenterWidth()
-
-    /** Tree will partition once the 4th point is added
-      */
-
+    /* Tree will partition once the 4th point is added */
     myTree.insert(DenseVector(0.2, 0.27).asInstanceOf[Vector])
     myTree.insert(DenseVector(0.2, 0.26).asInstanceOf[Vector])
-
     myTree.insert(DenseVector(-0.21, 0.289).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.1, 0.289).asInstanceOf[Vector])
-
     myTree.insert(DenseVector(0.7, 0.45).asInstanceOf[Vector])
 
-    /**
-     * Exact values of (centers,dimensions) of root + children nodes, to test
+    /* Exact values of (centers,dimensions) of root + children nodes, to test
      * partitionBox and makeChildren methods; exact values are given to avoid
      * essentially copying and pasting the code to automatically generate them
      * from minVec/maxVec
      */
-
     val knownCentersLengths = Set((DenseVector(0.0, 0.0), DenseVector(2.0, 1.0)),
       (DenseVector(-0.5, -0.25), DenseVector(1.0, 0.5)),
       (DenseVector(-0.5, 0.25), DenseVector(1.0, 0.5)),
@@ -71,30 +64,23 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
       (DenseVector(0.5, 0.25), DenseVector(1.0, 0.5))
     )
 
-    /**
-     * (centers,dimensions) computed from QuadTree.makeChildren
-     */
-
+    /* (centers,dimensions) computed from QuadTree.makeChildren */
     var computedCentersLength = Set((DenseVector(0.0, 0.0), DenseVector(2.0, 1.0)))
     for (child <- myTree.root.children) {
       computedCentersLength += child.getCenterWidth().asInstanceOf[(DenseVector, DenseVector)]
     }
 
-
-    /**
-     * Tests search for nearby neighbors, make sure the right object is contained in neighbor
-      * search the neighbor search will contain more points
+    /* Tests search for nearby neighbors, make sure the right object is contained in neighbor
+     * search the neighbor search will contain more points
      */
     val neighborsComputed = myTree.searchNeighbors(DenseVector(0.7001, 0.45001), 0.001)
     val isNeighborInSearch = neighborsComputed.contains(DenseVector(0.7, 0.45))
 
-    /**
-     * Test ability to get all objects in minimal bounding box + objects in siblings' block method
+    /* Test ability to get all objects in minimal bounding box + objects in siblings' block method
      * In this case, drawing a picture of the QuadTree shows that
      * (-0.2, 0.31), (-0.21, 0.29), (-0.21, 0.289)
      * are objects near (-0.2001, 0.31001)
      */
-
     val siblingsObjectsComputed = myTree.searchNeighborsSiblingQueue(DenseVector(-0.2001, 0.31001))
     val isSiblingsInSearch = siblingsObjectsComputed.contains(DenseVector(-0.2, 0.31)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&

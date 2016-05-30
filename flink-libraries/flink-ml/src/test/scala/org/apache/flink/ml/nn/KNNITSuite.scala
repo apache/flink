@@ -99,8 +99,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
       // run knn join
       knn.fit(trainingSet)
-      val result = knn.predict(testingSet).collect()
-
+      knn.predict(testingSet).collect()
     }
   }
 
