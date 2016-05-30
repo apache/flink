@@ -38,10 +38,21 @@ abstract class MaxAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.fromInt(-20),
       numeric.fromInt(17),
       null.asInstanceOf[T]
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
-  override def expectedResults: Seq[T] = Seq(maxVal)
+  override def expectedResults: Seq[T] = Seq(
+    maxVal,
+    null.asInstanceOf[T]
+  )
 }
 
 class ByteMaxAggregateTest extends MaxAggregateTestBase[Byte] {
@@ -113,10 +124,20 @@ class BooleanMaxAggregateTest extends AggregateTestBase[Boolean] {
       false,
       true,
       null.asInstanceOf[Boolean]
+    ),
+    Seq(
+      null.asInstanceOf[Boolean],
+      null.asInstanceOf[Boolean],
+      null.asInstanceOf[Boolean]
     )
   )
 
-  override def expectedResults: Seq[Boolean] = Seq(false, true, true)
+  override def expectedResults: Seq[Boolean] = Seq(
+    false,
+    true,
+    true,
+    null.asInstanceOf[Boolean]
+  )
 
   override def aggregator: Aggregate[Boolean] = new BooleanMaxAggregate()
 }
