@@ -78,7 +78,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
         .setExact(false)
     }
 
-   }
+  }
 
   val env = ExecutionEnvironment.getExecutionEnvironment
 

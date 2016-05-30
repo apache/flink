@@ -46,12 +46,12 @@ class QuadtreeKNN() {
     val maxVecTrain = MaxArr.map(i => training.map(x => x(i)).max + 0.01)
     val maxVecTest = MaxArr.map(i => testing.map(x => x._2(i)).max + 0.01)
 
-    val Min = DenseVector(MinArr.map(i => Array(minVecTrain(i), minVecTest(i)).min))
-    val Max = DenseVector(MinArr.map(i => Array(maxVecTrain(i), maxVecTest(i)).max))
+    val min = DenseVector(MinArr.map(i => math.min(minVecTrain(i), minVecTest(i))))
+    val max = DenseVector(MinArr.map(i => math.max(maxVecTrain(i), maxVecTest(i))))
 
     //default value of max elements/box is set to max(20,k)
-    val maxPerBox = Array(k, 20).max
-    val trainingQuadTree = new QuadTree(Min, Max, metric, maxPerBox)
+    val maxPerBox = math.max(k, 20)
+    val trainingQuadTree = new QuadTree(min, max, metric, maxPerBox)
 
     val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
       Ordering.by(_._4))

@@ -39,10 +39,10 @@ import org.apache.flink.ml.math.{Vector => FlinkVector}
   */
 class lshKNN extends basicKNN {
 
-  val alpha = 5
   // number of hash functions
-  val b = 1.0
+  val alpha = 5
   // b and W0 are parameters for the hashing functions
+  val b = 1.0
   val W0 = 1.0
   val r = scala.util.Random
 
