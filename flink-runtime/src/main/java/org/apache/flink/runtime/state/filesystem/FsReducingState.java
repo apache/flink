@@ -23,8 +23,10 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -86,9 +88,11 @@ public class FsReducingState<K, N, V>
 	@Override
 	public V get() {
 		if (currentNSState == null) {
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
 			currentNSState = state.get(currentNamespace);
 		}
 		if (currentNSState != null) {
+			Preconditions.checkState(currentKey != null, "No key set");
 			return currentNSState.get(currentKey);
 		}
 		return null;
@@ -96,12 +100,11 @@ public class FsReducingState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
+		Preconditions.checkState(currentKey != null, "No key set");
 
 		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
+			currentNSState = createNewNamespaceMap();
 			state.put(currentNamespace, currentNSState);
 		}
 //		currentKeyState.merge(currentNamespace, value, new BiFunction<V, V, V>() {
@@ -128,6 +131,19 @@ public class FsReducingState<K, N, V>
 	@Override
 	public KvStateSnapshot<K, N, ReducingState<V>, ReducingStateDescriptor<V>, FsStateBackend> createHeapSnapshot(Path filePath) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, filePath);
+	}
+
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkNotNull(key, "Key");
+		Preconditions.checkNotNull(namespace, "Namespace");
+
+		Map<K, V> stateByKey = state.get(namespace);
+		if (stateByKey != null) {
+			return KvStateRequestSerializer.serializeValue(stateByKey.get(key), stateDesc.getSerializer());
+		} else {
+			return null;
+		}
 	}
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>> {

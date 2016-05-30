@@ -29,14 +29,13 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
-
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemListState;
 import org.junit.Test;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -44,8 +43,12 @@ import java.util.Collections;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class StreamingRuntimeContextTest {
 	
@@ -179,8 +182,10 @@ public class StreamingRuntimeContextTest {
 					public ListState<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
 						ListStateDescriptor<String> descr =
 							(ListStateDescriptor<String>) invocationOnMock.getArguments()[0];
-						return new MemListState<String, Void, String>(
-								StringSerializer.INSTANCE, VoidSerializer.INSTANCE, descr);
+						MemListState<String, VoidNamespace, String> listState = new MemListState<>(
+								StringSerializer.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
+						listState.setCurrentNamespace(VoidNamespace.INSTANCE);
+						return listState;
 					}
 				});
 

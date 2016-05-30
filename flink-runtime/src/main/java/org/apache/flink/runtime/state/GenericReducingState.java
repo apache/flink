@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -68,6 +69,11 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	}
 
 	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
+	}
+
+	@Override
 	public KvStateSnapshot<K, N, ReducingState<T>, ReducingStateDescriptor<T>, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
@@ -80,6 +86,11 @@ public class GenericReducingState<K, N, T, Backend extends AbstractStateBackend,
 	@Override
 	public void dispose() {
 		wrappedState.dispose();
+	}
+
+	@Override
+	public ReducingStateDescriptor<T> getStateDescriptor() {
+		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override

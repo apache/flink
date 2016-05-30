@@ -22,8 +22,10 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -62,20 +64,24 @@ public class MemFoldingState<K, N, T, ACC>
 	@Override
 	public ACC get() {
 		if (currentNSState == null) {
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
 			currentNSState = state.get(currentNamespace);
 		}
-		return currentNSState != null ?
-			currentNSState.get(currentKey) : null;
+		if (currentNSState != null) {
+			Preconditions.checkState(currentKey != null, "No key set");
+			return currentNSState.get(currentKey);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public void add(T value) throws IOException {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
+		Preconditions.checkState(currentKey != null, "No key set");
 
 		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
+			currentNSState = createNewNamespaceMap();
 			state.put(currentNamespace, currentNSState);
 		}
 
@@ -95,6 +101,20 @@ public class MemFoldingState<K, N, T, ACC>
 	@Override
 	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, MemoryStateBackend> createHeapSnapshot(byte[] bytes) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
+	}
+
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkNotNull(key, "Key");
+		Preconditions.checkNotNull(namespace, "Namespace");
+
+		Map<K, ACC> stateByKey = state.get(namespace);
+
+		if (stateByKey != null) {
+			return KvStateRequestSerializer.serializeValue(stateByKey.get(key), stateDesc.getSerializer());
+		} else {
+			return null;
+		}
 	}
 
 	public static class Snapshot<K, N, T, ACC> extends AbstractMemStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {

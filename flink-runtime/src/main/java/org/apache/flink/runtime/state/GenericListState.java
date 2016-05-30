@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.ListState;
@@ -65,6 +66,11 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 	}
 
 	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
+	}
+
+	@Override
 	public KvStateSnapshot<K, N, ListState<T>, ListStateDescriptor<T>, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
@@ -77,6 +83,11 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 	@Override
 	public void dispose() {
 		wrappedState.dispose();
+	}
+
+	@Override
+	public ListStateDescriptor<T> getStateDescriptor() {
+		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override
