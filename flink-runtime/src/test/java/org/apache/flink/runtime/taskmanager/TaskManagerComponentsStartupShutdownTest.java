@@ -108,7 +108,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 			final NetworkEnvironment network = new NetworkEnvironment(
 				TestingUtils.defaultExecutionContext(),
 				timeout,
-				netConf);
+				netConf,
+				connectionInfo);
 			final int numberOfSlots = 1;
 
 			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());

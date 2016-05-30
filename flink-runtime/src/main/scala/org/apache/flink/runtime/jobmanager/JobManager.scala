@@ -25,7 +25,7 @@ import java.util.UUID
 import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
 import javax.management.ObjectName
 
-import akka.actor.Status.Failure
+import akka.actor.Status.{Success, Failure}
 import akka.actor._
 import akka.pattern.ask
 
@@ -74,6 +74,8 @@ import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.process.ProcessReaper
+import org.apache.flink.runtime.query.{UnknownKvStateLocation, KvStateMessage}
+import org.apache.flink.runtime.query.KvStateMessage.{NotifyKvStateUnregistered, LookupKvStateLocation, NotifyKvStateRegistered}
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -677,6 +679,9 @@ class JobManager(
 
     case checkpointMessage : AbstractCheckpointMessage =>
       handleCheckpointMessage(checkpointMessage)
+
+    case kvStateMsg : KvStateMessage =>
+      handleKvStateMessage(kvStateMsg)
 
     case TriggerSavepoint(jobId) =>
       currentJobs.get(jobId) match {
@@ -1433,6 +1438,75 @@ class JobManager(
 
       // unknown checkpoint message
       case _ => unhandled(actorMessage)
+    }
+  }
+
+  /**
+    * Handle all [KvStateMessage] instances for KvState location lookups and
+    * registration.
+    *
+    * @param actorMsg The KvState actor message.
+    */
+  private def handleKvStateMessage(actorMsg: KvStateMessage): Unit = {
+    actorMsg match {
+      // Client KvStateLocation lookup
+      case msg: LookupKvStateLocation =>
+        currentJobs.get(msg.getJobId) match {
+          case Some((graph, _)) =>
+            try {
+              val registry = graph.getKvStateLocationRegistry
+              val location = registry.getKvStateLocation(msg.getRegistrationName)
+              if (location == null) {
+                sender() ! Failure(new UnknownKvStateLocation(msg.getRegistrationName))
+              } else {
+                sender() ! Success(location)
+              }
+            } catch {
+              case t: Throwable =>
+                sender() ! Failure(t)
+            }
+
+          case None =>
+            sender() ! Status.Failure(new IllegalStateException(s"Job ${msg.getJobId} not found"))
+        }
+
+      // TaskManager KvState registration
+      case msg: NotifyKvStateRegistered =>
+        currentJobs.get(msg.getJobId) match {
+          case Some((graph, _)) =>
+            try {
+              graph.getKvStateLocationRegistry.notifyKvStateRegistered(
+                msg.getJobVertexId,
+                msg.getKeyGroupIndex,
+                msg.getRegistrationName,
+                msg.getKvStateId,
+                msg.getKvStateServerAddress)
+            } catch {
+              case t: Throwable =>
+                log.error(s"Failed to notify KvStateRegistry about registration $msg.")
+            }
+
+          case None => log.error(s"Received $msg for unavailable job.")
+        }
+
+      // TaskManager KvState unregistration
+      case msg: NotifyKvStateUnregistered =>
+        currentJobs.get(msg.getJobId) match {
+          case Some((graph, _)) =>
+            try {
+              graph.getKvStateLocationRegistry.notifyKvStateUnregistered(
+                msg.getJobVertexId,
+                msg.getKeyGroupIndex,
+                msg.getRegistrationName)
+            } catch {
+              case t: Throwable =>
+                log.error(s"Failed to notify KvStateRegistry about registration $msg.")
+            }
+
+          case None => log.error(s"Received $msg for unavailable job.")
+        }
+
+      case _ => unhandled(actorMsg)
     }
   }
   

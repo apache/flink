@@ -57,6 +57,7 @@ import org.apache.flink.runtime.messages.TaskMessages.FailTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
@@ -519,10 +520,14 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
+			TaskKvStateRegistry kvStateRegistry = network
+					.createKvStateTaskRegistry(jobId, getJobVertexId());
+
 			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
 					executionConfig, taskInfo, jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
+					kvStateRegistry,
 					splitProvider, distributedCacheEntries,
 					writers, inputGates, jobManager, taskManagerConfig, metrics, this);
 
