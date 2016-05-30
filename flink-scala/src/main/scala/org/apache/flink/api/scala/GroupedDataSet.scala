@@ -20,14 +20,13 @@ package org.apache.flink.api.scala
 import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import Keys.ExpressionKeys
-import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.api.java.operators.{ReduceOperator => JavaReduceOperator, _}
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import org.apache.flink.util.Collector
 
@@ -284,25 +283,10 @@ class GroupedDataSet[T: ClassTag](
   }
 
   /**
-    * Creates a new [[DataSet]] by merging the elements of each group (elements with the same key)
-    * using an associative reduce function.
-    */
-  def reduce(fun: (T, T) => T): DataSet[T] = {
-    reduce(getCallLocationName(), fun, CombineHint.OPTIMIZER_CHOOSES)
-  }
-
-  /**
-   * Special [[reduce]] operation for explicitly telling the system what strategy to use for the
-   * combine phase.
-   * If null is given as the strategy, then the optimizer will pick the strategy.
+   * Creates a new [[DataSet]] by merging the elements of each group (elements with the same key)
+   * using an associative reduce function.
    */
-  def reduce(fun: (T, T) => T, strategy: CombineHint): DataSet[T] = {
-    reduce(getCallLocationName(), fun, strategy)
-  }
-
-  private def reduce(callLocationName: String,
-                     fun: (T, T) => T,
-                     strategy: CombineHint): DataSet[T] = {
+  def reduce(fun: (T, T) => T): ReduceOperator[T] = {
     require(fun != null, "Reduce function must not be null.")
     val reducer = new ReduceFunction[T] {
       val cleanFun = set.clean(fun)
@@ -310,31 +294,16 @@ class GroupedDataSet[T: ClassTag](
         cleanFun(v1, v2)
       }
     }
-    reduce(callLocationName, reducer, strategy)
+    new ReduceOperator[T](new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**
-    * Creates a new [[DataSet]] by merging the elements of each group (elements with the same key)
-    * using an associative reduce function.
-    */
-  def reduce(reducer: ReduceFunction[T]): DataSet[T] = {
-    reduce(getCallLocationName(), reducer, CombineHint.OPTIMIZER_CHOOSES)
-  }
-
-  /**
-    * Special [[reduce]] operation for explicitly telling the system what strategy to use for the
-    * combine phase.
-    * If null is given as the strategy, then the optimizer will pick the strategy.
-    */
-  def reduce(reducer: ReduceFunction[T], strategy: CombineHint): DataSet[T] = {
-    reduce(getCallLocationName(), reducer, strategy)
-  }
-
-  private def reduce(callLocationName: String,
-                     reducer: ReduceFunction[T],
-                     strategy: CombineHint): DataSet[T] = {
+   * Creates a new [[DataSet]] by merging the elements of each group (elements with the same key)
+   * using an associative reduce function.
+   */
+  def reduce(reducer: ReduceFunction[T]): ReduceOperator[T] = {
     require(reducer != null, "Reduce function must not be null.")
-    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, callLocationName).setCombineHint(strategy))
+    new ReduceOperator[T](new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**

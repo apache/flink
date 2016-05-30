@@ -33,7 +33,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import Keys.ExpressionKeys
-import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.operators.{ReduceOperator => JavaReduceOperator, _}
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.{Utils, DataSet => JavaDataSet}
@@ -565,18 +565,18 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Creates a new [[DataSet]] by merging the elements of this DataSet using an associative reduce
    * function.
    */
-  def reduce(reducer: ReduceFunction[T]): DataSet[T] = {
+  def reduce(reducer: ReduceFunction[T]): ReduceOperator[T] = {
     if (reducer == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    wrap(new ReduceOperator[T](javaSet, reducer, getCallLocationName()))
+    new ReduceOperator[T](new JavaReduceOperator[T](javaSet, reducer, getCallLocationName()))
   }
 
   /**
    * Creates a new [[DataSet]] by merging the elements of this DataSet using an associative reduce
    * function.
    */
-  def reduce(fun: (T, T) => T): DataSet[T] = {
+  def reduce(fun: (T, T) => T): ReduceOperator[T] = {
     if (fun == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
@@ -584,7 +584,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       val cleanFun = clean(fun)
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
-    wrap(new ReduceOperator[T](javaSet, reducer, getCallLocationName()))
+    new ReduceOperator[T](new JavaReduceOperator[T](javaSet, reducer, getCallLocationName()))
   }
 
   /**
