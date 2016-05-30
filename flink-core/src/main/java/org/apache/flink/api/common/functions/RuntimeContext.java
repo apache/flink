@@ -164,6 +164,15 @@ public interface RuntimeContext {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Tests for the existence of the broadcast variable identified by the
+	 * given {@code name}.
+	 *
+	 * @param name The name under which the broadcast variable is registered;
+	 * @return Whether a broadcast variable exists for the given name.
+	 */
+	boolean hasBroadcastVariable(String name);
+
+	/**
 	 * Returns the result bound to the broadcast variable identified by the 
 	 * given {@code name}.
 	 * <p>

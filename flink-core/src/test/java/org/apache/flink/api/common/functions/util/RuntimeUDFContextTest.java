@@ -43,7 +43,9 @@ public class RuntimeUDFContextTest {
 	public void testBroadcastVariableNotFound() {
 		try {
 			RuntimeUDFContext ctx = new RuntimeUDFContext(taskInfo, getClass().getClassLoader(), new ExecutionConfig(), new HashMap<String, Future<Path>>(),new HashMap<String, Accumulator<?, ?>>(), new DummyMetricGroup());
-			
+
+			assertFalse(ctx.hasBroadcastVariable("some name"));
+
 			try {
 				ctx.getBroadcastVariable("some name");
 				fail("should throw an exception");
@@ -76,7 +78,10 @@ public class RuntimeUDFContextTest {
 			
 			ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
 			ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
-			
+
+			assertTrue(ctx.hasBroadcastVariable("name1"));
+			assertTrue(ctx.hasBroadcastVariable("name2"));
+
 			List<Integer> list1 = ctx.getBroadcastVariable("name1");
 			List<Double> list2 = ctx.getBroadcastVariable("name2");
 			
