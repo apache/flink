@@ -562,7 +562,7 @@ public abstract class YarnTestBase extends TestLogger {
 		public void run() {
 			switch(type) {
 				case YARN_SESSION:
-					yCli = new FlinkYarnSessionCli("", "");
+					yCli = new FlinkYarnSessionCli("", "", false);
 					returnValue = yCli.run(args);
 					break;
 				case CLI_FRONTEND:

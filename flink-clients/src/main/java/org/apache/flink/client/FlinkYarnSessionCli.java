@@ -82,6 +82,8 @@ public class FlinkYarnSessionCli {
 	 */
 	private final Option DYNAMIC_PROPERTIES;
 
+	private final boolean acceptInteractiveInput;
+	
 	//------------------------------------ Internal fields -------------------------
 	private AbstractFlinkYarnCluster yarnCluster = null;
 	private boolean detachedMode = false;
@@ -89,7 +91,9 @@ public class FlinkYarnSessionCli {
 	/** Default yarn application name. */
 	private String defaultApplicationName = null;
 
-	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
+	public FlinkYarnSessionCli(String shortPrefix, String longPrefix, boolean acceptInteractiveInput) {
+		this.acceptInteractiveInput = acceptInteractiveInput;
+		
 		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
 		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
 		SHIP_PATH = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
@@ -292,7 +296,7 @@ public class FlinkYarnSessionCli {
 		propertiesFile.setReadable(true, false); // readable for all.
 	}
 
-	public static void runInteractiveCli(AbstractFlinkYarnCluster yarnCluster) {
+	public static void runInteractiveCli(AbstractFlinkYarnCluster yarnCluster, boolean readConsoleInput) {
 		final String HELP = "Available commands:\n" +
 				"help - show these commands\n" +
 				"stop - stop the YARN session";
@@ -304,6 +308,8 @@ public class FlinkYarnSessionCli {
 				// ------------------ check if there are updates by the cluster -----------
 
 				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+				LOG.debug("Received status message: {}", status);
+
 				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
 					System.err.println("Number of connected TaskManagers changed to " +
 							status.numRegisteredTaskManagers() + ". " +
@@ -324,15 +330,16 @@ public class FlinkYarnSessionCli {
 					yarnCluster.shutdown(true);
 				}
 
-				// wait until CLIENT_POLLING_INTERVALL is over or the user entered something.
+				// wait until CLIENT_POLLING_INTERVAL is over or the user entered something.
 				long startTime = System.currentTimeMillis();
 				while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVALL * 1000
-						&& !in.ready()) {
+						&& (!readConsoleInput || !in.ready()))
+				{
 					Thread.sleep(200);
 				}
 				//------------- handle interactive command by user. ----------------------
-
-				if (in.ready()) {
+				
+				if (readConsoleInput && in.ready()) {
 					String command = in.readLine();
 					switch (command) {
 						case "quit":
@@ -347,6 +354,7 @@ public class FlinkYarnSessionCli {
 							break;
 					}
 				}
+				
 				if (yarnCluster.hasBeenStopped()) {
 					LOG.info("Stopping interactive command line interface, YARN cluster has been stopped.");
 					break;
@@ -358,7 +366,7 @@ public class FlinkYarnSessionCli {
 	}
 
 	public static void main(String[] args) {
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", ""); // no prefix for the YARN session
+		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", true); // no prefix for the YARN session
 		System.exit(cli.run(args));
 	}
 
@@ -458,7 +466,7 @@ public class FlinkYarnSessionCli {
 						"Please also note that the temporary files of the YARN session in {} will not be removed.",
 						flinkYarnClient.getSessionFilesDir());
 			} else {
-				runInteractiveCli(yarnCluster);
+				runInteractiveCli(yarnCluster, acceptInteractiveInput);
 
 				if (!yarnCluster.hasBeenStopped()) {
 					LOG.info("Command Line Interface requested session shutdown");

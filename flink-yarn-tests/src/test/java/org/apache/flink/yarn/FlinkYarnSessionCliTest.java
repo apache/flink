@@ -53,7 +53,7 @@ public class FlinkYarnSessionCliTest {
 		map.put("FLINK_CONF_DIR", tmpFolder.getAbsolutePath());
 		TestBaseUtils.setEnv(map);
 		Options options = new Options();
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "");
+		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", false);
 		cli.getYARNSessionCLIOptions(options);
 
 		CommandLineParser parser = new PosixParser();
