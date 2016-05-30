@@ -59,11 +59,17 @@ abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
+  override def evaluate(buffer : Row): T = {
+    doEvaluate(buffer).asInstanceOf[T]
+  }
+
   override def intermediateDataType = Array(
     BasicTypeInfo.LONG_TYPE_INFO,
     BasicTypeInfo.LONG_TYPE_INFO)
 
   def doPrepare(value: Any, partial: Row): Unit
+
+  def doEvaluate(buffer: Row): Any
 }
 
 class ByteAvgAggregate extends IntegralAvgAggregate[Byte] {
@@ -73,10 +79,14 @@ class ByteAvgAggregate extends IntegralAvgAggregate[Byte] {
     partial.setField(partialCountIndex, 1L)
   }
 
-  override def evaluate(buffer: Row): Byte = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount).toByte
+    if (bufferCount == 0L) {
+      null
+    } else {
+      (bufferSum / bufferCount).toByte
+    }
   }
 }
 
@@ -88,10 +98,14 @@ class ShortAvgAggregate extends IntegralAvgAggregate[Short] {
     partial.setField(partialCountIndex, 1L)
   }
 
-  override def evaluate(buffer: Row): Short = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount).toShort
+    if (bufferCount == 0L) {
+      null
+    } else {
+      (bufferSum / bufferCount).toShort
+    }
   }
 }
 
@@ -103,10 +117,14 @@ class IntAvgAggregate extends IntegralAvgAggregate[Int] {
     partial.setField(partialCountIndex, 1L)
   }
 
-  override def evaluate(buffer: Row): Int = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount).toInt
+    if (bufferCount == 0L) {
+      null
+    } else {
+      (bufferSum / bufferCount).toInt
+    }
   }
 }
 
@@ -145,10 +163,14 @@ class LongAvgAggregate extends IntegralAvgAggregate[Long] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def evaluate(buffer: Row): Long = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigInteger]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    bufferSum.divide(BigInteger.valueOf(bufferCount)).longValue()
+    if (bufferCount == 0L) {
+      null
+    } else {
+      bufferSum.divide(BigInteger.valueOf(bufferCount)).longValue()
+    }
   }
 }
 
@@ -178,11 +200,17 @@ abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, partialCount + bufferCount)
   }
 
+  override def evaluate(buffer : Row): T = {
+    doEvaluate(buffer).asInstanceOf[T]
+  }
+
   override def intermediateDataType = Array(
     BasicTypeInfo.DOUBLE_TYPE_INFO,
     BasicTypeInfo.LONG_TYPE_INFO)
 
   def doPrepare(value: Any, partial: Row): Unit
+
+  def doEvaluate(buffer: Row): Any
 }
 
 class FloatAvgAggregate extends FloatingAvgAggregate[Float] {
@@ -194,10 +222,14 @@ class FloatAvgAggregate extends FloatingAvgAggregate[Float] {
   }
 
 
-  override def evaluate(buffer: Row): Float = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Double]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount).toFloat
+    if (bufferCount == 0L) {
+      null
+    } else {
+      (bufferSum / bufferCount).toFloat
+    }
   }
 }
 
@@ -209,9 +241,13 @@ class DoubleAvgAggregate extends FloatingAvgAggregate[Double] {
     partial.setField(partialCountIndex, 1L)
   }
 
-  override def evaluate(buffer: Row): Double = {
+  override def doEvaluate(buffer: Row): Any = {
     val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Double]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount)
+    if (bufferCount == 0L) {
+      null
+    } else {
+      (bufferSum / bufferCount)
+    }
   }
 }
