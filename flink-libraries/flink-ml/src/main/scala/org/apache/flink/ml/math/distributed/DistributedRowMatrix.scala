@@ -30,10 +30,10 @@ import org.apache.flink.ml.math.Breeze._
 import scala.collection.JavaConversions._
 
 /**
-  *
-  * @param numRowsOpt If None, will be calculated from the DataSet.
-  * @param numColsOpt If None, will be calculated from the DataSet.
-  */
+ * Distributed row-major matrix representation.
+ * @param numRowsOpt If None, will be calculated from the DataSet.
+ * @param numColsOpt If None, will be calculated from the DataSet.
+ */
 class DistributedRowMatrix(data: DataSet[IndexedRow],
                            numRowsOpt: Option[Int] = None,
                            numColsOpt: Option[Int] = None)
@@ -83,6 +83,12 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
   //TODO: convert to dense representation on the distributed matrix and collect it afterward
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
+  /**
+   * Apply a high-order function to couple of rows
+   * @param fun
+   * @param other
+   * @return
+   */
   def byRowOperation(
       fun: (Vector, Vector) => Vector, other: DistributedRowMatrix): DistributedRowMatrix = {
     val otherData = other.getRowData
@@ -108,12 +114,23 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     new DistributedRowMatrix(result, numRowsOpt, numColsOpt)
   }
 
+  /**
+   * Add the matrix to another matrix.
+   * @param other
+   * @return
+   */
   def sum(other: DistributedRowMatrix): DistributedRowMatrix = {
     val sumFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze + y.asBreeze).fromBreeze
     this.byRowOperation(sumFunction, other)
   }
 
+
+  /**
+   * Subtracts another matrix.
+   * @param other
+   * @return
+   */
   def subtract(other: DistributedRowMatrix): DistributedRowMatrix = {
     val subFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze - y.asBreeze).fromBreeze

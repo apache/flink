@@ -18,6 +18,9 @@
 
 package org.apache.flink.ml.math.distributed
 
+/**
+  * Common trait used by distributed data structures representing a matrix.
+  */
 trait DistributedMatrix {
 
   def getNumRows: Int
