@@ -96,12 +96,11 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     require(this.getNumCols == other.getNumCols)
     require(this.getNumRows == other.getNumRows)
 
-    val ev1: TypeInformation[Int] = TypeInformation.of(classOf[Int])
 
     val result = this.data
       .fullOuterJoin(otherData)
-      .where(_.rowIndex)
-      .equalTo(_.rowIndex)(ev1)(
+      .where("rowIndex")
+      .equalTo("rowIndex")(
           (left: IndexedRow, right: IndexedRow) => {
             val row1 = Option(left).getOrElse(IndexedRow(
                     right.rowIndex,
