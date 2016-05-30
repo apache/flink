@@ -92,7 +92,7 @@ abstract class FlinkMiniCluster(
 
   val numJobManagers = getNumberOfJobManagers
 
-  val numTaskManagers = configuration.getInteger(
+  var numTaskManagers = configuration.getInteger(
     ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
     ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
