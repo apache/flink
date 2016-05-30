@@ -158,6 +158,10 @@ case class DenseVector(
 
 object DenseVector {
 
+  implicit class ScalarVectorMult(scalar: Double) {
+    def *(vector: DenseVector): Vector = vector * scalar
+  }
+
   def apply(values: Double*): DenseVector = {
     new DenseVector(values.toArray)
   }

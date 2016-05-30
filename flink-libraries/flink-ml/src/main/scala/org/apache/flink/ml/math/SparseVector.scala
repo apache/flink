@@ -187,6 +187,10 @@ case class SparseVector(
 
 object SparseVector {
 
+  implicit class ScalarVectorMult(scalar: Double) {
+    def *(vector: SparseVector): Vector = vector * scalar
+  }
+
   /** Constructs a sparse vector from a coordinate list (COO) representation where each entry
     * is stored as a tuple of (index, value).
     *
