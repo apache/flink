@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
-import org.apache.flink.api.common.ExecutionConfigTest;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -30,7 +31,10 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Field;
@@ -42,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 
 public class ExecutionGraphCheckpointCoordinatorTest {
-
+	
 	@Test
 	public void testCheckpointAndSavepointCoordinatorShareCheckpointIDCounter() throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
@@ -50,7 +54,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new JobID(),
 			"test",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			new FiniteDuration(1, TimeUnit.DAYS),
 			new NoRestartStrategy(),
 			Collections.<BlobKey>emptyList(),

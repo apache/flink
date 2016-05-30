@@ -25,10 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * {@link org.apache.flink.api.common.io.OutputFormat}s can implement this interface to be configured
- * with the data type they will operate on. The method {@link #setInputType(org.apache.flink.api
- * .common.typeinfo.TypeInformation, org.apache.flink.api.common.ExecutionConfig)} will be
- * called when the output format is used with an output method such as
- * {@link org.apache.flink.api.java.DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+ * with the data type they will operate on. The method {@link #setInputType(TypeInformation, ExecutionConfig)
+ * will be called when the output format is used with an output API method.
  */
 @Public
 public interface InputTypeConfigurable {
@@ -38,7 +36,7 @@ public interface InputTypeConfigurable {
 	 * the DataSet's output method. May be used to configures the output format based on the data type.
 	 *
 	 * @param type The data type of the input.
-	 * @param executionConfig
+	 * @param executionConfig The execution config for this parallel execution.
 	 */
 	void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig);
 }
