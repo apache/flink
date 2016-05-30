@@ -641,10 +641,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 
 		public RecordArea(int segmentSize) {
-			this(segmentSize, MathUtils.log2strict(segmentSize));
-		}
-
-		public RecordArea(int segmentSize, int segmentSizeBits) {
+			int segmentSizeBits = MathUtils.log2strict(segmentSize);
 
 			if ((segmentSize & (segmentSize - 1)) != 0) {
 				throw new IllegalArgumentException("Segment size must be a power of 2!");
