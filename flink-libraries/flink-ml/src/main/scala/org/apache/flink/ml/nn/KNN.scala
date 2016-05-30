@@ -345,7 +345,7 @@ object KNN {
                   if (useQuadTree) {
                     if (metric.isInstanceOf[EuclideanDistanceMetric] ||
                       metric.isInstanceOf[SquaredEuclideanDistanceMetric]) {
-                      val quadTreeKNN = new QuadtreeKNN()
+                      val quadTreeKNN = new quadtreeKNN()
                       quadTreeKNN.knnQueryWithQuadTree(training.values, testing.values,
                         k, metric, out)
                     } else {
