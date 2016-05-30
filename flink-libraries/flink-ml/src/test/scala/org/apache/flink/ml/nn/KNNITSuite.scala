@@ -110,13 +110,12 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
       v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
     }.sortBy(_._2).take(3).map(_._1).toArray
 
-  it should "calculate exact kNN join correctly without using a Quadtree" in {
+  it should "calculate kNN join correctly without using a Quadtree" in {
 
     val knn = KNN()
       .setK(3)
       .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
-      .setExact(true)
       .setUseQuadTree(false)
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
 
@@ -127,17 +126,15 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     result.size should be(1)
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
-
   }
 
-  it should "calculate exact kNN join correctly with a Quadtree" in {
+  it should "calculate kNN join correctly with a Quadtree" in {
 
     val knn = KNN()
       .setK(3)
       .setBlocks(2) // blocks set to 2 to make sure initial quadtree box is partitioned
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
       .setUseQuadTree(true)
-      .setExact(true)
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
 
     // run knn join
@@ -155,13 +152,11 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
         .setK(3)
         .setBlocks(10)
         .setDistanceMetric(ManhattanDistanceMetric())
-        .setExact(true)
         .setUseQuadTree(true)
 
       // run knn join
       knn.fit(trainingSet)
-      val result = knn.predict(testingSet).collect()
-
+      knn.predict(testingSet).collect()
     }
   }
 
