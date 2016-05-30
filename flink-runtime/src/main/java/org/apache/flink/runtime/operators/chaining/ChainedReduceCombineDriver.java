@@ -119,7 +119,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 				// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 				if (this.comparator.supportsSerializationWithKeyNormalization() &&
 					this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
-					this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator, memory);
+					this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator.duplicate(), memory);
 				} else {
 					this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
 				}
