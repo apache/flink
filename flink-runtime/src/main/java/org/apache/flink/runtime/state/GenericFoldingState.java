@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -69,6 +70,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	}
 
 	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		return wrappedState.getSerializedValue(serializedKeyAndNamespace);
+	}
+
+	@Override
 	public KvStateSnapshot<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, Backend> snapshot(
 		long checkpointId,
 		long timestamp) throws Exception {
@@ -81,6 +87,11 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	@Override
 	public void dispose() {
 		wrappedState.dispose();
+	}
+
+	@Override
+	public FoldingStateDescriptor<T, ACC> getStateDescriptor() {
+		throw new UnsupportedOperationException("Not supported by generic state type");
 	}
 
 	@Override

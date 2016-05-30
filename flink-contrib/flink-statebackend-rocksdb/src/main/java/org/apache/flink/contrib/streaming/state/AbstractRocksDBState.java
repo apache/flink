@@ -22,12 +22,11 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
-
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +45,7 @@ import java.io.IOException;
  * @param <S> The type of {@link State}.
  * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
+public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
 		implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
@@ -63,6 +62,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	/** The column family of this particular instance of state */
 	protected ColumnFamilyHandle columnFamily;
 
+	/** State descriptor from which to create this state instance */
+	protected final SD stateDesc;
+
 	/**
 	 * We disable writes to the write-ahead-log here.
 	 */
@@ -70,11 +72,11 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 	/**
 	 * Creates a new RocksDB backed state.
-	 *
-	 * @param namespaceSerializer The serializer for the namespace.
+	 *  @param namespaceSerializer The serializer for the namespace.
 	 */
 	protected AbstractRocksDBState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
+			SD stateDesc,
 			RocksDBStateBackend backend) {
 
 		this.namespaceSerializer = namespaceSerializer;
@@ -84,6 +86,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		writeOptions = new WriteOptions();
 		writeOptions.setDisableWAL(true);
+
+		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,7 +113,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 	@Override
 	public void setCurrentNamespace(N namespace) {
-		this.currentNamespace = namespace;
+		this.currentNamespace = Preconditions.checkNotNull(namespace, "Namespace");
 	}
 
 	@Override
@@ -118,9 +122,13 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	}
 
 	@Override
+	public SD getStateDescriptor() {
+		return stateDesc;
+	}
+
+	@Override
 	public void setCurrentKey(K key) {
 		// ignore because we don't hold any state ourselves
-
 	}
 
 	@Override
@@ -128,5 +136,21 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			long timestamp) throws Exception {
 		throw new RuntimeException("Should not be called. Backups happen in RocksDBStateBackend.");
 	}
-}
 
+	@Override
+	@SuppressWarnings("unchecked")
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		// Serialized key and namespace is expected to be of the same format
+		// as writeKeyAndNamespace()
+		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+
+		byte[] value = backend.db.get(columnFamily, serializedKeyAndNamespace);
+
+		if (value != null) {
+			return value;
+		} else {
+			return null;
+		}
+	}
+
+}

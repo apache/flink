@@ -21,8 +21,10 @@ package org.apache.flink.runtime.state.memory;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,9 +56,11 @@ public class MemValueState<K, N, V>
 	@Override
 	public V value() {
 		if (currentNSState == null) {
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
 			currentNSState = state.get(currentNamespace);
 		}
 		if (currentNSState != null) {
+			Preconditions.checkState(currentKey != null, "No key set");
 			V value = currentNSState.get(currentKey);
 			return value != null ? value : stateDesc.getDefaultValue();
 		}
@@ -65,9 +69,7 @@ public class MemValueState<K, N, V>
 
 	@Override
 	public void update(V value) {
-		if (currentKey == null) {
-			throw new RuntimeException("No key available.");
-		}
+		Preconditions.checkState(currentKey != null, "No key set");
 
 		if (value == null) {
 			clear();
@@ -75,7 +77,8 @@ public class MemValueState<K, N, V>
 		}
 
 		if (currentNSState == null) {
-			currentNSState = new HashMap<>();
+			Preconditions.checkState(currentNamespace != null, "No namespace set");
+			currentNSState = createNewNamespaceMap();
 			state.put(currentNamespace, currentNSState);
 		}
 
@@ -85,6 +88,20 @@ public class MemValueState<K, N, V>
 	@Override
 	public KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, MemoryStateBackend> createHeapSnapshot(byte[] bytes) {
 		return new Snapshot<>(getKeySerializer(), getNamespaceSerializer(), stateSerializer, stateDesc, bytes);
+	}
+
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkNotNull(key, "Key");
+		Preconditions.checkNotNull(namespace, "Namespace");
+
+		Map<K, V> stateByKey = state.get(namespace);
+		V value = stateByKey != null ? stateByKey.get(key) : stateDesc.getDefaultValue();
+		if (value != null) {
+			return KvStateRequestSerializer.serializeValue(value, stateDesc.getSerializer());
+		} else {
+			return KvStateRequestSerializer.serializeValue(stateDesc.getDefaultValue(), stateDesc.getSerializer());
+		}
 	}
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, V, ValueState<V>, ValueStateDescriptor<V>> {
