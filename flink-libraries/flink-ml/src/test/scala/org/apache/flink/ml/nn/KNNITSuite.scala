@@ -21,6 +21,7 @@ package org.apache.flink.ml.nn
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.classification.Classification
+import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.{ManhattanDistanceMetric,
 SquaredEuclideanDistanceMetric}
@@ -42,16 +43,72 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
+  it should "throw an exception setExact is true and setUseLSH is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseLSH(true)
+        .setExact(true)
+    }
+
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setExact(true)
+        .setUseLSH(true)
+    }
+  }
+
+  it should "throw an exception setExact is true and setUseZvalues is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseZValues(true)
+        .setExact(true)
+    }
+
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setExact(true)
+        .setUseZValues(true)
+    }
+  }
+
+  it should "throw an exception setExact is false and setUseQuadtree is true" in {
+    intercept[IllegalArgumentException] {
+      KNN().setK(3)
+        .setUseQuadTree(true)
+        .setExact(false)
+    }
+
+  }
+
   val env = ExecutionEnvironment.getExecutionEnvironment
 
   // prepare data
   val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
   val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
+  // for approximate methods add a single point very close to (0,0)
+  val trainingSetApprox = trainingSet.union(
+    env.fromElements(
+      DenseVector(0.000001, 0.000001),
+      DenseVector(0.000002, 0.000002),
+      DenseVector(0.000003, 0.000003)))
+
+  // add another point for approx (hack, now only can have one point)
+  val testingSetApprox = env.fromElements(DenseVector(0.0, 0.0))
+
   // calculate answer
   val answer = Classification.trainingData.map {
     v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
   }.sortBy(_._2).take(3).map(_._1).toArray
+
+  // answer for exact search
+  val answerForApproxBenchmark = Classification.trainingData.union(Seq(
+    LabeledVector(1.0000, DenseVector(0.000001, 0.000001)),
+    LabeledVector(1.0000, DenseVector(0.000002, 0.000002)),
+    LabeledVector(1.0000, DenseVector(0.000003, 0.000003))))
+    .map {
+      v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
+    }.sortBy(_._2).take(3).map(_._1).toArray
 
   it should "calculate kNN join correctly without using a Quadtree" in {
 
@@ -103,5 +160,45 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     }
   }
 
-}
+  it should "calculate approximate kNN join correctly using z-values when 3 training" +
+    " points are much closer to a given test point" in {
 
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(10)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(false)
+      .setUseQuadTree(false)
+
+    // run knn join
+    knn.fit(trainingSetApprox)
+    val result = knn.predict(testingSetApprox).collect()
+
+    result.size should be(1)
+    result.head._1 should be(DenseVector(0.0, 0.0))
+    result.head._2 should be(answerForApproxBenchmark)
+  }
+
+  it should "calculate approximate kNN join correctly using lsh when 3 training" +
+    " points are much closer to a given test point" in {
+
+    val knn = KNN()
+      .setK(3)
+      .setBlocks(10)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setSizeHint(CrossHint.SECOND_IS_SMALL)
+      .setExact(false)
+      .setUseQuadTree(false)
+      .setUseLSH(true)
+
+    // run knn join
+    knn.fit(trainingSetApprox)
+    val result = knn.predict(testingSetApprox).collect()
+
+    result.size should be(1)
+    result.head._1 should be(DenseVector(0.0, 0.0))
+    result.head._2 should be(answerForApproxBenchmark)
+  }
+
+}
