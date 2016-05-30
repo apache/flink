@@ -124,7 +124,6 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
     knn.fit(trainingSet)
     val result = knn.predict(testingSet).collect()
 
-    result.head._2.foreach(x => println(x))
     result.size should be(1)
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
