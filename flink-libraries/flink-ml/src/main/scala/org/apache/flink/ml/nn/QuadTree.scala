@@ -40,15 +40,15 @@ import scala.collection.mutable
   * @param maxPerBox  threshold for number of points in each box before slitting a box
   */
 class QuadTree(
-                minVec: Vector,
-                maxVec: Vector,
-                distMetric: DistanceMetric,
-                maxPerBox: Int) {
+  minVec: Vector,
+  maxVec: Vector,
+  distMetric: DistanceMetric,
+  maxPerBox: Int) {
 
   class Node(
-              center: Vector,
-              width: Vector,
-              var children: Seq[Node]) {
+    center: Vector,
+    width: Vector,
+    var children: Seq[Node]) {
 
     val nodeElements = new mutable.ListBuffer[Vector]
 
@@ -250,10 +250,10 @@ class QuadTree(
     *                   distance to node as defined by minDist
     */
   private def searchRecurSiblingQueue(
-                                       queryPoint: Vector,
-                                       node: Node,
-                                       nodeQueue: mutable.PriorityQueue[(Double, Node)]
-                                     ): Unit = {
+    queryPoint: Vector,
+    node: Node,
+    nodeQueue: mutable.PriorityQueue[(Double, Node)]
+  ): Unit = {
     if (node.children != null) {
       for (child <- node.children; if child.contains(queryPoint)) {
         if (child.children == null) {
@@ -275,10 +275,10 @@ class QuadTree(
     *                   of queryPoint
     */
   private def minNodes(
-                        queryPoint: Vector,
-                        node: Node,
-                        nodeQueue: mutable.PriorityQueue[(Double, Node)]
-                      ): Unit = {
+    queryPoint: Vector,
+    node: Node,
+    nodeQueue: mutable.PriorityQueue[(Double, Node)]
+  ): Unit = {
     if (node.children == null) {
       nodeQueue += ((-node.minDist(queryPoint), node))
     } else {
@@ -302,11 +302,11 @@ class QuadTree(
     */
   def searchNeighbors(queryPoint: Vector, radius: Double): mutable.ListBuffer[Vector] = {
     def searchRecur(
-                     queryPoint: Vector,
-                     radius: Double,
-                     node: Node,
-                     ret: mutable.ListBuffer[Vector]
-                   ): Unit = {
+      queryPoint: Vector,
+      radius: Double,
+      node: Node,
+      ret: mutable.ListBuffer[Vector]
+    ): Unit = {
       if (node.children == null) {
         ret ++= node.nodeElements
       } else {
