@@ -825,4 +825,36 @@ public class PojoTypeExtractionTest {
 		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation().getClass());
 	}
 
+	public static class MutualPojoA {
+		public MutualPojoB field;
+	}
+
+	public static class MutualPojoB {
+		public MutualPojoA field;
+	}
+
+	@Test
+	public void testPojosWithMutualRecursion() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MutualPojoB.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
+		Assert.assertTrue(pti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+	}
+
+	public static class Container<T> {
+		public T field;
+	}
+
+	public static class MyType extends Container<Container<Object>> {}
+
+	@Test
+	public void testRecursivePojoWithTypeVariable() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyType.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		TypeInformation<?> pti = ((PojoTypeInfo) ti).getPojoFieldAt(0).getTypeInformation();
+		Assert.assertTrue(pti instanceof PojoTypeInfo);
+		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
+	}
+
 }
