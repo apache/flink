@@ -171,7 +171,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val knn = KNN()
       .setK(3)
-      .setBlocks(1)
+      .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
       .setExact(false)
@@ -191,7 +191,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val knn = KNN()
       .setK(3)
-      .setBlocks(1)
+      .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
       .setSizeHint(CrossHint.SECOND_IS_SMALL)
       .setExact(false)
