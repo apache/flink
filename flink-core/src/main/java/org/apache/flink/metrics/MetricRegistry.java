@@ -83,7 +83,7 @@ public class MetricRegistry {
 		
 		final String className = config.getString(KEY_METRICS_REPORTER_CLASS, null);
 		if (className == null) {
-			this.reporter = new JMXReporter();
+			this.reporter = null;
 			this.timer = null;
 		}
 		else {
