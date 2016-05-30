@@ -80,7 +80,7 @@ public class NetworkEnvironmentTest {
 			NettyConfig nettyConf = new NettyConfig(InetAddress.getLocalHost(), port, BUFFER_SIZE, 1, new Configuration());
 			NetworkEnvironmentConfiguration config = new NetworkEnvironmentConfiguration(
 					NUM_BUFFERS, BUFFER_SIZE, MemoryType.HEAP,
-					IOManager.IOMode.SYNC, new Some<>(nettyConf),
+					IOManager.IOMode.SYNC, 0, 0, 0, new Some<>(nettyConf),
 					new Tuple2<>(0, 0));
 
 			NetworkEnvironment env = new NetworkEnvironment(
@@ -174,6 +174,9 @@ public class NetworkEnvironmentTest {
 				1024,
 				MemoryType.HEAP,
 				IOManager.IOMode.SYNC,
+				0,
+				0,
+				0,
 				Some.<NettyConfig>empty(),
 				new Tuple2<>(0, 0));
 

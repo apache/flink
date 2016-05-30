@@ -16,19 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager
+package org.apache.flink.runtime.query;
 
-import org.apache.flink.core.memory.MemoryType
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
-import org.apache.flink.runtime.io.network.netty.NettyConfig
+/**
+ * Thrown if there is no {@link KvStateLocation} found for the requested
+ * registration name.
+ *
+ * <p>This indicates that the requested KvState instance is not registered
+ * under this name (yet).
+ */
+public class UnknownKvStateLocation extends Exception {
 
-case class NetworkEnvironmentConfiguration(
-  numNetworkBuffers: Int,
-  networkBufferSize: Int,
-  memoryType: MemoryType,
-  ioMode: IOMode,
-  queryServerPort: Int,
-  queryServerNetworkThreads: Int,
-  queryServerQueryThreads: Int,
-  nettyConfig: Option[NettyConfig] = None,
-  partitionRequestInitialAndMaxBackoff: (Integer, Integer) = (500, 3000))
+	private static final long serialVersionUID = 1L;
+
+	public UnknownKvStateLocation(String registrationName) {
+		super("No KvStateLocation found for KvState instance with name '" + registrationName + "'.");
+	}
+}

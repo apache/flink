@@ -2097,11 +2097,26 @@ object TaskManager {
 
     val ioMode : IOMode = if (syncOrAsync == "async") IOMode.ASYNC else IOMode.SYNC
 
+    val queryServerPort =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_PORT,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_PORT)
+
+    val queryServerNetworkThreads =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_NETWORK_THREADS,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_NETWORK_THREADS)
+
+    val queryServerQueryThreads =  configuration.getInteger(
+      ConfigConstants.QUERYABLE_STATE_SERVER_QUERY_THREADS,
+      ConfigConstants.DEFAULT_QUERYABLE_STATE_SERVER_QUERY_THREADS)
+
     val networkConfig = NetworkEnvironmentConfiguration(
       numNetworkBuffers,
       pageSize,
       memType,
       ioMode,
+      queryServerPort,
+      queryServerNetworkThreads,
+      queryServerQueryThreads,
       nettyConfig)
 
     // ----> timeouts, library caching, profiling
