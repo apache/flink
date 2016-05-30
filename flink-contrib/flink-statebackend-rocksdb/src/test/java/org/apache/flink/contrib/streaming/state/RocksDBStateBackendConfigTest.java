@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -311,6 +312,11 @@ public class RocksDBStateBackendConfigTest {
 		when(env.getJobID()).thenReturn(new JobID());
 		when(env.getUserClassLoader()).thenReturn(RocksDBStateBackendConfigTest.class.getClassLoader());
 		when(env.getIOManager()).thenReturn(ioMan);
+
+		TaskInfo taskInfo = mock(TaskInfo.class);
+		when(env.getTaskInfo()).thenReturn(taskInfo);
+
+		when(taskInfo.getIndexOfThisSubtask()).thenReturn(0);
 		return env;
 	}
 }

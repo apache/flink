@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
@@ -49,9 +49,12 @@ public class DummyEnvironment implements Environment {
 	private final JobVertexID jobVertexId = new JobVertexID();
 	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
+<<<<<<< 9a73dbc71b83080b7deccc62b8b6ffa9f102e847
 	private final TaskInfo taskInfo;
+=======
 	private final KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private final TaskKvStateRegistry taskKvStateRegistry;
+>>>>>>> [FLINK-3779] [runtime] Add KvStateRegistry for queryable KvState
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
@@ -144,20 +147,20 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
+<<<<<<< 9a73dbc71b83080b7deccc62b8b6ffa9f102e847
+	public void acknowledgeCheckpoint(long checkpointId) {}
+=======
 	public TaskKvStateRegistry getTaskKvStateRegistry() {
 		return taskKvStateRegistry;
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId) {}
+	public void acknowledgeCheckpoint(long checkpointId) {
+	}
+>>>>>>> [FLINK-3779] [runtime] Add KvStateRegistry for queryable KvState
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {}
-
-	@Override
-	public void failExternally(Throwable cause) {
-		throw new UnsupportedOperationException("DummyEnvironment does not support external task failure.");
-	}
 
 	@Override
 	public ResultPartitionWriter getWriter(int index) {

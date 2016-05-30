@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -85,7 +86,8 @@ public class NetworkEnvironmentTest {
 			NetworkEnvironment env = new NetworkEnvironment(
 				TestingUtils.defaultExecutionContext(),
 				new FiniteDuration(30, TimeUnit.SECONDS),
-				config);
+				config,
+				new InstanceConnectionInfo(InetAddress.getLocalHost(), port));
 
 			assertFalse(env.isShutdown());
 			assertFalse(env.isAssociated());
@@ -178,7 +180,8 @@ public class NetworkEnvironmentTest {
 		NetworkEnvironment env = new NetworkEnvironment(
 				TestingUtils.defaultExecutionContext(),
 				new FiniteDuration(30, TimeUnit.SECONDS),
-				config);
+				config,
+				new InstanceConnectionInfo(InetAddress.getLocalHost(), 12232));
 
 		// Associate the environment with the mock actors
 		env.associateWithTaskManagerAndJobManager(

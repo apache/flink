@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
@@ -224,6 +225,9 @@ public class ExecutionGraph {
 	/** The execution context which is used to execute futures. */
 	private ExecutionContext executionContext;
 
+	/** Registered KvState instances reported by the TaskManagers. */
+	private transient KvStateLocationRegistry kvStateLocationRegistry;
+
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
@@ -304,6 +308,8 @@ public class ExecutionGraph {
 		this.restartStrategy = restartStrategy;
 
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
+
+		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -443,6 +449,10 @@ public class ExecutionGraph {
 
 	public SavepointCoordinator getSavepointCoordinator() {
 		return savepointCoordinator;
+	}
+
+	public KvStateLocationRegistry getKvStateLocationRegistry() {
+		return kvStateLocationRegistry;
 	}
 
 	public RestartStrategy getRestartStrategy() {
