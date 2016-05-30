@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
@@ -44,15 +45,15 @@ import org.apache.flink.api.java.DataSet;
  */
 @Public
 public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOperator<IN>> {
-
-	// should be null in case of an all reduce
-	private final CombineHint hint;
 	
 	private final ReduceFunction<IN> function;
 	
 	private final Grouping<IN> grouper;
 	
 	private final String defaultName;
+
+	// should be null in case of an all reduce
+	private CombineHint hint;
 	
 	/**
 	 * 
@@ -71,13 +72,13 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	}
 	
 	
-	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function, String defaultName, CombineHint hint) {
+	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function, String defaultName) {
 		super(input.getInputDataSet(), input.getInputDataSet().getType());
 		
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
-		this.hint = hint != null ? hint : CombineHint.OPTIMIZER_CHOOSES;
+		this.hint = CombineHint.OPTIMIZER_CHOOSES;
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, ReduceFunction.class, defaultName, function, grouper.keys);
 	}
@@ -159,7 +160,22 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-	
+
+	/**
+	 * Sets the strategy to use for the combine phase of the reduce.
+	 *
+	 * If this method is not called, then the default hint will be used.
+	 * ({@link org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint.OPTIMIZER_CHOOSES})
+	 *
+	 * @param strategy The hint to use.
+	 * @return The ReduceOperator object, for function call chaining.
+	 */
+	@PublicEvolving
+	public ReduceOperator<IN> setCombineHint(CombineHint strategy) {
+		this.hint = strategy;
+		return this;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	private static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateSelectorFunctionReducer(

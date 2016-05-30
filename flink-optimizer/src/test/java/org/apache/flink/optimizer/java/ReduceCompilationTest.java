@@ -279,7 +279,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
 						return null;
 					}
-				}, CombineHint.HASH).name("reducer")
+				}).setCombineHint(CombineHint.HASH).name("reducer")
 				.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 
 			Plan p = env.createProgramPlan();

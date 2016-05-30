@@ -310,7 +310,7 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
-			groupBy("f4","f0").reduce(new Tuple5Reduce(), CombineHint.HASH);
+			groupBy("f4","f0").reduce(new Tuple5Reduce()).setCombineHint(CombineHint.HASH);
 
 		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
 			.collect();

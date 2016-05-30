@@ -77,7 +77,7 @@ public class ReducePerformance {
 		DataSet<T> output =
 			env.fromParallelCollection(new SplittableRandomIterator<T, B>(numRecords, iterator), typeInfo)
 				.groupBy("0")
-				.reduce(new SumReducer(), hint);
+				.reduce(new SumReducer()).setCombineHint(hint);
 
 		long start = System.currentTimeMillis();
 
