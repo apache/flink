@@ -30,10 +30,10 @@ import org.apache.flink.ml.math.Breeze._
 import scala.collection.JavaConversions._
 
 /**
- * Distributed row-major matrix representation.
- * @param numRowsOpt If None, will be calculated from the DataSet.
- * @param numColsOpt If None, will be calculated from the DataSet.
- */
+  * Distributed row-major matrix representation.
+  * @param numRowsOpt If None, will be calculated from the DataSet.
+  * @param numColsOpt If None, will be calculated from the DataSet.
+  */
 class DistributedRowMatrix(data: DataSet[IndexedRow],
                            numRowsOpt: Option[Int] = None,
                            numColsOpt: Option[Int] = None)
@@ -66,7 +66,7 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     val localRows = data.collect()
 
     for (IndexedRow(rowIndex, vector) <- localRows;
-    (columnIndex, value) <- vector) yield (rowIndex, columnIndex, value)
+         (columnIndex, value) <- vector) yield (rowIndex, columnIndex, value)
   }
 
   /**
@@ -74,7 +74,8 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     * @return
     */
   def toLocalSparseMatrix: SparseMatrix = {
-    val localMatrix = SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
+    val localMatrix =
+      SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
     require(localMatrix.numRows == this.getNumRows)
     require(localMatrix.numCols == this.getNumCols)
     localMatrix
@@ -84,13 +85,13 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
   /**
-   * Apply a high-order function to couple of rows
-   * @param fun
-   * @param other
-   * @return
-   */
-  def byRowOperation(
-      fun: (Vector, Vector) => Vector, other: DistributedRowMatrix): DistributedRowMatrix = {
+    * Apply a high-order function to couple of rows
+    * @param fun
+    * @param other
+    * @return
+    */
+  def byRowOperation(fun: (Vector, Vector) => Vector,
+                     other: DistributedRowMatrix): DistributedRowMatrix = {
     val otherData = other.getRowData
     require(this.getNumCols == other.getNumCols)
     require(this.getNumRows == other.getNumRows)
@@ -101,36 +102,36 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
       .fullOuterJoin(otherData)
       .where(_.rowIndex)
       .equalTo(_.rowIndex)(ev1)(
-          (left: IndexedRow, right: IndexedRow) =>
-            {
-              val row1 = Option(left).getOrElse(IndexedRow(
-                      right.rowIndex, SparseVector.fromCOO(right.values.size, List((0, 0.0)))))
-              val row2 = Option(right).getOrElse(IndexedRow(
-                      left.rowIndex, SparseVector.fromCOO(left.values.size, List((0, 0.0)))))
+          (left: IndexedRow, right: IndexedRow) => {
+            val row1 = Option(left).getOrElse(IndexedRow(
+                    right.rowIndex,
+                    SparseVector.fromCOO(right.values.size, List((0, 0.0)))))
+            val row2 = Option(right).getOrElse(IndexedRow(
+                    left.rowIndex,
+                    SparseVector.fromCOO(left.values.size, List((0, 0.0)))))
 
-              IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
+            IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
           }
       )
     new DistributedRowMatrix(result, numRowsOpt, numColsOpt)
   }
 
   /**
-   * Add the matrix to another matrix.
-   * @param other
-   * @return
-   */
+    * Add the matrix to another matrix.
+    * @param other
+    * @return
+    */
   def sum(other: DistributedRowMatrix): DistributedRowMatrix = {
     val sumFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze + y.asBreeze).fromBreeze
     this.byRowOperation(sumFunction, other)
   }
 
-
   /**
-   * Subtracts another matrix.
-   * @param other
-   * @return
-   */
+    * Subtracts another matrix.
+    * @param other
+    * @return
+    */
   def subtract(other: DistributedRowMatrix): DistributedRowMatrix = {
     val subFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze - y.asBreeze).fromBreeze
@@ -154,19 +155,17 @@ object DistributedRowMatrix {
               isSorted: Boolean = false): DistributedRowMatrix = {
     val vectorData: DataSet[(Int, SparseVector)] = data
       .groupBy(0)
-      .reduceGroup(sparseRow =>
-            {
-          require(sparseRow.nonEmpty)
-          val sortedRow =
-            if (isSorted) {
-              sparseRow.toList
-            } else {
-              sparseRow.toList.sortBy(row => row._2)
-            }
-          val (indices, values) = sortedRow
-            .map(x => (x._2, x._3))
-            .unzip
-            (sortedRow.head._1, SparseVector(numCols, indices.toArray, values.toArray))
+      .reduceGroup(sparseRow => {
+        require(sparseRow.nonEmpty)
+        val sortedRow =
+          if (isSorted) {
+            sparseRow.toList
+          } else {
+            sparseRow.toList.sortBy(row => row._2)
+          }
+        val (indices, values) = sortedRow.map(x => (x._2, x._3)).unzip
+        (sortedRow.head._1,
+         SparseVector(numCols, indices.toArray, values.toArray))
       })
 
     val zippedData = vectorData.map(x => IndexedRow(x._1.toInt, x._2))
@@ -175,10 +174,10 @@ object DistributedRowMatrix {
   }
 }
 
-case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow] {
+case class IndexedRow(rowIndex: Int, values: Vector)
+    extends Ordered[IndexedRow] {
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
   override def toString: String = s"($rowIndex,${values.toString}"
 }
-
