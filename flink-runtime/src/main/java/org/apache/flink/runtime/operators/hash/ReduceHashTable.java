@@ -607,7 +607,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	{
 		private final ArrayList<MemorySegment> segments = new ArrayList<>();
 
-		private final OutputView outView;
+		private final RecordAreaOutputView outView;
 		private final RandomAccessInputView inView;
 
 		private final int segmentSizeBits;
@@ -616,11 +616,11 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		private long appendPosition = 0;
 
 
-		private final class OutputView extends AbstractPagedOutputView {
+		private final class RecordAreaOutputView extends AbstractPagedOutputView {
 
 			public int currentSegmentIndex;
 
-			public OutputView(int segmentSize) {
+			public RecordAreaOutputView(int segmentSize) {
 				super(segmentSize, 0);
 			}
 
@@ -653,7 +653,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			this.segmentSizeBits = segmentSizeBits;
 			this.segmentSizeMask = segmentSize - 1;
 
-			outView = new OutputView(segmentSize);
+			outView = new RecordAreaOutputView(segmentSize);
 			inView = new RandomAccessInputView(segments, segmentSize, false);
 		}
 
