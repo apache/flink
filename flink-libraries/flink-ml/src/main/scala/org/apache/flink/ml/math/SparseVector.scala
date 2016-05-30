@@ -19,6 +19,7 @@
 package org.apache.flink.ml.math
 
 import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeDenseVector, Vector => BreezeVector}
+import org.apache.flink.ml.math.Breeze._
 
 import scala.util.Sorting
 
@@ -175,6 +176,13 @@ case class SparseVector(
 
     java.util.Arrays.binarySearch(indices, 0, indices.length, index)
   }
+
+  def +(other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
+
+  def -(other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
+
+  def *(scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
+
 }
 
 object SparseVector {
