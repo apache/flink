@@ -129,17 +129,15 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 
 		@Override
 		public void open() throws Exception {
-			checkpoints = new ArrayList<>();
 		}
 
 		@Override
 		public void close() throws Exception {
-			checkpoints.clear();
-			checkpoints = null;
 		}
 
 		@Override
 		public void createResource() throws Exception {
+			checkpoints = new ArrayList<>();
 		}
 
 		@Override
