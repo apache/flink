@@ -51,7 +51,9 @@ Instructions for setting up a Apache NiFi cluster can be found
 
 #### Apache NiFi Source
 
-The connector provides a Source for reading Apache NiFi data into Apache Flink.
+The connector provides a Source for reading data from Apache NiFi to Apache Flink.
+
+The class `NiFiSource(…)` provides 2 constructors for reading data from NiFi
  
 
 
