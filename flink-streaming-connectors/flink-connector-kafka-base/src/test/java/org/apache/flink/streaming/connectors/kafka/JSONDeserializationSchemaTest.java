@@ -33,7 +33,7 @@ public class JSONDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONDeserializationSchema schema = new JSONDeserializationSchema();
-		ObjectNode deserializedValue = schema.deserialize(null, serializedValue, "", 0, 0);
+		ObjectNode deserializedValue = schema.deserialize(serializedValue);
 
 		Assert.assertEquals(4, deserializedValue.get("key").asInt());
 		Assert.assertEquals("world", deserializedValue.get("value").asText());
