@@ -42,8 +42,6 @@ import org.apache.flink.util.Preconditions;
  * represented a page that is linked by many different hubs.
  * Each vertex has a value of Tuple2 type, the first field is hub score and the second field is authority score.
  * The implementation sets same score to every vertex and adds the reverse edge to every edge at the beginning. 
- * If the number of vertices of the input graph is known, it should be provided as a parameter
- * to speed up computation. Otherwise, the algorithm will first execute a job to count the vertices.
  * <p>
  *
  * @see <a href="https://en.wikipedia.org/wiki/HITS_algorithm">HITS Algorithm</a>
@@ -54,7 +52,6 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 	private final static double MINIMUMTHRESHOLD = 1e-9;
 
 	private int maxIterations;
-	private long numberOfVertices;
 	private double convergeThreshold;
 
 	/**
@@ -76,26 +73,6 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 	}
 
 	/**
-	 * Create an instance of HITS algorithm.
-	 * 
-	 * @param maxIterations    the maximum number of iterations
-	 * @param numberOfVertices the number of vertices in the graph
-	 */
-	public HITSAlgorithm(int maxIterations, long numberOfVertices) {
-		this(maxIterations, MINIMUMTHRESHOLD, numberOfVertices);
-	}
-
-	/**
-	 * Create an instance of HITS algorithm.
-	 * 
-	 * @param convergeThreshold convergence threshold for sum of scores to control whether the iteration should be stopped
-	 * @param numberOfVertices  the number of vertices in the graph
-	 */
-	public HITSAlgorithm(double convergeThreshold, long numberOfVertices) {
-		this(MAXIMUMITERATION, convergeThreshold, numberOfVertices);
-	}
-
-	/**
 	 * Creates an instance of HITS algorithm.
 	 *
 	 * @param maxIterations     the maximum number of iterations
@@ -108,26 +85,8 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 		this.convergeThreshold = convergeThreshold;
 	}
 
-	/**
-	 * Creates an instance of HITS algorithm.
-	 *
-	 * @param maxIterations     the maximum number of iterations
-	 * @param convergeThreshold convergence threshold for sum of scores to control whether the iteration should be stopped
-	 * @param numberOfVertices  the number of vertices in the graph
-	 */
-	public HITSAlgorithm(int maxIterations, double convergeThreshold, long numberOfVertices) {
-		this(maxIterations, convergeThreshold);
-		Preconditions.checkArgument(numberOfVertices > 0, "Number of vertices must be greater than zero.");
-		this.numberOfVertices = numberOfVertices;
-	}
-
 	@Override
 	public DataSet<Vertex<K, Tuple2<DoubleValue, DoubleValue>>> run(Graph<K, VV, EV> graph) throws Exception {
-
-		if (numberOfVertices == 0) {
-			numberOfVertices = graph.numberOfVertices();
-		}
-
 		Graph<K, Tuple2<DoubleValue, DoubleValue>, Boolean> newGraph = graph
 				.mapEdges(new AuthorityEdgeMapper<K, EV>())
 				.union(graph.reverse().mapEdges(new HubEdgeMapper<K, EV>()))
@@ -135,12 +94,13 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 
 		ScatterGatherConfiguration parameter = new ScatterGatherConfiguration();
 		parameter.setDirection(EdgeDirection.OUT);
+		parameter.setOptNumVertices(true);
 		parameter.registerAggregator("updatedValueSum", new DoubleSumAggregator());
 		parameter.registerAggregator("authorityValueSum", new DoubleSumAggregator());
 		parameter.registerAggregator("diffValueSum", new DoubleSumAggregator());
 
 		return newGraph
-				.runScatterGatherIteration(new VertexUpdate<K>(maxIterations, convergeThreshold, numberOfVertices),
+				.runScatterGatherIteration(new VertexUpdate<K>(maxIterations, convergeThreshold),
 						new MessageUpdate<K>(maxIterations), maxIterations, parameter)
 				.getVertices();
 	}
@@ -153,15 +113,13 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 	public static final class VertexUpdate<K> extends VertexUpdateFunction<K, Tuple2<DoubleValue, DoubleValue>, Double> {
 		private int maxIteration;
 		private double convergeThreshold;
-		private long numberOfVertices;
 		private DoubleSumAggregator updatedValueSumAggregator;
 		private DoubleSumAggregator authoritySumAggregator;
 		private DoubleSumAggregator diffSumAggregator;
 
-		public VertexUpdate(int maxIteration, double convergeThreshold, long numberOfVertices) {
+		public VertexUpdate(int maxIteration, double convergeThreshold) {
 			this.maxIteration = maxIteration;
 			this.convergeThreshold = convergeThreshold;
-			this.numberOfVertices = numberOfVertices;
 		}
 
 		@Override
@@ -198,9 +156,9 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 
 					//in the first iteration, the diff is the authority value of each vertex
 					double previousAuthAverage = 1.0;
-					double diffValueSum = 1.0 * numberOfVertices;
+					double diffValueSum = 1.0 * getNumberOfVertices();
 					if (getSuperstepNumber() > 1) {
-						previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / numberOfVertices;
+						previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / getNumberOfVertices();
 						diffValueSum = ((DoubleValue) getPreviousIterationAggregate("diffValueSum")).getValue();
 					}
 					authoritySumAggregator.aggregate(previousAuthAverage);
@@ -218,7 +176,7 @@ public class HITSAlgorithm<K, VV, EV> implements GraphAlgorithm<K, VV, EV, DataS
 					newHubValue.setValue(updateValue);
 					newAuthorityValue.setValue(newAuthorityValue.getValue() / iterationValueSum);
 					authoritySumAggregator.aggregate(newAuthorityValue.getValue());
-					double previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / numberOfVertices;
+					double previousAuthAverage = ((DoubleValue) getPreviousIterationAggregate("authorityValueSum")).getValue() / getNumberOfVertices();
 
 					// count the diff value of sum of authority scores
 					diffSumAggregator.aggregate((previousAuthAverage - newAuthorityValue.getValue()));

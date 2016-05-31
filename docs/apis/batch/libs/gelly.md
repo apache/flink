@@ -1967,7 +1967,6 @@ The constructors take the following parameters:
 
 * `beta`: the damping factor.
 * `maxIterations`: the maximum number of iterations to run.
-* `numVertices`: the number of vertices in the input. If known beforehand, is it advised to provide this argument to speed up execution.
 
 ### GSA PageRank
 
