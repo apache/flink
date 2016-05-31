@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,14 +36,19 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
 	private String QUEUE_NAME;
-	private String HOST_NAME;
+	private RMQConnectionConfig rmqConnectionConfig;
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
 	private SerializationSchema<IN> schema;
 
-	public RMQSink(String HOST_NAME, String QUEUE_NAME, SerializationSchema<IN> schema) {
-		this.HOST_NAME = HOST_NAME;
+	/**
+	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param QUEUE_NAME The queue to publish messages to.
+	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
+     */
+	public RMQSink(RMQConnectionConfig rmqConnectionConfig, String QUEUE_NAME, SerializationSchema<IN> schema) {
+		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.QUEUE_NAME = QUEUE_NAME;
 		this.schema = schema;
 	}
@@ -50,9 +56,8 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	/**
 	 * Initializes the connection to RMQ.
 	 */
-	public void initializeConnection() {
-		factory = new ConnectionFactory();
-		factory.setHost(HOST_NAME);
+	public void initializeConnection() throws Exception {
+		factory = rmqConnectionConfig.getConnectionFactory();
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
@@ -65,7 +70,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to RMQ.
-	 * 
+	 *
 	 * @param value
 	 *            The incoming data
 	 */
@@ -78,7 +83,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 		} catch (IOException e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
+				LOG.error("Cannot send RMQ message {} at {}", QUEUE_NAME, rmqConnectionConfig.getHost());
 			}
 		}
 
@@ -93,13 +98,13 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			connection.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
-					+ " at " + HOST_NAME, e);
+				+ " at " + rmqConnectionConfig.getHost(), e);
 		}
 
 	}
 
 	@Override
-	public void open(Configuration config) {
+	public void open(Configuration config) throws Exception {
 		initializeConnection();
 	}
 

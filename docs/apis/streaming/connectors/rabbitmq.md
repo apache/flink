@@ -71,23 +71,25 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
+RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder().build();
 DataStream<String> streamWithoutCorrelationIds = env
-	.addSource(new RMQSource<String>("localhost", "hello", new SimpleStringSchema()))
+	.addSource(new RMQSource<String>(connectionConfig, "hello", new SimpleStringSchema()))
 	.print
 
 DataStream<String> streamWithCorrelationIds = env
-	.addSource(new RMQSource<String>("localhost", "hello", true, new SimpleStringSchema()))
+	.addSource(new RMQSource<String>(connectionConfig, "hello", true, new SimpleStringSchema()))
 	.print
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+val connectionConfig = new RMQConnectionConfig.Builder().build()
 streamWithoutCorrelationIds = env
-    .addSource(new RMQSource[String]("localhost", "hello", new SimpleStringSchema))
+    .addSource(new RMQSource[String](connectionConfig, "hello", new SimpleStringSchema))
     .print
 
 streamWithCorrelationIds = env
-    .addSource(new RMQSource[String]("localhost", "hello", true, new SimpleStringSchema))
+    .addSource(new RMQSource[String](connectionConfig, "hello", true, new SimpleStringSchema))
     .print
 {% endhighlight %}
 </div>
@@ -107,12 +109,14 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new RMQSink<String>("localhost", "hello", new StringToByteSerializer()));
+RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder().build();
+stream.addSink(new RMQSink<String>(connectionConfig, "hello", new StringToByteSerializer()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new RMQSink[String]("localhost", "hello", new StringToByteSerializer))
+val connectionConfig = new RMQConnectionConfig.Builder().build()
+stream.addSink(new RMQSink[String](connectionConfig, "hello", new StringToByteSerializer))
 {% endhighlight %}
 </div>
 </div>
