@@ -36,12 +36,17 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
 		ctx.registerEventTimeTimer(window.maxTimestamp());
-		return TriggerResult.CONTINUE;
+
+		return (timestamp < ctx.getCurrentWatermark()) ?
+			TriggerResult.FIRE_AND_PURGE :
+			TriggerResult.CONTINUE;
 	}
 
 	@Override
 	public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
-		return TriggerResult.FIRE_AND_PURGE;
+		return time == window.maxTimestamp() ?
+			TriggerResult.FIRE_AND_PURGE :
+			TriggerResult.CONTINUE;
 	}
 
 	@Override

@@ -28,8 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -47,6 +45,8 @@ import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrig
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -60,11 +60,11 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -166,7 +166,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(inputType, new ExecutionConfig());
 
@@ -203,7 +204,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(inputType, new ExecutionConfig());
 
@@ -306,7 +308,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -341,7 +344,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -379,7 +383,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -455,7 +460,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -533,7 +539,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
-				PurgingTrigger.of(CountTrigger.of(4)));
+				PurgingTrigger.of(CountTrigger.of(4)),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -638,7 +645,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -700,7 +708,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>()),
-				ContinuousEventTimeTrigger.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)));
+				ContinuousEventTimeTrigger.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -753,7 +762,9 @@ public class WindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
 
 		testHarness.processWatermark(new Watermark(initialTime + 6000));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
+
+ 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), Long.MAX_VALUE));
+
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
 		expectedOutput.add(new Watermark(6000));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
@@ -790,7 +801,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>()),
-				PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)));
+				PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)),
+				0);
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
 				"Tuple2<String, Integer>"), new ExecutionConfig());
@@ -865,7 +877,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -900,7 +913,8 @@ public class WindowOperatorTest {
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
-				EventTimeTrigger.create());
+				EventTimeTrigger.create(),
+				0);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> otherTestHarness =
 				new OneInputStreamOperatorTestHarness<>(otherOperator);
@@ -915,6 +929,452 @@ public class WindowOperatorTest {
 		Assert.assertEquals(operator.processingTimeTimers, otherOperator.processingTimeTimers);
 		Assert.assertArrayEquals(operator.processingTimeTimersQueue.toArray(), otherOperator.processingTimeTimersQueue.toArray());
 		Assert.assertEquals(operator.processingTimeTimerTimestamps, otherOperator.processingTimeTimerTimestamps);
+	}
+
+	@Test
+	public void testLateness() throws Exception {
+		final int WINDOW_SIZE = 2;
+		final long LATENESS = 500;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
+			new WindowOperator<>(
+				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
+				EventTimeTrigger.create(),
+				LATENESS);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		operator.setInputType(inputType, new ExecutionConfig());
+		testHarness.open();
+
+		long initialTime = 0L;
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 500));
+		testHarness.processWatermark(new Watermark(initialTime + 1500));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1300));
+
+		testHarness.processWatermark(new Watermark(initialTime + 2300));
+
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1997));
+		testHarness.processWatermark(new Watermark(initialTime + 6000));
+
+		// this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1998));
+		testHarness.processWatermark(new Watermark(initialTime + 7000));
+
+		Tuple2<String, Integer> el1 = new Tuple2<>("key2", 2);
+		// the following is 1 and not  3because the trigger fires and purges.
+		Tuple2<String, Integer> el2 = new Tuple2<>("key2", 1);
+
+		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, initialTime + 1999));
+		expected.add(new StreamRecord<>(el2, initialTime + 1999));
+
+		// the +4 is for the watermarks.
+		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
+		for (Object r: testHarness.getOutput()) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessTumbling() throws Exception {
+		final int WINDOW_SIZE = 2;
+		final long LATENESS = 0;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
+			new WindowOperator<>(
+				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
+				EventTimeTrigger.create(),
+				LATENESS);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		operator.setInputType(inputType, new ExecutionConfig());
+		testHarness.open();
+
+		long initialTime = 0L;
+
+		// add a normal, a late element but to non-late window, and a late element to be dropped.
+
+		// normal element
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processWatermark(new Watermark(initialTime + 1985));
+
+		// a late that is added to an active window
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1980));
+		testHarness.processWatermark(new Watermark(initialTime + 1999));
+
+		// a late to be dropped
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
+		testHarness.processWatermark(new Watermark(initialTime + 2999));
+		testHarness.processWatermark(new Watermark(initialTime + 3999));
+
+		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), initialTime + 1999));
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3999));
+
+		// the +3 is for the watermarks.
+		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
+		for (Object r: testHarness.getOutput()) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSliding() throws Exception {
+		final int WINDOW_SIZE = 3;
+		final int WINDOW_SLIDE = 1;
+		final long LATENESS = 0;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
+			new WindowOperator<>(
+				SlidingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS), Time.of(WINDOW_SLIDE, TimeUnit.SECONDS)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
+				EventTimeTrigger.create(),
+				LATENESS);
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		operator.setInputType(inputType, new ExecutionConfig());
+		testHarness.open();
+
+		long initialTime = 0L;
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processWatermark(new Watermark(initialTime + 1999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2000));
+		testHarness.processWatermark(new Watermark(initialTime + 3000));
+
+		// lateness is set to 0 and window_size = 3 sec and slide 1, the following 2 elements (2400) are late,
+		// and assigned to windows ending at 2999, 3999, 4999.
+		// The 2999 is dropped because it is already inactive (WM = 2999) but the rest are kept.
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 3001));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2400));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2400));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 3001));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3900));
+
+		testHarness.processWatermark(new Watermark(initialTime + 6000));
+
+		// dropped due to lateness
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 3001));
+
+		testHarness.processWatermark(new Watermark(initialTime + 25000));
+
+		// create the expected output
+		Tuple2<String, Integer> el1 = new Tuple2<>("key2", 1);
+		Tuple2<String, Integer> el2 = new Tuple2<>("key2", 2);
+		Tuple2<String, Integer> el3 = new Tuple2<>("key2", 3);
+
+		Tuple2<String, Integer> el4 = new Tuple2<>("key1", 2);
+
+		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, initialTime + 1999));
+		expected.add(new StreamRecord<>(el2, initialTime + 2999));
+
+		expected.add(new StreamRecord<>(el3, initialTime + 3999));
+		expected.add(new StreamRecord<>(el1, initialTime + 3999)); // now it is 1 because before it purged
+		expected.add(new StreamRecord<>(el1, initialTime + 3999)); // now it is 1 because before it purged
+		expected.add(new StreamRecord<>(el4, initialTime + 3999));
+
+		expected.add(new StreamRecord<>(el2, initialTime + 4999)); // here is the 2000 and 2400 (which is late and has fire and purge)
+		expected.add(new StreamRecord<>(el1, initialTime + 4999)); // here is the second 2400 (alone because before it was a purge)
+		expected.add(new StreamRecord<>(el1, initialTime + 4999)); // here is the 3900
+		expected.add(new StreamRecord<>(el4, initialTime + 4999));
+
+		expected.add(new StreamRecord<>(el1, initialTime + 5999));
+		expected.add(new StreamRecord<>(el4, initialTime + 5999));
+
+
+		// the +4 is for the watermarks.
+		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
+		for (Object r: testHarness.getOutput()) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionZeroLateness() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(0, EventTimeTrigger.create());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 7499));
+		expected.add(new StreamRecord<>(el2, 11499));
+		expected.add(new StreamRecord<>(el3, 14599));
+		expected.add(new StreamRecord<>(el4, 17499));
+
+		// the +7 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionZeroLatenessAccum() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(0, new EventTimeTriggerAccum());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
+
+		// the el3 is just an artifact of the fact that cleanup is not coupled with garbage collection yet
+		// what happens is that the element with 10000 triggers the merging, and then gets dropped at late
+		// so the sessions are merged, then the element is dropped because the merged window is late, but
+		// the merging is not undone. We do not change the code yet as in the same PR the clean-up will be
+		// added at the window.maxTimestamp + allowedLateness
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 17499));
+
+		// the +7 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionWithLateness() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10, EventTimeTrigger.create());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 7499));
+		expected.add(new StreamRecord<>(el2, 11499));
+		expected.add(new StreamRecord<>(el3, 14599));
+		expected.add(new StreamRecord<>(el4, 17499));
+
+		// the +7 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionWithLatenessAccum() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10, new EventTimeTriggerAccum());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-3", 10000l, 17500l);
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el1, 11499));// because now we fire for the cleanup timer
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 17499));
+		expected.add(new StreamRecord<>(el3, 17499));
+
+		// the +7 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionWithHugeLateness() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10000, EventTimeTrigger.create());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 10000l, 13000l);
+		Tuple3<String, Long, Long> el5 = new Tuple3<>("key2-1", 14500l, 17500l);
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 7499));
+		expected.add(new StreamRecord<>(el2, 11499));
+		expected.add(new StreamRecord<>(el3, 14599));
+		expected.add(new StreamRecord<>(el4, 12999));
+		expected.add(new StreamRecord<>(el5, 17499));
+
+		// the +6 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	@Test
+	public void testDropDueToLatenessSessionWithHugeLatenessAccum() throws Exception {
+		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10000, new EventTimeTriggerAccum());
+
+		// create the expected output
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-8", 1000l, 17500l);
+
+
+		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 17499));
+		expected.add(new StreamRecord<>(el3, 17499));
+
+		// the +6 is for the watermarks.
+		Assert.assertEquals(expected.size() + 7, actualOutput.size());
+		for (Object r: actualOutput) {
+			if (r instanceof StreamRecord) {
+				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
+				Assert.assertTrue(expected.contains(res));
+			}
+		}
+	}
+
+	private ConcurrentLinkedQueue<Object> testDropDueToLatenessSession(long lateness, Trigger trigger) throws Exception {
+		final int GAP_SIZE = 3;
+		final long LATENESS = lateness;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
+			new SumReducer(),
+			inputType.createSerializer(new ExecutionConfig()));
+
+		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
+			new WindowOperator<>(
+				EventTimeSessionWindows.withGap(Time.seconds(GAP_SIZE)),
+				new TimeWindow.Serializer(),
+				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+				stateDesc,
+				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
+				trigger,
+				LATENESS);
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.open();
+
+		long initialTime = 0L;
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
+		testHarness.processWatermark(new Watermark(initialTime + 1999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2000));
+		testHarness.processWatermark(new Watermark(initialTime + 4998));
+
+		// late but added
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
+
+		// new session
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 8500));
+		testHarness.processWatermark(new Watermark(initialTime + 7400));
+
+		// late element to merge the previous sessions
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
+		testHarness.processWatermark(new Watermark(initialTime + 11501));
+
+		// new session
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
+		testHarness.processWatermark(new Watermark(initialTime + 14600));
+
+		// NON-ACCUM TRIGGER
+		// with 0 lateness this is dropped because it is assigned to a non-active window,								(testDropDueToLatenessSessionZeroLateness)
+		// with a small lateness (e.g. 10), this is assigned to window 10000-13000 (the 11600 is GCed after firing) 	(testDropDueToLatenessSessionWithLateness)
+		// finally with a big lateness (e.g. 10000) the first window is not GCed so this merges all the windows so far 	(testDropDueToLatenessSessionWithHugeLateness)
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
+		testHarness.processWatermark(new Watermark(initialTime + 20000));
+
+		testHarness.processWatermark(new Watermark(initialTime + 100000));
+		return testHarness.getOutput();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1075,6 +1535,50 @@ public class WindowOperatorTest {
 				}
 			}
 			return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
+		}
+	}
+
+	public class EventTimeTriggerAccum extends Trigger<Object, TimeWindow> {
+		private static final long serialVersionUID = 1L;
+
+		private EventTimeTriggerAccum() {}
+
+		@Override
+		public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+			ctx.registerEventTimeTimer(window.maxTimestamp());
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
+			return TriggerResult.FIRE;
+		}
+
+		@Override
+		public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
+			ctx.deleteEventTimeTimer(window.maxTimestamp());
+		}
+
+		@Override
+		public boolean canMerge() {
+			return true;
+		}
+
+		@Override
+		public TriggerResult onMerge(TimeWindow window,
+									 OnMergeContext ctx) {
+			ctx.registerEventTimeTimer(window.maxTimestamp());
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public String toString() {
+			return "EventTimeTrigger()";
 		}
 	}
 }

@@ -102,4 +102,9 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	public TypeSerializer<GlobalWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new GlobalWindow.Serializer();
 	}
+
+	@Override
+	public boolean isEventTime() {
+		return false;
+	}
 }

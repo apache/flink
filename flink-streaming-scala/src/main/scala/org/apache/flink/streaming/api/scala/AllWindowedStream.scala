@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregato
 import org.apache.flink.streaming.api.scala.function.AllWindowFunction
 import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaReduceFunction, ScalaFoldFunction}
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
@@ -54,7 +55,18 @@ import org.apache.flink.util.Collector
  */
 @Public
 class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
-  
+
+  /**
+    * Sets the allowed lateness. If the
+    * [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner windowAssigner]]
+    * used is in processing time, then the allowed lateness is set to 0.
+    */
+  @PublicEvolving
+  def setAllowedLateness(lateness: Time): AllWindowedStream[T, W] = {
+    javaStream.setAllowedLateness(lateness)
+    this
+  }
+
   /**
    * Sets the [[Trigger]] that should be used to trigger window emission.
    */
