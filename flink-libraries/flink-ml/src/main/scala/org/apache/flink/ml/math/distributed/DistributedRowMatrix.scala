@@ -18,16 +18,10 @@
 
 package org.apache.flink.ml.math.distributed
 
-import java.lang
-
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
-import org.apache.flink.util.Collector
 import org.apache.flink.ml.math.Breeze._
-import scala.collection.JavaConversions._
+import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 
 /**
   * Distributed row-major matrix representation.
@@ -41,21 +35,25 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
   lazy val getNumRows: Int = numRowsOpt match {
     case Some(rows) => rows
-    case None => data.count().toInt
+    case None => numRows.collect().head
   }
 
   lazy val getNumCols: Int = numColsOpt match {
     case Some(cols) => cols
-    case None => calcCols
+    case None => numCols.collect().head
+  }
+
+  lazy val numRows: DataSet[Int] = numRowsOpt match {
+    case Some(rows) => data.getExecutionEnvironment.fromElements(rows)
+    case None => data.max("rowIndex").map(_.rowIndex + 1)
+  }
+
+  lazy val numCols: DataSet[Int] = numColsOpt match {
+    case Some(cols) => data.getExecutionEnvironment.fromElements(cols)
+    case None => data.first(1).map(_.values.size)
   }
 
   val getRowData = data
-
-  private def calcCols: Int =
-    data.first(1).collect().headOption match {
-      case Some(vector) => vector.values.size
-      case None => 0
-    }
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
@@ -95,7 +93,6 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     val otherData = other.getRowData
     require(this.getNumCols == other.getNumCols)
     require(this.getNumRows == other.getNumRows)
-
 
     val result = this.data
       .fullOuterJoin(otherData)

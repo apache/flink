@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.math.distributed
 
+import org.apache.flink.api.scala.DataSet
+
 /**
   * Common trait used by distributed data structures representing a matrix.
   */
@@ -25,4 +27,7 @@ trait DistributedMatrix {
 
   def getNumRows: Int
   def getNumCols: Int
+
+  def numRows: DataSet[Int]
+  def numCols: DataSet[Int]
 }
