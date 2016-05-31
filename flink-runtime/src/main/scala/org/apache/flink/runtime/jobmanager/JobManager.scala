@@ -210,7 +210,7 @@ class JobManager(
     log.info(s"Stopping JobManager $getAddress.")
 
     val newFuturesToComplete = cancelAndClearEverything(
-      new SuppressRestartsException(new Exception("The JobManager is shutting down.")),
+      new Exception("The JobManager is shutting down."),
       removeJobFromStateBackend = true)
 
     implicit val executionContext = context.dispatcher
@@ -307,7 +307,7 @@ class JobManager(
       log.info(s"JobManager ${self.path.toSerializationFormat} was revoked leadership.")
 
       val newFuturesToComplete = cancelAndClearEverything(
-        new SuppressRestartsException(new Exception("JobManager is no longer the leader.")),
+        new Exception("JobManager is no longer the leader."),
         removeJobFromStateBackend = false)
 
       futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
@@ -1633,7 +1633,7 @@ class JobManager(
     * @param cause Cause for the cancelling.
     */
   private def cancelAndClearEverything(
-      cause: SuppressRestartsException,
+      cause: Throwable,
       removeJobFromStateBackend: Boolean)
     : Seq[Future[Unit]] = {
     val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
