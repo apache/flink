@@ -469,7 +469,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 				// Loop until we find a non-abandoned record.
 				// Note: the last record in the record area can't be abandoned.
 				while (!closed) {
-					final long pointerOrNegatedLength = recordArea.readLong();
+					final long pointerOrNegatedLength = recordArea.readPointer();
 					final boolean isAbandoned = pointerOrNegatedLength < 0;
 					if (!isAbandoned) {
 						reuse = recordArea.readRecord(reuse);
@@ -815,7 +815,10 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			return inView.getReadPosition();
 		}
 
-		public long readLong() throws IOException {
+		/**
+		 * Note: this is sometimes a negated length instead of a pointer (see HashTableProber.updateMatch).
+		 */
+		public long readPointer() throws IOException {
 			return inView.readLong();
 		}
 
@@ -924,7 +927,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			try {
 				while (curElemPtr != END_OF_LIST && !closed) {
 					recordArea.setReadPosition(curElemPtr);
-					nextPtr = recordArea.readLong();
+					nextPtr = recordArea.readPointer();
 
 					currentRecordInList = recordArea.readRecord(currentRecordInList);
 					recordEnd = recordArea.getReadPosition();
