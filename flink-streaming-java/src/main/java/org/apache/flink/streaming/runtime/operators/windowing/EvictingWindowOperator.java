@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -70,8 +71,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
 		InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
 		Trigger<? super IN, ? super W> trigger,
-		Evictor<? super IN, ? super W> evictor) {
-		super(windowAssigner, windowSerializer, keySelector, keySerializer, null, windowFunction, trigger);
+		Evictor<? super IN, ? super W> evictor,
+		long allowedLateness) {
+
+		super(windowAssigner, windowSerializer, keySelector,
+			keySerializer, null, windowFunction, trigger, allowedLateness);
 		this.evictor = requireNonNull(evictor);
 		this.windowStateDescriptor = windowStateDescriptor;
 	}
@@ -79,8 +83,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		Collection<W> elementWindows = windowAssigner.assignWindows(element.getValue(),
-				element.getTimestamp());
+
+		Collection<W> elementWindows = windowAssigner.assignWindows(
+			element.getValue(),
+			element.getTimestamp());
 
 		final K key = (K) getStateBackend().getCurrentKey();
 
@@ -112,20 +118,27 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 								for (W m : mergedWindows) {
 									context.window = m;
 									context.clear();
+									deleteCleanupTimer(m);
 								}
 
 								// merge the merged state windows into the newly resulting state window
-								getStateBackend().mergePartitionedStates(stateWindowResult,
-										mergedStateWindows,
-										windowSerializer,
-										(StateDescriptor<? extends MergingState<?, ?>, ?>) windowStateDescriptor);
+								getStateBackend().mergePartitionedStates(
+									stateWindowResult,
+									mergedStateWindows,
+									windowSerializer,
+									(StateDescriptor<? extends MergingState<?, ?>, ?>) windowStateDescriptor);
 							}
 						});
 
+				// check if the window is already inactive
+				if (isLate(actualWindow)) {
+					LOG.info("Dropped element " + element + " for window " + actualWindow + " due to lateness.");
+					continue;
+				}
+
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
-				ListState<StreamRecord<IN>> windowState = getPartitionedState(stateWindow,
-						windowSerializer,
-						windowStateDescriptor);
+				ListState<StreamRecord<IN>> windowState = getPartitionedState(
+					stateWindow, windowSerializer, windowStateDescriptor);
 				windowState.add(element);
 
 				context.key = key;
@@ -134,77 +147,166 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				// we might have already fired because of a merge but still call onElement
 				// on the (possibly merged) window
 				TriggerResult triggerResult = context.onElement(element);
+				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
+				fireOrContinue(combinedTriggerResult, actualWindow, windowState);
 
-				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult,
-						mergeTriggerResult.f0);
-
-				processTriggerResult(combinedTriggerResult, actualWindow);
+				if (combinedTriggerResult.isPurge()) {
+					cleanup(actualWindow, windowState, mergingWindows);
+				} else {
+					registerCleanupTimer(actualWindow);
+				}
 			}
 
 		} else {
 			for (W window : elementWindows) {
 
-				ListState<StreamRecord<IN>> windowState = getPartitionedState(window,
-						windowSerializer,
-						windowStateDescriptor);
+				// check if the window is already inactive
+				if (isLate(window)) {
+					LOG.info("Dropped element " + element + " for window " + window + " due to lateness.");
+					continue;
+				}
 
+				ListState<StreamRecord<IN>> windowState = getPartitionedState(
+					window, windowSerializer, windowStateDescriptor);
 				windowState.add(element);
 
 				context.key = key;
 				context.window = window;
-				TriggerResult triggerResult = context.onElement(element);
 
-				processTriggerResult(triggerResult, window);
+				TriggerResult triggerResult = context.onElement(element);
+				fireOrContinue(triggerResult, window, windowState);
+
+				if (triggerResult.isPurge()) {
+					cleanup(window, windowState, null);
+				} else {
+					registerCleanupTimer(window);
+				}
 			}
 		}
 	}
 
 	@Override
-	@SuppressWarnings("unchecked,rawtypes")
-	protected void processTriggerResult(TriggerResult triggerResult, W window) throws Exception {
-		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
-			// do nothing
+	public void processWatermark(Watermark mark) throws Exception {
+		boolean fire;
+		do {
+			Timer<K, W> timer = watermarkTimersQueue.peek();
+			if (timer != null && timer.timestamp <= mark.getTimestamp()) {
+				fire = true;
+
+				watermarkTimers.remove(timer);
+				watermarkTimersQueue.remove();
+
+				context.key = timer.key;
+				context.window = timer.window;
+				setKeyContext(timer.key);
+
+				ListState<StreamRecord<IN>> windowState;
+				MergingWindowSet<W> mergingWindows = null;
+
+				if (windowAssigner instanceof MergingWindowAssigner) {
+					mergingWindows = getMergingWindowSet();
+					W stateWindow = mergingWindows.getStateWindow(context.window);
+					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				} else {
+					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
+				}
+
+				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				fireOrContinue(triggerResult, context.window, windowState);
+
+				if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
+					cleanup(timer.window, windowState, mergingWindows);
+				}
+
+			} else {
+				fire = false;
+			}
+		} while (fire);
+
+		output.emitWatermark(mark);
+
+		this.currentWatermark = mark.getTimestamp();
+	}
+
+	@Override
+	public void trigger(long time) throws Exception {
+		boolean fire;
+
+		//Remove information about the triggering task
+		processingTimeTimerFutures.remove(time);
+		processingTimeTimerTimestamps.remove(time, processingTimeTimerTimestamps.count(time));
+
+		do {
+			Timer<K, W> timer = processingTimeTimersQueue.peek();
+			if (timer != null && timer.timestamp <= time) {
+				fire = true;
+
+				processingTimeTimers.remove(timer);
+				processingTimeTimersQueue.remove();
+
+				context.key = timer.key;
+				context.window = timer.window;
+				setKeyContext(timer.key);
+
+				ListState<StreamRecord<IN>> windowState;
+				MergingWindowSet<W> mergingWindows = null;
+
+				if (windowAssigner instanceof MergingWindowAssigner) {
+					mergingWindows = getMergingWindowSet();
+					W stateWindow = mergingWindows.getStateWindow(context.window);
+					windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				} else {
+					windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
+				}
+
+				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				fireOrContinue(triggerResult, context.window, windowState);
+
+				if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(timer.window, timer.timestamp))) {
+					cleanup(timer.window, windowState, mergingWindows);
+				}
+
+			} else {
+				fire = false;
+			}
+		} while (fire);
+	}
+
+	private void fireOrContinue(TriggerResult triggerResult,
+								W window,
+								ListState<StreamRecord<IN>> windowState) throws Exception {
+		if (!triggerResult.isFire()) {
 			return;
 		}
 
-		ListState<StreamRecord<IN>> windowState;
+		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
+		Iterable<StreamRecord<IN>> contents = windowState.get();
 
-		MergingWindowSet<W> mergingWindows = null;
+		// Work around type system restrictions...
+		int toEvict = evictor.evict((Iterable) contents, Iterables.size(contents), context.window);
 
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			mergingWindows = getMergingWindowSet();
-			W stateWindow = mergingWindows.getStateWindow(window);
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+		FluentIterable<IN> projectedContents = FluentIterable
+			.from(contents)
+			.skip(toEvict)
+			.transform(new Function<StreamRecord<IN>, IN>() {
+				@Override
+				public IN apply(StreamRecord<IN> input) {
+					return input.getValue();
+				}
+			});
+		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
+	}
 
-		} else {
-			windowState = getPartitionedState(window, windowSerializer, windowStateDescriptor);
+	private void cleanup(W window,
+						ListState<StreamRecord<IN>> windowState,
+						MergingWindowSet<W> mergingWindows) throws Exception {
+
+		windowState.clear();
+		if (mergingWindows != null) {
+			mergingWindows.retireWindow(window);
 		}
-
-		if (triggerResult.isFire()) {
-			timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-			Iterable<StreamRecord<IN>> contents = windowState.get();
-
-			// Work around type system restrictions...
-			int toEvict = evictor.evict((Iterable) contents, Iterables.size(contents), context.window);
-
-			FluentIterable<IN> projectedContents = FluentIterable
-					.from(contents)
-					.skip(toEvict)
-					.transform(new Function<StreamRecord<IN>, IN>() {
-						@Override
-						public IN apply(StreamRecord<IN> input) {
-							return input.getValue();
-						}
-					});
-			userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
-		}
-		if (triggerResult.isPurge()) {
-			windowState.clear();
-			if (mergingWindows != null) {
-				mergingWindows.retireWindow(window);
-			}
-			context.clear();
-		}
+		context.clear();
+		deleteCleanupTimer(window);
 	}
 
 	// ------------------------------------------------------------------------

@@ -30,9 +30,13 @@ import org.apache.flink.streaming.api.functions.windowing.ReduceIterableWindowFu
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,6 +49,7 @@ import org.junit.Test;
 
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class EvictingWindowOperatorTest {
@@ -73,7 +78,8 @@ public class EvictingWindowOperatorTest {
 				stateDesc,
 				new InternalIterableWindowFunction<>(new ReduceIterableWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(new SumReducer())),
 				CountTrigger.of(WINDOW_SLIDE),
-				CountEvictor.of(WINDOW_SIZE));
+				CountEvictor.of(WINDOW_SIZE),
+				0);
 
 		operator.setInputType(inputType, new ExecutionConfig());
 
@@ -144,7 +150,8 @@ public class EvictingWindowOperatorTest {
 			stateDesc,
 			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
 			CountTrigger.of(WINDOW_SLIDE),
-			CountEvictor.of(WINDOW_SIZE));
+			CountEvictor.of(WINDOW_SIZE),
+			0);
 
 		operator.setInputType(inputType, new ExecutionConfig());
 
@@ -194,7 +201,69 @@ public class EvictingWindowOperatorTest {
 		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
 	}
 
-	// ------------------------------------------------------------------------
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testTumblingWindowWithApply() throws Exception {
+		AtomicInteger closeCalled = new AtomicInteger(0);
+
+		final int WINDOW_SIZE = 4;
+
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
+		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc = new ListStateDescriptor<>("window-contents",
+			new StreamRecordSerializer<>(inputType.createSerializer(new ExecutionConfig())));
+
+		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new EvictingWindowOperator<>(
+			TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+			new TimeWindow.Serializer(),
+			new TupleKeySelector(),
+			BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+			stateDesc,
+			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
+			EventTimeTrigger.create(),
+			CountEvictor.of(WINDOW_SIZE),
+			0);
+
+		operator.setInputType(inputType, new ExecutionConfig());
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.configureForKeyedStream(new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+
+		long initialTime = 0L;
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 10));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 100));
+
+		testHarness.processWatermark(new Watermark(1999));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1997));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1998));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 2310)); // not late but more than 4
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 2310));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
+
+		testHarness.processWatermark(new Watermark(3999));											 // now is the evictor
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		expectedOutput.add(new Watermark(1999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), 3999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
+		expectedOutput.add(new Watermark(3999));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(),
+			new EvictingWindowOperatorTest.ResultSortComparator());
+		testHarness.close();
+	}
+
+		// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
 

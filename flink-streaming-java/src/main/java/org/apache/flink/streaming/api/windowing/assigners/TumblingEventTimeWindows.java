@@ -95,4 +95,9 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
 	}
+
+	@Override
+	public boolean isEventTime() {
+		return true;
+	}
 }

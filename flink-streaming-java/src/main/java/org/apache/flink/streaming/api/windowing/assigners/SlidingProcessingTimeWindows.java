@@ -101,4 +101,9 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
 	}
+
+	@Override
+	public boolean isEventTime() {
+		return false;
+	}
 }

@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
@@ -87,6 +88,8 @@ public class AllWindowedStream<T, W extends Window> {
 	/** The evictor that is used for evicting elements before window evaluation. */
 	private Evictor<? super T, ? super W> evictor;
 
+	/** The user-specified allowed lateness. */
+	private long allowedLateness = Long.MAX_VALUE;
 
 	@PublicEvolving
 	public AllWindowedStream(DataStream<T> input,
@@ -106,6 +109,26 @@ public class AllWindowedStream<T, W extends Window> {
 		}
 
 		this.trigger = trigger;
+		return this;
+	}
+
+	/**
+	 * Sets the allowed lateness to a user-specified value.
+	 * If not explicitly set, the allowed lateness is {@link Long#MAX_VALUE}.
+	 * Setting the allowed lateness is only valid for event-time windows.
+	 * If a value different than 0 is provided with a processing-time
+	 * {@link WindowAssigner}, then an exception is thrown.
+	 */
+	@PublicEvolving
+	public AllWindowedStream<T, W> allowedLateness(Time lateness) {
+		long millis = lateness.toMilliseconds();
+		if (allowedLateness < 0) {
+			throw new IllegalArgumentException("The allowed lateness cannot be negative.");
+		} else if (allowedLateness != 0 && !windowAssigner.isEventTime()) {
+			throw new IllegalArgumentException("Setting the allowed lateness is only valid for event-time windows.");
+		} else {
+			this.allowedLateness = millis;
+		}
 		return this;
 	}
 
@@ -251,14 +274,16 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
-			operator = new EvictingWindowOperator<>(windowAssigner,
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalIterableAllWindowFunction<>(function),
 					trigger,
-					evictor);
+					evictor,
+					allowedLateness);
 
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
@@ -266,13 +291,15 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
-			operator = new WindowOperator<>(windowAssigner,
+			operator =
+				new WindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalIterableAllWindowFunction<>(function),
-					trigger);
+					trigger,
+					allowedLateness);
 		}
 
 		return input.transform(opName, resultType, operator).setParallelism(1);
@@ -335,14 +362,16 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
-			operator = new EvictingWindowOperator<>(windowAssigner,
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalIterableAllWindowFunction<>(new ReduceApplyAllWindowFunction<>(reduceFunction, function)),
 					trigger,
-					evictor);
+					evictor,
+					allowedLateness);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -351,13 +380,15 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
-			operator = new WindowOperator<>(windowAssigner,
+			operator =
+				new WindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
-					trigger);
+					trigger,
+					allowedLateness);
 		}
 
 		return input.transform(opName, resultType, operator).setParallelism(1);
@@ -425,14 +456,16 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
-			operator = new EvictingWindowOperator<>(windowAssigner,
+			operator =
+				new EvictingWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalIterableAllWindowFunction<>(new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function)),
 					trigger,
-					evictor);
+					evictor,
+					allowedLateness);
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -442,13 +475,15 @@ public class AllWindowedStream<T, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
-			operator = new WindowOperator<>(windowAssigner,
+			operator =
+				new WindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
-					trigger);
+					trigger,
+					allowedLateness);
 		}
 
 		return input.transform(opName, resultType, operator).setParallelism(1);
