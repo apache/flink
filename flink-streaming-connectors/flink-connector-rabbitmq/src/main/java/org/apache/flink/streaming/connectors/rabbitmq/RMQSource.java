@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import com.rabbitmq.client.Channel;
@@ -66,17 +67,14 @@ import org.slf4j.LoggerFactory;
  * @param <OUT> The type of the data read from RabbitMQ.
  */
 public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, Long>
-		implements ResultTypeQueryable<OUT> {
+	implements ResultTypeQueryable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
 
-	private final String hostName;
-	private final Integer port;
-	private final String username;
-	private final String password;
-	protected final String queueName;
+	private final RMQConnectionConfig rmqConnectionConfig;
+	private final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
 
@@ -92,16 +90,16 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * Creates a new RabbitMQ source with at-least-once message processing guarantee when
 	 * checkpointing is enabled. No strong delivery guarantees when checkpointing is disabled.
 	 * For exactly-once, please use the constructor
-	 * {@link RMQSource#RMQSource(String, String, boolean usesCorrelationId, DeserializationSchema)},
+	 * {@link RMQSource#RMQSource(RMQConnectionConfig, String, boolean usesCorrelationId, DeserializationSchema)},
 	 * set {@param usesCorrelationId} to true and enable checkpointing.
-	 * @param hostName The RabbiMQ broker's address to connect to.
+	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName  The queue to receive messages from.
 	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
 	 *               				into Java objects.
 	 */
-	public RMQSource(String hostName, String queueName,
-				DeserializationSchema<OUT> deserializationSchema) {
-		this(hostName, null, null, null, queueName, false, deserializationSchema);
+	public RMQSource(RMQConnectionConfig rmqConnectionConfig, String queueName,
+					DeserializationSchema<OUT> deserializationSchema) {
+		this(rmqConnectionConfig, queueName, false, deserializationSchema);
 	}
 
 	/**
@@ -109,7 +107,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
 	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
 	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
-	 * @param hostName The RabbitMQ broker's address to connect to.
+	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to receive messages from.
 	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
 	 *                          id to deduplicate messages (in case of failed acknowledgments).
@@ -117,53 +115,10 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
 	 *                              into Java objects.
 	 */
-	public RMQSource(String hostName, String queueName, boolean usesCorrelationId,
-				DeserializationSchema<OUT> deserializationSchema) {
-		this(hostName, null, null, null, queueName, usesCorrelationId, deserializationSchema);
-	}
-
-	/**
-	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
-	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
-	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
-	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
-	 * @param hostName The RabbitMQ broker's address to connect to.
-	 * @param port The RabbitMQ broker's port.
-	 * @param queueName The queue to receive messages from.
-	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
-	 *                          id to deduplicate messages (in case of failed acknowledgments).
-	 *                          Only used when checkpointing is enabled.
-	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
-	 *                              into Java objects.
-	 */
-	public RMQSource(String hostName, Integer port,
-				String queueName, boolean usesCorrelationId,
-				DeserializationSchema<OUT> deserializationSchema) {
-		this(hostName, port, null, null, queueName, usesCorrelationId, deserializationSchema);
-	}
-
-	/**
-	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
-	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
-	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
-	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
-	 * @param hostName The RabbitMQ broker's address to connect to.
-	 * @param port The RabbitMQ broker's port.
-	 * @param queueName The queue to receive messages from.
-	 * @param usesCorrelationId Whether the messages received are supplied with a <b>unique</b>
-	 *                          id to deduplicate messages (in case of failed acknowledgments).
-	 *                          Only used when checkpointing is enabled.
-	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
-	 *                              into Java objects.
-	 */
-	public RMQSource(String hostName, Integer port, String username, String password,
-				String queueName, boolean usesCorrelationId,
-				DeserializationSchema<OUT> deserializationSchema) {
+	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
+					String queueName, boolean usesCorrelationId,DeserializationSchema<OUT> deserializationSchema) {
 		super(String.class);
-		this.hostName = hostName;
-		this.port = port;
-		this.username = username;
-		this.password = password;
+		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
 		this.schema = deserializationSchema;
@@ -173,8 +128,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * Initializes the connection to RMQ with a default connection factory. The user may override
 	 * this method to setup and configure their own ConnectionFactory.
 	 */
-	protected ConnectionFactory setupConnectionFactory() {
-		return new ConnectionFactory();
+	protected ConnectionFactory setupConnectionFactory() throws Exception {
+		return rmqConnectionConfig.getConnectionFactory();
 	}
 
 	/**
@@ -189,18 +144,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	/**
 	 * Initializes the connection to RMQ.
 	 */
-	private void initializeConnection() {
+	private void initializeConnection() throws Exception {
 		ConnectionFactory factory = setupConnectionFactory();
-		factory.setHost(hostName);
-		if (port != null) {
-			factory.setPort(port);
-		}
-		if (username != null) {
-			factory.setUsername(username);
-		}
-		if (password != null) {
-			factory.setPassword(password);
-		}
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
@@ -222,7 +167,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
-					+ hostName, e);
+				+ rmqConnectionConfig.getHost(), e);
 		}
 	}
 
@@ -240,7 +185,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			connection.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing RMQ connection with " + queueName
-					+ " at " + hostName, e);
+				+ " at " + rmqConnectionConfig.getHost(), e);
 		}
 	}
 
