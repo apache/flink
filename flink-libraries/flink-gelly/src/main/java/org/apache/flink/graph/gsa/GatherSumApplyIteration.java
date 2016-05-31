@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
@@ -300,10 +301,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			try {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
 				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
 				this.gatherFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
-			} catch (Exception e) {
 			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.gatherFunction.init(getIterationRuntimeContext());
@@ -343,10 +343,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			try {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
 				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
 				this.sumFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
-			} catch (Exception e) {
 			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.sumFunction.init(getIterationRuntimeContext());
@@ -386,10 +385,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			try {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
 				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
 				this.applyFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
-			} catch (Exception e) {
 			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.applyFunction.init(getIterationRuntimeContext());

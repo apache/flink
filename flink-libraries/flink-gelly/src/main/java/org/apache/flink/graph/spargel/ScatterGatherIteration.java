@@ -248,10 +248,9 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			try {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
 				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
 				this.vertexUpdateFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
-			} catch (Exception e) {
 			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.vertexUpdateFunction.init(getIterationRuntimeContext());
@@ -375,10 +374,9 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			try {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
 				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
 				this.messagingFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
-			} catch (Exception e) {
 			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.messagingFunction.init(getIterationRuntimeContext());
