@@ -187,7 +187,7 @@ case class SparseVector(
 
 object SparseVector {
 
-  implicit class ScalarVectorMult(scalar: Double) {
+  implicit class scalarVectorMult(scalar: Double) {
     def *(vector: SparseVector): Vector = vector * scalar
   }
 

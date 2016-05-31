@@ -158,7 +158,7 @@ case class DenseVector(
 
 object DenseVector {
 
-  implicit class ScalarVectorMult(scalar: Double) {
+  implicit class scalarVectorMult(scalar: Double) {
     def *(vector: DenseVector): Vector = vector * scalar
   }
 
