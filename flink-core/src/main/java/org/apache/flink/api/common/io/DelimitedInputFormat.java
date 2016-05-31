@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -81,8 +80,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	 * The maximum size of a sample record before sampling is aborted. To catch cases where a wrong delimiter is given.
 	 */
 	private static int MAX_SAMPLE_LEN;
-
-	private boolean restoring = false;
 
 	static { loadGlobalConfigParams(); }
 	
@@ -635,11 +632,11 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<FileInputSplit, Long> getCurrentState() throws IOException {
+	public Long getCurrentState() throws IOException {
 		if (reachedEnd()) {
-			return new Tuple2<>(null, 0l);
+			return 0l;
 		}
-		return new Tuple2<>(this.currSplit, this.offset);
+		return this.offset;
 	}
 
 	@Override

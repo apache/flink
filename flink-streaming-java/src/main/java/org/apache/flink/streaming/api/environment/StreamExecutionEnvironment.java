@@ -56,13 +56,13 @@ import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction.ProcessingMode;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.InputFormatSource;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.ProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
@@ -885,12 +885,11 @@ public abstract class StreamExecutionEnvironment {
 	 * exit ({@link ProcessingMode#PROCESS_ONCE}).
 	 *
 	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE}, the source
-	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path <b>once</b>, creates the
-	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to the downstream
-	 * {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting for the readers to finish reading.
-	 * This implies that no more checkpoint barriers are going to be forwarded after the source exits,
-	 * thus having no checkpoints after that point.
+	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE},
+	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
+	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
+	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path/")
@@ -900,6 +899,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
 	 * @return The DataStream containing the given directory.
 	 */
+	@PublicEvolving
 	public DataStream<String> readTextFile(String filePath, ProcessingMode watchType, long intervalMillis) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
@@ -912,11 +912,11 @@ public abstract class StreamExecutionEnvironment {
 	 * line. The file will be read with the system's default character set.
 	 *
 	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> The source (which executes the {@link ContinuousFileMonitoringFunction})
-	 * monitors the path, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting
-	 * for the readers to finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-	 * the source exits, thus having no checkpoints after that point.
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
@@ -931,11 +931,11 @@ public abstract class StreamExecutionEnvironment {
 	 * line. The {@link java.nio.charset.Charset} with the given name will be used to read the files.
 	 *
 	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> The source (which executes the {@link ContinuousFileMonitoringFunction})
-	 * monitors the path, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting
-	 * for the readers to finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-	 * the source exits, thus having no checkpoints after that point.
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
@@ -966,11 +966,11 @@ public abstract class StreamExecutionEnvironment {
 	 * type produced by the input format.
 	 *
 	 * <p>
-	 * NOTES ON CHECKPOINTING: </b> The source (which executes the {@link ContinuousFileMonitoringFunction})
-	 * monitors the path, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting
-	 * for the readers to finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-	 * the source exits, thus having no checkpoints after that point.
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
@@ -1001,12 +1001,11 @@ public abstract class StreamExecutionEnvironment {
 	 * type produced by the input format.
 	 *
 	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE}, the source
-	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path <b>once</b>, creates the
-	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to the downstream
-	 * {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting for the readers to finish reading.
-	 * This implies that no more checkpoint barriers are going to be forwarded after the source exits,
-	 * thus having no checkpoints after that point.
+	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE},
+	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
+	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
+	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -1022,6 +1021,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data read from the given file
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath,
 												ProcessingMode watchType,
@@ -1073,12 +1073,11 @@ public abstract class StreamExecutionEnvironment {
 	 * the user can specify a custom {@link FilePathFilter}.
 	 *
 	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE}, the source
-	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path <b>once</b>, creates the
-	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to the downstream
-	 * {@link ContinuousFileReaderOperator} to read the actual data, and exits, without waiting for the readers to finish reading.
-	 * This implies that no more checkpoint barriers are going to be forwarded after the source exits,
-	 * thus having no checkpoints after that point.
+	 *  <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link ProcessingMode#PROCESS_ONCE},
+	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
+	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
+	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -1096,6 +1095,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data read from the given file
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
 												String filePath,
 												ProcessingMode watchType,

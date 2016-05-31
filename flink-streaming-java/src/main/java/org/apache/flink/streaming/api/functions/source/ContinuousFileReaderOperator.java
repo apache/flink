@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -320,7 +319,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			// where we are in the split.
 
 			List<FileInputSplit> snapshot;
-			Tuple2<FileInputSplit, S> formatState = null;
+			S formatState = null;
 			synchronized (lock) {
 				snapshot = new ArrayList<>(this.pendingSplits.size());
 				for (FileInputSplit split: this.pendingSplits) {
@@ -328,12 +327,8 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				}
 
 				if (this.format instanceof CheckpointableInputFormat) {
-					formatState = ((CheckpointableInputFormat) format).getCurrentState();
-					if (formatState.f0 != null && !formatState.f0.equals(currentSplit)) {
-						throw new RuntimeException("The currently processed input split does not match the one returned by the input format.");
-					}
-
-					return new Tuple3<>(snapshot, formatState.f0, formatState.f1);
+					formatState = (S) ((CheckpointableInputFormat) format).getCurrentState();
+					return new Tuple3<>(snapshot, currentSplit, formatState);
 				} else {
 					LOG.info("The format used is not checkpointable. The current input split will be restarted upon recovery.");
 					return new Tuple3<>(snapshot, currentSplit, null);

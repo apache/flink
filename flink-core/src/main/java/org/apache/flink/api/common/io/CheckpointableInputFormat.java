@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.InputSplit;
 
 import java.io.IOException;
@@ -30,6 +30,7 @@ import java.io.Serializable;
  * @param <S> The type of input split.
  * @param <T> The type of the channel state to be checkpointed / included in the snapshot.
  */
+@PublicEvolving
 public interface CheckpointableInputFormat<S extends InputSplit, T extends Serializable> {
 
 	/**
@@ -37,11 +38,11 @@ public interface CheckpointableInputFormat<S extends InputSplit, T extends Seria
 	 * This will be used to restore the state of the reading channel when recovering from a task failure.
 	 * In the case of a simple text file, the state can correspond to the last read offset in the split.
 	 *
-	 * @return The current split alogn with the state of the channel.
+	 * @return The state of the channel.
 	 *
 	 * @throws Exception Thrown if the creation of the state object failed.
 	 */
-	Tuple2<S, T> getCurrentState() throws IOException;
+	T getCurrentState() throws IOException;
 
 	/**
 	 * Restores the state of a parallel instance reading from an {@link InputFormat}.

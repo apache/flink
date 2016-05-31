@@ -216,14 +216,13 @@ public class AvroSplittableInputFormatTest {
 				if(format.getRecordsReadFromBlock() == recordsUntilCheckpoint) {
 
 					// do the whole checkpoint-restore procedure and see if we pick up from where we left off.
-					Tuple2<FileInputSplit, Tuple2<Long, Long>> state = format.getCurrentState();
+					Tuple2<Long, Long> state = format.getCurrentState();
 
 					// this is to make sure that nothing stays from the previous format
 					// (as it is going to be in the normal case)
-					format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
-					Assert.assertEquals(splits[i], state.f0);
+					format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 
-					format.reopen(state.f0, state.f1);
+					format.reopen(splits[i], state);
 					assertEquals(format.getRecordsReadFromBlock(), recordsUntilCheckpoint);
 				}
 				elementsPerSplit[i]++;

@@ -27,7 +27,6 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction.ProcessingMode
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
@@ -474,17 +473,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * once the data currently in the path and exit
     * ([[ProcessingMode.PROCESS_ONCE]]).
     *
-    * **NOTES ON CHECKPOINTING: ** If the `watchType` is set to
-    * [[ProcessingMode.PROCESS_ONCE]],
-    * the source (which executes the
-    * [[ContinuousFileMonitoringFunction]])
-    * monitors the path ** once **, creates the
-    * [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]] to be processed, forwards
-    * them to the downstream
-    * [[ContinuousFileReaderOperator]] to read the
-    * actual data, and exits, without waiting for the readers to finish reading. This implies
-    * that no more checkpoint barriers are going to be forwarded after the source exits, thus
-    * having no checkpoints after that point.
+    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
+    * [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
+    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
+    * to be processed, forwards them to the downstream
+    * [[ContinuousFileReaderOperator readers]] to read the actual data,
+    * and exits, without waiting for the readers to finish reading. This
+    * implies that no more checkpoint barriers are going to be forwarded
+    * after the source exits, thus having no checkpoints after that point.
     *
     * @param inputFormat
     *          The input format used to create the data stream
@@ -499,11 +495,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     *          between consecutive path scans
     * @return The data stream that represents the data read from the given file
     */
-  def readFile[T: TypeInformation](
-                                    inputFormat: FileInputFormat[T],
-                                    filePath: String,
-                                    watchType: ProcessingMode,
-                                    interval: Long): DataStream[T] =
+  @PublicEvolving
+  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T],
+                                   filePath: String,
+                                   watchType: ProcessingMode,
+                                   interval: Long): DataStream[T] =
     readFile(inputFormat, filePath, watchType, interval,
       FilePathFilter.DefaultFilter.getInstance())
 
@@ -517,17 +513,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * if the path contains files not to be processed, the user can specify a custom
     * [[FilePathFilter]].
     *
-    * **NOTES ON CHECKPOINTING: ** If the `watchType` is set to
-    * [[ProcessingMode.PROCESS_ONCE]],
-    * the source (which executes the
-    * [[ContinuousFileMonitoringFunction]])
-    * monitors the path <b>once</b>, creates the
-    * [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]] to be processed, forwards
-    * them to the downstream
-    * [[ContinuousFileReaderOperator]] to read the
-    * actual data, and exits, without waiting for the readers to finish reading. This implies
-    * that no more checkpoint barriers are going to be forwarded after the source exits, thus
-    * having no checkpoints after that point.
+    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
+    * [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
+    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
+    * to be processed, forwards them to the downstream
+    * [[ContinuousFileReaderOperator readers]] to read the actual data,
+    * and exits, without waiting for the readers to finish reading. This
+    * implies that no more checkpoint barriers are going to be forwarded
+    * after the source exits, thus having no checkpoints after that point.
     *
     * @param inputFormat
     *          The input format used to create the data stream
@@ -544,36 +537,37 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     *          The files to be excluded from the processing
     * @return The data stream that represents the data read from the given file
     */
-  def readFile[T: TypeInformation](
-                                    inputFormat: FileInputFormat[T],
-                                    filePath: String,
-                                    watchType: ProcessingMode,
-                                    interval: Long,
-                                    filter: FilePathFilter): DataStream[T] = {
+  @PublicEvolving
+  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T],
+                                   filePath: String,
+                                   watchType: ProcessingMode,
+                                   interval: Long,
+                                   filter: FilePathFilter): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
     asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter, typeInfo))
   }
 
   /**
-   * Creates a DataStream that contains the contents of file created while
-   * system watches the given path. The file will be read with the system's
-   * default character set. The user can check the monitoring interval in milliseconds,
-   * and the way file modifications are handled. By default it checks for only new files
-   * every 100 milliseconds.
-   *
-   * ** NOTES ON CHECKPOINTING: ** The source (which executes the
-   * [[ContinuousFileMonitoringFunction]])
-   * monitors the path, creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
-   * to be processed, forwards them to the downstream
-   * [[ContinuousFileReaderOperator]] to read the actual
-   * data, and exits, without waiting for the readers to finish reading.
-   * This implies that no more checkpoint barriers are going to be forwarded after
-   * the source exits, thus having no checkpoints.
-   *
-   */
+    * Creates a DataStream that contains the contents of file created while
+    * system watches the given path. The file will be read with the system's
+    * default character set. The user can check the monitoring interval in milliseconds,
+    * and the way file modifications are handled. By default it checks for only new files
+    * every 100 milliseconds.
+    *
+    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
+    *  [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
+    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
+    * to be processed, forwards them to the downstream
+    * [[ContinuousFileReaderOperator readers]] to read the actual data,
+    * and exits, without waiting for the readers to finish reading. This
+    * implies that no more checkpoint barriers are going to be forwarded
+    * after the source exits, thus having no checkpoints after that point.
+    *
+    */
+  @PublicEvolving
   def readTextFile(StreamPath: String,
                    watchType: ProcessingMode =
-                   ContinuousFileMonitoringFunction.ProcessingMode.PROCESS_CONTINUOUSLY,
+                   ProcessingMode.PROCESS_CONTINUOUSLY,
                    intervalMillis: Long = 10): DataStream[String] =
     asScalaStream(javaEnv.readTextFile(StreamPath, watchType, intervalMillis))
 

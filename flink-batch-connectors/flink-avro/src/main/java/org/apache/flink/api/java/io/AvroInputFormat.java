@@ -179,13 +179,11 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<FileInputSplit, Tuple2<Long, Long>> getCurrentState() throws IOException {
+	public Tuple2<Long, Long> getCurrentState() throws IOException {
 		if (this.reachedEnd()) {
-			return new Tuple2<>(null, new Tuple2<>(0L, 0L));
+			return new Tuple2<>(0L, 0L);
 		}
-
-		Tuple2<Long, Long> state = new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
-		return new Tuple2<>(currSplit, state);
+		return new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
 	}
 
 	@Override

@@ -65,14 +65,6 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 */
 	public static final long MIN_MONITORING_INTERVAL = 100l;
 
-	/**
-	 * Specifies when computation will be triggered.
-	 */
-	public enum ProcessingMode {
-		PROCESS_ONCE,				// Processes the current content of a file/path only ONCE, and stops monitoring.
-		PROCESS_CONTINUOUSLY		// Reprocesses the whole file when new data is appended.
-	}
-
 	/** The path to monitor. */
 	private final String path;
 

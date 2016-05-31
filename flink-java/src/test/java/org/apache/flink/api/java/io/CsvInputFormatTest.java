@@ -108,7 +108,7 @@ public class CsvInputFormatTest {
 			format.open(inputSplit);
 			while (!format.reachedEnd()) {
 				if ((result = format.nextRecord(result)) != null) {
-					assertEquals((long) format.getCurrentState().f1, offsetsAfterRecord[recordCounter]);
+					assertEquals((long) format.getCurrentState(), offsetsAfterRecord[recordCounter]);
 					recordCounter++;
 
 					if (recordCounter == 1) {
@@ -116,32 +116,30 @@ public class CsvInputFormatTest {
 						assertEquals("this is", result.f0);
 						assertEquals(new Integer(1), result.f1);
 						assertEquals(new Double(2.0), result.f2);
-						assertEquals((long) format.getCurrentState().f1, 15);
+						assertEquals((long) format.getCurrentState(), 15);
 					} else if (recordCounter == 2) {
 						assertNotNull(result);
 						assertEquals("a test", result.f0);
 						assertEquals(new Integer(3), result.f1);
 						assertEquals(new Double(4.0), result.f2);
-						assertEquals((long) format.getCurrentState().f1, 29);
+						assertEquals((long) format.getCurrentState(), 29);
 					} else if (recordCounter == 3) {
 						assertNotNull(result);
 						assertEquals("#next", result.f0);
 						assertEquals(new Integer(5), result.f1);
 						assertEquals(new Double(6.0), result.f2);
-						assertEquals((long) format.getCurrentState().f1, 42);
+						assertEquals((long) format.getCurrentState(), 42);
 					} else {
 						assertNotNull(result);
 						assertEquals("asdadas", result.f0);
 						assertEquals(new Integer(5), result.f1);
 						assertEquals(new Double(30.0), result.f2);
-						assertEquals((long) format.getCurrentState().f1, 58);
+						assertEquals((long) format.getCurrentState(), 58);
 					}
 
 					// simulate checkpoint
-					Tuple2<FileInputSplit, Long> state = format.getCurrentState();
-					FileInputSplit split = state.f0;
-					long offsetToRestore = state.f1;
-					Assert.assertEquals(split, inputSplit);
+					Long state = format.getCurrentState();
+					long offsetToRestore = state;
 
 					// create a new format
 					format = new TupleCsvInputFormat<>(new Path(tempFile.toURI()), "\n", "|", typeInfo);
@@ -150,7 +148,7 @@ public class CsvInputFormatTest {
 					format.configure(config);
 
 					// simulate the restore operation.
-					format.reopen(split, offsetToRestore);
+					format.reopen(inputSplit, offsetToRestore);
 				} else {
 					result = new Tuple3<>();
 				}
@@ -198,26 +196,25 @@ public class CsvInputFormatTest {
 			assertEquals("this is", result.f0);
 			assertEquals(new Integer(1), result.f1);
 			assertEquals(new Double(2.0), result.f2);
-			assertEquals((long) format.getCurrentState().f1, 65);
+			assertEquals((long) format.getCurrentState(), 65);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("a test", result.f0);
 			assertEquals(new Integer(3), result.f1);
 			assertEquals(new Double(4.0), result.f2);
-			assertEquals((long) format.getCurrentState().f1, 91);
+			assertEquals((long) format.getCurrentState(), 91);
 
 			result = format.nextRecord(result);
 			assertNotNull(result);
 			assertEquals("#next", result.f0);
 			assertEquals(new Integer(5), result.f1);
 			assertEquals(new Double(6.0), result.f2);
-			assertEquals((long) format.getCurrentState().f1, 104);
+			assertEquals((long) format.getCurrentState(), 104);
 
 			result = format.nextRecord(result);
 			assertNull(result);
-			assertEquals(null, format.getCurrentState().f0);
-			assertEquals(0, (long) format.getCurrentState().f1);
+			assertEquals(0, (long) format.getCurrentState());
 		}
 		catch (Exception ex) {
 			ex.printStackTrace();
