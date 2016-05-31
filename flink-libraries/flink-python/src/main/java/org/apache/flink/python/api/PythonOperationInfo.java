@@ -39,7 +39,7 @@ public class PythonOperationInfo {
 	public String path;
 	public String fieldDelimiter;
 	public String lineDelimiter;
-	public long from;
+	public long frm;
 	public long to;
 	public WriteMode writeMode;
 	public boolean toError;
@@ -83,6 +83,8 @@ public class PythonOperationInfo {
 			? WriteMode.OVERWRITE
 			: WriteMode.NO_OVERWRITE;
 		path = (String) streamer.getRecord();
+		frm = (Long) streamer.getRecord();
+		to = (Long) streamer.getRecord();
 		setID = (Integer) streamer.getRecord(true);
 		toError = (Boolean) streamer.getRecord();
 		count = (Integer) streamer.getRecord(true);
@@ -121,7 +123,7 @@ public class PythonOperationInfo {
 		sb.append("Path: ").append(path).append("\n");
 		sb.append("FieldDelimiter: ").append(fieldDelimiter).append("\n");
 		sb.append("LineDelimiter: ").append(lineDelimiter).append("\n");
-		sb.append("From: ").append(from).append("\n");
+		sb.append("From: ").append(frm).append("\n");
 		sb.append("To: ").append(to).append("\n");
 		sb.append("WriteMode: ").append(writeMode).append("\n");
 		sb.append("toError: ").append(toError).append("\n");
