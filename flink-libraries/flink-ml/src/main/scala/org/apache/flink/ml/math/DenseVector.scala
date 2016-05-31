@@ -148,18 +148,18 @@ case class DenseVector(
     SparseVector.fromCOO(size, nonZero)
   }
 
-  def +(other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
+  def + (other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
 
-  def -(other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
+  def - (other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
 
-  def *(scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
+  def * (scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
 
 }
 
 object DenseVector {
 
   implicit class scalarVectorMult(scalar: Double) {
-    def *(vector: DenseVector): Vector = vector * scalar
+    def * (vector: DenseVector): Vector = vector * scalar
   }
 
   def apply(values: Double*): DenseVector = {

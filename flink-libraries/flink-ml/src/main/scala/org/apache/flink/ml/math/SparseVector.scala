@@ -177,18 +177,18 @@ case class SparseVector(
     java.util.Arrays.binarySearch(indices, 0, indices.length, index)
   }
 
-  def +(other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
+  def + (other: Vector): Vector = (this.asBreeze + other.asBreeze).fromBreeze
 
-  def -(other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
+  def - (other: Vector): Vector = (this.asBreeze - other.asBreeze).fromBreeze
 
-  def *(scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
+  def * (scalar: Double): Vector = (scalar * this.asBreeze).fromBreeze
 
 }
 
 object SparseVector {
 
   implicit class scalarVectorMult(scalar: Double) {
-    def *(vector: SparseVector): Vector = vector * scalar
+    def * (vector: SparseVector): Vector = vector * scalar
   }
 
   /** Constructs a sparse vector from a coordinate list (COO) representation where each entry
