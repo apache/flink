@@ -42,6 +42,8 @@ class OperationInfo():
             self.delimiter_field = ","
             self.write_mode = WriteMode.NO_OVERWRITE
             self.path = ""
+            self.frm = 0
+            self.to = 0
             self.count = 0
             self.values = []
             self.projections = []
