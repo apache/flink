@@ -99,13 +99,20 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
       .where("rowIndex")
       .equalTo("rowIndex")(
           (left: IndexedRow, right: IndexedRow) => {
-            val row1 = Option(left).getOrElse(IndexedRow(
+            val row1 = Option(left) match {
+              case Some(row: IndexedRow) => row
+              case None =>
+                IndexedRow(
                     right.rowIndex,
-                    SparseVector.fromCOO(right.values.size, List((0, 0.0)))))
-            val row2 = Option(right).getOrElse(IndexedRow(
+                    SparseVector.fromCOO(right.values.size, List((0, 0.0))))
+            }
+            val row2 = Option(right) match {
+              case Some(row: IndexedRow) => row
+              case None =>
+                IndexedRow(
                     left.rowIndex,
-                    SparseVector.fromCOO(left.values.size, List((0, 0.0)))))
-
+                    SparseVector.fromCOO(left.values.size, List((0, 0.0))))
+            }
             IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
           }
       )
@@ -175,5 +182,5 @@ case class IndexedRow(rowIndex: Int, values: Vector)
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
-  override def toString: String = s"($rowIndex,${values.toString}"
+  override def toString: String = s"($rowIndex,${values.toString})"
 }
