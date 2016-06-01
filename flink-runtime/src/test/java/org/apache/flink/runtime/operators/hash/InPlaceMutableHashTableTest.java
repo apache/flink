@@ -45,7 +45,7 @@ import java.util.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
 
-public class InPlaceMutableHashTableTest {
+public class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 
 	private static final long RANDOM_SEED = 58723953465322L;
 
@@ -58,7 +58,11 @@ public class InPlaceMutableHashTableTest {
 
 	private final TypePairComparator<Long, Tuple2<Long, String>> pairComparator;
 
-	//
+	@Override
+	protected <T> AbstractMutableHashTable<T> getHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
+		return new InPlaceMutableHashTable<>(serializer, comparator, memory);
+	}
+
 	// ------------------ Note: This part was mostly copied from CompactingHashTableTest ------------------
 
 	public InPlaceMutableHashTableTest() {
@@ -98,6 +102,10 @@ public class InPlaceMutableHashTableTest {
 		};
 	}
 
+	/**
+	 * This has to be duplicated in InPlaceMutableHashTableTest and CompactingHashTableTest
+	 * because of the different constructor calls.
+	 */
 	@Test
 	public void testHashTableGrowthWithInsert() {
 		try {
@@ -105,9 +113,6 @@ public class InPlaceMutableHashTableTest {
 
 			List<MemorySegment> memory = getMemory(10000, 32 * 1024);
 
-			// we create a hash table that thinks the records are super large. that makes it choose initially
-			// a lot of memory for the partition buffers, and start with a smaller hash table. that way
-			// we trigger a hash table growth early.
 			InPlaceMutableHashTable<Tuple2<Long, String>> table = new InPlaceMutableHashTable<Tuple2<Long, String>>(
 				serializer, comparator, memory);
 			table.open();
@@ -155,6 +160,9 @@ public class InPlaceMutableHashTableTest {
 
 	/**
 	 * This test validates that records are not lost via "insertOrReplace()" as in bug [FLINK-2361]
+	 *
+	 * This has to be duplicated in InPlaceMutableHashTableTest and CompactingHashTableTest
+	 * because of the different constructor calls.
 	 */
 	@Test
 	public void testHashTableGrowthWithInsertOrReplace() {
@@ -163,15 +171,12 @@ public class InPlaceMutableHashTableTest {
 
 			List<MemorySegment> memory = getMemory(1000, 32 * 1024);
 
-			// we create a hash table that thinks the records are super large. that makes it choose initially
-			// a lot of memory for the partition buffers, and start with a smaller hash table. that way
-			// we trigger a hash table growth early.
 			InPlaceMutableHashTable<Tuple2<Long, String>> table = new InPlaceMutableHashTable<Tuple2<Long, String>>(
 				serializer, comparator, memory);
 			table.open();
 
 			for (long i = 0; i < numElements; i++) {
-				table.insertOrReplaceRecord(new Tuple2<Long, String>(i, String.valueOf(i)));
+				table.insertOrReplaceRecord(Tuple2.of(i, String.valueOf(i)));
 			}
 
 			// make sure that all elements are contained via the entry iterator
@@ -288,7 +293,7 @@ public class InPlaceMutableHashTableTest {
 		}
 
 		//System.out.println("start");
-		long start = System.currentTimeMillis();
+		//long start = System.currentTimeMillis();
 
 		// Process the generated input
 		final int numIntermingledEmits = 5;
@@ -305,7 +310,7 @@ public class InPlaceMutableHashTableTest {
 		reduceFacade.emit();
 		table.close();
 
-		long end = System.currentTimeMillis();
+		//long end = System.currentTimeMillis();
 		//System.out.println("stop, time: " + (end - start));
 
 		// Check results
@@ -534,78 +539,5 @@ public class InPlaceMutableHashTableTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-	}
-
-
-	@Test
-	public void testDifferentProbers() {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testDifferentProbers(new InPlaceMutableHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testBuildAndRetrieve() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testEntryIterator() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testEntryIterator(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testMultipleProbers() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testMultipleProbers(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testVariableLengthBuildAndRetrieve() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testVariableLengthBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testVariableLengthBuildAndRetrieveMajorityUpdated(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testVariableLengthBuildAndRetrieveMinorityUpdated() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_LISTS = 20000;
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testVariableLengthBuildAndRetrieveMinorityUpdated(
-			new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES, NUM_LISTS);
-	}
-
-	@Test
-	public void testRepeatedBuildAndRetrieve() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testRepeatedBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testProberUpdate() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testProberUpdate(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
-	}
-
-	@Test
-	public void testVariableLengthStringBuildAndRetrieve() throws Exception {
-		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
-		final int NUM_MEM_PAGES = 40 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testVariableLengthStringBuildAndRetrieve(NUM_MEM_PAGES, new InPlaceMutableHashTable<>(common.serializerS, common.comparatorS, common.getMemory(NUM_MEM_PAGES)));
 	}
 }

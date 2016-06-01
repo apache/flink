@@ -838,6 +838,11 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 			return null;
 		}
 
+		@Override
+		public T getMatchFor(PT probeSideRecord) {
+			return getMatchFor(probeSideRecord, buildSideSerializer.createInstance());
+		}
+
 		/**
 		 * This method can be called after getMatchFor returned a match.
 		 * It will overwrite the record that was found by getMatchFor.
