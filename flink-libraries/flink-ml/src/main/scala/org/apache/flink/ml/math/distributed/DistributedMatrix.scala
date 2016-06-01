@@ -25,9 +25,7 @@ import org.apache.flink.api.scala.DataSet
   */
 trait DistributedMatrix {
 
-  def getNumRows: Int
-  def getNumCols: Int
 
-  def numRows: DataSet[Int]
-  def numCols: DataSet[Int]
+  def numRows: Int
+  def numCols: Int
 }

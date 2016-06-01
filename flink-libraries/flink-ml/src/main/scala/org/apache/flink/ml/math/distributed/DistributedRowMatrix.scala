@@ -25,33 +25,15 @@ import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 
 /**
   * Distributed row-major matrix representation.
-  * @param numRowsOpt If None, will be calculated from the DataSet.
-  * @param numColsOpt If None, will be calculated from the DataSet.
+  * @param numRows Number of rows.
+  * @param numCols Number of columns.
   */
 class DistributedRowMatrix(val data: DataSet[IndexedRow],
-                           numRowsOpt: Option[Int] = None,
-                           numColsOpt: Option[Int] = None)
+                           val numRows: Int,
+                           val numCols: Int )
     extends DistributedMatrix {
 
-  lazy val getNumRows: Int = numRowsOpt match {
-    case Some(rows) => rows
-    case None => numRows.collect().head
-  }
 
-  lazy val getNumCols: Int = numColsOpt match {
-    case Some(cols) => cols
-    case None => numCols.collect().head
-  }
-
-  lazy val numRows: DataSet[Int] = numRowsOpt match {
-    case Some(rows) => data.getExecutionEnvironment.fromElements(rows)
-    case None => data.max("rowIndex").map(_.rowIndex + 1)
-  }
-
-  lazy val numCols: DataSet[Int] = numColsOpt match {
-    case Some(cols) => data.getExecutionEnvironment.fromElements(cols)
-    case None => data.first(1).map(_.values.size)
-  }
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
@@ -71,9 +53,9 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
     */
   def toLocalSparseMatrix: SparseMatrix = {
     val localMatrix =
-      SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
-    require(localMatrix.numRows == this.getNumRows)
-    require(localMatrix.numCols == this.getNumCols)
+      SparseMatrix.fromCOO(this.numRows, this.numCols, this.toCOO)
+    require(localMatrix.numRows == this.numRows)
+    require(localMatrix.numCols == this.numCols)
     localMatrix
   }
 
@@ -89,8 +71,8 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
   def byRowOperation(fun: (Vector, Vector) => Vector,
                      other: DistributedRowMatrix): DistributedRowMatrix = {
     val otherData = other.data
-    require(this.getNumCols == other.getNumCols)
-    require(this.getNumRows == other.getNumRows)
+    require(this.numCols == other.numCols)
+    require(this.numRows == other.numRows)
 
     val result = this.data
       .fullOuterJoin(otherData)
@@ -114,7 +96,7 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
             IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
           }
       )
-    new DistributedRowMatrix(result, numRowsOpt, numColsOpt)
+    new DistributedRowMatrix(result, numRows, numCols)
   }
 
   /**
@@ -171,7 +153,7 @@ object DistributedRowMatrix {
 
     val zippedData = vectorData.map(x => IndexedRow(x._1.toInt, x._2))
 
-    new DistributedRowMatrix(zippedData, Some(numRows), Some(numCols))
+    new DistributedRowMatrix(zippedData, numRows, numCols)
   }
 }
 
