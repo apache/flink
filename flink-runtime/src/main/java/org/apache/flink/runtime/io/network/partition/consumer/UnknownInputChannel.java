@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -47,6 +48,8 @@ public class UnknownInputChannel extends InputChannel {
 	/** Initial and maximum backoff (in ms) after failed partition requests. */
 	private final Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff;
 
+	private final IOMetricGroup metrics;
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
@@ -54,14 +57,16 @@ public class UnknownInputChannel extends InputChannel {
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
 			ConnectionManager connectionManager,
-			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff) {
+			Tuple2<Integer, Integer> partitionRequestInitialAndMaxBackoff,
+			IOMetricGroup metrics) {
 
-		super(gate, channelIndex, partitionId, partitionRequestInitialAndMaxBackoff);
+		super(gate, channelIndex, partitionId, partitionRequestInitialAndMaxBackoff, null);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 		this.connectionManager = checkNotNull(connectionManager);
 		this.partitionRequestInitialAndMaxBackoff = checkNotNull(partitionRequestInitialAndMaxBackoff);
+		this.metrics = checkNotNull(metrics);
 	}
 
 	@Override
@@ -112,10 +117,10 @@ public class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, partitionRequestInitialAndMaxBackoff);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, partitionRequestInitialAndMaxBackoff, metrics);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, partitionRequestInitialAndMaxBackoff);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, partitionRequestInitialAndMaxBackoff, metrics);
 	}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -67,10 +68,11 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
-			TaskEventDispatcher taskEventDispatcher) {
+			TaskEventDispatcher taskEventDispatcher,
+			IOMetricGroup metrics) {
 
 		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
-				new Tuple2<Integer, Integer>(0, 0));
+				new Tuple2<Integer, Integer>(0, 0), metrics);
 	}
 
 	LocalInputChannel(
@@ -79,9 +81,10 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
-			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+			Tuple2<Integer, Integer> initialAndMaxBackoff,
+			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -165,6 +168,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 		getNextLookAhead();
 
+		numBytesIn.inc(next.getSize());
 		return next;
 	}
 

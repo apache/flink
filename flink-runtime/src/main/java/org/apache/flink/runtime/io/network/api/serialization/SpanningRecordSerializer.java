@@ -55,7 +55,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	private AccumulatorRegistry.Reporter reporter;
 
-	private transient Counter numRecordsOut;
 	private transient Counter numBytesOut;
 
 	public SpanningRecordSerializer() {
@@ -93,10 +92,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		
 		if (numBytesOut != null) {
 			numBytesOut.inc(len);
-		}
-		
-		if (numRecordsOut != null) {
-			numRecordsOut.inc();
 		}
 
 		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
@@ -204,6 +199,5 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public void instantiateMetrics(IOMetricGroup metrics) {
 		numBytesOut = metrics.getBytesOutCounter();
-		numRecordsOut = metrics.getRecordsOutCounter();
 	}
 }

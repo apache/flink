@@ -20,6 +20,8 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -106,6 +108,9 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
 		}
 
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+
 		// cache references on the stack
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
@@ -113,7 +118,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 		
 		final ReduceFunction<T> function = this.taskContext.getStub();
 		
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		final Collector<T> output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
 		if (objectReuseEnabled) {
 			// We only need two objects. The first reference stores results and is
@@ -128,10 +133,12 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 			// iterate over key groups
 			while (this.running && value != null) {
+				numRecordsIn.inc();
 				comparator.setReference(value);
 
 				// iterate within a key group
 				while ((reuse2 = input.next(reuse2)) != null) {
+					numRecordsIn.inc();
 					if (comparator.equalToReference(reuse2)) {
 						// same group, reduce
 						value = function.reduce(value, reuse2);
@@ -163,11 +170,13 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 			// iterate over key groups
 			while (this.running && value != null) {
+				numRecordsIn.inc();
 				comparator.setReference(value);
 				T res = value;
 
 				// iterate within a key group
 				while ((value = input.next()) != null) {
+					numRecordsIn.inc();
 					if (comparator.equalToReference(value)) {
 						// same group, reduce
 						res = function.reduce(res, value);

@@ -22,6 +22,8 @@ import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -81,6 +83,8 @@ public class StreamInputProcessor<IN> {
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
+	private Counter numRecordsIn;
+
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
 								EventListener<CheckpointBarrier> checkpointListener,
@@ -133,6 +137,9 @@ public class StreamInputProcessor<IN> {
 		if (isFinished) {
 			return false;
 		}
+		if (numRecordsIn == null) {
+			numRecordsIn = streamOperator.getMetricGroup().counter("numRecordsIn");
+		}
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
@@ -166,6 +173,7 @@ public class StreamInputProcessor<IN> {
 						// now we can do the actual processing
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						synchronized (lock) {
+							numRecordsIn.inc();
 							streamOperator.setKeyContextElement1(record);
 							streamOperator.processElement(record);
 						}
@@ -211,9 +219,12 @@ public class StreamInputProcessor<IN> {
 	 * @param metrics metric group
      */
 	public void setMetricGroup(IOMetricGroup metrics) {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			deserializer.instantiateMetrics(metrics);
-		}
+		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return lastEmittedWatermark;
+			}
+		});
 	}
 	
 	public void cleanup() throws IOException {

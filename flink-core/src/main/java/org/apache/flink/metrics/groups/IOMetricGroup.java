@@ -26,33 +26,27 @@ import org.apache.flink.metrics.MetricRegistry;
  */
 public class IOMetricGroup extends AbstractMetricGroup {
 
-	private final Counter numBytesIn;
 	private final Counter numBytesOut;
-	private final Counter numRecordsIn;
-	private final Counter numRecordsOut;
+	private final Counter numBytesInLocal;
+	private final Counter numBytesInRemote;
 
 	public IOMetricGroup(MetricRegistry registry, TaskMetricGroup parent) {
 		super(registry, parent.getScopeComponents());
-
-		this.numBytesIn = parent.counter("numBytesIn");
 		this.numBytesOut = parent.counter("numBytesOut");
-		this.numRecordsIn = parent.counter("numRecordsIn");
-		this.numRecordsOut = parent.counter("numRecordsOut");
-	}
 
-	public Counter getBytesInCounter() {
-		return numBytesIn;
+		this.numBytesInLocal = parent.counter("numBytesInLocal");
+		this.numBytesInRemote = parent.counter("numBytesInRemote");
 	}
 
 	public Counter getBytesOutCounter() {
 		return numBytesOut;
 	}
 
-	public Counter getRecordsInCounter() {
-		return numRecordsIn;
+	public Counter getNumBytesInLocalCounter() {
+		return numBytesInLocal;
 	}
 
-	public Counter getRecordsOutCounter() {
-		return numRecordsOut;
+	public Counter getNumBytesInRemoteCounter() {
+		return numBytesInRemote;
 	}
 }

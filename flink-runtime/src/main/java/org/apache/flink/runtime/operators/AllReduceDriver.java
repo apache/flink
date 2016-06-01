@@ -20,6 +20,9 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -104,14 +107,19 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			LOG.debug(this.taskContext.formatLogString("AllReduce preprocessing done. Running Reducer code."));
 		}
 
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+
 		final ReduceFunction<T> stub = this.taskContext.getStub();
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
+		final Collector<T> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
 		T val1;
 		if ((val1 = input.next()) == null) {
 			return;
 		}
+		numRecordsIn.inc();
 
 		if (objectReuseEnabled) {
 			// We only need two objects. The first reference stores results and is
@@ -121,6 +129,7 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			T value = val1;
 
 			while (running && (val2 = input.next(val2)) != null) {
+				numRecordsIn.inc();
 				value = stub.reduce(value, val2);
 
 				// we must never read into the object returned
@@ -132,14 +141,15 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 				}
 			}
 
-			this.taskContext.getOutputCollector().collect(value);
+			collector.collect(value);
 		} else {
 			T val2;
 			while (running && (val2 = input.next()) != null) {
+				numRecordsIn.inc();
 				val1 = stub.reduce(val1, val2);
 			}
 
-			this.taskContext.getOutputCollector().collect(val1);
+			collector.collect(val1);
 		}
 	}
 
