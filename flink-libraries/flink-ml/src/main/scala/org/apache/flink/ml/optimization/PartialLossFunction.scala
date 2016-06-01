@@ -86,13 +86,14 @@ object LogisticLoss extends PartialLossFunction {
     // based on implementation in scikit-learn
     // approximately equal and saves the computation of the log
     if (z > 18) {
-      return math.exp(-z)
+      math.exp(-z)
     }
     else if (z < -18) {
-      return -z
+      -z
     }
-
-    math.log(1 + math.exp(-z))
+    else {
+      math.log(1 + math.exp(-z))
+    }
   }
 
   /** Calculates the derivative of the loss function with respect to the prediction
@@ -107,13 +108,14 @@ object LogisticLoss extends PartialLossFunction {
     // based on implementation in scikit-learn
     // approximately equal and saves the computation of the log
     if (z > 18) {
-      return -label * math.exp(-z)
+      label * math.exp(-z)
     }
     else if (z < -18) {
-      return -label
+      -label
     }
-
-    -label/(math.exp(z) + 1)
+    else {
+      -label/(math.exp(z) + 1)
+    }
   }
 }
 

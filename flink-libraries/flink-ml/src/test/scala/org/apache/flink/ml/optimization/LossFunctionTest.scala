@@ -24,7 +24,7 @@ import org.scalatest.{Matchers, FlatSpec}
 import org.apache.flink.test.util.FlinkTestBase
 
 
-class LossFunctionTest extends FlatSpec with Matchers with FlinkTestBase {
+class LossFunctionTest extends FlatSpec with Matchers {
 
   behavior of "The optimization Loss Function implementations"
 

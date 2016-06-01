@@ -23,7 +23,7 @@ import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 
-class RegularizationPenaltyTest extends FlatSpec with Matchers with FlinkTestBase {
+class RegularizationPenaltyTest extends FlatSpec with Matchers {
 
   behavior of "The Regularization Penalty Function implementations"
 

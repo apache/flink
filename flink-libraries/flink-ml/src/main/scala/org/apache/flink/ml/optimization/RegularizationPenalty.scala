@@ -147,8 +147,8 @@ object L1Regularization extends RegularizationPenalty {
     var i = 0
     while (i < weightVector.size) {
       val wi = weightVector(i)
-      weightVector(i) = scala.math.signum(wi) *
-        scala.math.max(0.0, scala.math.abs(wi) - shrinkageVal)
+      weightVector(i) = math.signum(wi) *
+        math.max(0.0, math.abs(wi) - shrinkageVal)
       i += 1
     }
 
