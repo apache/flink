@@ -37,13 +37,8 @@ public final class MathUtils {
 		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
 		}
-		
-		int log = 0;
-		while ((value = value >>> 1) != 0) {
-			log++;
-		}
-		
-		return log;
+
+		return 31 - Integer.numberOfLeadingZeros(value);
 	}
 	
 	/**
@@ -62,13 +57,7 @@ public final class MathUtils {
 		if ((value & (value - 1)) != 0) {
 			throw new IllegalArgumentException("The given value " + value + " is not a power of two.");
 		}
-		
-		int log = 0;
-		while ((value = value >>> 1) != 0) {
-			log++;
-		}
-		
-		return log;
+		return 31 - Integer.numberOfLeadingZeros(value);
 	}
 	
 	/**
