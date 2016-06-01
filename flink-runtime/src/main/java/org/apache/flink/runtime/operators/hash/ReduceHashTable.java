@@ -448,50 +448,6 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	}
 
 	/**
-	 * WARNING: Doing any other operation on the table invalidates the iterator! (Even
-	 * using getMatchFor of a prober!)
-	 */
-	public final class EntryIterator implements MutableObjectIterator<T> {
-
-		private final long endPosition;
-
-		public EntryIterator() {
-			endPosition = recordArea.getAppendPosition();
-			if (endPosition == 0) {
-				return;
-			}
-			recordArea.setReadPosition(0);
-		}
-
-		@Override
-		public T next(T reuse) throws IOException {
-			if (endPosition != 0 && recordArea.getReadPosition() < endPosition) {
-				// Loop until we find a non-abandoned record.
-				// Note: the last record in the record area can't be abandoned.
-				while (!closed) {
-					final long pointerOrNegatedLength = recordArea.readPointer();
-					final boolean isAbandoned = pointerOrNegatedLength < 0;
-					if (!isAbandoned) {
-						reuse = recordArea.readRecord(reuse);
-						return reuse;
-					} else {
-						// pointerOrNegatedLength is storing a length, because the record was abandoned.
-						recordArea.skipBytesToRead((int)-(pointerOrNegatedLength + 1));
-					}
-				}
-				return null; // (we were closed)
-			} else {
-				return null;
-			}
-		}
-
-		@Override
-		public T next() throws IOException {
-			return next(buildSideSerializer.createInstance());
-		}
-	}
-
-	/**
 	 * Returns an iterator that can be used to iterate over all the elements in the table.
 	 * WARNING: Doing any other operation on the table invalidates the iterator! (Even
 	 * using getMatchFor of a prober!)
@@ -500,6 +456,10 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	@Override
 	public EntryIterator getEntryIterator() {
 		return new EntryIterator();
+	}
+
+	public <PT> HashTableProber<PT> getProber(TypeComparator<PT> probeTypeComparator, TypePairComparator<PT, T> pairComparator) {
+		return new HashTableProber<>(probeTypeComparator, pairComparator);
 	}
 
 	/**
@@ -595,6 +555,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			"Holes total size: " + holes;
 	}
 
+
 	/**
 	 * This class encapsulates the memory segments that belong to the record area. It
 	 *  - can append a record
@@ -614,30 +575,6 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		private final int segmentSizeMask;
 
 		private long appendPosition = 0;
-
-
-		private final class RecordAreaOutputView extends AbstractPagedOutputView {
-
-			public int currentSegmentIndex;
-
-			public RecordAreaOutputView(int segmentSize) {
-				super(segmentSize, 0);
-			}
-
-			@Override
-			protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws EOFException {
-				currentSegmentIndex++;
-				if (currentSegmentIndex == segments.size()) {
-					addSegment();
-				}
-				return segments.get(currentSegmentIndex);
-			}
-
-			@Override
-			public void seekOutput(MemorySegment seg, int position) {
-				super.seekOutput(seg, position);
-			}
-		}
 
 
 		public RecordArea(int segmentSize) {
@@ -829,6 +766,31 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		public void skipBytesToRead(int numBytes) throws IOException {
 			inView.skipBytesToRead(numBytes);
 		}
+
+		// -----------------------------------------------------
+
+		private final class RecordAreaOutputView extends AbstractPagedOutputView {
+
+			public int currentSegmentIndex;
+
+			public RecordAreaOutputView(int segmentSize) {
+				super(segmentSize, 0);
+			}
+
+			@Override
+			protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws EOFException {
+				currentSegmentIndex++;
+				if (currentSegmentIndex == segments.size()) {
+					addSegment();
+				}
+				return segments.get(currentSegmentIndex);
+			}
+
+			@Override
+			public void seekOutput(MemorySegment seg, int position) {
+				super.seekOutput(seg, position);
+			}
+		}
 	}
 
 
@@ -874,10 +836,6 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 	}
 
-
-	public <PT> HashTableProber<PT> getProber(TypeComparator<PT> probeTypeComparator, TypePairComparator<PT, T> pairComparator) {
-		return new HashTableProber<>(probeTypeComparator, pairComparator);
-	}
 
 	/**
 	 * A prober for accessing the table.
@@ -1043,6 +1001,51 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 			numElements++;
 			resizeTableIfNecessary();
+		}
+	}
+
+
+	/**
+	 * WARNING: Doing any other operation on the table invalidates the iterator! (Even
+	 * using getMatchFor of a prober!)
+	 */
+	public final class EntryIterator implements MutableObjectIterator<T> {
+
+		private final long endPosition;
+
+		public EntryIterator() {
+			endPosition = recordArea.getAppendPosition();
+			if (endPosition == 0) {
+				return;
+			}
+			recordArea.setReadPosition(0);
+		}
+
+		@Override
+		public T next(T reuse) throws IOException {
+			if (endPosition != 0 && recordArea.getReadPosition() < endPosition) {
+				// Loop until we find a non-abandoned record.
+				// Note: the last record in the record area can't be abandoned.
+				while (!closed) {
+					final long pointerOrNegatedLength = recordArea.readPointer();
+					final boolean isAbandoned = pointerOrNegatedLength < 0;
+					if (!isAbandoned) {
+						reuse = recordArea.readRecord(reuse);
+						return reuse;
+					} else {
+						// pointerOrNegatedLength is storing a length, because the record was abandoned.
+						recordArea.skipBytesToRead((int)-(pointerOrNegatedLength + 1));
+					}
+				}
+				return null; // (we were closed)
+			} else {
+				return null;
+			}
+		}
+
+		@Override
+		public T next() throws IOException {
+			return next(buildSideSerializer.createInstance());
 		}
 	}
 }
