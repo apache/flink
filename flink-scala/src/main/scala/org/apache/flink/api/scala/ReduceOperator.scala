@@ -31,7 +31,8 @@ class ReduceOperator[T: ClassTag](javaReduceOperator: JavaReduceOperator[T])
     * Sets the strategy to use for the combine phase of the reduce.
     *
     * If this method is not called, then the default hint will be used.
-    * ([[ org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint.OPTIMIZER_CHOOSES]])
+    * ([[ org.apache.flink.api.common.operators.base.ReduceOperatorBase.
+    * CombineHint.OPTIMIZER_CHOOSES]])
     *
     * @param strategy The hint to use.
     * @return The ReduceOperator object, for function call chaining.

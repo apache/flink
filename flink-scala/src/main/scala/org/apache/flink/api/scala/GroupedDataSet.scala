@@ -294,7 +294,8 @@ class GroupedDataSet[T: ClassTag](
         cleanFun(v1, v2)
       }
     }
-    new ReduceOperator[T](new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
+    new ReduceOperator[T](
+      new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**
@@ -303,7 +304,8 @@ class GroupedDataSet[T: ClassTag](
    */
   def reduce(reducer: ReduceFunction[T]): ReduceOperator[T] = {
     require(reducer != null, "Reduce function must not be null.")
-    new ReduceOperator[T](new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
+    new ReduceOperator[T](
+      new JavaReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**
