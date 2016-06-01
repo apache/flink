@@ -89,7 +89,7 @@ under the License.
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
-		<flink.forkCount>1.5C</flink.forkCount>
+		<flink.forkCount>1C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
