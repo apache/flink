@@ -119,17 +119,17 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 		switch (strategy) {
 			case SORTED_PARTIAL_REDUCE:
 				// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-				if (this.comparator.supportsSerializationWithKeyNormalization() &&
-					this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
-					this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator.duplicate(), memory);
+				if (comparator.supportsSerializationWithKeyNormalization() &&
+					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
+					sorter = new FixedLengthRecordSorter<T>(serializer, comparator.duplicate(), memory);
 				} else {
-					this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+					sorter = new NormalizedKeySorter<T>(serializer, comparator.duplicate(), memory);
 				}
 				break;
 			case HASHED_PARTIAL_REDUCE:
 				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);
 				table.open();
-				this.reduceFacade = this.table.new ReduceFacade(reducer, outputCollector, objectReuseEnabled);
+				reduceFacade = table.new ReduceFacade(reducer, outputCollector, objectReuseEnabled);
 				break;
 		}
 	}
@@ -152,15 +152,15 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private void collectSorted(T record) throws Exception {
 		// try writing to the sorter first
-		if (!this.sorter.write(record)) {
+		if (!sorter.write(record)) {
 			// it didn't succeed; sorter is full
 
 			// do the actual sorting, combining, and data writing
 			sortAndCombine();
-			this.sorter.reset();
+			sorter.reset();
 
 			// write the value again
-			if (!this.sorter.write(record)) {
+			if (!sorter.write(record)) {
 				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
 			}
 		}
@@ -181,7 +181,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 		final InMemorySorter<T> sorter = this.sorter;
 
 		if (!sorter.isEmpty()) {
-			this.sortAlgo.sort(sorter);
+			sortAlgo.sort(sorter);
 
 			final TypeSerializer<T> serializer = this.serializer;
 			final TypeComparator<T> comparator = this.comparator;
