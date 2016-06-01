@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -214,6 +215,12 @@ public class StreamInputProcessor<IN> {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.instantiateMetrics(metrics);
 		}
+		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return lastEmittedWatermark;
+			}
+		});
 	}
 	
 	public void cleanup() throws IOException {
