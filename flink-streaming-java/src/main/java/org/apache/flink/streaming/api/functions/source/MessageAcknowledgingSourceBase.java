@@ -181,10 +181,10 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		// build a set which contains all processed ids. It may be used to check if we have
 		// already processed an incoming message.
 		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
-			// FLINK-4000: On Job restart triggered by taskmgr failure, the checkpoint dictionaries may be null.
-			if(checkpoint != null && checkpoint.f1 != null) {
-				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
+			if(idsProcessedButNotAcknowledged == null) {
+				this.open(new Configuration()); // taskmgr failure job restart
 			}
+			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
 		}
 	}
 
