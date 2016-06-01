@@ -291,16 +291,24 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	private int calcInitialNumBucketSegments() {
 		int recordLength = buildSideSerializer.getLength();
-		double fraction;
+		double fraction; // fraction of memory to use for the buckets
 		if (recordLength == -1) {
+			// We don't know the record length, so we start with a small number of buckets, and do resizes if
+			// necessary.
 			// It seems that resizing is quite efficient, so we can err here on the too few bucket segments side.
 			// Even with small records, we lose only ~15% speed.
 			fraction = 0.1;
 		} else {
+			// We know the record length, so we can find a good value for the number of buckets right away, and
+			// won't need any resizes later. (enableResize is false in this case, so no resizing will happen.)
+			// Reasoning behind the formula:
+			// We are aiming for one bucket per record, and one bucket contains one 8 byte pointer. The total
+			// memory overhead of an element will be approximately 8+8 bytes, as the record in the record area
+			// is preceded by a pointer (for the linked list).
 			fraction = 8.0 / (16 + recordLength);
-			// note: enableResize is false in this case, so no resizing will happen
 		}
 
+		// We make the number of buckets a power of 2 so that taking modulo is efficient.
 		int ret = Math.max(1, MathUtils.roundDownToPowerOf2((int)(numAllMemorySegments * fraction)));
 
 		// We can't handle more than Integer.MAX_VALUE buckets (eg. because hash functions return int)
