@@ -28,6 +28,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
@@ -485,7 +486,7 @@ public class GenericCsvInputFormatTest {
 				fail("Input format accepted on invalid input.");
 			}
 			catch (ParseException e) {
-				; // all good
+				// all good
 			}
 		}
 		catch (Exception ex) {
@@ -547,7 +548,38 @@ public class GenericCsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testReadWithCharset() throws IOException {
+		try {
+			final String fileContent = "\u00bf|Flink|\u00f1";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setCharset(Charset.forName("UTF-8"));
+			format.setFieldDelimiter("|");
+			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("\u00bf", ((StringValue) values[0]).getValue());
+			assertEquals("Flink", ((StringValue) values[1]).getValue());
+			assertEquals("\u00f1", ((StringValue) values[2]).getValue());
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+
 	@Test
 	public void readWithEmptyField() {
 		try {
@@ -722,7 +754,7 @@ public class GenericCsvInputFormatTest {
 		return new FileInputSplit(0, new Path(this.tempFile.toURI().toString()), 0, this.tempFile.length(), new String[] {"localhost"});
 	}
 	
-	private final Value[] createIntValues(int num) {
+	private Value[] createIntValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {
@@ -732,7 +764,7 @@ public class GenericCsvInputFormatTest {
 		return v;
 	}
 	
-	private final Value[] createLongValues(int num) {
+	private Value[] createLongValues(int num) {
 		Value[] v = new Value[num];
 		
 		for (int i = 0; i < num; i++) {

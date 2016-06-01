@@ -19,11 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
@@ -33,6 +28,12 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A FieldParser is used parse a field from a sequence of bytes. Fields occur in a byte sequence and are terminated
@@ -77,9 +78,11 @@ public abstract class FieldParser<T> {
 		/** Invalid Boolean value **/
 		BOOLEAN_INVALID
 	}
-	
+
+	private Charset charset = Charset.forName("UTF-8");
+
 	private ParseErrorState errorState = ParseErrorState.NONE;
-	
+
 	/**
 	 * Parses the value of a field from the byte array, taking care of properly reset
 	 * the state of this parser.
@@ -217,7 +220,26 @@ public abstract class FieldParser<T> {
 
 		return limitedLength;
 	}
-	
+
+	/*
+	 * Gets the Charset for the parser.Default is set to ASCII
+	 *
+	 * @return The charset for the parser.
+	 */
+	public Charset getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
+	 * when doing a parse.
+	 *
+	 * @param charset The charset  to set.
+	 */
+	public void setCharset(Charset charset) {
+		this.charset = charset;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers
 	// --------------------------------------------------------------------------------------------
