@@ -28,7 +28,7 @@ import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
   * @param numRowsOpt If None, will be calculated from the DataSet.
   * @param numColsOpt If None, will be calculated from the DataSet.
   */
-class DistributedRowMatrix(data: DataSet[IndexedRow],
+class DistributedRowMatrix(val data: DataSet[IndexedRow],
                            numRowsOpt: Option[Int] = None,
                            numColsOpt: Option[Int] = None)
     extends DistributedMatrix {
@@ -52,8 +52,6 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     case Some(cols) => data.getExecutionEnvironment.fromElements(cols)
     case None => data.first(1).map(_.values.size)
   }
-
-  val getRowData = data
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
@@ -90,7 +88,7 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     */
   def byRowOperation(fun: (Vector, Vector) => Vector,
                      other: DistributedRowMatrix): DistributedRowMatrix = {
-    val otherData = other.getRowData
+    val otherData = other.data
     require(this.getNumCols == other.getNumCols)
     require(this.getNumRows == other.getNumRows)
 
