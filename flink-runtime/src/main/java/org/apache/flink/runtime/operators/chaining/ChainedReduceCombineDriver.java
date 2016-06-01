@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.hash.ReduceHashTable;
+import org.apache.flink.runtime.operators.hash.InPlaceMutableHashTable;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -69,7 +69,9 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private ReduceHashTable<T> table;
+	private InPlaceMutableHashTable<T> table;
+
+	private InPlaceMutableHashTable<T>.ReduceFacade reduceFacade;
 
 	private List<MemorySegment> memory;
 
@@ -125,8 +127,9 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 				}
 				break;
 			case HASHED_PARTIAL_REDUCE:
-				table = new ReduceHashTable<T>(serializer, comparator, memory, reducer, outputCollector, objectReuseEnabled);
+				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);
 				table.open();
+				this.reduceFacade = this.table.new ReduceFacade(reducer, outputCollector, objectReuseEnabled);
 				break;
 		}
 	}
@@ -165,12 +168,12 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private void collectHashed(T record) throws Exception {
 		try {
-			table.processRecordWithReduce(record);
+			reduceFacade.updateTableEntryWithReduce(record);
 		} catch (EOFException ex) {
 			// the table has run out of memory
-			table.emitAndReset();
+			reduceFacade.emitAndReset();
 			// try again
-			table.processRecordWithReduce(record);
+			reduceFacade.updateTableEntryWithReduce(record);
 		}
 	}
 
@@ -263,7 +266,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 					sortAndCombine();
 					break;
 				case HASHED_PARTIAL_REDUCE:
-					table.emit();
+					reduceFacade.emit();
 					break;
 			}
 		} catch (Exception ex2) {
