@@ -63,8 +63,6 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient DataFileReader<E> dataFileReader;
 
-	private transient FileInputSplit currSplit;
-
 	private transient long end;
 
 	private transient long recordsReadSinceLastSync;
@@ -127,7 +125,6 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 			LOG.info("Opening split {}", split);
 		}
 
-		this.currSplit = split;
 		SeekableInput in = new FSDataInputStreamWrapper(stream, split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
 		DataFileReader<E> dataFileReader = (DataFileReader) DataFileReader.openReader(in, datumReader);
 
@@ -180,7 +177,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
-		if (this.reachedEnd()) {
+		if (this.dataFileReader == null || this.reachedEnd()) {
 			return new Tuple2<>(0L, 0L);
 		}
 		return new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
@@ -193,11 +190,10 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		}
 
 		this.open(split);
-		if (state != null) {
+		if (state != null && state.f0 != 0l) {
 			dataFileReader = initReader(split);
 
 			// go to the block we stopped
-			currSplit = split;
 			lastSync = state.f0;
 			dataFileReader.seek(lastSync);
 

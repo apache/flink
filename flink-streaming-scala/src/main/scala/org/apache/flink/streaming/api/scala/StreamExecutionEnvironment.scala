@@ -467,54 +467,17 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
     * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
-    * Depending on the provided [[ProcessingMode]], the source
+    * Depending on the provided [[FileProcessingMode]], the source
     * may periodically monitor (every `interval` ms) the path for new data
-    * ([[ProcessingMode.PROCESS_CONTINUOUSLY]]), or process
+    * ([[FileProcessingMode.PROCESS_CONTINUOUSLY]]), or process
     * once the data currently in the path and exit
-    * ([[ProcessingMode.PROCESS_ONCE]]).
-    *
-    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
-    * [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
-    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
-    * to be processed, forwards them to the downstream
-    * [[ContinuousFileReaderOperator readers]] to read the actual data,
-    * and exits, without waiting for the readers to finish reading. This
-    * implies that no more checkpoint barriers are going to be forwarded
-    * after the source exits, thus having no checkpoints after that point.
-    *
-    * @param inputFormat
-    *          The input format used to create the data stream
-    * @param filePath
-    *          The path of the file, as a URI (e.g., "file:///some/local/file" or
-    *          "hdfs://host:port/file/path")
-    * @param watchType
-    *          The mode in which the source should operate, i.e. monitor path and react
-    *          to new data, or process once and exit
-    * @param interval
-    *          In the case of periodic path monitoring, this specifies the interval (in millis)
-    *          between consecutive path scans
-    * @return The data stream that represents the data read from the given file
-    */
-  @PublicEvolving
-  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T],
-                                   filePath: String,
-                                   watchType: ProcessingMode,
-                                   interval: Long): DataStream[T] =
-    readFile(inputFormat, filePath, watchType, interval,
-      FilePathFilter.DefaultFilter.getInstance())
-
-  /**
-    * Reads the contents of the user-specified path based on the given [[FileInputFormat]].
-    * Depending on the provided [[ProcessingMode]], the source
-    * may periodically monitor (every `interval` ms) the path for new data
-    * ([[ProcessingMode.PROCESS_CONTINUOUSLY]]), or process
-    * once the data currently in the path and exit
-    * ([[ProcessingMode.PROCESS_ONCE]]). In addition,
+    * ([[FileProcessingMode.PROCESS_ONCE]]). In addition,
     * if the path contains files not to be processed, the user can specify a custom
-    * [[FilePathFilter]].
+    * [[FilePathFilter]]. As a default implementation you can use
+    * [[FilePathFilter.createDefaultFilter()]].
     *
     * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
-    * [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
+    * [[FileProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
     * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
     * to be processed, forwards them to the downstream
     * [[ContinuousFileReaderOperator readers]] to read the actual data,
@@ -538,38 +501,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * @return The data stream that represents the data read from the given file
     */
   @PublicEvolving
-  def readFile[T: TypeInformation](inputFormat: FileInputFormat[T],
-                                   filePath: String,
-                                   watchType: ProcessingMode,
-                                   interval: Long,
-                                   filter: FilePathFilter): DataStream[T] = {
+  def readFile[T: TypeInformation](
+      inputFormat: FileInputFormat[T],
+      filePath: String,
+      watchType: FileProcessingMode,
+      interval: Long,
+      filter: FilePathFilter): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
     asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, filter, typeInfo))
   }
-
-  /**
-    * Creates a DataStream that contains the contents of file created while
-    * system watches the given path. The file will be read with the system's
-    * default character set. The user can check the monitoring interval in milliseconds,
-    * and the way file modifications are handled. By default it checks for only new files
-    * every 100 milliseconds.
-    *
-    * ** NOTES ON CHECKPOINTING: ** If the `watchType` is set to
-    *  [[ProcessingMode#PROCESS_ONCE]], the source monitors the path ** once **,
-    * creates the [[org.apache.flink.core.fs.FileInputSplit FileInputSplits]]
-    * to be processed, forwards them to the downstream
-    * [[ContinuousFileReaderOperator readers]] to read the actual data,
-    * and exits, without waiting for the readers to finish reading. This
-    * implies that no more checkpoint barriers are going to be forwarded
-    * after the source exits, thus having no checkpoints after that point.
-    *
-    */
-  @PublicEvolving
-  def readTextFile(StreamPath: String,
-                   watchType: ProcessingMode =
-                   ProcessingMode.PROCESS_CONTINUOUSLY,
-                   intervalMillis: Long = 10): DataStream[String] =
-    asScalaStream(javaEnv.readTextFile(StreamPath, watchType, intervalMillis))
 
   /**
    * Creates a new DataStream that contains the strings received infinitely

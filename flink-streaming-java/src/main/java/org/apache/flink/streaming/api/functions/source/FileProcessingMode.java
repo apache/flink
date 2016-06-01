@@ -24,7 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * will be triggered.
  */
 @PublicEvolving
-public enum ProcessingMode {
+public enum FileProcessingMode {
 
 	PROCESS_ONCE,				// Processes the current content of a file/path only ONCE, and stops monitoring.
 	PROCESS_CONTINUOUSLY		// Reprocesses the whole file when new data is appended.

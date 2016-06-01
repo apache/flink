@@ -135,8 +135,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	private transient int limit;
 
-	private transient FileInputSplit currSplit;
-
 	private transient byte[] currBuffer;		// buffer in which current record byte sequence is found
 	private transient int currOffset;			// offset in above buffer
 	private transient int currLen;				// length of current byte sequence
@@ -414,7 +412,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
-		initBuffers(split);
+		initBuffers();
 
 		this.offset = splitStart;
 		if (this.splitStart != 0) {
@@ -430,8 +428,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 	}
 
-	private void initBuffers(FileInputSplit split) {
-		this.currSplit = split;
+	private void initBuffers() {
 		this.bufferSize = this.bufferSize <= 0 ? DEFAULT_READ_BUFFER_SIZE : this.bufferSize;
 
 		if (this.readBuffer == null || this.readBuffer.length != this.bufferSize) {
@@ -646,11 +643,10 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 		}
 
 		this.open(split);
-		if (state != null) {
-			initBuffers(split);
+		if (state != null && state != split.getStart()) {
+			initBuffers();
 
 			// this is the case where we restart from a specific offset within a split (e.g. after a node failure)
-			this.currSplit = split;
 			this.offset = state;
 
 			this.stream.seek(this.offset);

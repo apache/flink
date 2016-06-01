@@ -29,7 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
-import org.apache.flink.streaming.api.functions.source.ProcessingMode;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -190,7 +190,7 @@ public class ContinuousFileMonitoringTest {
 		}
 	}
 
-	private static class PathFilter implements FilePathFilter {
+	private static class PathFilter extends FilePathFilter {
 
 		@Override
 		public boolean filterPath(Path filePath) {
@@ -218,7 +218,7 @@ public class ContinuousFileMonitoringTest {
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format, hdfsURI, new PathFilter(),
-				ProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
@@ -243,8 +243,8 @@ public class ContinuousFileMonitoringTest {
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
-				ProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
+				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));
@@ -292,8 +292,8 @@ public class ContinuousFileMonitoringTest {
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.DefaultFilter.getInstance(),
-				ProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
 		monitoringFunction.run(new TestingSourceContext(monitoringFunction, uniqFilesFound));

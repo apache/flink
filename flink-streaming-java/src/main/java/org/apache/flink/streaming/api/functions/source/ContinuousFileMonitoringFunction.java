@@ -47,7 +47,7 @@ import java.util.Map;
  * i) monitoring a user-provided path, ii) deciding which files should be further read and processed,
  * iii) creating the {@link FileInputSplit FileInputSplits} corresponding to those files, and iv) assigning
  * them to downstream tasks for further reading and processing. Which splits will be further processed
- * depends on the user-provided {@link ProcessingMode} and the {@link FilePathFilter}.
+ * depends on the user-provided {@link FileProcessingMode} and the {@link FilePathFilter}.
  * The splits of the files to be read are then forwarded to the downstream
  * {@link ContinuousFileReaderOperator} which can have parallelism greater than one.
  */
@@ -77,8 +77,8 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** How often to monitor the state of the directory for new data. */
 	private final long interval;
 
-	/** Which new data to process (see {@link ProcessingMode}. */
-	private final ProcessingMode watchType;
+	/** Which new data to process (see {@link FileProcessingMode}. */
+	private final FileProcessingMode watchType;
 
 	private List<Tuple2<Long, List<FileInputSplit>>> splitsToFwdOrderedAscByModTime;
 
@@ -92,10 +92,10 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	public ContinuousFileMonitoringFunction(
 		FileInputFormat<OUT> format, String path,
-		FilePathFilter filter, ProcessingMode watchType,
+		FilePathFilter filter, FileProcessingMode watchType,
 		int readerParallelism, long interval) {
 
-		if (watchType != ProcessingMode.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
+		if (watchType != FileProcessingMode.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
 			throw new IllegalArgumentException("The specified monitoring interval (" + interval + " ms) is " +
 				"smaller than the minimum allowed one (100 ms).");
 		}

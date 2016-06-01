@@ -73,14 +73,12 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	/** A wrapper around the block currently being read. */
 	private transient BlockBasedInput blockBasedInput = null;
 
-	private transient FileInputSplit currSplit = null;
-
 	/**
 	 * The number of records already read from the block.
 	 * This is used to decide if the end of the block has been
 	 * reached.
 	 */
-	private long readRecords;
+	private long readRecords = 0;
 
 	@Override
 	public void configure(Configuration parameters) {
@@ -273,7 +271,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	public void open(FileInputSplit split) throws IOException {
 		super.open(split);
 
-		this.currSplit = split;
 		this.blockInfo = this.createAndReadBlockInfo();
 
 		// We set the size of the BlockBasedInput to splitLength as each split contains one block.
@@ -377,7 +374,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
-		if (this.reachedEnd()) {
+		if (this.blockInfo == null || this.reachedEnd()) {
 			return new Tuple2<>(0L, 0L);
 		}
 		return  new Tuple2<>(
@@ -393,8 +390,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		}
 
 		this.open(split);
-		if (state != null) {
-			this.currSplit = split;
+		if (state != null && state.f1 != 0) {
 			this.blockInfo = this.createAndReadBlockInfo();
 
 			long blockPos = state.f0;

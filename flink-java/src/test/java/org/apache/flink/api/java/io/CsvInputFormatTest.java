@@ -59,15 +59,25 @@ public class CsvInputFormatTest {
 
 	@Test
 	public void testSplitCsvInputStreamInLargeBuffer() throws Exception {
-		testSplitCsvInputStream(1024 * 1024);
+		testSplitCsvInputStream(1024 * 1024, false);
 	}
 
 	@Test
 	public void testSplitCsvInputStreamInSmallBuffer() throws Exception {
-		testSplitCsvInputStream(2);
+		testSplitCsvInputStream(2, false);
 	}
 
-	private void testSplitCsvInputStream(int bufferSize) throws Exception {
+	@Test
+	public void testSplitCsvInputStreamInLargeBufferFailingAtStart() throws Exception {
+		testSplitCsvInputStream(1024 * 1024, true);
+	}
+
+	@Test
+	public void testSplitCsvInputStreamInSmallBufferFailingAtStart() throws Exception {
+		testSplitCsvInputStream(2, true);
+	}
+
+	private void testSplitCsvInputStream(int bufferSize, boolean failAtStart) throws Exception {
 		final String fileContent =
 			"this is|1|2.0|\n"+
 			"a test|3|4.0|\n" +
@@ -105,7 +115,12 @@ public class CsvInputFormatTest {
 			assertEquals(inputSplit.getStart() + inputSplit.getLength(), offsetAtEndOfSplit[splitCounter]);
 			splitCounter++;
 
-			format.open(inputSplit);
+			if (failAtStart) {
+				format.reopen(inputSplit, inputSplit.getStart());
+			} else {
+				format.open(inputSplit);
+			}
+
 			while (!format.reachedEnd()) {
 				if ((result = format.nextRecord(result)) != null) {
 					assertEquals((long) format.getCurrentState(), offsetsAfterRecord[recordCounter]);

@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -28,7 +29,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ProcessingMode;
+import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -108,8 +110,9 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		// create the monitoring source along with the necessary readers.
 		TestingSinkFunction sink = new TestingSinkFunction();
-		DataStream<String> inputStream = env.
-			readTextFile(localFsURI, ProcessingMode.PROCESS_CONTINUOUSLY, INTERVAL);
+		TextInputFormat format = new TextInputFormat(new org.apache.flink.core.fs.Path(localFsURI));
+		DataStream<String> inputStream = env.readFile(format, localFsURI,
+			FileProcessingMode.PROCESS_CONTINUOUSLY, INTERVAL, FilePathFilter.createDefaultFilter());
 
 		inputStream.flatMap(new FlatMapFunction<String, String>() {
 			@Override
@@ -139,7 +142,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 			for (String line: cntnt) {
 				cntntStr.append(line);
 			}
-			Assert.assertEquals(cntntStr.toString(), fc.getFileContent().get(fileIdx));
+			Assert.assertEquals(fc.getFileContent().get(fileIdx), cntntStr.toString());
 		}
 
 		collected.clear();

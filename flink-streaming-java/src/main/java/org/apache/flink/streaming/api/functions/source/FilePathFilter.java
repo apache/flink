@@ -28,8 +28,11 @@ import java.io.Serializable;
  * are still being written.
  */
 @PublicEvolving
-public interface FilePathFilter extends Serializable {
+public abstract class FilePathFilter implements Serializable {
 
+	public static FilePathFilter createDefaultFilter() {
+		return new DefaultFilter();
+	}
 	/**
 	 * Returns {@code true} if the {@code filePath} given is to be
 	 * ignored when processing a directory, e.g.
@@ -41,25 +44,16 @@ public interface FilePathFilter extends Serializable {
 	 * }
 	 * }</pre>
 	 */
-	boolean filterPath(Path filePath);
+	public abstract boolean filterPath(Path filePath);
 
 	/**
 	 * The default file path filtering method and is used
 	 * if no other such function is provided. This filter leaves out
 	 * files starting with ".", "_", and "_COPYING_".
 	 */
-	public class DefaultFilter implements FilePathFilter {
-
-		private static DefaultFilter instance = null;
+	public static class DefaultFilter extends FilePathFilter {
 
 		DefaultFilter() {}
-
-		public static DefaultFilter getInstance() {
-			if (instance == null) {
-				instance = new DefaultFilter();
-			}
-			return instance;
-		}
 
 		@Override
 		public boolean filterPath(Path filePath) {
