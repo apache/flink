@@ -211,11 +211,10 @@ public class YarnClusterClient extends ClusterClient {
 
 			try {
 				Thread.sleep(500);
-			}
-			catch (InterruptedException e) {
+			} catch (InterruptedException e) {
 				LOG.error("Interrupted while waiting for TaskManagers");
 				System.err.println("Thread is interrupted");
-				Thread.currentThread().interrupt();
+				throw new IOException("Interrupted while waiting for TaskManagers", e);
 			}
 		}
 	}
