@@ -176,28 +176,21 @@ class ApplicationClient(
           }
       }
 
-    case LocalStopYarnSession(status, diagnostics) =>
+    case msg @ LocalStopYarnSession(status, diagnostics) =>
       log.info("Sending StopCluster request to JobManager.")
 
-      val clusterStatus =
-        status match {
-          case FinalApplicationStatus.SUCCEEDED => ApplicationStatus.SUCCEEDED
-          case FinalApplicationStatus.KILLED => ApplicationStatus.CANCELED
-          case FinalApplicationStatus.FAILED => ApplicationStatus.FAILED
-          case _ => ApplicationStatus.UNKNOWN
-        }
+      // preserve the original sender so we can reply
+      val originalSender = sender()
 
-      yarnJobManager foreach {
-        // forward to preserve the sender's address
-        _ forward decorateMessage(new StopCluster(clusterStatus, diagnostics))
+      yarnJobManager match {
+        case Some(jm) =>
+          jm.tell(decorateMessage(new StopCluster(status, diagnostics)), originalSender)
+        case None =>
+          context.system.scheduler.scheduleOnce(1 second) {
+            // try once more; we might have been connected in the meantime
+            self.tell(msg, originalSender)
+          }(context.dispatcher)
       }
-
-    case msg: StopClusterSuccessful =>
-      log.info("Remote JobManager has been stopped successfully. " +
-        "Stopping local application client")
-
-      // poison ourselves
-      self ! decorateMessage(PoisonPill)
 
     // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
     case status: GetClusterStatusResponse =>
