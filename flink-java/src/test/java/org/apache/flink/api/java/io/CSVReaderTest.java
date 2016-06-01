@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -74,6 +75,14 @@ public class CSVReaderTest {
 		assertNull(reader.commentPrefix);
 		reader.ignoreComments("#");
 		assertEquals("#", reader.commentPrefix);
+	}
+
+	@Test
+	public void testCharset() {
+		CsvReader reader = getCsvReader();
+		assertEquals(reader.getCharset(), Charset.forName("UTF-8"));
+		reader.setCharset(Charset.forName("US-ASCII"));
+		assertEquals(reader.getCharset(), Charset.forName("US-ASCII"));
 	}
 	
 	@Test

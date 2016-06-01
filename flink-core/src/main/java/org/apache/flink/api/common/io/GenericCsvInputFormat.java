@@ -25,14 +25,12 @@ import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
-
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -48,9 +46,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
 
-	/** The default charset  to convert strings to bytes */
-	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
-	
+	/** The charset used to convert strings to bytes */
+	private Charset charset = Charset.forName("UTF-8");
+
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
@@ -107,6 +105,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		super(filePath, null);
 	}
 
+	protected GenericCsvInputFormat(Path filePath, Charset charset) {
+		this(filePath);
+		this.charset = Preconditions.checkNotNull(charset);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public int getNumberOfFieldsTotal() {
@@ -121,32 +124,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return commentPrefix;
 	}
 
-	public void setCommentPrefix(byte[] commentPrefix) {
-		this.commentPrefix = commentPrefix;
-	}
-
-	public void setCommentPrefix(char commentPrefix) {
-		setCommentPrefix(String.valueOf(commentPrefix));
-	}
-
 	public void setCommentPrefix(String commentPrefix) {
-		setCommentPrefix(commentPrefix, UTF_8_CHARSET);
+		setCommentPrefix(commentPrefix, charset);
 	}
 
-	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset name must not be null");
-		}
-
-		if (commentPrefix != null) {
-			Charset charset = Charset.forName(charsetName);
-			setCommentPrefix(commentPrefix, charset);
-		} else {
-			this.commentPrefix = null;
-		}
-	}
-
-	public void setCommentPrefix(String commentPrefix, Charset charset) {
+	private void setCommentPrefix(String commentPrefix, Charset charset) {
 		if (charset == null) {
 			throw new IllegalArgumentException("Charset must not be null");
 		}
@@ -174,7 +156,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setFieldDelimiter(String delimiter) {
-		this.fieldDelim = delimiter.getBytes(UTF_8_CHARSET);
+		this.fieldDelim = delimiter.getBytes(charset);
 	}
 
 	public boolean isLenient() {
@@ -314,6 +296,25 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.fieldIncluded = includedMask;
 	}
 
+	/**
+	 * Gets the character set for the parser. Default is set to UTF-8.
+	 *
+	 * @return The charset for the parser.
+	 */
+	Charset getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
+	 * when doing a parse.
+	 *
+	 * @param charset The character set to set.
+	 */
+	public void setCharset(Charset charset) {
+		this.charset = Preconditions.checkNotNull(charset);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Runtime methods
 	// --------------------------------------------------------------------------------------------
@@ -334,6 +335,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 				FieldParser<?> p = InstantiationUtil.instantiate(parserType, FieldParser.class);
 
+				p.setCharset(this.getCharset());
 				if (this.quotedStringParsing) {
 					if (p instanceof StringParser) {
 						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);
@@ -449,7 +451,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			// search for ending quote character, continue when it is escaped
 			i++;
 
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)) {
 				i++;
 			}
 			i++;
