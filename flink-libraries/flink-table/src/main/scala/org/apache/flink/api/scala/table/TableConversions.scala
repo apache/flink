@@ -41,7 +41,7 @@ class TableConversions(table: Table) {
         tEnv.toDataSet(table)
       case _ =>
         throw new TableException(
-          "Only tables that orginate from Scala DataSets can be converted to Scala DataSets.")
+          "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
     }
   }
 

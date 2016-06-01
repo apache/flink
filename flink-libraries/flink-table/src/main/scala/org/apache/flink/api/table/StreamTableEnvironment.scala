@@ -24,10 +24,11 @@ import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamRel, DataStreamConvention}
+import org.apache.flink.api.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.api.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.api.table.plan.schema.
@@ -86,18 +87,17 @@ abstract class StreamTableEnvironment(
     * The table to ingest must be registered in the [[TableEnvironment]]'s catalog.
     *
     * @param tableName The name of the table to ingest.
-    * @throws TableException if no table is registered under the given name.
+    * @throws ValidationException if no table is registered under the given name.
     * @return The ingested table.
     */
-  @throws[TableException]
+  @throws[ValidationException]
   def ingest(tableName: String): Table = {
 
     if (isRegistered(tableName)) {
-      relBuilder.scan(tableName)
-      new Table(relBuilder.build(), this)
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
     }
     else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
     }
   }
 
@@ -132,20 +132,20 @@ abstract class StreamTableEnvironment(
     // transform to a relational tree
     val relational = planner.rel(validated)
 
-    new Table(relational.rel, this)
+    new Table(this, LogicalRelNode(relational.rel))
   }
 
   /**
-    * Emits a [[Table]] to a [[TableSink]].
+    * Writes a [[Table]] to a [[TableSink]].
     *
     * Internally, the [[Table]] is translated into a [[DataStream]] and handed over to the
-    * [[TableSink]] to emit it.
+    * [[TableSink]] to write it.
     *
-    * @param table The [[Table]] to emit.
-    * @param sink The [[TableSink]] to emit the [[Table]] to.
+    * @param table The [[Table]] to write.
+    * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
-  override private[flink] def emitToSink[T](table: Table, sink: TableSink[T]): Unit = {
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = {
 
     sink match {
       case streamSink: StreamTableSink[T] =>
@@ -240,7 +240,7 @@ abstract class StreamTableEnvironment(
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
-    val relNode = table.relNode
+    val relNode = table.getRelNode
 
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
@@ -254,10 +254,11 @@ abstract class StreamTableEnvironment(
     }
     catch {
       case e: CannotPlanException =>
-        throw new PlanGenException(
+        throw new TableException(
           s"Cannot generate a valid execution plan for the given query: \n\n" +
             s"${RelOptUtil.toString(relNode)}\n" +
-            "Please consider filing a bug report.", e)
+            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
     }
 
     dataStreamPlan match {

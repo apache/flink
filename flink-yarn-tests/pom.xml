@@ -85,29 +85,20 @@ under the License.
 	</dependencies>
 
 	<build>
-		<testSourceDirectory>src/main/java</testSourceDirectory>
-
 		<plugins>
 			<!-- Set the root directory for all tests to the project root.
 			We need this to be able to locate the final build (in flink-dist)
 			-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
+				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
 					<forkCount>1</forkCount>
 					<workingDirectory>../</workingDirectory>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<workingDirectory>../</workingDirectory>
-				</configuration>
-			</plugin>
-      
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -274,7 +265,13 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

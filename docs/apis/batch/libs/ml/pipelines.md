@@ -403,7 +403,7 @@ Furthermore, we can now use this transformer as part of an analysis pipeline whe
 val trainingData: DataSet[DenseVector] = ...
 
 val mean = MeanTransformer.setMean(1.0)
-val polyFeaturs = PolynomialFeatures().setDegree(3)
+val polyFeatures = PolynomialFeatures().setDegree(3)
 
 val pipeline = mean.chainTransformer(polyFeatures)
 

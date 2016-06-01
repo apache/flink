@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -114,7 +115,8 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		this.executionConfig = executionConfig;
 		this.comparators = new ArrayList<TypeComparator<IN>>(2);
 
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageInfo = new TaskManagerRuntimeInfo(
+				"localhost", new Configuration(), System.getProperty("java.io.tmpdir"));
 	}
 
 	@Parameterized.Parameters
@@ -358,6 +360,11 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		return "Driver Tester: " + message;
 	}
 	
+	@Override
+	public MetricGroup getMetricGroup() {
+		return null;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@After

@@ -458,6 +458,7 @@ File-based:
 Collection-based:
 
 - `from_elements(*args)` - Creates a data set from a Seq. All elements
+- `generate_sequence(from, to)` - Generates the sequence of numbers in the given interval, in parallel. 
 
 **Examples**
 
@@ -475,6 +476,9 @@ csvInput = env.read_csv("hdfs:///the/CSV/file", (INT, STRING, DOUBLE))
 
 \# create a set from some given elements
 values = env.from_elements("Foo", "bar", "foobar", "fubar")
+
+\# generate a number sequence
+numbers = env.generate_sequence(1, 10000000)
 {% endhighlight %}
 
 {% top %}
@@ -563,7 +567,7 @@ The degree of parallelism of a task can be specified in Flink on different level
 
 ### Execution Environment Level
 
-Flink programs are executed in the context of an [execution environmentt](#program-skeleton). An
+Flink programs are executed in the context of an [execution environment](#program-skeleton). An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
 parallelism of an operator.

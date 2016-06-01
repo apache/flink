@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.taskmanager
 
-import java.io.{FileInputStream, File, IOException}
+import java.io.{File, FileInputStream, IOException}
 import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
 import java.lang.reflect.Method
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import javax.management.ObjectName
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
@@ -36,12 +37,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
-import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
+import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
+import org.apache.flink.metrics.groups.TaskManagerMetricGroup
+import org.apache.flink.metrics.{MetricGroup, Gauge => FlinkGauge, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.blob.{BlobClient, BlobCache, BlobService}
+import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.execution.ExecutionState
@@ -58,7 +61,7 @@ import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, Leader
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.{SampleTaskStackTrace, ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, StackTraceSampleMessages, TriggerStackTraceSample}
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
@@ -152,6 +155,9 @@ class TaskManager(
   /** Registry of metrics periodically transmitted to the JobManager */
   private val metricRegistry = TaskManager.createMetricsRegistry()
 
+  private var metricsRegistry : FlinkMetricRegistry = _
+  private var taskManagerMetricGroup : TaskManagerMetricGroup = _
+
   /** Metric serialization */
   private val metricRegistryMapper: ObjectMapper = new ObjectMapper()
     .registerModule(
@@ -181,7 +187,8 @@ class TaskManager(
 
   private val runtimeInfo = new TaskManagerRuntimeInfo(
        connectionInfo.getHostname(),
-       new UnmodifiableConfiguration(config.configuration))
+       new UnmodifiableConfiguration(config.configuration),
+       config.tmpDirPaths)
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -257,6 +264,13 @@ class TaskManager(
     } catch {
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
+    
+    try {
+      //enable this before merging
+      //metricsRegistry.shutdown()
+    } catch {
+      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
+    }
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
@@ -309,7 +323,7 @@ class TaskManager(
       }
 
     case Disconnect(msg) =>
-      handleJobManagerDisconnect(sender(), s"ResourceManager requested disconnect: $msg")
+      handleJobManagerDisconnect(sender(), s"JobManager requested disconnect: $msg")
       triggerTaskManagerRegistration()
 
     case msg: StopCluster =>
@@ -924,6 +938,14 @@ class TaskManager(
     else {
       libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
+
+    metricsRegistry = new FlinkMetricRegistry(config.configuration)
+    
+    taskManagerMetricGroup = 
+      new TaskManagerMetricGroup(metricsRegistry, this.runtimeInfo.getHostname, id.toString)
+    
+    TaskManager.instantiateStatusMetrics(taskManagerMetricGroup)
+    
     // watch job manager to detect when it dies
     context.watch(jobManager)
 
@@ -990,6 +1012,10 @@ class TaskManager(
 
     // disassociate the network environment
     network.disassociate()
+    
+    // stop the metrics reporters
+    metricsRegistry.shutdown()
+    metricsRegistry = null
   }
 
   protected def handleJobManagerDisconnect(jobManager: ActorRef, msg: String): Unit = {
@@ -1056,6 +1082,19 @@ class TaskManager(
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
       val selfGateway = new AkkaActorGateway(self, leaderSessionID.orNull)
 
+      var jobName = tdd.getJobName
+      if (tdd.getJobName.length == 0) {
+        jobName = tdd.getJobID.toString()
+      } else {
+        jobName = tdd.getJobName
+      }
+      
+      val taskMetricGroup = taskManagerMetricGroup
+          .addTaskForJob(
+            tdd.getJobID, jobName,
+            tdd.getVertexID, tdd.getExecutionId, tdd.getTaskName,
+            tdd.getIndexInSubtaskGroup, tdd.getAttemptNumber)
+
       val task = new Task(
         tdd,
         memoryManager,
@@ -1067,7 +1106,8 @@ class TaskManager(
         config.timeout,
         libCache,
         fileCache,
-        runtimeInfo)
+        runtimeInfo,
+        taskMetricGroup)
 
       log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 
@@ -1191,16 +1231,16 @@ class TaskManager(
         registry.getSnapshot
       }
 
-        self ! decorateMessage(
-          UpdateTaskExecutionState(
-            new TaskExecutionState(
-              task.getJobID,
-              task.getExecutionId,
-              task.getExecutionState,
-              task.getFailureCause,
-              accumulators)
-          )
+      self ! decorateMessage(
+        UpdateTaskExecutionState(
+          new TaskExecutionState(
+            task.getJobID,
+            task.getExecutionId,
+            task.getExecutionState,
+            task.getFailureCause,
+            accumulators)
         )
+      )
     }
     else {
       log.error(s"Cannot find task with ID $executionID to unregister.")
@@ -2233,5 +2273,131 @@ object TaskManager {
       }
     })
     metricRegistry
+  }
+
+  private def instantiateStatusMetrics(taskManagerMetricGroup: MetricGroup) : Unit = {
+    val jvm = taskManagerMetricGroup
+      .addGroup("Status")
+      .addGroup("JVM")
+
+    instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"))
+    instantiateGarbageCollectorMetrics(jvm.addGroup("GarbageCollector"))
+    instantiateMemoryMetrics(jvm.addGroup("Memory"))
+    instantiateThreadMetrics(jvm.addGroup("Threads"))
+    instantiateCPUMetrics(jvm.addGroup("CPU"))
+  }
+
+  private def instantiateClassLoaderMetrics(metrics: MetricGroup) {
+    val mxBean = ManagementFactory.getClassLoadingMXBean
+
+    metrics
+      .gauge("ClassesLoaded", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getTotalLoadedClassCount
+    })
+    metrics.gauge("ClassesUnloaded", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getUnloadedClassCount
+    })
+  }
+
+  private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
+    val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
+
+    for (garbageCollector <- garbageCollectors) {
+      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
+      gcGroup.gauge("Count", new FlinkGauge[Long] {
+        override def getValue: Long = garbageCollector.getCollectionCount
+      })
+      gcGroup.gauge("Time", new FlinkGauge[Long] {
+        override def getValue: Long = garbageCollector.getCollectionTime
+      })
+    }
+  }
+
+  private def instantiateMemoryMetrics(metrics: MetricGroup) {
+    val mxBean = ManagementFactory.getMemoryMXBean
+    val heap = metrics.addGroup("Heap")
+    heap.gauge("Used", new FlinkGauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
+    })
+    heap.gauge("Committed", new FlinkGauge[Long] {
+        override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
+      })
+    heap.gauge("Max", new FlinkGauge[Long] {
+        override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
+      })
+
+    val nonHeap = metrics.addGroup("NonHeap")
+    nonHeap.gauge("Used", new FlinkGauge[Long] {
+        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
+      })
+    nonHeap.gauge("Committed", new FlinkGauge[Long] {
+        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
+      })
+    nonHeap.gauge("Max", new FlinkGauge[Long] {
+        override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
+      })
+
+    val con = ManagementFactory.getPlatformMBeanServer;
+
+    val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+
+    val direct = metrics.addGroup("Direct")
+    direct.gauge("Count", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(directObjectName, "Count").asInstanceOf[Long]
+      })
+    direct.gauge("MemoryUsed", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
+      })
+    direct.gauge("TotalCapacity", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
+      })
+
+    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+
+    val mapped = metrics.addGroup("Mapped")
+    mapped.gauge("Count", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+      })
+    mapped.gauge("MemoryUsed", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+      })
+    mapped.gauge("TotalCapacity", new FlinkGauge[Long] {
+        override def getValue: Long = con
+          .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+      })
+  }
+
+  private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
+    val mxBean = ManagementFactory.getThreadMXBean
+
+    metrics
+      .gauge("Count", new FlinkGauge[Int] {
+      override def getValue: Int = mxBean.getThreadCount
+    })
+  }
+
+  private def instantiateCPUMetrics(metrics: MetricGroup): Unit = {
+    try {
+      val mxBean = ManagementFactory.getOperatingSystemMXBean
+        .asInstanceOf[com.sun.management.OperatingSystemMXBean]
+
+      metrics
+        .gauge("Load", new FlinkGauge[Double] {
+          override def getValue: Double = mxBean.getProcessCpuLoad
+        })
+      metrics.gauge("Time", new FlinkGauge[Long] {
+          override def getValue: Long = mxBean.getProcessCpuTime
+        })
+    }
+    catch {
+     case t: Throwable =>
+       LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
+        " - CPU load metrics will not be available.") 
+    }
   }
 }

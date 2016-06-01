@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.Row
 
 class CountAggregate extends Aggregate[Long] {
@@ -45,9 +45,7 @@ class CountAggregate extends Aggregate[Long] {
     }
   }
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    Array(SqlTypeName.BIGINT)
-  }
+  override def intermediateDataType = Array(BasicTypeInfo.LONG_TYPE_INFO)
 
   override def supportPartial: Boolean = true
 

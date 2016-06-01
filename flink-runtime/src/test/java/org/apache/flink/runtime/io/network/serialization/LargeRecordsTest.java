@@ -147,7 +147,10 @@ public class LargeRecordsTest {
 			final int SEGMENT_SIZE = 32 * 1024;
 
 			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-			final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>();
+			
+			final RecordDeserializer<SerializationTestType> deserializer =
+					new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>(
+							new String[] { System.getProperty("java.io.tmpdir") } );
 
 			final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(SEGMENT_SIZE), mock(BufferRecycler.class));
 

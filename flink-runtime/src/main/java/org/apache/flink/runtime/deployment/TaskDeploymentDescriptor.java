@@ -45,6 +45,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The ID of the job the tasks belongs to. */
 	private final JobID jobID;
+	private final String jobName;
 
 	/** The task's job vertex ID. */
 	private final JobVertexID vertexID;
@@ -99,6 +100,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public TaskDeploymentDescriptor(
 			JobID jobID,
+			String jobName,
 			JobVertexID vertexID,
 			ExecutionAttemptID executionId,
 			SerializedValue<ExecutionConfig> serializedExecutionConfig,
@@ -123,6 +125,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		checkArgument(attemptNumber >= 0);
 
 		this.jobID = checkNotNull(jobID);
+		this.jobName = checkNotNull(jobName);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
 		this.serializedExecutionConfig = checkNotNull(serializedExecutionConfig);
@@ -144,6 +147,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public TaskDeploymentDescriptor(
 		JobID jobID,
+		String jobName,
 		JobVertexID vertexID,
 		ExecutionAttemptID executionId,
 		SerializedValue<ExecutionConfig> serializedExecutionConfig,
@@ -162,6 +166,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this(
 			jobID,
+			jobName,
 			vertexID,
 			executionId,
 			serializedExecutionConfig,
@@ -195,6 +200,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	public JobID getJobID() {
 		return jobID;
 	}
+	
+	public String getJobName() { return jobName; }
 
 	/**
 	 * Returns the task's execution vertex ID.

@@ -18,15 +18,12 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.Future;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
@@ -40,12 +37,17 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.Future;
+
 public class DummyEnvironment implements Environment {
 
-	private final TaskInfo taskInfo;
 	private final JobID jobId = new JobID();
 	private final JobVertexID jobVertexId = new JobVertexID();
+	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
+	private final TaskInfo taskInfo;
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
@@ -68,12 +70,12 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public ExecutionAttemptID getExecutionId() {
-		return null;
+		return executionId;
 	}
 
 	@Override
 	public Configuration getTaskConfiguration() {
-		return null;
+		return new Configuration();
 	}
 
 	@Override
@@ -82,8 +84,13 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskMetricGroup getMetricGroup() {
+		return new UnregisteredTaskMetricsGroup();
+	}
+
+	@Override
 	public Configuration getJobConfiguration() {
-		return null;
+		return new Configuration();
 	}
 
 	@Override
@@ -108,7 +115,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public ClassLoader getUserClassLoader() {
-		return null;
+		return getClass().getClassLoader();
 	}
 
 	@Override
@@ -127,12 +134,10 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId) {
-	}
+	public void acknowledgeCheckpoint(long checkpointId) {}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
-	}
+	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {}
 
 	@Override
 	public ResultPartitionWriter getWriter(int index) {

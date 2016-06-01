@@ -41,6 +41,7 @@ class _Identifier(object):
     SOURCE_CSV = "source_csv"
     SOURCE_TEXT = "source_text"
     SOURCE_VALUE = "source_value"
+    SOURCE_SEQ = "source_seq"
     SINK_CSV = "sink_csv"
     SINK_TEXT = "sink_text"
     SINK_PRINT = "sink_print"

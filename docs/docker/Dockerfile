@@ -17,9 +17,5 @@
 FROM centos:centos7
 
 RUN yum install -y vim gem ruby-devel make gcc gcc-c++ python-setuptools && \
-	gem install jekyll -v 2.5.3 && \
-	gem install kramdown -v 1.9.0 && \
-	gem install pygments.rb -v 0.6.3 && \
-	gem install therubyracer -v 0.12.2 && \
-	easy_install Pygments
+    gem install bundler
 

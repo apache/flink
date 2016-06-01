@@ -67,7 +67,7 @@ trait FlinkTestBase extends BeforeAndAfter {
   }
 
   after {
-    cluster.map(c => TestBaseUtils.stopCluster(c, TestBaseUtils.DEFAULT_TIMEOUT))
+    cluster.foreach(c => TestBaseUtils.stopCluster(c, TestBaseUtils.DEFAULT_TIMEOUT))
   }
 
 }

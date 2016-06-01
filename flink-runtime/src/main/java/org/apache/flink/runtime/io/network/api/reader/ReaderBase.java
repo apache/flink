@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import java.io.IOException;
 
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -56,5 +57,12 @@ public interface ReaderBase {
 	 * Setter for the reporter, e.g. for the number of records emitted and the number of bytes read.
 	 */
 	void setReporter(AccumulatorRegistry.Reporter reporter);
+
+	/**
+	 * Setter for the metric group.
+	 *
+	 * @param metrics metric group to set
+	 */
+	void setMetricGroup(IOMetricGroup metrics);
 
 }

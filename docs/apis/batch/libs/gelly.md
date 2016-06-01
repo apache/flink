@@ -1830,7 +1830,9 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [GSA Single Source Shortest Paths](#gsa-single-source-shortest-paths)
 * [GSA Triangle Count](#gsa-triangle-count)
 * [Triangle Enumerator](#triangle-enumerator)
+* [Hyperlink-Induced Topic Search](#hyperlink-induced-topic-search)
 * [Summarization](#summarization)
+* [Jaccard Index](#jaccard-index)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
@@ -1957,7 +1959,7 @@ PageRank is an algorithm that was first used to rank web search engine results. 
 
 #### Details
 The algorithm operates in iterations, where pages distribute their scores to their neighbors (pages they have links to) and subsequently update their scores based on the partial values they receive. The implementation assumes that each page has at least one incoming and one outgoing link.
-In order to consider the importance of a link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with 10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links, will distribute 1/100 of its score to each neighboring page. This process computes what is often called the transition probablities, i.e. the probability that some page will lead to other page while surfing the web. To correctly compute the transition probabilities, this implementation expectes the edge values to be initialiez to 1.0.
+In order to consider the importance of a link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with 10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links, will distribute 1/100 of its score to each neighboring page. This process computes what is often called the transition probablities, i.e. the probability that some page will lead to other page while surfing the web. To correctly compute the transition probabilities, this implementation expects the edge values to be initialised to 1.0.
 
 #### Usage
 The algorithm takes as input a `Graph` with any vertex type, `Double` vertex values, and `Double` edge values. Edges values should be initialized to 1.0, in order to correctly compute the transition probabilities. Otherwise, the transition probability for an Edge `(u, v)` will be set to the edge value divided by `u`'s out-degree. The algorithm returns a `DataSet` of vertices, where the vertex value corresponds to assigned rank after convergence (or maximum iterations).
@@ -2027,6 +2029,23 @@ This implementation extends the basic algorithm by computing output degrees of e
 The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3`. The Vertex ID type has to be `Comparable`.
 Each `Tuple3` corresponds to a triangle, with the fields containing the IDs of the vertices forming the triangle.
 
+### Hyperlink-Induced Topic Search
+
+#### Overview
+[Hyperlink-Induced Topic Search](http://www.cs.cornell.edu/home/kleinber/auth.pdf) (HITS, or "Hubs and Authorities")
+computes two interdependent scores for every vertex in a directed graph. Good hubs are those which point to many 
+good authorities and good authorities are those pointed to by many good hubs.
+ 
+#### Details
+HITS ranking relies on an iterative method converging to a stationary solution. Each vertex in the directed graph is assigned same non-negative
+hub and authority scores. Then the algorithm iteratively updates the scores until termination. Current implementation divides the iteration
+into two phases, authority scores can be computed until hub scores updating and normalising finished, hub scores can be computed until
+authority scores updating and normalising finished.
+
+#### Usage
+The algorithm takes a directed graph as input and outputs a `DataSet` of vertices, where the vertex value is a `Tuple2` 
+containing the hub and authority score after maximum iterations.
+ 
 ### Summarization
 
 #### Overview
@@ -2050,6 +2069,30 @@ corresponding groupings.
 The algorithm takes a directed, vertex (and possibly edge) attributed graph as input and outputs a new graph where each
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
+
+### Jaccard Index
+
+#### Overview
+The Jaccard Index measures the similarity between vertex neighborhoods and is computed as the number of shared neighbors
+divided by the number of distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all neighbors are
+shared).
+
+#### Details
+Counting shared neighbors for pairs of vertices is equivalent to counting connecting paths of length two. The number of
+distinct neighbors is computed by storing the sum of degrees of the vertex pair and subtracting the count of shared
+neighbors, which are double-counted in the sum of degrees.
+
+The algorithm first annotates each edge with the target vertex's degree. Grouping on the source vertex, each pair of
+neighbors is emitted with the degree sum. Grouping on two-paths, the shared neighbors are counted.
+
+#### Usage
+The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing two vertex IDs,
+the number of shared neighbors, and the number of distinct neighbors. The result class provides a method to compute the
+Jaccard Index score. The graph ID type must be `Comparable` and `Copyable`.
+
+* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setMaximumScore`: filter out Jaccard Index scores greater than or equal to the given maximum fraction
+* `setMinimumScore`: filter out Jaccard Index scores less than the given minimum fraction
 
 ### Local Clustering Coefficient
 
@@ -2215,6 +2258,10 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
 {% highlight java %}
 graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2225,6 +2272,10 @@ graph.run(new TranslateGraphIds(new LongValueToStringValue()));
 {% highlight java %}
 graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2235,6 +2286,10 @@ graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
 {% highlight java %}
 graph.run(new TranslateEdgeValues(new Nullify()));
 {% endhighlight %}
+        <p>Required configuration:</p>
+        <ul>
+          <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
       </td>
     </tr>
   </tbody>
@@ -2679,7 +2734,7 @@ A directed or undirected power-law graph generated using the
 [Recursive Matrix (R-Mat)](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
 
 RMat is a stochastic generator configured with a source of randomness implementing the
-`RandomGenerableFactory` interface. Provided implemenations are `JDKRandomGeneratorFactory`
+`RandomGenerableFactory` interface. Provided implementations are `JDKRandomGeneratorFactory`
 and `MersenneTwisterFactory`. These generate an initial sequence of random values which are
 then used as seeds for generating the edges.
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.examples;
 
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
@@ -67,7 +68,7 @@ public class LocalClusteringCoefficient {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		long vertexCount = 1 << scale;
+		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
@@ -110,14 +111,13 @@ public class LocalClusteringCoefficient {
 			env.execute();
 			break;
 		default:
-			System.out.println("The local clustering coefficient measures the connectedness of each vertex's");
-			System.out.println("neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0");
-			System.out.println("(neighborhood is a clique)");
-			System.out.println("");
-			System.out.println("This algorithm returns tuples containing the vertex ID, the degree of");
-			System.out.println("the vertex, the number of edges between vertex neighbors, and the local");
-			System.out.println("clustering coefficient.");
-			System.out.println("");
+			System.out.println(WordUtils.wrap("The local clustering coefficient measures the connectedness of each" +
+					" vertex's neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0 (neighborhood" +
+					" is a clique).", 80));
+			System.out.println();
+			System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
+					" the vertex, the number of edges between vertex neighbors, and the local clustering coefficient.", 80));
+			System.out.println();
 			System.out.println("usage:");
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output print");
 			System.out.println("  LocalClusteringCoefficient [--scale SCALE] [--edge_factor EDGE_FACTOR] --output hash");

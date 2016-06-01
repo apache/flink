@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -188,6 +189,10 @@ public class AbstractReaderTest {
 		@Override
 		public void setReporter(AccumulatorRegistry.Reporter reporter) {
 
+		}
+
+		@Override
+		public void setMetricGroup(IOMetricGroup metrics) {
 		}
 	}
 }

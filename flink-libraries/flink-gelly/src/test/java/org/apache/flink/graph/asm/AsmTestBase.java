@@ -89,7 +89,7 @@ public class AsmTestBase {
 			.generate();
 
 		// RMat graph
-		long rmatVertexCount = 1 << 10;
+		long rmatVertexCount = 1L << 10;
 		long rmatEdgeCount = 16 * rmatVertexCount;
 
 		directedRMatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)

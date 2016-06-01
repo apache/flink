@@ -332,10 +332,14 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		numGates += groupSize;
 		if (groupSize == 1) {
 			// non-union case
-			inputReader = new MutableRecordReader<DeserializationDelegate<IT>>(getEnvironment().getInputGate(0));
+			inputReader = new MutableRecordReader<DeserializationDelegate<IT>>(
+					getEnvironment().getInputGate(0),
+					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 		} else if (groupSize > 1){
 			// union case
-			inputReader = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(getEnvironment().getAllInputGates()));
+			inputReader = new MutableRecordReader<IOReadableWritable>(
+					new UnionInputGate(getEnvironment().getAllInputGates()),
+					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 		} else {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
@@ -344,6 +348,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
 		inputReader.setReporter(reporter);
+		
+		inputReader.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		@SuppressWarnings({ "rawtypes" })
@@ -375,6 +381,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
+				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
+				getEnvironment().getMetricGroup().addOperator(getEnvironment().getTaskInfo().getTaskName()));
 	}
 }

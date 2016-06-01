@@ -39,6 +39,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -57,6 +58,14 @@ public interface RuntimeContext {
 	 * @return The name of the task in which the UDF runs.
 	 */
 	String getTaskName();
+
+	/**
+	 * Returns the metric group for this parallel subtask.
+	 * 
+	 * @return The metric group for this parallel subtask.
+	 */
+	@PublicEvolving
+	MetricGroup getMetricGroup();
 
 	/**
 	 * Gets the parallelism with which the parallel task runs.
@@ -153,6 +162,16 @@ public interface RuntimeContext {
 	Histogram getHistogram(String name);
 	
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Tests for the existence of the broadcast variable identified by the
+	 * given {@code name}.
+	 *
+	 * @param name The name under which the broadcast variable is registered;
+	 * @return Whether a broadcast variable exists for the given name.
+	 */
+	@PublicEvolving
+	boolean hasBroadcastVariable(String name);
 
 	/**
 	 * Returns the result bound to the broadcast variable identified by the 

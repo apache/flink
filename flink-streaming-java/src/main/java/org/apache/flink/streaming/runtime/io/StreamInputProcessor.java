@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -116,7 +117,8 @@ public class StreamInputProcessor<IN> {
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
 		
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
+					ioManager.getSpillingDirectoriesPaths());
 		}
 
 		watermarks = new long[inputGate.getNumberOfInputChannels()];
@@ -200,6 +202,17 @@ public class StreamInputProcessor<IN> {
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
+		}
+	}
+
+	/**
+	 * Sets the metric group for this StreamInputProcessor.
+	 * 
+	 * @param metrics metric group
+     */
+	public void setMetricGroup(IOMetricGroup metrics) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+			deserializer.instantiateMetrics(metrics);
 		}
 	}
 	

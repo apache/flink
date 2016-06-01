@@ -98,7 +98,7 @@ public class PartitionNode extends SingleInputNode {
 			super(pKeys);
 
 			Preconditions.checkArgument(pMethod != PartitionMethod.RANGE
-					|| pKeys.toFieldList().isExactMatch(ordering.getInvolvedIndexes()),
+					|| pKeys.equals(new FieldSet(ordering.getFieldPositions())),
 					"Partition keys must match the given ordering.");
 
 			this.pMethod = pMethod;

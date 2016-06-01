@@ -18,8 +18,9 @@
 package org.apache.flink.api.table.runtime.aggregate
 
 import com.google.common.math.LongMath
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.table.Row
+import java.math.BigInteger
 
 abstract class AvgAggregate[T] extends Aggregate[T] {
   protected var partialSumIndex: Int = _
@@ -34,8 +35,6 @@ abstract class AvgAggregate[T] extends Aggregate[T] {
 }
 
 abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
-  private final val intermediateType = Array(SqlTypeName.BIGINT, SqlTypeName.BIGINT)
-
 
   override def initiate(partial: Row): Unit = {
     partial.setField(partialSumIndex, 0L)
@@ -60,9 +59,9 @@ abstract class IntegralAvgAggregate[T] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
   }
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    intermediateType
-  }
+  override def intermediateDataType = Array(
+    BasicTypeInfo.LONG_TYPE_INFO,
+    BasicTypeInfo.LONG_TYPE_INFO)
 
   def doPrepare(value: Any, partial: Row): Unit
 }
@@ -113,21 +112,47 @@ class IntAvgAggregate extends IntegralAvgAggregate[Int] {
 
 class LongAvgAggregate extends IntegralAvgAggregate[Long] {
 
+  override def intermediateDataType = Array(
+    BasicTypeInfo.BIG_INT_TYPE_INFO,
+    BasicTypeInfo.LONG_TYPE_INFO)
+
+  override def initiate(partial: Row): Unit = {
+    partial.setField(partialSumIndex, BigInteger.ZERO)
+    partial.setField(partialCountIndex, 0L)
+  }
+
+  override def prepare(value: Any, partial: Row): Unit = {
+    if (value == null) {
+      partial.setField(partialSumIndex, BigInteger.ZERO)
+      partial.setField(partialCountIndex, 0L)
+    } else {
+      doPrepare(value, partial)
+    }
+  }
+
   override def doPrepare(value: Any, partial: Row): Unit = {
     val input = value.asInstanceOf[Long]
-    partial.setField(partialSumIndex, input)
+    partial.setField(partialSumIndex, BigInteger.valueOf(input))
     partial.setField(partialCountIndex, 1L)
   }
 
-  override def evaluate(buffer: Row): Long = {
-    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[Long]
+  override def merge(partial: Row, buffer: Row): Unit = {
+    val partialSum = partial.productElement(partialSumIndex).asInstanceOf[BigInteger]
+    val partialCount = partial.productElement(partialCountIndex).asInstanceOf[Long]
+    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigInteger]
     val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
-    (bufferSum / bufferCount)
+    buffer.setField(partialSumIndex, partialSum.add(bufferSum))
+    buffer.setField(partialCountIndex, LongMath.checkedAdd(partialCount, bufferCount))
+  }
+
+  override def evaluate(buffer: Row): Long = {
+    val bufferSum = buffer.productElement(partialSumIndex).asInstanceOf[BigInteger]
+    val bufferCount = buffer.productElement(partialCountIndex).asInstanceOf[Long]
+    bufferSum.divide(BigInteger.valueOf(bufferCount)).longValue()
   }
 }
 
 abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
-  private val partialType = Array(SqlTypeName.DOUBLE, SqlTypeName.BIGINT)
 
   override def initiate(partial: Row): Unit = {
     partial.setField(partialSumIndex, 0D)
@@ -153,9 +178,9 @@ abstract class FloatingAvgAggregate[T: Numeric] extends AvgAggregate[T] {
     buffer.setField(partialCountIndex, partialCount + bufferCount)
   }
 
-  override def intermediateDataType: Array[SqlTypeName] = {
-    partialType
-  }
+  override def intermediateDataType = Array(
+    BasicTypeInfo.DOUBLE_TYPE_INFO,
+    BasicTypeInfo.LONG_TYPE_INFO)
 
   def doPrepare(value: Any, partial: Row): Unit
 }

@@ -34,10 +34,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<properties>
-		<metrics.version>3.1.0</metrics.version>
-	</properties>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -307,19 +303,6 @@ under the License.
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
-					</excludes>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-					<excludes>
-						<exclude>**/TestData.java</exclude>
 					</excludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>

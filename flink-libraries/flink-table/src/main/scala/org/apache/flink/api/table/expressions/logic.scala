@@ -21,24 +21,46 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 
-abstract class BinaryPredicate extends BinaryExpression { self: Product => }
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.validate._
+
+abstract class BinaryPredicate extends BinaryExpression {
+  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+
+  override def validateInput(): ExprValidationResult = {
+    if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"$this only accepts children of Boolean Type, " +
+        s"get ${left.resultType} and ${right.resultType}")
+    }
+  }
+}
 
 case class Not(child: Expression) extends UnaryExpression {
-
-  override val name = Expression.freshName("not-" + child.name)
 
   override def toString = s"!($child)"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.not(child.toRexNode)
   }
+
+  override def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+
+  override def validateInput(): ExprValidationResult = {
+    if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Not only accepts child of Boolean Type, " +
+        s"get ${child.resultType}")
+    }
+  }
 }
 
 case class And(left: Expression, right: Expression) extends BinaryPredicate {
 
   override def toString = s"$left && $right"
-
-  override val name = Expression.freshName(left.name + "-and-" + right.name)
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.and(left.toRexNode, right.toRexNode)
@@ -48,8 +70,6 @@ case class And(left: Expression, right: Expression) extends BinaryPredicate {
 case class Or(left: Expression, right: Expression) extends BinaryPredicate {
 
   override def toString = s"$left || $right"
-
-  override val name = Expression.freshName(left.name + "-or-" + right.name)
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.or(left.toRexNode, right.toRexNode)
@@ -63,15 +83,25 @@ case class Eval(
   extends Expression {
   def children = Seq(condition, ifTrue, ifFalse)
 
-  override def toString = s"($condition)? $ifTrue : $ifFalse"
+  override def resultType = ifTrue.resultType
 
-  override val name = Expression.freshName("if-" + condition.name +
-    "-then-" + ifTrue.name + "-else-" + ifFalse.name)
+  override def toString = s"($condition)? $ifTrue : $ifFalse"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val c = condition.toRexNode
     val t = ifTrue.toRexNode
     val f = ifFalse.toRexNode
     relBuilder.call(SqlStdOperatorTable.CASE, c, t, f)
+  }
+
+  override def validateInput(): ExprValidationResult = {
+    if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+        ifTrue.resultType == ifFalse.resultType) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(
+        s"Eval should have boolean condition and same type of ifTrue and ifFalse, get " +
+          s"(${condition.resultType}, ${ifTrue.resultType}, ${ifFalse.resultType})")
+    }
   }
 }

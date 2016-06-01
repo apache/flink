@@ -30,6 +30,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.BatchTableEnvironment;
 import org.apache.flink.api.table.TableEnvironment;
+import org.apache.flink.api.table.TableException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -220,7 +221,7 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = TableException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -229,7 +230,7 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = TableException.class)
 	public void testAsWithToManyFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -238,7 +239,7 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = TableException.class)
 	public void testAsWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -247,7 +248,7 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = TableException.class)
 	public void testAsWithNonFieldReference1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -256,7 +257,7 @@ public class FromDataSetITCase extends TableProgramsTestBase {
 		tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = TableException.class)
 	public void testAsWithNonFieldReference2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());

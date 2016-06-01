@@ -272,7 +272,7 @@ public class TypeExtractor {
 		}
 		return new TypeExtractor().privateCreateTypeInfo(InputFormat.class, inputFormatInterface.getClass(), 0, null, null);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Generic extraction methods
 	// --------------------------------------------------------------------------------------------
@@ -596,7 +596,7 @@ public class TypeExtractor {
 			}
 			
 			if(curT == Tuple0.class) {
-				return new TupleTypeInfo(Tuple0.class, new TypeInformation<?>[0]);
+				return new TupleTypeInfo(Tuple0.class);
 			}
 			
 			// check if immediate child of Tuple has generics

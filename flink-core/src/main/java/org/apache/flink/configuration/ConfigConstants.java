@@ -355,6 +355,12 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
 
+	// these default values are not used anymore, but remain here until Flink 2.0
+	@Deprecated
+	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "deprecated";
+	@Deprecated
+	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = -1;
+
 	/**
 	 * Similar to the {@see YARN_APPLICATION_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables.

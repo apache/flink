@@ -30,6 +30,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
@@ -42,8 +43,14 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<String, List<?>>();
 
 	public RuntimeUDFContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-								Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+								Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulators,
+								MetricGroup metrics) {
+		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks, metrics);
+	}
+
+	@Override
+	public boolean hasBroadcastVariable(String name) {
+		return this.initializedBroadcastVars.containsKey(name) || this.uninitializedBroadcastVars.containsKey(name);
 	}
 
 	@Override

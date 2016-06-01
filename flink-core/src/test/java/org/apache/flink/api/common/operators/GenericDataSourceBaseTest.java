@@ -27,6 +27,8 @@ import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.common.operators.util.TestRichInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
+
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -83,7 +85,11 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 			executionConfig.disableObjectReuse();
 			assertEquals(false, in.hasBeenClosed());
 			assertEquals(false, in.hasBeenOpened());
-			List<String> resultMutableSafe = source.executeOnCollections(new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			
+			List<String> resultMutableSafe = source.executeOnCollections(
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap,
+							new UnregisteredMetricsGroup()), executionConfig);
+			
 			assertEquals(true, in.hasBeenClosed());
 			assertEquals(true, in.hasBeenOpened());
 
@@ -91,13 +97,18 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 			executionConfig.enableObjectReuse();
 			assertEquals(false, in.hasBeenClosed());
 			assertEquals(false, in.hasBeenOpened());
-			List<String> resultRegular = source.executeOnCollections(new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			
+			List<String> resultRegular = source.executeOnCollections(
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap,
+							new UnregisteredMetricsGroup()), executionConfig);
+			
 			assertEquals(true, in.hasBeenClosed());
 			assertEquals(true, in.hasBeenOpened());
 
 			assertEquals(asList(TestIOData.RICH_NAMES), resultMutableSafe);
 			assertEquals(asList(TestIOData.RICH_NAMES), resultRegular);
-		} catch(Exception e){
+		}
+		catch(Exception e){
 			e.printStackTrace();
 			fail(e.getMessage());
 		}

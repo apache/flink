@@ -22,7 +22,6 @@ import java.util.Date
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.scala.table.ImplicitExpressionOperations
 import org.apache.flink.api.table.typeutils.TypeConverter
 
 object Literal {
@@ -39,11 +38,7 @@ object Literal {
   }
 }
 
-case class Literal(value: Any, tpe: TypeInformation[_])
-  extends LeafExpression with ImplicitExpressionOperations {
-  def expr = this
-  def typeInfo = tpe
-
+case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"$value"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -51,13 +46,10 @@ case class Literal(value: Any, tpe: TypeInformation[_])
   }
 }
 
-case class Null(tpe: TypeInformation[_]) extends LeafExpression {
-  def expr = this
-  def typeInfo = tpe
-
+case class Null(resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
   override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(tpe))
+    relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(resultType))
   }
 }
