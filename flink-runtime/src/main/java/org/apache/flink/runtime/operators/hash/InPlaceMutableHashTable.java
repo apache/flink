@@ -184,7 +184,8 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		recordArea = new RecordArea(segmentSize);
 
 		stagingSegments = new ArrayList<>();
-		stagingSegmentsInView = new RandomAccessInputView(stagingSegments, segmentSize, false);
+		stagingSegments.add(forcedAllocateSegment());
+		stagingSegmentsInView = new RandomAccessInputView(stagingSegments, segmentSize);
 		stagingSegmentsOutView = new StagingOutputView(stagingSegments, segmentSize);
 
 		prober = new HashTableProber<>(buildSideComparator, new SameTypePairComparator<>(buildSideComparator));
@@ -238,6 +239,13 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		// make sure that we close only once
 		synchronized (stateLock) {
 			if (closed) {
+				// We have to do this here, because the ctor already allocates a segment to the record area and
+				// the staging area, even before we are opened. So we might have segments to free, even if we
+				// are closed.
+				recordArea.giveBackSegments();
+				freeMemorySegments.addAll(stagingSegments);
+				stagingSegments.clear();
+
 				return;
 			}
 			closed = true;
@@ -523,7 +531,13 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 			this.segmentSizeMask = segmentSize - 1;
 
 			outView = new RecordAreaOutputView(segmentSize);
-			inView = new RandomAccessInputView(segments, segmentSize, false);
+			try {
+				addSegment();
+			} catch (EOFException ex) {
+				throw new RuntimeException("Bug in InPlaceMutableHashTable: we should have caught it earlier " +
+					"that we don't have enough segments.");
+			}
+			inView = new RandomAccessInputView(segments, segmentSize);
 		}
 
 
