@@ -235,7 +235,8 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val reduceDs = ds.groupBy("_5", "_1")
-      .reduce((in1, in2) => (in1._1, in1._2 + in2._2, 0, "P-)", in1._5)).setCombineHint(CombineHint.HASH)
+      .reduce((in1, in2) => (in1._1, in1._2 + in2._2, 0, "P-)", in1._5))
+      .setCombineHint(CombineHint.HASH)
     reduceDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,0,Hallo,1\n" + "2,3,2,Hallo Welt wie,1\n" + "2,2,1,Hallo Welt,2\n" + "3,9,0," +
