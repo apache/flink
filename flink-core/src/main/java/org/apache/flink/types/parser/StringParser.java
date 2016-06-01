@@ -20,6 +20,8 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.nio.charset.Charset;
+
 /**
  * Converts a variable length field of a byte array into a {@link String}. The byte contents between
  * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
@@ -31,6 +33,7 @@ public class StringParser extends FieldParser<String> {
 	private boolean quotedStringParsing = false;
 	private byte quoteCharacter;
 	private static final byte BACKSLASH = 92;
+	private final Charset ascii = Charset.forName("US-ASCII");
 
 	private String result;
 
@@ -63,11 +66,11 @@ public class StringParser extends FieldParser<String> {
 				// check for proper termination
 				if (i == limit) {
 					// either by end of line
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos+1, i - startPos - 2, ascii);
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos+1, i - startPos - 2, ascii);
 					return i + delimiter.length;
 				} else {
 					// no proper termination
@@ -84,11 +87,11 @@ public class StringParser extends FieldParser<String> {
 
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
-				this.result = new String(bytes, startPos, limit - startPos);
+				this.result = new String(bytes, startPos, limit - startPos, ascii);
 				return limit;
 			} else {
 				// delimiter found.
-				this.result = new String(bytes, startPos, i - startPos);
+				this.result = new String(bytes, startPos, i - startPos, ascii);
 				return i + delimiter.length;
 			}
 		}
