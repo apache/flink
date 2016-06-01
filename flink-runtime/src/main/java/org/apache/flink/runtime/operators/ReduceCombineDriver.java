@@ -111,45 +111,45 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	@Override
 	public void prepare() throws Exception {
-		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		final Counter numRecordsOut = taskContext.getMetricGroup().counter("numRecordsOut");
 
-		strategy = this.taskContext.getTaskConfig().getDriverStrategy();
+		strategy = taskContext.getTaskConfig().getDriverStrategy();
 
 		// instantiate the serializer / comparator
-		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
-		this.comparator = this.taskContext.getDriverComparator(0);
-		this.serializer = serializerFactory.getSerializer();
-		this.reducer = this.taskContext.getStub();
-		this.output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
+		final TypeSerializerFactory<T> serializerFactory = taskContext.getInputSerializer(0);
+		comparator = taskContext.getDriverComparator(0);
+		serializer = serializerFactory.getSerializer();
+		reducer = taskContext.getStub();
+		output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
-		MemoryManager memManager = this.taskContext.getMemoryManager();
+		MemoryManager memManager = taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
-			this.taskContext.getTaskConfig().getRelativeMemoryDriver());
-		this.memory = memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
+			taskContext.getTaskConfig().getRelativeMemoryDriver());
+		memory = memManager.allocatePages(taskContext.getOwningNepheleTask(), numMemoryPages);
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
-		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("ReduceCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+			LOG.debug("ReduceCombineDriver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 
 		switch (strategy) {
 			case SORTED_PARTIAL_REDUCE:
 				// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-				if (this.comparator.supportsSerializationWithKeyNormalization() &&
-					this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
-					this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator.duplicate(), memory);
+				if (comparator.supportsSerializationWithKeyNormalization() &&
+					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
+					sorter = new FixedLengthRecordSorter<T>(serializer, comparator.duplicate(), memory);
 				} else {
-					this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+					sorter = new NormalizedKeySorter<T>(serializer, comparator.duplicate(), memory);
 				}
 				break;
 			case HASHED_PARTIAL_REDUCE:
-				this.table = new InPlaceMutableHashTable<T>(this.serializer, this.comparator, memory);
-				this.reduceFacade = this.table.new ReduceFacade(reducer, output, objectReuseEnabled);
+				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);
+				reduceFacade = table.new ReduceFacade(reducer, output, objectReuseEnabled);
 				break;
 			default:
-				throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
+				throw new Exception("Invalid strategy " + taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
 		}
 	}
 
@@ -159,9 +159,9 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 			LOG.debug("Combiner starting.");
 		}
 
-		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final Counter numRecordsIn = taskContext.getMetricGroup().counter("numRecordsIn");
 
-		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
+		final MutableObjectIterator<T> in = taskContext.getInput(0);
 		final TypeSerializer<T> serializer = this.serializer;
 
 		switch (strategy) {
@@ -172,16 +172,16 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 						numRecordsIn.inc();
 
 						// try writing to the sorter first
-						if (this.sorter.write(value)) {
+						if (sorter.write(value)) {
 							continue;
 						}
 
 						// do the actual sorting, combining, and data writing
 						sortAndCombine();
-						this.sorter.reset();
+						sorter.reset();
 
 						// write the value again
-						if (!this.sorter.write(value)) {
+						if (!sorter.write(value)) {
 							throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
 						}
 					}
@@ -191,16 +191,16 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 						numRecordsIn.inc();
 
 						// try writing to the sorter first
-						if (this.sorter.write(value)) {
+						if (sorter.write(value)) {
 							continue;
 						}
 
 						// do the actual sorting, combining, and data writing
 						sortAndCombine();
-						this.sorter.reset();
+						sorter.reset();
 
 						// write the value again
-						if (!this.sorter.write(value)) {
+						if (!sorter.write(value)) {
 							throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
 						}
 					}
@@ -247,7 +247,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 				table.close();
 				break;
 			default:
-				throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
+				throw new Exception("Invalid strategy " + taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
 		}
 	}
 
@@ -255,7 +255,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		final InMemorySorter<T> sorter = this.sorter;
 
 		if (!sorter.isEmpty()) {
-			this.sortAlgo.sort(sorter);
+			sortAlgo.sort(sorter);
 
 			final TypeSerializer<T> serializer = this.serializer;
 			final TypeComparator<T> comparator = this.comparator;
@@ -343,7 +343,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		} catch (Exception e) {
 			// may happen during concurrent modification
 		}
-		this.taskContext.getMemoryManager().release(this.memory);
+		taskContext.getMemoryManager().release(memory);
 	}
 
 	@Override
