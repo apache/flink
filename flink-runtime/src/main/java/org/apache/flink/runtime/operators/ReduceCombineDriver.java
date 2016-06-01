@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
-import org.apache.flink.runtime.operators.hash.ReduceHashTable;
+import org.apache.flink.runtime.operators.hash.InPlaceMutableHashTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -73,7 +73,9 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private ReduceHashTable<T> table;
+	private InPlaceMutableHashTable<T> table;
+
+	private InPlaceMutableHashTable<T>.ReduceFacade reduceFacade;
 
 	private List<MemorySegment> memory;
 
@@ -143,7 +145,8 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 				}
 				break;
 			case HASHED_PARTIAL_REDUCE:
-				this.table = new ReduceHashTable<T>(this.serializer, this.comparator, memory, this.reducer, this.output, objectReuseEnabled);
+				this.table = new InPlaceMutableHashTable<T>(this.serializer, this.comparator, memory);
+				this.reduceFacade = this.table.new ReduceFacade(reducer, output, objectReuseEnabled);
 				break;
 			default:
 				throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
@@ -215,12 +218,12 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 						numRecordsIn.inc();
 
 						try {
-							table.processRecordWithReduce(value);
+							reduceFacade.updateTableEntryWithReduce(value);
 						} catch (EOFException ex) {
 							// the table has run out of memory
-							table.emitAndReset();
+							reduceFacade.emitAndReset();
 							// try again
-							this.table.processRecordWithReduce(value);
+							reduceFacade.updateTableEntryWithReduce(value);
 						}
 					}
 				} else {
@@ -228,18 +231,18 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 					while (!running && (value = in.next()) != null) {
 						numRecordsIn.inc();
 						try {
-							table.processRecordWithReduce(value);
+							reduceFacade.updateTableEntryWithReduce(value);
 						} catch (EOFException ex) {
 							// the table has run out of memory
-							table.emitAndReset();
+							reduceFacade.emitAndReset();
 							// try again
-							this.table.processRecordWithReduce(value);
+							reduceFacade.updateTableEntryWithReduce(value);
 						}
 					}
 				}
 
 				// send the final batch
-				table.emit();
+				reduceFacade.emit();
 
 				table.close();
 				break;

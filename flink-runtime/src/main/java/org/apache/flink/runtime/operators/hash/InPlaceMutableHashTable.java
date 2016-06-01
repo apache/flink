@@ -40,8 +40,9 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * This hash table supports updating elements, and it also has processRecordWithReduce,
- * which makes one reduce step with the given record.
+ * This hash table supports updating elements. If the new element has the same size as the old element, then
+ * the update is done in-place. Otherwise a hole is created at the place of the old record, which will
+ * eventually be removed by a compaction.
  *
  * The memory is divided into three areas:
  *  - Bucket area: they contain bucket heads:
@@ -57,38 +58,39 @@ import java.util.List;
  *    list element at the end of the record area, and mark the old one as abandoned. This creates "holes" in
  *    the record area, so compactions are eventually needed.
  *
- *  Compaction happens by deleting everything in the bucket area, and then reinserting all elements.
- *  The reinsertion happens by forgetting the structure (the linked lists) of the record area, and reading it
- *  sequentially, and inserting all non-abandoned records, starting from the beginning of the record area.
- *  Note, that insertions never override a record that have not been read by the reinsertion sweep, because
- *  both the insertions and readings happen sequentially in the record area, and the insertions obviously
- *  never overtake the reading sweep.
+ * Compaction happens by deleting everything in the bucket area, and then reinserting all elements.
+ * The reinsertion happens by forgetting the structure (the linked lists) of the record area, and reading it
+ * sequentially, and inserting all non-abandoned records, starting from the beginning of the record area.
+ * Note, that insertions never override a record that hasn't been read by the reinsertion sweep, because
+ * both the insertions and readings happen sequentially in the record area, and the insertions obviously
+ * never overtake the reading sweep.
  *
- *  Note: we have to abandon the old linked list element even when the updated record has a smaller size
- *  than the original, because otherwise we wouldn't know where the next record starts during a reinsertion
- *  sweep.
+ * Note: we have to abandon the old linked list element even when the updated record has a smaller size
+ * than the original, because otherwise we wouldn't know where the next record starts during a reinsertion
+ * sweep.
  *
- *  The number of buckets depends on how large are the records. The serializer might be able to tell us this,
- *  so in this case, we will calculate the number of buckets upfront, and won't do resizes.
- *  If the serializer doesn't know the size, then we start with a small number of buckets, and do resizes as more
- *  elements are inserted than the number of buckets.
+ * The number of buckets depends on how large are the records. The serializer might be able to tell us this,
+ * so in this case, we will calculate the number of buckets upfront, and won't do resizes.
+ * If the serializer doesn't know the size, then we start with a small number of buckets, and do resizes as more
+ * elements are inserted than the number of buckets.
  *
- *  The number of memory segments given to the staging area is usually one, because it just needs to hold
- *  one record.
+ * The number of memory segments given to the staging area is usually one, because it just needs to hold
+ * one record.
  *
- * Note: For hashing, we need to use MathUtils.hash because of its avalanche property, so that
- * changing only some high bits of the original value shouldn't leave the lower bits of the hash unaffected.
+ * Note: For hashing, we couldn't just take the lower bits, but have to use a proper hash function from
+ * MathUtils because of its avalanche property, so that changing only some high bits of
+ * the original value won't leave the lower bits of the hash unaffected.
  * This is because when choosing the bucket for a record, we mask only the
  * lower bits (see numBucketsMask). Lots of collisions would occur when, for example,
  * the original value that is hashed is some bitset, where lots of different values
  * that are different only in the higher bits will actually occur.
  */
 
-public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
+public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ReduceHashTable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InPlaceMutableHashTable.class);
 
-	/** The minimum number of memory segments ReduceHashTable needs to be supplied with in order to work. */
+	/** The minimum number of memory segments InPlaceMutableHashTable needs to be supplied with in order to work. */
 	private static final int MIN_NUM_MEMORY_SEGMENTS = 3;
 
 	// Note: the following two constants can't be negative, because negative values are reserved for storing the
@@ -103,14 +105,6 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	private static final long RECORD_OFFSET_IN_LINK = 8;
 
-
-	/** this is used by processRecordWithReduce */
-	private final ReduceFunction<T> reducer;
-
-	/** emit() sends data to outputCollector */
-	private final Collector<T> outputCollector;
-
-	private final boolean objectReuseEnabled;
 
 	/**
 	 * This initially contains all the memory we have, and then segments
@@ -149,7 +143,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	private T reuse;
 
-	/** This is the internal prober that insertOrReplaceRecord and processRecordWithReduce use. */
+	/** This is the internal prober that insertOrReplaceRecord uses. */
 	private final HashTableProber<T> prober;
 
 	/** The number of elements currently held by the table. */
@@ -165,26 +159,14 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	private boolean enableResize;
 
 
-	/**
-	 * This constructor is for the case when will only call those operations that are also
-	 * present on CompactingHashTable.
-	 */
-	public ReduceHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
-		this(serializer, comparator, memory, null, null, false);
-	}
-
-	public ReduceHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory,
-						ReduceFunction<T> reducer, Collector<T> outputCollector, boolean objectReuseEnabled) {
+	public InPlaceMutableHashTable(TypeSerializer<T> serializer, TypeComparator<T> comparator, List<MemorySegment> memory) {
 		super(serializer, comparator);
-		this.reducer = reducer;
 		this.numAllMemorySegments = memory.size();
 		this.freeMemorySegments = new ArrayList<>(memory);
-		this.outputCollector = outputCollector;
-		this.objectReuseEnabled = objectReuseEnabled;
 
 		// some sanity checks first
 		if (freeMemorySegments.size() < MIN_NUM_MEMORY_SEGMENTS) {
-			throw new IllegalArgumentException("Too few memory segments provided. ReduceHashTable needs at least " +
+			throw new IllegalArgumentException("Too few memory segments provided. InPlaceMutableHashTable needs at least " +
 				MIN_NUM_MEMORY_SEGMENTS + " memory segments.");
 		}
 
@@ -261,7 +243,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			closed = true;
 		}
 
-		LOG.debug("Closing ReduceHashTable and releasing resources.");
+		LOG.debug("Closing InPlaceMutableHashTable and releasing resources.");
 
 		releaseBucketSegments();
 
@@ -276,14 +258,14 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	@Override
 	public void abort() {
-		LOG.debug("Aborting ReduceHashTable.");
+		LOG.debug("Aborting InPlaceMutableHashTable.");
 		close();
 	}
 
 	@Override
 	public List<MemorySegment> getFreeMemory() {
 		if (!this.closed) {
-			throw new IllegalStateException("Cannot return memory while ReduceHashTable is open.");
+			throw new IllegalStateException("Cannot return memory while InPlaceMutableHashTable is open.");
 		}
 
 		return freeMemorySegments;
@@ -320,7 +302,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 
 	private void allocateBucketSegments(int numBucketSegments) {
 		if (numBucketSegments < 1) {
-			throw new RuntimeException("Bug in ReduceHashTable");
+			throw new RuntimeException("Bug in InPlaceMutableHashTable");
 		}
 
 		bucketSegments = new MemorySegment[numBucketSegments];
@@ -352,38 +334,9 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	private MemorySegment forcedAllocateSegment() {
 		MemorySegment segment = allocateSegment();
 		if (segment == null) {
-			throw new RuntimeException("Bug in ReduceHashTable: A free segment should have been available.");
+			throw new RuntimeException("Bug in InPlaceMutableHashTable: A free segment should have been available.");
 		}
 		return segment;
-	}
-
-	/**
-	 * Searches the hash table for the record with matching key, and updates it (making one reduce step) if found,
-	 * otherwise inserts a new entry.
-	 *
-	 * (If there are multiple entries with the same key, then it will update one of them.)
-	 *
-	 * @param record The record to be processed.
-	 */
-	public void processRecordWithReduce(T record) throws Exception {
-		if (closed) {
-			return;
-		}
-
-		T match = prober.getMatchFor(record, reuse);
-		if (match == null) {
-			prober.insertAfterNoMatch(record);
-		} else {
-			// do the reduce step
-			T res = reducer.reduce(match, record);
-
-			// We have given reuse to the reducer UDF, so create new one if object reuse is disabled
-			if (!objectReuseEnabled) {
-				reuse = buildSideSerializer.createInstance();
-			}
-
-			prober.updateMatch(res);
-		}
 	}
 
 	/**
@@ -505,34 +458,8 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 			holes = 0;
 
 		} catch (EOFException ex) {
-			throw new RuntimeException("Bug in ReduceHashTable: we shouldn't get out of memory during a rebuild, " +
+			throw new RuntimeException("Bug in InPlaceMutableHashTable: we shouldn't get out of memory during a rebuild, " +
 				"because we aren't allocating any new memory.");
-		}
-	}
-
-	/**
-	 * Emits all elements currently held by the table to the collector,
-	 * and resets the table. The table will have the same number of buckets
-	 * as before the reset, to avoid doing resizes again.
-	 */
-	public void emitAndReset() throws IOException {
-		final int oldNumBucketSegments = bucketSegments.length;
-		emit();
-		close();
-		open(oldNumBucketSegments);
-	}
-
-	/**
-	 * Emits all elements currently held by the table to the collector.
-	 */
-	public void emit() throws IOException {
-		T record = buildSideSerializer.createInstance();
-		EntryIterator iter = getEntryIterator();
-		while ((record = iter.next(record)) != null && !closed) {
-			outputCollector.collect(record);
-			if (!objectReuseEnabled) {
-				record = buildSideSerializer.createInstance();
-			}
 		}
 	}
 
@@ -545,7 +472,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		if (holes > (double)recordArea.getTotalSize() * 0.05) {
 			rebuild();
 		} else {
-			throw new EOFException("ReduceHashTable memory ran out. " + getMemoryConsumptionString());
+			throw new EOFException("InPlaceMutableHashTable memory ran out. " + getMemoryConsumptionString());
 		}
 	}
 
@@ -553,7 +480,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @return String containing a summary of the memory consumption for error messages
 	 */
 	private String getMemoryConsumptionString() {
-		return "ReduceHashTable memory stats:\n" +
+		return "InPlaceMutableHashTable memory stats:\n" +
 			"Total memory:     " + numAllMemorySegments * segmentSize + "\n" +
 			"Free memory:      " + freeMemorySegments.size() * segmentSize + "\n" +
 			"Bucket area:      " + numBuckets * 8  + "\n" +
@@ -570,7 +497,7 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 	 *  - can overwrite a record at an arbitrary position (WARNING: the new record must have the same size
 	 *    as the old one)
 	 *  - can be rewritten by calling resetAppendPosition
-	 *  - takes memory from ReduceHashTable.freeMemorySegments on append
+	 *  - takes memory from InPlaceMutableHashTable.freeMemorySegments on append
 	 */
 	private final class RecordArea
 	{
@@ -1054,6 +981,75 @@ public class ReduceHashTable<T> extends AbstractMutableHashTable<T> {
 		@Override
 		public T next() throws IOException {
 			return next(buildSideSerializer.createInstance());
+		}
+	}
+
+	/**
+	 * A facade for doing such operations on the hash table that are needed for a reduce operator driver.
+	 */
+	public final class ReduceFacade {
+
+		private final HashTableProber<T> prober;
+
+		private final boolean objectReuseEnabled;
+
+		private final ReduceFunction<T> reducer;
+
+		private final Collector<T> outputCollector;
+
+		private T reuse;
+
+
+		public ReduceFacade(ReduceFunction<T> reducer, Collector<T> outputCollector, boolean objectReuseEnabled) {
+			this.reducer = reducer;
+			this.outputCollector = outputCollector;
+			this.objectReuseEnabled = objectReuseEnabled;
+			this.prober = getProber(buildSideComparator, new SameTypePairComparator<>(buildSideComparator));
+			this.reuse = buildSideSerializer.createInstance();
+		}
+
+		//todo: comment
+		public void updateTableEntryWithReduce(T record) throws Exception {
+			T match = prober.getMatchFor(record, reuse);
+			if (match == null) {
+				prober.insertAfterNoMatch(record);
+			} else {
+				// do the reduce step
+				T res = reducer.reduce(match, record);
+
+				// We have given reuse to the reducer UDF, so create new one if object reuse is disabled
+				if (!objectReuseEnabled) {
+					reuse = buildSideSerializer.createInstance();
+				}
+
+				prober.updateMatch(res);
+			}
+		}
+
+		/**
+		 * Emits all elements currently held by the table to the collector.
+		 */
+		public void emit() throws IOException {
+			T record = buildSideSerializer.createInstance();
+			EntryIterator iter = getEntryIterator();
+			while ((record = iter.next(record)) != null && !closed) {
+				outputCollector.collect(record);
+				if (!objectReuseEnabled) {
+					record = buildSideSerializer.createInstance();
+				}
+			}
+		}
+
+		/**
+		 * Emits all elements currently held by the table to the collector,
+		 * and resets the table. The table will have the same number of buckets
+		 * as before the reset, to avoid doing resizes again.
+		 */
+		public void emitAndReset() throws IOException {
+			final int oldNumBucketSegments = bucketSegments.length;
+			emit();
+			close();
+			open(oldNumBucketSegments);
 		}
 	}
 }

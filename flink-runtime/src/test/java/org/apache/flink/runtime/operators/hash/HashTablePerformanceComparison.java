@@ -211,7 +211,7 @@ public class HashTablePerformanceComparison {
 	}
 
 	@Test
-	public void testReduceHashTablePerformance() {
+	public void testInPlaceMutableHashTablePerformance() {
 		try {
 			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 
@@ -228,9 +228,9 @@ public class HashTablePerformanceComparison {
 
 			long first = System.currentTimeMillis();
 
-			System.out.println("Creating and filling ReduceHashTable...");
+			System.out.println("Creating and filling InPlaceMutableHashTable...");
 			start = System.currentTimeMillis();
-			ReduceHashTable<IntPair> table = new ReduceHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE), null, null, true);
+			InPlaceMutableHashTable<IntPair> table = new InPlaceMutableHashTable<>(serializer, comparator, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 
 			IntPair target = new IntPair();

@@ -45,7 +45,7 @@ import java.util.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.fail;
 
-public class ReduceHashTableTest {
+public class InPlaceMutableHashTableTest {
 
 	private static final long RANDOM_SEED = 58723953465322L;
 
@@ -61,7 +61,7 @@ public class ReduceHashTableTest {
 	//
 	// ------------------ Note: This part was mostly copied from CompactingHashTableTest ------------------
 
-	public ReduceHashTableTest() {
+	public InPlaceMutableHashTableTest() {
 		TypeSerializer<?>[] fieldSerializers = { LongSerializer.INSTANCE, StringSerializer.INSTANCE };
 		@SuppressWarnings("unchecked")
 		Class<Tuple2<Long, String>> clazz = (Class<Tuple2<Long, String>>) (Class<?>) Tuple2.class;
@@ -108,8 +108,8 @@ public class ReduceHashTableTest {
 			// we create a hash table that thinks the records are super large. that makes it choose initially
 			// a lot of memory for the partition buffers, and start with a smaller hash table. that way
 			// we trigger a hash table growth early.
-			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<Tuple2<Long, String>>(
-				serializer, comparator, memory, null, null, false);
+			InPlaceMutableHashTable<Tuple2<Long, String>> table = new InPlaceMutableHashTable<Tuple2<Long, String>>(
+				serializer, comparator, memory);
 			table.open();
 
 			for (long i = 0; i < numElements; i++) {
@@ -134,7 +134,7 @@ public class ReduceHashTableTest {
 
 			// make sure all entries are contained via the prober
 			{
-				ReduceHashTable<Tuple2<Long, String>>.HashTableProber<Long> proper =
+				InPlaceMutableHashTable<Tuple2<Long, String>>.HashTableProber<Long> proper =
 					table.getProber(probeComparator, pairComparator);
 
 				Tuple2<Long, String> reuse = new Tuple2<>();
@@ -166,8 +166,8 @@ public class ReduceHashTableTest {
 			// we create a hash table that thinks the records are super large. that makes it choose initially
 			// a lot of memory for the partition buffers, and start with a smaller hash table. that way
 			// we trigger a hash table growth early.
-			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<Tuple2<Long, String>>(
-				serializer, comparator, memory, null, null, false);
+			InPlaceMutableHashTable<Tuple2<Long, String>> table = new InPlaceMutableHashTable<Tuple2<Long, String>>(
+				serializer, comparator, memory);
 			table.open();
 
 			for (long i = 0; i < numElements; i++) {
@@ -192,7 +192,7 @@ public class ReduceHashTableTest {
 
 			// make sure all entries are contained via the prober
 			{
-				ReduceHashTable<Tuple2<Long, String>>.HashTableProber<Long> proper =
+				InPlaceMutableHashTable<Tuple2<Long, String>>.HashTableProber<Long> proper =
 					table.getProber(probeComparator, pairComparator);
 
 				Tuple2<Long, String> reuse = new Tuple2<>();
@@ -211,9 +211,9 @@ public class ReduceHashTableTest {
 		}
 	}
 
-	// ------------------ The following are the ReduceHashTable-specific tests ------------------
+	// ------------------ The following are the InPlaceMutableHashTable-specific tests ------------------
 
-	private class ReduceHashTableWithJavaHashMap<T, K> {
+	private class InPlaceMutableHashTableWithJavaHashMap<T, K> {
 
 		TypeSerializer<T> serializer;
 
@@ -225,14 +225,14 @@ public class ReduceHashTableTest {
 
 		HashMap<K, T> map = new HashMap<>();
 
-		public ReduceHashTableWithJavaHashMap(TypeSerializer<T> serializer, TypeComparator<T> comparator, ReduceFunction<T> reducer, Collector<T> outputCollector) {
+		public InPlaceMutableHashTableWithJavaHashMap(TypeSerializer<T> serializer, TypeComparator<T> comparator, ReduceFunction<T> reducer, Collector<T> outputCollector) {
 			this.serializer = serializer;
 			this.comparator = comparator;
 			this.reducer = reducer;
 			this.outputCollector = outputCollector;
 		}
 
-		public void processRecordWithReduce(T record, K key) throws Exception {
+		public void updateTableEntryWithReduce(T record, K key) throws Exception {
 			record = serializer.copy(record);
 
 			if (!map.containsKey(key)) {
@@ -266,17 +266,18 @@ public class ReduceHashTableTest {
 		final TypeComparator<IntPair> comparator = new IntPairComparator();
 		final ReduceFunction<IntPair> reducer = new SumReducer();
 
-		// Create the ReduceHashTableWithJavaHashMap, which will provide the correct output.
+		// Create the InPlaceMutableHashTableWithJavaHashMap, which will provide the correct output.
 		List<IntPair> expectedOutput = new ArrayList<>();
-		ReduceHashTableWithJavaHashMap<IntPair, Integer> reference = new ReduceHashTableWithJavaHashMap<>(
+		InPlaceMutableHashTableWithJavaHashMap<IntPair, Integer> reference = new InPlaceMutableHashTableWithJavaHashMap<>(
 			serializer, comparator, reducer, new CopyingListCollector<>(expectedOutput, serializer));
 
-		// Create the ReduceHashTable to test
+		// Create the InPlaceMutableHashTable to test
 		final int numMemPages = keyRange * 32 / PAGE_SIZE; // memory use is proportional to the number of different keys
 		List<IntPair> actualOutput = new ArrayList<>();
 
-		ReduceHashTable<IntPair> table = new ReduceHashTable<>(
-			serializer, comparator, getMemory(numMemPages, PAGE_SIZE), reducer,
+		InPlaceMutableHashTable<IntPair> table = new InPlaceMutableHashTable<>(
+			serializer, comparator, getMemory(numMemPages, PAGE_SIZE));
+		InPlaceMutableHashTable<IntPair>.ReduceFacade reduceFacade = table.new ReduceFacade(reducer,
 			new CopyingListCollector<>(actualOutput, serializer), true);
 		table.open();
 
@@ -292,16 +293,16 @@ public class ReduceHashTableTest {
 		// Process the generated input
 		final int numIntermingledEmits = 5;
 		for (IntPair record: input) {
-			table.processRecordWithReduce(serializer.copy(record));
-			reference.processRecordWithReduce(serializer.copy(record), record.getKey());
+			reduceFacade.updateTableEntryWithReduce(serializer.copy(record));
+			reference.updateTableEntryWithReduce(serializer.copy(record), record.getKey());
 			if(rnd.nextDouble() < 1.0 / ((double)numRecords / numIntermingledEmits)) {
 				// this will fire approx. numIntermingledEmits times
 				reference.emitAndReset();
-				table.emitAndReset();
+				reduceFacade.emitAndReset();
 			}
 		}
 		reference.emitAndReset();
-		table.emit();
+		reduceFacade.emit();
 		table.close();
 
 		long end = System.currentTimeMillis();
@@ -349,39 +350,41 @@ public class ReduceHashTableTest {
 		StringPairComparator comparator = new StringPairComparator();
 		ReduceFunction<StringPair> reducer = new ConcatReducer();
 
-		// Create the ReduceHashTableWithJavaHashMap, which will provide the correct output.
+		// Create the InPlaceMutableHashTableWithJavaHashMap, which will provide the correct output.
 		List<StringPair> expectedOutput = new ArrayList<>();
-		ReduceHashTableWithJavaHashMap<StringPair, String> reference = new ReduceHashTableWithJavaHashMap<>(
+		InPlaceMutableHashTableWithJavaHashMap<StringPair, String> reference = new InPlaceMutableHashTableWithJavaHashMap<>(
 			serializer, comparator, reducer, new CopyingListCollector<>(expectedOutput, serializer));
 
-		// Create the ReduceHashTable to test
+		// Create the InPlaceMutableHashTable to test
 		final int numMemPages = numRecords * 10 / PAGE_SIZE;
 
 		List<StringPair> actualOutput = new ArrayList<>();
 
-		ReduceHashTable<StringPair> table = new ReduceHashTable<>(
-			serializer, comparator, getMemory(numMemPages, PAGE_SIZE), reducer, new CopyingListCollector<>(actualOutput, serializer), true);
+		InPlaceMutableHashTable<StringPair> table =
+			new InPlaceMutableHashTable<>(serializer, comparator, getMemory(numMemPages, PAGE_SIZE));
+		InPlaceMutableHashTable<StringPair>.ReduceFacade reduceFacade =
+			table.new ReduceFacade(reducer, new CopyingListCollector<>(actualOutput, serializer), true);
 
 		// The loop is for checking the feature that multiple open / close are possible.
 		for(int j = 0; j < 3; j++) {
 			table.open();
 
 			// Test emit when table is empty
-			table.emit();
+			reduceFacade.emit();
 
 			// Process some manual stuff
-			reference.processRecordWithReduce(serializer.copy(new StringPair("foo", "bar")), "foo");
-			reference.processRecordWithReduce(serializer.copy(new StringPair("foo", "baz")), "foo");
-			reference.processRecordWithReduce(serializer.copy(new StringPair("alma", "xyz")), "alma");
-			table.processRecordWithReduce(serializer.copy(new StringPair("foo", "bar")));
-			table.processRecordWithReduce(serializer.copy(new StringPair("foo", "baz")));
-			table.processRecordWithReduce(serializer.copy(new StringPair("alma", "xyz")));
+			reference.updateTableEntryWithReduce(serializer.copy(new StringPair("foo", "bar")), "foo");
+			reference.updateTableEntryWithReduce(serializer.copy(new StringPair("foo", "baz")), "foo");
+			reference.updateTableEntryWithReduce(serializer.copy(new StringPair("alma", "xyz")), "alma");
+			reduceFacade.updateTableEntryWithReduce(serializer.copy(new StringPair("foo", "bar")));
+			reduceFacade.updateTableEntryWithReduce(serializer.copy(new StringPair("foo", "baz")));
+			reduceFacade.updateTableEntryWithReduce(serializer.copy(new StringPair("alma", "xyz")));
 			for (int i = 0; i < 5; i++) {
-				table.processRecordWithReduce(serializer.copy(new StringPair("korte", "abc")));
-				reference.processRecordWithReduce(serializer.copy(new StringPair("korte", "abc")), "korte");
+				reduceFacade.updateTableEntryWithReduce(serializer.copy(new StringPair("korte", "abc")));
+				reference.updateTableEntryWithReduce(serializer.copy(new StringPair("korte", "abc")), "korte");
 			}
 			reference.emitAndReset();
-			table.emitAndReset();
+			reduceFacade.emitAndReset();
 
 			// Generate some input
 			UniformStringPairGenerator gen = new UniformStringPairGenerator(numKeys, numVals, true);
@@ -395,16 +398,16 @@ public class ReduceHashTableTest {
 			// Process the generated input
 			final int numIntermingledEmits = 5;
 			for (StringPair record : input) {
-				reference.processRecordWithReduce(serializer.copy(record), record.getKey());
-				table.processRecordWithReduce(serializer.copy(record));
+				reference.updateTableEntryWithReduce(serializer.copy(record), record.getKey());
+				reduceFacade.updateTableEntryWithReduce(serializer.copy(record));
 				if (rnd.nextDouble() < 1.0 / ((double) numRecords / numIntermingledEmits)) {
 					// this will fire approx. numIntermingledEmits times
 					reference.emitAndReset();
-					table.emitAndReset();
+					reduceFacade.emitAndReset();
 				}
 			}
 			reference.emitAndReset();
-			table.emit();
+			reduceFacade.emit();
 			table.close();
 
 			// Check results
@@ -430,7 +433,7 @@ public class ReduceHashTableTest {
 	}
 
 	// Warning: Generally, reduce wouldn't give deterministic results with non-commutative ReduceFunction,
-	// but ReduceHashTable and ReduceHashTableWithJavaHashMap calls it in the same order.
+	// but InPlaceMutableHashTable and ReduceHashTableWithJavaHashMap calls it in the same order.
 	class ConcatReducer implements ReduceFunction<StringPair> {
 		@Override
 		public StringPair reduce(StringPair a, StringPair b) throws Exception {
@@ -465,8 +468,8 @@ public class ReduceHashTableTest {
 			final String longString1 = getLongString(100000), longString2 = getLongString(110000);
 			List<MemorySegment> memory = getMemory(3800, 32 * 1024);
 
-			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<Tuple2<Long, String>>(
-				serializer, comparator, memory, null, null, false);
+			InPlaceMutableHashTable<Tuple2<Long, String>> table =
+				new InPlaceMutableHashTable<>(serializer, comparator, memory);
 			table.open();
 
 			// first, we insert some elements
@@ -480,7 +483,7 @@ public class ReduceHashTableTest {
 			}
 
 			// check the results
-			ReduceHashTable<Tuple2<Long, String>>.HashTableProber<Tuple2<Long, String>> prober =
+			InPlaceMutableHashTable<Tuple2<Long, String>>.HashTableProber<Tuple2<Long, String>> prober =
 				table.getProber(comparator, new SameTypePairComparator<>(comparator));
 			Tuple2<Long, String> reuse = new Tuple2<>();
 			for (long i = 0; i < numElements; i++) {
@@ -509,8 +512,8 @@ public class ReduceHashTableTest {
 		try {
 			List<MemorySegment> memory = getMemory(100, 1024);
 
-			ReduceHashTable<Tuple2<Long, String>> table = new ReduceHashTable<>(
-				serializer, comparator, memory, null, null, false);
+			InPlaceMutableHashTable<Tuple2<Long, String>> table =
+				new InPlaceMutableHashTable<>(serializer, comparator, memory);
 
 			try {
 				final int numElements = 100000;
@@ -538,42 +541,42 @@ public class ReduceHashTableTest {
 	public void testDifferentProbers() {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testDifferentProbers(new ReduceHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testDifferentProbers(new InPlaceMutableHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testBuildAndRetrieve() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = 32 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testBuildAndRetrieve(new ReduceHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializer, common.comparator, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testEntryIterator() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testEntryIterator(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testEntryIterator(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testMultipleProbers() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testMultipleProbers(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testMultipleProbers(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testVariableLengthBuildAndRetrieve() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testVariableLengthBuildAndRetrieve(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testVariableLengthBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testVariableLengthBuildAndRetrieveMajorityUpdated() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testVariableLengthBuildAndRetrieveMajorityUpdated(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testVariableLengthBuildAndRetrieveMajorityUpdated(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
@@ -582,27 +585,27 @@ public class ReduceHashTableTest {
 		final int NUM_LISTS = 20000;
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
 		common.testVariableLengthBuildAndRetrieveMinorityUpdated(
-			new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES, NUM_LISTS);
+			new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES, NUM_LISTS);
 	}
 
 	@Test
 	public void testRepeatedBuildAndRetrieve() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testRepeatedBuildAndRetrieve(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testRepeatedBuildAndRetrieve(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testProberUpdate() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = common.SIZE * common.NUM_LISTS / common.PAGE_SIZE;
-		common.testProberUpdate(new ReduceHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
+		common.testProberUpdate(new InPlaceMutableHashTable<>(common.serializerV, common.comparatorV, common.getMemory(NUM_MEM_PAGES)), NUM_MEM_PAGES);
 	}
 
 	@Test
 	public void testVariableLengthStringBuildAndRetrieve() throws Exception {
 		MemoryHashTableTestCommon common = new MemoryHashTableTestCommon();
 		final int NUM_MEM_PAGES = 40 * common.NUM_PAIRS / common.PAGE_SIZE;
-		common.testVariableLengthStringBuildAndRetrieve(NUM_MEM_PAGES, new ReduceHashTable<>(common.serializerS, common.comparatorS, common.getMemory(NUM_MEM_PAGES)));
+		common.testVariableLengthStringBuildAndRetrieve(NUM_MEM_PAGES, new InPlaceMutableHashTable<>(common.serializerS, common.comparatorS, common.getMemory(NUM_MEM_PAGES)));
 	}
 }
