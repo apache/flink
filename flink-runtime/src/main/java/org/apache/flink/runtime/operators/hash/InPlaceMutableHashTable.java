@@ -1013,7 +1013,12 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 			this.reuse = buildSideSerializer.createInstance();
 		}
 
-		//todo: comment
+		/**
+		 * Looks up the table entry that has the same key as the given record, and updates it by performing
+		 * a reduce step.
+		 * @param record The record to update.
+		 * @throws Exception
+         */
 		public void updateTableEntryWithReduce(T record) throws Exception {
 			T match = prober.getMatchFor(record, reuse);
 			if (match == null) {
