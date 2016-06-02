@@ -238,6 +238,19 @@ public class WebFrontendITCase {
 
 			Thread.sleep(20);
 		}
+
+		// ensure we can access job details when its finished (FLINK-4011)
+		try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+			FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
+
+			assertEquals(HttpResponseStatus.OK, response.getStatus());
+			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("{\"jid\":\""+jid+"\",\"name\":\"Stoppable streaming test job\"," +
+					"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
+					"\"job-parallelism\":-1,\"object-reuse-mode\":false}}", response.getContent());
+		}
 	}
 
 	@Test
