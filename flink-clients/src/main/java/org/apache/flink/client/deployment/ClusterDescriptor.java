@@ -33,6 +33,14 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	String getClusterDescription() throws Exception;
 
 	/**
+	 * Retrieves an existing Flink Cluster.
+	 * @param applicationID The unique application identifier of the running cluster
+	 * @return Client for the cluster
+	 * @throws Exception
+	 */
+	ClientType retrieve(String applicationID) throws Exception;
+
+	/**
 	 * Triggers deployment of a cluster
 	 * @return Client for the cluster
 	 * @throws Exception

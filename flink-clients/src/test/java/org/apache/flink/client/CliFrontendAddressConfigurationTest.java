@@ -19,12 +19,17 @@
 package org.apache.flink.client;
 
 import static org.apache.flink.client.CliFrontendTestUtils.checkJobManagerAddress;
+import static org.apache.flink.client.cli.CliFrontendParser.parseRunCommand;
 import static org.junit.Assert.fail;
 
 import static org.mockito.Mockito.*;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.PosixParser;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 
+import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.configuration.Configuration;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -93,36 +98,13 @@ public class CliFrontendAddressConfigurationTest {
 	}
 
 	@Test
-	public void testInvalidConfigAndOption() {
-		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
-
-			CommandLineOptions options = mock(CommandLineOptions.class);
-			when(options.getJobManagerAddress()).thenReturn("10.221.130.22:7788");
-
-			frontend.updateConfig(options);
-			Configuration config = frontend.getConfiguration();
-
-			InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);
-
-			checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	public void testManualOptionsOverridesConfig() {
 		try {
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 
-			CommandLineOptions options = mock(CommandLineOptions.class);
-			when(options.getJobManagerAddress()).thenReturn("10.221.130.22:7788");
+			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "10.221.130.22:7788"});
 
 			frontend.updateConfig(options);
-
 			Configuration config = frontend.getConfiguration();
 
 			InetSocketAddress expectedAddress = new InetSocketAddress("10.221.130.22", 7788);

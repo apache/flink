@@ -39,7 +39,6 @@ import org.apache.flink.client.cli.StopOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -799,13 +798,14 @@ public class CliFrontend {
 	 * @param options Command line options
 	 */
 	protected void updateConfig(CommandLineOptions options) {
-		if(options.getJobManagerAddress() != null){
-			if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
-				jobManagerAddress = CliFrontendParser.getFlinkYarnSessionCli()
-					.attachFlinkYarnClient(options.getCommandLine())
-					.getJobManagerAddress();
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
-			writeJobManagerAddressToConfig(config, jobManagerAddress);
+		if(options.getJobManagerAddress() != null) {
+			CustomCommandLine customCLI = CliFrontendParser.getActiveCustomCommandLine(options.getJobManagerAddress());
+			try {
+				ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
+				LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
+			} catch (Exception e) {
+				LOG.error("Couldn't retrieve {} cluster.", customCLI.getIdentifier(), e);
+			}
 		}
 	}
 
@@ -828,7 +828,7 @@ public class CliFrontend {
 				scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
 				this.actorSystem = AkkaUtils.createActorSystem(
 						config,
-						new Some<scala.Tuple2<String, Object>>(systemEndpoint));
+						new Some<>(systemEndpoint));
 			}
 			catch (Exception e) {
 				throw new IOException("Could not start actor system to communicate with JobManager", e);
@@ -853,52 +853,28 @@ public class CliFrontend {
 	 */
 	protected ClusterClient getClient(
 			CommandLineOptions options,
-			String programName)
-		throws Exception {
-		InetSocketAddress jobManagerAddress;
+			String programName) throws Exception {
 
-		// try to get the JobManager address via command-line args
-		if (options.getJobManagerAddress() != null) {
+		// Get the custom command-line (e.g. Standalone/Yarn/Mesos)
+		CustomCommandLine<?> activeCommandLine =
+			CliFrontendParser.getActiveCustomCommandLine(options.getJobManagerAddress());
 
-			// Get the custom command-lines (e.g. Yarn/Mesos)
-			CustomCommandLine<?> activeCommandLine =
-				CliFrontendParser.getActiveCustomCommandLine(options.getJobManagerAddress());
+		ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
 
-			if (activeCommandLine != null) {
-				logAndSysout(activeCommandLine.getIdentifier() + " mode detected. Switching Log4j output to console");
-
-				// Default yarn application name to use, if nothing is specified on the command line
-				String applicationName = "Flink Application: " + programName;
-
-				ClusterClient client = activeCommandLine.createClient(applicationName, options.getCommandLine());
-
-				logAndSysout("Cluster started");
-				logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
-
-				return client;
-			} else {
-				// job manager address supplied on the command-line
-				LOG.info("Using address {} to connect to JobManager.", options.getJobManagerAddress());
-				jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
-				writeJobManagerAddressToConfig(config, jobManagerAddress);
-				return new StandaloneClusterClient(config);
-			}
-
-		// try to get the JobManager address via resuming of a cluster
+		if (client != null) {
+			logAndSysout("Cluster retrieved");
 		} else {
-			for (CustomCommandLine cli : CliFrontendParser.getAllCustomCommandLine().values()) {
-				ClusterClient client = cli.retrieveCluster(config);
-				if (client != null) {
-					LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
-					return client;
-				}
+			String applicationName = "Flink Application: " + programName;
+			client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
+			if (client != null) {
+				logAndSysout("Cluster started");
 			}
 		}
 
-		// read JobManager address from the config
-		if (config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) != null) {
-			return new StandaloneClusterClient(config);
-		// We tried hard but couldn't find a JobManager address
+		if (client != null) {
+			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
+			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+			return client;
 		} else {
 			throw new IllegalConfigurationException(
 				"The JobManager address is neither provided at the command-line, " +

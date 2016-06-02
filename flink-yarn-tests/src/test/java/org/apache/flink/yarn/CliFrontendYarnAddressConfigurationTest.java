@@ -19,12 +19,18 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -38,7 +44,6 @@ import java.nio.file.StandardOpenOption;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that verify that the CLI client picks up the correct address for the JobManager
@@ -118,9 +123,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 			// start CLI Frontend
 			TestCLI frontend = new TestCLI(tmpFolder.getAbsolutePath());
 
-			CommandLineOptions options = mock(CommandLineOptions.class);
-
-			frontend.getClient(options, "Program name");
+			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "yarn-cluster"});
 
 			frontend.updateConfig(options);
 			Configuration config = frontend.getConfiguration();
@@ -135,6 +138,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 			fail(e.getMessage());
 		}
 	}
+
 	public static class TestCLI extends CliFrontend {
 		TestCLI(String configDir) throws Exception {
 			super(configDir);
@@ -191,8 +195,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 			File emptyFolder = temporaryFolder.newFolder();
 			TestCLI frontend = new TestCLI(emptyFolder.getAbsolutePath());
 
-			CommandLineOptions options = mock(CommandLineOptions.class);
-			when(options.getJobManagerAddress()).thenReturn("10.221.130.22:7788");
+			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "10.221.130.22:7788"});
 
 			frontend.updateConfig(options);
 

@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
@@ -321,11 +322,65 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * Gets a Hadoop Yarn client
 	 * @return Returns a YarnClient which has to be shutdown manually
 	 */
-	public static YarnClient getYarnClient(Configuration conf) {
+	private static YarnClient getYarnClient(Configuration conf) {
 		YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
 		yarnClient.start();
 		return yarnClient;
+	}
+
+	/**
+	 * Retrieves the Yarn application and cluster from the config
+	 * @param config The config with entries to retrieve the cluster
+	 * @return YarnClusterClient
+	 * @deprecated This should be removed in the future
+	 */
+	public YarnClusterClient retrieveFromConfig(org.apache.flink.configuration.Configuration config) throws  Exception {
+		String jobManagerHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		int jobManagerPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+
+		if (jobManagerHost != null && jobManagerPort != -1) {
+
+			YarnClient yarnClient = getYarnClient(conf);
+			List<ApplicationReport> applicationReports = yarnClient.getApplications();
+			for (ApplicationReport report : applicationReports) {
+				if (report.getHost().equals(jobManagerHost) && report.getRpcPort() == jobManagerPort) {
+					LOG.info("Found application '{}' " +
+						"with JobManager host name '{}' and port '{}' from Yarn properties file.",
+						report.getApplicationId(), jobManagerHost, jobManagerPort);
+					return retrieve(report.getApplicationId().toString());
+				}
+			}
+
+		}
+		return null;
+	}
+
+	@Override
+	public YarnClusterClient retrieve(String applicationID) throws Exception {
+		// check if required Hadoop environment variables are set. If not, warn user
+		if(System.getenv("HADOOP_CONF_DIR") == null &&
+			System.getenv("YARN_CONF_DIR") == null) {
+			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
+				"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
+				"configuration for accessing YARN.");
+		}
+
+		final ApplicationId yarnAppId = ConverterUtils.toApplicationId(applicationID);
+		final YarnClient yarnClient = getYarnClient(conf);
+		final ApplicationReport appReport = yarnClient.getApplicationReport(yarnAppId);
+
+		if (appReport.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED) {
+			// Flink cluster is not running anymore
+			LOG.error("The application {} doesn't run anymore. It has previously completed with final status: {}",
+				applicationID, appReport.getFinalApplicationStatus());
+			throw new RuntimeException("The Yarn application " + applicationID + " doesn't run anymore.");
+		}
+
+		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, appReport.getHost());
+		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, appReport.getRpcPort());
+
+		return new YarnClusterClient(this, yarnClient, appReport, flinkConfiguration, sessionFilesDir, false);
 	}
 
 	@Override
@@ -350,20 +405,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
-	@Override
-	public AbstractFlinkYarnCluster attach(String appId) throws Exception {
-		// check if required Hadoop environment variables are set. If not, warn user
-		if(System.getenv("HADOOP_CONF_DIR") == null &&
-			System.getenv("YARN_CONF_DIR") == null) {
-			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
-				"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
-				"configuration for accessing YARN.");
-		}
-
-		final ApplicationId yarnAppId = ConverterUtils.toApplicationId(appId);
-
-		return new FlinkYarnCluster(yarnClient, yarnAppId, conf, flinkConfiguration, sessionFilesDir, detached);
-	}
 	/**
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
@@ -726,7 +767,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return new YarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir);
+		return new YarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir, true);
 	}
 
 	/**

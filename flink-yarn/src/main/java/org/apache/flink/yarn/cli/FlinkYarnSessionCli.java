@@ -28,11 +28,8 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -134,35 +131,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 	}
 
-	/**
-	 * Attaches a new Yarn Client to running YARN application.
-	 *
-	 */
-	public AbstractFlinkYarnCluster attachFlinkYarnClient(CommandLine cmd) {
-		AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
-		if (flinkYarnClient == null) {
-			return null;
-		}
 
-		if (!cmd.hasOption(APPLICATION_ID.getOpt())) {
-			LOG.error("Missing required argument " + APPLICATION_ID.getOpt());
-			printUsage();
-			return null;
-		}
-
-		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
-		GlobalConfiguration.loadConfiguration(confDirPath);
-		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
-		flinkYarnClient.setFlinkConfiguration(flinkConfiguration);
-		flinkYarnClient.setConfigurationDirectory(confDirPath);
-
-		try {
-			return flinkYarnClient.attach(cmd.getOptionValue(APPLICATION_ID.getOpt()));
-		} catch (Exception e) {
-			LOG.error("Could not attach to YARN session", e);
-			return null;
-		}
-	}
 	/**
 	 * Resumes from a Flink Yarn properties file
 	 * @param flinkConfiguration The flink configuration
@@ -343,19 +312,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		return yarnClusterDescriptor;
 	}
 
-	@Override
-	public YarnClusterClient createClient(String applicationName, CommandLine cmdLine) throws Exception {
-
-		YarnClusterDescriptor yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
-
-		try {
-			return yarnClusterDescriptor.deploy();
-		} catch (Exception e) {
-			throw new RuntimeException("Error deploying the YARN cluster", e);
-		}
-
-	}
-
 	private void printUsage() {
 		System.out.println("Usage:");
 		HelpFormatter formatter = new HelpFormatter();
@@ -439,6 +395,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					switch (command) {
 						case "quit":
 						case "stop":
+							yarnCluster.shutdownCluster();
 							break label;
 
 						case "help":
@@ -470,34 +427,59 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		return ID;
 	}
 
-	public void addOptions(Options options) {
-		options.addOption(FLINK_JAR);
-		options.addOption(JM_MEMORY);
-		options.addOption(TM_MEMORY);
-		options.addOption(CONTAINER);
-		options.addOption(QUEUE);
-		options.addOption(QUERY);
-		options.addOption(SHIP_PATH);
-		options.addOption(SLOTS);
-		options.addOption(DYNAMIC_PROPERTIES);
-		options.addOption(DETACHED);
-		options.addOption(STREAMING);
-		options.addOption(NAME);
-	}
-
-
-	public void getYARNAttachCLIOptions(Options options) {
-		options.addOption(APPLICATION_ID);
+	@Override
+	public void addRunOptions(Options baseOptions) {
+		baseOptions.addOption(FLINK_JAR);
+		baseOptions.addOption(JM_MEMORY);
+		baseOptions.addOption(TM_MEMORY);
+		baseOptions.addOption(CONTAINER);
+		baseOptions.addOption(QUEUE);
+		baseOptions.addOption(QUERY);
+		baseOptions.addOption(SHIP_PATH);
+		baseOptions.addOption(SLOTS);
+		baseOptions.addOption(DYNAMIC_PROPERTIES);
+		baseOptions.addOption(DETACHED);
+		baseOptions.addOption(STREAMING);
+		baseOptions.addOption(NAME);
 	}
 
 	@Override
-	public ClusterClient retrieveCluster(Configuration config) throws Exception {
+	public void addGeneralOptions(Options baseOptions) {
+		baseOptions.addOption(APPLICATION_ID);
+	}
 
-		if(resumeFromYarnProperties(config)) {
-			return new StandaloneClusterClient(config);
+	@Override
+	public YarnClusterClient retrieveCluster(CommandLine cmdLine, Configuration config) throws Exception {
+
+		// first check for an application id
+		if (cmdLine.hasOption(APPLICATION_ID.getOpt())) {
+			String applicationID = cmdLine.getOptionValue(APPLICATION_ID.getOpt());
+			YarnClusterDescriptor yarnDescriptor = new YarnClusterDescriptor();
+			yarnDescriptor.setFlinkConfiguration(config);
+			return yarnDescriptor.retrieve(applicationID);
+		// then try to load from yarn properties
+		} else if (resumeFromYarnProperties(config)) {
+			YarnClusterDescriptor yarnDescriptor = new YarnClusterDescriptor();
+			yarnDescriptor.setFlinkConfiguration(config);
+			return yarnDescriptor.retrieveFromConfig(config);
 		}
 
 		return null;
+	}
+
+	@Override
+	public YarnClusterClient createCluster(String applicationName, CommandLine cmdLine, Configuration config)
+		throws Exception {
+
+		YarnClusterDescriptor yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
+		yarnClusterDescriptor.setFlinkConfiguration(config);
+
+		try {
+			return yarnClusterDescriptor.deploy();
+		} catch (Exception e) {
+			throw new RuntimeException("Error deploying the YARN cluster", e);
+		}
+
 	}
 
 	public int run(String[] args) {
@@ -505,7 +487,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		//	Command Line Options
 		//
 		Options options = new Options();
-		addOptions(options);
+		addGeneralOptions(options);
+		addRunOptions(options);
 
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd;
@@ -530,19 +513,26 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			}
 			System.out.println(description);
 			return 0;
-		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) {
-			yarnCluster = attachFlinkYarnClient(cmd);
+		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) { // TODO RM
+
+			YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor();
+			try {
+				yarnCluster = yarnClusterDescriptor.retrieve(cmd.getOptionValue(APPLICATION_ID.getOpt()));
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve existing Yarn application", e);
+			}
 
 			if (detachedMode) {
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-					"yarn application -kill "+yarnCluster.getApplicationId());
+					"yarn application -kill "+yarnCluster.getClusterIdentifier());
+				yarnCluster.disconnect();
 			} else {
-				runInteractiveCli(yarnCluster);
+				runInteractiveCli(yarnCluster, true);
 
-				if (!yarnCluster.hasBeenStopped()) {
+				if (!yarnCluster.hasBeenShutdown()) {
 					LOG.info("Command Line Interface requested session shutdown");
-					yarnCluster.shutdown(false);
+					yarnCluster.shutdown();
 				}
 			}
 		} else {
