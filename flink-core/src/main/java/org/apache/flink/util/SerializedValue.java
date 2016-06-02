@@ -52,7 +52,7 @@ public class SerializedValue<T> implements java.io.Serializable {
 	@SuppressWarnings("unchecked")
 	public T deserializeValue(ClassLoader loader) throws IOException, ClassNotFoundException {
 		if (loader == null) {
-			throw new NullPointerException();
+			throw new NullPointerException("No classloader has been passed");
 		}
 
 		return serializedData == null ? null : (T) InstantiationUtil.deserializeObject(serializedData, loader);
