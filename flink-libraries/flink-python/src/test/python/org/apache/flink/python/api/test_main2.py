@@ -21,6 +21,7 @@ from flink.functions.MapFunction import MapFunction
 from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
 from flink.functions.CoGroupFunction import CoGroupFunction
+from flink.functions.Aggregation import Max, Min, Sum
 from utils import Verify, Verify2
 
 if __name__ == "__main__":
@@ -37,6 +38,24 @@ if __name__ == "__main__":
     d5 = env.from_elements((4.4, 4.3, 1), (4.3, 4.4, 1), (4.2, 4.1, 3), (4.1, 4.1, 3))
 
     d6 = env.from_elements(1, 1, 12)
+
+    #Aggregate
+    d4 \
+        .group_by(2).aggregate(Sum, 0).and_agg(Max, 1).and_agg(Min, 3) \
+        .map_partition(Verify([(3, 0.5, "hello", False), (2, 0.4, "world", False)], "Grouped Aggregate")).output()
+
+    d5 \
+        .aggregate(Sum, 0).and_agg(Min, 1).and_agg(Max, 2) \
+        .map_partition(Verify([(4.4 + 4.3 + 4.2 + 4.1, 4.1, 3)], "Ungrouped Aggregate")).output()
+
+    #Aggregate syntactic sugar functions
+    d4 \
+        .group_by(2).sum(0).and_agg(Max, 1).and_agg(Min, 3) \
+        .map_partition(Verify([(3, 0.5, "hello", False), (2, 0.4, "world", False)], "Grouped Aggregate")).output()
+
+    d5 \
+        .sum(0).and_agg(Min, 1).and_agg(Max, 2) \
+        .map_partition(Verify([(4.4 + 4.3 + 4.2 + 4.1, 4.1, 3)], "Ungrouped Aggregate")).output()
 
     #Join
     class Join(JoinFunction):
