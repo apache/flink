@@ -69,10 +69,6 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	private float noise = DEFAULT_NOISE;
 
-	private boolean simpleGraph = false;
-
-	private boolean clipAndFlip = false;
-
 	/**
 	 * Generate a directed or undirected power-law {@link Graph} using the
 	 * Recursive Matrix (R-Mat) model.
@@ -142,22 +138,6 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		return this;
 	}
 
-	/**
-	 * When configured for a simple graph duplicate edges and self-loops will
-	 * be removed. The clip-and-flip method removes edges where source < target
-	 * before symmetrizing the graph.
-	 *
-	 * @param simpleGraph whether to generate a simple graph
-	 * @param clipAndFlip method for generating simple graph
-	 * @return this
-	 */
-	public RMatGraph<T> setSimpleGraph(boolean simpleGraph, boolean clipAndFlip) {
-		this.simpleGraph = simpleGraph;
-		this.clipAndFlip = clipAndFlip;
-
-		return this;
-	}
-
 	@Override
 	public Graph<LongValue,NullValue,NullValue> generate() {
 		int scale = Long.SIZE - Long.numberOfLeadingZeros(vertexCount - 1);
@@ -168,26 +148,15 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		List<BlockInfo<T>> generatorBlocks = randomGenerableFactory
 			.getRandomGenerables(edgeCount, cyclesPerEdge);
 
-		DataSet<Edge<LongValue,NullValue>> generatedEdges = env
+		DataSet<Edge<LongValue,NullValue>> edges = env
 			.fromCollection(generatorBlocks)
 				.name("Random generators")
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateEdges<T>(vertexCount, scale, A, B, C, noiseEnabled, noise, simpleGraph, clipAndFlip))
+			.flatMap(new GenerateEdges<T>(vertexCount, scale, A, B, C, noiseEnabled, noise))
 				.setParallelism(parallelism)
 				.name("RMat graph edges");
-
-		DataSet<Edge<LongValue,NullValue>> edges;
-
-		if (simpleGraph) {
-			edges = generatedEdges
-				.distinct(1, 0)
-					.setParallelism(parallelism)
-					.name("Distinct");
-		} else {
-			edges = generatedEdges;
-		}
 
 		// Vertices
 		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSet(edges, parallelism);
@@ -216,10 +185,6 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private final float noise;
 
-		private final boolean simpleGraph;
-
-		private final boolean clipAndFlip;
-
 		// Output
 		private LongValue source = new LongValue();
 
@@ -229,7 +194,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private Edge<LongValue,NullValue> targetToSource = new Edge<>(target, source, NullValue.getInstance());
 
-		public GenerateEdges(long vertexCount, int scale, float A, float B, float C, boolean noiseEnabled, float noise, boolean simpleGraph, boolean clipAndFlip) {
+		public GenerateEdges(long vertexCount, int scale, float A, float B, float C, boolean noiseEnabled, float noise) {
 			this.vertexCount = vertexCount;
 			this.scale = scale;
 			this.A = A;
@@ -238,8 +203,6 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 			this.D = 1.0f - A - B - C;
 			this.noiseEnabled = noiseEnabled;
 			this.noise = noise;
-			this.simpleGraph = simpleGraph;
-			this.clipAndFlip = clipAndFlip;
 		}
 
 		@Override
@@ -299,14 +262,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 					source.setValue(x);
 					target.setValue(y);
 
-					if (simpleGraph) {
-						if ((clipAndFlip && x > y) || (!clipAndFlip && x != y)) {
-							out.collect(sourceToTarget);
-							out.collect(targetToSource);
-						}
-					} else {
-						out.collect(sourceToTarget);
-					}
+					out.collect(sourceToTarget);
 
 					edgesToGenerate--;
 				}

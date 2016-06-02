@@ -56,7 +56,8 @@ public class AsmTestBase {
 	protected Graph<LongValue,NullValue,NullValue> undirectedRMatGraph;
 
 	@Before
-	public void setup() {
+	public void setup()
+			throws Exception {
 		env = ExecutionEnvironment.createCollectionsEnvironment();
 
 		// the "fish" graph
@@ -92,11 +93,13 @@ public class AsmTestBase {
 		long rmatVertexCount = 1L << 10;
 		long rmatEdgeCount = 16 * rmatVertexCount;
 
-		directedRMatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
+		Graph<LongValue,NullValue,NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
 			.generate();
 
-		undirectedRMatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
-			.setSimpleGraph(true, false)
-			.generate();
+		directedRMatGraph = rmatGraph
+			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+
+		undirectedRMatGraph = rmatGraph
+			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
 	}
 }

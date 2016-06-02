@@ -95,10 +95,10 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 	throws Exception {
-		ChecksumHashCode degreeChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
+		ChecksumHashCode degreesChecksum = DataSetUtils.checksumHashCode(directedRMatGraph
 			.run(new VertexDegrees<LongValue, NullValue, NullValue>()));
 
-		assertEquals(902, degreeChecksum.getCount());
-		assertEquals(0x0000015384f40cb6L, degreeChecksum.getChecksum());
+		assertEquals(902, degreesChecksum.getCount());
+		assertEquals(0x000001527b0f9e80L, degreesChecksum.getChecksum());
 	}
 }
