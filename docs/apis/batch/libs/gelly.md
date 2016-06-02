@@ -2315,6 +2315,34 @@ Graph<K, VV, EV> filteredGraph = graph
     </tr>
 
     <tr>
+      <td>simple.directed.<br/><strong>Simplify</strong></td>
+      <td>
+        <p>Remove self-loops and duplicate edges from a <a href="#graph-representation">directed graph</a>.</p>
+{% highlight java %}
+graph.run(new Simplify());
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
+      <td>simple.undirected.<br/><strong>Simplify</strong></td>
+      <td>
+        <p>Add symmetric edges and remove self-loops and duplicate edges from an <a href="#graph-representation">undirected graph</a>.</p>
+{% highlight java %}
+graph.run(new Simplify());
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
       <td>translate.<br/><strong>TranslateGraphIds</strong></td>
       <td>
         <p>Translate vertex and edge IDs using the given <code>TranslateFunction</code>.</p>
@@ -2324,6 +2352,10 @@ graph.run(new TranslateGraphIds(new LongValueToStringValue()));
         <p>Required configuration:</p>
         <ul>
           <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
         </ul>
       </td>
     </tr>
@@ -2339,6 +2371,10 @@ graph.run(new TranslateVertexValues(new LongValueAddOffset(vertexCount)));
         <ul>
           <li><p><strong>translator</strong>: implements type or value conversion</p></li>
         </ul>
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+        </ul>
       </td>
     </tr>
 
@@ -2352,6 +2388,10 @@ graph.run(new TranslateEdgeValues(new Nullify()));
         <p>Required configuration:</p>
         <ul>
           <li><p><strong>translator</strong>: implements type or value conversion</p></li>
+        </ul>
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
         </ul>
       </td>
     </tr>
@@ -2855,7 +2895,6 @@ boolean clipAndFlip = false;
 Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .setConstants(0.57f, 0.19f, 0.19f)
     .setNoise(true, 0.10f)
-    .setSimpleGraph(true, clipAndFlip)
     .generate();
 {% endhighlight %}
 </div>
@@ -2872,7 +2911,7 @@ val edgeCount = edgeFactor * vertexCount
 
 clipAndFlip = false
 
-val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConstants(0.57f, 0.19f, 0.19f).setNoise(true, 0.10f).setSimpleGraph(true, clipAndFlip).generate()
+val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConstants(0.57f, 0.19f, 0.19f).setNoise(true, 0.10f).generate()
 {% endhighlight %}
 </div>
 </div>
