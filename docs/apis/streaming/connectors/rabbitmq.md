@@ -47,7 +47,7 @@ A class which provides an interface for receiving data from RabbitMQ.
 
 The followings have to be provided for the `RMQSource(…)` constructor in order:
 
-- hostName: The RabbitMQ broker hostname.
+- RMQConnectionConfig.
 - queueName: The RabbitMQ queue name.
 - usesCorrelationId: `true` when correlation ids should be used, `false` otherwise (default is `false`).
 - deserializationSchema: Deserialization schema to turn messages into Java objects.
@@ -71,7 +71,9 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder().build();
+RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+.setHost("localhost").setPort(5000).setUserName(..)
+.setPassword(..).setVirtualHost("/").build();
 DataStream<String> streamWithoutCorrelationIds = env
 	.addSource(new RMQSource<String>(connectionConfig, "hello", new SimpleStringSchema()))
 	.print
@@ -83,7 +85,9 @@ DataStream<String> streamWithCorrelationIds = env
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val connectionConfig = new RMQConnectionConfig.Builder().build()
+val connectionConfig = new RMQConnectionConfig.Builder()
+.setHost("localhost").setPort(5000).setUserName(..)
+.setPassword(..).setVirtualHost("/").build()
 streamWithoutCorrelationIds = env
     .addSource(new RMQSource[String](connectionConfig, "hello", new SimpleStringSchema))
     .print
@@ -100,7 +104,7 @@ A class providing an interface for sending data to RabbitMQ.
 
 The followings have to be provided for the `RMQSink(…)` constructor in order:
 
-1. The hostname
+1. RMQConnectionConfig
 2. The queue name
 3. Serialization schema
 
@@ -109,13 +113,17 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder().build();
+RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+.setHost("localhost").setPort(5000).setUserName(..)
+.setPassword(..).setVirtualHost("/").build();
 stream.addSink(new RMQSink<String>(connectionConfig, "hello", new StringToByteSerializer()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val connectionConfig = new RMQConnectionConfig.Builder().build()
+val connectionConfig = new RMQConnectionConfig.Builder()
+.setHost("localhost").setPort(5000).setUserName(..)
+.setPassword(..).setVirtualHost("/").build()
 stream.addSink(new RMQSink[String](connectionConfig, "hello", new StringToByteSerializer))
 {% endhighlight %}
 </div>

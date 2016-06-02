@@ -224,7 +224,7 @@ public class RMQSourceTest {
 	public void testConstructorParams() throws Exception {
 		// verify construction params
 		RMQConnectionConfig.Builder builder = new RMQConnectionConfig.Builder();
-		builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest");
+		builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/");
 		ConstructorTestClass testObj = new ConstructorTestClass(
 			builder.build(), "queueTest", false, new StringDeserializationScheme());
 
@@ -250,7 +250,7 @@ public class RMQSourceTest {
 									DeserializationSchema<String> deserializationSchema) throws Exception {
 			super(rmqConnectionConfig, queueName, usesCorrelationId, deserializationSchema);
 			RMQConnectionConfig.Builder builder = new RMQConnectionConfig.Builder();
-			builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest");
+			builder.setHost("hostTest").setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/");
 			factory = Mockito.spy(builder.build().getConnectionFactory());
 			try {
 				Mockito.doThrow(new RuntimeException()).when(factory).newConnection();
@@ -297,7 +297,7 @@ public class RMQSourceTest {
 
 		public RMQTestSource() {
 			super(new RMQConnectionConfig.Builder().setHost("hostTest")
-					.setPort(999).setUserName("userTest").setPassword("passTest").build()
+					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
 				, "queueDummy", true, new StringDeserializationScheme());
 		}
 

@@ -35,37 +35,21 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	private String QUEUE_NAME;
+	private String queueName;
 	private RMQConnectionConfig rmqConnectionConfig;
-	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
 	private SerializationSchema<IN> schema;
 
 	/**
 	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
-	 * @param QUEUE_NAME The queue to publish messages to.
+	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
-	public RMQSink(RMQConnectionConfig rmqConnectionConfig, String QUEUE_NAME, SerializationSchema<IN> schema) {
+	public RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema) {
 		this.rmqConnectionConfig = rmqConnectionConfig;
-		this.QUEUE_NAME = QUEUE_NAME;
+		this.queueName = queueName;
 		this.schema = schema;
-	}
-
-	/**
-	 * Initializes the connection to RMQ.
-	 */
-	public void initializeConnection() throws Exception {
-		factory = rmqConnectionConfig.getConnectionFactory();
-		try {
-			connection = factory.newConnection();
-			channel = connection.createChannel();
-			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
 	}
 
 	/**
@@ -79,11 +63,11 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		try {
 			byte[] msg = schema.serialize(value);
 
-			channel.basicPublish("", QUEUE_NAME, null, msg);
+			channel.basicPublish("", queueName, null, msg);
 
 		} catch (IOException e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message {} at {}", QUEUE_NAME, rmqConnectionConfig.getHost());
+				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost());
 			}
 		}
 
@@ -97,7 +81,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			channel.close();
 			connection.close();
 		} catch (IOException e) {
-			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
+			throw new RuntimeException("Error while closing RMQ connection with " + queueName
 				+ " at " + rmqConnectionConfig.getHost(), e);
 		}
 
@@ -105,7 +89,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration config) throws Exception {
-		initializeConnection();
+		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
+		try {
+			connection = factory.newConnection();
+			channel = connection.createChannel();
+			channel.queueDeclare(queueName, false, false, false, null);
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
