@@ -18,6 +18,7 @@
 import copy
 import types as TYPES
 
+from flink.functions.Aggregation import AggregationFunction
 from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
 from flink.plan.OperationInfo import OperationInfo
 from flink.functions.CoGroupFunction import CoGroupFunction
@@ -191,6 +192,30 @@ class DataSet(object):
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
+
+    def aggregate(self, aggregation, field):
+        """
+        Applies an Aggregate transformation (using a GroupReduceFunction) on a non-grouped Tuple DataSet.
+        :param aggregation: The built-in aggregation function to apply on the DataSet.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: A GroupReduceOperator that represents the aggregated DataSet.
+        """
+        child_set = self.reduce_group(aggregation(field), combinable=True)
+        child_set._info.name = "PythonAggregate"
+        return child_set
+
+    def agg_and(self, aggregation, field):
+        """
+        Applies an additional Aggregate transformation.
+        :param aggregation: The built-in aggregation operation to apply on the DataSet.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: A GroupReduceOperator that represents the aggregated DataSet.
+        """
+        if self._info.name == "PythonAggregate":
+            self._info.operator.add_aggregation(aggregation, field)
+            return self
+        else:  # If the parent set is not an aggregation, start an aggregation
+            return self.aggregate(aggregation, field)
 
     def project(self, *fields):
         """
@@ -703,6 +728,30 @@ class UnsortedGrouping(Grouping):
         self._env._sets.append(child)
 
         return child_set
+
+    def aggregate(self, aggregation, field):
+        """
+        Applies an Aggregate transformation (using a GroupReduceFunction) on a Tuple UnsortedGrouping.
+        :param aggregation: The built-in aggregation function to apply on the UnsortedGrouping.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: A GroupReduceOperator that represents the aggregated UnsortedGrouping.
+        """
+        child_set = self.reduce_group(AggregationFunction(aggregation, field), combinable=True)
+        child_set._info.name = "PythonAggregate"
+        return child_set
+
+    def agg_and(self, aggregation, field):
+        """
+        Applies an additional Aggregate transformation.
+        :param aggregation: The built-in aggregation operation to apply on the UnsortedGrouping.
+        :param field: The index of the Tuple field on which to perform the function.
+        :return: A GroupReduceOperator that represents the aggregated UnsortedGrouping.
+        """
+        if self._info.name == "PythonAggregate":
+            self._info.operator.add_aggregation(aggregation, field)
+            return self
+        else:  # If the parent set is not an aggregation, start an aggregation
+            return self.aggregate(aggregation, field)
 
     def _finalize(self):
         grouping = self._child_chain[0]

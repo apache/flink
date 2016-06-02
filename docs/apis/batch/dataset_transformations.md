@@ -873,7 +873,10 @@ val output = input.groupBy(1).aggregate(SUM, 0).and(MIN, 2)
 <div data-lang="python" markdown="1">
 
 ~~~python
-Not supported.
+from flink.functions.Aggregation import Sum, Min
+
+input = # [...]
+output = input.group_by(1).aggregate(Sum, 0).agg_and(Min, 2)
 ~~~
 
 </div>
@@ -1010,7 +1013,10 @@ val output = input.aggregate(SUM, 0).and(MIN, 2)
 <div data-lang="python" markdown="1">
 
 ~~~python
-Not supported.
+from flink.functions.Aggregation import Sum, Min
+
+input = # [...]
+output = input.aggregate(Sum, 0).agg_and(Min, 2)
 ~~~
 
 </div>

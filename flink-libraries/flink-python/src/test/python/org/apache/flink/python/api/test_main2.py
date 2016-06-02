@@ -21,6 +21,7 @@ from flink.functions.MapFunction import MapFunction
 from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
 from flink.functions.CoGroupFunction import CoGroupFunction
+from flink.functions.Aggregation import Max, Min, Sum
 from utils import Verify, Verify2
 
 if __name__ == "__main__":
@@ -37,6 +38,12 @@ if __name__ == "__main__":
     d5 = env.from_elements((4.4, 4.3, 1), (4.3, 4.4, 1), (4.2, 4.1, 3), (4.1, 4.1, 3))
 
     d6 = env.from_elements(1, 1, 12)
+
+    #Aggregate
+    d4 \
+        .group_by(2).aggregate(Sum, 0).agg_and(Max, 1).agg_and(Min, 3) \
+        .map_partition(Verify([(3, 0.5, "hello", False), (2, 0.4, "world", False)], "Aggregate")).output()
+
 
     #Join
     class Join(JoinFunction):

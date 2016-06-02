@@ -265,6 +265,19 @@ data.reduce_group(Adder())
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Aggregate</strong></td>
+      <td>
+        <p>Performs a built-in operation (sum, min, max) on one field of all the Tuples in a
+        data set or in each group of a data set. Aggregation can be applied on a full dataset
+        or on a grouped data set.</p>
+{% highlight python %}
+# This code finds the sum of all of the values in the first field and the maximum of all of the values in the second field
+data.aggregate(Aggregation.Sum, 0).agg_and(Aggregation.Max, 1)
+{% endhighlight %}
+      </td>
+    </tr>
+
     </tr>
       <td><strong>Join</strong></td>
       <td>
