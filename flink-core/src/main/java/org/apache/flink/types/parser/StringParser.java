@@ -40,11 +40,11 @@ public class StringParser extends FieldParser<String> {
 	}
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, String reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, String reusable) {
 
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length + 1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if(quotedStringParsing && bytes[i] == quoteCharacter) {
 			// quoted string parsing enabled and first character Vis a quote

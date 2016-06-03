@@ -35,11 +35,11 @@ public class IntValueParser extends FieldParser<IntValue> {
 	private IntValue result;
 	
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, IntValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, IntValue reusable) {
 		long val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length + 1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		this.result = reusable;
 

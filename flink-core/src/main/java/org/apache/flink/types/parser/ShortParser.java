@@ -35,11 +35,11 @@ public class ShortParser extends FieldParser<Short> {
 	private short result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Short reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Short reusable) {
 		int val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length + 1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if (bytes[startPos] == '-') {
 			neg = true;

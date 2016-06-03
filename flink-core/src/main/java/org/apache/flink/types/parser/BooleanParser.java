@@ -36,7 +36,7 @@ public class BooleanParser extends FieldParser<Boolean> {
 	};
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delim, Boolean reuse) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, Boolean reuse) {
 
 		final int delimLimit = limit - delim.length + 1;
 

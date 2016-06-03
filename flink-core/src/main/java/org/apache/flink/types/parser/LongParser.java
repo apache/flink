@@ -31,12 +31,12 @@ public class LongParser extends FieldParser<Long> {
 	private long result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Long reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Long reusable) {
 		long val = 0;
 		boolean neg = false;
 
 		final int delimLimit = limit - delimiter.length + 1;
-
+		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;

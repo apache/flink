@@ -35,12 +35,12 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 	private ShortValue result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, ShortValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, ShortValue reusable) {
 		int val = 0;
 		boolean neg = false;
 
-		final int delimLimit = limit-delimiter.length + 1;
-
+		final int delimLimit = limit - delimiter.length + 1;
+		
 		this.result = reusable;
 		
 		if (bytes[startPos] == '-') {

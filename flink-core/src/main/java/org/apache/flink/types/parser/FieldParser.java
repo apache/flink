@@ -93,9 +93,9 @@ public abstract class FieldParser<T> {
 	 * 
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse) {
+	public int resetErrorStateAndParse(byte[] bytes, int startPos, int limit, byte[] delim, T reuse) {
 		resetParserState();
-		return parseFieldImpl(bytes, startPos, limit, delim, reuse);
+		return parseField(bytes, startPos, limit, delim, reuse);
 	}
 
 	/**
@@ -103,11 +103,11 @@ public abstract class FieldParser<T> {
 	 *
 	 * @see {@link FieldParser#parseField(byte[], int, int, byte[], Object)}
 	 * */
-	protected abstract int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delim, T reuse);
+	protected abstract int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse);
 
 	/**
 	 * Reset the state of the parser. Called as the very first method inside
-	 * {@link FieldParser#parseField(byte[], int, int, byte[], Object)}, by default it just reset
+	 * {@link FieldParser#resetErrorStateAndParse(byte[], int, int, byte[], Object)}, by default it just reset
 	 * its error state.
 	 * */
 	protected void resetParserState() {

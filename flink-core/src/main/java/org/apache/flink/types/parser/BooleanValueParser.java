@@ -29,7 +29,7 @@ public class BooleanValueParser extends FieldParser<BooleanValue> {
 	private BooleanValue result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delim, BooleanValue reuse) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delim, BooleanValue reuse) {
 		int returnValue = parser.parseField(bytes, startPos, limit, delim, reuse.getValue());
 		setErrorState(parser.getErrorState());
 		reuse.setValue(parser.getLastResult());

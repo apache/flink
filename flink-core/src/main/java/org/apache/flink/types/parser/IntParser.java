@@ -35,7 +35,7 @@ public class IntParser extends FieldParser<Integer> {
 	private int result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Integer
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Integer 
 		reusable) {
 		long val = 0;
 		boolean neg = false;

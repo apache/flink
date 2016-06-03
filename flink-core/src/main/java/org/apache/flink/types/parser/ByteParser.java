@@ -27,7 +27,7 @@ public class ByteParser extends FieldParser<Byte> {
 	private byte result;
 
 	@Override
-	public int parseFieldImpl(byte[] bytes, int startPos, int limit, byte[] delimiter, Byte reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Byte reusable) {
 		int val = 0;
 		boolean neg = false;
 
