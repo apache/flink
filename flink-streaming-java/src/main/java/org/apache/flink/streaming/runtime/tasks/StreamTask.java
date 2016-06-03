@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -154,6 +155,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	private long recoveryTimestamp;
 
+	private long lastCheckpointSize = 0;
+
 	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
 	// ------------------------------------------------------------------------
@@ -193,6 +196,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			timerService =new ScheduledThreadPoolExecutor(1, new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
 			// allow trigger tasks to be removed if all timers for that timestamp are removed by user
 			timerService.setRemoveOnCancelPolicy(true);
+
+			getEnvironment().getMetricGroup().gauge("lastCheckpointSize", new Gauge<Long>() {
+				@Override
+				public Long getValue() {
+					return StreamTask.this.lastCheckpointSize;
+				}
+			});
 
 			// task specific initialization
 			init();
@@ -525,6 +535,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				if (allStates.isEmpty()) {
 					getEnvironment().acknowledgeCheckpoint(checkpointId);
 				} else if (!hasAsyncStates) {
+					this.lastCheckpointSize = allStates.getStateSize();
 					getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
 				} else {
 					// start a Thread that does the asynchronous materialization and
@@ -559,6 +570,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 									}
 								}
 								StreamTaskStateList allStates = new StreamTaskStateList(states);
+								StreamTask.this.lastCheckpointSize = allStates.getStateSize();
 								getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
 								LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
 							}
