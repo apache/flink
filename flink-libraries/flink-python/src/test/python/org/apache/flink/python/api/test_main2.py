@@ -78,11 +78,10 @@ class Verify2(MapPartitionFunction):
         :param collector: Collector for the result records.
         """
         for value in iterator:
-            if value in self.expected:
-                try:
-                    self.expected.remove(value)
-                except Exception:
-                    raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
+            try:
+                self.expected.remove(value)
+            except Exception:
+                raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
         #collector.collect(self.name + " successful!")
 
 
