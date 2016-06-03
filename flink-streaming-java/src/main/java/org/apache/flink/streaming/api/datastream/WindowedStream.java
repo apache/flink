@@ -446,12 +446,15 @@ public class WindowedStream<T, K, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
+			FoldApplyWindowFunction foldApplyWindowFunction = new FoldApplyWindowFunction<>(initialValue, foldFunction, function);
+			foldApplyWindowFunction.setOutputType(resultType, input.getExecutionConfig());
+
 			operator = new EvictingWindowOperator<>(windowAssigner,
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 				keySel,
 				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 				stateDesc,
-				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
+				new InternalIterableWindowFunction<>(foldApplyWindowFunction),
 				trigger,
 				evictor);
 
