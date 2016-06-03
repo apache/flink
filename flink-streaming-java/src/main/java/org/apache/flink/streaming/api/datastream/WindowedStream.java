@@ -446,7 +446,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
-			FoldApplyWindowFunction foldApplyWindowFunction = new FoldApplyWindowFunction<>(initialValue, foldFunction, function);
+			FoldApplyWindowFunction<K, W, T, R> foldApplyWindowFunction = new FoldApplyWindowFunction<>(initialValue, foldFunction, function);
 			foldApplyWindowFunction.setOutputType(resultType, input.getExecutionConfig());
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
