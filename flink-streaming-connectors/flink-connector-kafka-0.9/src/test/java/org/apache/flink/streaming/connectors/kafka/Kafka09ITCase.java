@@ -17,7 +17,11 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.junit.Test;
+
+import java.util.UUID;
 
 
 public class Kafka09ITCase extends KafkaConsumerTestBase {
@@ -113,6 +117,29 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	@Test(timeout = 60000)
 	public void testMetricsAndEndOfStream() throws Exception {
 		runMetricsAndEndOfStreamTest();
+	}
+
+	@Test
+	public void testJsonTableSource() throws Exception {
+		String topic = UUID.randomUUID().toString();
+
+		// Names and types are determined in the actual test method of the
+		// base test class.
+		Kafka09JsonTableSource tableSource = new Kafka09JsonTableSource(
+				topic,
+				standardProps,
+				new String[] {
+						"long",
+						"string",
+						"boolean",
+						"double" },
+				new TypeInformation<?>[] {
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.BOOLEAN_TYPE_INFO,
+						BasicTypeInfo.DOUBLE_TYPE_INFO });
+
+		runJsonTableSource(topic, tableSource);
 	}
 
 }
