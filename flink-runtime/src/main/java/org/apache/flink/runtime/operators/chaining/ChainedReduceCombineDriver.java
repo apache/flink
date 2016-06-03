@@ -75,7 +75,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private List<MemorySegment> memory;
 
-	private volatile boolean canceled;
+	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
@@ -92,7 +92,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 	@Override
 	public void setup(AbstractInvokable parent) {
 		this.parent = parent;
-		canceled = false;
+		running = true;
 
 		strategy = config.getDriverStrategy();
 
@@ -201,7 +201,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 				T value = reuse1;
 
 				// iterate over key groups
-				while (!canceled && value != null) {
+				while (running && value != null) {
 					comparator.setReference(value);
 
 					// iterate within a key group
@@ -236,7 +236,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 				T value = input.next();
 
 				// iterate over key groups
-				while (!canceled && value != null) {
+				while (running && value != null) {
 					comparator.setReference(value);
 					T res = value;
 
@@ -290,7 +290,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 	@Override
 	public void cancelTask() {
-		canceled = true;
+		running = false;
 
 		try {
 			if (sorter != null) {
