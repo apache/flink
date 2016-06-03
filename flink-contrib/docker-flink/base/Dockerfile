@@ -38,7 +38,7 @@ ENV JAVA_HOME /usr/java/default/
 RUN echo 'root:secret' | chpasswd
 
 #SSH as root... probably needs to be revised for security!
-RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
 EXPOSE 22
 
