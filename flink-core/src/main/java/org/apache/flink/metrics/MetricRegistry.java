@@ -48,10 +48,10 @@ public class MetricRegistry {
 	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
 	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
 
-	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scopeName.tm";
-	public static final String KEY_METRICS_SCOPE_NAMING_JOB = "metrics.scopeName.job";
-	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scopeName.task";
-	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scopeName.operator";
+	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
+	public static final String KEY_METRICS_SCOPE_NAMING_JOB = "metrics.scope.job";
+	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
+	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
 	// ------------------------------------------------------------------------
 	//  configuration keys
