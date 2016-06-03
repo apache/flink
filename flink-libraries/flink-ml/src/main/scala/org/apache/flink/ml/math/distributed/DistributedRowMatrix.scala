@@ -18,10 +18,10 @@
 
 package org.apache.flink.ml.math.distributed
 
-import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.Breeze._
-import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
+import org.apache.flink.ml.math.distributed.DistributedMatrix._
+import org.apache.flink.ml.math._
 
 /**
   * Distributed row-major matrix representation.
@@ -30,16 +30,14 @@ import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
   */
 class DistributedRowMatrix(val data: DataSet[IndexedRow],
                            val numRows: Int,
-                           val numCols: Int )
+                           val numCols: Int)
     extends DistributedMatrix {
-
-
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
     * @return
     */
-  def toCOO: Seq[(Int, Int, Double)] = {
+  def toCOO: Seq[(MatrixRowIndex, MatrixColIndex, Double)] = {
 
     val localRows = data.collect()
 
@@ -124,19 +122,17 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
 
 object DistributedRowMatrix {
 
-  type MatrixRowIndex = Int
-
   /**
     * Builds a DistributedRowMatrix from a dataset in COO
     * @param isSorted If false, sorts the row to properly build the matrix representation.
     *                 If already sorted, set this parameter to true to skip sorting.
     * @return
     */
-  def fromCOO(data: DataSet[(Int, Int, Double)],
+  def fromCOO(data: DataSet[(MatrixRowIndex, MatrixColIndex, Double)],
               numRows: Int,
               numCols: Int,
               isSorted: Boolean = false): DistributedRowMatrix = {
-    val vectorData: DataSet[(Int, SparseVector)] = data
+    val vectorData: DataSet[(MatrixRowIndex, SparseVector)] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
         require(sparseRow.nonEmpty)
@@ -157,7 +153,7 @@ object DistributedRowMatrix {
   }
 }
 
-case class IndexedRow(rowIndex: Int, values: Vector)
+case class IndexedRow(rowIndex: MatrixRowIndex, values: Vector)
     extends Ordered[IndexedRow] {
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
