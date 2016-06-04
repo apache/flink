@@ -28,6 +28,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -42,6 +44,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ShardConsumer<T> implements Runnable {
 
+	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
+
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	private final KinesisProxyInterface kinesis;
@@ -53,6 +57,7 @@ public class ShardConsumer<T> implements Runnable {
 	private final KinesisStreamShard subscribedShard;
 
 	private final int maxNumberOfRecordsPerFetch;
+	private final long fetchIntervalMillis;
 
 	private SequenceNumber lastSequenceNum;
 
@@ -93,6 +98,9 @@ public class ShardConsumer<T> implements Runnable {
 		this.maxNumberOfRecordsPerFetch = Integer.valueOf(consumerConfig.getProperty(
 			KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX,
 			Integer.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX)));
+		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
+			KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS,
+			Long.toString(KinesisConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -155,6 +163,15 @@ public class ShardConsumer<T> implements Runnable {
 					// we can close this consumer thread once we've reached the end of the subscribed shard
 					break;
 				} else {
+					if (fetchIntervalMillis != 0) {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug(
+								"Consumer {} of subtask {} is sleeping for {} milliseconds before fetching the next batch of records ...",
+								subscribedShardStateIndex, fetcherRef.getIndexOfThisConsumerSubtask(), fetchIntervalMillis);
+						}
+						Thread.sleep(fetchIntervalMillis);
+					}
+
 					GetRecordsResult getRecordsResult = kinesis.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding

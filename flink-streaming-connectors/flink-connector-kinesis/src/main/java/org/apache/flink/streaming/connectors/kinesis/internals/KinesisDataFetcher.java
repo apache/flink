@@ -472,6 +472,10 @@ public class KinesisDataFetcher<T> {
 		return configProps;
 	}
 
+	protected int getIndexOfThisConsumerSubtask() {
+		return indexOfThisConsumerSubtask;
+	}
+
 	protected KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
 		try {
 			return InstantiationUtil.clone(deserializationSchema, runtimeContext.getUserCodeClassLoader());

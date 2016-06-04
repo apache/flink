@@ -186,10 +186,12 @@ setting keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_*` in 
 by per shard consuming threads to fetch records from Kinesis. When a shard has multiple concurrent consumers (when there
 are any other non-Flink consuming applications running), the per shard rate limit may be exceeded. By default, on each call
 of this API, the consumer will retry if Kinesis complains that the data size / transaction limit for the API has exceeded,
-up to a default of 3 attempts. Users can either try to slow down other non-Flink consuming applications, or adjust the maximum
-amount of records to fetch per call by setting the `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX` key in the supplied
-configuration properties. The retry behaviour of the consumer when calling this API can also be modified by using the
-other keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_*`.
+up to a default of 3 attempts. Users can either try to slow down other non-Flink consuming applications, or adjust the throughput
+of the consumer by setting the `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_MAX` and
+`KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS` keys in the supplied configuration properties. Setting the former
+adjusts the maximum number of records each consuming thread tries to fetch from shards on each call (default is 100), while
+the latter modifies the sleep interval between each fetch (there will be no sleep by default). The retry behaviour of the
+consumer when calling this API can also be modified by using the other keys prefixed by `KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_*`.
 
 ### Kinesis Producer
 
