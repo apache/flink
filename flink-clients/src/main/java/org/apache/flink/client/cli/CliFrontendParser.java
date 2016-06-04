@@ -35,7 +35,7 @@ public class CliFrontendParser {
 
 	/** command line interface of the YARN session, with a special initialization here
 	 *  to prefix all options with y/yarn. */
-	private static final FlinkYarnSessionCli yarnSessionCLi = new FlinkYarnSessionCli("y", "yarn");
+	private static final FlinkYarnSessionCli yarnSessionCLi = new FlinkYarnSessionCli("y", "yarn", true);
 
 
 	static final Option HELP_OPTION = new Option("h", "help", false,

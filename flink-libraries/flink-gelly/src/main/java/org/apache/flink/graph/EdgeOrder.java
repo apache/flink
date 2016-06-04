@@ -15,33 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.util;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.reporter.MetricReporter;
+package org.apache.flink.graph;
 
-import java.util.List;
+/**
+ * These bitmasks are used by edge-flipping algorithms to mark the edge order
+ * relative to the original edge direction.
+ */
+public enum EdgeOrder {
 
-public class DummyReporter implements MetricReporter {
-	@Override
-	public void open(Configuration config) {
+	FORWARD(0b01),
+	REVERSE(0b10),
+	MUTUAL(0b11);
+
+	private final byte bitmask;
+
+	EdgeOrder(int bitmask) {
+		this.bitmask = (byte)bitmask;
 	}
 
-	@Override
-	public void close() {
-	}
-
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String name) {
-	}
-
-	@Override
-	public void notifyOfRemovedMetric(Metric metric, String name) {
-	}
-
-	@Override
-	public String generateName(String name, List<String> scope) {
-		return "";
+	/**
+	 * Returns a bitmask used for marking whether an edge is in the same
+	 * direction as in the original edge set (FORWARD), is flipped relative
+	 * to the original edge set (REVERSE), or both (MUTUAL).
+	 *
+	 * @return edge order bitmask
+	 */
+	public byte getBitmask() {
+		return bitmask;
 	}
 }

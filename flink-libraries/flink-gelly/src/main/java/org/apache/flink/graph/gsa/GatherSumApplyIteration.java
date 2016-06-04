@@ -41,9 +41,12 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.utils.GraphUtils;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -125,12 +128,11 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		// check whether the numVertices option is set and, if so, compute the total number of vertices
 		// and set it within the gather, sum and apply functions
+
+		DataSet<LongValue> numberOfVertices = null;
 		if (this.configuration != null && this.configuration.isOptNumVertices()) {
 			try {
-				long numberOfVertices = graph.numberOfVertices();
-				gather.setNumberOfVertices(numberOfVertices);
-				sum.setNumberOfVertices(numberOfVertices);
-				apply.setNumberOfVertices(numberOfVertices);
+				numberOfVertices = GraphUtils.count(this.vertexDataSet);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -203,6 +205,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 			for (Tuple2<String, DataSet<?>> e : this.configuration.getGatherBcastVars()) {
 				gatherMapOperator = gatherMapOperator.withBroadcastSet(e.f1, e.f0);
 			}
+			if (this.configuration.isOptNumVertices()) {
+				gatherMapOperator = gatherMapOperator.withBroadcastSet(numberOfVertices, "number of vertices");
+			}
 		}
 		DataSet<Tuple2<K, M>> gatheredSet = gatherMapOperator;
 
@@ -214,6 +219,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		if (this.configuration != null) {
 			for (Tuple2<String, DataSet<?>> e : this.configuration.getSumBcastVars()) {
 				sumReduceOperator = sumReduceOperator.withBroadcastSet(e.f1, e.f0);
+			}
+			if (this.configuration.isOptNumVertices()) {
+				sumReduceOperator = sumReduceOperator.withBroadcastSet(numberOfVertices, "number of vertices");
 			}
 		}
 		DataSet<Tuple2<K, M>> summedSet = sumReduceOperator;
@@ -230,6 +238,9 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		if (this.configuration != null) {
 			for (Tuple2<String, DataSet<?>> e : this.configuration.getApplyBcastVars()) {
 				appliedSet = appliedSet.withBroadcastSet(e.f1, e.f0);
+			}
+			if (this.configuration.isOptNumVertices()) {
+				appliedSet = appliedSet.withBroadcastSet(numberOfVertices, "number of vertices");
 			}
 		}
 
@@ -289,6 +300,10 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
+				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
+				this.gatherFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
+			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.gatherFunction.init(getIterationRuntimeContext());
 			}
@@ -327,6 +342,10 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
+				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
+				this.sumFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
+			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.sumFunction.init(getIterationRuntimeContext());
 			}
@@ -365,6 +384,10 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			if (getRuntimeContext().hasBroadcastVariable("number of vertices")) {
+				Collection<LongValue> numberOfVertices = getRuntimeContext().getBroadcastVariable("number of vertices");
+				this.applyFunction.setNumberOfVertices(numberOfVertices.iterator().next().getValue());
+			}
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
 				this.applyFunction.init(getIterationRuntimeContext());
 			}

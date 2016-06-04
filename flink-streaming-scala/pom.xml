@@ -217,6 +217,27 @@ under the License.
 				</configuration>
 			</plugin>
 
+			<!-- Exclude generated classes from api compatibilty checks -->
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes>
+							<exclude>*\$\$anon\$*</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals>
+							<goal>cmp</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- Generate the test-jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

@@ -64,6 +64,7 @@ public interface RuntimeContext {
 	 * 
 	 * @return The metric group for this parallel subtask.
 	 */
+	@PublicEvolving
 	MetricGroup getMetricGroup();
 
 	/**
@@ -161,6 +162,16 @@ public interface RuntimeContext {
 	Histogram getHistogram(String name);
 	
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Tests for the existence of the broadcast variable identified by the
+	 * given {@code name}.
+	 *
+	 * @param name The name under which the broadcast variable is registered;
+	 * @return Whether a broadcast variable exists for the given name.
+	 */
+	@PublicEvolving
+	boolean hasBroadcastVariable(String name);
 
 	/**
 	 * Returns the result bound to the broadcast variable identified by the 

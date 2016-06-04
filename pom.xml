@@ -89,7 +89,7 @@ under the License.
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
-		<flink.forkCount>1.5C</flink.forkCount>
+		<flink.forkCount>1C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
@@ -744,6 +744,62 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<version>0.7.0</version>
+				<configuration>
+					<oldVersion>
+						<dependency>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>${project.artifactId}</artifactId>
+							<version>1.0.0</version>
+							<type>${project.packaging}</type>
+						</dependency>
+					</oldVersion>
+					<newVersion>
+						<file>
+							<path>${project.build.directory}/${project.artifactId}-${project.version}.${project.packaging}</path>
+						</file>
+					</newVersion>
+					<parameter>
+						<onlyModified>true</onlyModified>
+						<includes>
+							<include>@org.apache.flink.annotation.Public</include>
+						</includes>
+						<excludes>
+							<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
+							<exclude>@org.apache.flink.annotation.Internal</exclude>
+						</excludes>
+						<accessModifier>public</accessModifier>
+						<breakBuildOnModifications>false</breakBuildOnModifications>
+						<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+						<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+						<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
+						<includeSynthetic>true</includeSynthetic>
+						<ignoreMissingClasses>false</ignoreMissingClasses>
+						<skipPomModules>true</skipPomModules>
+						<!-- Don't break build on newly added maven modules -->
+						<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+					</parameter>
+					<skip>false</skip>
+					<dependencies>
+						<dependency>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-annotations</artifactId>
+							<version>${project.version}</version>
+						</dependency>
+					</dependencies>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals>
+							<goal>cmp</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -808,11 +864,12 @@ under the License.
 					</licenseFamilies>
 					<excludes>
 						<!-- Additional files like .gitignore etc.-->
-						<exclude>**/.*</exclude>
+						<exclude>**/.*/**</exclude>
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
 						<!-- External web libraries. -->
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
@@ -865,7 +922,7 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>docs/_site/**</exclude>
+						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->

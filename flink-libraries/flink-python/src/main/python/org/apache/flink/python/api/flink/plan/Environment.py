@@ -118,6 +118,22 @@ class Environment(object):
         self._sources.append(child)
         return child_set
 
+    def generate_sequence(self, frm, to):
+        """
+        Creates a new data set that contains the given sequence
+
+        :param frm: The start number for the sequence.
+        :param to: The end number for the sequence.
+        :return: A DataSet representing the given sequence of numbers.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self, child)
+        child.identifier = _Identifier.SOURCE_SEQ
+        child.frm = frm
+        child.to = to
+        self._sources.append(child)
+        return child_set
+
     def set_parallelism(self, parallelism):
         """
         Sets the parallelism for operations executed through this environment.
@@ -270,6 +286,8 @@ class Environment(object):
         collect(set.delimiter_field)
         collect(set.write_mode)
         collect(set.path)
+        collect(set.frm)
+        collect(set.to)
         collect(set.id)
         collect(set.to_err)
         collect(set.count)

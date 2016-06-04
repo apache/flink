@@ -15,17 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.graphite;
 
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.graphite.Graphite;
+
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+@PublicEvolving
 public class GraphiteReporter extends ScheduledDropwizardReporter {
+
 	@Override
 	public ScheduledReporter getReporter(Configuration config) {
 		String host = config.getString(ARG_HOST, null);
@@ -55,16 +59,5 @@ public class GraphiteReporter extends ScheduledDropwizardReporter {
 		}
 
 		return builder.build(new Graphite(host, port));
-	}
-
-	@Override
-	public String generateName(String name, List<String> scope) {
-		StringBuilder sb = new StringBuilder();
-		for (String s : scope) {
-			sb.append(s.replace(".", "_").replace("\"", ""));
-			sb.append(".");
-		}
-		sb.append(name);
-		return sb.toString();
 	}
 }

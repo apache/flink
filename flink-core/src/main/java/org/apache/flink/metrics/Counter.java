@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -24,9 +25,9 @@ import org.apache.flink.annotation.PublicEvolving;
  */
 @PublicEvolving
 public final class Counter implements Metric {
-	
+
 	private long count;
-	
+
 	/**
 	 * Increment the current count by 1.
 	 */

@@ -19,9 +19,9 @@
 package org.apache.flink.metrics.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.reporter.AbstractReporter;
-
-import java.util.List;
 
 public class TestReporter extends AbstractReporter {
 
@@ -32,7 +32,8 @@ public class TestReporter extends AbstractReporter {
 	public void close() {}
 
 	@Override
-	public String generateName(String name, List<String> scope) {
-		return name;
-	}
+	public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
+
+	@Override
+	public void notifyOfRemovedMetric(Metric metric, String metricName, AbstractMetricGroup group) {}
 }

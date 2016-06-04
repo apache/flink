@@ -17,37 +17,35 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import com.amazonaws.regions.Regions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kinesis.config.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.config.CredentialProviderType;
-import org.apache.flink.streaming.connectors.kinesis.config.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
-import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.Map;
 import java.util.Properties;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Flink Kinesis Consumer is a parallel streaming data source that pulls data from multiple AWS Kinesis streams
@@ -161,7 +159,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 		this.configProps = checkNotNull(configProps, "configProps can not be null");
 
 		// check the configuration properties for any conflicting settings
-		validatePropertiesConfig(this.configProps);
+		KinesisConfigUtil.validateConfiguration(this.configProps);
 
 		this.deserializer = checkNotNull(deserializer, "deserializer can not be null");
 
@@ -401,95 +399,5 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			}
 		}
 		return subscribedShards;
-	}
-
-	/**
-	 * Checks that the values specified for config keys in the properties config is recognizable.
-	 */
-	protected static void validatePropertiesConfig(Properties config) {
-		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE)) {
-			// if the credential provider type is not specified, it will default to BASIC later on,
-			// so the Access Key ID and Secret Key must be given
-			if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
-				|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-				throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-						"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
-			}
-		} else {
-			String credentialsProviderType = config.getProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE);
-
-			// value specified for KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE needs to be recognizable
-			CredentialProviderType providerType;
-			try {
-				providerType = CredentialProviderType.valueOf(credentialsProviderType);
-			} catch (IllegalArgumentException e) {
-				StringBuilder sb = new StringBuilder();
-				for (CredentialProviderType type : CredentialProviderType.values()) {
-					sb.append(type.toString()).append(", ");
-				}
-				throw new IllegalArgumentException("Invalid AWS Credential Provider Type set in config. Valid values are: " + sb.toString());
-			}
-
-			// if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
-			if (providerType == CredentialProviderType.BASIC) {
-				if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID)
-					|| !config.containsKey(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY)) {
-					throw new IllegalArgumentException("Please set values for AWS Access Key ID ('"+KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID+"') " +
-							"and Secret Key ('" + KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY + "') when using the BASIC AWS credential provider type.");
-				}
-			}
-		}
-
-		if (!config.containsKey(KinesisConfigConstants.CONFIG_AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region ('" + KinesisConfigConstants.CONFIG_AWS_REGION + "') must be set in the config.");
-		} else {
-			// specified AWS Region name must be recognizable
-			if (!AWSUtil.isValidRegion(config.getProperty(KinesisConfigConstants.CONFIG_AWS_REGION))) {
-				StringBuilder sb = new StringBuilder();
-				for (Regions region : Regions.values()) {
-					sb.append(region.getName()).append(", ");
-				}
-				throw new IllegalArgumentException("Invalid AWS region set in config. Valid values are: " + sb.toString());
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE)) {
-			String initPosType = config.getProperty(KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE);
-
-			// specified initial position in stream must be either LATEST or TRIM_HORIZON
-			try {
-				InitialPosition.valueOf(initPosType);
-			} catch (IllegalArgumentException e) {
-				StringBuilder sb = new StringBuilder();
-				for (InitialPosition pos : InitialPosition.values()) {
-					sb.append(pos.toString()).append(", ");
-				}
-				throw new IllegalArgumentException("Invalid initial position in stream set in config. Valid values are: " + sb.toString());
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES)) {
-			try {
-				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_RETRIES));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for describeStream stream operation retry count. Must be a valid integer value.");
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF)) {
-			try {
-				Long.parseLong(config.getProperty(KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for describeStream stream operation backoff milliseconds. Must be a valid long value.");
-			}
-		}
-
-		if (config.containsKey(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET)) {
-			try {
-				Integer.parseInt(config.getProperty(KinesisConfigConstants.CONFIG_SHARD_RECORDS_PER_GET));
-			} catch (NumberFormatException e) {
-				throw new IllegalArgumentException("Invalid value given for maximum records per getRecords shard operation. Must be a valid integer value.");
-			}
-		}
 	}
 }

@@ -78,6 +78,10 @@ if __name__ == "__main__":
 
     d6 = env.from_elements(1, 1, 12)
 
+    #Generate Sequence Source
+    d7 = env.generate_sequence(1, 5)\
+         .map(Id()).map_partition(Verify([1,2,3,4,5], "Sequence")).output()
+
     #CSV Source/Sink
     csv_data = env.read_csv("src/test/python/org/apache/flink/python/api/data_csv", (INT, INT, STRING))
 

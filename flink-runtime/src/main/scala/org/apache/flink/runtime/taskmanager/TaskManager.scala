@@ -323,7 +323,7 @@ class TaskManager(
       }
 
     case Disconnect(msg) =>
-      handleJobManagerDisconnect(sender(), s"ResourceManager requested disconnect: $msg")
+      handleJobManagerDisconnect(sender(), s"JobManager requested disconnect: $msg")
       triggerTaskManagerRegistration()
 
     case msg: StopCluster =>
@@ -1092,7 +1092,8 @@ class TaskManager(
       val taskMetricGroup = taskManagerMetricGroup
           .addTaskForJob(
             tdd.getJobID, jobName,
-            tdd.getVertexID, tdd.getExecutionId, tdd.getIndexInSubtaskGroup, tdd.getTaskName)
+            tdd.getVertexID, tdd.getExecutionId, tdd.getTaskName,
+            tdd.getIndexInSubtaskGroup, tdd.getAttemptNumber)
 
       val task = new Task(
         tdd,

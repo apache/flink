@@ -20,24 +20,23 @@ package org.apache.flink.api.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
+import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.runtime.FlatJoinRunner
 import org.apache.flink.api.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.table.{BatchTableEnvironment, TableException}
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import scala.collection.mutable.ArrayBuffer
 import org.apache.calcite.rex.RexNode
 
-import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -52,7 +51,7 @@ class DataSetJoin(
     joinRowType: RelDataType,
     joinInfo: JoinInfo,
     keyPairs: List[IntPair],
-    joinType: JoinType,
+    joinType: JoinRelType,
     joinHint: JoinHint,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, left, right)
@@ -77,13 +76,14 @@ class DataSetJoin(
   }
 
   override def toString: String = {
-    s"Join(where: ($joinConditionToString), join: ($joinSelectionToString))"
+    s"$joinTypeToString(where: ($joinConditionToString), join: ($joinSelectionToString))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("where", joinConditionToString)
       .item("join", joinSelectionToString)
+      .item("joinType", joinTypeToString)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -148,9 +148,20 @@ class DataSetJoin(
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
+    val (joinOperator, nullCheck) = joinType match {
+      case JoinRelType.INNER => (leftDataSet.join(rightDataSet), false)
+      case JoinRelType.LEFT => (leftDataSet.leftOuterJoin(rightDataSet), true)
+      case JoinRelType.RIGHT => (leftDataSet.rightOuterJoin(rightDataSet), true)
+      case JoinRelType.FULL => (leftDataSet.fullOuterJoin(rightDataSet), true)
+    }
+
+    if (nullCheck && !config.getNullCheck) {
+      throw new TableException("Null check in TableConfig must be enabled for outer joins.")
+    }
+
     val generator = new CodeGenerator(
       config,
-      false,
+      nullCheck,
       leftDataSet.getType,
       Some(rightDataSet.getType))
     val conversion = generator.generateConverterResultExpression(
@@ -189,7 +200,7 @@ class DataSetJoin(
 
     val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
 
-    leftDataSet.join(rightDataSet).where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
+    joinOperator.where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
       .`with`(joinFun).name(joinOpName).asInstanceOf[DataSet[Any]]
   }
 
@@ -201,6 +212,13 @@ class DataSetJoin(
 
     val inFields = joinRowType.getFieldNames.asScala.toList
     getExpressionString(joinCondition, inFields, None)
+  }
+
+  private def joinTypeToString = joinType match {
+    case JoinRelType.INNER => "Join"
+    case JoinRelType.LEFT=> "LeftOuterJoin"
+    case JoinRelType.RIGHT => "RightOuterJoin"
+    case JoinRelType.FULL => "FullOuterJoin"
   }
 
 }

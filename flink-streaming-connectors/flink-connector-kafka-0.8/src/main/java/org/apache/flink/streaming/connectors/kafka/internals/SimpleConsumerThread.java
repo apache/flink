@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.streaming.connectors.kafka.util.KafkaUtils.getIntFromConfig;
+import static org.apache.flink.util.PropertiesUtil.getInt;
 
 /**
  * This class implements a thread with a connection to a single Kafka broker. The thread
@@ -117,12 +117,12 @@ class SimpleConsumerThread<T> extends Thread {
 		this.invalidOffsetBehavior = invalidOffsetBehavior;
 		
 		// these are the actual configuration values of Kafka + their original default values.
-		this.soTimeout = getIntFromConfig(config, "socket.timeout.ms", 30000);
-		this.minBytes = getIntFromConfig(config, "fetch.min.bytes", 1);
-		this.maxWait = getIntFromConfig(config, "fetch.wait.max.ms", 100);
-		this.fetchSize = getIntFromConfig(config, "fetch.message.max.bytes", 1048576);
-		this.bufferSize = getIntFromConfig(config, "socket.receive.buffer.bytes", 65536);
-		this.reconnectLimit = getIntFromConfig(config, "flink.simple-consumer-reconnectLimit", 3);
+		this.soTimeout = getInt(config, "socket.timeout.ms", 30000);
+		this.minBytes = getInt(config, "fetch.min.bytes", 1);
+		this.maxWait = getInt(config, "fetch.wait.max.ms", 100);
+		this.fetchSize = getInt(config, "fetch.message.max.bytes", 1048576);
+		this.bufferSize = getInt(config, "socket.receive.buffer.bytes", 65536);
+		this.reconnectLimit = getInt(config, "flink.simple-consumer-reconnectLimit", 3);
 	}
 
 	public ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> getNewPartitionsQueue() {

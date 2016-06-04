@@ -47,11 +47,15 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators, MetricGroup metrics) {
 		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks, metrics);
 	}
-	
+
+	@Override
+	public boolean hasBroadcastVariable(String name) {
+		return this.broadcastVars.containsKey(name);
+	}
 
 	@Override
 	public <T> List<T> getBroadcastVariable(String name) {
-		Preconditions.checkNotNull(name);
+		Preconditions.checkNotNull(name, "The broadcast variable name must not be null.");
 		
 		// check if we have an initialized version
 		@SuppressWarnings("unchecked")
@@ -71,13 +75,9 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	@Override
 	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
-		if (name == null) {
-			throw new NullPointerException("Thw broadcast variable name must not be null.");
-		}
-		if (initializer == null) {
-			throw new NullPointerException("Thw broadcast variable initializer must not be null.");
-		}
-		
+		Preconditions.checkNotNull(name, "The broadcast variable name must not be null.");
+		Preconditions.checkNotNull(initializer, "The broadcast variable initializer must not be null.");
+
 		// check if we have an initialized version
 		@SuppressWarnings("unchecked")
 		BroadcastVariableMaterialization<T, C> variable = (BroadcastVariableMaterialization<T, C>) this.broadcastVars.get(name);

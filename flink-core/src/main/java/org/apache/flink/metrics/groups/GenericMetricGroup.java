@@ -15,44 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricRegistry;
 
-import java.util.List;
-
 /**
- * A simple named {@link org.apache.flink.metrics.MetricGroup} with no special properties.
+ * A simple named {@link org.apache.flink.metrics.MetricGroup} that is used to hold
+ * subgroups of metrics.
  */
 @Internal
 public class GenericMetricGroup extends AbstractMetricGroup {
-	
-	private final AbstractMetricGroup parent;
 
-	private final String name;
-
-	protected GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, int name) {
-		this(registry, parent, String.valueOf(name));
+	public GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
+		super(registry, makeScopeComponents(parent, name));
 	}
 
-	protected GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
-		super(registry);
-		this.parent = parent;
-		this.name = name;
-	}
+	// ------------------------------------------------------------------------
 
-	@Override
-	public List<String> generateScope() {
-		List<String> scope = parent.generateScope();
-		scope.add(name);
-		return scope;
-	}
-
-	@Override
-	public List<String> generateScope(Scope.ScopeFormat format) {
-		List<String> scope = parent.generateScope(format);
-		scope.add(name);
-		return scope;
+	private static String[] makeScopeComponents(AbstractMetricGroup parent, String name) {
+		if (parent != null) {
+			String[] parentComponents = parent.getScopeComponents();
+			if (parentComponents != null && parentComponents.length > 0) {
+				String[] parts = new String[parentComponents.length + 1];
+				System.arraycopy(parentComponents, 0, parts, 0, parentComponents.length);
+				parts[parts.length - 1] = name;
+				return parts;
+			}
+		}
+		return new String[] { name };
 	}
 }

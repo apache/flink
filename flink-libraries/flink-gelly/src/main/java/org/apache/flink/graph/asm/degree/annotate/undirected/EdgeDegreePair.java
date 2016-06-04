@@ -31,7 +31,8 @@ import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.Join
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates edges of an undirected graph with the degree of both the source and target degree ID.
+ * Annotates edges of an undirected graph with the degree of both the source
+ * and target degree vertices.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -75,7 +76,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongV
 	@Override
 	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> run(Graph<K, VV, EV> input)
 			throws Exception {
-		// s, t, deg(s)
+		// s, t, d(s)
 		DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees = input
 			.run(new EdgeSourceDegree<K, VV, EV>()
 				.setReduceOnTargetId(reduceOnTargetId)
@@ -87,12 +88,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple3<EV, LongValue, LongV
 				.setReduceOnTargetId(reduceOnTargetId)
 				.setParallelism(parallelism));
 
-		// s, t, (deg(s), deg(t))
+		// s, t, (d(s), d(t))
 		return edgeSourceDegrees
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(1)
 			.equalTo(0)
-			.with(new JoinEdgeDegreeWithVertexDegree<K,EV>())
+			.with(new JoinEdgeDegreeWithVertexDegree<K, EV, LongValue>())
 				.setParallelism(parallelism)
 				.name("Edge target degree");
 	}

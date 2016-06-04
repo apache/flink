@@ -62,13 +62,10 @@ public class MetricGroupRegistrationTest {
 		public static String lastPassedName;
 
 		@Override
-		public void notifyOfAddedMetric(Metric metric, String name) {
+		public void notifyOfAddedMetric(Metric metric, String metricName, AbstractMetricGroup group) {
 			lastPassedMetric = metric;
-			lastPassedName = name;
+			lastPassedName = metricName;
 		}
-
-		@Override
-		public void notifyOfRemovedMetric(Metric metric, String name) {}
 	}
 
 	/**

@@ -49,6 +49,7 @@ import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.messages.UnRegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -93,7 +94,7 @@ import static java.util.Objects.requireNonNull;
  * </ol>
  *
  */
-public abstract class FlinkResourceManager<WorkerType extends ResourceID> extends FlinkUntypedActor {
+public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrievable> extends FlinkUntypedActor {
 
 	/** The exit code with which the process is stopped in case of a fatal error */
 	protected static final int EXIT_CODE_FATAL_ERROR = -13;
@@ -353,16 +354,19 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		ResourceID resourceID = msg.resourceId();
 		try {
 			Preconditions.checkNotNull(resourceID);
-			WorkerType newWorker = workerRegistered(resourceID);
-			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
+			// check if resourceID is already registered (TaskManager may send duplicate register messages)
+			WorkerType oldWorker = registeredWorkers.get(resourceID);
 			if (oldWorker != null) {
-				LOG.warn("Worker {} had been registered before.", resourceID);
+				LOG.debug("TaskManager {} had been registered before.", resourceID);
+			} else {
+				WorkerType newWorker = workerRegistered(resourceID);
+				registeredWorkers.put(resourceID, newWorker);
+				LOG.info("TaskManager {} has registered.", resourceID);
 			}
 			jobManager.tell(decorateMessage(
 				new RegisterResourceSuccessful(taskManager, msg)),
 				self());
 		} catch (Exception e) {
-			// This may happen on duplicate task manager registration message to the job manager
 			LOG.warn("TaskManager resource registration failed for {}", resourceID, e);
 
 			// tell the JobManager about the failure
@@ -400,7 +404,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param leaderAddress The address (Akka URL) of the new leader. Null if there is currently no leader.
 	 * @param leaderSessionID The unique session ID marking the leadership session.
 	 */
-	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
+	private void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
 		LOG.debug("Received new leading JobManager {}. Connecting.", leaderAddress);
 
 		// disconnect from the current leader (no-op if no leader yet)
@@ -422,7 +426,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 *
 	 * @param leaderAddress The akka actor URL of the new leader JobManager.
 	 */
-	private void triggerConnectingToJobManager(String leaderAddress) {
+	protected void triggerConnectingToJobManager(String leaderAddress) {
+
 		LOG.info("Trying to associate with JobManager leader " + leaderAddress);
 
 		final Object registerMessage = decorateMessage(new RegisterResourceManager(self()));
@@ -507,8 +512,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 					// put the consolidated TaskManagers into our bookkeeping
 					for (WorkerType worker : consolidated) {
-						registeredWorkers.put(worker, worker);
-						toHandle.remove(worker);
+						ResourceID resourceID = worker.getResourceID();
+						registeredWorkers.put(resourceID, worker);
+						toHandle.remove(resourceID);
 					}
 				}
 				catch (Throwable t) {

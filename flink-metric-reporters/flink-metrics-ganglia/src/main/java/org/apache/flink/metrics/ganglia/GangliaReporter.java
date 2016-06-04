@@ -15,17 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.graphite;
+
+package org.apache.flink.metrics.ganglia;
 
 import com.codahale.metrics.ScheduledReporter;
+
 import info.ganglia.gmetric4j.gmetric.GMetric;
+
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+@PublicEvolving
 public class GangliaReporter extends ScheduledDropwizardReporter {
+	
 	public static final String ARG_DMAX = "dmax";
 	public static final String ARG_TMAX = "tmax";
 	public static final String ARG_TTL = "ttl";

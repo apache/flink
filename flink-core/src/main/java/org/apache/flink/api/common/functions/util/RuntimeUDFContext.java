@@ -49,6 +49,11 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	}
 
 	@Override
+	public boolean hasBroadcastVariable(String name) {
+		return this.initializedBroadcastVars.containsKey(name) || this.uninitializedBroadcastVars.containsKey(name);
+	}
+
+	@Override
 	@SuppressWarnings("unchecked")
 	public <RT> List<RT> getBroadcastVariable(String name) {
 		

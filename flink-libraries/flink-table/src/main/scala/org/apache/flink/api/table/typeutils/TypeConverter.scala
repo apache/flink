@@ -197,4 +197,11 @@ object TypeConverter {
     case RIGHT => JoinType.RIGHT_OUTER
     case FULL => JoinType.FULL_OUTER
   }
+
+  def flinkJoinTypeToRelType(joinType: JoinType) = joinType match {
+    case JoinType.INNER => JoinRelType.INNER
+    case JoinType.LEFT_OUTER => JoinRelType.LEFT
+    case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
+    case JoinType.FULL_OUTER => JoinRelType.FULL
+  }
 }

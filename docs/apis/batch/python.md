@@ -458,6 +458,7 @@ File-based:
 Collection-based:
 
 - `from_elements(*args)` - Creates a data set from a Seq. All elements
+- `generate_sequence(from, to)` - Generates the sequence of numbers in the given interval, in parallel. 
 
 **Examples**
 
@@ -475,6 +476,9 @@ csvInput = env.read_csv("hdfs:///the/CSV/file", (INT, STRING, DOUBLE))
 
 \# create a set from some given elements
 values = env.from_elements("Foo", "bar", "foobar", "fubar")
+
+\# generate a number sequence
+numbers = env.generate_sequence(1, 10000000)
 {% endhighlight %}
 
 {% top %}

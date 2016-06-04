@@ -315,6 +315,13 @@ result
     .addSink(new FlinkKafkaProducer08<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
 {% endhighlight %}
 
+The related classes also need to be imported:
+{% highlight java %}
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.functions.MapFunction;
+{% endhighlight %}
+
 Note how we first transform the Stream of `Tuple2<String, Long>` to a Stream of `String` using
 a MapFunction. We are doing this because it is easier to write plain strings to Kafka. Then,
 we create a Kafka sink. You might have to adapt the hostname and port to your setup. `"wiki-result"`

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.standalone;
 
+import akka.actor.ActorSelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -25,7 +26,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.util.Collection;
-import java.util.UUID;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
@@ -42,10 +42,15 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	//  Framework specific behavior
 	// ------------------------------------------------------------------------
 
-
 	@Override
-	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
-		super.newJobManagerLeaderAvailable(leaderAddress, leaderSessionID);
+	protected void triggerConnectingToJobManager(String leaderAddress) {
+		ActorSelection jobManagerSel = context().actorSelection(leaderAddress);
+		// check if we are at the leading JobManager.
+		if (jobManagerSel.anchorPath().root().equals(self().path().root())) {
+			super.triggerConnectingToJobManager(leaderAddress);
+		} else {
+			LOG.info("Received leader address but not running in leader ActorSystem. Cancelling registration.");
+		}
 	}
 
 	@Override

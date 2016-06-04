@@ -98,7 +98,7 @@ public class DegreeAnnotationFunctions {
 	 */
 	@ForwardedFieldsFirst("0")
 	@ForwardedFieldsSecond("0")
-	public static final class JoinVertexWithVertexDegree<K, VV>
+	public static class JoinVertexWithVertexDegree<K, VV>
 	implements JoinFunction<Vertex<K, VV>, Vertex<K, LongValue>, Vertex<K, LongValue>> {
 		private LongValue zero = new LongValue(0);
 
@@ -114,68 +114,6 @@ public class DegreeAnnotationFunctions {
 		}
 	}
 
-	/**
-	 * Performs a left outer join to apply a zero count for vertices with
-	 * out- and in-degree of zero.
-	 *
-	 * @param <K> ID type
-	 * @param <VV> vertex value type
-	 */
-	@ForwardedFieldsFirst("0")
-	@ForwardedFieldsSecond("0")
-	public static final class JoinVertexWithVertexDegrees<K, VV>
-	implements JoinFunction<Vertex<K, VV>, Vertex<K, Tuple2<LongValue, LongValue>>, Vertex<K, Tuple2<LongValue, LongValue>>> {
-		private Tuple2<LongValue, LongValue> zeros;
-
-		private Vertex<K, Tuple2<LongValue, LongValue>> output = new Vertex<>();
-
-		public JoinVertexWithVertexDegrees() {
-			LongValue zero = new LongValue(0);
-			zeros = new Tuple2<>(zero, zero);
-		}
-		@Override
-		public Vertex<K, Tuple2<LongValue, LongValue>> join(Vertex<K, VV> vertex, Vertex<K, Tuple2<LongValue, LongValue>> vertexDegree)
-				throws Exception {
-			output.f0 = vertex.f0;
-			output.f1 = (vertexDegree == null) ? zeros : vertexDegree.f1;
-
-			return output;
-		}
-	}
-
-	/**
-	 * Performs a full outer join composing vertex out- and in-degree and
-	 * applying a zero count for vertices having an out- or in-degree of zero.
-	 *
-	 * @param <K> ID type
-	 */
-	@ForwardedFieldsFirst("0")
-	@ForwardedFieldsSecond("0")
-	public static final class JoinVertexDegreeWithVertexDegree<K>
-	implements JoinFunction<Vertex<K, LongValue>, Vertex<K, LongValue>, Vertex<K, Tuple2<LongValue, LongValue>>> {
-		private LongValue zero = new LongValue(0);
-
-		private Tuple2<LongValue, LongValue> degrees = new Tuple2<>();
-
-		private Vertex<K, Tuple2<LongValue, LongValue>> output = new Vertex<>(null, degrees);
-
-		@Override
-		public Vertex<K, Tuple2<LongValue, LongValue>> join(Vertex<K, LongValue> left, Vertex<K, LongValue> right)
-				throws Exception {
-			if (left == null) {
-				output.f0 = right.f0;
-				degrees.f0 = zero;
-				degrees.f1 = right.f1;
-			} else {
-				output.f0 = left.f0;
-				degrees.f0 = left.f1;
-				degrees.f1 = (right == null) ? zero : right.f1;
-			}
-
-			return output;
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Edge functions
 	// --------------------------------------------------------------------------------------------
@@ -185,17 +123,18 @@ public class DegreeAnnotationFunctions {
 	 *
 	 * @param <K> ID type
 	 * @param <EV> edge value type
+	 * @param <D> degree type
 	 */
 	@ForwardedFieldsFirst("0; 1; 2->2.0")
 	@ForwardedFieldsSecond("0; 1->2.1")
-	public static final class JoinEdgeWithVertexDegree<K, EV>
-	implements JoinFunction<Edge<K, EV>, Vertex<K, LongValue>, Edge<K, Tuple2<EV, LongValue>>> {
-		private Tuple2<EV, LongValue> valueAndDegree = new Tuple2<>();
+	public static class JoinEdgeWithVertexDegree<K, EV, D>
+	implements JoinFunction<Edge<K, EV>, Vertex<K, D>, Edge<K, Tuple2<EV, D>>> {
+		private Tuple2<EV, D> valueAndDegree = new Tuple2<>();
 
-		private Edge<K, Tuple2<EV, LongValue>> output = new Edge<>(null, null, valueAndDegree);
+		private Edge<K, Tuple2<EV, D>> output = new Edge<>(null, null, valueAndDegree);
 
 		@Override
-		public Edge<K, Tuple2<EV, LongValue>> join(Edge<K, EV> edge, Vertex<K, LongValue> vertex) throws Exception {
+		public Edge<K, Tuple2<EV, D>> join(Edge<K, EV> edge, Vertex<K, D> vertex) throws Exception {
 			output.f0 = edge.f0;
 			output.f1 = edge.f1;
 			valueAndDegree.f0 = edge.f2;
@@ -210,19 +149,20 @@ public class DegreeAnnotationFunctions {
 	 *
 	 * @param <K> ID type
 	 * @param <EV> edge value type
+	 * @param <D> degree type
 	 */
 	@ForwardedFieldsFirst("0; 1; 2.0; 2.1")
 	@ForwardedFieldsSecond("0; 1->2.2")
-	public static final class JoinEdgeDegreeWithVertexDegree<K, EV>
-	implements JoinFunction<Edge<K, Tuple2<EV, LongValue>>, Vertex<K, LongValue>, Edge<K, Tuple3<EV, LongValue, LongValue>>> {
-		private Tuple3<EV, LongValue, LongValue> valueAndDegrees = new Tuple3<>();
+	public static class JoinEdgeDegreeWithVertexDegree<K, EV, D>
+	implements JoinFunction<Edge<K, Tuple2<EV, D>>, Vertex<K, D>, Edge<K, Tuple3<EV, D, D>>> {
+		private Tuple3<EV, D, D> valueAndDegrees = new Tuple3<>();
 
-		private Edge<K, Tuple3<EV, LongValue, LongValue>> output = new Edge<>(null, null, valueAndDegrees);
+		private Edge<K, Tuple3<EV, D, D>> output = new Edge<>(null, null, valueAndDegrees);
 
 		@Override
-		public Edge<K, Tuple3<EV, LongValue, LongValue>> join(Edge<K, Tuple2<EV, LongValue>> edge, Vertex<K, LongValue> vertex)
+		public Edge<K, Tuple3<EV, D, D>> join(Edge<K, Tuple2<EV, D>> edge, Vertex<K, D> vertex)
 				throws Exception {
-			Tuple2<EV, LongValue> valueAndDegree = edge.f2;
+			Tuple2<EV, D> valueAndDegree = edge.f2;
 
 			output.f0 = edge.f0;
 			output.f1 = edge.f1;

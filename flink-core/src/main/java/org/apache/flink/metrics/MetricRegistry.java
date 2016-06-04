@@ -21,7 +21,8 @@ package org.apache.flink.metrics;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.metrics.groups.Scope;
+import org.apache.flink.metrics.groups.scope.ScopeFormat;
+import org.apache.flink.metrics.groups.scope.ScopeFormats;
 import org.apache.flink.metrics.reporter.JMXReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
@@ -31,11 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.metrics.groups.JobMetricGroup.DEFAULT_SCOPE_JOB;
-import static org.apache.flink.metrics.groups.OperatorMetricGroup.DEFAULT_SCOPE_OPERATOR;
-import static org.apache.flink.metrics.groups.TaskManagerMetricGroup.DEFAULT_SCOPE_TM;
-import static org.apache.flink.metrics.groups.TaskMetricGroup.DEFAULT_SCOPE_TASK;
 
 /**
  * A MetricRegistry keeps track of all registered {@link Metric Metrics}. It serves as the
@@ -52,10 +48,10 @@ public class MetricRegistry {
 	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
 	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
 
-	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
-	public static final String KEY_METRICS_SCOPE_NAMING_JOB = "metrics.scope.job";
-	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
-	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
+	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scopeName.tm";
+	public static final String KEY_METRICS_SCOPE_NAMING_JOB = "metrics.scopeName.job";
+	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scopeName.task";
+	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scopeName.operator";
 
 	// ------------------------------------------------------------------------
 	//  configuration keys
@@ -66,29 +62,28 @@ public class MetricRegistry {
 	private final MetricReporter reporter;
 	private final java.util.Timer timer;
 
-	private final Scope.ScopeFormat scopeConfig;
+	private final ScopeFormats scopeFormats;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistry(Configuration config) {
-		// first parse the scope formats, these are needed for all reporters
-		
-		Scope.ScopeFormat scopeFormat;
+		// first parse the scopeName formats, these are needed for all reporters
+		ScopeFormats scopeFormats;
 		try {
-			scopeFormat = createScopeConfig(config);
+			scopeFormats = createScopeConfig(config);
 		}
 		catch (Exception e) {
-			scopeFormat = createScopeConfig(new Configuration());
-			LOG.warn("Failed to parse scope format, using default scope formats", e);
+			LOG.warn("Failed to parse scopeName format, using default scopeName formats", e);
+			scopeFormats = new ScopeFormats();
 		}
-		this.scopeConfig = scopeFormat;
+		this.scopeFormats = scopeFormats;
 
 		// second, instantiate any custom configured reporters
 		
 		final String className = config.getString(KEY_METRICS_REPORTER_CLASS, null);
 		if (className == null) {
-			this.reporter = new JMXReporter();
+			this.reporter = null;
 			this.timer = null;
 		}
 		else {
@@ -157,8 +152,8 @@ public class MetricRegistry {
 		}
 	}
 
-	public Scope.ScopeFormat getScopeConfig() {
-		return this.scopeConfig;
+	public ScopeFormats getScopeFormats() {
+		return scopeFormats;
 	}
 
 	// ------------------------------------------------------------------------
@@ -166,35 +161,36 @@ public class MetricRegistry {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Registers a new {@link org.apache.flink.metrics.Metric} with this registry.
+	 * Registers a new {@link Metric} with this registry.
 	 *
-	 * @param metric metric to register
-	 * @param name   name of the metric
-	 * @param parent group that contains the metric
+	 * @param metric      the metric that was added
+	 * @param metricName  the name of the metric
+	 * @param group       the group that contains the metric
 	 */
-	public void register(Metric metric, String name, AbstractMetricGroup parent) {
-		String metricName = reporter.generateName(name, parent.generateScope());
-		this.reporter.notifyOfAddedMetric(metric, metricName);
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+		if (reporter != null) {
+			reporter.notifyOfAddedMetric(metric, metricName, group);
+		}
 	}
 
 	/**
 	 * Un-registers the given {@link org.apache.flink.metrics.Metric} with this registry.
 	 *
-	 * @param metric metric to un-register
-	 * @param name   name of the metric
-	 * @param parent group that contains the metric
+	 * @param metric      the metric that should be removed
+	 * @param metricName  the name of the metric
+	 * @param group       the group that contains the metric
 	 */
-	public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
-		String metricName = reporter.generateName(name, parent.generateScope());
-		
-		this.reporter.notifyOfRemovedMetric(metric, metricName);
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+		if (reporter != null) {
+			reporter.notifyOfRemovedMetric(metric, metricName, group);
+		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 	
-	private static Configuration createReporterConfig(Configuration config, TimeUnit timeunit, long period) {
+	static Configuration createReporterConfig(Configuration config, TimeUnit timeunit, long period) {
 		Configuration reporterConfig = new Configuration();
 		reporterConfig.setLong("period", period);
 		reporterConfig.setString("timeunit", timeunit.name());
@@ -208,19 +204,17 @@ public class MetricRegistry {
 		return reporterConfig;
 	}
 
-	private static Scope.ScopeFormat createScopeConfig(Configuration config) {
-		String tmFormat = config.getString(KEY_METRICS_SCOPE_NAMING_TM, DEFAULT_SCOPE_TM);
-		String jobFormat = config.getString(KEY_METRICS_SCOPE_NAMING_JOB, DEFAULT_SCOPE_JOB);
-		String taskFormat = config.getString(KEY_METRICS_SCOPE_NAMING_TASK, DEFAULT_SCOPE_TASK);
-		String operatorFormat = config.getString(KEY_METRICS_SCOPE_NAMING_OPERATOR, DEFAULT_SCOPE_OPERATOR);
-
-
-		Scope.ScopeFormat format = new Scope.ScopeFormat();
-		format.setTaskManagerFormat(tmFormat);
-		format.setJobFormat(jobFormat);
-		format.setTaskFormat(taskFormat);
-		format.setOperatorFormat(operatorFormat);
-		return format;
+	static ScopeFormats createScopeConfig(Configuration config) {
+		String tmFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
+		String jobFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
+		String taskFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
+		String operatorFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
+		
+		return new ScopeFormats(tmFormat, jobFormat, taskFormat, operatorFormat);
 	}
 
 	// ------------------------------------------------------------------------
@@ -236,7 +230,7 @@ public class MetricRegistry {
 	 * which acts as a fail-safe to stop the timer thread and prevents resource leaks.
 	 */
 	private static final class ReporterTask extends TimerTask {
-		
+
 		private final Scheduled reporter;
 
 		private ReporterTask(Scheduled reporter) {
