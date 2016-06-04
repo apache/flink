@@ -35,6 +35,9 @@ trait RegularizationPenalty extends Serializable {
 
   /** Calculates the new weights based on the gradient and regularization penalty
     *
+    * Weights are updated using the gradient descent step `w - learningRate * gradient`
+    * with `w` being the weight vector.
+    *
     * @param weightVector The weights to be updated
     * @param gradient The gradient used to update the weights
     * @param regularizationConstant The regularization parameter to be applied 
@@ -51,7 +54,7 @@ trait RegularizationPenalty extends Serializable {
   /** Adds regularization to the loss value
     *
     * @param oldLoss The loss to be updated
-    * @param weightVector The gradient used to update the loss
+    * @param weightVector The weights used to update the loss
     * @param regularizationConstant The regularization parameter to be applied
     * @return Updated loss
     */
@@ -70,7 +73,7 @@ object L2Regularization extends RegularizationPenalty {
 
   /** Calculates the new weights based on the gradient and L2 regularization penalty
     *
-    * The updated weight is `w - learningRate *(gradient + lambda * w)` where
+    * The updated weight is `w - learningRate * (gradient + lambda * w)` where
     * `w` is the weight vector, and `lambda` is the regularization parameter.
     *
     * @param weightVector The weights to be updated
@@ -100,7 +103,7 @@ object L2Regularization extends RegularizationPenalty {
     * `w` is the weight vector, and `lambda` is the regularization parameter
     *
     * @param oldLoss The loss to be updated
-    * @param weightVector The gradient used to update the loss
+    * @param weightVector The weights used to update the loss
     * @param regularizationConstant The regularization parameter to be applied
     * @return Updated loss
     */
@@ -120,8 +123,9 @@ object L2Regularization extends RegularizationPenalty {
   */
 object L1Regularization extends RegularizationPenalty {
 
-  /** Calculates the new weights based on the gradient and regularization penalty
+  /** Calculates the new weights based on the gradient and L1 regularization penalty
     *
+    * Uses the proximal gradient method with L1 regularization to update weights.
     * The updated weight `w - learningRate * gradient` is shrunk towards zero
     * by applying the proximal operator `signum(w) * max(0.0, abs(w) - shrinkageVal)`
     * where `w` is the weight vector, `lambda` is the regularization parameter,
@@ -161,7 +165,7 @@ object L1Regularization extends RegularizationPenalty {
     * `w` is the weight vector and `lambda` is the regularization parameter
     *
     * @param oldLoss The loss to be updated
-    * @param weightVector The gradient used to update the loss
+    * @param weightVector The weights used to update the loss
     * @param regularizationConstant The regularization parameter to be applied
     * @return Updated loss
     */
@@ -204,7 +208,7 @@ object NoRegularization extends RegularizationPenalty {
    * The updated loss is `oldLoss`
    *
    * @param oldLoss The loss to be updated
-   * @param weightVector The gradient used to update the loss
+   * @param weightVector The weights used to update the loss
    * @param regularizationParameter The regularization parameter which is ignored
    * @return Updated loss
    */
