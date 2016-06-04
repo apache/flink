@@ -50,6 +50,9 @@ public class KinesisConfigConstants {
 	/** The power constant for exponential backoff between each getRecords attempt */
 	public static final String CONFIG_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shard.getrecords.backoff.expconst";
 
+	/** The interval between each getRecords request to a AWS Kinesis shard in milliseconds */
+	public static final String CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS = "flink.shard.getrecords.intervalmillis";
+
 	/** The maximum number of getShardIterator attempts if we get ProvisionedThroughputExceededException */
 	public static final String CONFIG_SHARD_GETITERATOR_RETRIES = "flink.shard.getiterator.maxretries";
 
@@ -112,6 +115,8 @@ public class KinesisConfigConstants {
 	public static final long DEFAULT_SHARD_GETRECORDS_BACKOFF_MAX = 1000L;
 
 	public static final double DEFAULT_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final long DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS = 0;
 
 	public static final int DEFAULT_SHARD_GETITERATOR_RETRIES = 3;
 

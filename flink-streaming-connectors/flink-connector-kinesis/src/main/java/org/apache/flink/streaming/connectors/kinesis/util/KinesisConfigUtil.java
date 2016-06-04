@@ -106,37 +106,40 @@ public class KinesisConfigUtil {
 			"Invalid value given for maximum retry attempts for getRecords shard operation. Must be a valid non-negative integer value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_BASE,
-			"Invalid value given for get records operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get records operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_MAX,
-			"Invalid value given for get records operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get records operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for get records operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for get records operation backoff exponential constant. Must be a valid non-negative double value.");
+
+		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETRECORDS_INTERVAL_MILLIS,
+			"Invalid value given for getRecords sleep interval in milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveIntProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_RETRIES,
 			"Invalid value given for maximum retry attempts for getShardIterator shard operation. Must be a valid non-negative integer value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_BASE,
-			"Invalid value given for get shard iterator operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get shard iterator operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_MAX,
-			"Invalid value given for get shard iterator operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for get shard iterator operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, KinesisConfigConstants.CONFIG_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for get shard iterator operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for get shard iterator operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS,
-			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_BASE,
-			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for describe stream operation base backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_MAX,
-			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value");
+			"Invalid value given for describe stream operation max backoff milliseconds. Must be a valid non-negative long value.");
 
 		validateOptionalPositiveDoubleProperty(config, KinesisConfigConstants.CONFIG_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value");
+			"Invalid value given for describe stream operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		validateOptionalPositiveLongProperty(config, KinesisConfigConstants.CONFIG_PRODUCER_COLLECTION_MAX_COUNT,
 			"Invalid value given for maximum number of items to pack into a PutRecords request. Must be a valid non-negative long value.");
