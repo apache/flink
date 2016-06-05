@@ -43,7 +43,7 @@ class Verify(MapPartitionFunction):
         super(Verify, self).__init__()
         self.expected = expected
         self.name = name
-#TODO What if there are more expected than actual?
+
     def map_partition(self, iterator, collector):
         """
         Compares elements in the expected values list against actual values in resulting DataSet.
@@ -59,6 +59,8 @@ class Verify(MapPartitionFunction):
             except IndexError:
                 raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
             index += 1
+        if(index != len(self.expected)):
+            raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
         #collector.collect(self.name + " successful!")
 
 
@@ -83,8 +85,10 @@ class Verify2(MapPartitionFunction):
             try:
                 self.expected.remove(value)
             except Exception:
-                raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
+                raise Exception(self.name + " failed! Actual value " + str(value) + " not contained in expected values: " + str(self.expected))
         #collector.collect(self.name + " successful!")
+        if self.expected:
+            raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
 
 
 if __name__ == "__main__":

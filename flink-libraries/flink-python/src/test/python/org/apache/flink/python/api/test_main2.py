@@ -58,6 +58,8 @@ class Verify(MapPartitionFunction):
                 raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
             index += 1
         #collector.collect(self.name + " successful!")
+        if(index != len(self.expected)):
+            raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
 
 
 class Verify2(MapPartitionFunction):
@@ -81,8 +83,10 @@ class Verify2(MapPartitionFunction):
             try:
                 self.expected.remove(value)
             except Exception:
-                raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
+                raise Exception(self.name + " failed! Actual value " + str(value) + " not contained in expected values: " + str(self.expected))
         #collector.collect(self.name + " successful!")
+        if self.expected:
+            raise Exception(self.name + " Test failed. Discrepancy in the number of elements between expected and actual values.")
 
 
 if __name__ == "__main__":
