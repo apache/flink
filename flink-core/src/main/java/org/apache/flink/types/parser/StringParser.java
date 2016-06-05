@@ -33,8 +33,6 @@ public class StringParser extends FieldParser<String> {
 	private boolean quotedStringParsing = false;
 	private byte quoteCharacter;
 	private static final byte BACKSLASH = 92;
-	private final Charset ascii = Charset.forName("US-ASCII");
-
 	private String result;
 
 	public void enableQuotedStringParsing(byte quoteCharacter) {
@@ -66,11 +64,11 @@ public class StringParser extends FieldParser<String> {
 				// check for proper termination
 				if (i == limit) {
 					// either by end of line
-					this.result = new String(bytes, startPos+1, i - startPos - 2, ascii);
+					this.result = new String(bytes, startPos+1, i - startPos - 2, getCharset());
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
-					this.result = new String(bytes, startPos+1, i - startPos - 2, ascii);
+					this.result = new String(bytes, startPos+1, i - startPos - 2, getCharset());
 					return i + delimiter.length;
 				} else {
 					// no proper termination
@@ -87,11 +85,11 @@ public class StringParser extends FieldParser<String> {
 
 			if (i >= delimLimit) {
 				// no delimiter found. Take the full string
-				this.result = new String(bytes, startPos, limit - startPos, ascii);
+				this.result = new String(bytes, startPos, limit - startPos, getCharset());
 				return limit;
 			} else {
 				// delimiter found.
-				this.result = new String(bytes, startPos, i - startPos, ascii);
+				this.result = new String(bytes, startPos, i - startPos, getCharset());
 				return i + delimiter.length;
 			}
 		}
