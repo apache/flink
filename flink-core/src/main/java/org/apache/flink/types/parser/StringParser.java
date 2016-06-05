@@ -20,8 +20,6 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.nio.charset.Charset;
-
 /**
  * Converts a variable length field of a byte array into a {@link String}. The byte contents between
  * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
@@ -33,6 +31,7 @@ public class StringParser extends FieldParser<String> {
 	private boolean quotedStringParsing = false;
 	private byte quoteCharacter;
 	private static final byte BACKSLASH = 92;
+
 	private String result;
 
 	public void enableQuotedStringParsing(byte quoteCharacter) {

@@ -51,7 +51,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	/** The default charset  to convert strings to bytes */
 	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
 
-	private static final Charset ASCII_CHARSET = Charset.forName("US-ASCII");
+	private static Charset charset = Charset.forName("US-ASCII");
 
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
@@ -394,7 +394,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				@SuppressWarnings("unchecked")
 				FieldParser<Object> parser = (FieldParser<Object>) this.fieldParsers[output];
 				Object reuse = holders[output];
-				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse, ASCII_CHARSET);
+				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse, charset);
 				holders[output] = parser.getLastResult();
 				
 				// check parse result
