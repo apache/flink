@@ -76,7 +76,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private final Integer port;
 	private final String username;
 	private final String password;
-	private final String queueName;
+	protected final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
 
@@ -178,6 +178,15 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	}
 
 	/**
+	 * Sets up the queue. The default implementation just declares the queue. The user may override
+	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
+	 * defining custom queue parameters)
+	 */
+	protected void setupQueue() throws IOException {
+		channel.queueDeclare(queueName, true, false, false, null);
+	}
+
+	/**
 	 * Initializes the connection to RMQ.
 	 */
 	private void initializeConnection() {
@@ -195,7 +204,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
-			channel.queueDeclare(queueName, true, false, false, null);
+			setupQueue();
 			consumer = new QueueingConsumer(channel);
 
 			RuntimeContext runtimeContext = getRuntimeContext();
