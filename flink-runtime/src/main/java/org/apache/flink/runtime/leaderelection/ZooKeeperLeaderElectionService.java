@@ -337,7 +337,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				break;
 			case SUSPENDED:
 				LOG.warn("Connection to ZooKeeper suspended. The contender " + leaderContender.getAddress()
-					+ "no longer participates in the leader election.");
+					+ " no longer participates in the leader election.");
 				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader election can be restarted.");
@@ -345,7 +345,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			case LOST:
 				// Maybe we have to throw an exception here to terminate the JobManager
 				LOG.warn("Connection to ZooKeeper lost. The contender " + leaderContender.getAddress()
-					+ "no longer participates in the leader election.");
+					+ " no longer participates in the leader election.");
 				break;
 		}
 	}
