@@ -522,7 +522,7 @@ class CodeGenerator(
       (input2.getOrElse(throw new CodeGenException("Invalid input access.")), input2Term)
     }
 
-    val index = if (input._1 == input1) {
+    val index = if (input._2 == input1Term) {
       inputRef.getIndex
     } else {
       inputRef.getIndex - input1.getArity
