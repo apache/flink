@@ -99,12 +99,10 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 		this.format.configure(new Configuration());
 		this.collector = new TimestampedCollector<>(output);
-
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
 		this.reader = new SplitReader<>(format, serializer, collector, checkpointLock, readerState);
 		this.reader.start();
-		this.readerState = null;
 	}
 
 	@Override
@@ -182,8 +180,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		private final Object checkpointLock;
 		private final TimestampedCollector<OT> collector;
 
-		private final Object lock = new Object();
-
 		private final Queue<FileInputSplit> pendingSplits;
 
 		private FileInputSplit currentSplit = null;
@@ -217,11 +213,12 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				this.currentSplit = current;
 				this.restoredFormatState = formatState;
 			}
+			ContinuousFileReaderOperator.this.readerState = null;
 		}
 
 		void addSplit(FileInputSplit split) {
 			Preconditions.checkNotNull(split);
-			synchronized (lock) {
+			synchronized (checkpointLock) {
 				this.pendingSplits.add(split);
 			}
 		}
@@ -235,46 +232,36 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			try {
 				while (this.isRunning) {
 
-					if (this.currentSplit != null) {
+					synchronized (checkpointLock) {
+						if (this.currentSplit != null) {
 
-						if (currentSplit.equals(EOS)) {
-							isRunning = false;
-							break;
-						}
+							if (currentSplit.equals(EOS)) {
+								isRunning = false;
+								break;
+							}
 
-						if (this.format instanceof CheckpointableInputFormat && restoredFormatState != null) {
-							((CheckpointableInputFormat) format).reopen(currentSplit, restoredFormatState);
+							if (this.format instanceof CheckpointableInputFormat && restoredFormatState != null) {
+								((CheckpointableInputFormat) format).reopen(currentSplit, restoredFormatState);
+							} else {
+								// this is the case of a non-checkpointable input format that will reprocess the last split.
+								LOG.info("Format " + this.format.getClass().getName() + " used is not checkpointable.");
+								format.open(currentSplit);
+							}
+							// reset the restored state to null for the next iteration
+							this.restoredFormatState = null;
 						} else {
-							// this is the case of a non-checkpointable input format that will reprocess the last split.
-							LOG.info("Format " + this.format.getClass().getName() + " used is not checkpointable.");
-							format.open(currentSplit);
-						}
 
-						// reset the restored state to null for the next iteration
-						this.restoredFormatState = null;
+							// get the next split to read.
+							currentSplit = this.pendingSplits.poll();
 
-					} else {
+							if (currentSplit == null) {
+								checkpointLock.wait(50);
+								continue;
+							}
 
-						// get the next split to read.
-						// locking is needed because checkpointing will
-						// ask for a consistent snapshot of the list.
-						synchronized (lock) {
-							currentSplit = this.pendingSplits.peek();
-						}
-
-						if (currentSplit == null) {
-							Thread.sleep(50);
-							continue;
-						}
-
-						if (currentSplit.equals(EOS)) {
-							isRunning = false;
-							break;
-						}
-
-						synchronized (checkpointLock) {
-							synchronized (lock) {
-								currentSplit = this.pendingSplits.poll();
+							if (currentSplit.equals(EOS)) {
+								isRunning = false;
+								break;
 							}
 							this.format.open(currentSplit);
 						}
@@ -284,14 +271,16 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 					try {
 						OT nextElement = serializer.createInstance();
-						do {
+						while (!format.reachedEnd()) {
 							synchronized (checkpointLock) {
 								nextElement = format.nextRecord(nextElement);
 								if (nextElement != null) {
 									collector.collect(nextElement);
+								} else {
+									break;
 								}
 							}
-						} while (nextElement != null && !format.reachedEnd());
+						}
 
 					} finally {
 						// close and prepare for the next iteration
@@ -314,25 +303,22 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		}
 
 		Tuple3<List<FileInputSplit>, FileInputSplit, S> getReaderState() throws IOException {
-			// take a consistent snapshot of the pending splits
-			// and that of the format, which includes the split currently being read and
-			// where we are in the split.
+			List<FileInputSplit> snapshot = new ArrayList<>(this.pendingSplits.size());
+			for (FileInputSplit split: this.pendingSplits) {
+				snapshot.add(split);
+			}
 
-			List<FileInputSplit> snapshot;
-			S formatState = null;
-			synchronized (lock) {
-				snapshot = new ArrayList<>(this.pendingSplits.size());
-				for (FileInputSplit split: this.pendingSplits) {
-					snapshot.add(split);
-				}
+			// remove the current split from the list if inside.
+			if (this.currentSplit != null && this.currentSplit.equals(pendingSplits.peek())) {
+				this.pendingSplits.remove();
+			}
 
-				if (this.format instanceof CheckpointableInputFormat) {
-					formatState = (S) ((CheckpointableInputFormat) format).getCurrentState();
-					return new Tuple3<>(snapshot, currentSplit, formatState);
-				} else {
-					LOG.info("The format used is not checkpointable. The current input split will be restarted upon recovery.");
-					return new Tuple3<>(snapshot, currentSplit, null);
-				}
+			if (this.format instanceof CheckpointableInputFormat) {
+				S formatState = (S) ((CheckpointableInputFormat) format).getCurrentState();
+				return new Tuple3<>(snapshot, currentSplit, currentSplit == null ? null : formatState);
+			} else {
+				LOG.info("The format used is not checkpointable. The current input split will be restarted upon recovery.");
+				return new Tuple3<>(snapshot, currentSplit, null);
 			}
 		}
 
@@ -369,7 +355,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 		// write the state of the reading channel
 		oos.writeObject(formatState);
-
 		taskState.setOperatorState(os.closeAndGetHandle());
 		return taskState;
 	}
@@ -378,7 +363,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
 		super.restoreState(state, recoveryTimestamp);
 
-		StreamStateHandle stream = (StreamStateHandle)state.getOperatorState();
+		StreamStateHandle stream = (StreamStateHandle) state.getOperatorState();
 
 		final InputStream is = stream.getState(getUserCodeClassloader());
 		final ObjectInputStream ois = new ObjectInputStream(is);

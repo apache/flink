@@ -53,6 +53,7 @@ import java.util.Random;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
 
@@ -124,7 +125,6 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 	@Override
 	public void postSubmit() throws Exception {
-
 		Map<Integer, List<String>> collected = finalCollectedContent;
 		Assert.assertEquals(collected.size(), fc.getFileContent().size());
 		for (Integer fileIdx: fc.getFileContent().keySet()) {
@@ -146,6 +146,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		}
 
 		collected.clear();
+		finalCollectedContent.clear();
 		fc.clean();
 	}
 
@@ -226,7 +227,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	// --------------------------			Task Sink			------------------------------
 
 	private static class TestingSinkFunction extends RichSinkFunction<String>
-		implements Checkpointed<Tuple2<Long, Map<Integer, List<String>>>>, CheckpointListener {
+		implements Checkpointed<Tuple2<Long, Map<Integer, Set<String>>>>, CheckpointListener {
 
 		private static volatile boolean hasFailed = false;
 
@@ -238,7 +239,11 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		private long elementCounter = 0;
 
-		private  Map<Integer, List<String>> collectedContent = new HashMap<>();
+		private  Map<Integer, Set<String>> collectedContent = new HashMap<>();
+
+		TestingSinkFunction() {
+			hasFailed = false;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -251,7 +256,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 			elementsToFailure = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 
 			if (elementCounter >= NO_OF_FILES * LINES_PER_FILE) {
-				finalCollectedContent = this.collectedContent;
+				finalCollectedContent = new HashMap<>();
+				for (Map.Entry<Integer, Set<String>> result: collectedContent.entrySet()) {
+					finalCollectedContent.put(result.getKey(), new ArrayList<>(result.getValue()));
+				}
 				throw new SuccessException();
 			}
 		}
@@ -269,23 +277,31 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		public void invoke(String value) throws Exception {
 			int fileIdx = Character.getNumericValue(value.charAt(0));
 
-			List<String> content = collectedContent.get(fileIdx);
+			Set<String> content = collectedContent.get(fileIdx);
 			if (content == null) {
-				content = new ArrayList<>();
+				content = new HashSet<>();
 				collectedContent.put(fileIdx, content);
 			}
-			content.add(value + "\n");
+
+			if (!content.add(value + "\n")) {
+				fail("Duplicate line: " + value);
+				System.exit(0);
+			}
+
 
 			elementCounter++;
 			if (elementCounter >= NO_OF_FILES * LINES_PER_FILE) {
-				finalCollectedContent = this.collectedContent;
+				finalCollectedContent = new HashMap<>();
+				for (Map.Entry<Integer, Set<String>> result: collectedContent.entrySet()) {
+					finalCollectedContent.put(result.getKey(), new ArrayList<>(result.getValue()));
+				}
 				throw new SuccessException();
 			}
 
 			count++;
 			if (!hasFailed) {
 				Thread.sleep(2);
-				if (numSuccessfulCheckpoints >= 2 && count >= elementsToFailure) {
+				if (numSuccessfulCheckpoints >= 1 && count >= elementsToFailure) {
 					hasFailed = true;
 					throw new Exception("Task Failure");
 				}
@@ -293,12 +309,12 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		}
 
 		@Override
-		public Tuple2<Long, Map<Integer, List<String>>> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		public Tuple2<Long, Map<Integer, Set<String>>> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 			return new Tuple2<>(elementCounter, collectedContent);
 		}
 
 		@Override
-		public void restoreState(Tuple2<Long, Map<Integer, List<String>>> state) throws Exception {
+		public void restoreState(Tuple2<Long, Map<Integer, Set<String>>> state) throws Exception {
 			this.elementCounter = state.f0;
 			this.collectedContent = state.f1;
 		}

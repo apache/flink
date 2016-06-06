@@ -30,6 +30,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.avro.FSDataInputStreamWrapper;
@@ -67,7 +68,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient long recordsReadSinceLastSync;
 
-	private transient long lastSync;
+	private transient long lastSync = -1l;
 
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
@@ -177,21 +178,16 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
-		if (this.dataFileReader == null || this.reachedEnd()) {
-			return new Tuple2<>(0L, 0L);
-		}
 		return new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
 	}
 
 	@Override
 	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
-		if (split == null) {
-			throw new RuntimeException("Called reopen() on a null split.");
-		}
+		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
+		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
 		this.open(split);
-		if (state != null && state.f0 != 0l) {
-			dataFileReader = initReader(split);
+		if (state.f0 != -1) {
 
 			// go to the block we stopped
 			lastSync = state.f0;

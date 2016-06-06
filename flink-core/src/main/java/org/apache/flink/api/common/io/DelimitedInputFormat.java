@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -143,7 +144,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	private transient boolean end;
 
-	private transient long offset;
+	private transient long offset = -1;
 
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
@@ -630,24 +631,20 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	@Override
 	public Long getCurrentState() throws IOException {
-		if (reachedEnd()) {
-			return 0l;
-		}
 		return this.offset;
 	}
 
 	@Override
 	public void reopen(FileInputSplit split, Long state) throws IOException {
-		if (split == null) {
-			throw new RuntimeException("Called reopen() on a null split.");
-		}
+		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
+		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
 		this.open(split);
-		if (state != null && state != split.getStart()) {
+		this.offset = state;
+		if (state > this.splitStart + split.getLength()) {
+			this.end = true;
+		} else if (state > split.getStart()) {
 			initBuffers();
-
-			// this is the case where we restart from a specific offset within a split (e.g. after a node failure)
-			this.offset = state;
 
 			this.stream.seek(this.offset);
 			if (split.getLength() == -1) {

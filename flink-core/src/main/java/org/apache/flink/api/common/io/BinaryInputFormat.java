@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -374,9 +375,10 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	@Override
 	public Tuple2<Long, Long> getCurrentState() throws IOException {
-		if (this.blockInfo == null || this.reachedEnd()) {
-			return new Tuple2<>(0L, 0L);
+		if (this.blockBasedInput == null) {
+			throw new RuntimeException("You must have forgotten to call open() on your input format.");
 		}
+
 		return  new Tuple2<>(
 			this.blockBasedInput.getCurrBlockPos(), 		// the last read index in the block
 			this.readRecords								// the number of records read
@@ -385,20 +387,17 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 
 	@Override
 	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
-		if (split == null) {
-			throw new RuntimeException("Called reopen() on a null split.");
-		}
+		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
+		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
 		this.open(split);
-		if (state != null && state.f1 != 0) {
-			this.blockInfo = this.createAndReadBlockInfo();
+		this.blockInfo = this.createAndReadBlockInfo();
 
-			long blockPos = state.f0;
-			this.readRecords = state.f1;
+		long blockPos = state.f0;
+		this.readRecords = state.f1;
 
-			this.stream.seek(this.splitStart + blockPos);
-			this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
-			this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
-		}
+		this.stream.seek(this.splitStart + blockPos);
+		this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
+		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
 	}
 }
