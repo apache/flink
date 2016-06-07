@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -35,6 +34,9 @@ import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * The local clustering coefficient measures the connectedness of each vertex's
@@ -56,7 +58,7 @@ public class LocalClusteringCoefficient<K extends Comparable<K> & CopyableValue<
 implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 	// Optional configuration
-	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the parallelism of operators processing small amounts of data.
@@ -65,6 +67,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @return this
 	 */
 	public LocalClusteringCoefficient<K, VV, EV> setLittleParallelism(int littleParallelism) {
+		Preconditions.checkArgument(littleParallelism > 0 || littleParallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.littleParallelism = littleParallelism;
 
 		return this;

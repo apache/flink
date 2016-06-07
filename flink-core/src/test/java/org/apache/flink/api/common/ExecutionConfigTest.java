@@ -53,20 +53,9 @@ public class ExecutionConfigTest {
 	public void testConfigurationOfParallelism() {
 		ExecutionConfig config = new ExecutionConfig();
 
-		// verify that PARALLELISM_UNKNOWN does not change initial parallelism
-		int parallelism = config.getParallelism();
-		config.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
-
-		assertEquals(parallelism, config.getParallelism());
-
 		// verify explicit change in parallelism
-		parallelism = 36;
+		int parallelism = 36;
 		config.setParallelism(parallelism);
-
-		assertEquals(parallelism, config.getParallelism());
-
-		// verify that PARALLELISM_UNKNOWN does not change configured parallelism
-		config.setParallelism(ExecutionConfig.PARALLELISM_UNKNOWN);
 
 		assertEquals(parallelism, config.getParallelism());
 

@@ -25,7 +25,6 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_UNKNOWN;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexValues;
 
 /**
@@ -43,7 +42,7 @@ implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
 	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
-	private int parallelism = PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Translate {@link Vertex} values using the given {@link TranslateFunction}.
@@ -63,7 +62,7 @@ implements GraphAlgorithm<K, OLD, EV, Graph<K, NEW, EV>> {
 	 * @return this
 	 */
 	public TranslateVertexValues<K, OLD, NEW, EV> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT || parallelism == PARALLELISM_UNKNOWN,
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
 			"The parallelism must be greater than zero.");
 
 		this.parallelism = parallelism;
