@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -97,8 +99,11 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data source operator"));
 
+		RuntimeContext ctx = createRuntimeContext();
+		Counter splitCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
-			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
+			((RichInputFormat) this.format).setRuntimeContext(ctx);
 			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
 			((RichInputFormat) this.format).openInputFormat();
 			LOG.debug(getLogString("Rich Source detected. Opening the InputFormat."));
@@ -165,6 +170,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					// close. We close here such that a regular close throwing an exception marks a task as failed.
 					format.close();
 				}
+				splitCounter.inc();
 			} // end for all input splits
 
 			// close the collector. if it is a chaining task collector, it will close its chained tasks

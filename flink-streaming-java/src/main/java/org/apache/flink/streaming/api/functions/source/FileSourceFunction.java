@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
@@ -43,6 +44,8 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 
 	private volatile boolean isRunning = true;
 
+	private Counter splitCounter;
+
 	@SuppressWarnings("unchecked")
 	public FileSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
 		this.format = (InputFormat<OUT, InputSplit>) format;
@@ -54,6 +57,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		this.provider = context.getInputSplitProvider();
+		this.splitCounter = context.getMetricGroup().counter("numSplitsProcessed");
 		
 		format.configure(parameters);
 		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
@@ -123,9 +127,11 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 			OUT nextElement = serializer.createInstance();
 			nextElement =  format.nextRecord(nextElement);
 			if (nextElement == null && splitIterator.hasNext()) {
+				splitCounter.inc();
 				format.open(splitIterator.next());
 				continue;
 			} else if (nextElement == null) {
+				splitCounter.inc();
 				break;
 			}
 			ctx.collect(nextElement);
