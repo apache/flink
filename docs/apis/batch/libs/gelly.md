@@ -2296,6 +2296,25 @@ DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> pairDegree = graph
     </tr>
 
     <tr>
+      <td>degree.filter.undirected.<br/><strong>MaximumDegree</strong></td>
+      <td>
+        <p>Filter an <a href="#graph-representation">undirected graph</a> by maximum degree.</p>
+{% highlight java %}
+Graph<K, VV, EV> filteredGraph = graph
+  .run(new MaximumDegree(5000)
+    .setBroadcastHighDegreeVertices(true)
+    .setReduceOnTargetId(true));
+{% endhighlight %}
+        <p>Optional configuration:</p>
+        <ul>
+          <li><p><strong>setBroadcastHighDegreeVertices</strong>: join high-degree vertices using a broadcast-hash to reduce data shuffling when removing a relatively small number of high-degree vertices.</p></li>
+          <li><p><strong>setParallelism</strong>: override the operator parallelism</p></li>
+          <li><p><strong>setReduceOnTargetId</strong>: the degree can be counted from either the edge source or target IDs. By default the source IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is sorted by target ID.</p></li>
+        </ul>
+      </td>
+    </tr>
+
+    <tr>
       <td>translate.<br/><strong>TranslateGraphIds</strong></td>
       <td>
         <p>Translate vertex and edge IDs using the given <code>TranslateFunction</code>.</p>
