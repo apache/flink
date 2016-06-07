@@ -372,7 +372,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
 				.map(NoOpBoolMap).name("ParallelizeMap");
 
-		IterativeStream<Boolean> iteration = source.iterate(3000);
+		IterativeStream<Boolean> iteration = source.iterate(10000);
 
 		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).map(NoOpBoolMap);
 
