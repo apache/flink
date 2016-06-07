@@ -83,6 +83,6 @@ extends AsmTestBase {
 				.setIncludeZeroDegreeVertices(true)));
 
 		assertEquals(902, outDegreeChecksum.getCount());
-		assertEquals(0x0000000000e1e99cL, outDegreeChecksum.getChecksum());
+		assertEquals(0x0000000000e1d885L, outDegreeChecksum.getChecksum());
 	}
 }
