@@ -20,7 +20,6 @@ package org.apache.flink.graph.library.metric.undirected;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -36,6 +35,8 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Compute the number of vertices, number of edges, and number of triplets in
@@ -55,7 +56,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 	private boolean reduceOnTargetId = false;
 
-	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * By default only the edge set is processed for the computation of degree.

@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.CountHelper;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -26,6 +25,8 @@ import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.AbstractID;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Count the number of distinct triangles in an undirected graph.
@@ -41,7 +42,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Long> {
 	private String id = new AbstractID().toString();
 
 	// Optional configuration
-	private int littleParallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * Override the parallelism of operators processing small amounts of data.
