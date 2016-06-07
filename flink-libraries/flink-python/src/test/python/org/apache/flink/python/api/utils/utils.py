@@ -18,7 +18,7 @@
 from flink.functions.MapFunction import MapFunction
 from flink.functions.MapPartitionFunction import MapPartitionFunction
 
-#Utilities
+
 class Id(MapFunction):
     def map(self, value):
         """
@@ -79,4 +79,3 @@ class Verify2(MapPartitionFunction):
             except Exception:
                 raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
         #collector.collect(self.name + " successful!")
-
