@@ -135,7 +135,7 @@ public class PythonPlanBinder {
 
 		try {
 			String tmpPath = FLINK_PYTHON_FILE_PATH + r.nextInt();
-			prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? 1 : split));
+			prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? args.length : split));
 			startPython(tmpPath, Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
 			receivePlan();
 
