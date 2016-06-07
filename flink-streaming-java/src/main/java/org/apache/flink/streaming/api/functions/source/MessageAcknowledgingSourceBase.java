@@ -102,8 +102,6 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	 */
 	private transient Set<UId> idsProcessedButNotAcknowledged;
 
-	protected int numCheckpointsToKeep = 10;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -127,10 +125,12 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		idsForCurrentCheckpoint = new ArrayList<>(64);
-		if (pendingCheckpoints == null)
-			pendingCheckpoints = new ArrayDeque<>(numCheckpointsToKeep);
-		if (idsProcessedButNotAcknowledged == null)
+		if (pendingCheckpoints == null) {
+			pendingCheckpoints = new ArrayDeque<>();
+		}
+		if (idsProcessedButNotAcknowledged == null) {
 			idsProcessedButNotAcknowledged = new HashSet<>();
+		}
 	}
 
 	@Override
