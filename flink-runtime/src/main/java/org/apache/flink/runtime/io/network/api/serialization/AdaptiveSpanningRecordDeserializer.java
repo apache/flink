@@ -51,7 +51,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	private AccumulatorRegistry.Reporter reporter;
 	
 	private transient Counter numRecordsIn;
-	private transient Counter numBytesIn;
 
 	public AdaptiveSpanningRecordDeserializer() {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -100,9 +99,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 			if (reporter != null) {
 				reporter.reportNumBytesIn(len);
-			}
-			if (numBytesIn != null) {
-				numBytesIn.inc(len);
 			}
 
 			if (len <= nonSpanningRemaining - 4) {
@@ -181,7 +177,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 	@Override
 	public void instantiateMetrics(IOMetricGroup metrics) {
-		numBytesIn = metrics.getBytesInCounter();
 		numRecordsIn = metrics.getRecordsInCounter();
 	}
 

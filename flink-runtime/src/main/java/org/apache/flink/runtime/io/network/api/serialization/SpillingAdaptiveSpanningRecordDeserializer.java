@@ -64,7 +64,6 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	private AccumulatorRegistry.Reporter reporter;
 
 	private Counter numRecordsIn;
-	private Counter numBytesIn;
 
 	public SpillingAdaptiveSpanningRecordDeserializer(String[] tmpDirectories) {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -113,9 +112,6 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
 			if (reporter != null) {
 				reporter.reportNumBytesIn(len);
-			}
-			if (numBytesIn != null) {
-				numBytesIn.inc(len);
 			}
 
 			if (len <= nonSpanningRemaining - 4) {
@@ -204,7 +200,6 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
 	@Override
 	public void instantiateMetrics(IOMetricGroup metrics) {
-		numBytesIn = metrics.getBytesInCounter();
 		numRecordsIn = metrics.getRecordsInCounter();
 	}
 

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -271,7 +272,8 @@ public class LocalInputChannelTest {
 				new ResultPartitionID(),
 				partitionManager,
 				mock(TaskEventDispatcher.class),
-				initialAndMaxRequestBackoff);
+				initialAndMaxRequestBackoff,
+				new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 	}
 
 	/**
@@ -346,7 +348,8 @@ public class LocalInputChannelTest {
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels,
-					mock(PartitionStateChecker.class));
+					mock(PartitionStateChecker.class),
+					new UnregisteredTaskMetricsGroup.DummyIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -360,7 +363,8 @@ public class LocalInputChannelTest {
 								i,
 								consumedPartitionIds[i],
 								partitionManager,
-								taskEventDispatcher));
+								taskEventDispatcher,
+								new UnregisteredTaskMetricsGroup.DummyIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;
