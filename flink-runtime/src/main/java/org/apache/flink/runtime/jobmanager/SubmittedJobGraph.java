@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A recoverable {@link JobGraph} and {@link JobInfo}.

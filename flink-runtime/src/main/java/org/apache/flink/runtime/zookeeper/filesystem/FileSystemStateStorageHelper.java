@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.zookeeper.filesystem;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FileSerializableStateHandle;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 
 import java.io.IOException;

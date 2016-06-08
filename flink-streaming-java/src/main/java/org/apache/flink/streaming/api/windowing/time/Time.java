@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.windowing.time;
 
 import java.util.concurrent.TimeUnit;
 import org.apache.flink.annotation.Public;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The definition of a time interval for windowing. The time characteristic referred

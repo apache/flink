@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;

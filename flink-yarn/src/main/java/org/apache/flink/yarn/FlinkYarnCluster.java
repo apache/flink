@@ -26,7 +26,6 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -250,7 +250,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	 */
 	@Override
 	public void stopAfterJob(JobID jobID) {
-		Preconditions.checkNotNull("The job id must not be null", jobID);
+		Preconditions.checkNotNull(jobID, "The job id must not be null");
 		Future<Object> messageReceived = ask(applicationClient, new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
 			Await.result(messageReceived, akkaDuration);

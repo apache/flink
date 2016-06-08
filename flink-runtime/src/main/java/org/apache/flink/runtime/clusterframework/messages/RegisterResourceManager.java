@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This message signals that the resource manager wants to register at the JobManager leader. 

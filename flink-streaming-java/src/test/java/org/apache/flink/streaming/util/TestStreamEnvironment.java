@@ -18,13 +18,13 @@
 
 package org.apache.flink.streaming.util;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A StreamExecutionEnvironment that executes its jobs on a test cluster.

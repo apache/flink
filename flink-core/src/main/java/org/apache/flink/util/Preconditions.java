@@ -234,6 +234,23 @@ public final class Preconditions {
 		}
 	}
 
+	/**
+	 * Ensures that the given index is valid for an array, list or string of the given size.
+	 *
+	 * @param index index to check
+	 * @param size size of the array, list or string
+	 * @param errorMessage The message for the {@code IndexOutOfBoundsException} that is thrown if the check fails.   
+	 *
+	 * @throws IllegalArgumentException Thrown, if size is negative.
+	 * @throws IndexOutOfBoundsException Thrown, if the index negative or greater than or equal to size
+	 */
+	public static void checkElementIndex(int index, int size, @Nullable String errorMessage) {
+		checkArgument(size >= 0, "Size was negative.");
+		if (index < 0 || index >= size) {
+			throw new IndexOutOfBoundsException(String.valueOf(errorMessage) + " Index: " + index + ", Size: " + size);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

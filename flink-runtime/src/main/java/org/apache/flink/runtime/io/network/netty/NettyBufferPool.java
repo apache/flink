@@ -29,7 +29,7 @@ import scala.Option;
 
 import java.lang.reflect.Field;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Wrapper around Netty's {@link PooledByteBufAllocator} with strict control

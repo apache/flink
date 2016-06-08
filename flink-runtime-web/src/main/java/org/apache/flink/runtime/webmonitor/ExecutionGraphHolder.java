@@ -31,7 +31,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.WeakHashMap;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.instance.Instance;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.runtime.instance.SharedSlot;
 
 /**

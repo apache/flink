@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint.stats;
 
 import java.util.Arrays;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Statistics for a specific checkpoint per operator.

@@ -42,7 +42,7 @@ import org.apache.flink.util.SerializedValue;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * In implementation of the {@link Environment}.

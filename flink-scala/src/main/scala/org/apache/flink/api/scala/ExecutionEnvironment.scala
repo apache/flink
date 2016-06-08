@@ -18,7 +18,6 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import com.google.common.base.Preconditions
 import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
@@ -34,7 +33,7 @@ import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
-import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
+import org.apache.flink.util.{NumberSequenceIterator, Preconditions, SplittableIterator}
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat, JobConf}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}

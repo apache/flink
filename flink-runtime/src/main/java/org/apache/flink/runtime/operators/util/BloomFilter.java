@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.operators.util;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.core.memory.MemorySegment;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * BloomFilter is a probabilistic data structure for set membership check. BloomFilters are
@@ -158,8 +157,8 @@ public class BloomFilter {
 		private final int LONG_POSITION_MASK = 0xffffffc0;
 		
 		public BitSet(int byteSize) {
-			Preconditions.checkArgument(byteSize > 0, "bits size should be greater than 0.");
-			Preconditions.checkArgument(byteSize << 29 == 0, "bytes size should be integral multiple of long size(8 Bytes).");
+			checkArgument(byteSize > 0, "bits size should be greater than 0.");
+			checkArgument(byteSize << 29 == 0, "bytes size should be integral multiple of long size(8 Bytes).");
 			this.length = byteSize;
 		}
 		

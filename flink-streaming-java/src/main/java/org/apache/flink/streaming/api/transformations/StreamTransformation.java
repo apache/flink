@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.api.transformations;
 
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -25,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 

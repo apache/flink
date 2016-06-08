@@ -50,8 +50,8 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Network I/O components of each {@link TaskManager} instance. The network environment contains
