@@ -19,11 +19,11 @@ package org.apache.flink.api.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.{CombineFunction, RichGroupReduceFunction, RichMapPartitionFunction}
 import org.apache.flink.api.table.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
+import org.apache.flink.util.Preconditions
 
 import scala.collection.JavaConversions._
 
