@@ -74,8 +74,8 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	//  Consumer properties
 	// ------------------------------------------------------------------------
 
-	/** The complete list of shards */
-	private final List<KinesisStreamShard> shards;
+	/** The names of the Kinesis streams that we will be consuming from */
+	private final List<String> streams;
 
 	/** Properties to parametrize settings such as AWS service region, initial position in stream,
 	 * shard list retrieval behaviours, etc */
@@ -97,7 +97,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	/** The sequence numbers to restore to upon restore from failure */
 	private transient HashMap<KinesisStreamShard, String> sequenceNumsToRestore;
 
-	private volatile boolean hasAssignedShards;
+	private volatile boolean hasDiscoveredShards;
 
 	private volatile boolean running = true;
 
@@ -154,7 +154,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(List<String> streams, KinesisDeserializationSchema<T> deserializer, Properties configProps) {
-		checkNotNull(streams, "streams can not be null");
+		this.streams = checkNotNull(streams, "streams can not be null");
 
 		this.configProps = checkNotNull(configProps, "configProps can not be null");
 
@@ -163,27 +163,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 		this.deserializer = checkNotNull(deserializer, "deserializer can not be null");
 
-		this.shards = new KinesisProxy(configProps).getShardList(streams);
-		if (shards.size() == 0) {
-			throw new RuntimeException("Unable to retrieve any shards for the requested streams " + streams.toString() + ".");
-		}
-
 		if (LOG.isInfoEnabled()) {
-			Map<String, Integer> shardCountPerStream = new HashMap<>();
-			for (KinesisStreamShard shard : shards) {
-				Integer shardCount = shardCountPerStream.get(shard.getStreamName());
-				if (shardCount == null) {
-					shardCount = 1;
-				} else {
-					shardCount++;
-				}
-				shardCountPerStream.put(shard.getStreamName(), shardCount);
-			}
 			StringBuilder sb = new StringBuilder();
-			for (Map.Entry<String,Integer> streamAndShardCountPair : shardCountPerStream.entrySet()) {
-				sb.append(streamAndShardCountPair.getKey()).append(" (").append(streamAndShardCountPair.getValue()).append("), ");
+			for (String stream : streams) {
+				sb.append(stream).append(", ");
 			}
-			LOG.info("Flink Kinesis Consumer is going to read the following streams (with number of shards): {}", sb.toString());
+			LOG.info("Flink Kinesis Consumer is going to read the following streams: {}", sb.toString());
 		}
 	}
 
@@ -197,29 +182,30 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 		final int numFlinkConsumerTasks = getRuntimeContext().getNumberOfParallelSubtasks();
 		final int thisConsumerTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+		
+		// discover shards that this subtask is responsible of consuming
+		List<KinesisStreamShard> discoveredShards = discoverShardsToConsume(
+			streams, numFlinkConsumerTasks, thisConsumerTaskIndex, configProps);
 
-		// pick which shards this consumer task works on, in a round-robin fashion
-		List<KinesisStreamShard> assignedShards = assignShards(this.shards, numFlinkConsumerTasks, thisConsumerTaskIndex);
-
-		// if there are no shards assigned to this consumer task, return without doing anything.
-		if (assignedShards.isEmpty()) {
-			LOG.info("Consumer task {} has no shards assigned to it", thisConsumerTaskIndex);
-			hasAssignedShards = false;
+		// if there are no shards for this consumer task, return without doing anything.
+		if (discoveredShards.isEmpty()) {
+			LOG.info("Consumer task {} has not discovered any shards to read from", thisConsumerTaskIndex);
+			hasDiscoveredShards = false;
 			return;
 		} else {
-			hasAssignedShards = true;
+			hasDiscoveredShards = true;
 		}
 
 		if (LOG.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();
-			for (KinesisStreamShard shard : assignedShards) {
+			for (KinesisStreamShard shard : discoveredShards) {
 				sb.append(shard.getStreamName()).append(":").append(shard.getShardId()).append(", ");
 			}
-			LOG.info("Consumer task {} will read shards {} out of a total of {} shards",
-				thisConsumerTaskIndex, sb.toString(), this.shards.size());
+			LOG.info("Consumer task {} will read shards {}",
+				thisConsumerTaskIndex, sb.toString());
 		}
 
-		fetcher = new KinesisDataFetcher(assignedShards, configProps, getRuntimeContext().getTaskName());
+		fetcher = new KinesisDataFetcher(discoveredShards, configProps, getRuntimeContext().getTaskName());
 
 		// restore to the last known sequence numbers from the latest complete snapshot
 		if (sequenceNumsToRestore != null) {
@@ -249,7 +235,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 			// start fresh with empty sequence numbers if there are no snapshots to restore from.
 			lastSequenceNums = new HashMap<>();
 
-			// advance all assigned shards of this consumer task to either the earliest or latest sequence number,
+			// advance all discovered shards for this consumer task to either the earliest or latest sequence number,
 			// depending on the properties configuration (default is to set to latest sequence number).
 			InitialPosition initialPosition = InitialPosition.valueOf(configProps.getProperty(
 				KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE, InitialPosition.LATEST.toString()));
@@ -264,14 +250,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 					sentinelSequenceNum = SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 			}
 
-			for (KinesisStreamShard assignedShard : assignedShards) {
-				fetcher.advanceSequenceNumberTo(assignedShard, sentinelSequenceNum.toString());
+			for (KinesisStreamShard discoveredShard : discoveredShards) {
+				fetcher.advanceSequenceNumberTo(discoveredShard, sentinelSequenceNum.toString());
 			}
 
 			if (LOG.isInfoEnabled()) {
 				StringBuilder sb = new StringBuilder();
-				for (KinesisStreamShard assignedShard : assignedShards) {
-					sb.append(assignedShard.getStreamName()).append(":").append(assignedShard.getShardId())
+				for (KinesisStreamShard discoveredShard : discoveredShards) {
+					sb.append(discoveredShard.getStreamName()).append(":").append(discoveredShard.getShardId())
 						.append(" -> ").append(sentinelSequenceNum.toString()).append(", ");
 				}
 				LOG.info("Advanced the starting sequence numbers of consumer task {}: {}", thisConsumerTaskIndex, sb.toString());
@@ -281,10 +267,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 
 	@Override
 	public void run(SourceContext<T> sourceContext) throws Exception {
-		if (hasAssignedShards) {
+		if (hasDiscoveredShards) {
 			fetcher.run(sourceContext, deserializer, lastSequenceNums);
 		} else {
-			// this source never completes because there is no assigned shards,
+			// this source never completes because there are no discovered shards,
 			// so emit a Long.MAX_VALUE watermark to no block watermark forwarding
 			sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
 
@@ -365,39 +351,29 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Utility function to assign shards to a specific consumer task in a round-robin fashion.
+	 * Utility function for subtasks to discover shards it is responsible for consuming,
+	 * based on the modulo of each shard's hash with total number consumer tasks
 	 */
-	protected static List<KinesisStreamShard> assignShards(List<KinesisStreamShard> shards, int numFlinkConsumerTasks, int thisConsumerTaskIndex) {
+	protected static List<KinesisStreamShard> discoverShardsToConsume(List<String> streams,
+																	int numFlinkConsumerTasks,
+																	int thisConsumerTaskIndex,
+																	Properties propsWithKinesisConnectionInfo) {
 		checkArgument(numFlinkConsumerTasks > 0);
 		checkArgument(thisConsumerTaskIndex < numFlinkConsumerTasks);
 
-		List<KinesisStreamShard> closedShards = new ArrayList<>();
-		List<KinesisStreamShard> openShards = new ArrayList<>();
+		List<KinesisStreamShard> totalListOfShards = new KinesisProxy(propsWithKinesisConnectionInfo).getShardList(streams);
+		if (totalListOfShards.size() == 0) {
+			throw new RuntimeException("Unable to retrieve any shards for the requested streams " + streams.toString() + ".");
+		}
 
-		for (KinesisStreamShard shard : shards) {
-			if (shard.isClosed()) {
-				closedShards.add(shard);
-			} else {
-				openShards.add(shard);
+		List<KinesisStreamShard> shardsForThisSubtask = new ArrayList<>();
+
+		for (KinesisStreamShard shard : totalListOfShards) {
+			if (Math.abs(shard.hashCode() % numFlinkConsumerTasks) == thisConsumerTaskIndex) {
+				shardsForThisSubtask.add(shard);
 			}
 		}
 
-		List<KinesisStreamShard> subscribedShards = new ArrayList<>();
-
-		// separately round-robin assign open and closed shards so that all tasks have a fair chance of being
-		// assigned open shards (set of data records in closed shards are bounded)
-
-		for (int i = 0; i < closedShards.size(); i++) {
-			if (i % numFlinkConsumerTasks == thisConsumerTaskIndex) {
-				subscribedShards.add(closedShards.get(i));
-			}
-		}
-
-		for (int i = 0; i < openShards.size(); i++) {
-			if (i % numFlinkConsumerTasks == thisConsumerTaskIndex) {
-				subscribedShards.add(openShards.get(i));
-			}
-		}
-		return subscribedShards;
+		return shardsForThisSubtask;
 	}
 }
