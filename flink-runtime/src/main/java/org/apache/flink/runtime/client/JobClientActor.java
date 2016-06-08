@@ -25,7 +25,6 @@ import akka.actor.Status;
 import akka.actor.Terminated;
 import akka.dispatch.Futures;
 import akka.dispatch.OnSuccess;
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.messages.JobClientMessages.JobManagerLeaderAddre
 import org.apache.flink.runtime.messages.JobClientMessages.SubmitJobAndWait;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
+import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;

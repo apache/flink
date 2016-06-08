@@ -36,7 +36,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Blob store backed by {@link FileSystem}.

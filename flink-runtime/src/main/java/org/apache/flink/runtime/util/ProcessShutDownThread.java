@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration;
 
 import java.util.concurrent.TimeoutException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * JVM shut down thread awaiting actor system shut down for a certain amount

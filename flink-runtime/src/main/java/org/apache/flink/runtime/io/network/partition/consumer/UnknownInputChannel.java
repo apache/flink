@@ -30,7 +30,7 @@ import scala.Tuple2;
 
 import java.io.IOException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel place holder to be replaced by either a {@link RemoteInputChannel}

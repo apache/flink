@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Simple bean to describe the state belonging to a parallel operator. It is part of the

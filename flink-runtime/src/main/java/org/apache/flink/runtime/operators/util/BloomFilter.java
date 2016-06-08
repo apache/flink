@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.operators.util;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.Preconditions;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * BloomFilter is a probabilistic data structure for set membership check. BloomFilters are

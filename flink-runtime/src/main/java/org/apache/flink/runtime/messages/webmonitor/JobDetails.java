@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import java.util.Arrays;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An actor message with a detailed overview of the current status of a job.

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This message signals that the ResourceManager should reconnect to the JobManager. It is processed

@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
