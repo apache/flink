@@ -57,7 +57,7 @@ public class MetricRegistry {
 	//  configuration keys
 	// ------------------------------------------------------------------------
 	
-	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
+	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
 	
 	private final MetricReporter reporter;
 	private final java.util.Timer timer;
@@ -83,7 +83,9 @@ public class MetricRegistry {
 		
 		final String className = config.getString(KEY_METRICS_REPORTER_CLASS, null);
 		if (className == null) {
-			this.reporter = null;
+			// by default, create JMX metrics
+			LOG.info("No metrics reporter configured, exposing metrics via JMX");
+			this.reporter = new JMXReporter();
 			this.timer = null;
 		}
 		else {
@@ -239,7 +241,11 @@ public class MetricRegistry {
 
 		@Override
 		public void run() {
-			reporter.report();
+			try {
+				reporter.report();
+			} catch (Throwable t) {
+				LOG.warn("Error while reporting metrics", t);
+			}
 		}
 	}
 }

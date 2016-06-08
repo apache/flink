@@ -33,7 +33,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.util.ConcurrentModificationException;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * Largely based on the StatsDReporter class by ReadyTalk
@@ -88,12 +90,21 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public void report() {
-		for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
-			reportGauge(entry.getValue(), entry.getKey());
-		}
+		// instead of locking here, we tolerate exceptions
+		// we do this to prevent holding the lock for very long and blocking
+		// operator creation and shutdown
+		try {
+			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
+				reportGauge(entry.getValue(), entry.getKey());
+			}
 
-		for (Map.Entry<Counter, String> entry : counters.entrySet()) {
-			reportCounter(entry.getValue(), entry.getKey());
+			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
+				reportCounter(entry.getValue(), entry.getKey());
+			}
+		}
+		catch (ConcurrentModificationException | NoSuchElementException e) {
+			// ignore - may happen when metrics are concurrently added or removed
+			// report next time
 		}
 	}
 

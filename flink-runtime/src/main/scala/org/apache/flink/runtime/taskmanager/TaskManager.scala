@@ -265,9 +265,13 @@ class TaskManager(
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
     
+    // failsafe shutdown of the metrics registry
     try {
-      //enable this before merging
-      //metricsRegistry.shutdown()
+      val reg = metricsRegistry
+      metricsRegistry = null
+      if (reg != null) {
+        reg.shutdown()
+      }
     } catch {
       case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
     }

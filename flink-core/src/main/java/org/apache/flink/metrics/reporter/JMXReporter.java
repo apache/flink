@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
-
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
