@@ -40,8 +40,8 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
@@ -119,6 +119,10 @@ public class SavepointITCase extends TestLogger {
 	 * <li>Cancel job, dispose the savepoint, and verify that everything
 	 * has been cleaned up</li>
 	 * </ol>
+	 *
+	 *
+	 * Savepoint is diposed via a {@link JobManagerMessages.DisposeSavepointWithClassLoader}
+	 * message.
 	 */
 	@Test
 	public void testTriggerSavepointAndResume() throws Exception {
@@ -345,7 +349,11 @@ public class SavepointITCase extends TestLogger {
 
 			LOG.info("Disposing savepoint " + savepointPath + ".");
 			Future<Object> disposeFuture = jobManager.ask(
-					new DisposeSavepoint(savepointPath), deadline.timeLeft());
+					new JobManagerMessages.DisposeSavepointWithClassLoader(
+							savepointPath,
+							jobGraph.getUserJarBlobKeys(),
+							jobGraph.getClasspaths()),
+					deadline.timeLeft());
 
 			errMsg = "Failed to dispose savepoint " + savepointPath + ".";
 			Object resp = Await.result(disposeFuture, deadline.timeLeft());
@@ -868,6 +876,166 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a savepoint of a running job is diposed properly, e.g. via
+	 * {@link JobManagerMessages.DisposeSavepoint} message.
+	 */
+	@Test
+	public void testDisposeWithRunningJob() throws Exception {
+		// Config
+		int numTaskManagers = 1;
+		int numSlotsPerTaskManager = 1;
+		int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+		// Test deadline
+		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		// The number of checkpoints to complete before triggering the savepoint
+		final int numberOfCompletedCheckpoints = 5;
+
+		// Temporary directory for file state backend
+		final File tmpDir = CommonTestUtils.createTempDirectory();
+
+		ForkableFlinkMiniCluster flink = null;
+
+		try {
+			// Flink configuration
+			final Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+
+			final File checkpointDir = new File(tmpDir, "checkpoints");
+			final File savepointDir = new File(tmpDir, "savepoints");
+
+			if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
+				fail("Test setup failed: failed to create temporary directories.");
+			}
+
+			LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
+			LOG.info("Created temporary savepoint directory: " + savepointDir + ".");
+
+			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+					checkpointDir.toURI().toString());
+			config.setString(SavepointStoreFactory.SAVEPOINT_BACKEND_KEY, "filesystem");
+			config.setString(SavepointStoreFactory.SAVEPOINT_DIRECTORY_KEY,
+					savepointDir.toURI().toString());
+
+			LOG.info("Flink configuration: " + config + ".");
+
+			// Start Flink
+			flink = new ForkableFlinkMiniCluster(config);
+			LOG.info("Starting Flink cluster.");
+			flink.start();
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(flink.leaderGateway().future(), deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			// Submit the job
+			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000, 1000);
+			final JobID jobId = jobGraph.getJobID();
+
+			// Wait for the source to be notified about the expected number
+			// of completed checkpoints
+			InfiniteTestSource.CheckpointCompleteLatch = new CountDownLatch(
+					numberOfCompletedCheckpoints);
+
+			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
+
+			flink.submitJobDetached(jobGraph);
+
+			LOG.info("Waiting for " + numberOfCompletedCheckpoints +
+					" checkpoint complete notifications.");
+
+			// Wait...
+			InfiniteTestSource.CheckpointCompleteLatch.await();
+
+			LOG.info("Received all " + numberOfCompletedCheckpoints +
+					" checkpoint complete notifications.");
+
+			// ...and then trigger the savepoint
+			LOG.info("Triggering a savepoint.");
+
+			Future<Object> savepointPathFuture = jobManager.ask(
+					new TriggerSavepoint(jobId), deadline.timeLeft());
+
+			final String savepointPath = ((TriggerSavepointSuccess) Await
+					.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
+
+			// Retrieve the savepoint from the testing job manager
+			LOG.info("Requesting the savepoint.");
+			Future<Object> savepointFuture = jobManager.ask(
+					new RequestSavepoint(savepointPath),
+					deadline.timeLeft());
+
+			CompletedCheckpoint savepoint = ((ResponseSavepoint) Await.result(
+					savepointFuture, deadline.timeLeft())).savepoint();
+			LOG.info("Retrieved savepoint: " + savepoint + ".");
+
+			// Dispose savepoint of running job
+			LOG.info("Disposing savepoint " + savepointPath + ".");
+			Future<Object> disposeFuture = jobManager.ask(
+					new JobManagerMessages.DisposeSavepoint(
+							savepointPath,
+							jobGraph.getJobID()),
+					deadline.timeLeft());
+
+			String errMsg = "Failed to dispose savepoint " + savepointPath + ".";
+			Object resp = Await.result(disposeFuture, deadline.timeLeft());
+			assertTrue(errMsg, resp.getClass() ==
+					getDisposeSavepointSuccess().getClass());
+
+			// Shut down the Flink cluster (thereby canceling the job)
+			LOG.info("Shutting down Flink cluster.");
+			flink.shutdown();
+
+			// The checkpoint files
+			List<File> checkpointFiles = new ArrayList<>();
+
+			for (TaskState stateForTaskGroup : savepoint.getTaskStates().values()) {
+				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
+					StreamTaskStateList taskStateList = (StreamTaskStateList) subtaskState.getState()
+							.deserializeValue(ClassLoader.getSystemClassLoader());
+
+					for (StreamTaskState taskState : taskStateList.getState(
+							ClassLoader.getSystemClassLoader())) {
+
+						AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
+						checkpointFiles.add(new File(fsState.getFilePath().toUri()));
+					}
+				}
+			}
+
+			// The checkpoint of the savepoint should have been discarded
+			for (File f : checkpointFiles) {
+				errMsg = "Checkpoint file " + f + " not cleaned up properly.";
+				assertFalse(errMsg, f.exists());
+			}
+
+			if (checkpointFiles.size() > 0) {
+				File parent = checkpointFiles.get(0).getParentFile();
+				errMsg = "Checkpoint parent directory " + parent + " not cleaned up properly.";
+				assertFalse(errMsg, parent.exists());
+			}
+
+			// All savepoints should have been cleaned up
+			errMsg = "Savepoints directory not cleaned up properly: " +
+					Arrays.toString(savepointDir.listFiles()) + ".";
+			assertNull(errMsg, savepointDir.listFiles());
+		} finally {
+			if (flink != null) {
+				flink.shutdown();
+			}
+
+			if (tmpDir != null) {
+				FileUtils.deleteDirectory(tmpDir);
+			}
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	// Test program
 	// ------------------------------------------------------------------------

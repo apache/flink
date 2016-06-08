@@ -188,12 +188,13 @@ public class CliFrontendSavepointTest {
 
 		try {
 			String savepointPath = "expectedSavepointPath";
+			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
 
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class))).thenReturn(triggerResponse.future());
 
 			triggerResponse.success(JobManagerMessages.getDisposeSavepointSuccess());
@@ -201,12 +202,12 @@ public class CliFrontendSavepointTest {
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
 
-			String[] parameters = { "-d", savepointPath };
+			String[] parameters = { "-d", savepointPath, jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertEquals(0, returnCode);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class));
 
 			String outMsg = buffer.toString();
@@ -224,12 +225,13 @@ public class CliFrontendSavepointTest {
 
 		try {
 			String savepointPath = "expectedSavepointPath";
+			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
 
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -241,12 +243,12 @@ public class CliFrontendSavepointTest {
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
 
-			String[] parameters = { "-d", savepointPath };
+			String[] parameters = { "-d", savepointPath, jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
@@ -262,12 +264,13 @@ public class CliFrontendSavepointTest {
 
 		try {
 			String savepointPath = "expectedSavepointPath";
+			JobID jobId = new JobID();
 			ActorGateway jobManager = mock(ActorGateway.class);
 
 			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 			when(jobManager.ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 
@@ -276,12 +279,12 @@ public class CliFrontendSavepointTest {
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
 
-			String[] parameters = { "-d", savepointPath };
+			String[] parameters = { "-d", savepointPath, jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertTrue(returnCode != 0);
 			verify(jobManager, times(1)).ask(
-					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath)),
+					Mockito.eq(new JobManagerMessages.DisposeSavepoint(savepointPath, jobId)),
 					Mockito.any(FiniteDuration.class));
 
 			String errMsg = buffer.toString();

@@ -142,7 +142,7 @@ This allows the job to finish processing all inflight data.
 
 Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-#### **Restore a savepoint**:
+#### **Restore a savepoint**
 
 {% highlight bash %}
 ./bin/flink run -s <savepointPath> ...
@@ -150,13 +150,23 @@ Returns the path of the created savepoint. You need this path to restore and dis
 
 The run command has a savepoint flag to submit a job, which restores its state from a savepoint. The savepoint path is returned by the savepoint trigger command.
 
-#### **Dispose a savepoint**:
-
-{% highlight bash %}
-./bin/flink savepoint -d <savepointPath>
-{% endhighlight %}
+#### **Dispose a savepoint**
 
 Disposes the savepoint at the given path. The savepoint path is returned by the savepoint trigger command.
+
+If the job is running:
+
+{% highlight bash %}
+./bin/flink savepoint -d <savepointPath> <jobID>
+{% endhighlight %}
+
+If the job has terminated:
+
+{% highlight bash %}
+./bin/flink savepoint -d <savepointPath> -j <jobJar> [-c <mainClass> -C <classPath> <args>]
+{% endhighlight %}
+
+The additional arguments for Job ID or JARs are required in order to use the user code class loader of the job the savepoint belongs to.
 
 ## Usage
 
@@ -301,19 +311,27 @@ guarantees for a stop request.
 
 Action "savepoint" triggers savepoints for a running job or disposes existing ones.
 
-  Syntax: savepoint [OPTIONS] <Job ID>
-  "savepoint" action options:
-     -d,--dispose <savepointPath>   Disposes an existing savepoint.
-     -m,--jobmanager <host:port>    Address of the JobManager (master) to which
-                                    to connect. Specify 'yarn-cluster' as the
-                                    JobManager to deploy a YARN cluster for the
-                                    job. Use this flag to connect to a different
-                                    JobManager than the one specified in the
-                                    configuration.
-  Additional arguments if -m yarn-cluster is set:
-     -yid <yarnApplicationId>      YARN application ID of Flink YARN session to
-                                   connect to. Must not be set if JobManager HA
-                                   is used. In this case, JobManager RPC
-                                   location is automatically retrieved from
-                                   Zookeeper.
+ Syntax: savepoint [OPTIONS] <Job ID>
+ "savepoint" action options:
+    -c,--class <classname>         Class with the program entry point ("main"
+                                   method or "getPlan()" method. Only needed if
+                                   the JAR file does not specify the class in
+                                   its manifest.
+    -C,--classpath <url>           Adds a URL to each user code classloader  on
+                                   all nodes in the cluster. The paths must
+                                   specify a protocol (e.g. file://) and be
+                                   accessible on all nodes (e.g. by means of a
+                                   NFS share). You can use this option multiple
+                                   times for specifying more than one URL. The
+                                   protocol must be supported by the {@link
+                                   java.net.URLClassLoader}.
+    -d,--dispose <savepointPath>   Disposes an existing savepoint.
+    -j,--jarfile <jarfile>         Flink program JAR file.
+
+
+ Examples:
+ - Trigger savepoint: bin/flink savepoint <Job ID>
+ - Dispose savepoint:
+   * For a running job: bin/flink savepoint -d <Path> <Job ID>
+   * For a terminated job: bin/flink savepoint -d <Path> -j <Jar> [-c <mainClass> -C <classPath>]
 ~~~
