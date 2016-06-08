@@ -60,10 +60,10 @@ to setup Kinesis streams. Make sure to create the appropriate IAM policy and use
 
 ### Kinesis Consumer
 
-The `FlinkKinesisConsumer` can be used to pull data from multiple Kinesis streams within the same AWS region in parallel.
-It participates in Flink's distributed snapshot checkpointing and provides exactly-once user-defined state update guarantees. Note
-that the current version can not handle resharding of Kinesis streams. When Kinesis streams are resharded, the consumer
-will fail and the Flink streaming job must be resubmitted.
+The `FlinkKinesisConsumer` is an exactly-once parallel streaming data source that subscribes to multiple AWS Kinesis
+streams within the same AWS service region, and can handle resharding of streams. Each subtask of the consumer is
+responsible for fetching data records from multiple Kinesis shards. The number of shards fetched by each subtask will
+change as shards are closed and created by Kinesis.
 
 Before consuming data from Kinesis streams, make sure that all streams are created with the status "ACTIVE" in the AWS dashboard.
 
@@ -113,6 +113,11 @@ the AWS access key ID and secret key are directly supplied in the configuration 
 `KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_TYPE` to `ENV_VAR`, `SYS_PROP`, and `PROFILE`). Also, data is being consumed
 from the newest position in the Kinesis stream (the other option will be setting `KinesisConfigConstants.CONFIG_STREAM_INIT_POSITION_TYPE`
 to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from the earliest record possible).
+
+Note that the consumer attempts to discover new Kinesis shards due to resharding at a fixed default interval of
+10 seconds. In other words, new shards may take up to 10 seconds to be discovered. This setting can be overridden
+to other values by setting a different value for `KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS` in the
+supplied consumer configuration.
 
 Other optional configuration keys can be found in `KinesisConfigConstants`.
 

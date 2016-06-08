@@ -123,7 +123,7 @@ not for other sources. The following table lists the state update guarantees of 
         <tr>
             <td>AWS Kinesis Streams</td>
             <td>exactly once</td>
-            <td>Current version does not handle stream resharding</td>
+            <td></td>
         </tr>
         <tr>
             <td>RabbitMQ</td>
