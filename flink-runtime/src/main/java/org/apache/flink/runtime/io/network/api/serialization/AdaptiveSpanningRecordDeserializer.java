@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -49,8 +48,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	private Buffer currentBuffer;
 
 	private AccumulatorRegistry.Reporter reporter;
-	
-	private transient Counter numRecordsIn;
 
 	public AdaptiveSpanningRecordDeserializer() {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -108,9 +105,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 				if (reporter != null) {
 					reporter.reportNumRecordsIn(1);
 				}
-				if (numRecordsIn != null) {
-					numRecordsIn.inc();
-				}
 
 				return (this.nonSpanningWrapper.remaining() == 0) ?
 						DeserializationResult.LAST_RECORD_FROM_BUFFER :
@@ -137,9 +131,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 			if (reporter != null) {
 				reporter.reportNumRecordsIn(1);
-			}
-			if (numRecordsIn != null) {
-				numRecordsIn.inc();
 			}
 
 			// move the remainder to the non-spanning wrapper
@@ -177,7 +168,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 	@Override
 	public void instantiateMetrics(IOMetricGroup metrics) {
-		numRecordsIn = metrics.getRecordsInCounter();
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

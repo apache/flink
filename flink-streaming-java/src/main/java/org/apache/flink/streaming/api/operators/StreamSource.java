@@ -51,6 +51,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
+	public void run(final Object lockingObject) throws Exception {
+		run(lockingObject, output);
+	}
+
 	
 	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();

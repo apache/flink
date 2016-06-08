@@ -53,7 +53,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock(), getHeadOutput());
+		headOperator.run(getCheckpointLock());
 	}
 	
 	@Override
