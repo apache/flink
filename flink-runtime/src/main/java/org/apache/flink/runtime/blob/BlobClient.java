@@ -18,6 +18,20 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.util.InstantiationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.FileNotFoundException;
@@ -27,26 +41,23 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-import org.apache.flink.util.InstantiationUtil;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-
-import org.apache.flink.api.common.JobID;
-
+import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_ID_SCOPE;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.MAX_KEY_LENGTH;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.NAME_ADDRESSABLE;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.MAX_KEY_LENGTH;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 
 /**
  * The BLOB client can communicate with the BLOB server and either upload (PUT), download (GET),
@@ -653,6 +664,80 @@ public final class BlobClient implements Closeable {
 		catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("DELETE operation failed: " + t.getMessage(), t);
+		}
+	}
+
+	/**
+	 * Retrieves the {@link BlobServer} address from the JobManager and uploads
+	 * the JAR files to it.
+	 *
+	 * @param jobManager Server address of the {@link BlobServer}
+	 * @param askTimeout Ask timeout for blob server address retrieval
+	 * @param jars       List of JAR files to upload
+	 * @throws IOException Thrown if the address retrieval or upload fails
+	 */
+	public static List<BlobKey> uploadJarFiles(
+			ActorGateway jobManager,
+			FiniteDuration askTimeout,
+			List<Path> jars) throws IOException {
+
+		if (jars.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			Object msg = JobManagerMessages.getRequestBlobManagerPort();
+			Future<Object> futureBlobPort = jobManager.ask(msg, askTimeout);
+
+			try {
+				// Retrieve address
+				Object result = Await.result(futureBlobPort, askTimeout);
+				if (result instanceof Integer) {
+					int port = (Integer) result;
+
+					Option<String> jmHost = jobManager.actor().path().address().host();
+					String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
+					InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, port);
+
+					// Now, upload
+					return uploadJarFiles(serverAddress, jars);
+				} else {
+					throw new Exception("Expected port number (int) as answer, received " + result);
+				}
+			} catch (Exception e) {
+				throw new IOException("Could not retrieve the JobManager's blob port.", e);
+			}
+		}
+	}
+
+	/**
+	 * Uploads the JAR files to a {@link BlobServer} at the given address.
+	 *
+	 * @param serverAddress Server address of the {@link BlobServer}
+	 * @param jars List of JAR files to upload
+	 * @throws IOException Thrown if the upload fails
+	 */
+	public static List<BlobKey> uploadJarFiles(InetSocketAddress serverAddress, List<Path> jars) throws IOException {
+		if (jars.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			List<BlobKey> blobKeys = new ArrayList<>();
+
+			try (BlobClient blobClient = new BlobClient(serverAddress)) {
+				for (final Path jar : jars) {
+					final FileSystem fs = jar.getFileSystem();
+					FSDataInputStream is = null;
+					try {
+						is = fs.open(jar);
+						final BlobKey key = blobClient.put(is);
+						blobKeys.add(key);
+					} finally {
+						if (is != null) {
+							is.close();
+						}
+					}
+				}
+			}
+
+			return blobKeys;
 		}
 	}
 

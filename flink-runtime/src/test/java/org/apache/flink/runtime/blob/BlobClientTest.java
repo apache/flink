@@ -29,9 +29,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.security.MessageDigest;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -377,6 +380,27 @@ public class BlobClientTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, List)} helper.
+	 */
+	@Test
+	public void testUploadJarFilesHelper() throws Exception {
+		final File testFile = File.createTempFile("testfile", ".dat");
+		testFile.deleteOnExit();
+		prepareTestFile(testFile);
+
+		InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
+
+		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, Collections.singletonList(new Path(testFile.toURI())));
+
+		assertEquals(1, blobKeys.size());
+
+		try (BlobClient blobClient = new BlobClient(serverAddress)) {
+			InputStream is = blobClient.get(blobKeys.get(0));
+			validateGet(is, testFile);
 		}
 	}
 }

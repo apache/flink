@@ -242,7 +242,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public void discard(ClassLoader userClassLoader) {
+		public void discard(ClassLoader userClassLoader) throws Exception {
 			super.discard(userClassLoader);
 
 			if (!isDiscarded) {
