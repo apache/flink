@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import com.esotericsoftware.kryo.Serializer;
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
@@ -68,6 +67,7 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.IOException;
@@ -77,8 +77,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * An ExecutionEnvironment for streaming jobs. An instance of it is
@@ -407,7 +405,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
-		this.defaultStateBackend = requireNonNull(backend);
+		this.defaultStateBackend = Preconditions.checkNotNull(backend);
 		return this;
 	}
 
@@ -594,7 +592,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-		this.timeCharacteristic = requireNonNull(characteristic);
+		this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
 			getConfig().setAutoWatermarkInterval(0);
 		} else {
