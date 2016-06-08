@@ -75,6 +75,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void collect(IT record) {
 		try {
+			this.numRecordsIn.inc();
 			this.outputCollector.collect(this.mapper.map(record));
 		} catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);
