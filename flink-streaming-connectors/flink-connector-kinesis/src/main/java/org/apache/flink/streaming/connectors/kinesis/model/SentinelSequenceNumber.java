@@ -27,10 +27,6 @@ import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetche
  */
 public enum SentinelSequenceNumber {
 
-	/** Flag value to indicate that the sequence number of a shard is not set. This value is used
-	 * as an initial value in {@link KinesisDataFetcher}'s constructor for all shard's sequence number. */
-	SENTINEL_SEQUENCE_NUMBER_NOT_SET( new SequenceNumber("SEQUENCE_NUMBER_NOT_SET") ),
-
 	/** Flag value for shard's sequence numbers to indicate that the
 	 * shard should start to be read from the latest incoming records */
 	SENTINEL_LATEST_SEQUENCE_NUM( new SequenceNumber("LATEST_SEQUENCE_NUM") ),

@@ -18,41 +18,43 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Properties;
 
-/**
- * A testable FlinkKinesisConsumer that overrides getRuntimeContext to return a dummy StreamRuntimeContext.
- */
-public class TestableFlinkKinesisConsumer extends FlinkKinesisConsumer {
+public class TestableFlinkKinesisConsumer extends FlinkKinesisConsumer<String> {
 
-	private final int fakeNumFlinkConsumerTasks;
-	private final int fakeThisConsumerTaskIndex;
-	private final String fakeThisConsumerTaskName;
+	private final RuntimeContext mockedRuntimeCtx;
 
+	public TestableFlinkKinesisConsumer(String fakeStream,
+										Properties fakeConfiguration,
+										final int totalNumOfConsumerSubtasks,
+										final int indexOfThisConsumerSubtask) {
+		super(fakeStream, new SimpleStringSchema(), fakeConfiguration);
 
-	public TestableFlinkKinesisConsumer(String fakeStreamName,
-										int fakeNumFlinkConsumerTasks,
-										int fakeThisConsumerTaskIndex,
-										String fakeThisConsumerTaskName,
-										Properties configProps) {
-		super(fakeStreamName, new SimpleStringSchema(), configProps);
-		this.fakeNumFlinkConsumerTasks = fakeNumFlinkConsumerTasks;
-		this.fakeThisConsumerTaskIndex = fakeThisConsumerTaskIndex;
-		this.fakeThisConsumerTaskName = fakeThisConsumerTaskName;
+		this.mockedRuntimeCtx = Mockito.mock(RuntimeContext.class);
+
+		Mockito.when(mockedRuntimeCtx.getNumberOfParallelSubtasks()).thenAnswer(new Answer<Integer>() {
+			@Override
+			public Integer answer(InvocationOnMock invocationOnMock) throws Throwable {
+				return totalNumOfConsumerSubtasks;
+			}
+		});
+
+		Mockito.when(mockedRuntimeCtx.getIndexOfThisSubtask()).thenAnswer(new Answer<Integer>() {
+			@Override
+			public Integer answer(InvocationOnMock invocationOnMock) throws Throwable {
+				return indexOfThisConsumerSubtask;
+			}
+		});
 	}
 
 	@Override
 	public RuntimeContext getRuntimeContext() {
-		StreamingRuntimeContext runtimeContextMock = Mockito.mock(StreamingRuntimeContext.class);
-		Mockito.when(runtimeContextMock.getNumberOfParallelSubtasks()).thenReturn(fakeNumFlinkConsumerTasks);
-		Mockito.when(runtimeContextMock.getIndexOfThisSubtask()).thenReturn(fakeThisConsumerTaskIndex);
-		Mockito.when(runtimeContextMock.getTaskName()).thenReturn(fakeThisConsumerTaskName);
-		return runtimeContextMock;
+		return this.mockedRuntimeCtx;
 	}
-
 }

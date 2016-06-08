@@ -14,60 +14,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
+import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordsRequest;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.kinesis.config.KinesisConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
+import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This test first starts a data generator, producing data into kinesis.
  * Then, it starts a consuming topology, ensuring that all records up to a certain
- * point have been seen.
+ * point have been seen. While the data generator and consuming topology is running,
+ * the kinesis stream is resharded two times.
  *
  * Invocation:
  * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
  */
-public class ManualExactlyOnceTest {
+public class ManualExactlyOnceWithStreamReshardingTest {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ManualExactlyOnceTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ManualExactlyOnceWithStreamReshardingTest.class);
 
-	static final int TOTAL_EVENT_COUNT = 1000; // the producer writes one per 10 ms, so it runs for 10k ms = 10 seconds
+	static final int TOTAL_EVENT_COUNT = 20000; // a large enough record count so we can test resharding
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
-		LOG.info("Starting exactly once test");
+		LOG.info("Starting exactly once with stream resharding test");
 
 		final String streamName = "flink-test-" + UUID.randomUUID().toString();
 		final String accessKey = pt.getRequired("accessKey");
 		final String secretKey = pt.getRequired("secretKey");
 		final String region = pt.getRequired("region");
 
-		Properties configProps = new Properties();
+		final Properties configProps = new Properties();
 		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, accessKey);
 		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, secretKey);
 		configProps.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, region);
-		AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+		configProps.setProperty(KinesisConfigConstants.CONFIG_SHARD_DISCOVERY_INTERVAL_MILLIS, "0");
+		final AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
 
-		// create a stream for the test:
+		// the stream is first created with 1 shard
 		client.createStream(streamName, 1);
 
 		// wait until stream has been created
 		DescribeStreamResult status = client.describeStream(streamName);
-		LOG.info("status {}" ,status);
+		LOG.info("status {}", status);
 		while(!status.getStreamDescription().getStreamStatus().equals("ACTIVE")) {
 			status = client.describeStream(streamName);
 			LOG.info("Status of stream {}", status);
@@ -86,22 +98,107 @@ public class ManualExactlyOnceTest {
 		final int flinkPort = flink.getLeaderRPCPort();
 
 		try {
+			// we have to use a manual generator here instead of the FlinkKinesisProducer
+			// because the FlinkKinesisProducer currently has a problem where records will be resent to a shard
+			// when resharding happens; this affects the consumer exactly-once validation test and will never pass
 			final AtomicReference<Throwable> producerError = new AtomicReference<>();
-			Thread producerThread = KinesisEventsGeneratorProducerThread.create(
-				TOTAL_EVENT_COUNT, 2,
-				accessKey, secretKey, region, streamName,
-				producerError, flinkPort, flinkConfig);
+			Runnable manualGenerate = new Runnable() {
+				@Override
+				public void run() {
+					AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+					int count = 0;
+					final int batchSize = 30;
+					while (true) {
+						try {
+							Thread.sleep(10);
+
+							Set<PutRecordsRequestEntry> batch = new HashSet<>();
+							for (int i=count; i<count+batchSize; i++) {
+								if (i >= TOTAL_EVENT_COUNT) {
+									break;
+								}
+								batch.add(
+									new PutRecordsRequestEntry()
+										.withData(ByteBuffer.wrap(((i) + "-" + RandomStringUtils.randomAlphabetic(12)).getBytes()))
+										.withPartitionKey(UUID.randomUUID().toString()));
+							}
+							count += batchSize;
+
+							PutRecordsResult result = client.putRecords(new PutRecordsRequest().withStreamName(streamName).withRecords(batch));
+
+							// the putRecords() operation may have failing records; to keep this test simple
+							// instead of retrying on failed records, we simply pass on a runtime exception
+							// and let this test fail
+							if (result.getFailedRecordCount() > 0) {
+								producerError.set(new RuntimeException("The producer has failed records in one of the put batch attempts."));
+								break;
+							}
+
+							if (count >= TOTAL_EVENT_COUNT) {
+								break;
+							}
+						} catch (Exception e) {
+							producerError.set(e);
+						}
+					}
+				}
+			};
+			Thread producerThread = new Thread(manualGenerate);
 			producerThread.start();
 
 			final AtomicReference<Throwable> consumerError = new AtomicReference<>();
 			Thread consumerThread = ExactlyOnceValidatingConsumerThread.create(
-				TOTAL_EVENT_COUNT, 200, 2, 500, 500,
+				TOTAL_EVENT_COUNT, 10000, 2, 500, 500,
 				accessKey, secretKey, region, streamName,
 				consumerError, flinkPort, flinkConfig);
 			consumerThread.start();
 
+			// reshard the Kinesis stream while the producer / and consumers are running
+			Runnable splitShard = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						// first, split shard in the middle of the hash range
+						Thread.sleep(5000);
+						LOG.info("Splitting shard ...");
+						client.splitShard(
+							streamName,
+							KinesisShardIdGenerator.generateFromShardOrder(0),
+							"170141183460469231731687303715884105727");
+
+						// wait until the split shard operation finishes updating ...
+						DescribeStreamResult status;
+						Random rand = new Random();
+						do {
+							status = null;
+							while (status == null) {
+								// retry until we get status
+								try {
+									status = client.describeStream(streamName);
+								} catch (LimitExceededException lee) {
+									LOG.warn("LimitExceededException while describing stream ... retrying ...");
+									Thread.sleep(rand.nextInt(1200));
+								}
+							}
+						} while (!status.getStreamDescription().getStreamStatus().equals("ACTIVE"));
+
+						// then merge again
+						Thread.sleep(7000);
+						LOG.info("Merging shards ...");
+						client.mergeShards(
+							streamName,
+							KinesisShardIdGenerator.generateFromShardOrder(1),
+							KinesisShardIdGenerator.generateFromShardOrder(2));
+					} catch (InterruptedException iex) {
+						//
+					}
+				}
+			};
+			Thread splitShardThread = new Thread(splitShard);
+			splitShardThread.start();
+
 			boolean deadlinePassed = false;
-			long deadline = System.currentTimeMillis() + (1000 * 2 * 60); // wait at most for two minutes
+			long deadline = System.currentTimeMillis() + (1000 * 5 * 60); // wait at most for five minutes
 			// wait until both producer and consumer finishes, or an unexpected error is thrown
 			while ((consumerThread.isAlive() || producerThread.isAlive()) &&
 				(producerError.get() == null && consumerError.get() == null)) {
@@ -124,7 +221,9 @@ public class ManualExactlyOnceTest {
 			if (producerError.get() != null) {
 				LOG.info("+++ TEST failed! +++");
 				throw new RuntimeException("Producer failed", producerError.get());
+
 			}
+
 			if (consumerError.get() != null) {
 				LOG.info("+++ TEST failed! +++");
 				throw new RuntimeException("Consumer failed", consumerError.get());
@@ -144,4 +243,5 @@ public class ManualExactlyOnceTest {
 			flink.stop();
 		}
 	}
+
 }
