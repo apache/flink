@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 import java.io.File;
 import java.io.FilenameFilter;
