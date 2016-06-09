@@ -810,8 +810,15 @@ public class ExecutionGraph implements Serializable {
 			JobStatus current = state;
 			if (current == JobStatus.FAILING || current.isTerminalState()) {
 				return;
-			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
+			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
+				synchronized (progressLock) {
+					postRunCleanup();
+					progressLock.notifyAll();
+
+					LOG.info("Job {} failed during restart.", getJobID());
+					return;
+				}
+			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
 				if (!verticesInCreationOrder.isEmpty()) {
@@ -839,8 +846,10 @@ public class ExecutionGraph implements Serializable {
 				if (current == JobStatus.CANCELED) {
 					LOG.info("Canceled job during restart. Aborting restart.");
 					return;
-				}
-				else if (current != JobStatus.RESTARTING) {
+				} else if (current == JobStatus.FAILED) {
+					LOG.info("Failed job during restart. Aborting restart.");
+					return;
+				} else if (current != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
 

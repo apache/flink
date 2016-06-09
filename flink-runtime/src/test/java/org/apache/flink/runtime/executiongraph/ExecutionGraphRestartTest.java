@@ -265,6 +265,65 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	@Test
+	public void testFailWhileRestarting() throws Exception {
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			NUM_TASKS);
+
+		scheduler.newInstanceAvailable(instance);
+
+		// Blocking program
+		ExecutionGraph executionGraph = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"TestJob",
+			new Configuration(),
+			ExecutionConfigTest.getSerializedConfig(),
+			AkkaUtils.getDefaultTimeout(),
+			// We want to manually control the restart and delay
+			new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
+
+		JobVertex jobVertex = new JobVertex("NoOpInvokable");
+		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		jobVertex.setParallelism(NUM_TASKS);
+
+		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
+
+		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, executionGraph.getState());
+
+		executionGraph.scheduleForExecution(scheduler);
+
+		assertEquals(JobStatus.RUNNING, executionGraph.getState());
+
+		// Kill the instance and wait for the job to restart
+		instance.markDead();
+
+		Deadline deadline = TestingUtils.TESTING_DURATION().fromNow();
+
+		while (deadline.hasTimeLeft() &&
+			executionGraph.getState() != JobStatus.RESTARTING) {
+
+			Thread.sleep(100);
+		}
+
+		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
+
+		// Canceling needs to abort the restart
+		executionGraph.fail(new Exception("Test exception"));
+
+		assertEquals(JobStatus.FAILED, executionGraph.getState());
+
+		// The restart has been aborted
+		executionGraph.restart();
+
+		assertEquals(JobStatus.FAILED, executionGraph.getState());
+	}
+
+	@Test
 	public void testCancelWhileFailing() throws Exception {
 		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 
