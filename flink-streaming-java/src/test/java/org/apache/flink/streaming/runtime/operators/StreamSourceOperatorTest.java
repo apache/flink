@@ -35,14 +35,22 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import org.apache.flink.streaming.runtime.tasks.TestTimeServiceProvider;
+import org.apache.flink.streaming.runtime.tasks.TimeServiceProvider;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.Assert.*;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +66,7 @@ public class StreamSourceOperatorTest {
 		
 		final List<StreamElement> output = new ArrayList<>();
 		
-		setupSourceOperator(operator);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, null);
 		operator.run(new Object(), new CollectorOutput<String>(output));
 		
 		assertEquals(1, output.size());
@@ -75,7 +83,7 @@ public class StreamSourceOperatorTest {
 				new StreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, null);
 		operator.cancel();
 
 		// run and exit
@@ -95,7 +103,7 @@ public class StreamSourceOperatorTest {
 				new StreamSource<>(new InfiniteSource<String>());
 
 		
-		setupSourceOperator(operator);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, null);
 		
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -128,7 +136,7 @@ public class StreamSourceOperatorTest {
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, null);
 		operator.stop();
 
 		// run and stop
@@ -147,7 +155,7 @@ public class StreamSourceOperatorTest {
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
 
-		setupSourceOperator(operator);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, null);
 
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -166,18 +174,61 @@ public class StreamSourceOperatorTest {
 		assertTrue(output.isEmpty());
 	}
 	
-	
+	@Test
+	public void testAutomaticWatermarkContext() throws Exception {
+
+		// regular stream source operator
+		final StoppableStreamSource<String, InfiniteSource<String>> operator =
+			new StoppableStreamSource<>(new InfiniteSource<String>());
+
+		long watermarkInterval = 10;
+		TestTimeServiceProvider timeProvider = new TestTimeServiceProvider();
+		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, timeProvider);
+
+		final List<StreamElement> output = new ArrayList<>();
+
+		StreamSource.AutomaticWatermarkContext<String> ctx =
+			new StreamSource.AutomaticWatermarkContext<>(
+				operator,
+				operator.getContainingTask().getCheckpointLock(),
+				new CollectorOutput<String>(output),
+				operator.getExecutionConfig().getAutoWatermarkInterval());
+
+		// periodically emit the watermarks
+		// even though we start from 1 the watermark are still
+		// going to be aligned with the watermark interval.
+
+		for (long i = 1; i < 100; i += watermarkInterval)  {
+			timeProvider.setCurrentTime(i);
+		}
+
+		assertTrue(output.size() == 9);
+
+		long nextWatermark = 0;
+		for (StreamElement el : output) {
+			nextWatermark += watermarkInterval;
+			Watermark wm = (Watermark) el;
+			assertTrue(wm.getTimestamp() == nextWatermark);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator) {
+	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+												TimeCharacteristic timeChar,
+												long watermarkInterval,
+												final TimeServiceProvider timeProvider) {
+
 		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setAutoWatermarkInterval(watermarkInterval);
+
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		
-		cfg.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		cfg.setTimeCharacteristic(timeChar);
 
 		Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
-		
+
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());
@@ -186,9 +237,44 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
 
-		operator.setup(mockTask, cfg, (Output< StreamRecord<T>>) mock(Output.class));
+		doAnswer(new Answer<ScheduledFuture>() {
+			@Override
+			public ScheduledFuture answer(InvocationOnMock invocation) throws Throwable {
+				final long execTime = (Long) invocation.getArguments()[0];
+				final Triggerable target = (Triggerable) invocation.getArguments()[1];
+
+				if (timeProvider == null) {
+					throw new RuntimeException("The time provider is null");
+				}
+
+				timeProvider.registerTimer(execTime, new Runnable() {
+
+					@Override
+					public void run() {
+						try {
+							target.trigger(execTime);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				});
+				return null;
+			}
+		}).when(mockTask).registerTimer(anyLong(), any(Triggerable.class));
+
+		doAnswer(new Answer<Long>() {
+			@Override
+			public Long answer(InvocationOnMock invocation) throws Throwable {
+				if (timeProvider == null) {
+					throw new RuntimeException("The time provider is null");
+				}
+				return timeProvider.getCurrentProcessingTime();
+			}
+		}).when(mockTask).getCurrentProcessingTime();
+
+		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}
-	
+
 	// ------------------------------------------------------------------------
 	
 	private static final class FiniteSource<T> implements SourceFunction<T>, StoppableFunction {
