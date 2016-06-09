@@ -24,6 +24,7 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 
 /**
  * Tests for the network utilities.
@@ -32,20 +33,11 @@ public class ConnectionUtilsTest {
 
 	@Test
 	public void testReturnLocalHostAddressUsingHeuristics() {
-		int unusedPort;
-		try {
-			unusedPort = org.apache.flink.util.NetUtils.getAvailablePort();
-		}
-		catch (Throwable t) {
-			// if this system cannot find an available port,
-			// skip this test
-			return;
-		}
-
-		try {
-			// create an unreachable target address
-			InetSocketAddress unreachable = new InetSocketAddress("localhost", unusedPort);
-
+		try (ServerSocket blocker = new ServerSocket(0, 1, InetAddress.getLocalHost())) {
+			// the "blocker" server socket simply does not accept connections
+			// this address is consequently "unreachable"
+			InetSocketAddress unreachable = new InetSocketAddress("localhost", blocker.getLocalPort());
+			
 			final long start = System.currentTimeMillis();
 			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
