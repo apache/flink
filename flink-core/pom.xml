@@ -47,12 +47,6 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
-		<dependency>
-			<groupId>io.dropwizard.metrics</groupId>
-			<artifactId>metrics-core</artifactId>
-			<version>${metrics.version}</version>
-		</dependency>
-
 		<!-- Avro is needed for the interoperability with Avro types for serialization -->
 		<dependency>
 			<groupId>org.apache.avro</groupId>

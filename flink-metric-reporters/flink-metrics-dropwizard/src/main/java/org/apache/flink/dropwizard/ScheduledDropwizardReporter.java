@@ -35,6 +35,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.SortedMap;
 
 /**
  * Base class for {@link org.apache.flink.metrics.reporter.MetricReporter} that wraps a
@@ -123,14 +124,16 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	@Override
 	public void report() {
-		synchronized (this) {
-			this.reporter.report(
-				this.registry.getGauges(),
-				this.registry.getCounters(),
-				this.registry.getHistograms(),
-				this.registry.getMeters(),
-				this.registry.getTimers());
-		}
+		// we do not need to lock here, because the dropwizard registry is
+		// internally a concurrent map
+		@SuppressWarnings("rawtypes")
+		final SortedMap<String, com.codahale.metrics.Gauge> gauges = registry.getGauges();
+		final SortedMap<String, com.codahale.metrics.Counter> counters = registry.getCounters();
+		final SortedMap<String, com.codahale.metrics.Histogram> histograms = registry.getHistograms();
+		final SortedMap<String, com.codahale.metrics.Meter> meters = registry.getMeters();
+		final SortedMap<String, com.codahale.metrics.Timer> timers = registry.getTimers();
+
+		this.reporter.report(gauges, counters, histograms, meters, timers);
 	}
 
 	public abstract ScheduledReporter getReporter(Configuration config);
