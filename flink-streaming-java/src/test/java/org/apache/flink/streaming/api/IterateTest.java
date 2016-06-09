@@ -17,11 +17,6 @@
 
 package org.apache.flink.streaming.api;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -29,7 +24,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -52,12 +46,24 @@ import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.ReceiveCheckNoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.MathUtils;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.junit.Assert.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "unused", "serial" })
 public class IterateTest extends StreamingMultipleProgramsTestBase {
+
+	private static final Logger LOG = LoggerFactory.getLogger(IterateTest.class);
 
 	private static boolean iterated[];
 
@@ -366,100 +372,135 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 	@SuppressWarnings("rawtypes")
 	@Test
 	public void testSimpleIteration() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		iterated = new boolean[DEFAULT_PARALLELISM];
+		int numRetries = 5;
+		int timeoutScale = 1;
 
-		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
-				.map(NoOpBoolMap).name("ParallelizeMap");
+		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
+			try {
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+				iterated = new boolean[DEFAULT_PARALLELISM];
 
-		IterativeStream<Boolean> iteration = source.iterate(3000);
+				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+						.map(NoOpBoolMap).name("ParallelizeMap");
 
-		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).map(NoOpBoolMap);
+				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
 
-		iteration.map(NoOpBoolMap).addSink(new ReceiveCheckNoOpSink());
+				DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).map(NoOpBoolMap);
 
-		iteration.closeWith(increment).addSink(new ReceiveCheckNoOpSink());
+				iteration.map(NoOpBoolMap).addSink(new ReceiveCheckNoOpSink());
 
-		env.execute();
+				iteration.closeWith(increment).addSink(new ReceiveCheckNoOpSink());
 
-		for (boolean iter : iterated) {
-			assertTrue(iter);
+				env.execute();
+
+				for (boolean iter : iterated) {
+					assertTrue(iter);
+				}
+
+				break; // success
+			} catch (Throwable t) {
+				LOG.info("Run " + (numRetry + 1) + "/" + numRetries + " failed", t);
+
+				if (numRetry >= numRetries - 1) {
+					throw t;
+				} else {
+					timeoutScale *= 2;
+				}
+			}
 		}
-
 	}
 
 	@Test
 	public void testCoIteration() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(2);
+		int numRetries = 5;
+		int timeoutScale = 1;
 
-		DataStream<String> otherSource = env.fromElements("1000", "2000")
-				.map(NoOpStrMap).name("ParallelizeMap");
+		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
+			try {
+				TestSink.collected = new ArrayList<>();
+
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+				env.setParallelism(2);
+
+				DataStream<String> otherSource = env.fromElements("1000", "2000")
+						.map(NoOpStrMap).name("ParallelizeMap");
 
 
-		ConnectedIterativeStreams<Integer, String> coIt = env.fromElements(0, 0)
-				.map(NoOpIntMap).name("ParallelizeMap")
-				.iterate(2000)
-				.withFeedbackType("String");
+				ConnectedIterativeStreams<Integer, String> coIt = env.fromElements(0, 0)
+						.map(NoOpIntMap).name("ParallelizeMap")
+						.iterate(2000 * timeoutScale)
+						.withFeedbackType("String");
 
-		try {
-			coIt.keyBy(1, 2);
-			fail();
-		} catch (InvalidProgramException e) {
-			// this is expected
+				try {
+					coIt.keyBy(1, 2);
+					fail();
+				} catch (InvalidProgramException e) {
+					// this is expected
+				}
+
+				DataStream<String> head = coIt
+						.flatMap(new RichCoFlatMapFunction<Integer, String, String>() {
+
+							private static final long serialVersionUID = 1L;
+							boolean seenFromSource = false;
+
+							@Override
+							public void flatMap1(Integer value, Collector<String> out) throws Exception {
+								out.collect(((Integer) (value + 1)).toString());
+							}
+
+							@Override
+							public void flatMap2(String value, Collector<String> out) throws Exception {
+								Integer intVal = Integer.valueOf(value);
+								if (intVal < 2) {
+									out.collect(((Integer) (intVal + 1)).toString());
+								}
+								if (intVal == 1000 || intVal == 2000) {
+									seenFromSource = true;
+								}
+							}
+
+							@Override
+							public void close() {
+								assertTrue(seenFromSource);
+							}
+						});
+
+				coIt.map(new CoMapFunction<Integer, String, String>() {
+
+					@Override
+					public String map1(Integer value) throws Exception {
+						return value.toString();
+					}
+
+					@Override
+					public String map2(String value) throws Exception {
+						return value;
+					}
+				}).addSink(new ReceiveCheckNoOpSink<String>());
+
+				coIt.closeWith(head.broadcast().union(otherSource));
+
+				head.addSink(new TestSink()).setParallelism(1);
+
+				assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
+
+				env.execute();
+
+				Collections.sort(TestSink.collected);
+				assertEquals(Arrays.asList("1", "1", "2", "2", "2", "2"), TestSink.collected);
+
+				break; // success
+			} catch (Throwable t) {
+				LOG.info("Run " + (numRetry + 1) + "/" + numRetries + " failed", t);
+
+				if (numRetry >= numRetries - 1) {
+					throw t;
+				} else {
+					timeoutScale *= 2;
+				}
+			}
 		}
-
-		DataStream<String> head = coIt
-				.flatMap(new RichCoFlatMapFunction<Integer, String, String>() {
-
-					private static final long serialVersionUID = 1L;
-					boolean seenFromSource = false;
-
-					@Override
-					public void flatMap1(Integer value, Collector<String> out) throws Exception {
-						out.collect(((Integer) (value + 1)).toString());
-					}
-
-					@Override
-					public void flatMap2(String value, Collector<String> out) throws Exception {
-						Integer intVal = Integer.valueOf(value);
-						if (intVal < 2) {
-							out.collect(((Integer) (intVal + 1)).toString());
-						}
-						if (intVal == 1000 || intVal == 2000) {
-							seenFromSource = true;
-						}
-					}
-
-					@Override
-					public void close() {
-						assertTrue(seenFromSource);
-					}
-				});
-
-		coIt.map(new CoMapFunction<Integer, String, String>() {
-
-			@Override
-			public String map1(Integer value) throws Exception {
-				return value.toString();
-			}
-
-			@Override
-			public String map2(String value) throws Exception {
-				return value;
-			}
-		}).addSink(new ReceiveCheckNoOpSink<String>());
-
-		coIt.closeWith(head.broadcast().union(otherSource));
-
-		head.addSink(new TestSink()).setParallelism(1);
-
-		assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
-
-		env.execute();
-
-		Collections.sort(TestSink.collected);
-		assertEquals(Arrays.asList("1", "1", "2", "2", "2", "2"), TestSink.collected);
 	}
 
 	/**
@@ -473,89 +514,123 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
      */
 	@Test
 	public void testGroupByFeedback() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM - 1);
+		int numRetries = 5;
+		int timeoutScale = 1;
 
-		KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
+		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
+			try {
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+				env.setParallelism(DEFAULT_PARALLELISM - 1);
 
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value % 3;
-			}
-		};
+				KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
 
-		DataStream<Integer> source = env.fromElements(1, 2, 3)
-				.map(NoOpIntMap).name("ParallelizeMap");
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value % 3;
+					}
+				};
 
-		IterativeStream<Integer> it = source.keyBy(key).iterate(3000);
+				DataStream<Integer> source = env.fromElements(1, 2, 3)
+						.map(NoOpIntMap).name("ParallelizeMap");
 
-		DataStream<Integer> head = it.flatMap(new RichFlatMapFunction<Integer, Integer>() {
+				IterativeStream<Integer> it = source.keyBy(key).iterate(3000 * timeoutScale);
 
-			int received = 0;
-			int key = -1;
+				DataStream<Integer> head = it.flatMap(new RichFlatMapFunction<Integer, Integer>() {
 
-			@Override
-			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
-				received++;
-				if (key == -1) {
-					key = MathUtils.murmurHash(value % 3) % 3;
+					int received = 0;
+					int key = -1;
+
+					@Override
+					public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+						received++;
+						if (key == -1) {
+							key = MathUtils.murmurHash(value % 3) % 3;
+						} else {
+							assertEquals(key, MathUtils.murmurHash(value % 3) % 3);
+						}
+						if (value > 0) {
+							out.collect(value - 1);
+						}
+					}
+
+					@Override
+					public void close() {
+						assertTrue(received > 1);
+					}
+				});
+
+				it.closeWith(head.keyBy(key).union(head.map(NoOpIntMap).keyBy(key))).addSink(new ReceiveCheckNoOpSink<Integer>());
+
+				env.execute();
+
+				break; // success
+			} catch (Throwable t) {
+				LOG.info("Run " + (numRetry + 1) + "/" + numRetries + " failed", t);
+
+				if (numRetry >= numRetries - 1) {
+					throw t;
 				} else {
-					assertEquals(key, MathUtils.murmurHash(value % 3) % 3);
-				}
-				if (value > 0) {
-					out.collect(value - 1);
+					timeoutScale *= 2;
 				}
 			}
-
-			@Override
-			public void close() {
-				assertTrue(received > 1);
-			}
-		});
-
-		it.closeWith(head.keyBy(key).union(head.map(NoOpIntMap).keyBy(key))).addSink(new ReceiveCheckNoOpSink<Integer>());
-
-		env.execute();
+		}
 	}
 
 	@SuppressWarnings("deprecation")
 	@Test
 	public void testWithCheckPointing() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		int numRetries = 5;
+		int timeoutScale = 1;
 
-		env.enableCheckpointing();
+		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
+			try {
+				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<Boolean> source = env .fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
-				.map(NoOpBoolMap).name("ParallelizeMap");
+				env.enableCheckpointing();
+
+				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+						.map(NoOpBoolMap).name("ParallelizeMap");
 
 
-		IterativeStream<Boolean> iteration = source.iterate(3000);
+				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
 
-		iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
+				iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 
-		try {
-			env.execute();
+				try {
+					env.execute();
 
-			// this statement should never be reached
-			fail();
-		} catch (UnsupportedOperationException e) {
-			// expected behaviour
+					// this statement should never be reached
+					fail();
+				} catch (UnsupportedOperationException e) {
+					// expected behaviour
+				}
+
+				// Test force checkpointing
+
+				try {
+					env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
+					env.execute();
+
+					// this statement should never be reached
+					fail();
+				} catch (UnsupportedOperationException e) {
+					// expected behaviour
+				}
+
+				env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
+				env.getStreamGraph().getJobGraph();
+
+				break; // success
+			} catch (Throwable t) {
+				LOG.info("Run " + (numRetry + 1) + "/" + numRetries + " failed", t);
+
+				if (numRetry >= numRetries - 1) {
+					throw t;
+				} else {
+					timeoutScale *= 2;
+				}
+			}
 		}
-
-		// Test force checkpointing
-
-		try {
-			env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
-			env.execute();
-
-			// this statement should never be reached
-			fail();
-		} catch (UnsupportedOperationException e) {
-			// expected behaviour
-		}
-
-		env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
-		env.getStreamGraph().getJobGraph();
 	}
 
 	public static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
