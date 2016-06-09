@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 
 import java.net.InetSocketAddress;
 
-import static org.apache.flink.client.CliFrontend.writeJobManagerAddressToConfig;
+import static org.apache.flink.client.CliFrontend.setJobManagerAddressInConfig;
 
 /**
  * The default CLI which is used for interaction with standalone clusters.
@@ -34,8 +34,14 @@ import static org.apache.flink.client.CliFrontend.writeJobManagerAddressToConfig
 public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 
 	@Override
-	public String getIdentifier() {
-		return "";
+	public boolean isActive(CommandLine commandLine, Configuration configuration) {
+		// always active because we can try to read a JobManager address from the config
+		return true;
+	}
+
+	@Override
+	public String getId() {
+		return null;
 	}
 
 	@Override
@@ -47,12 +53,14 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 	}
 
 	@Override
-	public StandaloneClusterClient retrieveCluster(CommandLine commandLine, Configuration config) throws Exception {
+	public StandaloneClusterClient retrieveCluster(CommandLine commandLine, Configuration config) {
+
 		if (commandLine.hasOption(CliFrontendParser.ADDRESS_OPTION.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(CliFrontendParser.ADDRESS_OPTION.getOpt());
 			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
-			writeJobManagerAddressToConfig(config, jobManagerAddress);
+			setJobManagerAddressInConfig(config, jobManagerAddress);
 		}
+
 		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
 		return descriptor.retrieve(null);
 	}
@@ -61,9 +69,9 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 	public StandaloneClusterClient createCluster(
 			String applicationName,
 			CommandLine commandLine,
-			Configuration config) throws Exception {
+			Configuration config) throws UnsupportedOperationException {
 
-		// We can't create a standalone cluster
-		return null;
+		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
+		return descriptor.deploy();
 	}
 }

@@ -24,15 +24,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.client.CliFrontend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 
 /**
@@ -42,16 +36,6 @@ import java.util.Map;
 public class CliFrontendParser {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontendParser.class);
-
-
-	/** command line interface of the YARN session, with a special initialization here
-	 *  to prefix all options with y/yarn. */
-	private static final Map<String, CustomCommandLine> customCommandLine = new HashMap<>(1);
-
-	static {
-		loadCustomCommandLine("org.apache.flink.client.cli.DefaultCLI");
-		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
-	}
 
 
 	static final Option HELP_OPTION = new Option("h", "help", false,
@@ -84,7 +68,6 @@ public class CliFrontendParser {
 
 	public static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
 			"Address of the JobManager (master) to which to connect. " +
-			"Specify " + getCliIdentifierString() + " as the JobManager to deploy/resume a cluster for the job. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
@@ -147,7 +130,7 @@ public class CliFrontendParser {
 		// backwards compatibility: ignore verbose flag (-v)
 		options.addOption(new Option("v", "verbose", false, "This option is deprecated."));
 		// add general options of all CLIs
-		for (CustomCommandLine customCLI : customCommandLine.values()) {
+		for (CustomCommandLine customCLI : CliFrontend.getCustomCommandLineList()) {
 			customCLI.addGeneralOptions(options);
 		}
 		return options;
@@ -370,12 +353,10 @@ public class CliFrontendParser {
 	 * @return Options with additions
 	 */
 	private static Options addCustomCliOptions(Options options, boolean runOptions) {
-		for (Map.Entry<String, CustomCommandLine> entry: customCommandLine.entrySet()) {
-			if (!entry.getKey().equals("")) {
-				entry.getValue().addGeneralOptions(options);
-				if (runOptions) {
-					entry.getValue().addRunOptions(options);
-				}
+		for (CustomCommandLine cli: CliFrontend.getCustomCommandLineList()) {
+			cli.addGeneralOptions(options);
+			if (runOptions) {
+				cli.addRunOptions(options);
 			}
 		}
 		return options;
@@ -388,13 +369,13 @@ public class CliFrontendParser {
 	 */
 	private static void printCustomCliOptions(HelpFormatter formatter, boolean runOptions) {
 		// prints options from all available command-line classes
-		for (Map.Entry<String, CustomCommandLine> entry: customCommandLine.entrySet()) {
-			if (!entry.getKey().equals("")) {
-				formatter.setSyntaxPrefix("  Additional arguments if -m " + entry.getKey() + " is set:");
+		for (CustomCommandLine cli: CliFrontend.getCustomCommandLineList()) {
+			if (cli.getId() != null) {
+				formatter.setSyntaxPrefix("  Options for " + cli.getId() + " mode:");
 				Options customOpts = new Options();
-				entry.getValue().addGeneralOptions(customOpts);
+				cli.addGeneralOptions(customOpts);
 				if (runOptions) {
-					entry.getValue().addRunOptions(customOpts);
+					cli.addRunOptions(customOpts);
 				}
 				formatter.printHelp(" ", customOpts);
 				System.out.println();
@@ -468,66 +449,6 @@ public class CliFrontendParser {
 		}
 		catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());
-		}
-	}
-
-	public static Map<String, CustomCommandLine> getAllCustomCLI() {
-		if (customCommandLine.isEmpty()) {
-			LOG.warn("No custom command-line classes were loaded.");
-		}
-		return Collections.unmodifiableMap(customCommandLine);
-	}
-
-	private static String getCliIdentifierString() {
-		StringBuilder builder = new StringBuilder();
-		boolean first = true;
-		for (String identifier : customCommandLine.keySet()) {
-			if (!first) {
-				builder.append(", ");
-			}
-			first = false;
-			builder.append("'").append(identifier).append("'");
-		}
-		return builder.toString();
-	}
-
-	/**
-	 * Gets the custom command-line for this identifier.
-	 * @param identifier The unique identifier for this command-line implementation.
-	 * @return CustomCommandLine
-	 */
-	public static CustomCommandLine getActiveCustomCommandLine(String identifier) {
-		CustomCommandLine cli = CliFrontendParser.getAllCustomCLI().get(identifier);
-		return cli != null ? cli : new DefaultCLI();
-	}
-
-	private static void loadCustomCommandLine(String className, Object... params) {
-
-		try {
-			Class<? extends CustomCommandLine> customCliClass =
-				Class.forName(className).asSubclass(CustomCommandLine.class);
-
-			// construct class types from the parameters
-			Class<?>[] types = new Class<?>[params.length];
-			for (int i = 0; i < params.length; i++) {
-				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
-				types[i] = params[i].getClass();
-			}
-
-			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
-			final CustomCommandLine cli = constructor.newInstance(params);
-
-			String cliIdentifier = Preconditions.checkNotNull(cli.getIdentifier());
-			CustomCommandLine existing = customCommandLine.put(cliIdentifier, cli);
-
-			if (existing != null) {
-				throw new IllegalStateException("Attempted to register " + cliIdentifier +
-					" but there is already a command-line with this identifier.");
-			}
-		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
-			| InvocationTargetException e) {
-			LOG.warn("Unable to locate custom CLI class {}. " +
-				"Flink is not compiled with support for this class.", className, e);
 		}
 	}
 

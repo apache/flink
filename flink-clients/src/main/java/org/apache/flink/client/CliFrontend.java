@@ -18,8 +18,7 @@
 
 package org.apache.flink.client;
 
-import akka.actor.ActorSystem;
-
+import org.apache.commons.cli.CommandLine;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -30,6 +29,7 @@ import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -55,7 +55,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
@@ -66,13 +65,12 @@ import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -80,6 +78,8 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.text.SimpleDateFormat;
@@ -88,6 +88,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -101,9 +102,11 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepo
  */
 public class CliFrontend {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
+
 	// actions
-	public static final String ACTION_RUN = "run";
-	public static final String ACTION_INFO = "info";
+	private static final String ACTION_RUN = "run";
+	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
 	private static final String ACTION_STOP = "stop";
@@ -115,18 +118,23 @@ public class CliFrontend {
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
 	// --------------------------------------------------------------------------------------------
+
+	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
+
+	static {
+		/** command line interface of the YARN session, with a special initialization here
+		 *  to prefix all options with y/yarn. */
+		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
+		customCommandLine.add(new DefaultCLI());
+	}
+
 	// --------------------------------------------------------------------------------------------
 
-	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
 
 
 	private final Configuration config;
 
 	private final FiniteDuration clientTimeout;
-
-	private final FiniteDuration lookupTimeout;
-
-	private ActorSystem actorSystem;
 
 	/**
 	 *
@@ -145,6 +153,8 @@ public class CliFrontend {
 		// load the configuration
 		LOG.info("Trying to load configuration file");
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+		System.setProperty("FLINK_CONF_DIR", configDirectory.getAbsolutePath());
+
 		this.config = GlobalConfiguration.getConfiguration();
 
 		try {
@@ -155,7 +165,6 @@ public class CliFrontend {
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
-		this.lookupTimeout = AkkaUtils.getLookupTimeout(config);
 	}
 
 
@@ -797,20 +806,20 @@ public class CliFrontend {
 	 *
 	 * @param options Command line options
 	 */
-	protected void updateConfig(CommandLineOptions options) {
-		if(options.getJobManagerAddress() != null) {
-			CustomCommandLine customCLI = CliFrontendParser.getActiveCustomCommandLine(options.getJobManagerAddress());
-			try {
-				ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
-				LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
-			} catch (Exception e) {
-				LOG.error("Couldn't retrieve {} cluster.", customCLI.getIdentifier(), e);
-			}
+	protected ClusterClient retrieveClient(CommandLineOptions options) {
+		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
+		try {
+			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
+			LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
+			return client;
+		} catch (Exception e) {
+			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
+			throw new IllegalConfigurationException("Couldn't retrieve client for cluster", e);
 		}
 	}
 
 	/**
-	 * Retrieves the {@link ActorGateway} for the JobManager. The JobManager address is retrieved
+	 * Retrieves the {@link ActorGateway} for the JobManager. The ClusterClient is retrieved
 	 * from the provided {@link CommandLineOptions}.
 	 *
 	 * @param options CommandLineOptions specifying the JobManager URL
@@ -818,36 +827,12 @@ public class CliFrontend {
 	 * @throws Exception
 	 */
 	protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
-		// overwrite config values with given command line options
-		updateConfig(options);
-
-		// start an actor system if needed
-		if (this.actorSystem == null) {
-			LOG.info("Starting actor system to communicate with JobManager");
-			try {
-				scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
-				this.actorSystem = AkkaUtils.createActorSystem(
-						config,
-						new Some<>(systemEndpoint));
-			}
-			catch (Exception e) {
-				throw new IOException("Could not start actor system to communicate with JobManager", e);
-			}
-
-			LOG.info("Actor system successfully started");
-		}
-
-		LOG.info("Trying to lookup the JobManager gateway");
-		// Retrieve the ActorGateway from the LeaderRetrievalService
-		LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-
-		return LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, lookupTimeout);
+		return retrieveClient(options).getJobManagerGateway();
 	}
 
 	/**
-	 * Retrieves a {@link ClusterClient} object from the given command line options and other parameters.
-	 *
-	 * @param options Command line options which contain JobManager address
+	 * Creates a {@link ClusterClient} object from the given command line options and other parameters.
+	 * @param options Command line options
 	 * @param programName Program name
 	 * @throws Exception
 	 */
@@ -856,30 +841,27 @@ public class CliFrontend {
 			String programName) throws Exception {
 
 		// Get the custom command-line (e.g. Standalone/Yarn/Mesos)
-		CustomCommandLine<?> activeCommandLine =
-			CliFrontendParser.getActiveCustomCommandLine(options.getJobManagerAddress());
+		CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
 
-		ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
-
-		if (client != null) {
+		ClusterClient client;
+		try {
+			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
 			logAndSysout("Cluster retrieved");
-		} else {
-			String applicationName = "Flink Application: " + programName;
-			client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
-			if (client != null) {
+		} catch (UnsupportedOperationException e) {
+			try {
+				String applicationName = "Flink Application: " + programName;
+				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
 				logAndSysout("Cluster started");
+			} catch (UnsupportedOperationException e2) {
+				throw new IllegalConfigurationException(
+					"The JobManager address is neither provided at the command-line, " +
+						"nor configured in flink-conf.yaml.");
 			}
 		}
 
-		if (client != null) {
-			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
-			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
-			return client;
-		} else {
-			throw new IllegalConfigurationException(
-				"The JobManager address is neither provided at the command-line, " +
-					"nor configured in flink-conf.yaml.");
-		}
+		logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
+		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		return client;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -893,7 +875,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private int handleArgException(Exception e) {
-		LOG.error("Invalid command line arguments." + (e.getMessage() == null ? "" : e.getMessage()));
+		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
 
 		System.out.println(e.getMessage());
 		System.out.println();
@@ -1015,14 +997,6 @@ public class CliFrontend {
 		}
 	}
 
-	public void shutdown() {
-		ActorSystem sys = this.actorSystem;
-		if (sys != null) {
-			this.actorSystem = null;
-			sys.shutdown();
-		}
-	}
-
 	/**
 	 * Submits the job based on the arguments
 	 */
@@ -1046,7 +1020,8 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String location = System.getenv(ENV_CONFIG_DIRECTORY);
+		String envLocation = System.getenv(ENV_CONFIG_DIRECTORY);
+		String location = envLocation != null ? envLocation : System.getProperty(ENV_CONFIG_DIRECTORY);
 
 		if (location != null) {
 			if (new File(location).exists()) {
@@ -1078,9 +1053,65 @@ public class CliFrontend {
 	 * @param address Address to write to the configuration
 	 * @param config The config to write to
 	 */
-	public static void writeJobManagerAddressToConfig(Configuration config, InetSocketAddress address) {
+	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Custom command-line
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the custom command-line for the arguments.
+	 * @param commandLine The input to the command-line.
+	 * @return custom command-line which is active (may only be one at a time)
+	 */
+	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+		for (CustomCommandLine cli : customCommandLine) {
+			if (cli.isActive(commandLine, config)) {
+				return cli;
+			}
+		}
+		throw new IllegalStateException("No command-line ran.");
+	}
+
+	/**
+	 * Retrieves the loaded custom command-lines.
+	 * @return An unmodifiyable list of loaded custom command-lines.
+	 */
+	public static List<CustomCommandLine> getCustomCommandLineList() {
+		return Collections.unmodifiableList(customCommandLine);
+	}
+
+	/**
+	 * Loads a class from the classpath that implements the CustomCommandLine interface.
+	 * @param className The fully-qualified class name to load.
+	 * @param params The constructor parameters
+	 */
+	private static void loadCustomCommandLine(String className, Object... params) {
+
+		try {
+			Class<? extends CustomCommandLine> customCliClass =
+				Class.forName(className).asSubclass(CustomCommandLine.class);
+
+			// construct class types from the parameters
+			Class<?>[] types = new Class<?>[params.length];
+			for (int i = 0; i < params.length; i++) {
+				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
+				types[i] = params[i].getClass();
+			}
+
+			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
+			final CustomCommandLine cli = constructor.newInstance(params);
+
+			customCommandLine.add(cli);
+
+		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
+			| InvocationTargetException e) {
+			LOG.warn("Unable to locate custom CLI class {}. " +
+				"Flink is not compiled with support for this class.", className, e);
+		}
 	}
 
 }

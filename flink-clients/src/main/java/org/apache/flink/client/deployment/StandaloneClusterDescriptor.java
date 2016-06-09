@@ -41,12 +41,16 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public StandaloneClusterClient retrieve(String applicationID) throws Exception {
-		return new StandaloneClusterClient(config);
+	public StandaloneClusterClient retrieve(String applicationID) {
+		try {
+			return new StandaloneClusterClient(config);
+		} catch (Exception e) {
+			throw new RuntimeException("Couldn't retrieve standalone cluster", e);
+		}
 	}
 
 	@Override
-	public StandaloneClusterClient deploy() throws Exception {
-		return null;
+	public StandaloneClusterClient deploy() {
+		throw new UnsupportedOperationException("Can't deploy a standalone cluster.");
 	}
 }

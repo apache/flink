@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -55,6 +56,7 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,9 +78,6 @@ public class YarnClusterClient extends ClusterClient {
 	private final Configuration hadoopConfig;
 	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
 	private final Path sessionFilesDir;
-
-	/** The leader retrieval service for connecting to the cluster and finding the active leader. */
-	private final LeaderRetrievalService leaderRetrievalService;
 
 	//---------- Class internal fields -------------------
 
@@ -127,15 +126,12 @@ public class YarnClusterClient extends ClusterClient {
 		this.trackingURL = appReport.getTrackingUrl();
 		this.perJobCluster = perJobCluster;
 
+		/* The leader retrieval service for connecting to the cluster and finding the active leader. */
+		LeaderRetrievalService leaderRetrievalService;
 		try {
 			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
 		} catch (Exception e) {
 			throw new IOException("Could not create the leader retrieval service.", e);
-		}
-
-
-		if (isConnected) {
-			throw new IllegalStateException("Already connected to the cluster.");
 		}
 
 		// start application client
@@ -186,28 +182,31 @@ public class YarnClusterClient extends ClusterClient {
 
 		isConnected = true;
 
-		logAndSysout("Waiting until all TaskManagers have connected");
+		if (perJobCluster) {
 
-		while(true) {
-			GetClusterStatusResponse status = getClusterStatus();
-			if (status != null) {
-				if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
-					logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-						+ clusterDescriptor.getTaskManagerCount() + ")");
+			logAndSysout("Waiting until all TaskManagers have connected");
+
+			while (true) {
+				GetClusterStatusResponse status = getClusterStatus();
+				if (status != null) {
+					if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
+						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
+							+ clusterDescriptor.getTaskManagerCount() + ")");
+					} else {
+						logAndSysout("All TaskManagers are connected");
+						break;
+					}
 				} else {
-					logAndSysout("All TaskManagers are connected");
-					break;
+					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
 				}
-			} else {
-				logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
-			}
 
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				LOG.error("Interrupted while waiting for TaskManagers");
-				System.err.println("Thread is interrupted");
-				throw new IOException("Interrupted while waiting for TaskManagers", e);
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					LOG.error("Interrupted while waiting for TaskManagers");
+					System.err.println("Thread is interrupted");
+					throw new IOException("Interrupted while waiting for TaskManagers", e);
+				}
 			}
 		}
 	}
@@ -483,6 +482,19 @@ public class YarnClusterClient extends ClusterClient {
 
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
+		}
+
+		try {
+			File propertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(flinkConfig);
+			if (propertiesFile.isFile()) {
+				if (propertiesFile.delete()) {
+					LOG.info("Deleted Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
+				} else {
+					LOG.warn("Couldn't delete Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Exception while deleting the JobManager address file", e);
 		}
 
 		if (sessionFilesDir != null) {

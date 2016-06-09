@@ -50,8 +50,8 @@ public class FlinkYarnSessionCliTest {
 		fakeConf.createNewFile();
 		map.put("FLINK_CONF_DIR", tmpFolder.getAbsolutePath());
 		TestBaseUtils.setEnv(map);
-		Options options = new Options();
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", false);
+		Options options = new Options();
 		cli.addGeneralOptions(options);
 		cli.addRunOptions(options);
 
@@ -64,7 +64,7 @@ public class FlinkYarnSessionCliTest {
 			Assert.fail("Parsing failed with " + e.getMessage());
 		}
 
-		YarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
+		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
 
 		Assert.assertNotNull(flinkYarnDescriptor);
 

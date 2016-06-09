@@ -246,10 +246,11 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val customCLI = CliFrontendParser.getAllCustomCLI.get("yarn-cluster")
 
     val options = CliFrontendParser.parseRunCommand(args.toArray)
-    val config = GlobalConfiguration.getConfiguration
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
     val cluster = customCLI.createCluster("Flink Scala Shell", options.getCommandLine, config)
 
@@ -261,16 +262,17 @@ object FlinkShell {
 
   def fetchDeployedYarnClusterInfo() = {
 
-    val customCLI = CliFrontendParser.getAllCustomCLI.get("yarn-cluster")
 
     val args = ArrayBuffer[String](
       "-m", "yarn-cluster"
     )
 
     val options = CliFrontendParser.parseRunCommand(args.toArray)
-    val globalConfig = GlobalConfiguration.getConfiguration
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.retrieveCluster(options.getCommandLine, globalConfig)
+    val cluster = customCLI.retrieveCluster(options.getCommandLine, config)
 
     if (cluster == null) {
       throw new RuntimeException("Yarn Cluster could not be retrieved.")
