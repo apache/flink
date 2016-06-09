@@ -141,10 +141,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		channel.queueDeclare(queueName, true, false, false, null);
 	}
 
-	/**
-	 * Initializes the connection to RMQ.
-	 */
-	private void initializeConnection() throws Exception {
+	@Override
+	public void open(Configuration config) throws Exception {
+		super.open(config);
 		ConnectionFactory factory = setupConnectionFactory();
 		try {
 			connection = factory.newConnection();
@@ -154,7 +153,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 			RuntimeContext runtimeContext = getRuntimeContext();
 			if (runtimeContext instanceof StreamingRuntimeContext
-				&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
+					&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
 				autoAck = false;
 				// enables transaction mode
 				channel.txSelect();
@@ -167,14 +166,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
-				+ rmqConnectionConfig.getHost(), e);
+					+ rmqConnectionConfig.getHost(), e);
 		}
-	}
-
-	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
-		initializeConnection();
 		running = true;
 	}
 

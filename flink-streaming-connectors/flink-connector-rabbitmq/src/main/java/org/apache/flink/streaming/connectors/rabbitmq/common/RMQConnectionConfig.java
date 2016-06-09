@@ -73,7 +73,7 @@ public class RMQConnectionConfig implements Serializable {
 	* @param requestedFrameMax requested maximum frame size
 	* @param requestedHeartbeat requested heartbeat interval
 	* @throws NullPointerException if host or virtual host or username or password is null
-    */
+	*/
 	private RMQConnectionConfig(String host, Integer port, String virtualHost, String username, String password,
 								Integer networkRecoveryInterval, Boolean automaticRecovery,
 								Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
@@ -162,7 +162,7 @@ public class RMQConnectionConfig implements Serializable {
 	/**
 	 * Retrieve the URI.
 	 * @return the connection URI when connecting to the broker
-     */
+	 */
 	public String getUri() {
 		return uri;
 	}
@@ -227,15 +227,15 @@ public class RMQConnectionConfig implements Serializable {
 	 *
 	 * @return Connection Factory for RMQ
 	 * @throws URISyntaxException, NoSuchAlgorithmException, KeyManagementException if Malformed URI has been passed
-     */
+	 */
 	public ConnectionFactory getConnectionFactory() throws URISyntaxException,
 		NoSuchAlgorithmException, KeyManagementException {
 		ConnectionFactory factory = new ConnectionFactory();
 		if (this.uri != null && !this.uri.isEmpty()){
 			try {
-				factory.setUri(getUri());
-			}catch (URISyntaxException | NoSuchAlgorithmException | KeyManagementException e){
-				LOG.error("Failed to parse uri {}", e.getMessage());
+				factory.setUri(this.uri);
+			} catch (URISyntaxException | NoSuchAlgorithmException | KeyManagementException e) {
+				LOG.error("Failed to parse uri", e);
 				throw e;
 			}
 		} else {
@@ -432,7 +432,7 @@ public class RMQConnectionConfig implements Serializable {
 		 * else URI will be used to initialize the client connection
 		 * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, Boolean, Boolean, Integer, Integer, Integer, Integer)}
 		 * @return RMQConnectionConfig
-         */
+		 */
 		public RMQConnectionConfig build(){
 			if(this.uri != null) {
 				return new RMQConnectionConfig(this.uri, this.networkRecoveryInterval,

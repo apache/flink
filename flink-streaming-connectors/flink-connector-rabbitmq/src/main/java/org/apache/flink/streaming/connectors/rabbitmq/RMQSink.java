@@ -30,6 +30,10 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
+/**
+ * A Sink for publishing data into RabbitMQ
+ * @param <IN>
+ */
 public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
@@ -40,6 +44,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private transient Connection connection;
 	private transient Channel channel;
 	private SerializationSchema<IN> schema;
+	private boolean logFailuresOnly = false;
 
 	/**
 	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
@@ -50,6 +55,31 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.schema = schema;
+	}
+
+	/**
+	 * Defines whether the producer should fail on errors, or only log them.
+	 * If this is set to true, then exceptions will be only logged, if set to false,
+	 * exceptions will be eventually thrown and cause the streaming program to
+	 * fail (and enter recovery).
+	 *
+	 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
+	 */
+	public void setLogFailuresOnly(boolean logFailuresOnly) {
+		this.logFailuresOnly = logFailuresOnly;
+	}
+
+
+	@Override
+	public void open(Configuration config) throws Exception {
+		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
+		try {
+			connection = factory.newConnection();
+			channel = connection.createChannel();
+			channel.queueDeclare(queueName, false, false, false, null);
+		} catch (IOException e) {
+			throw new RuntimeException("Error while creating the channel", e);
+		}
 	}
 
 	/**
@@ -64,45 +94,37 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			byte[] msg = schema.serialize(value);
 
 			channel.basicPublish("", queueName, null, msg);
-
 		} catch (IOException e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost());
+			if (logFailuresOnly) {
+				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost(), e);
+			} else {
+				throw new RuntimeException("Cannot send RMQ message " + queueName +" at " + rmqConnectionConfig.getHost(), e);
 			}
 		}
 
 	}
 
-	/**
-	 * Closes the connection.
-	 */
-	private void closeChannel() {
-		try {
-			channel.close();
-			connection.close();
-		} catch (IOException e) {
-			throw new RuntimeException("Error while closing RMQ connection with " + queueName
-				+ " at " + rmqConnectionConfig.getHost(), e);
-		}
-
-	}
-
-	@Override
-	public void open(Configuration config) throws Exception {
-		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
-		try {
-			connection = factory.newConnection();
-			channel = connection.createChannel();
-			channel.queueDeclare(queueName, false, false, false, null);
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 	@Override
 	public void close() {
-		closeChannel();
+		IOException t = null;
+		try {
+			channel.close();
+		} catch (IOException e) {
+			t = e;
+		}
+
+		try {
+			connection.close();
+		} catch (IOException e) {
+			if(t != null) {
+				LOG.warn("Both channel and connection closing failed. Logging channel exception and failing with connection exception", t);
+			}
+			t = e;
+		}
+		if(t != null) {
+			throw new RuntimeException("Error while closing RMQ connection with " + queueName
+					+ " at " + rmqConnectionConfig.getHost(), t);
+		}
 	}
 
 }
