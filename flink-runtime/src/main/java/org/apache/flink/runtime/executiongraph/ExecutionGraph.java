@@ -810,8 +810,15 @@ public class ExecutionGraph implements Serializable {
 			JobStatus current = state;
 			if (current == JobStatus.FAILING || current.isTerminalState()) {
 				return;
-			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
+			} else if (current == JobStatus.RESTARTING && transitionState(current, JobStatus.FAILED, t)) {
+				synchronized (progressLock) {
+					postRunCleanup();
+					progressLock.notifyAll();
+
+					LOG.info("Job {} failed during restart.", getJobID());
+					return;
+				}
+			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
 
 				if (!verticesInCreationOrder.isEmpty()) {
