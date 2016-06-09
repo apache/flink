@@ -36,9 +36,6 @@ public class NoRestartStrategy implements RestartStrategy {
 		throw new RuntimeException("NoRestartStrategy does not support restart.");
 	}
 
-	@Override
-	public void disable() {}
-
 	/**
 	 * Creates a NoRestartStrategy instance.
 	 *

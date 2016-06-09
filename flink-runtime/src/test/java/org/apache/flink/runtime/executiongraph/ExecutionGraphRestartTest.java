@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import akka.dispatch.Futures;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfigTest;
 import org.apache.flink.api.common.JobID;
@@ -40,10 +41,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.impl.Promise;
 
 import java.util.Iterator;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -665,6 +670,122 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		execution.cancelingComplete();
 		assertEquals(JobStatus.RESTARTING, eg.getState());
+	}
+
+	/**
+	 * Tests that a suspend call while restarting a job, will abort the restarting.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testSuspendWhileRestarting() throws Exception {
+		FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
+		Deadline deadline = timeout.fromNow();
+
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+			new SimpleActorGateway(TestingUtils.directExecutionContext()),
+			NUM_TASKS);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		scheduler.newInstanceAvailable(instance);
+
+		JobVertex sender = new JobVertex("Task");
+		sender.setInvokableClass(Tasks.NoOpInvokable.class);
+		sender.setParallelism(NUM_TASKS);
+
+		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+
+		ControllableRestartStrategy controllableRestartStrategy = new ControllableRestartStrategy(timeout);
+
+		ExecutionGraph eg = new ExecutionGraph(
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"Test job",
+			new Configuration(),
+			ExecutionConfigTest.getSerializedConfig(),
+			AkkaUtils.getDefaultTimeout(),
+			controllableRestartStrategy);
+
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, eg.getState());
+
+		eg.scheduleForExecution(scheduler);
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		instance.markDead();
+
+		Await.ready(controllableRestartStrategy.getReachedCanRestart(), deadline.timeLeft());
+
+		assertEquals(JobStatus.RESTARTING, eg.getState());
+
+		eg.suspend(new Exception("Test exception"));
+
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
+
+		controllableRestartStrategy.unlockRestart();
+
+		Await.ready(controllableRestartStrategy.getRestartDone(), deadline.timeLeft());
+
+		assertEquals(JobStatus.SUSPENDED, eg.getState());
+	}
+
+	private static class ControllableRestartStrategy implements RestartStrategy {
+
+		private Promise<Boolean> reachedCanRestart = new Promise.DefaultPromise<>();
+		private Promise<Boolean> doRestart = new Promise.DefaultPromise<>();
+		private Promise<Boolean> restartDone = new Promise.DefaultPromise<>();
+
+		private volatile Exception exception = null;
+
+		private FiniteDuration timeout;
+
+		public ControllableRestartStrategy(FiniteDuration timeout) {
+			this.timeout = timeout;
+		}
+
+		public void unlockRestart() {
+			doRestart.success(true);
+		}
+
+		public Exception getException() {
+			return exception;
+		}
+
+		public Future<Boolean> getReachedCanRestart() {
+			return reachedCanRestart.future();
+		}
+
+		public Future<Boolean> getRestartDone() {
+			return restartDone.future();
+		}
+
+		@Override
+		public boolean canRestart() {
+			reachedCanRestart.success(true);
+			return true;
+		}
+
+		@Override
+		public void restart(final ExecutionGraph executionGraph) {
+			Futures.future(new Callable<Object>() {
+				@Override
+				public Object call() throws Exception {
+					try {
+
+						Await.ready(doRestart.future(), timeout);
+						executionGraph.restart();
+					} catch (Exception e) {
+						exception = e;
+					}
+
+					restartDone.success(true);
+
+					return null;
+				}
+			}, TestingUtils.defaultExecutionContext());
+		}
 	}
 
 	private static void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws InterruptedException {

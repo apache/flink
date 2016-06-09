@@ -39,7 +39,6 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	private final Configuration userConfiguration;
 	private final boolean useSingleActorSystem;
-	private final RestartStrategy restartStrategy;
 
 	public List<TestingLeaderElectionService> leaderElectionServices;
 	public List<TestingLeaderRetrievalService> leaderRetrievalServices;
@@ -49,8 +48,7 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	public LeaderElectionRetrievalTestingCluster(
 			Configuration userConfiguration,
 			boolean singleActorSystem,
-			boolean synchronousDispatcher,
-			RestartStrategy restartStrategy) {
+			boolean synchronousDispatcher) {
 		super(userConfiguration, singleActorSystem, synchronousDispatcher);
 
 		this.userConfiguration = userConfiguration;
@@ -58,8 +56,6 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 		leaderElectionServices = new ArrayList<TestingLeaderElectionService>();
 		leaderRetrievalServices = new ArrayList<TestingLeaderRetrievalService>();
-
-		this.restartStrategy = restartStrategy;
 	}
 
 	@Override
@@ -93,15 +89,6 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 		return this.configuration().getInteger(
 				ConfigConstants.LOCAL_NUMBER_JOB_MANAGER,
 				ConfigConstants.DEFAULT_LOCAL_NUMBER_JOB_MANAGER);
-	}
-
-	@Override
-	public RestartStrategy getRestartStrategy(RestartStrategy other) {
-		if (this.restartStrategy != null) {
-			return this.restartStrategy;
-		} else {
-			return other;
-		}
 	}
 
 	public void grantLeadership(int index, UUID leaderSessionID) {

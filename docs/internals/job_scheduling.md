@@ -74,7 +74,28 @@ Besides the vertices, the ExecutionGraph also contains the {% gh_link /flink-run
 <img src="fig/job_and_execution_graph.svg" alt="JobGraph and ExecutionGraph" height="400px" style="text-align: center;"/>
 </div>
 
-During its execution, each parallel task goes through multiple stages, from *created* to *finished* or *failed*. The diagram below illustrates the 
+Each ExecutionGraph has a job status associated with it.
+This job status indicates the current state of the job execution.
+
+A Flink job is first in the *created* state, then switches to *running* and upon completion of all work it switches to *finished*.
+In case of failures, a job switches first to *failing* where it cancels all running tasks.
+If all job vertices have reached a final state and the job is not restartable, then the job transitions to *failed*.
+If the job can be restarted, then it will enter the *restarting* state.
+Once the job has been completely restarted, it will reach the *created* state.
+
+In case that the user cancels the job, it will go into the *cancelling* state.
+This also entails the cancellation of all currently running tasks.
+Once all running tasks have reached a final state, the job transitions to the state *cancelled*.
+
+Unlike the states *finished*, *canceled* and *failed* which denote a globally terminal state and, thus, trigger the clean up of the job, the *suspended* state is only locally terminal.
+Locally terminal means that the execution of the job has been terminated on the respective JobManager but another JobManager of the Flink cluster can retrieve the job from the persistent HA store and restart it.
+Consequently, a job which reaches the *suspended* state won't be completely cleaned up.
+
+<div style="text-align: center;">
+<img src="fig/job_status.svg" alt="States and Transitions of Flink job" height="500px" style="text-align: center;"/>
+</div>
+
+During the execution of the ExecutionGraph, each parallel task goes through multiple stages, from *created* to *finished* or *failed*. The diagram below illustrates the 
 states and possible transitions between them. A task may be executed multiple times (for example in the course of failure recovery).
 For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/Execution.java "Execution" %}. Each ExecutionVertex has a current Execution, and prior Executions.
 

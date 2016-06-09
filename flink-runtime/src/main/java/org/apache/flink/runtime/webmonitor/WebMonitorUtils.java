@@ -168,7 +168,7 @@ public final class WebMonitorUtils {
 		JobStatus status = job.getState();
 
 		long started = job.getStatusTimestamp(JobStatus.CREATED);
-		long finished = status.isTerminalState() ? job.getStatusTimestamp(status) : -1L;
+		long finished = status.isGloballyTerminalState() ? job.getStatusTimestamp(status) : -1L;
 
 		int[] countsPerStatus = new int[ExecutionState.values().length];
 		long lastChanged = 0;

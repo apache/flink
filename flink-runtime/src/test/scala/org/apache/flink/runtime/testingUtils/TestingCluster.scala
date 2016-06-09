@@ -186,10 +186,6 @@ class TestingCluster(
     None
   }
 
-  def getRestartStrategy(restartStrategy: RestartStrategy) = {
-    restartStrategy
-  }
-
   @throws(classOf[TimeoutException])
   @throws(classOf[InterruptedException])
   def waitForTaskManagersToBeAlive(): Unit = {

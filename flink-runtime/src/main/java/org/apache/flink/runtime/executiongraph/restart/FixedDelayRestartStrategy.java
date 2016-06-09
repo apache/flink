@@ -41,7 +41,6 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	private final int maxNumberRestartAttempts;
 	private final long delayBetweenRestartAttempts;
 	private int currentRestartAttempt;
-	private boolean disabled = false;
 
 	public FixedDelayRestartStrategy(
 		int maxNumberRestartAttempts,
@@ -61,7 +60,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 
 	@Override
 	public boolean canRestart() {
-		return !disabled && currentRestartAttempt < maxNumberRestartAttempts;
+		return currentRestartAttempt < maxNumberRestartAttempts;
 	}
 
 	@Override
@@ -82,11 +81,6 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 				return null;
 			}
 		}, executionGraph.getExecutionContext());
-	}
-
-	@Override
-	public void disable() {
-		disabled = true;
 	}
 
 	/**

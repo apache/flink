@@ -201,7 +201,7 @@ public class TaskCancelTest {
 				if (status.status() == JobStatus.RUNNING) {
 					return;
 				}
-				else if (status.status().isTerminalState()) {
+				else if (status.status().isGloballyTerminalState()) {
 					throw new Exception("JobStatus changed to " + status.status()
 							+ " while waiting for job to start running.");
 				}

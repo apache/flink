@@ -25,7 +25,6 @@ import akka.actor.UntypedActor;
 import akka.testkit.TestActorRef;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
@@ -119,10 +119,10 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	/**
-	 * Tests that the recovery state is cleaned up after a JobManager stops.
+	 * Tests that the HA job is not cleaned up when the jobmanager is stopped.
 	 */
 	@Test
-	public void testJobManagerCleanUp() throws Exception {
+	public void testJobPersistencyWhenJobManagerShutdown() throws Exception {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
 
@@ -153,8 +153,9 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			flink.shutdown();
 		}
 
-		// Verify that everything is clean
-		verifyCleanRecoveryState(config);
+		// verify that the persisted job data has not been removed from ZooKeeper when the JM has
+		// been shutdown
+		verifyRecoveryState(config);
 	}
 
 	/**
@@ -225,6 +226,14 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			if (!success) {
 				fail("Non-leading JM was still holding reference to the job graph.");
 			}
+
+			Future<Object> jobRemoved = leadingJobManager.ask(
+				new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
+				deadline.timeLeft());
+
+			leadingJobManager.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
+
+			Await.ready(jobRemoved, deadline.timeLeft());
 		}
 		finally {
 			flink.shutdown();
@@ -479,6 +488,38 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			// Is everything clean again?
 			fail("ZooKeeper path '" + currentJobsPath + "' is not clean: " +
 					ZooKeeper.getClient().getChildren().forPath(currentJobsPath));
+		}
+	}
+
+	/**
+	 * Fails the test if the recovery state (file state backend and ZooKeeper) has been cleaned.
+	 */
+	private static void verifyRecoveryState(Configuration config) throws Exception {
+		// File state backend empty
+		Collection<File> stateHandles = FileUtils.listFiles(
+			FileStateBackendBasePath, TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE);
+
+		if (stateHandles.isEmpty()) {
+			fail("File state backend has been cleaned: " + stateHandles);
+		}
+
+		// ZooKeeper
+		String currentJobsPath = config.getString(
+			ConfigConstants.ZOOKEEPER_JOBGRAPHS_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
+
+		Stat stat = ZooKeeper.getClient().checkExists().forPath(currentJobsPath);
+
+		if (stat.getCversion() == 0) {
+			// Sanity check: verify that some changes have been performed
+			fail("ZooKeeper state for '" + currentJobsPath + "' has not been modified during " +
+				"this test. What are you testing?");
+		}
+
+		if (stat.getNumChildren() == 0) {
+			// Children have been cleaned up?
+			fail("ZooKeeper path '" + currentJobsPath + "' has been cleaned: " +
+				ZooKeeper.getClient().getChildren().forPath(currentJobsPath));
 		}
 	}
 
