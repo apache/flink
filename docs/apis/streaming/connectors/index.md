@@ -37,6 +37,7 @@ Currently these systems are supported:
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
  * [Amazon Kinesis Streams](http://aws.amazon.com/kinesis/streams/) (sink/source)
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
+ * [Apache Cassandra](https://cassandra.apache.org/) (sink)
 
 To run an application using one of these connectors, additional third party
 components are usually required to be installed and launched, e.g. the servers
