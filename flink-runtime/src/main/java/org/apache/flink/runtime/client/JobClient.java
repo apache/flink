@@ -54,7 +54,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeoutException;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The JobClient bridges between the JobManager's asynchronous actor messages and
@@ -205,7 +205,16 @@ public class JobClient {
 		checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
 		checkNotNull(jobGraph, "The jobGraph must not be null.");
 		checkNotNull(timeout, "The timeout must not be null.");
-		
+
+		LOG.info("Checking and uploading JAR files");
+		try {
+			JobClient.uploadJarFiles(jobGraph, jobManagerGateway, timeout);
+		}
+		catch (IOException e) {
+			throw new JobSubmissionException(jobGraph.getJobID(),
+				"Could not upload the program's JAR files to the JobManager.", e);
+		}
+
 		Object result;
 		try {
 			Future<Object> future = jobManagerGateway.ask(
@@ -214,7 +223,7 @@ public class JobClient {
 					ListeningBehaviour.DETACHED // only receive the Acknowledge for the job submission message
 				),
 				timeout);
-			
+
 			result = Await.result(future, timeout);
 		}
 		catch (TimeoutException e) {
@@ -225,10 +234,10 @@ public class JobClient {
 			throw new JobExecutionException(jobGraph.getJobID(),
 					"Failed to send job to JobManager: " + t.getMessage(), t.getCause());
 		}
-		
+
 		if (result instanceof JobManagerMessages.JobSubmitSuccess) {
 			JobID respondedID = ((JobManagerMessages.JobSubmitSuccess) result).jobId();
-			
+
 			// validate response
 			if (!respondedID.equals(jobGraph.getJobID())) {
 				throw new JobExecutionException(jobGraph.getJobID(),

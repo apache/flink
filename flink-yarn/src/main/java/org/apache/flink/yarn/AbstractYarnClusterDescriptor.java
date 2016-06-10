@@ -19,12 +19,11 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -68,6 +67,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
+import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
+
 /**
 * All classes in this package contain code taken from
 * https://github.com/apache/hadoop-common/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/src/main/java/org/apache/hadoop/yarn/applications/distributedshell/Client.java?source=cc
@@ -81,8 +84,10 @@ import java.util.Map;
 * by YARN into their local fs.
 *
 */
-public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnClient.class);
+public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
+	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
+
+	private static final String CONFIG_FILE_NAME = "flink-conf.yaml";
 
 	/**
 	 * Minimum memory requirements, checked by the Client.
@@ -90,10 +95,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
 	private static final int MIN_TM_MEMORY = 768;
 
-	private Configuration conf;
-	private YarnClient yarnClient;
-	private YarnClientApplication yarnApplication;
-	private Thread deploymentFailureHook = new DeploymentFailureHook();
+	private Configuration conf = new YarnConfiguration();
 
 	/**
 	 * Files (usually in a distributed file system) used for the YARN session of Flink.
@@ -131,21 +133,43 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	private String customName = null;
 
-	public FlinkYarnClientBase() {
-		conf = new YarnConfiguration();
-		if(this.yarnClient == null) {
-			// Create yarnClient
-			yarnClient = YarnClient.createYarnClient();
-			yarnClient.init(conf);
-			yarnClient.start();
-		}
-
+	public AbstractYarnClusterDescriptor() {
 		// for unit tests only
 		if(System.getenv("IN_TESTS") != null) {
 			try {
 				conf.addResource(new File(System.getenv("YARN_CONF_DIR") + "/yarn-site.xml").toURI().toURL());
 			} catch (Throwable t) {
 				throw new RuntimeException("Error",t);
+			}
+		}
+
+		// load the config
+		this.configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
+		GlobalConfiguration.loadConfiguration(configurationDirectory);
+		this.flinkConfiguration = GlobalConfiguration.getConfiguration();
+
+		File confFile = new File(configurationDirectory + File.separator + CONFIG_FILE_NAME);
+		if (!confFile.exists()) {
+			throw new RuntimeException("Unable to locate configuration file in " + confFile);
+		}
+		flinkConfigurationPath = new Path(confFile.getAbsolutePath());
+
+		//check if there is a logback or log4j file
+		if (configurationDirectory.length() > 0) {
+			File logback = new File(configurationDirectory + File.pathSeparator + CONFIG_FILE_LOGBACK_NAME);
+			if (logback.exists()) {
+				shipFiles.add(logback);
+				flinkLoggingConfigurationPath = new Path(logback.toURI());
+			}
+			File log4j = new File(configurationDirectory + File.pathSeparator + CONFIG_FILE_LOG4J_NAME);
+			if (log4j.exists()) {
+				shipFiles.add(log4j);
+				if (flinkLoggingConfigurationPath != null) {
+					// this means there is already a logback configuration file --> fail
+					LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
+						"Logback configuration files. Please delete or rename one of them.");
+				}
+				flinkLoggingConfigurationPath = new Path(log4j.toURI());
 			}
 		}
 	}
@@ -155,7 +179,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	 */
 	protected abstract Class<?> getApplicationMasterClass();
 
-	@Override
 	public void setJobManagerMemory(int memoryMb) {
 		if(memoryMb < MIN_JM_MEMORY) {
 			throw new IllegalArgumentException("The JobManager memory (" + memoryMb + ") is below the minimum required memory amount "
@@ -164,7 +187,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		this.jobManagerMemoryMb = memoryMb;
 	}
 
-	@Override
 	public void setTaskManagerMemory(int memoryMb) {
 		if(memoryMb < MIN_TM_MEMORY) {
 			throw new IllegalArgumentException("The TaskManager memory (" + memoryMb + ") is below the minimum required memory amount "
@@ -173,17 +195,14 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		this.taskManagerMemoryMb = memoryMb;
 	}
 
-	@Override
 	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
 		this.flinkConfiguration = conf;
 	}
 
-	@Override
 	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
 		return flinkConfiguration;
 	}
 
-	@Override
 	public void setTaskManagerSlots(int slots) {
 		if(slots <= 0) {
 			throw new IllegalArgumentException("Number of TaskManager slots must be positive");
@@ -191,17 +210,14 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		this.slots = slots;
 	}
 
-	@Override
 	public int getTaskManagerSlots() {
 		return this.slots;
 	}
 
-	@Override
 	public void setQueue(String queue) {
 		this.yarnQueue = queue;
 	}
 
-	@Override
 	public void setLocalJarPath(Path localJarPath) {
 		if(!localJarPath.toString().endsWith("jar")) {
 			throw new IllegalArgumentException("The passed jar path ('" + localJarPath + "') does not end with the 'jar' extension");
@@ -209,27 +225,22 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		this.flinkJarPath = localJarPath;
 	}
 
-	@Override
 	public void setConfigurationFilePath(Path confPath) {
 		flinkConfigurationPath = confPath;
 	}
 
-	@Override
 	public void setConfigurationDirectory(String configurationDirectory) {
 		this.configurationDirectory = configurationDirectory;
 	}
 
-	@Override
 	public void setFlinkLoggingConfigurationPath(Path logConfPath) {
 		flinkLoggingConfigurationPath = logConfPath;
 	}
 
-	@Override
 	public Path getFlinkLoggingConfigurationPath() {
 		return flinkLoggingConfigurationPath;
 	}
 
-	@Override
 	public void setTaskManagerCount(int tmCount) {
 		if(tmCount < 1) {
 			throw new IllegalArgumentException("The TaskManager count has to be at least 1.");
@@ -237,12 +248,10 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		this.taskManagerCount = tmCount;
 	}
 
-	@Override
 	public int getTaskManagerCount() {
 		return this.taskManagerCount;
 	}
 
-	@Override
 	public void setShipFiles(List<File> shipFiles) {
 		for(File shipFile: shipFiles) {
 			// remove uberjar from ship list (by default everything in the lib/ folder is added to
@@ -253,18 +262,16 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
-	@Override
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
 
-	@Override
 	public String getDynamicPropertiesEncoded() {
 		return this.dynamicPropertiesEncoded;
 	}
 
 
-	public void isReadyForDeployment() throws YarnDeploymentException {
+	private void isReadyForDeployment() throws YarnDeploymentException {
 		if(taskManagerCount <= 0) {
 			throw new YarnDeploymentException("Taskmanager count must be positive");
 		}
@@ -290,7 +297,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
-	public static boolean allocateResource(int[] nodeManagers, int toAllocate) {
+	private static boolean allocateResource(int[] nodeManagers, int toAllocate) {
 		for(int i = 0; i < nodeManagers.length; i++) {
 			if(nodeManagers[i] >= toAllocate) {
 				nodeManagers[i] -= toAllocate;
@@ -300,18 +307,28 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return false;
 	}
 
-	@Override
 	public void setDetachedMode(boolean detachedMode) {
 		this.detached = detachedMode;
 	}
 
-	@Override
-	public boolean isDetached() {
+	public boolean isDetachedMode() {
 		return detached;
 	}
 
+
+	/**
+	 * Gets a Hadoop Yarn client
+	 * @return Returns a YarnClient which has to be shutdown manually
+	 */
+	public static YarnClient getYarnClient(Configuration conf) {
+		YarnClient yarnClient = YarnClient.createYarnClient();
+		yarnClient.init(conf);
+		yarnClient.start();
+		return yarnClient;
+	}
+
 	@Override
-	public AbstractFlinkYarnCluster deploy() throws Exception {
+	public YarnClusterClient deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
 		UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
@@ -321,9 +338,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 				throw new YarnDeploymentException("In secure mode. Please provide Kerberos credentials in order to authenticate. " +
 					"You may use kinit to authenticate and request a TGT from the Kerberos server.");
 			}
-			return ugi.doAs(new PrivilegedExceptionAction<AbstractFlinkYarnCluster>() {
+			return ugi.doAs(new PrivilegedExceptionAction<YarnClusterClient>() {
 				@Override
-				public AbstractFlinkYarnCluster run() throws Exception {
+				public YarnClusterClient run() throws Exception {
 					return deployInternal();
 				}
 			});
@@ -332,13 +349,11 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
-
-
 	/**
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
 	 */
-	protected AbstractFlinkYarnCluster deployInternal() throws Exception {
+	protected YarnClusterClient deployInternal() throws Exception {
 		isReadyForDeployment();
 
 		LOG.info("Using values:");
@@ -347,15 +362,18 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		LOG.info("\tTaskManager memory = {}", taskManagerMemoryMb);
 
 		// Create application via yarnClient
-		yarnApplication = yarnClient.createApplication();
+		final YarnClient yarnClient = getYarnClient(conf);
+		final YarnClientApplication yarnApplication = yarnClient.createApplication();
 		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
 
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 
-		Map<String, String> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
+		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
 		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
+
+		// ------------------ Set default file system scheme -------------------------
 
 		try {
 			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
@@ -363,7 +381,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			throw new IOException("Error while setting the default " +
 				"filesystem scheme from configuration.", e);
 		}
-		// ------------------ Check if the specified queue exists --------------
+		// ------------------ Check if the specified queue exists --------------------
 
 		try {
 			List<QueueInfo> queues = yarnClient.getAllQueues();
@@ -393,7 +411,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			}
 		}
 
-		// ------------------ Check if the YARN Cluster has the requested resources --------------
+		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
 		// the yarnMinAllocationMB specifies the smallest possible container allocation size.
 		// all allocations below this value are automatically set to this value.
@@ -416,13 +434,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		final String NOTE = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
 		if(jobManagerMemoryMb > maxRes.getMemory() ) {
-			failSessionDuringDeployment();
+			failSessionDuringDeployment(yarnClient, yarnApplication);
 			throw new YarnDeploymentException("The cluster does not have the requested resources for the JobManager available!\n"
 				+ "Maximum Memory: " + maxRes.getMemory() + "MB Requested: " + jobManagerMemoryMb + "MB. " + NOTE);
 		}
 
 		if(taskManagerMemoryMb > maxRes.getMemory() ) {
-			failSessionDuringDeployment();
+			failSessionDuringDeployment(yarnClient, yarnApplication);
 			throw new YarnDeploymentException("The cluster does not have the requested resources for the TaskManagers available!\n"
 				+ "Maximum Memory: " + maxRes.getMemory() + " Requested: " + taskManagerMemoryMb + "MB. " + NOTE);
 		}
@@ -472,9 +490,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		// respect custom JVM options in the YAML file
 		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
 
-		String logbackFile = configurationDirectory + File.separator + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
+		String logbackFile = configurationDirectory + File.separator + CONFIG_FILE_LOGBACK_NAME;
 		boolean hasLogback = new File(logbackFile).exists();
-		String log4jFile = configurationDirectory + File.separator + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
+		String log4jFile = configurationDirectory + File.separator + CONFIG_FILE_LOG4J_NAME;
 
 		boolean hasLog4j = new File(log4jFile).exists();
 		if(hasLogback) {
@@ -495,11 +513,11 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
 
 			if(hasLogback) {
-				amCommand += " -Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
+				amCommand += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
 			}
 
 			if(hasLog4j) {
-				amCommand += " -Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
+				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
 			}
 		}
 
@@ -632,14 +650,15 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 
 		// add a hook to clean up in case deployment fails
+		Thread deploymentFailureHook = new DeploymentFailureHook(yarnClient, yarnApplication);
 		Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 
 		LOG.info("Waiting for the cluster to be allocated");
 		int waittime = 0;
+		ApplicationReport report;
 		loop: while( true ) {
-			ApplicationReport report;
 			try {
 				report = yarnClient.getApplicationReport(appId);
 			} catch (IOException e) {
@@ -670,7 +689,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			Thread.sleep(1000);
 		}
 		// print the application id for user to cancel themselves.
-		if (isDetached()) {
+		if (isDetachedMode()) {
 			LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop " +
 					"it:\nyarn application -kill " + appId + "\nPlease also note that the " +
@@ -682,8 +701,17 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		} catch (IllegalStateException e) {
 			// we're already in the shut down hook.
 		}
+
+		String host = report.getHost();
+		int port = report.getRpcPort();
+		String trackingURL = report.getTrackingUrl();
+
+		// Correctly initialize the Flink config
+		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
+		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir, detached);
+		return new YarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir);
 	}
 
 	/**
@@ -691,7 +719,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	 *
 	 * Use this method to kill the App before it has been properly deployed
 	 */
-	private void failSessionDuringDeployment() {
+	private void failSessionDuringDeployment(YarnClient yarnClient, YarnClientApplication yarnApplication) {
 		LOG.info("Killing YARN application");
 
 		try {
@@ -742,9 +770,10 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream ps = new PrintStream(baos);
 
+		YarnClient yarnClient = getYarnClient(conf);
 		YarnClusterMetrics metrics = yarnClient.getYarnClusterMetrics();
 
-		ps.append("NodeManagers in the Cluster " + metrics.getNumNodeManagers());
+		ps.append("NodeManagers in the ClusterClient " + metrics.getNumNodeManagers());
 		List<NodeReport> nodes = yarnClient.getNodeReports(NodeState.RUNNING);
 		final String format = "|%-16s |%-16s %n";
 		ps.printf("|Property         |Value          %n");
@@ -772,12 +801,10 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return baos.toString();
 	}
 
-	@Override
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
 	}
 
-	@Override
 	public void setName(String name) {
 		if(name == null) {
 			throw new IllegalArgumentException("The passed name is null");
@@ -873,7 +900,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
-	public static class YarnDeploymentException extends RuntimeException {
+	private static class YarnDeploymentException extends RuntimeException {
 		private static final long serialVersionUID = -812040641215388943L;
 
 		public YarnDeploymentException() {
@@ -889,10 +916,19 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	}
 
 	private class DeploymentFailureHook extends Thread {
+
+		DeploymentFailureHook(YarnClient yarnClient, YarnClientApplication yarnApplication) {
+			this.yarnClient = yarnClient;
+			this.yarnApplication = yarnApplication;
+		}
+
+		private YarnClient yarnClient;
+		private YarnClientApplication yarnApplication;
+
 		@Override
 		public void run() {
 			LOG.info("Cancelling deployment from Deployment Failure Hook");
-			failSessionDuringDeployment();
+			failSessionDuringDeployment(yarnClient, yarnApplication);
 			LOG.info("Deleting files in " + sessionFilesDir);
 			try {
 				FileSystem fs = FileSystem.get(conf);

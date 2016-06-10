@@ -30,9 +30,9 @@ import java.util.List;
  * flink-yarn-tests-XXX-tests.jar and the flink-runtime-XXX-tests.jar to the set of files which
  * are shipped to the yarn cluster. This is necessary to load the testing classes.
  */
-public class TestingFlinkYarnClient extends FlinkYarnClientBase {
+public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public TestingFlinkYarnClient() {
+	public TestingYarnClusterDescriptor() {
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));

@@ -18,9 +18,9 @@
 package org.apache.flink.yarn;
 
 /**
- * Default implementation of {@link FlinkYarnClientBase} which starts an {@link YarnApplicationMasterRunner}.
+ * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
-public class FlinkYarnClient extends FlinkYarnClientBase {
+public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 	@Override
 	protected Class<?> getApplicationMasterClass() {
 		return YarnApplicationMasterRunner.class;
