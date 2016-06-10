@@ -28,6 +28,12 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 		return true;
 	}
 
+	private static String findUtilsFile() throws Exception {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+		return fs.getWorkingDirectory().toString()
+				+ "/src/test/python/org/apache/flink/python/api/utils/utils.py";
+	}
+
 	private static List<String> findTestFiles() throws Exception {
 		List<String> files = new ArrayList();
 		FileSystem fs = FileSystem.getLocalFileSystem();
@@ -63,14 +69,15 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
+		String utils = findUtilsFile();
 		if (isPython2Supported()) {
 			for (String file : findTestFiles()) {
-				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_2, file});
+				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_2, file, utils});
 			}
 		}
 		if (isPython3Supported()) {
 			for (String file : findTestFiles()) {
-				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file});
+				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file, utils});
 			}
 		}
 	}
