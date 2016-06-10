@@ -18,48 +18,10 @@
 ################################################################################
 from flink.plan.Environment import get_environment
 from flink.functions.MapFunction import MapFunction
-from flink.functions.MapPartitionFunction import MapPartitionFunction
 from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
 from flink.functions.CoGroupFunction import CoGroupFunction
-
-
-#Utilities
-class Id(MapFunction):
-    def map(self, value):
-        return value
-
-
-class Verify(MapPartitionFunction):
-    def __init__(self, expected, name):
-        super(Verify, self).__init__()
-        self.expected = expected
-        self.name = name
-
-    def map_partition(self, iterator, collector):
-        index = 0
-        for value in iterator:
-            if value != self.expected[index]:
-                raise Exception(self.name + " Test failed. Expected: " + str(self.expected[index]) + " Actual: " + str(value))
-            index += 1
-        #collector.collect(self.name + " successful!")
-
-
-class Verify2(MapPartitionFunction):
-    def __init__(self, expected, name):
-        super(Verify2, self).__init__()
-        self.expected = expected
-        self.name = name
-
-    def map_partition(self, iterator, collector):
-        for value in iterator:
-            if value in self.expected:
-                try:
-                    self.expected.remove(value)
-                except Exception:
-                    raise Exception(self.name + " failed! Actual value " + str(value) + "not contained in expected values: "+str(self.expected))
-        #collector.collect(self.name + " successful!")
-
+from utils import Verify, Verify2
 
 if __name__ == "__main__":
     env = get_environment()
