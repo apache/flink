@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -104,8 +106,11 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data sink operator"));
 
+		RuntimeContext ctx = createRuntimeContext();
+		final Counter numRecordsIn = ctx.getMetricGroup().counter("numRecordsIn");
+		
 		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
-			((RichOutputFormat) this.format).setRuntimeContext(createRuntimeContext());
+			((RichOutputFormat) this.format).setRuntimeContext(ctx);
 			LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
 		}
 
@@ -174,6 +179,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 				// work!
 				while (!this.taskCanceled && ((record = input.next(record)) != null)) {
+					numRecordsIn.inc();
 					format.writeRecord(record);
 				}
 			} else {
@@ -181,6 +187,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 				// work!
 				while (!this.taskCanceled && ((record = input.next()) != null)) {
+					numRecordsIn.inc();
 					format.writeRecord(record);
 				}
 			}

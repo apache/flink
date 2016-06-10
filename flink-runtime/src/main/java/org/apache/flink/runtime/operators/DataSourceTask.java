@@ -37,6 +37,7 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 		RuntimeContext ctx = createRuntimeContext();
 		Counter splitCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+		Counter numRecordsOut = ctx.getMetricGroup().counter("numRecordsOut");
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(ctx);
@@ -140,7 +142,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 				
 				try {
-					final Collector<OT> output = this.output;
+					final Collector<OT> output = new CountingCollector<>(this.output, numRecordsOut);
 
 					if (objectReuseEnabled) {
 						OT reuse = serializer.createInstance();

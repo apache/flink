@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -104,13 +106,15 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		if (this.taskContext.getTaskConfig().getDriverStrategy() != DriverStrategy.SORTED_PARTIAL_REDUCE) {
 			throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
 		}
+
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getDriverComparator(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.reducer = this.taskContext.getStub();
-		this.output = this.taskContext.getOutputCollector();
+		this.output = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 
 		MemoryManager memManager = this.taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(
@@ -140,6 +144,8 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 			LOG.debug("Combiner starting.");
 		}
 		
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
 		final TypeSerializer<T> serializer = this.serializer;
 		
@@ -147,6 +153,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 			T value = serializer.createInstance();
 		
 			while (running && (value = in.next(value)) != null) {
+				numRecordsIn.inc();
 				
 				// try writing to the sorter first
 				if (this.sorter.write(value)) {
@@ -166,6 +173,7 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 		else {
 			T value;
 			while (running && (value = in.next()) != null) {
+				numRecordsIn.inc();
 
 				// try writing to the sorter first
 				if (this.sorter.write(value)) {
