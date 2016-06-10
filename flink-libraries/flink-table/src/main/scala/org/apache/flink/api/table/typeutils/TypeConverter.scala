@@ -71,7 +71,7 @@ object TypeConverter {
     case INTEGER => INT_TYPE_INFO
     case BIGINT => LONG_TYPE_INFO
     case FLOAT => FLOAT_TYPE_INFO
-    case DOUBLE => DOUBLE_TYPE_INFO
+    case DOUBLE | DECIMAL => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
     case DATE => DATE_TYPE_INFO
 

@@ -568,23 +568,27 @@ class CodeGenerator(
       case BIGINT =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
         if (decimal.isValidLong) {
-          generateNonNullLiteral(resultType, decimal.longValue().toString)
+          generateNonNullLiteral(resultType, decimal.longValue().toString + "L")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to long.")
         }
       case FLOAT =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidFloat) {
-          generateNonNullLiteral(resultType, decimal.floatValue().toString + "f")
+        // check if we loose/change digits when converting to float
+        val converted = BigDecimal(decimal.floatValue().toString)
+        if (converted == decimal) {
+          generateNonNullLiteral(resultType, converted.toString + "f")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to float.")
         }
-      case DOUBLE =>
+      case DOUBLE | DECIMAL =>
         val decimal = BigDecimal(value.asInstanceOf[java.math.BigDecimal])
-        if (decimal.isValidDouble) {
-          generateNonNullLiteral(resultType, decimal.doubleValue().toString)
+        // check if we loose/change digits when converting to double
+        val converted = BigDecimal(decimal.doubleValue().toString)
+        if (converted == decimal) {
+          generateNonNullLiteral(resultType, converted.toString() + "d")
         }
         else {
           throw new CodeGenException("Decimal can not be converted to double.")
