@@ -94,7 +94,7 @@ abstract class KafkaTableSource implements StreamTableSource<Row> {
 		this.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names");
 		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types");
 
-		Preconditions.checkArgument(fieldNames.length == fieldNames.length,
+		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 				"Number of provided field names and types does not match.");
 	}
 

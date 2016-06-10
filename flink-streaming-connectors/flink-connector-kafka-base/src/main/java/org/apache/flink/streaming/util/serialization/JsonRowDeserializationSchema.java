@@ -89,12 +89,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 				JsonNode node = root.get(fieldNames[i]);
 
 				if (node == null) {
-					throw new IllegalStateException("Field '" + fieldNames[i] + "' not found.");
+					row.setField(i, null);
+				} else {
+					// Read the value as specified type
+					Object value = objectMapper.treeToValue(node, fieldTypes[i].getTypeClass());
+					row.setField(i, value);
 				}
-
-				// Read the value as specified type
-				Object value = objectMapper.treeToValue(node, fieldTypes[i].getTypeClass());
-				row.setField(i, value);
 			}
 
 			return row;

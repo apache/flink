@@ -815,10 +815,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			@Override
 			public void invoke(Row value) throws Exception {
-				if (i > numElements) {
-					throw new IllegalStateException("Received too many rows.");
-				}
-
 				assertEquals(longs[i], value.productElement(0));
 				assertEquals(strings[i], value.productElement(1));
 				assertEquals(booleans[i], value.productElement(2));

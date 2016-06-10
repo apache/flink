@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -82,12 +83,10 @@ public class JsonRowDeserializationSchemaTest {
 				new String[] { "name" },
 				new Class<?>[] { String.class });
 
-		try {
-			deserializationSchema.deserialize(serializedJson);
-			fail("Did not throw expected Exception");
-		} catch (IOException ignored) {
-			assertTrue(ignored.getCause() instanceof IllegalStateException);
-		}
+		Row row = deserializationSchema.deserialize(serializedJson);
+
+		assertEquals(1, row.productArity());
+		assertNull("Missing field not null", row.productElement(0));
 	}
 
 	/**
