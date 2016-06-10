@@ -638,6 +638,7 @@ public class Task implements Runnable {
 						else {
 							if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 								// proper failure of the task. record the exception as the root cause
+								LOG.error("Task execution failed. ", t);
 								failureCause = t;
 								cancelInvokable();
 
