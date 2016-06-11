@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -41,13 +42,15 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
-import org.apache.flink.streaming.util.EvenOddOutputSelector;
-import org.apache.flink.streaming.util.NoOpIntMap;
-import org.apache.flink.streaming.util.ReceiveCheckNoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.streaming.runtime.util.EvenOddOutputSelector;
+import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
+import org.apache.flink.test.streaming.runtime.util.ReceiveCheckNoOpSink;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
+
 import org.junit.Test;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,9 +64,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "unused", "serial" })
-public class IterateTest extends StreamingMultipleProgramsTestBase {
+public class IterateITCase extends StreamingMultipleProgramsTestBase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(IterateTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IterateITCase.class);
 
 	private static boolean iterated[];
 

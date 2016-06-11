@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.test.streaming.runtime.util;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
-
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 

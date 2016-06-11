@@ -15,15 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.outputformat;
+package org.apache.flink.test.streaming.api.outputformat;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.util.Collector;
 
-public class TextOutputFormatITCase extends StreamingProgramTestBase {
+public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 
 	protected String resultPath;
 
@@ -39,17 +41,38 @@ public class TextOutputFormatITCase extends StreamingProgramTestBase {
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
 		DataStream<Tuple2<String, Integer>> counts = text
-				.flatMap(new CsvOutputFormatITCase.Tokenizer())
+				.flatMap(new Tokenizer())
 				.keyBy(0).sum(1);
 
-		counts.writeAsText(resultPath);
+		counts.writeAsCsv(resultPath);
 
-		env.execute("WriteAsTextTest");
+		env.execute("WriteAsCsvTest");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+		//Strip the parentheses from the expected text like output
+		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES
+				.replaceAll("[\\\\(\\\\)]", ""), resultPath);
+	}
+
+	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
+				throws Exception {
+			// normalize and split the line
+			String[] tokens = value.toLowerCase().split("\\W+");
+
+			// emit the pairs
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
+				}
+			}
+		}
 	}
 
 }
+

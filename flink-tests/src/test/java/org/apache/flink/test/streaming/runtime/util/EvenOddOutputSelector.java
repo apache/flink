@@ -15,12 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.util;
+package org.apache.flink.test.streaming.runtime.util;
 
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
-public final class NoOpSink<T> extends RichSinkFunction<T> {
-	public void invoke(T tuple) {
+import java.util.Collections;
 
+public class EvenOddOutputSelector implements OutputSelector<Integer> {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public Iterable<String> select(Integer value) {
+		return value % 2 == 0 ? Collections.singleton("even") : Collections.singleton("odd");
 	}
 }

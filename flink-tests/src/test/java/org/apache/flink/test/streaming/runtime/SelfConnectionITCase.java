@@ -15,14 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.co;
-
-import static org.junit.Assert.assertEquals;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -31,19 +24,24 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestListResultSink;
+import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
-public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-	private static List<String> expected;
+import static org.junit.Assert.assertEquals;
+
+public class SelfConnectionITCase extends StreamingMultipleProgramsTestBase {
 
 	/**
 	 * We connect two different data streams in a chain to a CoMap.
 	 */
 	@Test
-	public void differentDataStreamSameChain() {
+	public void differentDataStreamSameChain() throws Exception {
 
 		TestListResultSink<String> resultSink = new TestListResultSink<String>();
 
@@ -76,15 +74,9 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 			}
 		}).addSink(resultSink);
 
-		try {
-			env.execute();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		env.execute();
 
-		expected = new ArrayList<String>();
-
-		expected.addAll(Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6"));
+		List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
 
 		List<String> result = resultSink.getResult();
 
@@ -132,7 +124,7 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public Long map(Integer value) throws Exception {
-				return Long.valueOf(value + 1);
+				return (long) (value + 1);
 			}
 		}).keyBy(new KeySelector<Long, Integer>() {
 
@@ -166,10 +158,7 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 			e.printStackTrace();
 		}
 
-		expected = new ArrayList<String>();
-
-		expected.addAll(Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6"));
-
+		List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
 		List<String> result = resultSink.getResult();
 
 		Collections.sort(expected);

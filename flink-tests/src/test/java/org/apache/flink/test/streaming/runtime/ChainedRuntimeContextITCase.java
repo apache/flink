@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
-
-import static org.junit.Assert.*;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertNotEquals;
+
 @SuppressWarnings("serial")
-public class ChainedRuntimeContextTest extends StreamingMultipleProgramsTestBase {
+public class ChainedRuntimeContextITCase extends StreamingMultipleProgramsTestBase {
 	private static RuntimeContext srcContext;
 	private static RuntimeContext mapContext;
 
@@ -39,7 +39,7 @@ public class ChainedRuntimeContextTest extends StreamingMultipleProgramsTestBase
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
-		env.addSource(new TestSource()).map(new TestMap()).addSink(new NoOpSink<Integer>());
+		env.addSource(new TestSource()).map(new TestMap()).addSink(new DiscardingSink<Integer>());
 		env.execute();
 
 		assertNotEquals(srcContext, mapContext);

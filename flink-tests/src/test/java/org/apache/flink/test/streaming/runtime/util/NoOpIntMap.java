@@ -15,28 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.util;
+package org.apache.flink.test.streaming.runtime.util;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 
-import java.util.ArrayList;
-import java.util.List;
+public class NoOpIntMap implements MapFunction<Integer, Integer> {
+	private static final long serialVersionUID = 1L;
 
-import static org.junit.Assert.assertTrue;
-
-public final class ReceiveCheckNoOpSink<T> extends RichSinkFunction<T> {
-	private List<T> received;
-
-	public void invoke(T tuple) {
-		received.add(tuple);
-	}
-
-	public void open(Configuration conf) {
-		received = new ArrayList<T>();
-	}
-
-	public void close() {
-		assertTrue(received.size() > 0);
+	public Integer map(Integer value) throws Exception {
+		return value;
 	}
 }

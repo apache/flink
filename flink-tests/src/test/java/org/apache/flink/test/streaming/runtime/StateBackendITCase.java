@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.state;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -37,7 +37,6 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-
 import org.junit.Test;
 
 import java.io.Serializable;

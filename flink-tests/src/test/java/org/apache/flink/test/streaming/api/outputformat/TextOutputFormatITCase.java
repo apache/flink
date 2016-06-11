@@ -15,21 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.outputformat;
+package org.apache.flink.test.streaming.api.outputformat;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.SocketOutputTestBase;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
-import org.junit.Ignore;
 
-@Ignore
-//This test sometimes failes most likely due to the behaviour
-//of the socket. Disabled for now.
-public class SocketOutputFormatITCase extends SocketOutputTestBase {
+public class TextOutputFormatITCase extends StreamingProgramTestBase {
+
+	protected String resultPath;
+
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempDirPath("result");
+	}
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -37,17 +38,18 @@ public class SocketOutputFormatITCase extends SocketOutputTestBase {
 
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
-		DataStream<String> counts =
-				text.flatMap(new CsvOutputFormatITCase.Tokenizer())
-						.keyBy(0).sum(1).map(new MapFunction<Tuple2<String, Integer>, String>() {
-					@Override
-					public String map(Tuple2<String, Integer> value) throws Exception {
-						return value.toString() + "\n";
-					}
-				});
-		counts.writeToSocket(HOST, port, new SimpleStringSchema());
+		DataStream<Tuple2<String, Integer>> counts = text
+				.flatMap(new CsvOutputFormatITCase.Tokenizer())
+				.keyBy(0).sum(1);
 
-		env.execute("WriteToSocketTest");
+		counts.writeAsText(resultPath);
+
+		env.execute("WriteAsTextTest");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 }

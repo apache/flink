@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
