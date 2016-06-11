@@ -25,7 +25,8 @@ import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -97,10 +98,10 @@ public class InstanceConnectionInfoTest {
 			{
 				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
 				
-				InstanceConnectionInfo copy = CommonTestUtils.createCopyWritable(original);
+				InstanceConnectionInfo copy = InstantiationUtil.createCopyWritable(original);
 				assertEquals(original, copy);
 				
-				InstanceConnectionInfo serCopy = CommonTestUtils.createCopySerializable(original);
+				InstanceConnectionInfo serCopy = InstantiationUtil.clone(original);
 				assertEquals(original, serCopy);
 			}
 						
@@ -109,10 +110,10 @@ public class InstanceConnectionInfoTest {
 				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
 				original.getFQDNHostname();
 				
-				InstanceConnectionInfo copy = CommonTestUtils.createCopyWritable(original);
+				InstanceConnectionInfo copy = InstantiationUtil.createCopyWritable(original);
 				assertEquals(original, copy);
 				
-				InstanceConnectionInfo serCopy = CommonTestUtils.createCopySerializable(original);
+				InstanceConnectionInfo serCopy = InstantiationUtil.clone(original);
 				assertEquals(original, serCopy);
 			}
 		}

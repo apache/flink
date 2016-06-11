@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import akka.actor.ActorRef;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.TaskMetricGroup;
@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import scala.concurrent.ExecutionContext;
@@ -123,7 +124,7 @@ public class StreamTaskTest {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
-	private Task createTask(Class<? extends AbstractInvokable> invokable, StreamConfig taskConfig) {
+	private Task createTask(Class<? extends AbstractInvokable> invokable, StreamConfig taskConfig) throws Exception {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 		
@@ -136,7 +137,7 @@ public class StreamTaskTest {
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), "Job Name", new JobVertexID(), new ExecutionAttemptID(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				"Test Task", 0, 1, 0,
 				new Configuration(),
 				taskConfig.getConfiguration(),

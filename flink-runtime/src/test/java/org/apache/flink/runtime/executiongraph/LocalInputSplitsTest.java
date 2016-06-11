@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -273,7 +274,7 @@ public class LocalInputSplitsTest {
 				jobGraph.getJobID(),
 				jobGraph.getName(),  
 				jobGraph.getJobConfiguration(),
-				ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 				TIMEOUT,
 				new NoRestartStrategy());
 			
@@ -338,7 +339,7 @@ public class LocalInputSplitsTest {
 			jobGraph.getJobID(),
 			jobGraph.getName(),  
 			jobGraph.getJobConfiguration(),
-			ExecutionConfigTest.getSerializedConfig(),
+				new SerializedValue<>(new ExecutionConfig()),
 			TIMEOUT,
 			new NoRestartStrategy());
 		

@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import com.google.common.collect.Maps;
-
-import org.apache.flink.api.common.ExecutionConfigTest;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -47,15 +46,18 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
 
+import org.apache.flink.util.SerializedValue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -529,8 +531,7 @@ public class TaskTest {
 		setInputGate(task, inputGate);
 
 		// Expected task state for each partition state
-		final Map<ExecutionState, ExecutionState> expected = Maps
-				.newHashMapWithExpectedSize(ExecutionState.values().length);
+		final Map<ExecutionState, ExecutionState> expected = new HashMap<>(ExecutionState.values().length);
 
 		// Fail the task for unexpected states
 		for (ExecutionState state : ExecutionState.values()) {
@@ -564,7 +565,7 @@ public class TaskTest {
 			f.setAccessible(true);
 			f.set(task, new SingleInputGate[]{inputGate});
 
-			Map<IntermediateDataSetID, SingleInputGate> byId = Maps.newHashMapWithExpectedSize(1);
+			Map<IntermediateDataSetID, SingleInputGate> byId = new HashMap<>(1);
 			byId.put(inputGate.getConsumedResultId(), inputGate);
 
 			f = Task.class.getDeclaredField("inputGatesById");
@@ -628,9 +629,16 @@ public class TaskTest {
 	}
 
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {
+		SerializedValue<ExecutionConfig> execConfig;
+		try {
+			execConfig = new SerializedValue<>(new ExecutionConfig());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		
 		return new TaskDeploymentDescriptor(
 				new JobID(), "Test Job", new JobVertexID(), new ExecutionAttemptID(),
-				ExecutionConfigTest.getSerializedConfig(),
+				execConfig,
 				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				invokable.getName(),

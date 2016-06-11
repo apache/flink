@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -57,15 +58,14 @@ import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.NoOpSink;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
-public class DataStreamTest extends StreamingMultipleProgramsTestBase {
+public class DataStreamTest {
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams
@@ -452,7 +452,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 					}
 				});
 
-		windowed.addSink(new NoOpSink<Long>());
+		windowed.addSink(new DiscardingSink<Long>());
 
 		DataStreamSink<Long> sink = map.addSink(new SinkFunction<Long>() {
 			private static final long serialVersionUID = 1L;
@@ -486,7 +486,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
-		parallelSource.addSink(new NoOpSink<Long>());
+		parallelSource.addSink(new DiscardingSink<Long>());
 		assertEquals(7, env.getStreamGraph().getStreamNode(parallelSource.getId()).getParallelism());
 
 		parallelSource.setParallelism(3);
@@ -557,7 +557,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<Integer> map = src.map(mapFunction);
-		map.addSink(new NoOpSink<Integer>());
+		map.addSink(new DiscardingSink<Integer>());
 		assertEquals(mapFunction, getFunctionForDataStream(map));
 
 
@@ -569,7 +569,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<Integer> flatMap = src.flatMap(flatMapFunction);
-		flatMap.addSink(new NoOpSink<Integer>());
+		flatMap.addSink(new DiscardingSink<Integer>());
 		assertEquals(flatMapFunction, getFunctionForDataStream(flatMap));
 
 		FilterFunction<Integer> filterFunction = new FilterFunction<Integer>() {
@@ -582,7 +582,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Integer> unionFilter = map.union(flatMap)
 				.filter(filterFunction);
 
-		unionFilter.addSink(new NoOpSink<Integer>());
+		unionFilter.addSink(new DiscardingSink<Integer>());
 
 		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
 
@@ -606,7 +606,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		};
 
 		SplitStream<Integer> split = unionFilter.split(outputSelector);
-		split.select("dummy").addSink(new NoOpSink<Integer>());
+		split.select("dummy").addSink(new DiscardingSink<Integer>());
 		List<OutputSelector<?>> outputSelectors = env.getStreamGraph().getStreamNode(unionFilter.getId()).getOutputSelectors();
 		assertEquals(1, outputSelectors.size());
 		assertEquals(outputSelector, outputSelectors.get(0));
@@ -632,7 +632,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 			}
 		};
 		DataStream<String> coMap = connect.map(coMapper);
-		coMap.addSink(new NoOpSink<String>());
+		coMap.addSink(new DiscardingSink<String>());
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
@@ -772,7 +772,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 				return null;
 			}
 		});
-		coMap.addSink(new NoOpSink());
+		coMap.addSink(new DiscardingSink());
 		return coMap.getId();
 	}
 

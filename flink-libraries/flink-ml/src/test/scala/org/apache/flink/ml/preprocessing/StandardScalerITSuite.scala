@@ -23,8 +23,8 @@ import breeze.numerics.sqrt._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
-import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.Breeze._
+import org.apache.flink.ml.util.FlinkTestBase
 import org.scalatest._
 
 

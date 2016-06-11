@@ -17,29 +17,19 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Test;
@@ -52,7 +42,7 @@ import org.junit.Test;
  *     <li>Watermarks are correctly forwarded</li>
  * </ul>
  */
-public class StreamProjectTest extends StreamingMultipleProgramsTestBase {
+public class StreamProjectTest {
 
 	@Test
 	public void testProject() throws Exception {
@@ -90,48 +80,5 @@ public class StreamProjectTest extends StreamingMultipleProgramsTestBase {
 		expectedOutput.add(new StreamRecord<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(7, 7, "a"), initialTime + 4));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-
-	// tests using projection from the API without explicitly specifying the types
-	private static HashSet<Tuple2<Long, Double>> expected = new HashSet<Tuple2<Long, Double>>();
-	private static HashSet<Tuple2<Long, Double>> actual = new HashSet<Tuple2<Long, Double>>();
-
-	@Test
-	public void APIWithoutTypesTest() {
-
-		for (Long i = 1L; i < 11L; i++) {
-			expected.add(new Tuple2<Long, Double>(i, i.doubleValue()));
-		}
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		env.generateSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Tuple3<Long, Character, Double> map(Long value) throws Exception {
-				return new Tuple3<Long, Character, Double>(value, 'c', value.doubleValue());
-			}
-		})
-			.project(0, 2)
-			.addSink(new SinkFunction<Tuple>() {
-				private static final long serialVersionUID = 1L;
-
-				@Override
-				@SuppressWarnings("unchecked")
-				public void invoke(Tuple value) throws Exception {
-					actual.add( (Tuple2<Long,Double>) value);
-				}
-			});
-
-		try {
-			env.execute();
-		} catch (Exception e) {
-			fail(e.getMessage());
-		}
-
-		assertEquals(expected, actual);
 	}
 }
