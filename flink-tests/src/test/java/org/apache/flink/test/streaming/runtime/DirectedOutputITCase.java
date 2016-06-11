@@ -15,26 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
-
-import static org.junit.Assert.assertEquals;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestListResultSink;
+import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+
 import org.junit.Test;
 
-public class DirectedOutputTest extends StreamingMultipleProgramsTestBase {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
+public class DirectedOutputITCase extends StreamingMultipleProgramsTestBase {
 
 	private static final String TEN = "ten";
 	private static final String ODD = "odd";
@@ -65,32 +62,6 @@ public class DirectedOutputTest extends StreamingMultipleProgramsTestBase {
 			return outputs;
 		}
 	}
-
-	static final class ListSink implements SinkFunction<Long> {
-		private static final long serialVersionUID = 1L;
-
-		private String name;
-		private transient List<Long> list;
-
-		public ListSink(String name) {
-			this.name = name;
-		}
-
-		@Override
-		public void invoke(Long value) {
-			list.add(value);
-		}
-
-		private void readObject(java.io.ObjectInputStream in) throws IOException,
-				ClassNotFoundException {
-			in.defaultReadObject();
-			outputs.put(name, new ArrayList<Long>());
-			this.list = outputs.get(name);
-		}
-
-	}
-
-	private static Map<String, List<Long>> outputs = new HashMap<String, List<Long>>();
 
 	@Test
 	public void outputSelectorTest() throws Exception {

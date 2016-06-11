@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.test.streaming.runtime.util;
 
 import java.util.ArrayList;
 import java.util.Collections;

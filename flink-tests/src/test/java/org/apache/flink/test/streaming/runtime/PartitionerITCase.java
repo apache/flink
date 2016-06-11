@@ -15,15 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -34,16 +26,25 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestListResultSink;
+import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
+import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * IT case that tests the different stream partitioning schemes.
  */
-public class PartitionerTest extends StreamingMultipleProgramsTestBase {
+@SuppressWarnings("serial")
+public class PartitionerITCase extends StreamingMultipleProgramsTestBase {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testForwardFailsLowToHighParallelism() throws Exception {

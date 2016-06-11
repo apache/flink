@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,19 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.test.streaming.runtime.util;
 
-package org.apache.flink.streaming.connectors.kafka.testutils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Sink function that discards data.
- * @param <T> The type of the function.
- */
-public class DiscardingSink<T> implements SinkFunction<T> {
+import static org.junit.Assert.assertTrue;
 
-	private static final long serialVersionUID = 2777597566520109843L;
+public final class ReceiveCheckNoOpSink<T> extends RichSinkFunction<T> {
+	private List<T> received;
 
-	@Override
-	public void invoke(T value) {}
+	public void invoke(T tuple) {
+		received.add(tuple);
+	}
+
+	public void open(Configuration conf) {
+		received = new ArrayList<T>();
+	}
+
+	public void close() {
+		assertTrue(received.size() > 0);
+	}
 }

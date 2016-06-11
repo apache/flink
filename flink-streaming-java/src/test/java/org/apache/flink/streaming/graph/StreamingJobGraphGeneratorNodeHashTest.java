@@ -27,17 +27,14 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
-import org.apache.flink.streaming.util.NoOpSink;
+
 import org.junit.Test;
 
-import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +51,7 @@ import static org.junit.Assert.assertTrue;
  * Tests the {@link StreamNode} hash assignment during translation from {@link StreamGraph} to
  * {@link JobGraph} instances.
  */
+@SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorNodeHashTest {
 
 	// ------------------------------------------------------------------------
@@ -136,7 +134,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		env.disableOperatorChaining();
 
 		env.addSource(new NoOpSourceFunction(), "src").setParallelism(4)
-				.addSink(new NoOpSink<String>()).name("sink").setParallelism(4);
+				.addSink(new DiscardingSink<String>()).name("sink").setParallelism(4);
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -147,7 +145,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		env.disableOperatorChaining();
 
 		env.addSource(new NoOpSourceFunction(), "src").setParallelism(8)
-				.addSink(new NoOpSink<String>()).name("sink").setParallelism(4);
+				.addSink(new DiscardingSink<String>()).name("sink").setParallelism(4);
 
 		jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -158,7 +156,7 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		env.disableOperatorChaining();
 
 		env.addSource(new NoOpSourceFunction(), "src").setParallelism(4)
-				.addSink(new NoOpSink<String>()).name("sink").setParallelism(8);
+				.addSink(new DiscardingSink<String>()).name("sink").setParallelism(8);
 
 		jobGraph = env.getStreamGraph().getJobGraph();
 
