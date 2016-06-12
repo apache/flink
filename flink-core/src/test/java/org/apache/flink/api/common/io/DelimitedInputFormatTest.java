@@ -37,11 +37,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -363,6 +366,104 @@ public class DelimitedInputFormatTest {
 		}
 	}
 	
+	// -- Statistics --//
+	@Test
+	public void testGetStatisticsSingleFileFileDoesNotExist() throws IOException {
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
+		format.setFilePath(new Path("file://path/does/not/really/exist"));
+		
+		FileBaseStatistics stats = format.getStatistics(null);
+		assertNotNull("The file statistics should not be null", stats);
+		
+		assertEquals("The file size from the statistics is wrong.", FileBaseStatistics.SIZE_UNKNOWN, stats.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsSingleFile() throws IOException {
+		final String myString = "my mocked line 1\nmy mocked line 2\n";
+		final long SIZE = myString.length();
+		final Path filePath = createTempFilePath(myString);
+		
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
+		format.setFilePath(filePath);
+		
+		FileBaseStatistics stats = format.getStatistics(null);
+		assertNotNull(stats);
+		assertEquals("The file size from the statistics is wrong", SIZE, stats.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsSingleFileWithCachedVersion() throws IOException {
+		final String myString = "my mocked line 1\nmy mocked line 2\n";
+		final Path tempFile = createTempFilePath(myString);
+		final long SIZE = myString.length();
+		final long FAKE_SIZE = 10065;
+
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
+		format.setFilePath(tempFile);
+		format.configure(new Configuration());
+
+		FileBaseStatistics stats = format.getStatistics(null);
+		assertNotNull(stats);
+		assertEquals("The file size from the statistics is wrong", SIZE, stats.getTotalInputSize());
+		
+		format = new MyTextInputFormat();
+		format.setFilePath(tempFile);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics newStats = format.getStatistics(stats);
+		assertEquals("Statistics object was changed", newStats, stats);
+		
+		// insert fake stats with the correct modification time. the call should return the fake stats
+		format = new MyTextInputFormat();
+		format.setFilePath(tempFile);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics fakeStats = new FileBaseStatistics(stats.getLastModificationTime(), FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		BaseStatistics latest = format.getStatistics(fakeStats);
+		Assert.assertEquals("The file size from the statistics is wrong.", FAKE_SIZE, latest.getTotalInputSize());
+		
+		// insert fake stats with the expired modification time. the call should return new accurate stats
+		format = new MyTextInputFormat();
+		format.setFilePath(tempFile);
+		format.configure(new Configuration());
+		
+		FileBaseStatistics outDatedFakeStats = new FileBaseStatistics(stats.getLastModificationTime()-1, FAKE_SIZE, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
+		Assert.assertEquals("The file size from the statistics is wrong.", SIZE, reGathered.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleFileDoesNotExist() throws IOException {
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
+		format.setFilePaths("file://path/does/not/really/exist","file://another/path/that/does/not/exist");
+		
+		FileBaseStatistics stats = format.getStatistics(null);
+		assertNotNull("The file statistics should not be null", stats);
+		
+		assertEquals("The file size from the statistics is wrong.", FileBaseStatistics.SIZE_UNKNOWN, stats.getTotalInputSize());
+	}
+	
+	@Test
+	public void testGetStatisticsMultipleFiles() throws IOException {
+		final String myString = "my mocked line 1\nmy mocked line 2\n";
+		final long SIZE = myString.length();
+		final Path filePath = createTempFilePath(myString);
+
+		final String myString2 = "my mocked line 1\nmy mocked line 2\nanother mocked line3\n";
+		final long SIZE2 = myString2.length();
+		final Path filePath2 = createTempFilePath(myString2);
+
+		final long TOTAL_SIZE = SIZE + SIZE2;
+		
+		DelimitedInputFormat<String> format = new MyTextInputFormat();
+		format.setFilePaths(filePath.toUri().toString(), filePath2.toUri().toString());
+		
+		FileBaseStatistics stats = format.getStatistics(null);
+		assertNotNull(stats);
+		assertEquals("The file size from the statistics is wrong", TOTAL_SIZE, stats.getTotalInputSize());
+	}
+	
 	private static FileInputSplit createTempFile(String contents) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
@@ -382,5 +483,18 @@ public class DelimitedInputFormatTest {
 		public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) {
 			return new String(bytes, offset, numBytes);
 		}
+	}
+	
+	private static Path createTempFilePath(String contents) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+		
+		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
+		try {
+			wrt.write(contents);
+		} finally {
+			wrt.close();
+		}
+		return new Path(tempFile.toURI().toString());
 	}
 }
