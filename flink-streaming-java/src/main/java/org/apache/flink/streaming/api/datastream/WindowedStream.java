@@ -212,7 +212,7 @@ public class WindowedStream<T, K, W extends Window> {
 				"Please use apply(FoldFunction, WindowFunction) instead.");
 		}
 
-		return apply(initialValue, function, new PassThroughWindowFunction<K, W, R>(), resultType);
+		return apply(initialValue, function, new PassThroughWindowFunction<K, W, R>(), resultType, resultType);
 	}
 
 	/**
@@ -397,12 +397,16 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function) {
+	public <ACC, R> SingleOutputStreamOperator<R> apply(ACC initialValue, FoldFunction<T, ACC> foldFunction, WindowFunction<ACC, R, K, W> function) {
 
-		TypeInformation<R> resultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
-			Utils.getCallLocationName(), true);
+		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
+				Utils.getCallLocationName(), true);
 
-		return apply(initialValue, foldFunction, function, resultType);
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+				function, WindowFunction.class, true, true, getInputType(), null, false);
+
+
+		return apply(initialValue, foldFunction, function, foldAccumulatorType, resultType);
 	}
 
 	/**
@@ -419,7 +423,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
+	public <ACC, R> SingleOutputStreamOperator<R> apply(ACC initialValue,
+			FoldFunction<T, ACC> foldFunction,
+			WindowFunction<ACC, R, K, W> function,
+			TypeInformation<ACC> foldAccumulatorType,
+			TypeInformation<R> resultType) {
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of apply can not be a RichFunction.");
 		}
@@ -442,34 +450,34 @@ public class WindowedStream<T, K, W extends Window> {
 		if (evictor != null) {
 
 			ListStateDescriptor<StreamRecord<T>> stateDesc = new ListStateDescriptor<>("window-contents",
-				new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
+					new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 			operator = new EvictingWindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
-				trigger,
-				evictor);
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)),
+					trigger,
+					evictor);
 
 		} else {
-			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
-				initialValue,
-				foldFunction,
-				resultType);
+			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
+					initialValue,
+					foldFunction,
+					foldAccumulatorType);
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 
 			operator = new WindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalSingleValueWindowFunction<>(function),
-				trigger);
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					stateDesc,
+					new InternalSingleValueWindowFunction<>(function),
+					trigger);
 		}
 
 		return input.transform(opName, resultType, operator);
