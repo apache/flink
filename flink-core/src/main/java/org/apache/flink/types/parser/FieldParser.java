@@ -185,6 +185,16 @@ public abstract class FieldParser<T> {
 		return this.charset;
 	}
 
+	/**
+	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
+	 * when doing a parse.
+	 *
+	 * @param charset The charset  to set.
+	 */
+	protected void setCharset(Charset charset){
+		this.charset = charset;
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Mapping from types to parsers

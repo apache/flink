@@ -28,6 +28,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
@@ -542,6 +543,37 @@ public class GenericCsvInputFormatTest {
 			assertNull(format.nextRecord(values));
 			assertNull(format.nextRecord(values));
 			assertNotNull(format.nextRecord(values));
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testReadWithCharset() throws IOException {
+		try {
+			final String fileContent = "abc|def|ghijk";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setCharset(Charset.forName("UTF-8"));
+			format.setFieldDelimiter("|");
+			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("abc", ((StringValue) values[0]).getValue());
+			assertEquals("def", ((StringValue) values[1]).getValue());
+			assertEquals("ghijk", ((StringValue) values[2]).getValue());
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
