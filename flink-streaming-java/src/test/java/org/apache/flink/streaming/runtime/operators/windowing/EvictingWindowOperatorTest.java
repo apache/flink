@@ -240,10 +240,10 @@ public class EvictingWindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(1999));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1997)); // late so fire and purge -> 3
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1998)); // late so fire and purge -> 1
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1997));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 1998));
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 2310)); // not late
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 2310)); // not late but more than 4
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 2310));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2310));
@@ -252,9 +252,7 @@ public class EvictingWindowOperatorTest {
 		testHarness.processWatermark(new Watermark(3999));											 // now is the evictor
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 3999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 1), 3999));
-		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 3999));
+		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
 
 		Assert.assertEquals(expectedOutput.size() + 2, testHarness.getOutput().size());

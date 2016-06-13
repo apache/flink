@@ -37,7 +37,7 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
 		ctx.registerEventTimeTimer(window.maxTimestamp());
 
-		return (timestamp < ctx.getCurrentWatermark()) ?
+		return (window.maxTimestamp() <= ctx.getCurrentWatermark()) ?
 			TriggerResult.FIRE_AND_PURGE :
 			TriggerResult.CONTINUE;
 	}

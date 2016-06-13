@@ -57,13 +57,13 @@ import org.apache.flink.util.Collector
 class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
   /**
-    * Sets the allowed lateness. If the
+    * Sets the allowed lateness. By default this is 0. If the
     * [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner windowAssigner]]
     * used is in processing time, then the allowed lateness is set to 0.
     */
   @PublicEvolving
-  def setAllowedLateness(lateness: Time): AllWindowedStream[T, W] = {
-    javaStream.setAllowedLateness(lateness)
+  def allowedLateness(lateness: Time): AllWindowedStream[T, W] = {
+    javaStream.allowedLateness(lateness)
     this
   }
 

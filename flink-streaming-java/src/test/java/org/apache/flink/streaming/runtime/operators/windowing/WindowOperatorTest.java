@@ -1117,27 +1117,21 @@ public class WindowOperatorTest {
 		// create the expected output
 		Tuple2<String, Integer> el1 = new Tuple2<>("key2", 1);
 		Tuple2<String, Integer> el2 = new Tuple2<>("key2", 2);
-		Tuple2<String, Integer> el3 = new Tuple2<>("key2", 3);
+		Tuple2<String, Integer> el4 = new Tuple2<>("key2", 4);
+		Tuple2<String, Integer> el5 = new Tuple2<>("key2", 5);
 
-		Tuple2<String, Integer> el4 = new Tuple2<>("key1", 2);
+		Tuple2<String, Integer> el6 = new Tuple2<>("key1", 2);
 
 		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
 		expected.add(new StreamRecord<>(el1, initialTime + 1999));
 		expected.add(new StreamRecord<>(el2, initialTime + 2999));
-
-		expected.add(new StreamRecord<>(el3, initialTime + 3999));
-		expected.add(new StreamRecord<>(el1, initialTime + 3999)); // now it is 1 because before it purged
-		expected.add(new StreamRecord<>(el1, initialTime + 3999)); // now it is 1 because before it purged
-		expected.add(new StreamRecord<>(el4, initialTime + 3999));
-
-		expected.add(new StreamRecord<>(el2, initialTime + 4999)); // here is the 2000 and 2400 (which is late and has fire and purge)
-		expected.add(new StreamRecord<>(el1, initialTime + 4999)); // here is the second 2400 (alone because before it was a purge)
-		expected.add(new StreamRecord<>(el1, initialTime + 4999)); // here is the 3900
+		expected.add(new StreamRecord<>(el5, initialTime + 3999));
 		expected.add(new StreamRecord<>(el4, initialTime + 4999));
-
 		expected.add(new StreamRecord<>(el1, initialTime + 5999));
-		expected.add(new StreamRecord<>(el4, initialTime + 5999));
 
+		expected.add(new StreamRecord<>(el6, initialTime + 3999));
+		expected.add(new StreamRecord<>(el6, initialTime + 4999));
+		expected.add(new StreamRecord<>(el6, initialTime + 5999));
 
 		// the +4 is for the watermarks.
 		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
@@ -1154,16 +1148,14 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(0, EventTimeTrigger.create());
 
 		// create the expected output
-		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
-		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
-		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
-		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
 
 		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
-		expected.add(new StreamRecord<>(el1, 7499));
-		expected.add(new StreamRecord<>(el2, 11499));
-		expected.add(new StreamRecord<>(el3, 14599));
-		expected.add(new StreamRecord<>(el4, 17499));
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 17499));
 
 		// the +7 is for the watermarks.
 		Assert.assertEquals(expected.size() + 7, actualOutput.size());
@@ -1210,16 +1202,14 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10, EventTimeTrigger.create());
 
 		// create the expected output
-		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
-		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
-		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
-		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
 
 		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
-		expected.add(new StreamRecord<>(el1, 7499));
-		expected.add(new StreamRecord<>(el2, 11499));
-		expected.add(new StreamRecord<>(el3, 14599));
-		expected.add(new StreamRecord<>(el4, 17499));
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 17499));
 
 		// the +7 is for the watermarks.
 		Assert.assertEquals(expected.size() + 7, actualOutput.size());
@@ -1262,18 +1252,16 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> actualOutput = testDropDueToLatenessSession(10000, EventTimeTrigger.create());
 
 		// create the expected output
-		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-3", 1000l, 7500l);
-		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-2", 7000l, 11500l);
-		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 11600l, 14600l);
-		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 10000l, 13000l);
-		Tuple3<String, Long, Long> el5 = new Tuple3<>("key2-1", 14500l, 17500l);
+		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
+		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 10000l, 13000l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
 
 		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
-		expected.add(new StreamRecord<>(el1, 7499));
-		expected.add(new StreamRecord<>(el2, 11499));
-		expected.add(new StreamRecord<>(el3, 14599));
-		expected.add(new StreamRecord<>(el4, 12999));
-		expected.add(new StreamRecord<>(el5, 17499));
+		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new StreamRecord<>(el3, 12999));
+		expected.add(new StreamRecord<>(el4, 17499));
 
 		// the +6 is for the watermarks.
 		Assert.assertEquals(expected.size() + 7, actualOutput.size());

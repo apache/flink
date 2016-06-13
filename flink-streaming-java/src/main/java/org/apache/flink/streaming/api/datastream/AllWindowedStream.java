@@ -113,16 +113,17 @@ public class AllWindowedStream<T, W extends Window> {
 	}
 
 	/**
-	 * Sets the allowed lateness. If the {@link WindowAssigner} used
+	 * Sets the allowed lateness. By default this is 0. If the {@link WindowAssigner} used
 	 * is in processing time, then the allowed lateness is set to 0.
 	 */
 	@PublicEvolving
-	public AllWindowedStream<T, W> setAllowedLateness(Time lateness) {
+	public AllWindowedStream<T, W> allowedLateness(Time lateness) {
 		long millis = lateness.toMilliseconds();
 		if (allowedLateness < 0) {
 			throw new IllegalArgumentException("The allowed lateness cannot be negative.");
 		} else if (allowedLateness != 0 && !windowAssigner.isEventTime()) {
-			this.allowedLateness = 0;
+			throw new IllegalArgumentException("When working in processing time, a lateness > 0 has no actual meaning. " +
+				"Please try again with lateness set to 0.");
 		} else {
 			this.allowedLateness = millis;
 		}
