@@ -4,7 +4,7 @@ title: "Streaming Connectors"
 # Sub-level navigation
 sub-nav-group: streaming
 sub-nav-id: connectors
-sub-nav-pos: 7
+sub-nav-pos: 8
 sub-nav-title: Connectors
 ---
 <!--
@@ -37,6 +37,7 @@ Currently these systems are supported:
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
  * [Amazon Kinesis Streams](http://aws.amazon.com/kinesis/streams/) (sink/source)
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
+ * [Apache NiFi](https://nifi.apache.org) (sink/source)
 
 To run an application using one of these connectors, additional third party
 components are usually required to be installed and launched, e.g. the servers
