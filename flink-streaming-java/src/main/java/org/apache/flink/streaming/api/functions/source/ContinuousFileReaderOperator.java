@@ -97,7 +97,9 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				"Please report it.");
 		}
 
+		this.format.setRuntimeContext(getRuntimeContext());
 		this.format.configure(new Configuration());
+
 		this.collector = new TimestampedCollector<>(output);
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
@@ -173,6 +175,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	private class SplitReader<S extends Serializable, OT> extends Thread {
 
 		private volatile boolean isRunning;
+		private volatile boolean isFormatOpen = false;
 
 		private final FileInputFormat<OT> format;
 		private final TypeSerializer<OT> serializer;
@@ -230,9 +233,16 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		@Override
 		public void run() {
 			try {
+
+				if (!this.isFormatOpen) {
+					this.format.openInputFormat();
+					this.isFormatOpen = true;
+				}
+
 				while (this.isRunning) {
 
 					synchronized (checkpointLock) {
+
 						if (this.currentSplit != null) {
 
 							if (currentSplit.equals(EOS)) {
@@ -297,6 +307,12 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			} finally {
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
+
+					if (this.isFormatOpen) {
+						this.format.closeInputFormat();
+						this.isFormatOpen = false;
+					}
+					this.isRunning = false;
 					checkpointLock.notifyAll();
 				}
 			}
