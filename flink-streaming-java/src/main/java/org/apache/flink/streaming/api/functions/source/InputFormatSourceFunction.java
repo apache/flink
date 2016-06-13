@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -30,7 +31,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 @Internal
-public class InputFormatSource<OUT> extends RichParallelSourceFunction<OUT> {
+public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private TypeInformation<OUT> typeInfo;
@@ -44,7 +45,7 @@ public class InputFormatSource<OUT> extends RichParallelSourceFunction<OUT> {
 	private volatile boolean isRunning = true;
 
 	@SuppressWarnings("unchecked")
-	public InputFormatSource(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
+	public InputFormatSourceFunction(InputFormat<OUT, ?> format, TypeInformation<OUT> typeInfo) {
 		this.format = (InputFormat<OUT, InputSplit>) format;
 		this.typeInfo = typeInfo;
 	}
@@ -53,21 +54,71 @@ public class InputFormatSource<OUT> extends RichParallelSourceFunction<OUT> {
 	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		this.provider = context.getInputSplitProvider();
-		
-		format.configure(parameters);
-		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
-		splitIterator = getInputSplits();
-		if (splitIterator.hasNext()) {
-			format.open(splitIterator.next());
+		if (format instanceof RichInputFormat) {
+			((RichInputFormat) format).setRuntimeContext(context);
 		}
-		isRunning = true;
+		format.configure(parameters);
+
+		provider = context.getInputSplitProvider();
+		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+		splitIterator = getInputSplits();
+		isRunning = splitIterator.hasNext();
+	}
+
+	@Override
+	public void run(SourceContext<OUT> ctx) throws Exception {
+		try {
+
+			if (isRunning && format instanceof RichInputFormat) {
+				((RichInputFormat) format).openInputFormat();
+			}
+
+			OUT nextElement = serializer.createInstance();
+			while (isRunning) {
+				format.open(splitIterator.next());
+
+				// for each element we also check if cancel
+				// was called by checking the isRunning flag
+				
+				while (isRunning && !format.reachedEnd()) {
+					nextElement = format.nextRecord(nextElement);
+					ctx.collect(nextElement);
+				}
+				format.close();
+
+				if (isRunning) {
+					isRunning = splitIterator.hasNext();
+				}
+			}
+		} finally {
+			format.close();
+			if (format instanceof RichInputFormat) {
+				((RichInputFormat) format).closeInputFormat();
+			}
+			isRunning = false;
+		}
+	}
+
+	@Override
+	public void cancel() {
+		isRunning = false;
 	}
 
 	@Override
 	public void close() throws Exception {
 		format.close();
+		if (format instanceof RichInputFormat) {
+			((RichInputFormat) format).closeInputFormat();
+		}
+	}
+
+	/**
+	 * Returns the {@code InputFormat}. This is only needed because we need to set the input
+	 * split assigner on the {@code StreamGraph}.
+	 */
+	public InputFormat<OUT, InputSplit> getFormat() {
+		return format;
 	}
 
 	private Iterator<InputSplit> getInputSplits() {
@@ -115,34 +166,5 @@ public class InputFormatSource<OUT> extends RichParallelSourceFunction<OUT> {
 				throw new UnsupportedOperationException();
 			}
 		};
-	}
-
-	@Override
-	public void run(SourceContext<OUT> ctx) throws Exception {
-		while (isRunning) {
-			OUT nextElement = serializer.createInstance();
-			nextElement =  format.nextRecord(nextElement);
-			if (nextElement == null && splitIterator.hasNext()) {
-				format.open(splitIterator.next());
-				continue;
-			} else if (nextElement == null) {
-				break;
-			}
-			ctx.collect(nextElement);
-		}
-	}
-
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
-
-
-	/**
-	 * Returns the {@code InputFormat}. This is only needed because we need to set the input
-	 * split assigner on the {@code StreamGraph}.
-	 */
-	public InputFormat<OUT, InputSplit> getFormat() {
-		return format;
 	}
 }

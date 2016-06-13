@@ -97,7 +97,9 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				"Please report it.");
 		}
 
+		this.format.setRuntimeContext(getRuntimeContext());
 		this.format.configure(new Configuration());
+
 		this.collector = new TimestampedCollector<>(output);
 		this.checkpointLock = getContainingTask().getCheckpointLock();
 
@@ -230,9 +232,13 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		@Override
 		public void run() {
 			try {
+
+				this.format.openInputFormat();
+
 				while (this.isRunning) {
 
 					synchronized (checkpointLock) {
+
 						if (this.currentSplit != null) {
 
 							if (currentSplit.equals(EOS)) {
@@ -297,6 +303,8 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			} finally {
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
+					this.format.closeInputFormat();
+					this.isRunning = false;
 					checkpointLock.notifyAll();
 				}
 			}
