@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -84,6 +85,47 @@ public class GenericFoldingState<K, N, T, ACC, Backend extends AbstractStateBack
 	@Override
 	public ACC get() throws Exception {
 		return wrappedState.value();
+	}
+
+	@Override
+	public StateIterator<K, FoldingState<T, ACC>> getForAllKeys(N namespace) throws Exception {
+		final StateIterator<K, ValueState<ACC>> wrappedIterator = wrappedState.getForAllKeys(namespace);
+		return new StateIterator<K, FoldingState<T, ACC>>() {
+			@Override
+			public K key() {
+				return wrappedIterator.key();
+			}
+
+			@Override
+			public FoldingState<T, ACC> state() throws Exception {
+				return new FoldingState<T, ACC>() {
+					@Override
+					public ACC get() throws Exception {
+						return wrappedIterator.state().value();
+					}
+
+					@Override
+					public void add(T value) throws Exception {
+						throw new RuntimeException("Not supported.");
+					}
+
+					@Override
+					public void clear() {
+						throw new RuntimeException("Not supported.");
+					}
+				};
+			}
+
+			@Override
+			public void delete() throws Exception {
+				wrappedIterator.delete();
+			}
+
+			@Override
+			public boolean advance() throws Exception {
+				return wrappedIterator.advance();
+			}
+		};
 	}
 
 	@Override

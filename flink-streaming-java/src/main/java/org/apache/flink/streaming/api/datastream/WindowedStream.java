@@ -24,12 +24,14 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
@@ -41,20 +43,25 @@ import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunct
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.AlignedEventTimeWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 
@@ -262,38 +269,20 @@ public class WindowedStream<T, K, W extends Window> {
 
 
 		String opName;
-		KeySelector<T, K> keySel = input.getKeySelector();
-
-		WindowOperator<K, T, Iterable<T>, R, W> operator;
+		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
 			ListStateDescriptor<StreamRecord<T>> stateDesc = new ListStateDescriptor<>("window-contents",
 				new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
-
-			operator = new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					keySel,
-					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-					stateDesc,
-					new InternalIterableWindowFunction<>(function),
-					trigger,
-					evictor);
-
+			operator = createEvictingWindowOperator(stateDesc, new InternalIterableWindowFunction<>(function));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
 				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
-
-			operator = new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					keySel,
-					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-					stateDesc,
-					new InternalIterableWindowFunction<>(function),
-					trigger);
+			operator = createWindowOperator(stateDesc, new InternalIterableWindowFunction<>(function));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -346,7 +335,6 @@ public class WindowedStream<T, K, W extends Window> {
 		String udfName = "WindowedStream." + callLocation;
 
 		String opName;
-		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
 
@@ -354,31 +342,15 @@ public class WindowedStream<T, K, W extends Window> {
 			ListStateDescriptor<StreamRecord<T>> stateDesc = new ListStateDescriptor<>("window-contents",
 				new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
-
-			operator = new EvictingWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					keySel,
-					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-					stateDesc,
-					new InternalIterableWindowFunction<>(new ReduceApplyWindowFunction<>(reduceFunction, function)),
-					trigger,
-					evictor);
-
+			operator = createEvictingWindowOperator(stateDesc, new InternalIterableWindowFunction<>(new ReduceApplyWindowFunction<>(reduceFunction, function)));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				reduceFunction,
 				input.getType().createSerializer(getExecutionEnvironment().getConfig()));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
-
-			operator = new WindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					keySel,
-					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-					stateDesc,
-					new InternalSingleValueWindowFunction<>(function),
-					trigger);
+			operator = createWindowOperator(stateDesc, new InternalSingleValueWindowFunction<>(function));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -435,7 +407,6 @@ public class WindowedStream<T, K, W extends Window> {
 		String udfName = "WindowedStream." + callLocation;
 
 		String opName;
-		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
 
@@ -444,16 +415,8 @@ public class WindowedStream<T, K, W extends Window> {
 			ListStateDescriptor<StreamRecord<T>> stateDesc = new ListStateDescriptor<>("window-contents",
 				new StreamRecordSerializer<>(input.getType().createSerializer(getExecutionEnvironment().getConfig())));
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
-
-			operator = new EvictingWindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)),
-				trigger,
-				evictor);
+			operator = createEvictingWindowOperator(stateDesc, new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function)));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + evictor + ", " + udfName + ")";
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -461,15 +424,8 @@ public class WindowedStream<T, K, W extends Window> {
 				foldFunction,
 				resultType);
 
-			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
-
-			operator = new WindowOperator<>(windowAssigner,
-				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-				keySel,
-				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
-				stateDesc,
-				new InternalSingleValueWindowFunction<>(function),
-				trigger);
+			operator = createWindowOperator(stateDesc, new InternalSingleValueWindowFunction<>(function));
+			opName = operator.getClass().getSimpleName() + "(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -696,7 +652,7 @@ public class WindowedStream<T, K, W extends Window> {
 				@SuppressWarnings("unchecked")
 				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
 						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), 
+								reducer, input.getKeySelector(),
 								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
 								windowLength, windowSlide);
@@ -748,6 +704,38 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return null;
+	}
+
+
+	@SuppressWarnings("unchecked")
+	private <ACC, R> OneInputStreamOperator<T, R> createWindowOperator(StateDescriptor<? extends AppendingState<T, ACC>, ?> stateDesc, InternalWindowFunction<ACC, R, K, W> windowFunction) {
+
+		if ((windowAssigner.getClass().equals(SlidingEventTimeWindows.class) || windowAssigner.getClass().equals(TumblingEventTimeWindows.class))
+				&& trigger.getClass().equals(EventTimeTrigger.class)) {
+			return new AlignedEventTimeWindowOperator<>((WindowAssigner<T, TimeWindow>) windowAssigner,
+					new TimeWindow.Serializer(),
+					stateDesc,
+					(InternalWindowFunction<ACC, R, K, TimeWindow>) windowFunction);
+		}
+
+		return new WindowOperator<>(windowAssigner,
+				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				input.getKeySelector(),
+				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+				stateDesc,
+				windowFunction,
+				trigger);
+	}
+
+	private <R> OneInputStreamOperator<T, R> createEvictingWindowOperator(StateDescriptor<? extends ListState<StreamRecord<T>>, ?> stateDesc, InternalWindowFunction<Iterable<T>, R, K, W> windowFunction) {
+		return new EvictingWindowOperator<>(windowAssigner,
+				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				input.getKeySelector(),
+				input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+				stateDesc,
+				windowFunction,
+				trigger,
+				evictor);
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {

@@ -21,13 +21,17 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.HeapFoldingStateIterator;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -93,6 +97,17 @@ public class FsFoldingState<K, N, T, ACC>
 			return value != null ? value : stateDesc.getDefaultValue();
 		}
 		return stateDesc.getDefaultValue();
+	}
+
+	@Override
+	public StateIterator<K, FoldingState<T, ACC>> getForAllKeys(N namespace) {
+		Map<K, ACC> namespaceState = state.get(namespace);
+		if (namespaceState == null) {
+			return new HeapFoldingStateIterator<>(Collections.<Map.Entry<K, ACC>>emptyIterator());
+		}
+
+		final Iterator<Map.Entry<K, ACC>> it = namespaceState.entrySet().iterator();
+		return new HeapFoldingStateIterator<>(it);
 	}
 
 	@Override

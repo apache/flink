@@ -103,7 +103,7 @@ public class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase
 
 		DataStream<Tuple2<String, Integer>> window1 = source
 			.keyBy(0)
-			.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS), Time.of(100, TimeUnit.MILLISECONDS))
+			.window(new SlidingEventTimeWindows(1000, 100) {}) // force generic WindowOperator
 			.reduce(reducer);
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -116,7 +116,7 @@ public class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase
 
 		DataStream<Tuple2<String, Integer>> window2 = source
 			.keyBy(0)
-			.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS))
+				.window(new TumblingEventTimeWindows(1000) {}) // force generic WindowOperator
 			.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
 				private static final long serialVersionUID = 1L;
 
@@ -134,6 +134,52 @@ public class TimeWindowTranslationTest extends StreamingMultipleProgramsTestBase
 		Assert.assertTrue(operator2 instanceof WindowOperator);
 		WindowOperator winOperator2 = (WindowOperator) operator2;
 		Assert.assertTrue(winOperator2.getTrigger() instanceof EventTimeTrigger);
+		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
+
+	}
+
+	@Test
+	@SuppressWarnings("rawtypes")
+	public void testAlignedEventTimeWindows() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+
+		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+
+		DummyReducer reducer = new DummyReducer();
+
+		DataStream<Tuple2<String, Integer>> window1 = source
+				.keyBy(0)
+				.timeWindow(Time.milliseconds(1000), Time.milliseconds(100))
+				.reduce(reducer);
+
+		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator1 = transform1.getOperator();
+		Assert.assertTrue(operator1 instanceof AlignedEventTimeWindowOperator);
+		AlignedEventTimeWindowOperator winOperator1 = (AlignedEventTimeWindowOperator) operator1;
+		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingEventTimeWindows);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
+
+		DataStream<Tuple2<String, Integer>> window2 = source
+				.keyBy(0)
+				.timeWindow(Time.milliseconds(1000))
+				.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void apply(Tuple tuple,
+							TimeWindow window,
+							Iterable<Tuple2<String, Integer>> values,
+							Collector<Tuple2<String, Integer>> out) throws Exception {
+
+					}
+				});
+
+		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform2 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window2.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator2 = transform2.getOperator();
+		Assert.assertTrue(operator2 instanceof AlignedEventTimeWindowOperator);
+		AlignedEventTimeWindowOperator winOperator2 = (AlignedEventTimeWindowOperator) operator2;
 		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
 		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 

@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	private EventTimeTrigger() {}
+	protected EventTimeTrigger() {}
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
