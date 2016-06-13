@@ -788,7 +788,7 @@ Among others, the following SQL features are not supported, yet:
 - Grouping sets
 - `INTERSECT` and `EXCEPT` set operations
 
-*Note: Tables are joined in the order in which they are specified in the `FROM` clause. Join orders that include Cartesian products are possibly reordered to resolve the Cartesian products into inner equi-joins. Please specify join orders without Cartesian products to avoid such reorderings.
+*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.* 
 
 ### SQL on Streaming Tables
 
