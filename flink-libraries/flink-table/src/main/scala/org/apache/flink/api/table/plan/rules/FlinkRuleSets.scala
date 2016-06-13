@@ -60,9 +60,6 @@ object FlinkRuleSets {
 
     // join rules
     JoinPushExpressionsRule.INSTANCE,
-    // reorder Joins and Cross products to resolve join orders with Cartesian products
-    JoinCrossAssociateRule.INSTANCE,
-    CrossCommuteRule.INSTANCE,
 
     // remove union with only a single child
     UnionEliminatorRule.INSTANCE,
