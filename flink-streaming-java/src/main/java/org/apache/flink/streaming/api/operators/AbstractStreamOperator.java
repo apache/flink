@@ -70,9 +70,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
-	
-	private boolean inputCopyDisabled = false;
-	
+
 	// ---------------- runtime fields ------------------
 
 	/** The task that contains this operator (and other operators in the same chain) */
@@ -322,19 +320,6 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
-	}
-	
-	@Override
-	public boolean isInputCopyingDisabled() {
-		return inputCopyDisabled;
-	}
-
-	/**
-	 * Enable object-reuse for this operator instance. This overrides the setting in
-	 * the {@link org.apache.flink.api.common.ExecutionConfig}
-	 */
-	public void disableInputCopy() {
-		this.inputCopyDisabled = true;
 	}
 
 	public class CountingOutput implements Output<StreamRecord<OUT>> {

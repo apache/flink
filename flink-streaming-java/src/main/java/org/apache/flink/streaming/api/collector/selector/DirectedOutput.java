@@ -34,13 +34,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 	
-	private final OutputSelector<OUT>[] outputSelectors;
+	protected final OutputSelector<OUT>[] outputSelectors;
 
-	private final Output<StreamRecord<OUT>>[] selectAllOutputs;
+	protected final Output<StreamRecord<OUT>>[] selectAllOutputs;
 	
-	private final HashMap<String, Output<StreamRecord<OUT>>[]> outputMap;
+	protected final HashMap<String, Output<StreamRecord<OUT>>[]> outputMap;
 	
-	private final Output<StreamRecord<OUT>>[] allOutputs;
+	protected final Output<StreamRecord<OUT>>[] allOutputs;
 
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -100,9 +100,8 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 		}
 	}
 
-	@Override
-	public void collect(StreamRecord<OUT> record) {
-		Set<Output<StreamRecord<OUT>>> selectedOutputs = new HashSet<Output<StreamRecord<OUT>>>(selectAllOutputs.length);
+	protected Set<Output<StreamRecord<OUT>>> selectOutputs(StreamRecord<OUT> record)  {
+		Set<Output<StreamRecord<OUT>>> selectedOutputs = new HashSet<>(selectAllOutputs.length);
 		Collections.addAll(selectedOutputs, selectAllOutputs);
 
 		for (OutputSelector<OUT> outputSelector : outputSelectors) {
@@ -115,7 +114,14 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 				}
 			}
 		}
-		
+
+		return selectedOutputs;
+	}
+
+	@Override
+	public void collect(StreamRecord<OUT> record) {
+		Set<Output<StreamRecord<OUT>>> selectedOutputs = selectOutputs(record);
+
 		for (Output<StreamRecord<OUT>> out : selectedOutputs) {
 			out.collect(record);
 		}
