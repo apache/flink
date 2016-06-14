@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -232,13 +233,28 @@ public class OperatorChain<OUT> {
 				for (int i = 0; i < allOutputs.size(); i++) {
 					asArray[i] = allOutputs.get(i).f0;
 				}
-				
-				return new BroadcastingOutputCollector<T>(asArray);
+
+				// This is the inverse of creating the normal ChainingOutput.
+				// If the chaining output does not copy we need to copy in the broadcast output,
+				// otherwise multi-chaining would not work correctly.
+				if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+					return new CopyingBroadcastingOutputCollector<>(asArray);
+				} else  {
+					return new BroadcastingOutputCollector<>(asArray);
+				}
 			}
 		}
 		else {
 			// selector present, more complex routing necessary
-			return new DirectedOutput<T>(selectors, allOutputs);
+
+			// This is the inverse of creating the normal ChainingOutput.
+			// If the chaining output does not copy we need to copy in the broadcast output,
+			// otherwise multi-chaining would not work correctly.
+			if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+				return new CopyingDirectedOutput<>(selectors, allOutputs);
+			} else {
+				return new DirectedOutput<>(selectors, allOutputs);
+			}
 			
 		}
 	}
@@ -261,12 +277,12 @@ public class OperatorChain<OUT> {
 
 		allOperators.add(chainedOperator);
 
-		if (containingTask.getExecutionConfig().isObjectReuseEnabled() || chainedOperator.isInputCopyingDisabled()) {
-			return new ChainingOutput<IN>(chainedOperator);
+		if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+			return new ChainingOutput<>(chainedOperator);
 		}
 		else {
 			TypeSerializer<IN> inSerializer = operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-			return new CopyingChainingOutput<IN>(chainedOperator, inSerializer);
+			return new CopyingChainingOutput<>(chainedOperator, inSerializer);
 		}
 	}
 	
@@ -339,7 +355,7 @@ public class OperatorChain<OUT> {
 		}
 	}
 
-	private static class CopyingChainingOutput<T> extends ChainingOutput<T> {
+	private static final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 		
 		private final TypeSerializer<T> serializer;
 		
@@ -362,9 +378,9 @@ public class OperatorChain<OUT> {
 		}
 	}
 	
-	private static final class BroadcastingOutputCollector<T> implements Output<StreamRecord<T>> {
+	private static class BroadcastingOutputCollector<T> implements Output<StreamRecord<T>> {
 		
-		private final Output<StreamRecord<T>>[] outputs;
+		protected final Output<StreamRecord<T>>[] outputs;
 		
 		public BroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
 			this.outputs = outputs;
@@ -389,6 +405,30 @@ public class OperatorChain<OUT> {
 			for (Output<StreamRecord<T>> output : outputs) {
 				output.close();
 			}
+		}
+	}
+
+	/**
+	 * Special version of {@link BroadcastingOutputCollector} that performs a shallow copy of the
+	 * {@link StreamRecord} to ensure that multi-chaining works correctly.
+	 */
+	private static final class CopyingBroadcastingOutputCollector<T> extends BroadcastingOutputCollector<T> {
+
+		public CopyingBroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
+			super(outputs);
+		}
+
+		@Override
+		public void collect(StreamRecord<T> record) {
+
+			for (int i = 0; i < outputs.length - 1; i++) {
+				Output<StreamRecord<T>> output = outputs[i];
+				StreamRecord<T> shallowCopy = record.copy(record.getValue());
+				output.collect(shallowCopy);
+			}
+
+			// don't copy for the last output
+			outputs[outputs.length - 1].collect(record);
 		}
 	}
 }
