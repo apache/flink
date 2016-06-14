@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.Path;
 import java.io.Serializable;
 
 /**
- * An interface to be implemented by the user when using the {@link ContinuousFileMonitoringFunction}.
  * The {@link #filterPath(Path)} method is responsible for deciding if a path is eligible for further
  * processing or not. This can serve to exclude temporary or partial files that
  * are still being written.

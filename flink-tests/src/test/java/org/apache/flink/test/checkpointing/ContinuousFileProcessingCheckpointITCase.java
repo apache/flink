@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
@@ -112,8 +112,9 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		// create the monitoring source along with the necessary readers.
 		TestingSinkFunction sink = new TestingSinkFunction();
 		TextInputFormat format = new TextInputFormat(new org.apache.flink.core.fs.Path(localFsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		DataStream<String> inputStream = env.readFile(format, localFsURI,
-			FileProcessingMode.PROCESS_CONTINUOUSLY, INTERVAL, FilePathFilter.createDefaultFilter());
+			FileProcessingMode.PROCESS_CONTINUOUSLY, INTERVAL);
 
 		inputStream.flatMap(new FlatMapFunction<String, String>() {
 			@Override
