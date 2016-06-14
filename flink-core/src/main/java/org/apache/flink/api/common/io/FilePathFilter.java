@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.functions.source;
+package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.Path;
 import java.io.Serializable;
 
 /**
- * An interface to be implemented by the user when using the {@link ContinuousFileMonitoringFunction}.
  * The {@link #filterPath(Path)} method is responsible for deciding if a path is eligible for further
  * processing or not. This can serve to exclude temporary or partial files that
  * are still being written.
@@ -30,9 +29,13 @@ import java.io.Serializable;
 @PublicEvolving
 public abstract class FilePathFilter implements Serializable {
 
+	// Name of an unfinished Hadoop file
+	public static final String HADOOP_COPYING = "_COPYING_";
+
 	public static FilePathFilter createDefaultFilter() {
 		return new DefaultFilter();
 	}
+
 	/**
 	 * Returns {@code true} if the {@code filePath} given is to be
 	 * ignored when processing a directory, e.g.
@@ -60,7 +63,7 @@ public abstract class FilePathFilter implements Serializable {
 			return filePath == null ||
 				filePath.getName().startsWith(".") ||
 				filePath.getName().startsWith("_") ||
-				filePath.getName().contains("_COPYING_");
+				filePath.getName().contains(HADOOP_COPYING);
 		}
 	}
 }

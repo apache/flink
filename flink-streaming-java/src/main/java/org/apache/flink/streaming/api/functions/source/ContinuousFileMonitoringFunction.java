@@ -18,6 +18,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -81,15 +82,13 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	private Long globalModificationTime;
 
-	private FilePathFilter pathFilter;
-
 	private transient Object checkpointLock;
 
 	private volatile boolean isRunning = true;
 
 	public ContinuousFileMonitoringFunction(
 		FileInputFormat<OUT> format, String path,
-		FilePathFilter filter, FileProcessingMode watchType,
+		FileProcessingMode watchType,
 		int readerParallelism, long interval) {
 
 		if (watchType != FileProcessingMode.PROCESS_ONCE && interval < MIN_MONITORING_INTERVAL) {
@@ -98,7 +97,6 @@ public class ContinuousFileMonitoringFunction<OUT>
 		}
 		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
 		this.path = Preconditions.checkNotNull(path, "Unspecified Path.");
-		this.pathFilter = Preconditions.checkNotNull(filter, "Unspecified File Path Filter.");
 
 		this.interval = interval;
 		this.watchType = watchType;
@@ -274,7 +272,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 */
 	private boolean shouldIgnore(Path filePath, long modificationTime) {
 		assert (Thread.holdsLock(checkpointLock));
-		boolean shouldIgnore = ((pathFilter != null && pathFilter.filterPath(filePath)) || modificationTime <= globalModificationTime);
+		boolean shouldIgnore = modificationTime <= globalModificationTime;
 		if (shouldIgnore) {
 			LOG.debug("Ignoring " + filePath + ", with mod time= " + modificationTime + " and global mod time= " + globalModificationTime);
 		}

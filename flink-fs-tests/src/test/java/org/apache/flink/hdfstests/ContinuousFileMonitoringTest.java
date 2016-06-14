@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.source.FilePathFilter;
+import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
@@ -216,8 +216,9 @@ public class ContinuousFileMonitoringTest {
 		}
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(new PathFilter());
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, new PathFilter(),
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
@@ -242,8 +243,9 @@ public class ContinuousFileMonitoringTest {
 		fc.start();
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
@@ -291,8 +293,9 @@ public class ContinuousFileMonitoringTest {
 		Assert.assertTrue(fc.getFilesCreated().size() >= 1);
 
 		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, hdfsURI, FilePathFilter.createDefaultFilter(),
+			new ContinuousFileMonitoringFunction<>(format, hdfsURI,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
 
 		monitoringFunction.open(new Configuration());
@@ -427,7 +430,7 @@ public class ContinuousFileMonitoringTest {
 		assert (hdfs != null);
 
 		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
-		Assert.assertTrue (!hdfs.exists(file));
+		Assert.assertFalse(hdfs.exists(file));
 
 		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
 		FSDataOutputStream stream = hdfs.create(tmp);
