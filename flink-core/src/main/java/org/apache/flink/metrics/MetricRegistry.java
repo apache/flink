@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,7 +62,7 @@ public class MetricRegistry {
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
 	
 	private final MetricReporter reporter;
-	private final java.util.Timer timer;
+	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
 
@@ -86,11 +88,11 @@ public class MetricRegistry {
 			// by default, create JMX metrics
 			LOG.info("No metrics reporter configured, exposing metrics via JMX");
 			this.reporter = new JMXReporter();
-			this.timer = null;
+			this.executor = null;
 		}
 		else {
 			MetricReporter reporter;
-			java.util.Timer timer;
+			ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 			
 			try {
 				String configuredPeriod = config.getString(KEY_METRICS_REPORTER_INTERVAL, null);
@@ -118,23 +120,21 @@ public class MetricRegistry {
 
 				if (reporter instanceof Scheduled) {
 					LOG.info("Periodically reporting metrics in intervals of {} {}", period, timeunit.name());
-					long millis = timeunit.toMillis(period);
 					
-					timer = new java.util.Timer("Periodic Metrics Reporter", true);
-					timer.schedule(new ReporterTask((Scheduled) reporter), millis, millis);
+					executor.scheduleWithFixedDelay(new ReporterTask((Scheduled) reporter), period, period, timeunit);
 				}
 				else {
-					timer = null;
+					executor = null;
 				}
 			}
 			catch (Throwable t) {
 				reporter = new JMXReporter();
-				timer = null;
+				executor = null;
 				LOG.error("Could not instantiate custom metrics reporter. Defaulting to JMX metrics export.", t);
 			}
 
 			this.reporter = reporter;
-			this.timer = timer;
+			this.executor = executor;
 		}
 	}
 
@@ -142,15 +142,15 @@ public class MetricRegistry {
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
 	 */
 	public void shutdown() {
-		if (timer != null) {
-			timer.cancel();
-		}
 		if (reporter != null) {
 			try {
 				reporter.close();
 			} catch (Throwable t) {
 				LOG.warn("Metrics reporter did not shut down cleanly", t);
 			}
+		}
+		if (executor != null) {
+			executor.shutdownNow();
 		}
 	}
 
