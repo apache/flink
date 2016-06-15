@@ -20,8 +20,10 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
 import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
+import java.lang.management.ManagementFactory
 import java.util.UUID
 import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
+import javax.management.ObjectName
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -33,7 +35,7 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
-import org.apache.flink.metrics.{MetricGroup, MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.metrics.{Gauge, MetricGroup, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
@@ -80,6 +82,7 @@ import org.apache.flink.util.{InstantiationUtil, NetUtils}
 import org.jboss.netty.channel.ChannelException
 
 import scala.annotation.tailrec
+import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -213,6 +216,8 @@ class JobManager(
     val host = flinkConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
     jobManagerMetricGroup = new JobManagerMetricGroup(
       metricsRegistry, NetUtils.ipAddressToUrlString(InetAddress.getByName(host)))
+
+    instantiateMetrics(jobManagerMetricGroup)
   }
 
   override def postStop(): Unit = {
@@ -1746,6 +1751,136 @@ class JobManager(
 
     // Shutdown and discard all queued messages
     context.system.shutdown()
+  }
+
+  private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
+    instantiateStatusMetrics(jobManagerMetricGroup)
+  }
+
+  private def instantiateStatusMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
+    val jvm = jobManagerMetricGroup
+      .addGroup("Status")
+      .addGroup("JVM")
+
+    instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"))
+    instantiateGarbageCollectorMetrics(jvm.addGroup("GarbageCollector"))
+    instantiateMemoryMetrics(jvm.addGroup("Memory"))
+    instantiateThreadMetrics(jvm.addGroup("Threads"))
+    instantiateCPUMetrics(jvm.addGroup("CPU"))
+  }
+
+  private def instantiateClassLoaderMetrics(metrics: MetricGroup) {
+    val mxBean = ManagementFactory.getClassLoadingMXBean
+
+    metrics
+      .gauge("ClassesLoaded", new Gauge[Long] {
+        override def getValue: Long = mxBean.getTotalLoadedClassCount
+      })
+    metrics.gauge("ClassesUnloaded", new Gauge[Long] {
+      override def getValue: Long = mxBean.getUnloadedClassCount
+    })
+  }
+
+  private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
+    val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
+
+    for (garbageCollector <- garbageCollectors) {
+      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
+      gcGroup.gauge("Count", new Gauge[Long] {
+        override def getValue: Long = garbageCollector.getCollectionCount
+      })
+      gcGroup.gauge("Time", new Gauge[Long] {
+        override def getValue: Long = garbageCollector.getCollectionTime
+      })
+    }
+  }
+
+  private def instantiateMemoryMetrics(metrics: MetricGroup) {
+    val mxBean = ManagementFactory.getMemoryMXBean
+    val heap = metrics.addGroup("Heap")
+    heap.gauge("Used", new Gauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
+    })
+    heap.gauge("Committed", new Gauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
+    })
+    heap.gauge("Max", new Gauge[Long] {
+      override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
+    })
+
+    val nonHeap = metrics.addGroup("NonHeap")
+    nonHeap.gauge("Used", new Gauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
+    })
+    nonHeap.gauge("Committed", new Gauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
+    })
+    nonHeap.gauge("Max", new Gauge[Long] {
+      override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
+    })
+
+    val con = ManagementFactory.getPlatformMBeanServer;
+
+    val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+
+    val direct = metrics.addGroup("Direct")
+    direct.gauge("Count", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "Count").asInstanceOf[Long]
+    })
+    direct.gauge("MemoryUsed", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    direct.gauge("TotalCapacity", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
+
+    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+
+    val mapped = metrics.addGroup("Mapped")
+    mapped.gauge("Count", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+    })
+    mapped.gauge("MemoryUsed", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+    })
+    mapped.gauge("TotalCapacity", new Gauge[Long] {
+      override def getValue: Long = con
+        .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+    })
+  }
+
+  private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
+    val mxBean = ManagementFactory.getThreadMXBean
+
+    metrics
+      .gauge("Count", new Gauge[Int] {
+        override def getValue: Int = mxBean.getThreadCount
+      })
+  }
+
+  private def instantiateCPUMetrics(metrics: MetricGroup): Unit = {
+    try {
+      val mxBean = ManagementFactory.getOperatingSystemMXBean
+        .asInstanceOf[com.sun.management.OperatingSystemMXBean]
+
+      metrics
+        .gauge("Load", new Gauge[Double] {
+          override def getValue: Double = mxBean.getProcessCpuLoad
+        })
+      metrics.gauge("Time", new Gauge[Long] {
+        override def getValue: Long = mxBean.getProcessCpuTime
+      })
+    }
+    catch {
+      case t: Throwable =>
+        log.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
+          " - CPU load metrics will not be available.")
+    }
   }
 }
 
