@@ -1107,6 +1107,8 @@ class JobManager(
 
         log.info(s"Using restart strategy $restartStrategy for $jobId.")
 
+        val jobMetrics = jobManagerMetricGroup.addJob(jobGraph.getJobID, jobGraph.getName)
+
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.get(jobGraph.getJobID) match {
           case Some((graph, currentJobInfo)) =>
@@ -1123,7 +1125,8 @@ class JobManager(
               restartStrategy,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
-              userCodeLoader)
+              userCodeLoader,
+              jobMetrics)
 
             currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
             graph
@@ -1651,6 +1654,7 @@ class JobManager(
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
     }
+    jobManagerMetricGroup.removeJob(jobID)
 
     futureOption
   }

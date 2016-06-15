@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -821,7 +822,8 @@ public class SavepointCoordinatorTest extends TestLogger {
 				classLoader,
 				checkpointIdCounter,
 				savepointStore,
-				new DisabledCheckpointStatsTracker());
+				new DisabledCheckpointStatsTracker(),
+				new UnregisteredMetricsGroup());
 	}
 
 	private static Map<JobVertexID, ExecutionJobVertex> createExecutionJobVertexMap(
