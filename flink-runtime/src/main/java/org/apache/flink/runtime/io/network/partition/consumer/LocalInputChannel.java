@@ -84,7 +84,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			Tuple2<Integer, Integer> initialAndMaxBackoff,
 			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInLocal());
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);

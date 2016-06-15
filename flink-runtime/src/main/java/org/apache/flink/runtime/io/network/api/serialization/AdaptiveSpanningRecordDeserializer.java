@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
@@ -164,10 +163,6 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		this.reporter = reporter;
 		this.spanningWrapper.setReporter(reporter);
-	}
-
-	@Override
-	public void instantiateMetrics(IOMetricGroup metrics) {
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

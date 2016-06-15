@@ -219,9 +219,6 @@ public class StreamInputProcessor<IN> {
 	 * @param metrics metric group
      */
 	public void setMetricGroup(IOMetricGroup metrics) {
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
-			deserializer.instantiateMetrics(metrics);
-		}
 		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
 			@Override
 			public Long getValue() {

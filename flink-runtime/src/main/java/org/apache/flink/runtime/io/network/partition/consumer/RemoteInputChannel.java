@@ -97,7 +97,7 @@ public class RemoteInputChannel extends InputChannel {
 			Tuple2<Integer, Integer> initialAndMaxBackoff,
 			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInRemote());
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);

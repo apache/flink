@@ -676,7 +676,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 
 			inputReaders[i].setReporter(reporter);
-			inputReaders[i].setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
 
 			currentReaderOffset += groupSize;
 		}

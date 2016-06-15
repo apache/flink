@@ -99,7 +99,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		public void collect(StreamRecord<IN> record) {
 			try {
 				if (shouldWait) {
-						dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
+					dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
 				}
 				else {
 					dataChannel.put(record);

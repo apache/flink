@@ -42,11 +42,11 @@ public class IOMetricGroup extends AbstractMetricGroup {
 		return numBytesOut;
 	}
 
-	public Counter getNumBytesInLocal() {
+	public Counter getNumBytesInLocalCounter() {
 		return numBytesInLocal;
 	}
 
-	public Counter getNumBytesInRemote() {
+	public Counter getNumBytesInRemoteCounter() {
 		return numBytesInRemote;
 	}
 }

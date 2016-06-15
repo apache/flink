@@ -356,8 +356,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 		inputReader.setReporter(reporter);
 		
-		inputReader.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
-
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		@SuppressWarnings({ "rawtypes" })
 		final MutableObjectIterator<?> iter = new ReaderIterator(inputReader, this.inputTypeSerializerFactory.getSerializer());
