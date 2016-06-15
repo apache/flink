@@ -1754,6 +1754,19 @@ class JobManager(
   }
 
   private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
+    jobManagerMetricGroup.gauge("taskSlotsAvailable", new Gauge[Long] {
+      override def getValue: Long = JobManager.this.instanceManager.getNumberOfAvailableSlots
+    })
+    jobManagerMetricGroup.gauge("taskSlotsTotal", new Gauge[Long] {
+      override def getValue: Long = JobManager.this.instanceManager.getTotalNumberOfSlots
+    })
+    jobManagerMetricGroup.gauge("numRegisteredTaskManagers", new Gauge[Long] {
+      override def getValue: Long
+      = JobManager.this.instanceManager.getNumberOfRegisteredTaskManagers
+    })
+    jobManagerMetricGroup.gauge("numRunningJobs", new Gauge[Long] {
+      override def getValue: Long = JobManager.this.currentJobs.size
+    })
     instantiateStatusMetrics(jobManagerMetricGroup)
   }
 
