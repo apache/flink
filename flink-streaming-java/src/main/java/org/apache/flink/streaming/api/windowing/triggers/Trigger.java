@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
@@ -123,6 +124,11 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * callbacks and deal with state.
 	 */
 	public interface TriggerContext {
+
+		/**
+		 * Returns the metric group for this {@link Trigger}
+		 */
+		MetricGroup getMetricGroup();
 
 		/**
 		 * Returns the current watermark time.
