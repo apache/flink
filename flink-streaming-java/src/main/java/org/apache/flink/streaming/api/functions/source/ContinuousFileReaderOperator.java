@@ -175,7 +175,6 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 	private class SplitReader<S extends Serializable, OT> extends Thread {
 
 		private volatile boolean isRunning;
-		private volatile boolean isFormatOpen = false;
 
 		private final FileInputFormat<OT> format;
 		private final TypeSerializer<OT> serializer;
@@ -234,10 +233,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 		public void run() {
 			try {
 
-				if (!this.isFormatOpen) {
-					this.format.openInputFormat();
-					this.isFormatOpen = true;
-				}
+				this.format.openInputFormat();
 
 				while (this.isRunning) {
 
@@ -307,11 +303,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			} finally {
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
-
-					if (this.isFormatOpen) {
-						this.format.closeInputFormat();
-						this.isFormatOpen = false;
-					}
+					this.format.closeInputFormat();
 					this.isRunning = false;
 					checkpointLock.notifyAll();
 				}
