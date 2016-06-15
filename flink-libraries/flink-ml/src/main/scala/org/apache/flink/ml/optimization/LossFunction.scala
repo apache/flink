@@ -94,3 +94,4 @@ case class GenericLossFunction(
     (loss, WeightVector(weightGradient, lossDerivative * interceptGradient))
   }
 }
+

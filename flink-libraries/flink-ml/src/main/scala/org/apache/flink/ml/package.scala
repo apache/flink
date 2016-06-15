@@ -18,6 +18,7 @@
 
 package org.apache.flink
 
+import org.apache.flink.api.scala._
 import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.DataSink
@@ -28,6 +29,20 @@ import org.apache.flink.ml.common.LabeledVector
 import scala.reflect.ClassTag
 
 package object ml {
+
+  /** Pimp my [[Double]] to allow for approximate equals comparison
+    *
+    * @param double
+    */
+  implicit class RichDouble(double: Double) {
+    def approximatelyEquals(other: Double, precision: Double = 1e-9): Boolean = {
+      if (scala.math.abs(double - other) < precision) {
+        true
+      } else {
+        false
+      }
+    }
+  }
 
   /** Pimp my [[ExecutionEnvironment]] to directly support `readLibSVM`
     *
@@ -49,6 +64,27 @@ package object ml {
     }
   }
 
+  /** Pimp my [[DataSet]] for [[Numeric]] to allow for the calculation of the mean value.
+    *
+    * @param dataSet
+    * @tparam T
+    */
+  implicit class RichNumericDataSet[T : Numeric](dataSet: DataSet[T]) {
+    /** Calculates the mean value of a DataSet[T <: Numeric[T] ]
+      *
+      * @return A DataSet[Double] with the mean value as its only element
+      */
+    def mean()(implicit num: Numeric[T], ttit: TypeInformation[(T, Int)]): DataSet[Double] =
+      dataSet.map(x => (x, 1))
+        .reduce((xc, yc) => (num.plus(xc._1, yc._1), xc._2 + yc._2))
+        .map(xc => num.toDouble(xc._1) / xc._2)
+  }
+
+  /** Pimp my [[DataSet]] to minimize boilerplate for broadcast variables.
+    *
+    * @param dataSet
+    * @tparam T
+    */
   implicit class RichDataSet[T](dataSet: DataSet[T]) {
     def mapWithBcVariable[B, O: TypeInformation: ClassTag](
         broadcastVariable: DataSet[B])(

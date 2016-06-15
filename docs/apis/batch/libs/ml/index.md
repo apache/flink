@@ -48,6 +48,7 @@ FlinkML currently supports the following algorithms:
 * [SVM using Communication efficient distributed dual coordinate ascent (CoCoA)](svm.html)
 * [Multiple linear regression](multiple_linear_regression.html)
 * [Optimization Framework](optimization.html)
+* [Neural Networks](neural_networks.html)
 
 ### Unsupervised Learning
 
