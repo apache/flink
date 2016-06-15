@@ -21,6 +21,7 @@ package org.apache.flink.api.common.restartstrategy;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class defines methods to generate RestartStrategyConfigurations. These configurations are
@@ -52,6 +53,18 @@ public class RestartStrategies {
 		long delayBetweenAttempts) {
 
 		return new FixedDelayRestartStrategyConfiguration(restartAttempts, delayBetweenAttempts);
+	}
+
+	/**
+	 * Generates a FailureRateRestartStrategyConfiguration.
+	 *
+	 * @param maxFailureRate Maximum number of restarts in given time unit {@code failureRateUnit} before failing a job
+	 * @param failureRateUnit Time unit for measuring failure rate
+	 * @param delayBetweenRestartAttempts Delay in-between restart attempts
+	 */
+	public static FailureRateRestartStrategyConfiguration failureRateRestart(
+			int maxFailureRate, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
+		return new FailureRateRestartStrategyConfiguration(maxFailureRate, failureRateUnit, delayBetweenRestartAttempts);
 	}
 
 	public abstract static class RestartStrategyConfiguration implements Serializable {
@@ -115,6 +128,36 @@ public class RestartStrategies {
 		public String getDescription() {
 			return "Restart with fixed delay (" + delayBetweenAttempts + " ms). #"
 				+ restartAttempts + " restart attempts.";
+		}
+	}
+
+	final public static class FailureRateRestartStrategyConfiguration extends RestartStrategyConfiguration {
+		private final int maxFailureRate;
+		private final TimeUnit failureRateUnit;
+		private final long delayBetweenRestartAttempts;
+
+		public FailureRateRestartStrategyConfiguration(int maxFailureRate, TimeUnit failureRateUnit, long delayBetweenRestartAttempts) {
+			this.maxFailureRate = maxFailureRate;
+			this.failureRateUnit = failureRateUnit;
+			this.delayBetweenRestartAttempts = delayBetweenRestartAttempts;
+		}
+
+		public int getMaxFailureRate() {
+			return maxFailureRate;
+		}
+
+		public TimeUnit getFailureRateUnit() {
+			return failureRateUnit;
+		}
+
+		public long getDelayBetweenRestartAttempts() {
+			return delayBetweenRestartAttempts;
+		}
+
+		@Override
+		public String getDescription() {
+			return "Failure rate restart with " + maxFailureRate + " max failures per " + failureRateUnit
+					+ " and fixed delay " + delayBetweenRestartAttempts;
 		}
 	}
 }

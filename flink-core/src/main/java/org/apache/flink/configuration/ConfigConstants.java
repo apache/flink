@@ -43,7 +43,8 @@ public final class ConfigConstants {
 
 	/**
 	 * Defines the restart strategy to be used. It can be "off", "none", "disable" to be disabled or
-	 * it can be "fixeddelay", "fixed-delay" to use the FixedDelayRestartStrategy. You can also
+	 * it can be "fixeddelay", "fixed-delay" to use the FixedDelayRestartStrategy or it can
+	 * be "failurerate", "failure-rate" to use FailureRateRestartStrategy. You can also
 	 * specify a class name which implements the RestartStrategy interface and has a static
 	 * create method which takes a Configuration object.
 	 */
@@ -57,11 +58,31 @@ public final class ConfigConstants {
 	public static final String RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = "restart-strategy.fixed-delay.attempts";
 
 	/**
-	 * Delay between two consecutive restart attempts. It can be specified using Scala's
+	 * Delay between two consecutive restart attempts in FixedDelayRestartStrategy. It can be specified using Scala's
 	 * FiniteDuration notation: "1 min", "20 s"
 	 */
 	@PublicEvolving
 	public static final String RESTART_STRATEGY_FIXED_DELAY_DELAY = "restart-strategy.fixed-delay.delay";
+
+	/**
+	 * Maximum number of restarts in given time unit {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_UNIT} before failing a job
+	 * in FailureRateRestartStrategy.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_UNIT = "restart-strategy.failure-rate.max-failures-per-unit";
+
+	/**
+	 * Time unit for measuring failure rate in FailureRateRestartStrategy. One of {@link java.util.concurrent.TimeUnit} values
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_UNIT = "restart-strategy.failure-rate.failure-rate-unit";
+
+	/**
+	 * Delay between two consecutive restart attempts in FailureRateRestartStrategy.
+	 * It can be specified using Scala's FiniteDuration notation: "1 min", "20 s".
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FAILURE_RATE_DELAY = "restart-strategy.failure-rate.delay";
 
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this

@@ -43,23 +43,9 @@ import static org.junit.Assert.*;
  * and the recovery should restart them to verify job completion.
  */
 @SuppressWarnings("serial")
-public class SimpleRecoveryITCase {
+public abstract class SimpleRecoveryITCaseBase {
 
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void setupCluster() {
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		config.setString(ConfigConstants.RESTART_STRATEGY, "fixed-delay");
-		config.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
-		config.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "100 ms");
-
-		cluster = new ForkableFlinkMiniCluster(config, false);
-
-		cluster.start();
-	}
+	protected static ForkableFlinkMiniCluster cluster;
 
 	@AfterClass
 	public static void teardownCluster() {
