@@ -42,6 +42,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -234,7 +235,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		currentWatermark = Long.MIN_VALUE;
-
 	}
 
 	@Override
@@ -477,6 +477,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		public Context(K key, W window) {
 			this.key = key;
 			this.window = window;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return WindowOperator.this.getMetricGroup();
 		}
 
 		public long getCurrentWatermark() {

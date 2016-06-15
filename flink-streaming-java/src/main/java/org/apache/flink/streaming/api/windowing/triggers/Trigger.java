@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
@@ -123,6 +125,17 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * callbacks and deal with state.
 	 */
 	public interface TriggerContext {
+
+		/**
+		 * Returns the metric group for this {@link Trigger}. This is the same metric
+		 * group that would be returned from {@link RuntimeContext#getMetricGroup()} in a user
+		 * function.
+		 *
+		 * <p>You must not call methods that create metric objects
+		 * (such as {@link MetricGroup#counter(int)} multiple times but instead call once
+		 * and store the metric object in a field.
+		 */
+		MetricGroup getMetricGroup();
 
 		/**
 		 * Returns the current watermark time.
