@@ -64,12 +64,12 @@ under the License.
 		<module name="Regexp">
 			<property name="format" value="import com\.google\.common\.base\.Preconditions"/>
 			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use Flink's Preconditions instead of guava's Preconditions"/>
+			<property name="message" value="Use Flink's Preconditions instead of Guava's Preconditions"/>
 		</module>
 		<module name="Regexp">
 			<property name="format" value="import static com\.google\.common\.base\.Preconditions"/>
 			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use Flink's Preconditions instead of guava's Preconditions"/>
+			<property name="message" value="Use Flink's Preconditions instead of Guava's Preconditions"/>
 		</module>
 		<!-- forbid the use of org.apache.commons.lang.SerializationUtils -->
 		<module name="Regexp">
