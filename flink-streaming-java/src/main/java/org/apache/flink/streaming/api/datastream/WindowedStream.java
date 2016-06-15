@@ -124,8 +124,11 @@ public class WindowedStream<T, K, W extends Window> {
 	}
 
 	/**
-	 * Sets the allowed lateness. By default this is 0. If the {@link WindowAssigner} used
-	 * is in processing time, then the allowed lateness is set to 0.
+	 * Sets the allowed lateness to a user-specified value.
+	 * If not explicitly set, the allowed lateness is 0.
+	 * Setting the allowed lateness is only valid for event-time windows.
+	 * If a value different than 0 is provided with a processing-time
+	 * {@link WindowAssigner}, then an exception is thrown.
 	 */
 	@PublicEvolving
 	public WindowedStream<T, K, W> allowedLateness(Time lateness) {
@@ -133,8 +136,7 @@ public class WindowedStream<T, K, W extends Window> {
 		if (allowedLateness < 0) {
 			throw new IllegalArgumentException("The allowed lateness cannot be negative.");
 		} else if (allowedLateness != 0 && !windowAssigner.isEventTime()) {
-			throw new IllegalArgumentException("When working in processing time, a lateness > 0 has no actual meaning. " +
-				"Please try again with lateness set to 0.");
+			throw new IllegalArgumentException("Setting the allowed lateness is only valid for event-time windows.");
 		} else {
 			this.allowedLateness = millis;
 		}

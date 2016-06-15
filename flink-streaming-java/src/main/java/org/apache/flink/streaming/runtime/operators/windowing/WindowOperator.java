@@ -133,9 +133,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	/**
 	 * The allowed lateness for elements. This is used for:
-	 * <li> Deciding if an element should be dropped from a window due to lateness. </li>
-	 * <li> Clearing the state of a window if the system time passes
-	 * the {@code window.maxTimestamp + allowedLateness} landmark. </li>
+	 * <ul> Deciding if an element should be dropped from a window due to lateness.</ul>
+	 * <ul> Clearing the state of a window if the system time passes
+	 * the {@code window.maxTimestamp + allowedLateness} landmark.</ul>
 	 */
 	protected final long allowedLateness;
 
@@ -518,7 +518,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
-	 * This method decides if a window is currently active, or not, based on the current
+	 * Decides if a window is currently late or not, based on the current
 	 * watermark, i.e. the current event time, and the allowed lateness.
 	 * @param window
 	 * 					The collection of windows returned by the {@link WindowAssigner}.

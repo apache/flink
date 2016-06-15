@@ -252,17 +252,14 @@ public class EvictingWindowOperatorTest {
 		testHarness.processWatermark(new Watermark(3999));											 // now is the evictor
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		expectedOutput.add(new Watermark(1999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 4), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
+		expectedOutput.add(new Watermark(3999));
 
-		Assert.assertEquals(expectedOutput.size() + 2, testHarness.getOutput().size());
-		for (Object r: testHarness.getOutput()) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
-				Assert.assertTrue(expectedOutput.contains(res));
-			}
-		}
 
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(),
+			new EvictingWindowOperatorTest.ResultSortComparator());
 		testHarness.close();
 	}
 

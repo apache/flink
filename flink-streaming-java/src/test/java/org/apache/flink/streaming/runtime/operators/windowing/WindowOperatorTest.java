@@ -60,11 +60,9 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -981,18 +979,19 @@ public class WindowOperatorTest {
 		// the following is 1 and not  3because the trigger fires and purges.
 		Tuple2<String, Integer> el2 = new Tuple2<>("key2", 1);
 
-		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(initialTime + 1500));
 		expected.add(new StreamRecord<>(el1, initialTime + 1999));
+
+		expected.add(new Watermark(initialTime + 2300));
 		expected.add(new StreamRecord<>(el2, initialTime + 1999));
 
-		// the +4 is for the watermarks.
-		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
-		for (Object r: testHarness.getOutput()) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(initialTime + 6000));
+		expected.add(new Watermark(initialTime + 7000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		testHarness.close();
 	}
 
 	@Test
@@ -1042,18 +1041,19 @@ public class WindowOperatorTest {
 		testHarness.processWatermark(new Watermark(initialTime + 2999));
 		testHarness.processWatermark(new Watermark(initialTime + 3999));
 
-		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
-		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), initialTime + 1999));
-		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3999));
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
-		// the +3 is for the watermarks.
-		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
-		for (Object r: testHarness.getOutput()) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(initialTime + 1985));
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), initialTime + 1999));
+
+		expected.add(new Watermark(initialTime + 1999));
+		expected.add(new Watermark(initialTime + 2999));
+
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 3999));
+		expected.add(new Watermark(initialTime + 3999));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		testHarness.close();
 	}
 
 	@Test
@@ -1122,25 +1122,28 @@ public class WindowOperatorTest {
 
 		Tuple2<String, Integer> el6 = new Tuple2<>("key1", 2);
 
-		List<StreamRecord<Tuple2<String, Integer>>> expected = new ArrayList<>();
-		expected.add(new StreamRecord<>(el1, initialTime + 1999));
-		expected.add(new StreamRecord<>(el2, initialTime + 2999));
-		expected.add(new StreamRecord<>(el5, initialTime + 3999));
-		expected.add(new StreamRecord<>(el4, initialTime + 4999));
-		expected.add(new StreamRecord<>(el1, initialTime + 5999));
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
+		expected.add(new StreamRecord<>(el1, initialTime + 1999));
+		expected.add(new Watermark(initialTime + 1999));
+
+		expected.add(new StreamRecord<>(el2, initialTime + 2999));
+		expected.add(new Watermark(initialTime + 3000));
+
+		expected.add(new StreamRecord<>(el5, initialTime + 3999));
 		expected.add(new StreamRecord<>(el6, initialTime + 3999));
+
+		expected.add(new StreamRecord<>(el4, initialTime + 4999));
 		expected.add(new StreamRecord<>(el6, initialTime + 4999));
+
+		expected.add(new StreamRecord<>(el1, initialTime + 5999));
 		expected.add(new StreamRecord<>(el6, initialTime + 5999));
 
-		// the +4 is for the watermarks.
-		Assert.assertEquals(expected.size() + 4, testHarness.getOutput().size());
-		for (Object r: testHarness.getOutput()) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple2<String, Integer>> res = (StreamRecord<Tuple2<String, Integer>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(initialTime + 6000));
+		expected.add(new Watermark(initialTime + 25000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
+		testHarness.close();
 	}
 
 	@Test
@@ -1152,19 +1155,23 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
 
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
 		expected.add(new StreamRecord<>(el1, 11499));
+
+		expected.add(new Watermark(11501));
 		expected.add(new StreamRecord<>(el2, 14599));
+
+		expected.add(new Watermark(14600));
 		expected.add(new StreamRecord<>(el3, 17499));
 
-		// the +7 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new Watermark(100000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple2ResultSortComparator());
 	}
 
 	@Test
@@ -1176,25 +1183,22 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
 
-		// the el3 is just an artifact of the fact that cleanup is not coupled with garbage collection yet
-		// what happens is that the element with 10000 triggers the merging, and then gets dropped at late
-		// so the sessions are merged, then the element is dropped because the merged window is late, but
-		// the merging is not undone. We do not change the code yet as in the same PR the clean-up will be
-		// added at the window.maxTimestamp + allowedLateness
-
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
 		expected.add(new StreamRecord<>(el1, 11499));
+
+		expected.add(new Watermark(11501));
 		expected.add(new StreamRecord<>(el2, 14599));
+
+		expected.add(new Watermark(14600));
 		expected.add(new StreamRecord<>(el3, 17499));
 
-		// the +7 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new Watermark(100000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple2ResultSortComparator());
 	}
 
 	@Test
@@ -1206,19 +1210,23 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 14500l, 17500l);
 
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
 		expected.add(new StreamRecord<>(el1, 11499));
+
+		expected.add(new Watermark(11501));
 		expected.add(new StreamRecord<>(el2, 14599));
+
+		expected.add(new Watermark(14600));
 		expected.add(new StreamRecord<>(el3, 17499));
 
-		// the +7 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new Watermark(100000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple2ResultSortComparator());
 	}
 
 	@Test
@@ -1230,21 +1238,26 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-3", 10000l, 17500l);
 
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
+
 		expected.add(new StreamRecord<>(el1, 11499));
+		expected.add(new Watermark(11501));
+
 		expected.add(new StreamRecord<>(el1, 11499));// because now we fire for the cleanup timer
 		expected.add(new StreamRecord<>(el2, 14599));
+		expected.add(new Watermark(14600));
+
 		expected.add(new StreamRecord<>(el3, 17499));
 		expected.add(new StreamRecord<>(el3, 17499));
 
-		// the +7 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new Watermark(100000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple3ResultSortComparator());
 	}
 
 	@Test
@@ -1257,20 +1270,24 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-1", 10000l, 13000l);
 		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-1", 14500l, 17500l);
 
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
 		expected.add(new StreamRecord<>(el1, 11499));
+
+		expected.add(new Watermark(11501));
 		expected.add(new StreamRecord<>(el2, 14599));
+
+		expected.add(new Watermark(14600));
 		expected.add(new StreamRecord<>(el3, 12999));
 		expected.add(new StreamRecord<>(el4, 17499));
 
-		// the +6 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new Watermark(100000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple3ResultSortComparator());
 	}
 
 	@Test
@@ -1283,20 +1300,25 @@ public class WindowOperatorTest {
 		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-8", 1000l, 17500l);
 
 
-		List<StreamRecord<Tuple3<String, Long, Long>>> expected = new ArrayList<>();
+		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+
+		expected.add(new Watermark(1999));
+		expected.add(new Watermark(4998));
+		expected.add(new Watermark(7400));
 		expected.add(new StreamRecord<>(el1, 11499));
+
+		expected.add(new Watermark(11501));
 		expected.add(new StreamRecord<>(el2, 14599));
-		expected.add(new StreamRecord<>(el3, 17499));
+
+		expected.add(new Watermark(14600));
 		expected.add(new StreamRecord<>(el3, 17499));
 
-		// the +6 is for the watermarks.
-		Assert.assertEquals(expected.size() + 7, actualOutput.size());
-		for (Object r: actualOutput) {
-			if (r instanceof StreamRecord) {
-				StreamRecord<Tuple3<String, Long, Long>> res = (StreamRecord<Tuple3<String, Long, Long>>) r;
-				Assert.assertTrue(expected.contains(res));
-			}
-		}
+		expected.add(new Watermark(20000));
+		expected.add(new StreamRecord<>(el3, 17499));
+		expected.add(new Watermark(100000));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple3ResultSortComparator());
 	}
 
 	private ConcurrentLinkedQueue<Object> testDropDueToLatenessSession(long lateness, Trigger trigger) throws Exception {
@@ -1362,7 +1384,9 @@ public class WindowOperatorTest {
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
-		return testHarness.getOutput();
+		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		testHarness.close();
+		return actual;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1526,6 +1550,10 @@ public class WindowOperatorTest {
 		}
 	}
 
+	/**
+	 * A trigger that fires at the end of the window but does not
+	 * purge the state of the fired window.
+	 */
 	public class EventTimeTriggerAccum extends Trigger<Object, TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
