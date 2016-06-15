@@ -213,7 +213,7 @@ val naturalNumbers = intNumbers.filter { _ > 0 }
 **IMPORTANT:** The system assumes that the function does not modify the elements on which the predicate is applied. Violating this assumption
 can lead to incorrect results.
 
-### Project (Tuple DataSets only) (Java/Python API Only)
+### Projection of Tuple DataSet
 
 The Project transformation removes or moves Tuple fields of a Tuple DataSet.
 The `project(int...)` method selects Tuple fields that should be retained by their index and defines their order in the output Tuple.
@@ -884,6 +884,42 @@ In contrast to that `.aggregate(SUM, 0).aggregate(MIN, 2)` will apply an aggrega
 
 **Note:** The set of aggregation functions will be extended in the future.
 
+### MinBy / MaxBy on Grouped Tuple DataSet
+
+The MinBy (MaxBy) transformation selects a single tuple for each group of tuples. The selected tuple is the tuple whose values of one or more specified fields are minimum (maximum). The fields which are used for comparison must be valid key fields, i.e., comparable. If multiple tuples have minimum (maximum) fields values, an arbitrary tuple of these tuples is returned.
+
+The following code shows how to select the tuple with the minimum values for the `Integer` and `Double` fields for each group of tuples with the same `String` value from a `DataSet<Tuple3<Integer, String, Double>>`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple3<Integer, String, Double>> input = // [...]
+DataSet<Tuple3<Integer, String, Double>> output = input
+                                   .groupBy(1)   // group DataSet on second field
+                                   .minBy(0, 2); // select tuple with minimum values for first and third field.
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, String, Double)] = // [...]
+val output: DataSet[(Int, String, Double)] = input
+                                   .groupBy(1)  // group DataSet on second field
+                                   .minBy(0, 2) // select tuple with minimum values for first and third field.
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
 ### Reduce on full DataSet
 
 The Reduce transformation applies a user-defined reduce function to all elements of a DataSet.
@@ -1017,6 +1053,40 @@ Not supported.
 </div>
 
 **Note:** Extending the set of supported aggregation functions is on our roadmap.
+
+### MinBy / MaxBy on full Tuple DataSet
+
+The MinBy (MaxBy) transformation selects a single tuple from a DataSet of tuples. The selected tuple is the tuple whose values of one or more specified fields are minimum (maximum). The fields which are used for comparison must be valid key fields, i.e., comparable. If multiple tuples have minimum (maximum) fields values, an arbitrary tuple of these tuples is returned.
+
+The following code shows how to select the tuple with the maximum values for the `Integer` and `Double` fields from a `DataSet<Tuple3<Integer, String, Double>>`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple3<Integer, String, Double>> input = // [...]
+DataSet<Tuple3<Integer, String, Double>> output = input
+                                   .maxBy(0, 2); // select tuple with maximum values for first and third field.
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, String, Double)] = // [...]
+val output: DataSet[(Int, String, Double)] = input                          
+                                   .maxBy(0, 2) // select tuple with maximum values for first and third field.
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
 
 ### Distinct
 
