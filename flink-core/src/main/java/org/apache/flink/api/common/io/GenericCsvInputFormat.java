@@ -49,8 +49,8 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
 
 	/** The default charset  to convert strings to bytes */
-	private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
-	
+	private static Charset charset = Charset.forName("UTF-8");
+
 	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
@@ -106,6 +106,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	protected GenericCsvInputFormat(Path filePath) {
 		super(filePath);
 	}
+
+	protected GenericCsvInputFormat(Path filePath, Charset charset) {
+		super(filePath);
+		this.charset = charset != null ? charset : Charset.forName("UTF-8");
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -130,7 +135,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setCommentPrefix(String commentPrefix) {
-		setCommentPrefix(commentPrefix, UTF_8_CHARSET);
+		setCommentPrefix(commentPrefix, charset);
 	}
 
 	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
@@ -174,7 +179,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setFieldDelimiter(String delimiter) {
-		this.fieldDelim = delimiter.getBytes(UTF_8_CHARSET);
+		this.fieldDelim = delimiter.getBytes(charset);
 	}
 
 	public boolean isLenient() {
@@ -314,6 +319,25 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.fieldIncluded = includedMask;
 	}
 
+	/**
+	 * Gets the Charset for the parser.Default is set to UTF-8
+	 *
+	 * @return The charset for the parser.
+	 */
+	public Charset getCharset() {
+		return this.charset;
+	}
+
+	/**
+	 * Sets the charset of the parser. Called by subclasses of the parser to set the type of charset
+	 * when doing a parse.
+	 *
+	 * @param charset The charset  to set.
+	 */
+	protected void setCharset(Charset charset){
+		this.charset = charset != null ? charset : Charset.forName("UTF-8");
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Runtime methods
 	// --------------------------------------------------------------------------------------------
@@ -392,7 +416,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				@SuppressWarnings("unchecked")
 				FieldParser<Object> parser = (FieldParser<Object>) this.fieldParsers[output];
 				Object reuse = holders[output];
-				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse);
+				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse, charset);
 				holders[output] = parser.getLastResult();
 				
 				// check parse result
