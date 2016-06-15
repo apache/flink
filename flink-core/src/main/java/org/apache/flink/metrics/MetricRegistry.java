@@ -170,8 +170,12 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-		if (reporter != null) {
-			reporter.notifyOfAddedMetric(metric, metricName, group);
+		try {
+			if (reporter != null) {
+				reporter.notifyOfAddedMetric(metric, metricName, group);
+			}
+		} catch (Exception e) {
+			LOG.error("Error while registering metric.", e);
 		}
 	}
 
@@ -183,8 +187,12 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-		if (reporter != null) {
-			reporter.notifyOfRemovedMetric(metric, metricName, group);
+		try {
+			if (reporter != null) {
+				reporter.notifyOfRemovedMetric(metric, metricName, group);
+			}
+		} catch (Exception e) {
+			LOG.error("Error while registering metric.", e);
 		}
 	}
 
