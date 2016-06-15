@@ -93,53 +93,60 @@ public class DropwizardHistogramWrapperTest extends TestLogger {
 	public void testDropwizardHistogramWrapperReporting() throws Exception {
 		long reportingInterval = 1000;
 		long timeout = 30000;
-
 		int size = 10;
 		String histogramMetricName = "histogram";
 		Configuration config = new Configuration();
 		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestingReporter.class.getName());
 		config.setString(KEY_METRICS_REPORTER_INTERVAL, reportingInterval + " MILLISECONDS");
 
-		MetricRegistry registry = new MetricRegistry(config);
-		DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(new Histogram(new SlidingWindowReservoir(size)));
+		MetricRegistry registry = null;
 
-		TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
+		try {
+			registry = new MetricRegistry(config);
+			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(new Histogram(new SlidingWindowReservoir(size)));
 
-		registry.register(histogramWrapper, histogramMetricName, metricGroup);
+			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
-		String fullMetricName = metricGroup.getScopeString() + "." + histogramMetricName;
+			registry.register(histogramWrapper, histogramMetricName, metricGroup);
 
-		Field f = registry.getClass().getDeclaredField("reporter");
-		f.setAccessible(true);
+			String fullMetricName = metricGroup.getScopeString() + "." + histogramMetricName;
 
-		MetricReporter reporter = (MetricReporter) f.get(registry);
+			Field f = registry.getClass().getDeclaredField("reporter");
+			f.setAccessible(true);
 
-		assertTrue(reporter instanceof TestingReporter);
+			MetricReporter reporter = (MetricReporter) f.get(registry);
 
-		TestingReporter testingReporter = (TestingReporter) reporter;
+			assertTrue(reporter instanceof TestingReporter);
 
-		TestingScheduledReporter scheduledReporter = testingReporter.scheduledReporter;
+			TestingReporter testingReporter = (TestingReporter) reporter;
 
-		// check that the metric has been registered
-		assertEquals(1, testingReporter.getMetrics().size());
+			TestingScheduledReporter scheduledReporter = testingReporter.scheduledReporter;
 
-		for (int i = 0; i < size; i++) {
-			histogramWrapper.update(i);
+			// check that the metric has been registered
+			assertEquals(1, testingReporter.getMetrics().size());
+
+			for (int i = 0; i < size; i++) {
+				histogramWrapper.update(i);
+			}
+
+			Future<Snapshot> snapshotFuture = scheduledReporter.getNextHistogramSnapshot(fullMetricName);
+
+			Snapshot snapshot = snapshotFuture.get(timeout, TimeUnit.MILLISECONDS);
+
+			assertEquals(0, snapshot.getMin());
+			assertEquals((size - 1) / 2.0, snapshot.getMedian(), 0.001);
+			assertEquals(size - 1, snapshot.getMax());
+			assertEquals(size, snapshot.size());
+
+			registry.unregister(histogramWrapper, "histogram", metricGroup);
+
+			// check that the metric has been de-registered
+			assertEquals(0, testingReporter.getMetrics().size());
+		} finally {
+			if (registry != null) {
+				registry.shutdown();
+			}
 		}
-
-		Future<Snapshot> snapshotFuture = scheduledReporter.getNextHistogramSnapshot(fullMetricName);
-
-		Snapshot snapshot = snapshotFuture.get(timeout, TimeUnit.MILLISECONDS);
-
-		assertEquals(0, snapshot.getMin());
-		assertEquals((size - 1) / 2.0, snapshot.getMedian(), 0.001);
-		assertEquals(size - 1, snapshot.getMax());
-		assertEquals(size, snapshot.size());
-
-		registry.unregister(histogramWrapper, "histogram", metricGroup);
-
-		// check that the metric has been de-registered
-		assertEquals(0, testingReporter.getMetrics().size());
 	}
 
 	public static class TestingReporter extends ScheduledDropwizardReporter {

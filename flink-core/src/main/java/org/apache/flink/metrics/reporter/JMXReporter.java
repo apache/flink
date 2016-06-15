@@ -231,11 +231,11 @@ public class JMXReporter implements MetricReporter {
 	//  Interfaces and base classes for JMX beans 
 	// ------------------------------------------------------------------------
 
-	interface MetricMBean {}
+	public interface MetricMBean {}
 
 	private abstract static class AbstractBean implements MetricMBean {}
 
-	interface JmxCounterMBean extends MetricMBean {
+	public interface JmxCounterMBean extends MetricMBean {
 		long getCount();
 	}
 
@@ -252,7 +252,7 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
-	interface JmxGaugeMBean extends MetricMBean {
+	public interface JmxGaugeMBean extends MetricMBean {
 		Object getValue();
 	}
 
@@ -270,7 +270,7 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
-	interface JmxHistogramMBean extends MetricMBean {
+	public interface JmxHistogramMBean extends MetricMBean {
 		long getCount();
 
 		double getMean();
