@@ -21,6 +21,7 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
@@ -60,7 +61,17 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 		return gauge;
 	}
 
-	
+	@Override
+	public Histogram histogram(String name, Histogram histogram) {
+		return histogram;
+	}
+
+	@Override
+	public Histogram histogram(int name, Histogram histogram) {
+		return histogram;
+	}
+
+
 	@Override
 	public MetricGroup addGroup(int name) {
 		return addGroup(String.valueOf(name));

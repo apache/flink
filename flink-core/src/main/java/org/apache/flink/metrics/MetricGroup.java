@@ -95,6 +95,24 @@ public interface MetricGroup {
 	 */
 	<T> Gauge<T> gauge(String name, Gauge<T> gauge);
 
+	/**
+	 * Registers a new {@link Histogram} with Flink.
+	 *
+	 * @param name name of the histogram
+	 * @param histogram histogram to register
+	 * @return the registered histogram
+	 */
+	Histogram histogram(String name, Histogram histogram);
+
+	/**
+	 * Registers a new {@link Histogram} with Flink.
+	 *
+	 * @param name name of the histogram
+	 * @param histogram histogram to register
+	 * @return the registered histogram
+	 */
+	Histogram histogram(int name, Histogram histogram);
+
 	// ------------------------------------------------------------------------
 	// Groups
 	// ------------------------------------------------------------------------
