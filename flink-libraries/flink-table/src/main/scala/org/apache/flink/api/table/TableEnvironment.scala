@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.config.Lex
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.rex.RexExecutorImpl
+import org.apache.calcite.schema.{Schemas, SchemaPlus}
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RelBuilder}
@@ -80,6 +81,9 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // the planner instance used to optimize queries of this TableEnvironment
   private val planner: RelOptPlanner = cluster.getPlanner
+
+  // set the executor to evaluate constant expressions
+  planner.setExecutor(new RexExecutorImpl(Schemas.createDataContext(null)))
 
   private val typeFactory: RelDataTypeFactory = cluster.getTypeFactory
 

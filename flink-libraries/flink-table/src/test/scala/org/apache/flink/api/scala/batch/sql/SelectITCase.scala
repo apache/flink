@@ -19,6 +19,7 @@
 package org.apache.flink.api.scala.batch.sql
 
 import org.apache.calcite.tools.ValidationException
+import org.apache.flink.api.java.operators.FlatMapOperator
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
@@ -28,6 +29,7 @@ import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -144,6 +146,23 @@ class SelectITCase(
     tEnv.registerTable("MyTable", ds)
 
     tEnv.sql(sqlQuery)
+  }
+
+  @Test
+  def testConstantReduce(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT (3+4)+a, b+(1+2), c, 5+6 FROM MyTable WHERE a>(1+7)"
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", ds)
+
+    val table = tEnv.sql(sqlQuery)
+    val result = table.toDataSet[Row].javaSet.asInstanceOf[FlatMapOperator[(Int, Long, String), Row]]
+
+    val expected = "where: (>(AS(_1, 'a'), 8)), select: (+(7, AS(_1, 'a')) AS _1, +(AS(_2, 'b'), 3) AS _2, AS(_3, 'c') AS _3)"
+
+    assertEquals(expected, result.getName)
   }
 
 }
