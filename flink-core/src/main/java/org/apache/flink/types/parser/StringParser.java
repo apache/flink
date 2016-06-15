@@ -44,14 +44,14 @@ public class StringParser extends FieldParser<String> {
 
 		int i = startPos;
 
-		final int delimLimit = limit-delimiter.length+1;
+		final int delimLimit = limit - delimiter.length + 1;
 
 		if(quotedStringParsing && bytes[i] == quoteCharacter) {
 			// quoted string parsing enabled and first character Vis a quote
 			i++;
 
 			// search for ending quote character, continue when it is escaped
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i-1] == BACKSLASH)){
+			while (i < limit && (bytes[i] != quoteCharacter || bytes[i - 1] == BACKSLASH)) {
 				i++;
 			}
 
@@ -63,11 +63,11 @@ public class StringParser extends FieldParser<String> {
 				// check for proper termination
 				if (i == limit) {
 					// either by end of line
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos + 1, i - startPos - 2);
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
-					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					this.result = new String(bytes, startPos + 1, i - startPos - 2);
 					return i + delimiter.length;
 				} else {
 					// no proper termination

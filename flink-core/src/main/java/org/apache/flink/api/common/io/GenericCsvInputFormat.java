@@ -392,7 +392,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				@SuppressWarnings("unchecked")
 				FieldParser<Object> parser = (FieldParser<Object>) this.fieldParsers[output];
 				Object reuse = holders[output];
-				startPos = parser.parseField(bytes, startPos, limit, this.fieldDelim, reuse);
+				startPos = parser.resetErrorStateAndParse(bytes, startPos, limit, this.fieldDelim, reuse);
 				holders[output] = parser.getLastResult();
 				
 				// check parse result
