@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.DefaultKafkaMetricAccumulator;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
@@ -28,6 +29,7 @@ import org.apache.flink.util.NetUtils;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -39,6 +41,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -51,10 +54,11 @@ import static java.util.Objects.requireNonNull;
  * Flink Sink to produce data into a Kafka topic.
  *
  * Please note that this producer does not have any reliability guarantees.
+ * The producer implements the checkpointed interface for allowing synchronization on checkpoints.
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
-public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
+public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> implements Checkpointed<Serializable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
 
@@ -101,17 +105,30 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	 * Flag indicating whether to accept failures (and log them), or to fail on failures
 	 */
 	protected boolean logFailuresOnly;
+
+	/**
+	 * If true, the producer will wait until all outstanding records have been send to the broker.
+	 */
+	private boolean flushOnCheckpoint = false;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
 	/** KafkaProducer instance */
-	protected transient KafkaProducer<byte[], byte[]> producer;
+	protected transient Producer<byte[], byte[]> producer;
 
 	/** The callback than handles error propagation or logging callbacks */
 	protected transient Callback callback;
 	
 	/** Errors encountered in the async producer are stored here */
 	protected transient volatile Exception asyncException;
+
+	/**
+	 * Number of unacknowledged records.
+	 * There is no need to introduce additional locks because invoke() and snapshotState() are
+	 * never called concurrently. So blocking the snapshotting will lock the invoke() method until all
+	 * pending records have been confirmed.
+	 */
+	private volatile long pendingRecords = 0;
 
 
 	/**
@@ -150,7 +167,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 
 		// create a local KafkaProducer to get the list of partitions.
 		// this will also ensure locally that all required ProducerConfig values are set.
-		try (KafkaProducer<Void, IN> getPartitionsProd = new KafkaProducer<>(this.producerConfig)) {
+		try (Producer<Void, IN> getPartitionsProd = getKafkaProducer(this.producerConfig)) {
 			List<PartitionInfo> partitionsList = getPartitionsProd.partitionsFor(defaultTopicId);
 
 			this.partitions = new int[partitionsList.size()];
@@ -178,6 +195,24 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
+	/**
+	 * If set to true, the Flink producer will wait for all outstanding messages in the Kafka buffers
+	 * to be acknowledged by the Kafka producer on a checkpoint.
+	 * This way, the producer can guarantee that messages in the Kafka buffers are part of the checkpoint.
+	 *
+	 * @param flush Flag indicating the flushing mode (true = flush on checkpoint)
+	 */
+	public void setFlushOnCheckpoint(boolean flush) {
+		this.flushOnCheckpoint = flush;
+	}
+
+	/**
+	 * Used for testing only
+	 */
+	protected <K,V> Producer<K,V> getKafkaProducer(Properties props) {
+		return new KafkaProducer<>(props);
+	}
+
 	// ----------------------------------- Utilities --------------------------
 	
 	/**
@@ -185,7 +220,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	 */
 	@Override
 	public void open(Configuration configuration) {
-		producer = new org.apache.kafka.clients.producer.KafkaProducer<>(this.producerConfig);
+		producer = getKafkaProducer(this.producerConfig);
 
 		RuntimeContext ctx = getRuntimeContext();
 		if(partitioner != null) {
@@ -216,12 +251,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 
 		if (logFailuresOnly) {
 			callback = new Callback() {
-				
 				@Override
 				public void onCompletion(RecordMetadata metadata, Exception e) {
 					if (e != null) {
 						LOG.error("Error while sending record to Kafka: " + e.getMessage(), e);
 					}
+					acknowledgeMessage();
 				}
 			};
 		}
@@ -232,6 +267,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 					if (exception != null && asyncException == null) {
 						asyncException = exception;
 					}
+					acknowledgeMessage();
 				}
 			};
 		}
@@ -261,7 +297,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		} else {
 			record = new ProducerRecord<>(targetTopic, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
 		}
-
+		if(flushOnCheckpoint) {
+			pendingRecords++;
+		}
 		producer.send(record, callback);
 	}
 
@@ -274,6 +312,41 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		
 		// make sure we propagate pending errors
 		checkErroneous();
+	}
+
+	// ------------------- Logic for handling checkpoint flushing -------------------------- //
+
+	private void acknowledgeMessage() {
+		if(!flushOnCheckpoint) {
+			// the logic is disabled
+			return;
+		}
+		pendingRecords--;
+	}
+
+	@Override
+	public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
+		if(flushOnCheckpoint) {
+			// flushing is activated: We need to wait until pendingRecords is 0
+			while(pendingRecords > 0) {
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Unable to confirm checkpoint, task was interrupted");
+				}
+			}
+			if(pendingRecords < 0) {
+				throw new IllegalStateException("Pending record count can never be negative: " + pendingRecords);
+			}
+			// pending records count is 0. We can now confirm the checkpoint
+		}
+		// return empty state
+		return null;
+	}
+
+	@Override
+	public void restoreState(Serializable state) {
+		// nothing to do here
 	}
 
 
