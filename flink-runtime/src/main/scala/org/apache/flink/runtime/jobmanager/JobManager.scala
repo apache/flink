@@ -36,7 +36,7 @@ import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalCon
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.metrics.{Gauge, MetricGroup, MetricRegistry => FlinkMetricRegistry}
-import org.apache.flink.metrics.groups.JobManagerMetricGroup
+import org.apache.flink.metrics.groups.{JobManagerMetricGroup, UnregisteredMetricsGroup}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
@@ -1224,11 +1224,21 @@ class JobManager(
             if (isStatsDisabled) {
               new DisabledCheckpointStatsTracker()
             } else {
+
+              val jobMetrics = jobManagerMetricGroup match {
+                case Some(group) =>
+                  group.addJob(jobGraph.getJobID, jobGraph.getName) match {
+                    case (jobGroup:Any) => jobGroup
+                    case null => new UnregisteredMetricsGroup()
+                  }
+                case None =>
+                  new UnregisteredMetricsGroup()
+              }
               val historySize: Int = flinkConfiguration.getInteger(
                 ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
                 ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE)
 
-              new SimpleCheckpointStatsTracker(historySize, ackVertices)
+              new SimpleCheckpointStatsTracker(historySize, ackVertices, jobMetrics)
             }
 
           val jobParallelism = jobGraph.getSerializedExecutionConfig
@@ -1655,6 +1665,7 @@ class JobManager(
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
     }
+    jobManagerMetricGroup.map(_.removeJob(jobID))
 
     futureOption
   }
