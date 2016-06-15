@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 
@@ -99,8 +100,11 @@ public class JMXReporter implements MetricReporter {
 			jmxMetric = new JmxGauge((Gauge<?>) metric);
 		} else if (metric instanceof Counter) {
 			jmxMetric = new JmxCounter((Counter) metric);
+		} else if (metric instanceof Histogram) {
+			jmxMetric = new JmxHistogram((Histogram) metric);
 		} else {
-			LOG.error("Unknown metric type: " + metric.getClass().getName());
+			LOG.error("Cannot add unknown metric type: {}. This indicates that the metric type " +
+				"is not supported by this reporter.", metric.getClass().getName());
 			return;
 		}
 
@@ -227,18 +231,18 @@ public class JMXReporter implements MetricReporter {
 	//  Interfaces and base classes for JMX beans 
 	// ------------------------------------------------------------------------
 
-	public interface MetricMBean {}
+	interface MetricMBean {}
 
 	private abstract static class AbstractBean implements MetricMBean {}
 
-	public interface JmxCounterMBean extends MetricMBean {
+	interface JmxCounterMBean extends MetricMBean {
 		long getCount();
 	}
 
 	private static class JmxCounter extends AbstractBean implements JmxCounterMBean {
 		private Counter counter;
 
-		public JmxCounter(Counter counter) {
+		JmxCounter(Counter counter) {
 			this.counter = counter;
 		}
 
@@ -248,7 +252,7 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
-	public interface JmxGaugeMBean extends MetricMBean {
+	interface JmxGaugeMBean extends MetricMBean {
 		Object getValue();
 	}
 
@@ -256,13 +260,101 @@ public class JMXReporter implements MetricReporter {
 
 		private final Gauge<?> gauge;
 
-		public JmxGauge(Gauge<?> gauge) {
+		JmxGauge(Gauge<?> gauge) {
 			this.gauge = gauge;
 		}
 
 		@Override
 		public Object getValue() {
 			return gauge.getValue();
+		}
+	}
+
+	interface JmxHistogramMBean extends MetricMBean {
+		long getCount();
+
+		double getMean();
+
+		double getStdDev();
+
+		long getMax();
+
+		long getMin();
+
+		double getMedian();
+
+		double get75thPercentile();
+
+		double get95thPercentile();
+
+		double get98thPercentile();
+
+		double get99thPercentile();
+
+		double get999thPercentile();
+	}
+
+	private static class JmxHistogram extends AbstractBean implements JmxHistogramMBean {
+
+		private final Histogram histogram;
+
+		JmxHistogram(Histogram histogram) {
+			this.histogram = histogram;
+		}
+
+		@Override
+		public long getCount() {
+			return histogram.getCount();
+		}
+
+		@Override
+		public double getMean() {
+			return histogram.getStatistics().getMean();
+		}
+
+		@Override
+		public double getStdDev() {
+			return histogram.getStatistics().getStdDev();
+		}
+
+		@Override
+		public long getMax() {
+			return histogram.getStatistics().getMax();
+		}
+
+		@Override
+		public long getMin() {
+			return histogram.getStatistics().getMin();
+		}
+
+		@Override
+		public double getMedian() {
+			return histogram.getStatistics().getMedian();
+		}
+
+		@Override
+		public double get75thPercentile() {
+			return histogram.getStatistics().get75thPercentile();
+		}
+
+		@Override
+		public double get95thPercentile() {
+			return histogram.getStatistics().get95thPercentile();
+		}
+
+		@Override
+		public double get98thPercentile() {
+			return histogram.getStatistics().get98thPercentile();
+		}
+
+		@Override
+		public double get99thPercentile() {
+			return histogram.getStatistics().get99thPercentile();
+		}
+
+		@Override
+		public double get999thPercentile() {
+			return histogram.getStatistics().get999thPercentile();
 		}
 	}
 }

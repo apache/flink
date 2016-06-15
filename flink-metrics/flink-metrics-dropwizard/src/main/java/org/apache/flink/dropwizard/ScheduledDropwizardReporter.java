@@ -25,13 +25,18 @@ import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.dropwizard.metrics.CounterWrapper;
+import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.GaugeWrapper;
+import org.apache.flink.dropwizard.metrics.HistogramWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +48,8 @@ import java.util.SortedMap;
  */
 @PublicEvolving
 public abstract class ScheduledDropwizardReporter implements MetricReporter, Scheduled, Reporter {
+
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
@@ -58,6 +65,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 
 	private final Map<Gauge<?>, String> gauges = new HashMap<>();
 	private final Map<Counter, String> counters = new HashMap<>();
+	private final Map<Histogram, String> histograms = new HashMap<>();
 
 	// ------------------------------------------------------------------------
 
@@ -95,6 +103,18 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 			else if (metric instanceof Gauge) {
 				gauges.put((Gauge<?>) metric, fullName);
 				registry.register(fullName, GaugeWrapper.fromGauge((Gauge<?>) metric));
+			} else if (metric instanceof Histogram) {
+				Histogram histogram = (Histogram) metric;
+				histograms.put(histogram, fullName);
+
+				if (histogram instanceof DropwizardHistogramWrapper) {
+					registry.register(fullName, ((DropwizardHistogramWrapper) histogram).getDropwizarHistogram());
+				} else {
+					registry.register(fullName, new HistogramWrapper(histogram));
+				}
+			} else {
+				log.warn("Cannot add metric of type {}. This indicates that the reporter " +
+					"does not support this metric type.", metric.getClass().getName());
 			}
 		}
 	}
@@ -108,6 +128,8 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				fullName = counters.remove(metric);
 			} else if (metric instanceof Gauge) {
 				fullName = gauges.remove(metric);
+			} else if (metric instanceof Histogram) {
+				fullName = histograms.remove(metric);
 			} else {
 				fullName = null;
 			}

@@ -27,7 +27,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * deviation, the minimum and the maximum.
  */
 @PublicEvolving
-public interface HistogramStatistics {
+public abstract class HistogramStatistics {
 
 	/**
 	 * Returns the value for the given quantile based on the represented histogram statistics.
@@ -35,33 +35,101 @@ public interface HistogramStatistics {
 	 * @param quantile Quantile to calculate the value for
 	 * @return Value for the given quantile
 	 */
-	double getValue(double quantile);
+	public abstract double getValue(double quantile);
+
+	/**
+	 * Returns the elements of the statistics' sample
+	 *
+	 * @return Elements of the statistics' sample
+	 */
+	public abstract long[] getValues();
+
+	/**
+	 * Returns the size of the statistics' sample
+	 *
+	 * @return Size of the statistics' sample
+	 */
+	public abstract int size();
 
 	/**
 	 * Returns the mean of the histogram values.
 	 *
 	 * @return Mean of the histogram values
 	 */
-	double getMean();
+	public abstract double getMean();
 
 	/**
 	 * Returns the standard deviation of the distribution reflected by the histogram statistics.
 	 *
 	 * @return Standard deviation of histogram distribution
 	 */
-	double getStdDev();
+	public abstract double getStdDev();
 
 	/**
 	 * Returns the maximum value of the histogram.
 	 *
 	 * @return Maximum value of the histogram
 	 */
-	long getMax();
+	public abstract long getMax();
 
 	/**
 	 * Returns the minimum value of the histogram.
 	 *
 	 * @return Minimum value of the histogram
 	 */
-	long getMin();
+	public abstract long getMin();
+
+	/**
+	 * Returns the 50th percentile.
+	 *
+	 * @return 50th percentile
+	 */
+	public double getMedian() {
+		return getValue(0.5);
+	}
+
+	/**
+	 * Returns the 75th percentile.
+	 *
+	 * @return 75th percentile
+	 */
+	public double get75thPercentile() {
+		return getValue(0.75);
+	}
+
+	/**
+	 * Returns the 95th percentile.
+	 *
+	 * @return 95th percentile
+	 */
+	public double get95thPercentile() {
+		return getValue(0.95);
+	}
+
+	/**
+	 * Returns the 98th percentile.
+	 *
+	 * @return 98th percentile
+	 */
+	public double get98thPercentile() {
+		return getValue(0.98);
+	}
+
+	/**
+	 * Returns the 99th percentile.
+	 *
+	 * @return 99th percentile
+	 */
+	public double get99thPercentile() {
+		return getValue(0.99);
+	}
+
+	/**
+	 * Returns the 999th percentile.
+	 *
+	 * @return 999th percentile
+	 */
+	public double get999thPercentile() {
+		return getValue(0.999);
+	}
 }

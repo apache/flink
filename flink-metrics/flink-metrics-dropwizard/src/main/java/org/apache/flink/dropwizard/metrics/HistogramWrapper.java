@@ -19,52 +19,34 @@
 package org.apache.flink.dropwizard.metrics;
 
 import com.codahale.metrics.Snapshot;
-import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Histogram;
 
 /**
- * Dropwizard histogram statistics implementation returned by {@link DropwizardHistogramWrapper}.
- * The statistics class wraps a {@link Snapshot} instance and forwards the method calls accordingly.
+ * Wrapper to use a Flink {@link Histogram} as a Dropwizard {@link com.codahale.metrics.Histogram}.
+ * This is necessary to report Flink's histograms via the Dropwizard
+ * {@link com.codahale.metrics.Reporter}.
  */
-class DropwizardHistogramStatistics extends HistogramStatistics {
+public class HistogramWrapper extends com.codahale.metrics.Histogram {
 
-	private final com.codahale.metrics.Snapshot snapshot;
+	private final Histogram histogram;
 
-	DropwizardHistogramStatistics(com.codahale.metrics.Snapshot snapshot) {
-		this.snapshot = snapshot;
+	public HistogramWrapper(Histogram histogram) {
+		super(null);
+		this.histogram = histogram;
 	}
 
 	@Override
-	public double getValue(double quantile) {
-		return snapshot.getValue(quantile);
+	public void update(long value) {
+		histogram.update(value);
 	}
 
 	@Override
-	public long[] getValues() {
-		return snapshot.getValues();
+	public long getCount() {
+		return histogram.getCount();
 	}
 
 	@Override
-	public int size() {
-		return snapshot.size();
-	}
-
-	@Override
-	public double getMean() {
-		return snapshot.getMean();
-	}
-
-	@Override
-	public double getStdDev() {
-		return snapshot.getStdDev();
-	}
-
-	@Override
-	public long getMax() {
-		return snapshot.getMax();
-	}
-
-	@Override
-	public long getMin() {
-		return snapshot.getMin();
+	public Snapshot getSnapshot() {
+		return new HistogramStatisticsWrapper(histogram.getStatistics());
 	}
 }

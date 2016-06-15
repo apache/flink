@@ -18,11 +18,12 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class JMXReporterTest {
+public class JMXReporterTest extends TestLogger {
 
 	@Test
 	public void testReplaceInvalidChars() {

@@ -22,7 +22,7 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 
 /**
- * Wrapper to use a dropwizard {@link com.codahale.metrics.Histogram} as a Flink {@link Histogram}.
+ * Wrapper to use a Dropwizard {@link com.codahale.metrics.Histogram} as a Flink {@link Histogram}.
  */
 public class DropwizardHistogramWrapper implements Histogram {
 

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -101,6 +103,10 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
 				reportCounter(entry.getValue(), entry.getKey());
 			}
+
+			for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
+				reportHistogram(entry.getValue(), entry.getKey());
+			}
 		}
 		catch (ConcurrentModificationException | NoSuchElementException e) {
 			// ignore - may happen when metrics are concurrently added or removed
@@ -118,6 +124,41 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		Object value = gauge.getValue();
 		if (value != null) {
 			send(name, value.toString());
+		}
+	}
+
+	private void reportHistogram(final String name, final Histogram histogram) {
+		if (histogram != null) {
+
+			HistogramStatistics statistics = histogram.getStatistics();
+
+			if (statistics != null) {
+				send(prefix(name, "count"), String.valueOf(histogram.getCount()));
+				send(prefix(name, "max"), String.valueOf(statistics.getMax()));
+				send(prefix(name, "min"), String.valueOf(statistics.getMin()));
+				send(prefix(name, "mean"), String.valueOf(statistics.getMean()));
+				send(prefix(name, "stddev"), String.valueOf(statistics.getStdDev()));
+				send(prefix(name, "p50"), String.valueOf(statistics.getMedian()));
+				send(prefix(name, "p75"), String.valueOf(statistics.get75thPercentile()));
+				send(prefix(name, "p95"), String.valueOf(statistics.get95thPercentile()));
+				send(prefix(name, "p98"), String.valueOf(statistics.get98thPercentile()));
+				send(prefix(name, "p99"), String.valueOf(statistics.get99thPercentile()));
+				send(prefix(name, "p999"), String.valueOf(statistics.get999thPercentile()));
+			}
+		}
+	}
+
+	private String prefix(String ... names) {
+		if (names.length > 0) {
+			StringBuilder stringBuilder = new StringBuilder(names[0]);
+
+			for (int i = 1; i < names.length; i++) {
+				stringBuilder.append('.').append(names[i]);
+			}
+
+			return stringBuilder.toString();
+		} else {
+			return "";
 		}
 	}
 

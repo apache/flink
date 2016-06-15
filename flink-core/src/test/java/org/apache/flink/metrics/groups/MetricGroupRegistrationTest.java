@@ -20,6 +20,8 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
@@ -54,6 +56,26 @@ public class MetricGroupRegistrationTest {
 		
 		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
 		assertEquals("gauge", TestReporter1.lastPassedName);
+
+		Histogram histogram = root.histogram("histogram", new Histogram() {
+			@Override
+			public void update(long value) {
+
+			}
+
+			@Override
+			public long getCount() {
+				return 0;
+			}
+
+			@Override
+			public HistogramStatistics getStatistics() {
+				return null;
+			}
+		});
+
+		Assert.assertEquals(histogram, TestReporter1.lastPassedMetric);
+		assertEquals("histogram", TestReporter1.lastPassedName);
 	}
 
 	public static class TestReporter1 extends TestReporter {
