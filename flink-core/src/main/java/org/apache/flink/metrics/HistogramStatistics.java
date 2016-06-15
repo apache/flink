@@ -29,13 +29,39 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface HistogramStatistics {
 
+	/**
+	 * Returns the value for the given quantile based on the represented histogram statistics.
+	 *
+	 * @param quantile Quantile to calculate the value for
+	 * @return Value for the given quantile
+	 */
 	double getValue(double quantile);
 
+	/**
+	 * Returns the mean of the histogram values.
+	 *
+	 * @return Mean of the histogram values
+	 */
 	double getMean();
 
+	/**
+	 * Returns the standard deviation of the distribution reflected by the histogram statistics.
+	 *
+	 * @return Standard deviation of histogram distribution
+	 */
 	double getStdDev();
 
+	/**
+	 * Returns the maximum value of the histogram.
+	 *
+	 * @return Maximum value of the histogram
+	 */
 	long getMax();
 
+	/**
+	 * Returns the minimum value of the histogram.
+	 *
+	 * @return Minimum value of the histogram
+	 */
 	long getMin();
 }
