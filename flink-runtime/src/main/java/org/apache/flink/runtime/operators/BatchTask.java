@@ -927,7 +927,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
 					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getExecutionConfig().isObjectReuseEnabled());
+					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
+					this.getExecutionConfig().isObjectReuseEnabled());
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;

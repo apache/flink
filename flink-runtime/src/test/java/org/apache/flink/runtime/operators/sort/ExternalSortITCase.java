@@ -114,7 +114,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 2, 0.9f, true);
+					(double)64/78, 2, 0.9f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -163,7 +163,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 10, 2, 0.9f, false);
+					(double)64/78, 10, 2, 0.9f, true /*use large record handler*/, false);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -212,7 +212,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)16/78, 64, 0.7f, true);
+					(double)16/78, 64, 0.7f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -264,7 +264,7 @@ public class ExternalSortITCase {
 			
 			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 16, 0.7f, false);
+					(double)64/78, 16, 0.7f, true /*use large record handler*/, false);
 			
 			// emit data
 			LOG.debug("Emitting data...");
@@ -321,7 +321,8 @@ public class ExternalSortITCase {
 			LOG.debug("Initializing sortmerger...");
 			
 			Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f, true);
+					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f,
+					true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Emitting data...");

@@ -126,6 +126,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	private final int defaultMaxFan;
 	
 	private final float defaultSortSpillingThreshold;
+
+	private final boolean useLargeRecordHandler;
 	
 	private int iterationIdEnumerator = 1;
 	
@@ -143,6 +145,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	public JobGraphGenerator() {
 		this.defaultMaxFan = ConfigConstants.DEFAULT_SPILLING_MAX_FAN;
 		this.defaultSortSpillingThreshold = ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
+		this.useLargeRecordHandler = ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER;
 	}
 	
 	public JobGraphGenerator(Configuration config) {
@@ -150,6 +153,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
 		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
 			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
+		this.useLargeRecordHandler = config.getBoolean(
+				ConfigConstants.USE_LARGE_RECORD_HANDLER_KEY,
+				ConfigConstants.DEFAULT_USE_LARGE_RECORD_HANDLER);
+
 	}
 
 	/**
@@ -1051,6 +1058,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			config.setRelativeMemoryInput(inputNum, c.getRelativeMemoryLocalStrategy());
 			config.setFilehandlesInput(inputNum, this.defaultMaxFan);
 			config.setSpillingThresholdInput(inputNum, this.defaultSortSpillingThreshold);
+			config.setUseLargeRecordHandler(this.useLargeRecordHandler);
 		}
 	}
 
