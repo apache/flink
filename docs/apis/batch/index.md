@@ -463,6 +463,20 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>MinBy / MaxBy</strong></td>
+      <td>
+        <p>Selects a tuple from a group of tuples whose values of one or more fields are minimum (maximum). The fields which are used for comparison must be valid key fields, i.e., comparable. If multiple tuples have minimum (maximum) field values, an arbitrary tuple of these tuples is returned. MinBy (MaxBy) may be applied on a full data set or a grouped data set.</p>
+{% highlight java %}
+DataSet<Tuple3<Integer, Double, String>> in = // [...]
+// a DataSet with a single tuple with minimum values for the Integer and String fields.
+DataSet<Tuple3<Integer, Double, String>> out = in.minBy(0, 2);
+// a DataSet with one tuple for each group with the minimum value for the Double field.
+DataSet<Tuple3<Integer, Double, String>> out2 = in.groupBy(2)
+                                                  .minBy(1);
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 
