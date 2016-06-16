@@ -144,7 +144,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	private transient boolean end;
 
-	private transient long offset = -1;
+	private long offset = -1;
 
 	// --------------------------------------------------------------------------------------------
 	//  The configuration parameters. Configured on the instance and serialized to be shipped.
@@ -638,9 +638,15 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	public void reopen(FileInputSplit split, Long state) throws IOException {
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
 		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
+		Preconditions.checkArgument(state == -1 || state >= split.getStart(),
+			" Illegal offset "+ state +", smaller than the splits start=" + split.getStart());
 
-		this.open(split);
-		this.offset = state;
+		try {
+			this.open(split);
+		} finally {
+			this.offset = state;
+		}
+
 		if (state > this.splitStart + split.getLength()) {
 			this.end = true;
 		} else if (state > split.getStart()) {
