@@ -149,6 +149,19 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		return (Accumulator<V, A>) accumulators.get(name);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator) {
+		final Accumulator<V, A> accumulator = (Accumulator<V, A>) accumulators.get(name);
+		if (accumulator != null) {
+			return accumulator;
+		} else {
+			accumulators.put(name, defaultAccumulator);
+			return defaultAccumulator;
+		}
+
+	}
+
 	@Override
 	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 		return Collections.unmodifiableMap(this.accumulators);

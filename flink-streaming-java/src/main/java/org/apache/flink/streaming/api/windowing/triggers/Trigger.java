@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -169,7 +170,18 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 *                                       function (function is not part os a KeyedStream).
 		 */
 		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
-	
+
+
+		/**
+		 *
+		 * Get an existing accumulator by <code>name</code> if it exists, Otherwise add <code>defaultAccumulator</code>.
+		 *
+		 * @param name Name of the accumulator
+		 * @param defaultAccumulator Accumulator to add, if no accumulator of the given name exists
+		 * @return The accumulator registered by the given <code>name</code> or the given default <code>defaultAccumulator</code>
+		 */
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name, Accumulator<V, A> defaultAccumulator);
+
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -188,8 +200,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
-	
-	
+
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
