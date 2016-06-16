@@ -144,6 +144,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
 							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
 							this.config.getSpillingThresholdInput(0),
+							this.config.getUseLargeRecordHandler(),
 							this.getExecutionConfig().isObjectReuseEnabled());
 					
 					this.localStrategy = sorter;

@@ -156,28 +156,28 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	// ------------------------------------------------------------------------
 
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+			MutableObjectIterator<E> input, AbstractInvokable parentTask,
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
-			boolean objectReuseEnabled)
+			boolean handleLargeRecords, boolean objectReuseEnabled)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, objectReuseEnabled);
+			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
 	}
-	
+
 	public UnilateralSortMerger(MemoryManager memoryManager, IOManager ioManager,
-			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
+			MutableObjectIterator<E> input, AbstractInvokable parentTask,
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
-			float startSpillingFraction, boolean objectReuseEnabled)
+			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
 	throws IOException, MemoryAllocationException
 	{
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false, true,
+			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false, handleLargeRecords,
 			objectReuseEnabled);
 	}
-	
+
 	public UnilateralSortMerger(MemoryManager memoryManager, List<MemorySegment> memory,
 			IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
@@ -202,7 +202,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	{
 		this(memoryManager, memoryManager.allocatePages(parentTask, memoryManager.computeNumberOfPages(memoryFraction)),
 				ioManager, input, parentTask, serializerFactory, comparator,
-				numSortBuffers, maxNumFileHandles, startSpillingFraction, noSpillingMemory, true,
+				numSortBuffers, maxNumFileHandles, startSpillingFraction, noSpillingMemory, handleLargeRecords,
 				objectReuseEnabled);
 	}
 	
