@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -398,8 +399,86 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<CustomType, CustomType>> joinDs =
 				ds1.join(ds2)
-				.where(new KeySelector5())
-				.equalTo(new KeySelector6());
+						.where(new KeySelector5())
+						.equalTo(new KeySelector6());
+
+		List<Tuple2<CustomType, CustomType>> result = joinDs.collect();
+
+		String expected = "1,0,Hi,1,0,Hi\n" +
+				"2,1,Hello,2,1,Hello\n" +
+				"2,1,Hello,2,2,Hello world\n" +
+				"2,2,Hello world,2,1,Hello\n" +
+				"2,2,Hello world,2,2,Hello world\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testDefaultJoinOnTwoCustomTypeInputsWithInnerClassKeyExtractorsClosureCleaner() throws Exception {
+		/*
+		 * (Default) Join on two custom type inputs with key extractors, implemented as inner classes to test closure
+		 * cleaning
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds1 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+
+		DataSet<Tuple2<CustomType, CustomType>> joinDs =
+				ds1.join(ds2)
+						.where(new KeySelector<CustomType, Integer>() {
+							@Override
+							public Integer getKey(CustomType value) {
+								return value.myInt;
+							}
+						})
+						.equalTo(new KeySelector<CustomType, Integer>(){
+
+							@Override
+							public Integer getKey(CustomType value) throws Exception {
+								return value.myInt;
+							}
+						});
+
+		List<Tuple2<CustomType, CustomType>> result = joinDs.collect();
+
+		String expected = "1,0,Hi,1,0,Hi\n" +
+				"2,1,Hello,2,1,Hello\n" +
+				"2,1,Hello,2,2,Hello world\n" +
+				"2,2,Hello world,2,1,Hello\n" +
+				"2,2,Hello world,2,2,Hello world\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testDefaultJoinOnTwoCustomTypeInputsWithInnerClassKeyExtractorsDisabledClosureCleaner() throws Exception {
+		/*
+		 * (Default) Join on two custom type inputs with key extractors, check if disableing closure cleaning works
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableClosureCleaner();
+
+		DataSet<CustomType> ds1 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+
+		DataSet<Tuple2<CustomType, CustomType>> joinDs =
+				ds1.join(ds2)
+						.where(new KeySelector<CustomType, Integer>() {
+							@Override
+							public Integer getKey(CustomType value) {
+								return value.myInt;
+							}
+						})
+						.equalTo(new KeySelector<CustomType, Integer>(){
+
+							@Override
+							public Integer getKey(CustomType value) throws Exception {
+								return value.myInt;
+							}
+						});
 
 		List<Tuple2<CustomType, CustomType>> result = joinDs.collect();
 
