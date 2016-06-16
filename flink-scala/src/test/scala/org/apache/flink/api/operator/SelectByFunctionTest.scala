@@ -40,12 +40,14 @@ class SelectByFunctionTest {
       TypeSerializer[(Int, Long, String, Long, Int)] = ???
   }
 
-  private val bigger  = (10, 100L, "HelloWorld", 200L, 20)
-  private val smaller = (10, 100L, "HelloWorld", 200L, 20)
+   private val bigger  = new Tuple5[Int, Long, String, Long, Int](10, 100L, "HelloWorld", 200L, 20)
+   private val smaller = new Tuple5[Int, Long, String, Long, Int](5, 50L, "Hello", 50L, 15)
 
-  //Special case where only the last value determines if bigger or smaller
-  private val specialCaseBigger  = (10, 100L, "HelloWorld", 200L, 20)
-  private val specialCaseSmaller = (10, 100L, "HelloWorld", 200L, 20)
+   //Special case where only the last value determines if bigger or smaller
+   private val specialCaseBigger =
+     new Tuple5[Int, Long, String, Long, Int](10, 100L, "HelloWorld", 200L, 17)
+   private val specialCaseSmaller  =
+     new Tuple5[Int, Long, String, Long, Int](5, 50L, "Hello", 50L, 17)
 
   /**
     * This test validates whether the order of tuples has
@@ -214,7 +216,9 @@ class SelectByFunctionTest {
   @Test
   def testMinByComparisonMultiple() : Unit =  {
     val a1 = Array(0, 1, 2, 3, 4)
-    val minByTuple = new SelectByMinFunction(tupleTypeInfo, a1)
+        val minByTuple : SelectByMinFunction[scala.Tuple5[Int, Long, String, Long, Int]] =
+            new SelectByMinFunction[scala.Tuple5[Int, Long,
+                String, Long, Int]](tupleTypeInfo, a1)
 
     try {
       Assert.assertSame("SelectByMin must return smaller tuple",

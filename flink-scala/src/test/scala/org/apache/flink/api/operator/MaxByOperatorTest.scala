@@ -24,8 +24,8 @@ import org.junit.Assert
 
 class MaxByOperatorTest {
 
-  private val emptyTupleData = List(Int, Long, String, Long, Int)
-  private val customTypeData = List[CustomType](new CustomType())
+  private val emptyTupleData = List[(Int, Long, String, Long, Int)]()
+  private val customTypeData = List[CustomType]()
 
   @Test
   def testMaxByKeyFieldsDataset(): Unit = {
