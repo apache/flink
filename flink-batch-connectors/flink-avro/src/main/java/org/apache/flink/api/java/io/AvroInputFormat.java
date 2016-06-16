@@ -68,7 +68,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 
 	private transient long recordsReadSinceLastSync;
 
-	private transient long lastSync = -1l;
+	private long lastSync = -1l;
 
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
@@ -186,18 +186,21 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
 		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
-		this.open(split);
-		if (state.f0 != -1) {
+		try {
+			this.open(split);
+		} finally {
+			if (state.f0 != -1) {
+				lastSync = state.f0;
+				recordsReadSinceLastSync = state.f1;
+			}
+		}
 
-			// go to the block we stopped
-			lastSync = state.f0;
+		if (lastSync != -1) {
+			// open and read until the record we were before
+			// the checkpoint and discard the values
 			dataFileReader.seek(lastSync);
-
-			// read until the record we were before the checkpoint and discard the values
-			long recordsToDiscard = state.f1;
-			for(int i = 0; i < recordsToDiscard; i++) {
+			for(int i = 0; i < recordsReadSinceLastSync; i++) {
 				dataFileReader.next(null);
-				recordsReadSinceLastSync++;
 			}
 		}
 	}

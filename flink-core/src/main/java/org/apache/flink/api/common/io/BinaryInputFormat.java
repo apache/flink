@@ -390,14 +390,17 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
 		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
-		this.open(split);
-		this.blockInfo = this.createAndReadBlockInfo();
+		try {
+			this.open(split);
+		} finally {
+			this.blockInfo = this.createAndReadBlockInfo();
 
-		long blockPos = state.f0;
-		this.readRecords = state.f1;
+			long blockPos = state.f0;
+			this.readRecords = state.f1;
 
-		this.stream.seek(this.splitStart + blockPos);
-		this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
-		this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
+			this.stream.seek(this.splitStart + blockPos);
+			this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockPos, this.splitLength);
+			this.dataInputStream = new DataInputViewStreamWrapper(blockBasedInput);
+		}
 	}
 }

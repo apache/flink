@@ -188,6 +188,8 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 		private S restoredFormatState = null;
 
+		private volatile boolean isSplitOpen = false;
+
 		SplitReader(FileInputFormat<OT> format,
 					TypeSerializer<OT> serializer,
 					TimestampedCollector<OT> collector,
@@ -271,6 +273,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 							}
 							this.format.open(currentSplit);
 						}
+						this.isSplitOpen = true;
 					}
 
 					LOG.info("Reading split: " + currentSplit);
@@ -290,8 +293,11 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 
 					} finally {
 						// close and prepare for the next iteration
-						this.format.close();
-						this.currentSplit = null;
+						synchronized (checkpointLock) {
+							this.format.close();
+							this.isSplitOpen = false;
+							this.currentSplit = null;
+						}
 					}
 				}
 
@@ -303,8 +309,12 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 			} finally {
 				synchronized (checkpointLock) {
 					LOG.info("Reader terminated, and exiting...");
+
 					this.format.closeInputFormat();
+					this.isSplitOpen = false;
+					this.currentSplit = null;
 					this.isRunning = false;
+
 					checkpointLock.notifyAll();
 				}
 			}
@@ -321,7 +331,7 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 				this.pendingSplits.remove();
 			}
 
-			if (this.format instanceof CheckpointableInputFormat) {
+			if (this.format instanceof CheckpointableInputFormat && this.isSplitOpen) {
 				S formatState = (S) ((CheckpointableInputFormat) format).getCurrentState();
 				return new Tuple3<>(snapshot, currentSplit, currentSplit == null ? null : formatState);
 			} else {
