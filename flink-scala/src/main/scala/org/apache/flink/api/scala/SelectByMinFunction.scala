@@ -34,7 +34,7 @@ class SelectByMinFunction[T](t : TupleTypeInfoBase[T], fields : Array[Int])
     }
 
     // Check whether type is comparable
-    if (!t.asInstanceOf[TupleTypeInfoBase[T]].getTypeAt(f).isKeyType()) {
+    if (!t.getTypeAt(f).isKeyType()) {
       throw new IllegalArgumentException(
         "SelectByMinFunction supports only key(Comparable) types.")
     }

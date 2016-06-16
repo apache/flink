@@ -17,11 +17,10 @@
  */
 package org.apache.flink.api.operator
 
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.scala.{SelectByMaxFunction, SelectByMinFunction}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.scala._
 import org.junit.{Assert, Test}
 
 /**
@@ -29,25 +28,15 @@ import org.junit.{Assert, Test}
   */
 class SelectByFunctionTest {
 
-  val tupleTypeInfo = new CaseClassTypeInfo(
-    classOf[(Int, Long, String, Long, Int)], Array(), Array(BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-    Array("_1", "_2","_3","_4","_5")) {
+   val tupleTypeInfo = implicitly[TypeInformation[(Int, Long, String, Long, Int)]]
+    .asInstanceOf[TupleTypeInfoBase[(Int, Long, String, Long, Int)]]
 
-    override def createSerializer(config: ExecutionConfig):
-      TypeSerializer[(Int, Long, String, Long, Int)] = ???
-  }
-
-   private val bigger  = new Tuple5[Int, Long, String, Long, Int](10, 100L, "HelloWorld", 200L, 20)
-   private val smaller = new Tuple5[Int, Long, String, Long, Int](5, 50L, "Hello", 50L, 15)
+   private val bigger  = (10, 100L, "HelloWorld", 200L, 20)
+   private val smaller = (5, 50L, "Hello", 50L, 15)
 
    //Special case where only the last value determines if bigger or smaller
-   private val specialCaseBigger =
-     new Tuple5[Int, Long, String, Long, Int](10, 100L, "HelloWorld", 200L, 17)
-   private val specialCaseSmaller  =
-     new Tuple5[Int, Long, String, Long, Int](5, 50L, "Hello", 50L, 17)
+   private val specialCaseBigger = (10, 100L, "HelloWorld", 200L, 17)
+   private val specialCaseSmaller  = (5, 50L, "Hello", 50L, 17)
 
   /**
     * This test validates whether the order of tuples has
@@ -216,10 +205,7 @@ class SelectByFunctionTest {
   @Test
   def testMinByComparisonMultiple() : Unit =  {
     val a1 = Array(0, 1, 2, 3, 4)
-        val minByTuple : SelectByMinFunction[scala.Tuple5[Int, Long, String, Long, Int]] =
-            new SelectByMinFunction[scala.Tuple5[Int, Long,
-                String, Long, Int]](tupleTypeInfo, a1)
-
+    val minByTuple  = new SelectByMinFunction(tupleTypeInfo, a1)
     try {
       Assert.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(smaller, bigger))

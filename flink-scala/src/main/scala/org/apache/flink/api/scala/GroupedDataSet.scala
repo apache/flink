@@ -361,9 +361,6 @@ class GroupedDataSet[T: ClassTag](
     * The transformation consecutively calls a [[ReduceFunction]]
     * until only a single element remains which is the result of the transformation.
     * A ReduceFunction combines two elements into one new element of the same type.
-    *
-    * @param fields Keys taken into account for finding the minimum.
-    * @return A [[ReduceOperator]] representing the minimum.
     */
   def maxBy(fields: Int*) : DataSet[T]  = {
     if (!set.getType().isTupleType) {
@@ -378,9 +375,6 @@ class GroupedDataSet[T: ClassTag](
     * The transformation consecutively calls a [[ReduceFunction]]
     * until only a single element remains which is the result of the transformation.
     * A ReduceFunction combines two elements into one new element of the same type.
-    *
-    * @param fields Keys taken into account for finding the minimum.
-    * @return A [[ReduceOperator]] representing the minimum.
     */
   def minBy(fields: Int*) : DataSet[T]  = {
     if (!set.getType().isTupleType) {
