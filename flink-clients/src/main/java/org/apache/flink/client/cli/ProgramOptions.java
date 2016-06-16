@@ -17,8 +17,14 @@
  */
 package org.apache.flink.client.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.flink.api.common.ExecutionConfig;
+import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,14 +32,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
+import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.ExecutionConfig;
 
 /**
  * Base class for command line options that refer to a JAR file program.
@@ -44,7 +44,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	private final String entryPointClass;
 
-	private final List<URL> classpaths;
+	private final List<URL> resources;
 
 	private final String[] programArgs;
 
@@ -59,37 +59,39 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
-		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
-				line.getOptionValues(ARGS_OPTION.getOpt()) :
-				line.getArgs();
+		String[] args = line.hasOption(ARGS_OPTION.getOpt())
+				? line.getOptionValues(ARGS_OPTION.getOpt())
+				: line.getArgs();
 
 		if (line.hasOption(JAR_OPTION.getOpt())) {
 			this.jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-		}
-		else if (args.length > 0) {
+		} else if (args.length > 0) {
 			jarFilePath = args[0];
 			args = Arrays.copyOfRange(args, 1, args.length);
-		}
-		else {
+		} else {
 			jarFilePath = null;
 		}
 
 		this.programArgs = args;
 
-		List<URL> classpaths = new ArrayList<URL>();
+		// gather the resources from the -C options parameters into the
+		// collection
+		// of resources for the class loader
+		List<URL> resources = new ArrayList<URL>();
 		if (line.hasOption(CLASSPATH_OPTION.getOpt())) {
 			for (String path : line.getOptionValues(CLASSPATH_OPTION.getOpt())) {
 				try {
-					classpaths.add(new URL(path));
+					resources.add(new URL(path));
 				} catch (MalformedURLException e) {
 					throw new CliArgsException("Bad syntax for classpath: " + path);
 				}
 			}
 		}
-		this.classpaths = classpaths;
+		this.resources = resources;
 
-		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-				line.getOptionValue(CLASS_OPTION.getOpt()) : null;
+		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt())
+				? line.getOptionValue(CLASS_OPTION.getOpt())
+				: null;
 
 		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
 			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
@@ -98,12 +100,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 				if (parallelism <= 0) {
 					throw new NumberFormatException();
 				}
-			}
-			catch (NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				throw new CliArgsException("The parallelism must be a positive number: " + parString);
 			}
-		}
-		else {
+		} else {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
@@ -125,8 +125,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return entryPointClass;
 	}
 
-	public List<URL> getClasspaths() {
-		return classpaths;
+	public List<URL> getResources() {
+		return resources;
 	}
 
 	public String[] getProgramArgs() {

@@ -186,9 +186,15 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
-			getClass().getClassLoader());
-		
+		ClassLoader usercodeClassLoader;
+		try {
+			usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
+					getClass().getClassLoader());
+		}
+		catch (Exception e) {
+			throw new ProgramInvocationException("Cannot create class loader: " + e.getMessage(), e);
+		}
+
 		Configuration configuration = new Configuration();
 		configuration.addAll(this.clientConfiguration);
 		

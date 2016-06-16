@@ -34,7 +34,6 @@ import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.optimizer.CompilerException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.flink.optimizer.DataStatistics;
@@ -112,7 +111,7 @@ public class CliFrontendPackageProgramTest {
 
 			RunOptions options = CliFrontendParser.parseRunCommand(arguments);
 			assertEquals(getTestJarPath(), options.getJarFilePath());
-			assertArrayEquals(classpath, options.getClasspaths().toArray());
+			assertArrayEquals(classpath, options.getResources().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
@@ -140,7 +139,7 @@ public class CliFrontendPackageProgramTest {
 
 			RunOptions options = CliFrontendParser.parseRunCommand(arguments);
 			assertEquals(getTestJarPath(), options.getJarFilePath());
-			assertArrayEquals(classpath, options.getClasspaths().toArray());
+			assertArrayEquals(classpath, options.getResources().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
@@ -169,7 +168,7 @@ public class CliFrontendPackageProgramTest {
 
 			RunOptions options = CliFrontendParser.parseRunCommand(arguments);
 			assertEquals(getTestJarPath(), options.getJarFilePath());
-			assertArrayEquals(classpath, options.getClasspaths().toArray());
+			assertArrayEquals(classpath, options.getResources().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
@@ -210,7 +209,7 @@ public class CliFrontendPackageProgramTest {
 
 			RunOptions options = CliFrontendParser.parseRunCommand(arguments);
 			assertEquals(arguments[4], options.getJarFilePath());
-			assertArrayEquals(classpath, options.getClasspaths().toArray());
+			assertArrayEquals(classpath, options.getResources().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
 			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
@@ -301,7 +300,7 @@ public class CliFrontendPackageProgramTest {
 
 			RunOptions options = CliFrontendParser.parseRunCommand(arguments);
 			assertEquals(getTestJarPath(), options.getJarFilePath());
-			assertArrayEquals(classpath, options.getClasspaths().toArray());
+			assertArrayEquals(classpath, options.getResources().toArray());
 			assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, options.getEntryPointClassName());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 			

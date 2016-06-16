@@ -18,22 +18,39 @@
 
 package org.apache.flink.client;
 
-import akka.actor.ActorSystem;
+
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.FileNotFoundException;
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.Properties;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.text.SimpleDateFormat;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.InfoOptions;
+import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.ListOptions;
-import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.cli.SavepointOptions;
 import org.apache.flink.client.cli.StopOptions;
@@ -60,18 +77,20 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
+import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,29 +98,7 @@ import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
-import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
+import akka.actor.ActorSystem;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -127,11 +124,18 @@ public class CliFrontend {
 	public static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 
-	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
+	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this
+																			// has
+																			// to
+																			// be
+																			// a
+																			// regex
+																			// for
+																			// String.split()
 
 	/**
-	 * A special host name used to run a job by deploying Flink into a YARN cluster,
-	 * if this string is specified as the JobManager address
+	 * A special host name used to run a job by deploying Flink into a YARN
+	 * cluster, if this string is specified as the JobManager address
 	 */
 	public static final String YARN_DEPLOY_JOBMANAGER = "yarn-cluster";
 
@@ -139,7 +143,6 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
-
 
 	private final Configuration config;
 
@@ -153,8 +156,10 @@ public class CliFrontend {
 
 	/**
 	 *
-	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not
-	 *                   be loaded, or the YARN properties could not be parsed.
+	 * @throws Exception
+	 *             Thrown if the configuration directory was not found, the
+	 *             configuration could not be loaded, or the YARN properties
+	 *             could not be parsed.
 	 */
 	public CliFrontend() throws Exception {
 		this(getConfigurationDirectoryFromEnv());
@@ -182,8 +187,7 @@ public class CliFrontend {
 				try (InputStream is = new FileInputStream(propertiesFile)) {
 					yarnProperties.load(is);
 				}
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				throw new Exception("Cannot read the YARN properties file", e);
 			}
 
@@ -195,10 +199,9 @@ public class CliFrontend {
 					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
 
 					logAndSysout("YARN properties set default parallelism to " + parallelism);
-				}
-				catch (NumberFormatException e) {
-					throw new Exception("Error while parsing the YARN properties: " +
-							"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
+				} catch (NumberFormatException e) {
+					throw new Exception("Error while parsing the YARN properties: " + "Property "
+							+ YARN_PROPERTIES_PARALLELISM + " is not an integer.");
 				}
 			}
 
@@ -208,10 +211,10 @@ public class CliFrontend {
 			if (address != null) {
 				try {
 					jobManagerAddress = ClientUtils.parseHostPortAddress(address);
-					// store address in config from where it is retrieved by the retrieval service
+					// store address in config from where it is retrieved by the
+					// retrieval service
 					writeJobManagerAddressToConfig(jobManagerAddress);
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					throw new Exception("YARN properties contain an invalid entry for JobManager address.", e);
 				}
 
@@ -229,17 +232,15 @@ public class CliFrontend {
 		try {
 			FileSystem.setDefaultScheme(config);
 		} catch (IOException e) {
-			throw new Exception("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
+			throw new Exception("Error while setting the default " + "filesystem scheme from configuration.", e);
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(config);
 	}
 
-
 	// --------------------------------------------------------------------------------------------
-	//  Getter & Setter
+	// Getter & Setter
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -255,15 +256,15 @@ public class CliFrontend {
 		return copiedConfiguration;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
-	//  Execute Actions
+	// Execute Actions
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Executions the run action.
 	 * 
-	 * @param args Command line arguments for the run action.
+	 * @param args
+	 *            Command line arguments for the run action.
 	 */
 	protected int run(String[] args) {
 		LOG.info("Running 'run' command.");
@@ -271,11 +272,9 @@ public class CliFrontend {
 		RunOptions options;
 		try {
 			options = CliFrontendParser.parseRunCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -293,11 +292,9 @@ public class CliFrontend {
 		try {
 			LOG.info("Building program from JAR file");
 			program = buildProgram(options);
-		}
-		catch (FileNotFoundException e) {
+		} catch (FileNotFoundException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -314,16 +311,15 @@ public class CliFrontend {
 
 			try {
 				if (client.getMaxSlots() != -1 && userParallelism == -1) {
-					logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
-							"To use another parallelism, set it at the ./bin/flink client.");
+					logAndSysout("Using the parallelism provided by the remote cluster (" + client.getMaxSlots() + "). "
+							+ "To use another parallelism, set it at the ./bin/flink client.");
 					userParallelism = client.getMaxSlots();
 				}
 
 				// detached mode
 				if (options.getDetachedMode() || (yarnCluster != null && yarnCluster.isDetached())) {
 					exitCode = executeProgramDetached(program, client, userParallelism);
-				}
-				else {
+				} else {
 					exitCode = executeProgramBlocking(program, client, userParallelism);
 				}
 
@@ -344,15 +340,12 @@ public class CliFrontend {
 				}
 
 				return exitCode;
-			}
-			finally {
+			} finally {
 				client.shutdown();
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
-		}
-		finally {
+		} finally {
 			if (yarnCluster != null && !yarnCluster.isDetached()) {
 				logAndSysout("Shutting down YARN cluster");
 				yarnCluster.shutdown(exitCode != 0);
@@ -366,7 +359,8 @@ public class CliFrontend {
 	/**
 	 * Executes the info action.
 	 * 
-	 * @param args Command line arguments for the info action.
+	 * @param args
+	 *            Command line arguments for the info action.
 	 */
 	protected int info(String[] args) {
 		LOG.info("Running 'info' command.");
@@ -375,11 +369,9 @@ public class CliFrontend {
 		InfoOptions options;
 		try {
 			options = CliFrontendParser.parseInfoCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -399,8 +391,7 @@ public class CliFrontend {
 		try {
 			LOG.info("Building program from JAR file");
 			program = buildProgram(options);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -411,7 +402,7 @@ public class CliFrontend {
 
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 			FlinkPlan flinkPlan = Client.getOptimizedPlan(compiler, program, parallelism);
-			
+
 			String jsonPlan = null;
 			if (flinkPlan instanceof OptimizedPlan) {
 				jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
@@ -423,8 +414,7 @@ public class CliFrontend {
 				System.out.println("----------------------- Execution Plan -----------------------");
 				System.out.println(jsonPlan);
 				System.out.println("--------------------------------------------------------------");
-			}
-			else {
+			} else {
 				System.out.println("JSON plan could not be generated.");
 			}
 
@@ -432,17 +422,14 @@ public class CliFrontend {
 			if (description != null) {
 				System.out.println();
 				System.out.println(description);
-			}
-			else {
+			} else {
 				System.out.println();
 				System.out.println("No description provided.");
 			}
 			return 0;
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
-		}
-		finally {
+		} finally {
 			program.deleteExtractedLibraries();
 		}
 	}
@@ -450,7 +437,8 @@ public class CliFrontend {
 	/**
 	 * Executes the list action.
 	 * 
-	 * @param args Command line arguments for the list action.
+	 * @param args
+	 *            Command line arguments for the list action.
 	 */
 	protected int list(String[] args) {
 		LOG.info("Running 'list' command.");
@@ -458,11 +446,9 @@ public class CliFrontend {
 		ListOptions options;
 		try {
 			options = CliFrontendParser.parseListCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -485,15 +471,13 @@ public class CliFrontend {
 			ActorGateway jobManagerGateway = getJobManagerGateway(options);
 
 			LOG.info("Connecting to JobManager to retrieve list of jobs");
-			Future<Object> response = jobManagerGateway.ask(
-				JobManagerMessages.getRequestRunningJobsStatus(),
-				clientTimeout);
+			Future<Object> response = jobManagerGateway.ask(JobManagerMessages.getRequestRunningJobsStatus(),
+					clientTimeout);
 
 			Object result;
 			try {
 				result = Await.result(response, clientTimeout);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new Exception("Could not retrieve running jobs from the JobManager.", e);
 			}
 
@@ -522,24 +506,23 @@ public class CliFrontend {
 				}
 
 				SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-				Comparator<JobStatusMessage> njec = new Comparator<JobStatusMessage>(){
+				Comparator<JobStatusMessage> njec = new Comparator<JobStatusMessage>() {
 					@Override
 					public int compare(JobStatusMessage o1, JobStatusMessage o2) {
-						return (int)(o1.getStartTime()-o2.getStartTime());
+						return (int) (o1.getStartTime() - o2.getStartTime());
 					}
 				};
 
 				if (running) {
-					if(runningJobs.size() == 0) {
+					if (runningJobs.size() == 0) {
 						System.out.println("No running jobs.");
-					}
-					else {
+					} else {
 						Collections.sort(runningJobs, njec);
 
 						System.out.println("------------------ Running/Restarting Jobs -------------------");
 						for (JobStatusMessage rj : runningJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName() + " (" + rj.getJobState() + ")");
+							System.out.println(df.format(new Date(rj.getStartTime())) + " : " + rj.getJobId() + " : "
+									+ rj.getJobName() + " (" + rj.getJobState() + ")");
 						}
 						System.out.println("--------------------------------------------------------------");
 					}
@@ -547,26 +530,23 @@ public class CliFrontend {
 				if (scheduled) {
 					if (scheduledJobs.size() == 0) {
 						System.out.println("No scheduled jobs.");
-					}
-					else {
+					} else {
 						Collections.sort(scheduledJobs, njec);
 
 						System.out.println("----------------------- Scheduled Jobs -----------------------");
-						for(JobStatusMessage rj : scheduledJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName());
+						for (JobStatusMessage rj : scheduledJobs) {
+							System.out.println(df.format(new Date(rj.getStartTime())) + " : " + rj.getJobId() + " : "
+									+ rj.getJobName());
 						}
 						System.out.println("--------------------------------------------------------------");
 					}
 				}
 				return 0;
+			} else {
+				throw new Exception("ReqeustRunningJobs requires a response of type "
+						+ "RunningJobs. Instead the response is of type " + result.getClass() + ".");
 			}
-			else {
-				throw new Exception("ReqeustRunningJobs requires a response of type " +
-						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
-			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
@@ -574,7 +554,8 @@ public class CliFrontend {
 	/**
 	 * Executes the STOP action.
 	 * 
-	 * @param args Command line arguments for the stop action.
+	 * @param args
+	 *            Command line arguments for the stop action.
 	 */
 	protected int stop(String[] args) {
 		LOG.info("Running 'stop' command.");
@@ -582,11 +563,9 @@ public class CliFrontend {
 		StopOptions options;
 		try {
 			options = CliFrontendParser.parseStopCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -603,12 +582,10 @@ public class CliFrontend {
 			String jobIdString = stopArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				return handleError(e);
 			}
-		}
-		else {
+		} else {
 			return handleArgException(new CliArgsException("Missing JobID"));
 		}
 
@@ -619,13 +596,11 @@ public class CliFrontend {
 			final Object rc = Await.result(response, clientTimeout);
 
 			if (rc instanceof StoppingFailure) {
-				throw new Exception("Stopping the job with ID " + jobId + " failed.",
-						((StoppingFailure) rc).cause());
+				throw new Exception("Stopping the job with ID " + jobId + " failed.", ((StoppingFailure) rc).cause());
 			}
 
 			return 0;
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
@@ -633,7 +608,8 @@ public class CliFrontend {
 	/**
 	 * Executes the CANCEL action.
 	 * 
-	 * @param args Command line arguments for the cancel action.
+	 * @param args
+	 *            Command line arguments for the cancel action.
 	 */
 	protected int cancel(String[] args) {
 		LOG.info("Running 'cancel' command.");
@@ -641,11 +617,9 @@ public class CliFrontend {
 		CancelOptions options;
 		try {
 			options = CliFrontendParser.parseCancelCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -662,14 +636,12 @@ public class CliFrontend {
 			String jobIdString = cleanedArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				LOG.error("Error: The value for the Job ID is not a valid ID.");
 				System.out.println("Error: The value for the Job ID is not a valid ID.");
 				return 1;
 			}
-		}
-		else {
+		} else {
 			LOG.error("Missing JobID in the command line arguments.");
 			System.out.println("Error: Specify a Job ID to cancel a job.");
 			return 1;
@@ -687,8 +659,7 @@ public class CliFrontend {
 			}
 
 			return 0;
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
@@ -696,7 +667,8 @@ public class CliFrontend {
 	/**
 	 * Executes the SAVEPOINT action.
 	 *
-	 * @param args Command line arguments for the cancel action.
+	 * @param args
+	 *            Command line arguments for the cancel action.
 	 */
 	protected int savepoint(String[] args) {
 		LOG.info("Running 'savepoint' command.");
@@ -704,11 +676,9 @@ public class CliFrontend {
 		SavepointOptions options;
 		try {
 			options = CliFrontendParser.parseSavepointCommand(args);
-		}
-		catch (CliArgsException e) {
+		} catch (CliArgsException e) {
 			return handleArgException(e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 
@@ -721,8 +691,7 @@ public class CliFrontend {
 		if (options.isDispose()) {
 			// Discard
 			return disposeSavepoint(options, options.getDisposeSavepointPath());
-		}
-		else {
+		} else {
 			// Trigger
 			String[] cleanedArgs = options.getArgs();
 			JobID jobId;
@@ -731,16 +700,13 @@ public class CliFrontend {
 				String jobIdString = cleanedArgs[0];
 				try {
 					jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+				} catch (Exception e) {
+					return handleError(
+							new IllegalArgumentException("Error: The value for the Job ID is not a valid ID."));
 				}
-				catch (Exception e) {
-					return handleError(new IllegalArgumentException(
-							"Error: The value for the Job ID is not a valid ID."));
-				}
-			}
-			else {
-				return handleError(new IllegalArgumentException(
-						"Error: The value for the Job ID is not a valid ID. " +
-								"Specify a Job ID to trigger a savepoint."));
+			} else {
+				return handleError(new IllegalArgumentException("Error: The value for the Job ID is not a valid ID. "
+						+ "Specify a Job ID to trigger a savepoint."));
 			}
 
 			return triggerSavepoint(options, jobId);
@@ -748,7 +714,8 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
+	 * Sends a
+	 * {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
 	 * message to the job manager.
 	 */
 	private int triggerSavepoint(SavepointOptions options, JobID jobId) {
@@ -763,8 +730,7 @@ public class CliFrontend {
 			try {
 				logAndSysout("Waiting for response...");
 				result = Await.result(response, FiniteDuration.Inf());
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new Exception("Triggering a savepoint for the job " + jobId + " failed.", e);
 			}
 
@@ -774,23 +740,20 @@ public class CliFrontend {
 				logAndSysout("You can resume your program from this savepoint with the run command.");
 
 				return 0;
-			}
-			else if (result instanceof TriggerSavepointFailure) {
+			} else if (result instanceof TriggerSavepointFailure) {
 				TriggerSavepointFailure failure = (TriggerSavepointFailure) result;
 				throw failure.cause();
+			} else {
+				throw new IllegalStateException("Unknown JobManager response of type " + result.getClass());
 			}
-			else {
-				throw new IllegalStateException("Unknown JobManager response of type " +
-						result.getClass());
-			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
 
 	/**
-	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint}
+	 * Sends a
+	 * {@link org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint}
 	 * message to the job manager.
 	 */
 	private int disposeSavepoint(SavepointOptions options, String savepointPath) {
@@ -803,31 +766,26 @@ public class CliFrontend {
 			try {
 				logAndSysout("Waiting for response...");
 				result = Await.result(response, clientTimeout);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new Exception("Disposing the savepoint with path" + savepointPath + " failed.", e);
 			}
 
 			if (result.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {
 				logAndSysout("Savepoint '" + savepointPath + "' disposed.");
 				return 0;
-			}
-			else if (result instanceof DisposeSavepointFailure) {
+			} else if (result instanceof DisposeSavepointFailure) {
 				DisposeSavepointFailure failure = (DisposeSavepointFailure) result;
 				throw failure.cause();
+			} else {
+				throw new IllegalStateException("Unknown JobManager response of type " + result.getClass());
 			}
-			else {
-				throw new IllegalStateException("Unknown JobManager response of type " +
-						result.getClass());
-			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			return handleError(t);
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Interaction with programs and JobManager
+	// Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
 	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
@@ -846,7 +804,7 @@ public class CliFrontend {
 			yarnCluster.stopAfterJob(result.getJobID());
 			yarnCluster.disconnect();
 		}
-		
+
 		System.out.println("Job has been submitted with JobID " + result.getJobID());
 
 		return 0;
@@ -858,11 +816,9 @@ public class CliFrontend {
 		JobSubmissionResult result;
 		try {
 			result = client.runBlocking(program, parallelism);
-		}
-		catch (ProgramInvocationException e) {
+		} catch (ProgramInvocationException e) {
 			return handleError(e);
-		}
-		finally {
+		} finally {
 			program.deleteExtractedLibraries();
 		}
 
@@ -874,8 +830,8 @@ public class CliFrontend {
 			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
-					System.out.println("Accumulator Results: ");
-					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
 		}
 
@@ -890,11 +846,10 @@ public class CliFrontend {
 	 * @throws org.apache.flink.client.program.ProgramInvocationException
 	 */
 	protected PackagedProgram buildProgram(ProgramOptions options)
-			throws FileNotFoundException, ProgramInvocationException
-	{
+			throws FileNotFoundException, ProgramInvocationException {
 		String[] programArgs = options.getProgramArgs();
 		String jarFilePath = options.getJarFilePath();
-		List<URL> classpaths = options.getClasspaths();
+		List<URL> classpaths = options.getResources();
 
 		if (jarFilePath == null) {
 			throw new IllegalArgumentException("The program JAR file was not specified.");
@@ -905,17 +860,16 @@ public class CliFrontend {
 		// Check if JAR file exists
 		if (!jarFile.exists()) {
 			throw new FileNotFoundException("JAR file does not exist: " + jarFile);
-		}
-		else if (!jarFile.isFile()) {
+		} else if (!jarFile.isFile()) {
 			throw new FileNotFoundException("JAR file is not a file: " + jarFile);
 		}
 
 		// Get assembler class
 		String entryPointClass = options.getEntryPointClassName();
 
-		PackagedProgram program = entryPointClass == null ?
-				new PackagedProgram(jarFile, classpaths, programArgs) :
-				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+		PackagedProgram program = entryPointClass == null
+				? new PackagedProgram(jarFile, classpaths, programArgs)
+				: new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
 
 		program.setSavepointPath(options.getSavepointPath());
 
@@ -923,9 +877,11 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Writes the given job manager address to the associated configuration object
+	 * Writes the given job manager address to the associated configuration
+	 * object
 	 *
-	 * @param address Address to write to the configuration
+	 * @param address
+	 *            Address to write to the configuration
 	 */
 	protected void writeJobManagerAddressToConfig(InetSocketAddress address) {
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
@@ -935,20 +891,22 @@ public class CliFrontend {
 	/**
 	 * Updates the associated configuration with the given command line options
 	 *
-	 * @param options Command line options
+	 * @param options
+	 *            Command line options
 	 */
 	protected void updateConfig(CommandLineOptions options) {
-		if(options.getJobManagerAddress() != null){
+		if (options.getJobManagerAddress() != null) {
 			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
 			writeJobManagerAddressToConfig(jobManagerAddress);
 		}
 	}
 
 	/**
-	 * Retrieves the {@link ActorGateway} for the JobManager. The JobManager address is retrieved
-	 * from the provided {@link CommandLineOptions}.
+	 * Retrieves the {@link ActorGateway} for the JobManager. The JobManager
+	 * address is retrieved from the provided {@link CommandLineOptions}.
 	 *
-	 * @param options CommandLineOptions specifying the JobManager URL
+	 * @param options
+	 *            CommandLineOptions specifying the JobManager URL
 	 * @return Gateway to the JobManager
 	 * @throws Exception
 	 */
@@ -961,11 +919,9 @@ public class CliFrontend {
 			LOG.info("Starting actor system to communicate with JobManager");
 			try {
 				scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
-				this.actorSystem = AkkaUtils.createActorSystem(
-						config,
+				this.actorSystem = AkkaUtils.createActorSystem(config,
 						new Some<scala.Tuple2<String, Object>>(systemEndpoint));
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new IOException("Could not start actor system to communicate with JobManager", e);
 			}
 
@@ -980,40 +936,40 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Retrieves a {@link Client} object from the given command line options and other parameters.
+	 * Retrieves a {@link Client} object from the given command line options and
+	 * other parameters.
 	 *
-	 * @param options Command line options which contain JobManager address
-	 * @param programName Program name
-	 * @param userParallelism Given user parallelism
+	 * @param options
+	 *            Command line options which contain JobManager address
+	 * @param programName
+	 *            Program name
+	 * @param userParallelism
+	 *            Given user parallelism
 	 * @throws Exception
 	 */
-	protected Client getClient(
-			CommandLineOptions options,
-			String programName,
-			int userParallelism,
-			boolean detachedMode)
-		throws Exception {
+	protected Client getClient(CommandLineOptions options, String programName, int userParallelism,
+			boolean detachedMode) throws Exception {
 		InetSocketAddress jobManagerAddress;
 		int maxSlots = -1;
 
 		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
 			logAndSysout("YARN cluster mode detected. Switching Log4j output to console");
 
-			// Default yarn application name to use, if nothing is specified on the command line
+			// Default yarn application name to use, if nothing is specified on
+			// the command line
 			String applicationName = "Flink Application: " + programName;
 
 			// user wants to run Flink in YARN cluster.
 			CommandLine commandLine = options.getCommandLine();
-			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser
-														.getFlinkYarnSessionCli()
-														.withDefaultApplicationName(applicationName)
-														.createFlinkYarnClient(commandLine);
+			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser.getFlinkYarnSessionCli()
+					.withDefaultApplicationName(applicationName).createFlinkYarnClient(commandLine);
 
 			if (flinkYarnClient == null) {
 				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
 			}
 
-			// in case the main detached mode wasn't set, we don't wanna overwrite the one loaded
+			// in case the main detached mode wasn't set, we don't wanna
+			// overwrite the one loaded
 			// from yarn options.
 			if (detachedMode) {
 				flinkYarnClient.setDetachedMode(true);
@@ -1027,37 +983,37 @@ public class CliFrontend {
 			maxSlots = yarnTmSlots * flinkYarnClient.getTaskManagerCount();
 			if (userParallelism != -1) {
 				int slotsPerTM = userParallelism / flinkYarnClient.getTaskManagerCount();
-				logAndSysout("The YARN cluster has " + maxSlots + " slots available, " +
-						"but the user requested a parallelism of " + userParallelism + " on YARN. " +
-						"Each of the " + flinkYarnClient.getTaskManagerCount() + " TaskManagers " +
-						"will get "+slotsPerTM+" slots.");
+				logAndSysout("The YARN cluster has " + maxSlots + " slots available, "
+						+ "but the user requested a parallelism of " + userParallelism + " on YARN. " + "Each of the "
+						+ flinkYarnClient.getTaskManagerCount() + " TaskManagers " + "will get " + slotsPerTM
+						+ " slots.");
 				flinkYarnClient.setTaskManagerSlots(slotsPerTM);
 			}
 
 			try {
 				yarnCluster = flinkYarnClient.deploy();
 				yarnCluster.connectToCluster();
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new RuntimeException("Error deploying the YARN cluster", e);
 			}
 
 			jobManagerAddress = yarnCluster.getJobManagerAddress();
 			writeJobManagerAddressToConfig(jobManagerAddress);
-			
-			// overwrite the yarn client config (because the client parses the dynamic properties)
+
+			// overwrite the yarn client config (because the client parses the
+			// dynamic properties)
 			this.config.addAll(flinkYarnClient.getFlinkConfiguration());
 
 			logAndSysout("YARN cluster started");
 			logAndSysout("JobManager web interface address " + yarnCluster.getWebInterfaceURL());
 			logAndSysout("Waiting until all TaskManagers have connected");
 
-			while(true) {
+			while (true) {
 				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
 				if (status != null) {
 					if (status.numRegisteredTaskManagers() < flinkYarnClient.getTaskManagerCount()) {
 						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-							+ flinkYarnClient.getTaskManagerCount() + ")");
+								+ flinkYarnClient.getTaskManagerCount() + ")");
 					} else {
 						logAndSysout("All TaskManagers are connected");
 						break;
@@ -1068,16 +1024,14 @@ public class CliFrontend {
 
 				try {
 					Thread.sleep(500);
-				}
-				catch (InterruptedException e) {
+				} catch (InterruptedException e) {
 					LOG.error("Interrupted while waiting for TaskManagers");
 					System.err.println("Thread is interrupted");
 					Thread.currentThread().interrupt();
 				}
 			}
-		}
-		else {
-			if(options.getJobManagerAddress() != null) {
+		} else {
+			if (options.getJobManagerAddress() != null) {
 				jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
 				writeJobManagerAddressToConfig(jobManagerAddress);
 			}
@@ -1087,13 +1041,14 @@ public class CliFrontend {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Logging and Exception Handling
+	// Logging and Exception Handling
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Displays an exception message for incorrect command line arguments.
 	 *
-	 * @param e The exception to display.
+	 * @param e
+	 *            The exception to display.
 	 * @return The return code for the process.
 	 */
 	private int handleArgException(Exception e) {
@@ -1108,7 +1063,8 @@ public class CliFrontend {
 	/**
 	 * Displays an exception message.
 	 * 
-	 * @param t The exception to display.
+	 * @param t
+	 *            The exception to display.
 	 * @return The return code for the process.
 	 */
 	private int handleError(Throwable t) {
@@ -1122,7 +1078,7 @@ public class CliFrontend {
 		if (t.getCause() instanceof InvalidProgramException) {
 			System.err.println(t.getCause().getMessage());
 			StackTraceElement[] trace = t.getCause().getStackTrace();
-			for (StackTraceElement ele: trace) {
+			for (StackTraceElement ele : trace) {
 				System.err.println("\t" + ele.toString());
 				if (ele.getMethodName().equals("main")) {
 					break;
@@ -1140,13 +1096,14 @@ public class CliFrontend {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Entry point for executable
+	// Entry point for executable
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Parses the command line arguments and starts the requested action.
 	 * 
-	 * @param args command line arguments of the client.
+	 * @param args
+	 *            command line arguments of the client.
 	 * @return The return code of the program
 	 */
 	public int parseParameters(String[] args) {
@@ -1166,8 +1123,9 @@ public class CliFrontend {
 
 		// do action
 		switch (action) {
-			case ACTION_RUN:
-				// run() needs to run in a secured environment for the optimizer.
+			case ACTION_RUN :
+				// run() needs to run in a secured environment for the
+				// optimizer.
 				if (SecurityUtils.isSecurityEnabled()) {
 					String message = "Secure Hadoop environment setup detected. Running in secure context.";
 					LOG.info(message);
@@ -1179,35 +1137,34 @@ public class CliFrontend {
 								return CliFrontend.this.run(params);
 							}
 						});
-					}
-					catch (Exception e) {
+					} catch (Exception e) {
 						return handleError(e);
 					}
 				} else {
 					return run(params);
 				}
-			case ACTION_LIST:
+			case ACTION_LIST :
 				return list(params);
-			case ACTION_INFO:
+			case ACTION_INFO :
 				return info(params);
-			case ACTION_CANCEL:
+			case ACTION_CANCEL :
 				return cancel(params);
-			case ACTION_STOP:
+			case ACTION_STOP :
 				return stop(params);
-			case ACTION_SAVEPOINT:
+			case ACTION_SAVEPOINT :
 				return savepoint(params);
-			case "-h":
-			case "--help":
+			case "-h" :
+			case "--help" :
 				CliFrontendParser.printHelp();
 				return 0;
-			case "-v":
-			case "--version":
+			case "-v" :
+			case "--version" :
 				String version = EnvironmentInformation.getVersion();
 				String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 				System.out.print("Version: " + version);
 				System.out.println(!commitID.equals(EnvironmentInformation.UNKNOWN) ? ", Commit ID: " + commitID : "");
 				return 0;
-			default:
+			default :
 				System.out.printf("\"%s\" is not a valid action.\n", action);
 				System.out.println();
 				System.out.println("Valid actions are \"run\", \"list\", \"info\", \"stop\", or \"cancel\".");
@@ -1237,8 +1194,7 @@ public class CliFrontend {
 			CliFrontend cli = new CliFrontend();
 			int retCode = cli.parseParameters(args);
 			System.exit(retCode);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			LOG.error("Fatal error while running command line interface.", t);
 			t.printStackTrace();
 			System.exit(31);
@@ -1246,7 +1202,7 @@ public class CliFrontend {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Miscellaneous Utilities
+	// Miscellaneous Utilities
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
@@ -1255,22 +1211,18 @@ public class CliFrontend {
 		if (location != null) {
 			if (new File(location).exists()) {
 				return location;
+			} else {
+				throw new RuntimeException("The config directory '" + location + "', specified in the '"
+						+ ENV_CONFIG_DIRECTORY + "' environment variable, does not exist.");
 			}
-			else {
-				throw new RuntimeException("The config directory '" + location + "', specified in the '" +
-						ENV_CONFIG_DIRECTORY + "' environment variable, does not exist.");
-			}
-		}
-		else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
 			location = CONFIG_DIRECTORY_FALLBACK_1;
-		}
-		else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
 			location = CONFIG_DIRECTORY_FALLBACK_2;
-		}
-		else {
-			throw new RuntimeException("The configuration directory was not specified. " +
-					"Please specify the directory containing the configuration file through the '" +
-					ENV_CONFIG_DIRECTORY + "' environment variable.");
+		} else {
+			throw new RuntimeException("The configuration directory was not specified. "
+					+ "Please specify the directory containing the configuration file through the '"
+					+ ENV_CONFIG_DIRECTORY + "' environment variable.");
 		}
 		return location;
 	}
@@ -1278,21 +1230,20 @@ public class CliFrontend {
 	public static Map<String, String> getDynamicProperties(String dynamicPropertiesEncoded) {
 		if (dynamicPropertiesEncoded != null && dynamicPropertiesEncoded.length() > 0) {
 			Map<String, String> properties = new HashMap<>();
-			
+
 			String[] propertyLines = dynamicPropertiesEncoded.split(CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
 			for (String propLine : propertyLines) {
 				if (propLine == null) {
 					continue;
 				}
-				
+
 				String[] kv = propLine.split("=");
 				if (kv.length >= 2 && kv[0] != null && kv[1] != null && kv[0].length() > 0) {
 					properties.put(kv[0], kv[1]);
 				}
 			}
 			return properties;
-		}
-		else {
+		} else {
 			return Collections.emptyMap();
 		}
 	}
@@ -1300,7 +1251,8 @@ public class CliFrontend {
 	public static String getYarnPropertiesLocation(Configuration conf) {
 		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
 		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation = conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+		String propertiesFileLocation = conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION,
+				defaultPropertiesFileLocation);
 
 		return propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser;
 	}
