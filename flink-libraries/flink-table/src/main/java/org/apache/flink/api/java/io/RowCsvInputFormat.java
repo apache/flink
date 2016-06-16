@@ -18,10 +18,8 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.table.Row;
-import org.apache.flink.api.table.typeutils.RowSerializer;
 import org.apache.flink.api.table.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
@@ -32,7 +30,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 
 	private static final long serialVersionUID = 1L;
 
-	private RowSerializer rowSerializer;
+	private int arity;
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo) {
 		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, rowTypeInfo);
@@ -48,10 +46,8 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 
 	public RowCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, RowTypeInfo rowTypeInfo,
 			int[] includedFieldsMask) {
-		super(filePath);
-		boolean[] mask = (includedFieldsMask == null) ? createDefaultMask(rowTypeInfo.getArity())
-				: toBooleanMask(includedFieldsMask);
-		configure(lineDelimiter, fieldDelimiter, rowTypeInfo, mask);
+		this(filePath, lineDelimiter, fieldDelimiter, rowTypeInfo, (includedFieldsMask == null) ? createDefaultMask(rowTypeInfo.getArity())
+				: toBooleanMask(includedFieldsMask));
 	}
 
 	public RowCsvInputFormat(Path filePath, RowTypeInfo rowTypeInfo, boolean[] includedFieldsMask) {
@@ -61,12 +57,6 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 	public RowCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, RowTypeInfo rowTypeInfo,
 			boolean[] includedFieldsMask) {
 		super(filePath);
-		configure(lineDelimiter, fieldDelimiter, rowTypeInfo, includedFieldsMask);
-	}
-
-	private void configure(String lineDelimiter, String fieldDelimiter,
-			RowTypeInfo rowTypeInfo, boolean[] includedFieldsMask) {
-
 		if (rowTypeInfo.getArity() == 0) {
 			throw new IllegalArgumentException("Row arity must be greater than 0.");
 		}
@@ -75,7 +65,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 			includedFieldsMask = createDefaultMask(rowTypeInfo.getArity());
 		}
 
-		rowSerializer = (RowSerializer) rowTypeInfo.createSerializer(new ExecutionConfig());
+		this.arity = rowTypeInfo.getArity();
 
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
@@ -89,10 +79,11 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> {
 		setFieldsGeneric(includedFieldsMask, classes);
 	}
 
+
 	@Override
 	public Row fillRecord(Row reuse, Object[] parsedValues) {
 		if (reuse == null) {
-			reuse = new Row(rowSerializer.getLength());
+			reuse = new Row(arity);
 		}
 		for (int i = 0; i < parsedValues.length; i++) {
 			reuse.setField(i, parsedValues[i]);

@@ -29,7 +29,7 @@ import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.java.io.RowCsvInputFormat
 
 /**
-  * A [[TableSource]] for simple CSV files with up to 25 fields.
+  * A [[TableSource]] for simple CSV files with a (logically) unlimited number of fields.
   *
   * @param path The path to the CSV file.
   * @param fieldNames The names of the table fields.
