@@ -125,4 +125,17 @@ public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 		super(topicId, serializationSchema, producerConfig, customPartitioner);
 	}
 
+	@Override
+	protected void flush() {
+		// The Kafka 0.8 producer doesn't support flushing, therefore, we are using an inefficient
+		// busy wait approach
+		while(pendingRecords > 0) {
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Unable to flush producer, task was interrupted");
+			}
+		}
+	}
+
 }

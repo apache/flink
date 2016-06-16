@@ -25,12 +25,14 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -71,7 +73,6 @@ public class AtLeastOnceProducerTest {
 		}
 		// start a thread confirming all pending records
 		final Tuple1<Throwable> runnableError = new Tuple1<>(null);
-		final Thread threadA = Thread.currentThread();
 		final AtomicBoolean markOne = new AtomicBoolean(false);
 		Runnable confirmer = new Runnable() {
 			@Override
@@ -131,9 +132,14 @@ public class AtLeastOnceProducerTest {
 		}
 
 		@Override
-		protected <K, V> Producer<K, V> getKafkaProducer(Properties props) {
+		protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
 			this.prod = new MockProducer();
 			return this.prod;
+		}
+
+		@Override
+		protected void flush() {
+			this.prod.flush();
 		}
 
 		public MockProducer getProducerInstance() {
@@ -141,8 +147,19 @@ public class AtLeastOnceProducerTest {
 		}
 	}
 
-	private static class MockProducer<K, V> implements Producer<K, V> {
+	private static class MockProducer<K, V> extends KafkaProducer<K, V> {
 		List<Callback> pendingCallbacks = new ArrayList<>();
+
+		private static Properties getFakeProperties() {
+			Properties p = new Properties();
+			p.setProperty("bootstrap.servers", "localhost:12345");
+			p.setProperty("key.serializer", ByteArraySerializer.class.getName());
+			p.setProperty("value.serializer", ByteArraySerializer.class.getName());
+			return p;
+		}
+		public MockProducer() {
+			super(getFakeProperties());
+		}
 
 		@Override
 		public Future<RecordMetadata> send(ProducerRecord<K, V> record) {
@@ -174,6 +191,16 @@ public class AtLeastOnceProducerTest {
 
 		public List<Callback> getPending() {
 			return this.pendingCallbacks;
+		}
+
+		public void flush() {
+			while(pendingCallbacks.size() > 0) {
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Unable to flush producer, task was interrupted");
+				}
+			}
 		}
 	}
 }

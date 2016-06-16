@@ -53,8 +53,9 @@ import static java.util.Objects.requireNonNull;
 /**
  * Flink Sink to produce data into a Kafka topic.
  *
- * Please note that this producer does not have any reliability guarantees.
- * The producer implements the checkpointed interface for allowing synchronization on checkpoints.
+ * Please note that this producer provides at-least-once reliability guarantees when
+ * checkpoints are enabled and setFlushOnCheckpoint(true) is set.
+ * Otherwise, the producer doesn't provide any reliability guarantees.
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
@@ -114,7 +115,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	// -------------------------------- Runtime fields ------------------------------------------
 
 	/** KafkaProducer instance */
-	protected transient Producer<byte[], byte[]> producer;
+	protected transient KafkaProducer<byte[], byte[]> producer;
 
 	/** The callback than handles error propagation or logging callbacks */
 	protected transient Callback callback;
@@ -128,7 +129,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * never called concurrently. So blocking the snapshotting will lock the invoke() method until all
 	 * pending records have been confirmed.
 	 */
-	private volatile long pendingRecords = 0;
+	protected volatile long pendingRecords = 0;
 
 
 	/**
@@ -209,7 +210,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * Used for testing only
 	 */
-	protected <K,V> Producer<K,V> getKafkaProducer(Properties props) {
+	protected <K,V> KafkaProducer<K,V> getKafkaProducer(Properties props) {
 		return new KafkaProducer<>(props);
 	}
 
@@ -324,19 +325,16 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		pendingRecords--;
 	}
 
+	protected abstract void flush();
+
 	@Override
 	public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
 		if(flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
-			while(pendingRecords > 0) {
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					throw new RuntimeException("Unable to confirm checkpoint, task was interrupted");
-				}
-			}
-			if(pendingRecords < 0) {
-				throw new IllegalStateException("Pending record count can never be negative: " + pendingRecords);
+			flush();
+
+			if(pendingRecords != 0) {
+				throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
 			}
 			// pending records count is 0. We can now confirm the checkpoint
 		}

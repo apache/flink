@@ -269,7 +269,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
 		producerProperties.setProperty("retries", "3");
 		FlinkKafkaProducerBase<Tuple2<Long, String>> prod = kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(sinkSchema), producerProperties, null);
-		prod.setFlushOnCheckpoint(true);
 		stream.addSink(prod);
 
 		// ----------- add consumer dataflow ----------
