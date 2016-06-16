@@ -133,9 +133,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	/**
 	 * The allowed lateness for elements. This is used for:
-	 * <ul> Deciding if an element should be dropped from a window due to lateness.</ul>
-	 * <ul> Clearing the state of a window if the system time passes
-	 * the {@code window.maxTimestamp + allowedLateness} landmark.</ul>
+	 * <ul>
+	 *     <li>Deciding if an element should be dropped from a window due to lateness.
+	 *     <li>Clearing the state of a window if the system time passes the
+	 *         {@code window.maxTimestamp + allowedLateness} landmark.
+	 * </ul>
 	 */
 	protected final long allowedLateness;
 

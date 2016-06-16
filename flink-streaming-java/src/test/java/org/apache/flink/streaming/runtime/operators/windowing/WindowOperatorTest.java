@@ -1036,7 +1036,6 @@ public class WindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1980));
 		testHarness.processWatermark(new Watermark(initialTime + 1999));
 
-		// a late to be dropped
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
 		testHarness.processWatermark(new Watermark(initialTime + 2999));
 		testHarness.processWatermark(new Watermark(initialTime + 3999));
@@ -1236,7 +1235,8 @@ public class WindowOperatorTest {
 		// create the expected output
 		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
-		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-3", 10000l, 17500l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-2", 10000l, 14600l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-3", 10000l, 17500l);
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
@@ -1247,12 +1247,11 @@ public class WindowOperatorTest {
 		expected.add(new StreamRecord<>(el1, 11499));
 		expected.add(new Watermark(11501));
 
-		expected.add(new StreamRecord<>(el1, 11499));// because now we fire for the cleanup timer
 		expected.add(new StreamRecord<>(el2, 14599));
 		expected.add(new Watermark(14600));
 
-		expected.add(new StreamRecord<>(el3, 17499));
-		expected.add(new StreamRecord<>(el3, 17499));
+		expected.add(new StreamRecord<>(el3, 14599));
+		expected.add(new StreamRecord<>(el4, 17499));
 
 		expected.add(new Watermark(20000));
 		expected.add(new Watermark(100000));
@@ -1297,7 +1296,8 @@ public class WindowOperatorTest {
 		// create the expected output
 		Tuple3<String, Long, Long> el1 = new Tuple3<>("key2-5", 1000l, 11500l);
 		Tuple3<String, Long, Long> el2 = new Tuple3<>("key2-1", 11600l, 14600l);
-		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-8", 1000l, 17500l);
+		Tuple3<String, Long, Long> el3 = new Tuple3<>("key2-7", 1000l, 14600l);
+		Tuple3<String, Long, Long> el4 = new Tuple3<>("key2-8", 1000l, 17500l);
 
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
@@ -1311,12 +1311,11 @@ public class WindowOperatorTest {
 		expected.add(new StreamRecord<>(el2, 14599));
 
 		expected.add(new Watermark(14600));
-		expected.add(new StreamRecord<>(el3, 17499));
+		expected.add(new StreamRecord<>(el3, 14599));
+		expected.add(new StreamRecord<>(el4, 17499));
 
 		expected.add(new Watermark(20000));
-		expected.add(new StreamRecord<>(el3, 17499));
 		expected.add(new Watermark(100000));
-
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actualOutput, new Tuple3ResultSortComparator());
 	}
@@ -1552,7 +1551,8 @@ public class WindowOperatorTest {
 
 	/**
 	 * A trigger that fires at the end of the window but does not
-	 * purge the state of the fired window.
+	 * purge the state of the fired window. This is to test the state
+	 * garbage collection mechanism.
 	 */
 	public class EventTimeTriggerAccum extends Trigger<Object, TimeWindow> {
 		private static final long serialVersionUID = 1L;
@@ -1562,12 +1562,16 @@ public class WindowOperatorTest {
 		@Override
 		public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
 			ctx.registerEventTimeTimer(window.maxTimestamp());
-			return TriggerResult.CONTINUE;
+			return (window.maxTimestamp() <= ctx.getCurrentWatermark()) ?
+				TriggerResult.FIRE :
+				TriggerResult.CONTINUE;
 		}
 
 		@Override
 		public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
-			return TriggerResult.FIRE;
+			return time == window.maxTimestamp() ?
+				TriggerResult.FIRE :
+				TriggerResult.CONTINUE;
 		}
 
 		@Override
