@@ -33,6 +33,8 @@ import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
+import org.apache.flink.metrics.{MetricGroup, MetricRegistry => FlinkMetricRegistry}
+import org.apache.flink.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
@@ -149,6 +151,9 @@ class JobManager(
 
   var leaderSessionID: Option[UUID] = None
 
+  private var metricsRegistry : FlinkMetricRegistry = _
+  private var jobManagerMetricGroup : JobManagerMetricGroup = _
+
   /** Futures which have to be completed before terminating the job manager */
   var futuresToComplete: Option[Seq[Future[Unit]]] = None
 
@@ -204,6 +209,10 @@ class JobManager(
         log.error("Could not start the savepoint store.", e)
         throw new RuntimeException("Could not start the  savepoint store store.", e)
     }
+    metricsRegistry = new FlinkMetricRegistry(flinkConfiguration)
+    val host = flinkConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+    jobManagerMetricGroup = new JobManagerMetricGroup(
+      metricsRegistry, NetUtils.ipAddressToUrlString(InetAddress.getByName(host)))
   }
 
   override def postStop(): Unit = {
@@ -268,6 +277,17 @@ class JobManager(
 
     // shut down the extra thread pool for futures
     executorService.shutdown()
+
+    // failsafe shutdown of the metrics registry
+    try {
+      val reg = metricsRegistry
+      metricsRegistry = null
+      if (reg != null) {
+        reg.shutdown()
+      }
+    } catch {
+      case t: Exception => log.error("MetricRegistry did not shutdown properly.", t)
+    }
 
     log.debug(s"Job manager ${self.path} is completely stopped.")
   }
