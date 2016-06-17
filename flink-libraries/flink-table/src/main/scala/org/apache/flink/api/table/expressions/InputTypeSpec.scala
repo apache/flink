@@ -36,9 +36,9 @@ trait InputTypeSpec extends Expression {
     *   def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: DOUBLE_TYPE_INFO :: Nil
     * }}}
     */
-  def expectedTypes: Seq[TypeInformation[_]]
+  private[flink] def expectedTypes: Seq[TypeInformation[_]]
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     val typeMismatches = mutable.ArrayBuffer.empty[String]
     children.zip(expectedTypes).zipWithIndex.foreach { case ((e, tpe), i) =>
       if (e.resultType != tpe) {

@@ -29,96 +29,99 @@ import org.apache.flink.api.common.typeinfo.NumericTypeInfo
 import org.apache.flink.api.table.validate._
 
 abstract class BinaryComparison extends BinaryExpression {
-  def sqlOperator: SqlOperator
+  private[flink] def sqlOperator: SqlOperator
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(sqlOperator, children.map(_.toRexNode))
   }
 
-  override def resultType = BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = BOOLEAN_TYPE_INFO
 
   // TODO: tighten this rule once we implemented type coercion rules during validation
-  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ValidationSuccess
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
-    case (lType, rType) =>
-      ValidationFailure(
-        s"Comparison is only supported for Strings and numeric types, get $lType and $rType")
-  }
+  override private[flink] def validateInput(): ExprValidationResult =
+    (left.resultType, right.resultType) match {
+      case (STRING_TYPE_INFO, STRING_TYPE_INFO) => ValidationSuccess
+      case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+      case (lType, rType) =>
+        ValidationFailure(
+          s"Comparison is only supported for Strings and numeric types, get $lType and $rType")
+    }
 }
 
 case class EqualTo(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left === $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
 
-  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
-    case (lType, rType) =>
-      if (lType != rType) {
-        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
-      } else {
-        ValidationSuccess
-      }
-  }
+  override private[flink] def validateInput(): ExprValidationResult =
+    (left.resultType, right.resultType) match {
+      case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+      case (lType, rType) =>
+        if (lType != rType) {
+          ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
+        } else {
+          ValidationSuccess
+        }
+    }
 }
 
 case class NotEqualTo(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left !== $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
 
-  override def validateInput(): ExprValidationResult = (left.resultType, right.resultType) match {
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
-    case (lType, rType) =>
-      if (lType != rType) {
-        ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
-      } else {
-        ValidationSuccess
-      }
-  }
+  override private[flink] def validateInput(): ExprValidationResult =
+    (left.resultType, right.resultType) match {
+      case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => ValidationSuccess
+      case (lType, rType) =>
+        if (lType != rType) {
+          ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
+        } else {
+          ValidationSuccess
+        }
+    }
 }
 
 case class GreaterThan(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left > $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN
 }
 
 case class GreaterThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left >= $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
 }
 
 case class LessThan(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left < $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN
 }
 
 case class LessThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
   override def toString = s"$left <= $right"
 
-  val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN_OR_EQUAL
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN_OR_EQUAL
 }
 
 case class IsNull(child: Expression) extends UnaryExpression {
   override def toString = s"($child).isNull"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.isNull(child.toRexNode)
   }
 
-  override def resultType = BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
 case class IsNotNull(child: Expression) extends UnaryExpression {
   override def toString = s"($child).isNotNull"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.isNotNull(child.toRexNode)
   }
 
-  override def resultType = BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
