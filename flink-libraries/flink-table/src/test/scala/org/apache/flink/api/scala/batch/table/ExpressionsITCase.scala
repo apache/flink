@@ -50,9 +50,9 @@ class ExpressionsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((5, 10)).toTable(tEnv, 'a, 'b)
-      .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a)
+      .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a, 3.toExpr + 'a)
 
-    val expected = "0,10,2,10,1,-5"
+    val expected = "0,10,2,10,1,-5,8"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -78,9 +78,9 @@ class ExpressionsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = env.fromElements((5, 5, 4)).toTable(tEnv, 'a, 'b, 'c)
-      .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull)
+      .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull, 12.toExpr <= 'a)
 
-    val expected = "true,true,false,false,true"
+    val expected = "true,true,false,false,true,false"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
