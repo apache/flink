@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 
 
 /**
@@ -446,12 +447,12 @@ public abstract class YarnTestBase extends TestLogger {
 	 * The test has been passed once the "terminateAfterString" has been seen.
 	 * @param args Command line arguments for the runner
 	 * @param terminateAfterString the runner is searching the stdout and stderr for this string. as soon as it appears, the test has passed
-	 * @param failOnStrings The runner is searching stdout and stderr for the strings specified here. If one appears, the test has failed
+	 * @param failOnPatterns The runner is searching stdout and stderr for the pattern (regexp) specified here. If one appears, the test has failed
 	 * @param type Set the type of the runner
 	 * @param returnCode Expected return code from the runner.
 	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -473,10 +474,10 @@ public abstract class YarnTestBase extends TestLogger {
 			sleep(1000);
 			String outContentString = outContent.toString();
 			String errContentString = errContent.toString();
-			if(failOnStrings != null) {
-				for (String failOnString : failOnStrings) {
-					if (outContentString.contains(failOnString)
-							|| errContentString.contains(failOnString)) {
+			if(failOnPatterns != null) {
+				for (String failOnString : failOnPatterns) {
+					Pattern pattern = Pattern.compile(failOnString);
+					if (pattern.matcher(outContentString).find() || pattern.matcher(errContentString).find()) {
 						LOG.warn("Failing test. Output contained illegal string '" + failOnString + "'");
 						sendOutput();
 						// stopping runner.
