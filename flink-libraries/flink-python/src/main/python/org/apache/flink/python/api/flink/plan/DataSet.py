@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import copy
+import collections
 import types as TYPES
 
 from flink.plan.Constants import _Identifier, WriteMode, _createKeyValueTypeInfo, _createArrayTypeInfo
@@ -574,6 +574,7 @@ class DataSet(object):
 
     def count_elements_per_partition(self):
         class CountElementsPerPartitionMapper(MapPartitionFunction):
+
             def map_partition(self, iterator, collector):
                 counter = 0
                 for x in iterator:
@@ -585,11 +586,26 @@ class DataSet(object):
     def zip_with_index(self):
         element_count = self.count_elements_per_partition()
         class ZipWithIndexMapper(MapPartitionFunction):
+            start = 0
+
+            def _run(self):
+                offsets = self.context.get_broadcast_variable("counts")
+                offsets = sorted(offsets, key=lambda t: t[0]) # sort by task ID
+                offsets = collections.deque(offsets)
+
+                # compute the offset for each partition
+                for i in range(self.context.get_index_of_this_subtask()):
+                    self.start += offsets[i][1]
+
+                super(ZipWithIndexMapper, self)._run()
+
             def map_partition(self, iterator, collector):
-                for x in iterator:
-                    collector.collect(())
-        mapped = self.map_partition()
-        return self
+                for value in iterator:
+                    self.start += 1
+                    collector.collect((self.start - 1, value))
+        return self\
+            .map_partition(ZipWithIndexMapper())\
+            .with_broadcast_set("counts", element_count)
 
 
 class OperatorSet(DataSet):

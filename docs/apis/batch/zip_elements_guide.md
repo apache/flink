@@ -34,7 +34,7 @@ This document shows how {% gh_link /flink-java/src/main/java/org/apache/flink/ap
 ### Zip with a Dense Index
 `zipWithIndex` assigns consecutive labels to the elements, receiving a data set as input and returning a new data set of `(unique id, initial value)` 2-tuples.
 This process requires two passes, first counting then labeling elements, and cannot be pipelined due to the synchronization of counts.
-The alternative `zipWIthUniqueId` works in a pipelined fashion and is preferred when a unique labeling is sufficient.
+The alternative `zipWithUniqueId` works in a pipelined fashion and is preferred when a unique labeling is sufficient.
 For example, the following code:
 
 <div class="codetabs" markdown="1">
@@ -66,6 +66,21 @@ env.execute()
 {% endhighlight %}
 </div>
 
+<div data-lang="scala" markdown="1">
+{% highlight python %}
+from flink.plan.Environment import get_environment
+
+env = get_environment()
+env.set_parallelism(2)
+input = env.from_elements("A", "B", "C", "D", "E", "F", "G", "H")
+
+result = input.zipWithIndex()
+
+result.write_text(result_path)
+env.execute()
+{% endhighlight %}
+</div>
+
 </div>
 
 may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)
@@ -74,7 +89,7 @@ may yield the tuples: (0,G), (1,H), (2,A), (3,B), (4,C), (5,D), (6,E), (7,F)
 
 ### Zip with a Unique Identifier
 In many cases one may not need to assign consecutive labels.
-`zipWIthUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of `(unique id, initial value)` 2-tuples.
+`zipWithUniqueId` works in a pipelined fashion, speeding up the label assignment process. This method receives a data set as input and returns a new data set of `(unique id, initial value)` 2-tuples.
 For example, the following code:
 
 <div class="codetabs" markdown="1">
