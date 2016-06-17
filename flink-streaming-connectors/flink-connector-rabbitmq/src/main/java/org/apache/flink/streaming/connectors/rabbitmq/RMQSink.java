@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.connectors.rabbitmq.common.Utils;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +48,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private boolean logFailuresOnly = false;
 
 	/**
-	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
@@ -75,7 +76,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
 		try {
 			connection = factory.newConnection();
-			channel = connection.createChannel();
+			channel = Utils.createChannel(connection);
 			channel.queueDeclare(queueName, false, false, false, null);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);

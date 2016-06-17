@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourc
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.connectors.rabbitmq.common.Utils;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.Preconditions;
 
@@ -147,7 +148,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		ConnectionFactory factory = setupConnectionFactory();
 		try {
 			connection = factory.newConnection();
-			channel = connection.createChannel();
+			channel = Utils.createChannel(connection);
 			setupQueue();
 			consumer = new QueueingConsumer(channel);
 

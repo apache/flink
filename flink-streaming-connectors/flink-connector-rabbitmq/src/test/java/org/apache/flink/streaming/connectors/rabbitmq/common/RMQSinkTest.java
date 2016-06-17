@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class RMQSinkTest {
@@ -61,6 +62,16 @@ public class RMQSinkTest {
 		createRMQSink();
 
 		verify(channel).queueDeclare(QUEUE_NAME, false, false, false, null);
+	}
+
+	@Test
+	public void throwExceptionIfChannenIsNull() throws Exception {
+		when(connection.createChannel()).thenReturn(null);
+		try {
+			createRMQSink();
+		} catch (RuntimeException ex) {
+			assertEquals("RabbitMQ connection returned null channel", ex.getMessage());
+		}
 	}
 
 	private RMQSink<String> createRMQSink() throws Exception {
