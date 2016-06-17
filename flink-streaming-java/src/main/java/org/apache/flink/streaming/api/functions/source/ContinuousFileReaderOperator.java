@@ -289,12 +289,12 @@ public class ContinuousFileReaderOperator<OUT, S extends Serializable> extends A
 								}
 							}
 						}
+						completedSplitsCounter.inc();
 
 					} finally {
 						// close and prepare for the next iteration
 						this.format.close();
 						this.currentSplit = null;
-						completedSplitsCounter.inc();
 					}
 				}
 
