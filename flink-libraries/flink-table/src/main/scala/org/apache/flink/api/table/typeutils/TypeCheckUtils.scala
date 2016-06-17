@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{BIG_DEC_TYPE_INFO, BOOLEAN_TYPE_INFO, STRING_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, NumericTypeInfo, TypeInformation}
 import org.apache.flink.api.table.validate._
 
 object TypeCheckUtils {
@@ -28,6 +28,8 @@ object TypeCheckUtils {
     case BIG_DEC_TYPE_INFO => true
     case _ => false
   }
+
+  def isTemporal(dataType: TypeInformation[_]): Boolean = dataType.isInstanceOf[SqlTimeTypeInfo[_]]
 
   def isString(dataType: TypeInformation[_]): Boolean = dataType == STRING_TYPE_INFO
 

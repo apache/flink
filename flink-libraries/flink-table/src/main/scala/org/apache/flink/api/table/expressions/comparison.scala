@@ -42,8 +42,8 @@ abstract class BinaryComparison extends BinaryExpression {
     case (lType, rType) if isComparable(lType) && lType == rType => ValidationSuccess
     case (lType, rType) =>
       ValidationFailure(
-        s"Comparison is only supported for numeric types and comparable types of same type," +
-          s"got $lType and $rType")
+        s"Comparison is only supported for numeric types and " +
+          s"comparable types of same type, got $lType and $rType")
   }
 }
 
