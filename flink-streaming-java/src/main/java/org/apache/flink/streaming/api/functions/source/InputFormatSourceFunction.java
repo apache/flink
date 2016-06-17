@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
@@ -70,6 +71,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 	public void run(SourceContext<OUT> ctx) throws Exception {
 		try {
 
+			Counter completedSplitsCounter = getRuntimeContext().getMetricGroup().counter("numSplitsProcessed");
 			if (isRunning && format instanceof RichInputFormat) {
 				((RichInputFormat) format).openInputFormat();
 			}
@@ -86,6 +88,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 					ctx.collect(nextElement);
 				}
 				format.close();
+				completedSplitsCounter.inc();
 
 				if (isRunning) {
 					isRunning = splitIterator.hasNext();
