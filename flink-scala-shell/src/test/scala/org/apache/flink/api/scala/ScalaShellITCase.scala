@@ -173,7 +173,10 @@ class ScalaShellITCase extends TestLogger {
 
     // find jar file that contains the ml code
     var externalJar = ""
-    val folder = new File("../../flink-libraries/flink-ml/target/")
+    val folder = findLibraryFolder(
+      "../flink-libraries/flink-ml/target/",
+      "../../flink-libraries/flink-ml/target/")
+
     val listOfFiles = folder.listFiles()
 
     for (i <- listOfFiles.indices) {
@@ -208,7 +211,10 @@ class ScalaShellITCase extends TestLogger {
 
     // find jar file that contains the ml code
     var externalJar = ""
-    val folder = new File("../../flink-libraries/flink-ml/target/")
+    val folder = findLibraryFolder(
+      "../flink-libraries/flink-ml/target/",
+      "../../flink-libraries/flink-ml/target/")
+
     val listOfFiles = folder.listFiles()
 
     for (i <- listOfFiles.indices) {
@@ -405,5 +411,15 @@ object ScalaShellITCase {
     val stdout = baos.toString
 
     out.toString + stdout
+  }
+
+  def findLibraryFolder(paths: String*): File = {
+    for (path <- paths) {
+      val folder = new File(path)
+      if (folder.exists()) {
+        return folder
+      }
+    }
+    throw new RuntimeException("Library folder not found in any of the supplied paths!")
   }
 }
