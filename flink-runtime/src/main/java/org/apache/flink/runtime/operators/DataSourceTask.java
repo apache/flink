@@ -101,7 +101,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		LOG.debug(getLogString("Starting data source operator"));
 
 		RuntimeContext ctx = createRuntimeContext();
-		Counter splitCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
+		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
 		Counter numRecordsOut = ctx.getMetricGroup().counter("numRecordsOut");
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
@@ -172,7 +172,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					// close. We close here such that a regular close throwing an exception marks a task as failed.
 					format.close();
 				}
-				splitCounter.inc();
+				completedSplitsCounter.inc();
 			} // end for all input splits
 
 			// close the collector. if it is a chaining task collector, it will close its chained tasks
