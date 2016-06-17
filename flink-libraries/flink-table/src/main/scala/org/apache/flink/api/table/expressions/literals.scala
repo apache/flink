@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, BasicTypeInfo, Typ
 import org.apache.flink.api.table.typeutils.TypeConverter
 
 object Literal {
-  def apply(l: Any): Literal = l match {
+  private[flink] def apply(l: Any): Literal = l match {
     case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
     case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
     case b: Byte => Literal(b, BasicTypeInfo.BYTE_TYPE_INFO)
@@ -48,7 +48,7 @@ object Literal {
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"$value"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     resultType match {
       case BasicTypeInfo.BIG_DEC_TYPE_INFO =>
         val bigDecValue = value.asInstanceOf[java.math.BigDecimal]
@@ -80,7 +80,7 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
 case class Null(resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.getRexBuilder.makeNullLiteral(TypeConverter.typeInfoToSqlType(resultType))
   }
 }

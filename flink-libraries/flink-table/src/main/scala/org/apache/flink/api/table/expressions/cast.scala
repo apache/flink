@@ -28,16 +28,16 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
 
   override def toString = s"$child.cast($resultType)"
 
-  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.cast(child.toRexNode, TypeConverter.typeInfoToSqlType(resultType))
   }
 
-  override def makeCopy(anyRefs: Array[AnyRef]): this.type = {
+  override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
     copy(child, resultType).asInstanceOf[this.type]
   }
 
-  override def validateInput(): ExprValidationResult = {
+  override private[flink] def validateInput(): ExprValidationResult = {
     if (TypeCoercion.canCast(child.resultType, resultType)) {
       ValidationSuccess
     } else {
