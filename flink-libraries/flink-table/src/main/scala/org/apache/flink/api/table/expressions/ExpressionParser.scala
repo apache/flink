@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, BasicTypeInfo}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation, BasicTypeInfo}
 import org.apache.flink.api.table.ExpressionParserException
 
 import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
@@ -54,6 +54,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val EVAL: Keyword = Keyword("eval")
   lazy val ASC: Keyword = Keyword("asc")
   lazy val DESC: Keyword = Keyword("desc")
+  lazy val TO_DATE: Keyword = Keyword("toDate")
+  lazy val TO_TIME: Keyword = Keyword("toTime")
+  lazy val TO_TIMESTAMP: Keyword = Keyword("toTimestamp")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -71,7 +74,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       "DOUBLE" ^^ { ti => BasicTypeInfo.DOUBLE_TYPE_INFO } |
       ("BOOL" | "BOOLEAN" ) ^^ { ti => BasicTypeInfo.BOOLEAN_TYPE_INFO } |
       "STRING" ^^ { ti => BasicTypeInfo.STRING_TYPE_INFO } |
-      "DATE" ^^ { ti => BasicTypeInfo.DATE_TYPE_INFO } |
+      "DATE" ^^ { ti => SqlTimeTypeInfo.DATE.asInstanceOf[TypeInformation[_]] } |
+      "TIMESTAMP" ^^ { ti => SqlTimeTypeInfo.TIMESTAMP } |
+      "TIME" ^^ { ti => SqlTimeTypeInfo.TIME } |
       "DECIMAL" ^^ { ti => BasicTypeInfo.BIG_DEC_TYPE_INFO }
 
   // Literals
@@ -127,13 +132,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixIsNotNull: PackratParser[Expression] =
     composite <~ "." ~ IS_NOT_NULL ~ opt("()") ^^ { e => IsNotNull(e) }
 
-  lazy val suffixAsc : PackratParser[Expression] =
-    (atom <~ ".asc" ^^ { e => Asc(e) }) | (atom <~ ASC ^^ { e => Asc(e) })
-
-  lazy val suffixDesc : PackratParser[Expression] =
-    (atom <~ ".desc" ^^ { e => Desc(e) }) | (atom <~ DESC ^^ { e => Desc(e) })
-
-
   lazy val suffixSum: PackratParser[Expression] =
     composite <~ "." ~ SUM ~ opt("()") ^^ { e => Sum(e) }
 
@@ -159,16 +157,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case e ~ _ ~ _ ~ _ ~ target ~ _ => Alias(e, target.name)
   }
 
-  lazy val suffixEval: PackratParser[Expression] =
-    composite ~ "." ~ EVAL ~ "(" ~ expression ~ "," ~ expression ~ ")" ^^ {
-    case condition ~ _ ~ _ ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => Eval(condition, ifTrue, ifFalse)
-  }
-
-  lazy val suffixFunctionCall =
-    composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
-    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
-  }
-
   lazy val suffixTrim = composite ~ ".trim(" ~ ("BOTH" | "LEADING" | "TRAILING") ~ "," ~
       expression ~ ")" ^^ {
     case operand ~ _ ~ trimType ~ _ ~ trimCharacter ~ _ =>
@@ -185,10 +173,35 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       Trim(TrimConstants.TRIM_BOTH, TrimConstants.TRIM_DEFAULT_CHAR, e)
   }
 
+  lazy val suffixEval: PackratParser[Expression] =
+    composite ~ "." ~ EVAL ~ "(" ~ expression ~ "," ~ expression ~ ")" ^^ {
+    case condition ~ _ ~ _ ~ _ ~ ifTrue ~ _ ~ ifFalse ~ _ => Eval(condition, ifTrue, ifFalse)
+  }
+
+  lazy val suffixFunctionCall =
+    composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
+    case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
+  }
+
+  lazy val suffixAsc : PackratParser[Expression] =
+    atom <~ "." ~ ASC ~ opt("()") ^^ { e => Asc(e) }
+
+  lazy val suffixDesc : PackratParser[Expression] =
+    atom <~ "." ~ DESC ~ opt("()") ^^ { e => Desc(e) }
+
+  lazy val suffixToDate: PackratParser[Expression] =
+    composite <~ "." ~ TO_DATE ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.DATE) }
+
+  lazy val suffixToTimestamp: PackratParser[Expression] =
+    composite <~ "." ~ TO_TIMESTAMP ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIMESTAMP) }
+
+  lazy val suffixToTime: PackratParser[Expression] =
+    composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
+
   lazy val suffixed: PackratParser[Expression] =
     suffixIsNull | suffixIsNotNull | suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg |
       suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixEval | suffixFunctionCall |
-        suffixAsc | suffixDesc
+        suffixAsc | suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime
 
   // prefix operators
 

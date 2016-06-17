@@ -18,15 +18,13 @@
 
 package org.apache.flink.api.scala.batch.table
 
-import java.util.Date
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.codegen.CodeGenException
-import org.apache.flink.api.table.expressions.{Literal, Null}
+import org.apache.flink.api.table.expressions.Null
 import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -173,22 +171,4 @@ class ExpressionsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
-  // Date literals not yet supported
-  @Ignore
-  @Test
-  def testDateLiteral(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = env.fromElements((0L, "test")).toTable(tEnv, 'a, 'b)
-      .select('a,
-        Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
-        'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
-
-    val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
-    val results = t.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
 }

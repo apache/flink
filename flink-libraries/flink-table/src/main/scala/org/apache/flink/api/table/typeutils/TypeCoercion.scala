@@ -19,7 +19,7 @@
 package org.apache.flink.api.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, NumericTypeInfo, TypeInformation}
 
 /**
   * Utilities for type conversions.
@@ -85,6 +85,9 @@ object TypeCoercion {
     case (STRING_TYPE_INFO, _: NumericTypeInfo[_]) => true
     case (STRING_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
     case (STRING_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.DATE) => true
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIME) => true
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) => true
 
     case (BOOLEAN_TYPE_INFO, _: NumericTypeInfo[_]) => true
     case (BOOLEAN_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
@@ -94,6 +97,10 @@ object TypeCoercion {
     case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => true
     case (BIG_DEC_TYPE_INFO, _: NumericTypeInfo[_]) => true
     case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
+
+    case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIME) => false
+    case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.DATE) => false
+    case (_: SqlTimeTypeInfo[_], _: SqlTimeTypeInfo[_]) => true
 
     case _ => false
   }
