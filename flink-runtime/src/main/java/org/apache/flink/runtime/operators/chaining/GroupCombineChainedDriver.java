@@ -167,6 +167,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	@Override
 	public void collect(IN record) {
+		numRecordsIn.inc();
 		// try writing to the sorter first
 		try {
 			if (this.sorter.write(record)) {

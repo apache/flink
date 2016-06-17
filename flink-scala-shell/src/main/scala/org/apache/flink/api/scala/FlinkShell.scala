@@ -19,14 +19,15 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.util.Properties
 
-import org.apache.flink.client.{CliFrontend, ClientUtils, FlinkYarnSessionCli}
-import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
+import org.apache.commons.cli.CommandLine
+import org.apache.flink.client.cli.CliFrontendParser
+import org.apache.flink.client.program.ClusterClient
+import org.apache.flink.client.CliFrontend
+import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration}
 import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster
-import org.apache.hadoop.fs.Path
 
+import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -138,7 +139,7 @@ object FlinkShell {
 
   def fetchConnectionInfo(
     config: Config
-  ): (String, Int, Option[Either[FlinkMiniCluster, AbstractFlinkYarnCluster]]) = {
+  ): (String, Int, Option[Either[FlinkMiniCluster, ClusterClient]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = GlobalConfiguration.getConfiguration()
@@ -217,7 +218,7 @@ object FlinkShell {
       repl.closeInterpreter()
       cluster match {
         case Some(Left(miniCluster)) => miniCluster.stop()
-        case Some(Right(yarnCluster)) => yarnCluster.shutdown(false)
+        case Some(Right(yarnCluster)) => yarnCluster.shutdown()
         case _ =>
       }
     }
@@ -226,71 +227,60 @@ object FlinkShell {
   }
 
   def deployNewYarnCluster(yarnConfig: YarnConfig) = {
-    val yarnClient = FlinkYarnSessionCli.getFlinkYarnClient
 
-    // use flink-dist.jar for scala shell
-    val jarPath = new Path("file://" +
-      s"${yarnClient.getClass.getProtectionDomain.getCodeSource.getLocation.getPath}")
-    yarnClient.setLocalJarPath(jarPath)
-    
-    val confDirPath = CliFrontend.getConfigurationDirectoryFromEnv
-    val flinkConfiguration = GlobalConfiguration.getConfiguration
-    val confFile = new File(confDirPath + File.separator + "flink-conf.yaml")
-    val confPath = new Path(confFile.getAbsolutePath)
-    yarnClient.setFlinkConfiguration(flinkConfiguration)
-    yarnClient.setConfigurationDirectory(confDirPath)
-    yarnClient.setConfigurationFilePath(confPath)
+    val args = ArrayBuffer[String](
+      "-m", "yarn-cluster"
+    )
 
     // number of task managers is required.
     yarnConfig.containers match {
-      case Some(containers) => yarnClient.setTaskManagerCount(containers)
+      case Some(containers) => args ++= Seq("-yn", containers.toString)
       case None =>
         throw new IllegalArgumentException("Number of taskmanagers must be specified.")
     }
 
     // set configuration from user input
-    yarnConfig.jobManagerMemory.foreach(yarnClient.setJobManagerMemory)
-    yarnConfig.name.foreach(yarnClient.setName)
-    yarnConfig.queue.foreach(yarnClient.setQueue)
-    yarnConfig.slots.foreach(yarnClient.setTaskManagerSlots)
-    yarnConfig.taskManagerMemory.foreach(yarnClient.setTaskManagerMemory)
+    yarnConfig.jobManagerMemory.foreach((jmMem) => args ++= Seq("-yjm", jmMem.toString))
+    yarnConfig.slots.foreach((tmMem) => args ++= Seq("-ytm", tmMem.toString))
+    yarnConfig.name.foreach((name) => args ++= Seq("-ynm", name.toString))
+    yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
+    yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    // deploy
-    val cluster = yarnClient.deploy()
+
+    val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
+
+    val cluster = customCLI.createCluster("Flink Scala Shell", options.getCommandLine, config)
+
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort
-    cluster.connectToCluster()
 
     (address, port, Some(Right(cluster)))
   }
 
   def fetchDeployedYarnClusterInfo() = {
-    // load configuration
-    val globalConfig = GlobalConfiguration.getConfiguration
-    val propertiesLocation = CliFrontend.getYarnPropertiesLocation(globalConfig)
-    val propertiesFile = new File(propertiesLocation)
 
-    // read properties
-    val properties = if (propertiesFile.exists()) {
-      println("Found YARN properties file " + propertiesFile.getAbsolutePath)
-      val properties = new Properties()
-      val inputStream = new FileInputStream(propertiesFile)
 
-      try {
-        properties.load(inputStream)
-      } finally {
-        inputStream.close()
-      }
+    val args = ArrayBuffer[String](
+      "-m", "yarn-cluster"
+    )
 
-      properties
-    } else {
-      throw new IllegalArgumentException("Scala Shell cannot fetch YARN properties.")
+    val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val frontend = new CliFrontend()
+    val config = frontend.getConfiguration
+    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
+
+    val cluster = customCLI.retrieveCluster(options.getCommandLine, config)
+
+    if (cluster == null) {
+      throw new RuntimeException("Yarn Cluster could not be retrieved.")
     }
 
-    val addressInStr = properties.getProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY)
-    val address = ClientUtils.parseHostPortAddress(addressInStr)
+    val jobManager = cluster.getJobManagerAddress
 
-    (address.getHostString, address.getPort, None)
+    (jobManager.getHostString, jobManager.getPort, None)
   }
 
   def ensureYarnConfig(config: Config) = config.yarnConfig match {

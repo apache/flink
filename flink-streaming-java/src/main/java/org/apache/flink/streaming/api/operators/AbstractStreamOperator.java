@@ -25,10 +25,12 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -102,10 +104,10 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		this.output = output;
 		String operatorName = containingTask.getEnvironment().getTaskInfo().getTaskName().split("->")[config.getChainIndex()].trim();
 		
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(operatorName);
+		this.output = new CountingOutput(output, this.metrics.counter("numRecordsOut"));
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
@@ -333,5 +335,31 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	public void disableInputCopy() {
 		this.inputCopyDisabled = true;
+	}
+
+	public class CountingOutput implements Output<StreamRecord<OUT>> {
+		private final Output<StreamRecord<OUT>> output;
+		private final Counter numRecordsOut;
+
+		public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+			this.output = output;
+			this.numRecordsOut = counter;
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			output.emitWatermark(mark);
+		}
+
+		@Override
+		public void collect(StreamRecord<OUT> record) {
+			numRecordsOut.inc();
+			output.collect(record);
+		}
+
+		@Override
+		public void close() {
+			output.close();
+		}
 	}
 }

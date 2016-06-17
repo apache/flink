@@ -18,12 +18,13 @@
 
 package org.apache.flink.yarn
 
-import java.util.{List => JavaList, UUID, Date}
+import java.util.{Date, UUID, List => JavaList}
 
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.yarn.api.records.{ContainerStatus, Container, FinalApplicationStatus}
+import org.apache.hadoop.yarn.api.records.{Container, ContainerStatus, FinalApplicationStatus}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
@@ -31,7 +32,7 @@ object YarnMessages {
 
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
 
-  case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)
+  case class LocalStopYarnSession(status: ApplicationStatus, diagnostics: String)
 
   /**
     * Entry point to start a new YarnSession.

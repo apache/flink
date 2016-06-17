@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -37,8 +38,8 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel, which requests a local subpartition.
@@ -67,10 +68,11 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
-			TaskEventDispatcher taskEventDispatcher) {
+			TaskEventDispatcher taskEventDispatcher,
+			IOMetricGroup metrics) {
 
 		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
-				new Tuple2<Integer, Integer>(0, 0));
+				new Tuple2<Integer, Integer>(0, 0), metrics);
 	}
 
 	LocalInputChannel(
@@ -79,9 +81,10 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher,
-			Tuple2<Integer, Integer> initialAndMaxBackoff) {
+			Tuple2<Integer, Integer> initialAndMaxBackoff,
+			IOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff);
+		super(inputGate, channelIndex, partitionId, initialAndMaxBackoff, metrics.getNumBytesInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -165,6 +168,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 		getNextLookAhead();
 
+		numBytesIn.inc(next.getSize());
 		return next;
 	}
 

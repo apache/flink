@@ -26,7 +26,6 @@ import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -56,6 +55,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -538,7 +538,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 	}
 
 	// ------------------------------------------------------------------------
-	//  Cluster Shutdown
+	//  ClusterClient Shutdown
 	// ------------------------------------------------------------------------
 
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {

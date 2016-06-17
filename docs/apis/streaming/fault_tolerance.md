@@ -177,6 +177,11 @@ state updates) of Flink coupled with bundled sinks:
         <td></td>
     </tr>
     <tr>
+        <td>Cassandra sink</td>
+        <td>at-least-once / exactly-once</td>
+        <td>exactly-once only for idempotent updates</td>
+    </tr>
+    <tr>
         <td>File sinks</td>
         <td>at least once</td>
         <td></td>

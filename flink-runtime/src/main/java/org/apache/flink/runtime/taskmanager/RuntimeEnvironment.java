@@ -42,7 +42,7 @@ import org.apache.flink.util.SerializedValue;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * In implementation of the {@link Environment}.
@@ -78,6 +78,8 @@ public class RuntimeEnvironment implements Environment {
 	private final TaskManagerRuntimeInfo taskManagerInfo;
 	private final TaskMetricGroup metrics;
 
+	private final Task containingTask;
+
 	// ------------------------------------------------------------------------
 
 	public RuntimeEnvironment(
@@ -99,7 +101,8 @@ public class RuntimeEnvironment implements Environment {
 			InputGate[] inputGates,
 			ActorGateway jobManager,
 			TaskManagerRuntimeInfo taskManagerInfo,
-			TaskMetricGroup metrics) {
+			TaskMetricGroup metrics,
+			Task containingTask) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
@@ -119,6 +122,7 @@ public class RuntimeEnvironment implements Environment {
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
+		this.containingTask = containingTask;
 		this.metrics = metrics;
 	}
 
@@ -261,5 +265,10 @@ public class RuntimeEnvironment implements Environment {
 				stateSize);
 
 		jobManager.tell(message);
+	}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		this.containingTask.failExternally(cause);
 	}
 }

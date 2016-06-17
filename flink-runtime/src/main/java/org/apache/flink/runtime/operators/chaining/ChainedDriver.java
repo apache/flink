@@ -22,12 +22,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
 
 import java.util.Map;
@@ -53,6 +55,10 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	protected boolean objectReuseEnabled = false;
 	
 	protected MetricGroup metrics;
+	
+	protected Counter numRecordsIn;
+	
+	protected Counter numRecordsOut;
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
@@ -61,9 +67,11 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	{
 		this.config = config;
 		this.taskName = taskName;
-		this.outputCollector = outputCollector;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.metrics = parent.getEnvironment().getMetricGroup().addOperator(taskName);
+		this.numRecordsIn = this.metrics.counter("numRecordsIn");
+		this.numRecordsOut = this.metrics.counter("numRecordsOut");
+		this.outputCollector = new CountingCollector<>(outputCollector, numRecordsOut);
 
 		Environment env = parent.getEnvironment();
 
@@ -103,7 +111,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	@SuppressWarnings("unchecked")
 	public void setOutputCollector(Collector<?> outputCollector) {
-		this.outputCollector = (Collector<OT>) outputCollector;
+		this.outputCollector = new CountingCollector<>((Collector<OT>) outputCollector, numRecordsOut);
 	}
 
 	public Collector<OT> getOutputCollector() {

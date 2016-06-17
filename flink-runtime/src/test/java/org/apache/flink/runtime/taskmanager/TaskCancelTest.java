@@ -47,10 +47,10 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class TaskCancelTest {
 

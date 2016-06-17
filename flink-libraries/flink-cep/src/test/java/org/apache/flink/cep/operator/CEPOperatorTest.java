@@ -32,7 +32,6 @@ import static org.junit.Assert.*;
 
 import java.util.Map;
 
-
 public class CEPOperatorTest extends TestLogger {
 
 	@Test
@@ -106,7 +105,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		@Override
 		public NFA<T> createNFA() {
-			return new NFA<>(inputTypeSerializer.duplicate(), 0);
+			return new NFA<>(inputTypeSerializer.duplicate(), 0, false);
 		}
 	}
 }

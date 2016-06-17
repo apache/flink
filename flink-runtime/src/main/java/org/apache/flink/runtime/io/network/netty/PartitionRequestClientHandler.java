@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 

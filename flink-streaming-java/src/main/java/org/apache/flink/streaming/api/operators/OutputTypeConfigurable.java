@@ -32,7 +32,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 public interface OutputTypeConfigurable<OUT> {
 
 	/**
-	 * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer, StreamOperator, TypeInformation, TypeInformation, String)}
+	 * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer, String, StreamOperator, TypeInformation, TypeInformation, String)}
 	 * method when the {@link org.apache.flink.streaming.api.graph.StreamGraph} is generated. The
 	 * method is called with the output {@link TypeInformation} which is also used for the
 	 * {@link org.apache.flink.streaming.runtime.tasks.StreamTask} output serializer.

@@ -56,13 +56,22 @@ abstract class AvgAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.negate(maxVal),
       numeric.negate(minVal),
       null.asInstanceOf[T]
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
   override def expectedResults: Seq[T] = Seq(
     minVal,
     maxVal,
-    numeric.fromInt(0)
+    numeric.fromInt(0),
+    null.asInstanceOf[T]
   )
 }
 

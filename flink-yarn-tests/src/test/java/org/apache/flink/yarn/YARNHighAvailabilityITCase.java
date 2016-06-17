@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -97,7 +97,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	public void testMultipleAMKill() throws Exception {
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 
-		TestingFlinkYarnClient flinkYarnClient = new TestingFlinkYarnClient();
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor();
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);
@@ -119,13 +119,12 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			"@@" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH + "=" + fsStateHandlePath + "/recovery");
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
-		AbstractFlinkYarnCluster yarnCluster = null;
+		ClusterClient yarnCluster = null;
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
 		try {
 			yarnCluster = flinkYarnClient.deploy();
-			yarnCluster.connectToCluster();
 			final Configuration config = yarnCluster.getFlinkConfiguration();
 
 			new JavaTestKit(actorSystem) {{
@@ -169,7 +168,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			}};
 		} finally {
 			if (yarnCluster != null) {
-				yarnCluster.shutdown(false);
+				yarnCluster.shutdown();
 			}
 		}
 	}

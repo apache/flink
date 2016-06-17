@@ -26,6 +26,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import org.apache.flink.util.Collector
 
@@ -353,6 +354,34 @@ class GroupedDataSet[T: ClassTag](
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
         implicitly[TypeInformation[R]], reducer, getCallLocationName()))
+  }
+
+  /**
+    * Applies a special case of a reduce transformation `maxBy` on a grouped [[DataSet]]
+    * The transformation consecutively calls a [[ReduceFunction]]
+    * until only a single element remains which is the result of the transformation.
+    * A ReduceFunction combines two elements into one new element of the same type.
+    */
+  def maxBy(fields: Int*) : DataSet[T]  = {
+    if (!set.getType().isTupleType) {
+      throw new InvalidProgramException("GroupedDataSet#maxBy(int...) only works on Tuple types.")
+    }
+    reduce(new SelectByMaxFunction[T](set.getType.asInstanceOf[TupleTypeInfoBase[T]],
+      fields.toArray))
+  }
+
+  /**
+    * Applies a special case of a reduce transformation `minBy` on a grouped [[DataSet]].
+    * The transformation consecutively calls a [[ReduceFunction]]
+    * until only a single element remains which is the result of the transformation.
+    * A ReduceFunction combines two elements into one new element of the same type.
+    */
+  def minBy(fields: Int*) : DataSet[T]  = {
+    if (!set.getType().isTupleType) {
+      throw new InvalidProgramException("GroupedDataSet#minBy(int...) only works on Tuple types.")
+    }
+    reduce(new SelectByMinFunction[T](set.getType.asInstanceOf[TupleTypeInfoBase[T]],
+      fields.toArray))
   }
 
   /**

@@ -67,7 +67,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 

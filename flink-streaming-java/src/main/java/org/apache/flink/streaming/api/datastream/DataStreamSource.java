@@ -44,6 +44,11 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 		}
 	}
 
+	public DataStreamSource(SingleOutputStreamOperator<T> operator) {
+		super(operator.environment, operator.getTransformation());
+		this.isParallel = true;
+	}
+
 	@Override
 	public DataStreamSource<T> setParallelism(int parallelism) {
 		if (parallelism > 1 && !isParallel) {

@@ -23,9 +23,7 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 
-import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.FlinkYarnSessionCli;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
 
 import org.junit.Assert;
@@ -52,9 +50,10 @@ public class FlinkYarnSessionCliTest {
 		fakeConf.createNewFile();
 		map.put("FLINK_CONF_DIR", tmpFolder.getAbsolutePath());
 		TestBaseUtils.setEnv(map);
-		Options options = new Options();
 		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("", "", false);
-		cli.getYARNSessionCLIOptions(options);
+		Options options = new Options();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
 
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
@@ -65,11 +64,12 @@ public class FlinkYarnSessionCliTest {
 			Assert.fail("Parsing failed with " + e.getMessage());
 		}
 
-		AbstractFlinkYarnClient flinkYarnClient = cli.createFlinkYarnClient(cmd);
+		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
 
-		Assert.assertNotNull(flinkYarnClient);
+		Assert.assertNotNull(flinkYarnDescriptor);
 
-		Map<String, String> dynProperties = CliFrontend.getDynamicProperties(flinkYarnClient.getDynamicPropertiesEncoded());
+		Map<String, String> dynProperties =
+			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
 		Assert.assertEquals(1, dynProperties.size());
 		Assert.assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
 	}

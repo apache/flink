@@ -25,7 +25,7 @@ matrix:
     - jdk: "oraclejdk7" # this uploads the Hadoop 2 build to Maven and S3
       env: PROFILE="-Dhadoop.version=2.3.0"
     - jdk: "openjdk7" # this uploads the Hadoop 1 build to Maven and S3
-      env: PROFILE="-Dhadoop.profile=1"
+      env: PROFILE="-Dhadoop.profile=1" 
 
 
 git:

@@ -289,4 +289,9 @@ public class MockEnvironment implements Environment {
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public void failExternally(Throwable cause) {
+		throw new UnsupportedOperationException("MockEnvironment does not support external task failure.");
+	}
 }

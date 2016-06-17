@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import com.google.common.base.Preconditions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ContextEnvironment;
@@ -26,6 +25,8 @@ import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			((DetachedEnvironment) ctx).setDetachedPlan(streamGraph);
 			return DetachedEnvironment.DetachedJobExecutionResult.INSTANCE;
 		} else {
-			return ctx.getClient().runBlocking(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointPath());
+			return ctx
+				.getClient()
+				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointPath())
+				.getJobExecutionResult();
 		}
 	}
 }

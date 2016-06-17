@@ -163,6 +163,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 	@Override
 	public void collect(IN record) {
+		this.numRecordsIn.inc();
 		// try writing to the sorter first
 		try {
 			if (this.sorter.write(record)) {

@@ -199,6 +199,13 @@ public class StreamTaskTestHarness<OUT> {
 				StreamTask<?, ?> streamTask = (StreamTask<?, ?>) taskThread.task;
 				while (!streamTask.isRunning()) {
 					Thread.sleep(100);
+					if (!taskThread.isAlive()) {
+						if (taskThread.getError() != null) {
+							throw new Exception("Task Thread failed due to an error.", taskThread.getError());
+						} else {
+							throw new Exception("Task Thread unexpectedly shut down.");
+						}
+					}
 				}
 			}
 			else {

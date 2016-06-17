@@ -33,8 +33,8 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.

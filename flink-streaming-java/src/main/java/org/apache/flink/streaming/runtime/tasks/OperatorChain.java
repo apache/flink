@@ -26,6 +26,7 @@ import java.util.Map;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -298,14 +299,17 @@ public class OperatorChain<OUT> {
 	private static class ChainingOutput<T> implements Output<StreamRecord<T>> {
 		
 		protected final OneInputStreamOperator<T, ?> operator;
+		protected final Counter numRecordsIn;
 
 		public ChainingOutput(OneInputStreamOperator<T, ?> operator) {
 			this.operator = operator;
+			this.numRecordsIn = operator.getMetricGroup().counter("numRecordsIn");
 		}
 
 		@Override
 		public void collect(StreamRecord<T> record) {
 			try {
+				numRecordsIn.inc();
 				operator.setKeyContextElement1(record);
 				operator.processElement(record);
 			}
@@ -347,6 +351,7 @@ public class OperatorChain<OUT> {
 		@Override
 		public void collect(StreamRecord<T> record) {
 			try {
+				numRecordsIn.inc();
 				StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);

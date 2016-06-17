@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import com.esotericsoftware.kryo.Serializer;
-import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
@@ -51,14 +50,18 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
+import org.apache.flink.streaming.api.functions.source.FilePathFilter;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
-import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
@@ -68,6 +71,7 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.IOException;
@@ -77,8 +81,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * An ExecutionEnvironment for streaming jobs. An instance of it is
@@ -407,7 +409,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
-		this.defaultStateBackend = requireNonNull(backend);
+		this.defaultStateBackend = Preconditions.checkNotNull(backend);
 		return this;
 	}
 
@@ -594,7 +596,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-		this.timeCharacteristic = requireNonNull(characteristic);
+		this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
 			getConfig().setAutoWatermarkInterval(0);
 		} else {
@@ -875,24 +877,34 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a data stream that represents the Strings produced by reading the given file line wise. The file will be
-	 * read with the system's default character set.
+	 * Reads the given file line-by-line and creates a data stream that contains a string with the contents of each such
+	 * line. The file will be read with the system's default character set.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return The data stream that represents the data read from the given file as text lines
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
-		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		TextInputFormat format = new TextInputFormat(new Path(filePath));
-		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
-
-		return createInput(format, typeInfo, "Read Text File Source");
+		return readTextFile(filePath, "UTF-8");
 	}
 
 	/**
-	 * Creates a data stream that represents the Strings produced by reading the given file line wise. The {@link
-	 * java.nio.charset.Charset} with the given name will be used to read the files.
+	 * Reads the given file line-by-line and creates a data stream that contains a string with the contents of each such
+	 * line. The {@link java.nio.charset.Charset} with the given name will be used to read the files.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
@@ -902,15 +914,32 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
+
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 		format.setCharsetName(charsetName);
 
-		return createInput(format, typeInfo, "Read Text File Source");
+		return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1,
+			FilePathFilter.createDefaultFilter(), typeInfo);
 	}
 
 	/**
-	 * Reads the given file with the given imput format.
+	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}.
+	 *
+	 * <p>
+	 * Since all data streams need specific information about their types, this method needs to determine the
+	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
+	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
+	 * In the latter case, this method will invoke the
+	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
+	 * type produced by the input format.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
+	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
@@ -920,19 +949,64 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data read from the given file
 	 */
-	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat, String filePath) {
-		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
-		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
+												String filePath) {
+		return readFile(inputFormat, filePath, FileProcessingMode.PROCESS_ONCE, -1, FilePathFilter.createDefaultFilter());
+	}
 
-		inputFormat.setFilePath(new Path(filePath));
+	/**
+	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}. Depending
+	 * on the provided {@link FileProcessingMode}, the source may periodically monitor (every {@code interval} ms) the path
+	 * for new data ({@link FileProcessingMode#PROCESS_CONTINUOUSLY}), or process once the data currently in the path and
+	 * exit ({@link FileProcessingMode#PROCESS_ONCE}). In addition, if the path contains files not to be processed, the user
+	 * can specify a custom {@link FilePathFilter}. As a default implementation you can use
+	 * {@link FilePathFilter#createDefaultFilter()}.
+	 *
+	 * <p>
+	 * Since all data streams need specific information about their types, this method needs to determine the
+	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
+	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
+	 * In the latter case, this method will invoke the
+	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
+	 * type produced by the input format.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
+	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
+	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
+	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
+	 *
+	 * @param inputFormat
+	 * 		The input format used to create the data stream
+	 * @param filePath
+	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
+	 * @param watchType
+	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
+	 * @param interval
+	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
+	 * @param filter
+	 * 		The files to be excluded from the processing
+	 * @param <OUT>
+	 * 		The type of the returned data stream
+	 * @return The data stream that represents the data read from the given file
+	 */
+	@PublicEvolving
+	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
+												String filePath,
+												FileProcessingMode watchType,
+												long interval,
+												FilePathFilter filter) {
+
+		TypeInformation<OUT> typeInformation;
 		try {
-			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat), "Read File source");
+			typeInformation = TypeExtractor.getInputFormatTypes(inputFormat);
 		} catch (Exception e) {
-			throw new InvalidProgramException("The type returned by the input format could not be automatically " +
-					"determined. " +
-					"Please specify the TypeInformation of the produced type explicitly by using the " +
-					"'createInput(InputFormat, TypeInformation)' method instead.");
+			throw new InvalidProgramException("The type returned by the input format could not be " +
+				"automatically determined. Please specify the TypeInformation of the produced type " +
+				"explicitly by using the 'createInput(InputFormat, TypeInformation)' method instead.");
 		}
+		return readFile(inputFormat, filePath, watchType, interval, filter, typeInformation);
 	}
 
 	/**
@@ -952,12 +1026,59 @@ public abstract class StreamExecutionEnvironment {
 	 * 		of files.
 	 * @return The DataStream containing the given directory.
 	 */
+	@Deprecated
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
-											WatchType watchType) {
+											FileMonitoringFunction.WatchType watchType) {
 		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), "Read File Stream source");
+			filePath, intervalMillis, watchType), "Read File Stream source");
 
 		return source.flatMap(new FileReadFunction());
+	}
+
+	/**
+	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}.
+	 * Depending on the provided {@link FileProcessingMode}, the source may periodically monitor (every {@code interval} ms)
+	 * the path for new data ({@link FileProcessingMode#PROCESS_CONTINUOUSLY}), or process once the data currently in the
+	 * path and exit ({@link FileProcessingMode#PROCESS_ONCE}). In addition, if the path contains files not to be processed,
+	 * the user can specify a custom {@link FilePathFilter}. As a default implementation you can use
+	 * {@link FilePathFilter#createDefaultFilter()}.
+	 *
+	 * <p>
+	 *  <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
+	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
+	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
+	 * are going to be forwarded after the source exits, thus having no checkpoints after that point.
+	 *
+	 * @param inputFormat
+	 * 		The input format used to create the data stream
+	 * @param filePath
+	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path")
+	 * @param watchType
+	 * 		The mode in which the source should operate, i.e. monitor path and react to new data, or process once and exit
+	 * @param filter
+	 * 		The files to be excluded from the processing
+	 * @param typeInformation
+	 * 		Information on the type of the elements in the output stream
+	 * @param interval
+	 * 		In the case of periodic path monitoring, this specifies the interval (in millis) between consecutive path scans
+	 * @param <OUT>
+	 * 		The type of the returned data stream
+	 * @return The data stream that represents the data read from the given file
+	 */
+	@PublicEvolving
+	public <OUT> DataStreamSource<OUT> readFile(FileInputFormat<OUT> inputFormat,
+												String filePath,
+												FileProcessingMode watchType,
+												long interval,
+												FilePathFilter filter,
+												TypeInformation<OUT> typeInformation) {
+
+		Preconditions.checkNotNull(inputFormat, "InputFormat must not be null.");
+		Preconditions.checkNotNull(filePath, "The file path must not be null.");
+
+		inputFormat.setFilePath(filePath);
+		return createFileInput(inputFormat, typeInformation, "Custom File Source", watchType, filter, interval);
 	}
 
 	/**
@@ -1026,12 +1147,20 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
 	 * <p>
-	 * Since all data streams need specific information about their types, this method needs to determine the type of
-	 * the data produced by the input format. It will attempt to determine the data type by reflection, unless the
-	 * input
-	 * format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface. In the latter
-	 * case, this method will invoke the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()}
-	 * method to determine data type produced by the input format.
+	 * Since all data streams need specific information about their types, this method needs to determine the
+	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
+	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
+	 * In the latter case, this method will invoke the
+	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
+	 * type produced by the input format.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
+	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
+	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
+	 * without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -1041,33 +1170,82 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat) {
-		return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat), "Custom File source");
+		return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 	}
 
 	/**
 	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
 	 * <p>
-	 * The data stream is typed to the given TypeInformation. This method is intended for input formats where the
-	 * return
-	 * type cannot be determined by reflection analysis, and that do not implement the
+	 * The data stream is typed to the given TypeInformation. This method is intended for input formats
+	 * where the return type cannot be determined by reflection analysis, and that do not implement the
 	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
+	 *
+	 * <p>
+	 * <b> NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
+	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
+	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
+	 * without waiting for the readers to finish reading. This implies that no more checkpoint
+	 * barriers are going to be forwarded after the source exits, thus having no checkpoints.
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
+	 * @param typeInfo
+	 * 		The information about the type of the output type
 	 * @param <OUT>
 	 * 		The type of the returned data stream
 	 * @return The data stream that represents the data created by the input format
 	 */
 	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> typeInfo) {
-		return createInput(inputFormat, typeInfo, "Custom File source");
+		DataStreamSource<OUT> source;
+
+		if (inputFormat instanceof FileInputFormat) {
+			FileInputFormat<OUT> format = (FileInputFormat<OUT>) inputFormat;
+			source = createFileInput(format, typeInfo, "Custom File source",
+				FileProcessingMode.PROCESS_ONCE,
+				FilePathFilter.createDefaultFilter(),  -1);
+		} else {
+			source = createInput(inputFormat, typeInfo, "Custom Source");
+		}
+		return source;
 	}
 
-	// private helper for passing different names
 	private <OUT> DataStreamSource<OUT> createInput(InputFormat<OUT, ?> inputFormat,
-			TypeInformation<OUT> typeInfo, String sourceName) {
-		FileSourceFunction<OUT> function = new FileSourceFunction<>(inputFormat, typeInfo);
+													TypeInformation<OUT> typeInfo,
+													String sourceName) {
+
+		InputFormatSourceFunction<OUT> function = new InputFormatSourceFunction<>(inputFormat, typeInfo);
 		return addSource(function, sourceName, typeInfo);
+	}
+
+	private <OUT> DataStreamSource<OUT> createFileInput(FileInputFormat<OUT> inputFormat,
+														TypeInformation<OUT> typeInfo,
+														String sourceName,
+														FileProcessingMode watchType,
+														FilePathFilter pathFilter,
+														long interval) {
+
+		Preconditions.checkNotNull(inputFormat, "Unspecified file input format.");
+		Preconditions.checkNotNull(typeInfo, "Unspecified output type information.");
+		Preconditions.checkNotNull(sourceName, "Unspecified name for the source.");
+		Preconditions.checkNotNull(watchType, "Unspecified watchtype.");
+		Preconditions.checkNotNull(pathFilter, "Unspecified path name filtering function.");
+
+		Preconditions.checkArgument(watchType.equals(FileProcessingMode.PROCESS_ONCE) ||
+			interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
+			"The path monitoring interval cannot be less than 100 ms.");
+
+		ContinuousFileMonitoringFunction<OUT> monitoringFunction = new ContinuousFileMonitoringFunction<>(
+			inputFormat, inputFormat.getFilePath().toString(),
+			pathFilter, watchType, getParallelism(), interval);
+
+		ContinuousFileReaderOperator<OUT, ?> reader = new ContinuousFileReaderOperator<>(inputFormat);
+
+		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
+			.transform("FileSplitReader_" + sourceName, typeInfo, reader);
+
+		return new DataStreamSource<>(source);
 	}
 
 	/**

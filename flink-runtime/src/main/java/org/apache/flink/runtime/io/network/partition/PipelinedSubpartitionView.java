@@ -23,7 +23,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * View over a pipelined in-memory only subpartition.

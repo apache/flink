@@ -28,8 +28,8 @@ import scala.Option;
 import java.io.StringWriter;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Request handler that returns back pressure stats for a single job vertex and

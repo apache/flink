@@ -23,10 +23,13 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.runtime.operators.util.metrics.CountingMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
@@ -84,9 +87,10 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		final double driverMemFraction = config.getRelativeMemoryDriver();
 		
 		final DriverStrategy ls = config.getDriverStrategy();
-		
-		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
-		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
+
+		final Counter numRecordsIn = this.taskContext.getMetricGroup().counter("numRecordsIn");
+		final MutableObjectIterator<IT1> in1 = new CountingMutableObjectIterator<>(this.taskContext.<IT1>getInput(0), numRecordsIn);
+		final MutableObjectIterator<IT2> in2 = new CountingMutableObjectIterator<>(this.taskContext.<IT2>getInput(1), numRecordsIn);
 		
 		// get serializers and comparators
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
@@ -147,8 +151,10 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 	
 	@Override
 	public void run() throws Exception {
+		final Counter numRecordsOut = this.taskContext.getMetricGroup().counter("numRecordsOut");
+		
 		final FlatJoinFunction<IT1, IT2, OT> joinStub = this.taskContext.getStub();
-		final Collector<OT> collector = this.taskContext.getOutputCollector();
+		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> outerJoinIterator = this.outerJoinIterator;
 		
 		while (this.running && outerJoinIterator.callWithNextKey(joinStub, collector)) ;

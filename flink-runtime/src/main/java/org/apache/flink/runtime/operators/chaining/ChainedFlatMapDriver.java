@@ -76,6 +76,7 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void collect(IT record) {
 		try {
+			this.numRecordsIn.inc();
 			this.mapper.flatMap(record, this.outputCollector);
 		} catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);

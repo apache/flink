@@ -29,8 +29,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 /**
  * The base class for job vertexes.

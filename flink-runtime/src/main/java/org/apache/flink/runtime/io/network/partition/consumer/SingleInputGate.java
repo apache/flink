@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.groups.IOMetricGroup;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -52,9 +53,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
@@ -173,7 +174,8 @@ public class SingleInputGate implements InputGate {
 			IntermediateDataSetID consumedResultId,
 			int consumedSubpartitionIndex,
 			int numberOfInputChannels,
-			PartitionStateChecker partitionStateChecker) {
+			PartitionStateChecker partitionStateChecker,
+			IOMetricGroup metrics) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -502,7 +504,8 @@ public class SingleInputGate implements InputGate {
 			JobID jobId,
 			ExecutionAttemptID executionId,
 			InputGateDeploymentDescriptor igdd,
-			NetworkEnvironment networkEnvironment) {
+			NetworkEnvironment networkEnvironment,
+			IOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
@@ -512,7 +515,8 @@ public class SingleInputGate implements InputGate {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-				owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex, icdd.length, networkEnvironment.getPartitionStateChecker());
+				owningTaskName, jobId, executionId, consumedResultId, consumedSubpartitionIndex,
+				icdd.length, networkEnvironment.getPartitionStateChecker(), metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -526,13 +530,16 @@ public class SingleInputGate implements InputGate {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
 						networkEnvironment.getPartitionManager(),
 						networkEnvironment.getTaskEventDispatcher(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff());
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
+				);
 			}
 			else if (partitionLocation.isRemote()) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
 						partitionLocation.getConnectionId(),
 						networkEnvironment.getConnectionManager(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff()
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
 				);
 			}
 			else if (partitionLocation.isUnknown()) {
@@ -540,7 +547,8 @@ public class SingleInputGate implements InputGate {
 						networkEnvironment.getPartitionManager(),
 						networkEnvironment.getTaskEventDispatcher(),
 						networkEnvironment.getConnectionManager(),
-						networkEnvironment.getPartitionRequestInitialAndMaxBackoff()
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
 				);
 			}
 			else {

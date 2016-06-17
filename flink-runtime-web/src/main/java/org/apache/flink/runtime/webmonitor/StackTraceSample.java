@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A sample of stack traces for one or more tasks.

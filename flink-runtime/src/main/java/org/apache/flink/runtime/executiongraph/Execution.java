@@ -66,7 +66,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static akka.dispatch.Futures.future;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
 import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
@@ -82,6 +81,7 @@ import static org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import static org.apache.flink.runtime.messages.TaskMessages.UpdatePartitionInfo;
 import static org.apache.flink.runtime.messages.TaskMessages.UpdateTaskSinglePartitionInfo;
 import static org.apache.flink.runtime.messages.TaskMessages.createUpdateTaskMultiplePartitionInfos;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,

@@ -27,13 +27,19 @@ abstract class SumAggregate[T: Numeric]
   protected var sumIndex: Int = _
 
   override def initiate(partial: Row): Unit = {
-    partial.setField(sumIndex, numeric.zero)
+    partial.setField(sumIndex, null)
   }
 
   override def merge(partial1: Row, buffer: Row): Unit = {
     val partialValue = partial1.productElement(sumIndex).asInstanceOf[T]
-    val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
-    buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
+    if (partialValue != null) {
+      val bufferValue = buffer.productElement(sumIndex).asInstanceOf[T]
+      if (bufferValue != null) {
+        buffer.setField(sumIndex, numeric.plus(partialValue, bufferValue))
+      } else {
+        buffer.setField(sumIndex, partialValue)
+      }
+    }
   }
 
   override def evaluate(buffer: Row): T = {

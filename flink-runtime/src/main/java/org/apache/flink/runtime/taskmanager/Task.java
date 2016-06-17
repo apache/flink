@@ -79,7 +79,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
@@ -319,7 +319,8 @@ public class Task implements Runnable {
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
+					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment, 
+					metricGroup.getIOMetricGroup());
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -526,7 +527,7 @@ public class Task implements Runnable {
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig, metrics);
+					writers, inputGates, jobManager, taskManagerConfig, metrics, this);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -638,6 +639,7 @@ public class Task implements Runnable {
 						else {
 							if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 								// proper failure of the task. record the exception as the root cause
+								LOG.error("Task execution failed. ", t);
 								failureCause = t;
 								cancelInvokable();
 
@@ -703,7 +705,7 @@ public class Task implements Runnable {
 				LOG.error(message, t);
 				notifyFatalError(message, t);
 			}
-			
+
 			// un-register the metrics at the end so that the task may already be
 			// counted as finished when this happens
 			// errors here will only be logged

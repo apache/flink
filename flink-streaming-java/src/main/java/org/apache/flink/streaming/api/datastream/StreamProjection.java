@@ -47,8 +47,7 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.operators.StreamProject;
-
-import com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 @PublicEvolving
 public class StreamProjection<IN> {

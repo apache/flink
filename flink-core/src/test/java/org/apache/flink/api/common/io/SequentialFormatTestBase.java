@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -127,17 +128,29 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	 * Tests if the expected sequence and amount of data can be read
 	 */
 	@Test
-	public void checkRead() throws IOException {
+	public void checkRead() throws Exception {
 		BinaryInputFormat<T> input = this.createInputFormat();
 		FileInputSplit[] inputSplits = input.createInputSplits(0);
 		Arrays.sort(inputSplits, new InputSplitSorter());
+
 		int readCount = 0;
+
 		for (FileInputSplit inputSplit : inputSplits) {
 			input.open(inputSplit);
+			input.reopen(inputSplit, input.getCurrentState());
+
 			T record = createInstance();
+
 			while (!input.reachedEnd()) {
 				if (input.nextRecord(record) != null) {
 					this.checkEquals(this.getRecord(readCount), record);
+
+					if (!input.reachedEnd()) {
+						Tuple2<Long, Long> state = input.getCurrentState();
+
+						input = this.createInputFormat();
+						input.reopen(inputSplit, state);
+					}
 					readCount++;
 				}
 			}

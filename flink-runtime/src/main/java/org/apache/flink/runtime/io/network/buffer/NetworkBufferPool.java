@@ -32,7 +32,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The NetworkBufferPool is a fixed size pool of {@link MemorySegment} instances

@@ -124,8 +124,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * We use this method to replace a [[org.apache.flink.api.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
     *
-    * @param name
-    * @param table
+    * @param name Name of the table to replace.
+    * @param table The table that replaces the previous table.
     */
   protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
 
@@ -230,7 +230,9 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected def getFieldInfo[A](inputType: TypeInformation[A]): (Array[String], Array[Int]) = {
+  protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
+      (Array[String], Array[Int]) =
+  {
     val fieldNames: Array[String] = inputType match {
       case t: TupleTypeInfo[A] => t.getFieldNames
       case c: CaseClassTypeInfo[A] => c.getFieldNames
@@ -251,7 +253,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected def getFieldInfo[A](
+  protected[flink] def getFieldInfo[A](
     inputType: TypeInformation[A],
     exprs: Array[Expression]): (Array[String], Array[Int]) = {
 
@@ -290,13 +292,20 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
       case p: PojoTypeInfo[A] =>
         exprs.map {
+          case (UnresolvedFieldReference(name)) =>
+            val idx = p.getFieldIndex(name)
+            if (idx < 0) {
+              throw new TableException(s"$name is not a field of type $p")
+            }
+            (idx, name)
           case Alias(UnresolvedFieldReference(origName), name) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $p")
             }
             (idx, name)
-          case _ => throw new TableException("Alias on field reference expression expected.")
+          case _ => throw new TableException(
+            "Field reference expression or alias on field expression expected.")
         }
       case tpe => throw new TableException(
         s"Source of type $tpe cannot be converted into Table.")

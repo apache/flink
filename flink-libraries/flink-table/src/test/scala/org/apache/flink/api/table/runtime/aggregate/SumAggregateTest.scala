@@ -39,11 +39,21 @@ abstract class SumAggregateTestBase[T: Numeric] extends AggregateTestBase[T] {
       numeric.fromInt(17),
       null.asInstanceOf[T],
       maxVal
+    ),
+    Seq(
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T],
+      null.asInstanceOf[T]
     )
   )
 
-  override def expectedResults: Seq[T] = Seq(numeric.fromInt(2))
-
+  override def expectedResults: Seq[T] = Seq(
+    numeric.fromInt(2),
+    null.asInstanceOf[T]
+  )
 }
 
 class ByteSumAggregateTest extends SumAggregateTestBase[Byte] {

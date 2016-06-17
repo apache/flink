@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordS
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Implementation of {@link Output} that sends data using a {@link RecordWriter}.

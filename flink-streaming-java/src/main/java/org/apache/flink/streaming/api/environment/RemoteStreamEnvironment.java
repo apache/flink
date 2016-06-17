@@ -30,9 +30,10 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
@@ -195,9 +196,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
-		Client client;
+		ClusterClient client;
 		try {
-			client = new Client(configuration);
+			client = new StandaloneClusterClient(configuration);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		catch (Exception e) {
@@ -205,7 +206,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			return client.runBlocking(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader);
+			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
 		}
 		catch (ProgramInvocationException e) {
 			throw e;

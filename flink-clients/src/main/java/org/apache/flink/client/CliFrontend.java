@@ -18,10 +18,7 @@
 
 package org.apache.flink.client;
 
-import akka.actor.ActorSystem;
-
 import org.apache.commons.cli.CommandLine;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -31,18 +28,21 @@ import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.cli.SavepointOptions;
 import org.apache.flink.client.cli.StopOptions;
-import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -53,10 +53,8 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
@@ -67,24 +65,21 @@ import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.text.SimpleDateFormat;
@@ -93,10 +88,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
@@ -108,9 +102,11 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepo
  */
 public class CliFrontend {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
+
 	// actions
-	public static final String ACTION_RUN = "run";
-	public static final String ACTION_INFO = "info";
+	private static final String ACTION_RUN = "run";
+	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
 	private static final String ACTION_STOP = "stop";
@@ -121,40 +117,28 @@ public class CliFrontend {
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
-	// YARN-session related constants
-	public static final String YARN_PROPERTIES_FILE = ".yarn-properties-";
-	public static final String YARN_PROPERTIES_JOBMANAGER_KEY = "jobManager";
-	public static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
-	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
-
-	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
-
-	/**
-	 * A special host name used to run a job by deploying Flink into a YARN cluster,
-	 * if this string is specified as the JobManager address
-	 */
-	public static final String YARN_DEPLOY_JOBMANAGER = "yarn-cluster";
-
-	// --------------------------------------------------------------------------------------------
 	// --------------------------------------------------------------------------------------------
 
-	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
+	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
+
+	static {
+		/** command line interface of the YARN session, with a special initialization here
+		 *  to prefix all options with y/yarn. */
+		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
+		customCommandLine.add(new DefaultCLI());
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 
 
 	private final Configuration config;
 
 	private final FiniteDuration clientTimeout;
 
-	private final FiniteDuration lookupTimeout;
-
-	private ActorSystem actorSystem;
-
-	private AbstractFlinkYarnCluster yarnCluster;
-
 	/**
 	 *
-	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not
-	 *                   be loaded, or the YARN properties could not be parsed.
+	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not be loaded
 	 */
 	public CliFrontend() throws Exception {
 		this(getConfigurationDirectoryFromEnv());
@@ -169,62 +153,9 @@ public class CliFrontend {
 		// load the configuration
 		LOG.info("Trying to load configuration file");
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+		System.setProperty("FLINK_CONF_DIR", configDirectory.getAbsolutePath());
+
 		this.config = GlobalConfiguration.getConfiguration();
-
-		// load the YARN properties
-		File propertiesFile = new File(getYarnPropertiesLocation(config));
-		if (propertiesFile.exists()) {
-
-			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
-
-			Properties yarnProperties = new Properties();
-			try {
-				try (InputStream is = new FileInputStream(propertiesFile)) {
-					yarnProperties.load(is);
-				}
-			}
-			catch (IOException e) {
-				throw new Exception("Cannot read the YARN properties file", e);
-			}
-
-			// configure the default parallelism from YARN
-			String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
-			if (propParallelism != null) { // maybe the property is not set
-				try {
-					int parallelism = Integer.parseInt(propParallelism);
-					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
-
-					logAndSysout("YARN properties set default parallelism to " + parallelism);
-				}
-				catch (NumberFormatException e) {
-					throw new Exception("Error while parsing the YARN properties: " +
-							"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
-				}
-			}
-
-			// get the JobManager address from the YARN properties
-			String address = yarnProperties.getProperty(YARN_PROPERTIES_JOBMANAGER_KEY);
-			InetSocketAddress jobManagerAddress;
-			if (address != null) {
-				try {
-					jobManagerAddress = ClientUtils.parseHostPortAddress(address);
-					// store address in config from where it is retrieved by the retrieval service
-					writeJobManagerAddressToConfig(jobManagerAddress);
-				}
-				catch (Exception e) {
-					throw new Exception("YARN properties contain an invalid entry for JobManager address.", e);
-				}
-
-				logAndSysout("Using JobManager address from YARN properties " + jobManagerAddress);
-			}
-
-			// handle the YARN client's dynamic properties
-			String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
-			Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
-			for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
-				this.config.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
-			}
-		}
 
 		try {
 			FileSystem.setDefaultScheme(config);
@@ -234,7 +165,6 @@ public class CliFrontend {
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
-		this.lookupTimeout = AkkaUtils.getLookupTimeout(config);
 	}
 
 
@@ -301,61 +231,33 @@ public class CliFrontend {
 			return handleError(t);
 		}
 
-		int exitCode = 1;
+		ClusterClient client = null;
 		try {
-			int userParallelism = options.getParallelism();
-			LOG.debug("User parallelism is set to {}", userParallelism);
 
-			Client client = getClient(options, program.getMainClassName(), userParallelism, options.getDetachedMode());
+			client = getClient(options, program.getMainClassName());
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
+			client.setDetached(options.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
 			LOG.debug("Savepoint path is set to {}", options.getSavepointPath());
 
-			try {
-				if (client.getMaxSlots() != -1 && userParallelism == -1) {
-					logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
-							"To use another parallelism, set it at the ./bin/flink client.");
-					userParallelism = client.getMaxSlots();
-				}
-
-				// detached mode
-				if (options.getDetachedMode() || (yarnCluster != null && yarnCluster.isDetached())) {
-					exitCode = executeProgramDetached(program, client, userParallelism);
-				}
-				else {
-					exitCode = executeProgramBlocking(program, client, userParallelism);
-				}
-
-				// show YARN cluster status if its not a detached YARN cluster.
-				if (yarnCluster != null && !yarnCluster.isDetached()) {
-					List<String> msgs = yarnCluster.getNewMessages();
-					if (msgs != null && msgs.size() > 1) {
-
-						logAndSysout("The following messages were created by the YARN cluster while running the Job:");
-						for (String msg : msgs) {
-							logAndSysout(msg);
-						}
-					}
-					if (yarnCluster.hasFailed()) {
-						logAndSysout("YARN cluster is in failed state!");
-						logAndSysout("YARN Diagnostics: " + yarnCluster.getDiagnostics());
-					}
-				}
-
-				return exitCode;
+			int userParallelism = options.getParallelism();
+			LOG.debug("User parallelism is set to {}", userParallelism);
+			if (client.getMaxSlots() != -1 && userParallelism == -1) {
+				logAndSysout("Using the parallelism provided by the remote cluster ("
+					+ client.getMaxSlots()+"). "
+					+ "To use another parallelism, set it at the ./bin/flink client.");
+				userParallelism = client.getMaxSlots();
 			}
-			finally {
-				client.shutdown();
-			}
+
+			return executeProgram(program, client, userParallelism);
 		}
 		catch (Throwable t) {
 			return handleError(t);
 		}
 		finally {
-			if (yarnCluster != null && !yarnCluster.isDetached()) {
-				logAndSysout("Shutting down YARN cluster");
-				yarnCluster.shutdown(exitCode != 0);
+			if (client != null) {
+				client.shutdown();
 			}
 			if (program != null) {
 				program.deleteExtractedLibraries();
@@ -410,7 +312,7 @@ public class CliFrontend {
 			LOG.info("Creating program plan dump");
 
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			FlinkPlan flinkPlan = Client.getOptimizedPlan(compiler, program, parallelism);
+			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
 			
 			String jsonPlan = null;
 			if (flinkPlan instanceof OptimizedPlan) {
@@ -830,53 +732,30 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
-		LOG.info("Starting execution of program");
+	protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+		logAndSysout("Starting execution of program");
 
 		JobSubmissionResult result;
 		try {
-			result = client.runDetached(program, parallelism);
+			result = client.run(program, parallelism);
 		} catch (ProgramInvocationException e) {
 			return handleError(e);
 		} finally {
 			program.deleteExtractedLibraries();
 		}
 
-		if (yarnCluster != null) {
-			yarnCluster.stopAfterJob(result.getJobID());
-			yarnCluster.disconnect();
-		}
-		
-		System.out.println("Job has been submitted with JobID " + result.getJobID());
-
-		return 0;
-	}
-
-	protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
-		LOG.info("Starting execution of program");
-
-		JobSubmissionResult result;
-		try {
-			result = client.runBlocking(program, parallelism);
-		}
-		catch (ProgramInvocationException e) {
-			return handleError(e);
-		}
-		finally {
-			program.deleteExtractedLibraries();
-		}
-
-		LOG.info("Program execution finished");
-
-		if (result instanceof JobExecutionResult) {
-			JobExecutionResult execResult = (JobExecutionResult) result;
+		if(result.isJobExecutionResults()) {
+			logAndSysout("Program execution finished");
+			JobExecutionResult execResult = result.getJobExecutionResult();
 			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
 			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
-					System.out.println("Accumulator Results: ");
-					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
+		} else {
+			logAndSysout("Job has been submitted with JobID " + result.getJobID());
 		}
 
 		return 0;
@@ -923,29 +802,24 @@ public class CliFrontend {
 	}
 
 	/**
-	 * Writes the given job manager address to the associated configuration object
-	 *
-	 * @param address Address to write to the configuration
-	 */
-	protected void writeJobManagerAddressToConfig(InetSocketAddress address) {
-		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
-		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
-	}
-
-	/**
 	 * Updates the associated configuration with the given command line options
 	 *
 	 * @param options Command line options
 	 */
-	protected void updateConfig(CommandLineOptions options) {
-		if(options.getJobManagerAddress() != null){
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
-			writeJobManagerAddressToConfig(jobManagerAddress);
+	protected ClusterClient retrieveClient(CommandLineOptions options) {
+		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
+		try {
+			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
+			LOG.info("Using address {} to connect to JobManager.", client.getJobManagerAddressFromConfig());
+			return client;
+		} catch (Exception e) {
+			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
+			throw new IllegalConfigurationException("Couldn't retrieve client for cluster", e);
 		}
 	}
 
 	/**
-	 * Retrieves the {@link ActorGateway} for the JobManager. The JobManager address is retrieved
+	 * Retrieves the {@link ActorGateway} for the JobManager. The ClusterClient is retrieved
 	 * from the provided {@link CommandLineOptions}.
 	 *
 	 * @param options CommandLineOptions specifying the JobManager URL
@@ -953,137 +827,41 @@ public class CliFrontend {
 	 * @throws Exception
 	 */
 	protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
-		// overwrite config values with given command line options
-		updateConfig(options);
-
-		// start an actor system if needed
-		if (this.actorSystem == null) {
-			LOG.info("Starting actor system to communicate with JobManager");
-			try {
-				scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
-				this.actorSystem = AkkaUtils.createActorSystem(
-						config,
-						new Some<scala.Tuple2<String, Object>>(systemEndpoint));
-			}
-			catch (Exception e) {
-				throw new IOException("Could not start actor system to communicate with JobManager", e);
-			}
-
-			LOG.info("Actor system successfully started");
-		}
-
-		LOG.info("Trying to lookup the JobManager gateway");
-		// Retrieve the ActorGateway from the LeaderRetrievalService
-		LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-
-		return LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, lookupTimeout);
+		return retrieveClient(options).getJobManagerGateway();
 	}
 
 	/**
-	 * Retrieves a {@link Client} object from the given command line options and other parameters.
-	 *
-	 * @param options Command line options which contain JobManager address
+	 * Creates a {@link ClusterClient} object from the given command line options and other parameters.
+	 * @param options Command line options
 	 * @param programName Program name
-	 * @param userParallelism Given user parallelism
 	 * @throws Exception
 	 */
-	protected Client getClient(
+	protected ClusterClient getClient(
 			CommandLineOptions options,
-			String programName,
-			int userParallelism,
-			boolean detachedMode)
-		throws Exception {
-		InetSocketAddress jobManagerAddress;
-		int maxSlots = -1;
+			String programName) throws Exception {
 
-		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
-			logAndSysout("YARN cluster mode detected. Switching Log4j output to console");
+		// Get the custom command-line (e.g. Standalone/Yarn/Mesos)
+		CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
 
-			// Default yarn application name to use, if nothing is specified on the command line
-			String applicationName = "Flink Application: " + programName;
-
-			// user wants to run Flink in YARN cluster.
-			CommandLine commandLine = options.getCommandLine();
-			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser
-														.getFlinkYarnSessionCli()
-														.withDefaultApplicationName(applicationName)
-														.createFlinkYarnClient(commandLine);
-
-			if (flinkYarnClient == null) {
-				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
-			}
-
-			// in case the main detached mode wasn't set, we don't wanna overwrite the one loaded
-			// from yarn options.
-			if (detachedMode) {
-				flinkYarnClient.setDetachedMode(true);
-			}
-
-			// the number of slots available from YARN:
-			int yarnTmSlots = flinkYarnClient.getTaskManagerSlots();
-			if (yarnTmSlots == -1) {
-				yarnTmSlots = 1;
-			}
-			maxSlots = yarnTmSlots * flinkYarnClient.getTaskManagerCount();
-			if (userParallelism != -1) {
-				int slotsPerTM = userParallelism / flinkYarnClient.getTaskManagerCount();
-				logAndSysout("The YARN cluster has " + maxSlots + " slots available, " +
-						"but the user requested a parallelism of " + userParallelism + " on YARN. " +
-						"Each of the " + flinkYarnClient.getTaskManagerCount() + " TaskManagers " +
-						"will get "+slotsPerTM+" slots.");
-				flinkYarnClient.setTaskManagerSlots(slotsPerTM);
-			}
-
+		ClusterClient client;
+		try {
+			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
+			logAndSysout("Cluster retrieved");
+		} catch (UnsupportedOperationException e) {
 			try {
-				yarnCluster = flinkYarnClient.deploy();
-				yarnCluster.connectToCluster();
-			}
-			catch (Exception e) {
-				throw new RuntimeException("Error deploying the YARN cluster", e);
-			}
-
-			jobManagerAddress = yarnCluster.getJobManagerAddress();
-			writeJobManagerAddressToConfig(jobManagerAddress);
-			
-			// overwrite the yarn client config (because the client parses the dynamic properties)
-			this.config.addAll(flinkYarnClient.getFlinkConfiguration());
-
-			logAndSysout("YARN cluster started");
-			logAndSysout("JobManager web interface address " + yarnCluster.getWebInterfaceURL());
-			logAndSysout("Waiting until all TaskManagers have connected");
-
-			while(true) {
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				if (status != null) {
-					if (status.numRegisteredTaskManagers() < flinkYarnClient.getTaskManagerCount()) {
-						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-							+ flinkYarnClient.getTaskManagerCount() + ")");
-					} else {
-						logAndSysout("All TaskManagers are connected");
-						break;
-					}
-				} else {
-					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
-				}
-
-				try {
-					Thread.sleep(500);
-				}
-				catch (InterruptedException e) {
-					LOG.error("Interrupted while waiting for TaskManagers");
-					System.err.println("Thread is interrupted");
-					Thread.currentThread().interrupt();
-				}
-			}
-		}
-		else {
-			if(options.getJobManagerAddress() != null) {
-				jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
-				writeJobManagerAddressToConfig(jobManagerAddress);
+				String applicationName = "Flink Application: " + programName;
+				client = activeCommandLine.createCluster(applicationName, options.getCommandLine(), config);
+				logAndSysout("Cluster started");
+			} catch (UnsupportedOperationException e2) {
+				throw new IllegalConfigurationException(
+					"The JobManager address is neither provided at the command-line, " +
+						"nor configured in flink-conf.yaml.");
 			}
 		}
 
-		return new Client(config, maxSlots);
+		logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
+		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		return client;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1097,7 +875,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private int handleArgException(Exception e) {
-		LOG.error("Invalid command line arguments." + (e.getMessage() == null ? "" : e.getMessage()));
+		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
 
 		System.out.println(e.getMessage());
 		System.out.println();
@@ -1219,14 +997,6 @@ public class CliFrontend {
 		}
 	}
 
-	public void shutdown() {
-		ActorSystem sys = this.actorSystem;
-		if (sys != null) {
-			this.actorSystem = null;
-			sys.shutdown();
-		}
-	}
-
 	/**
 	 * Submits the job based on the arguments
 	 */
@@ -1250,7 +1020,8 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String location = System.getenv(ENV_CONFIG_DIRECTORY);
+		String envLocation = System.getenv(ENV_CONFIG_DIRECTORY);
+		String location = envLocation != null ? envLocation : System.getProperty(ENV_CONFIG_DIRECTORY);
 
 		if (location != null) {
 			if (new File(location).exists()) {
@@ -1275,33 +1046,72 @@ public class CliFrontend {
 		return location;
 	}
 
-	public static Map<String, String> getDynamicProperties(String dynamicPropertiesEncoded) {
-		if (dynamicPropertiesEncoded != null && dynamicPropertiesEncoded.length() > 0) {
-			Map<String, String> properties = new HashMap<>();
-			
-			String[] propertyLines = dynamicPropertiesEncoded.split(CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
-			for (String propLine : propertyLines) {
-				if (propLine == null) {
-					continue;
-				}
-				
-				String[] kv = propLine.split("=");
-				if (kv.length >= 2 && kv[0] != null && kv[1] != null && kv[0].length() > 0) {
-					properties.put(kv[0], kv[1]);
-				}
+
+	/**
+	 * Writes the given job manager address to the associated configuration object
+	 *
+	 * @param address Address to write to the configuration
+	 * @param config The config to write to
+	 */
+	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostName());
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.getPort());
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Custom command-line
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the custom command-line for the arguments.
+	 * @param commandLine The input to the command-line.
+	 * @return custom command-line which is active (may only be one at a time)
+	 */
+	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+		for (CustomCommandLine cli : customCommandLine) {
+			if (cli.isActive(commandLine, config)) {
+				return cli;
 			}
-			return properties;
 		}
-		else {
-			return Collections.emptyMap();
+		throw new IllegalStateException("No command-line ran.");
+	}
+
+	/**
+	 * Retrieves the loaded custom command-lines.
+	 * @return An unmodifiyable list of loaded custom command-lines.
+	 */
+	public static List<CustomCommandLine> getCustomCommandLineList() {
+		return Collections.unmodifiableList(customCommandLine);
+	}
+
+	/**
+	 * Loads a class from the classpath that implements the CustomCommandLine interface.
+	 * @param className The fully-qualified class name to load.
+	 * @param params The constructor parameters
+	 */
+	private static void loadCustomCommandLine(String className, Object... params) {
+
+		try {
+			Class<? extends CustomCommandLine> customCliClass =
+				Class.forName(className).asSubclass(CustomCommandLine.class);
+
+			// construct class types from the parameters
+			Class<?>[] types = new Class<?>[params.length];
+			for (int i = 0; i < params.length; i++) {
+				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
+				types[i] = params[i].getClass();
+			}
+
+			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
+			final CustomCommandLine cli = constructor.newInstance(params);
+
+			customCommandLine.add(cli);
+
+		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
+			| InvocationTargetException e) {
+			LOG.warn("Unable to locate custom CLI class {}. " +
+				"Flink is not compiled with support for this class.", className, e);
 		}
 	}
 
-	public static String getYarnPropertiesLocation(Configuration conf) {
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation = conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
-
-		return propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser;
-	}
 }

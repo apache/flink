@@ -463,6 +463,20 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>MinBy / MaxBy</strong></td>
+      <td>
+        <p>Selects a tuple from a group of tuples whose values of one or more fields are minimum (maximum). The fields which are used for comparison must be valid key fields, i.e., comparable. If multiple tuples have minimum (maximum) field values, an arbitrary tuple of these tuples is returned. MinBy (MaxBy) may be applied on a full data set or a grouped data set.</p>
+{% highlight java %}
+DataSet<Tuple3<Integer, Double, String>> in = // [...]
+// a DataSet with a single tuple with minimum values for the Integer and String fields.
+DataSet<Tuple3<Integer, Double, String>> out = in.minBy(0, 2);
+// a DataSet with one tuple for each group with the minimum value for the Double field.
+DataSet<Tuple3<Integer, Double, String>> out2 = in.groupBy(2)
+                                                  .minBy(1);
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -722,6 +736,35 @@ val result1 = in.first(3)
 val result2 = in.groupBy(0).first(3)
 // grouped-sorted data set
 val result3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+----------
+
+The following transformations are available on data sets of Tuples:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MinBy / MaxBy</strong></td>
+      <td>
+        <p>Selects a tuple from a group of tuples whose values of one or more fields are minimum (maximum). The fields which are used for comparison must be valid key fields, i.e., comparable. If multiple tuples have minimum (maximum) field values, an arbitrary tuple of these tuples is returned. MinBy (MaxBy) may be applied on a full data set or a grouped data set.</p>
+{% highlight java %}
+val in: DataSet[(Int, Double, String)] = // [...]
+// a data set with a single tuple with minimum values for the Int and String fields.
+val out: DataSet[(Int, Double, String)] = in.minBy(0, 2)
+// a data set with one tuple for each group with the minimum value for the Double field.
+val out2: DataSet[(Int, Double, String)] = in.groupBy(2)
+                                             .minBy(1)
 {% endhighlight %}
       </td>
     </tr>
