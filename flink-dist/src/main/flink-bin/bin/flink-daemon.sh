@@ -33,14 +33,12 @@ bin=`cd "$bin"; pwd`
 case $DAEMON in
     (jobmanager)
         CLASS_TO_RUN=org.apache.flink.runtime.jobmanager.JobManager
-        if [ "${ARGS[3]}" == "local" ]; then
-            JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=${JMX_PORT} -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
-        fi
+        JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=0 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
     ;;
 
     (taskmanager)
         CLASS_TO_RUN=org.apache.flink.runtime.taskmanager.TaskManager
-        JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=${JMX_PORT} -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
+        JMX_ARGS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=0 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
     ;;
 
     (zookeeper)
@@ -101,7 +99,6 @@ case $STARTSTOP in
           count="${#active[@]}"
 
           if [ ${count} -gt 0 ]; then
-            JMX_ARGS=""
             echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
           fi
         fi

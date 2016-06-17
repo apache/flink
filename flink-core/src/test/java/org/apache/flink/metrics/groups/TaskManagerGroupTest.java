@@ -36,8 +36,10 @@ public class TaskManagerGroupTest {
 
 	@Test
 	public void addAndRemoveJobs() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
+
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
-				new MetricRegistry(new Configuration()), "localhost", new AbstractID().toString());
+				registry, "localhost", new AbstractID().toString());
 		
 		
 		final JobID jid1 = new JobID();
@@ -87,12 +89,15 @@ public class TaskManagerGroupTest {
 		assertTrue(tmGroup13.parent().isClosed());
 		
 		assertEquals(0, group.numRegisteredJobMetricGroups());
+
+		registry.shutdown();
 	}
 
 	@Test
 	public void testCloseClosesAll() {
+		MetricRegistry registry = new MetricRegistry(new Configuration());
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
-				new MetricRegistry(new Configuration()), "localhost", new AbstractID().toString());
+				registry, "localhost", new AbstractID().toString());
 
 
 		final JobID jid1 = new JobID();
@@ -118,6 +123,8 @@ public class TaskManagerGroupTest {
 		assertTrue(tmGroup11.isClosed());
 		assertTrue(tmGroup12.isClosed());
 		assertTrue(tmGroup21.isClosed());
+
+		registry.shutdown();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -131,6 +138,7 @@ public class TaskManagerGroupTest {
 
 		assertArrayEquals(new String[] { "localhost", "taskmanager", "id" }, group.getScopeComponents());
 		assertEquals("localhost.taskmanager.id", group.getScopeString());
+		registry.shutdown();
 	}
 
 	@Test
@@ -141,5 +149,6 @@ public class TaskManagerGroupTest {
 
 		assertArrayEquals(new String[] { "constant", "host", "foo", "host" }, group.getScopeComponents());
 		assertEquals("constant.host.foo.host", group.getScopeString());
+		registry.shutdown();
 	}
 }

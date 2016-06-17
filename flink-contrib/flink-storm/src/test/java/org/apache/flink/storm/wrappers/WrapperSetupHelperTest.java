@@ -51,9 +51,9 @@ import java.util.Set;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@PowerMockIgnore("javax.*")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(WrapperSetupHelper.class)
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class WrapperSetupHelperTest extends AbstractTest {
 
 	@Test

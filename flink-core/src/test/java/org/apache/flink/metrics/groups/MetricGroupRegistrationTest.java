@@ -39,7 +39,9 @@ public class MetricGroupRegistrationTest {
 		Configuration config = new Configuration();
 		config.setString(MetricRegistry.KEY_METRICS_REPORTER_CLASS, TestReporter1.class.getName());
 
-		MetricGroup root = new TaskManagerMetricGroup(new MetricRegistry(config), "host", "id");
+		MetricRegistry registry = new MetricRegistry(config);
+
+		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
 		Counter counter = root.counter("counter");
 		assertEquals(counter, TestReporter1.lastPassedMetric);
@@ -54,6 +56,8 @@ public class MetricGroupRegistrationTest {
 		
 		Assert.assertEquals(gauge, TestReporter1.lastPassedMetric);
 		assertEquals("gauge", TestReporter1.lastPassedName);
+
+		registry.shutdown();
 	}
 
 	public static class TestReporter1 extends TestReporter {
@@ -75,8 +79,12 @@ public class MetricGroupRegistrationTest {
 	public void testInvalidMetricName() {
 		Configuration config = new Configuration();
 
-		MetricGroup root = new TaskManagerMetricGroup(new MetricRegistry(config), "host", "id");
+		MetricRegistry registry = new MetricRegistry(config);
+
+		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 		root.counter("=)(/!");
+
+		registry.shutdown();
 	}
 
 	/**
@@ -86,7 +94,9 @@ public class MetricGroupRegistrationTest {
 	public void testDuplicateGroupName() {
 		Configuration config = new Configuration();
 
-		MetricGroup root = new TaskManagerMetricGroup(new MetricRegistry(config), "host", "id");
+		MetricRegistry registry = new MetricRegistry(config);
+
+		MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 
 		MetricGroup group1 = root.addGroup("group");
 		MetricGroup group2 = root.addGroup("group");

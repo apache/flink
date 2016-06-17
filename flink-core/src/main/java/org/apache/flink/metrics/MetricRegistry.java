@@ -44,6 +44,8 @@ public class MetricRegistry {
 	//  configuration keys
 	// ------------------------------------------------------------------------
 
+	public static final String KEY_METRICS_JMX_PORT = "metrics.jmx.port";
+
 	public static final String KEY_METRICS_REPORTER_CLASS = "metrics.reporter.class";
 	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
 	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
@@ -85,7 +87,14 @@ public class MetricRegistry {
 		if (className == null) {
 			// by default, create JMX metrics
 			LOG.info("No metrics reporter configured, exposing metrics via JMX");
+			
+			Configuration reporterConfig = new Configuration();
+			String portRange = config.getString(KEY_METRICS_JMX_PORT, null);
+			if (portRange != null) {
+				reporterConfig.setString(KEY_METRICS_JMX_PORT, portRange);
+			}
 			this.reporter = new JMXReporter();
+			this.reporter.open(reporterConfig);
 			this.timer = null;
 		}
 		else {

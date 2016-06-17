@@ -24,7 +24,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +33,20 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
+import javax.management.remote.JMXConnectorServer;
+import javax.management.remote.JMXConnectorServerFactory;
+import javax.management.remote.JMXServiceURL;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.MalformedURLException;
+import java.rmi.NoSuchObjectException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
@@ -60,6 +70,9 @@ public class JMXReporter implements MetricReporter {
 	/** The names under which the registered metrics have been added to the MBeanServer */ 
 	private final Map<Metric, ObjectName> registeredMetrics;
 
+	/** The server to which JMX clients connect to. ALlows for better control over port usage. */
+	private JMXServer jmxServer;
+
 	/**
 	 * Creates a new JMXReporter
 	 */
@@ -73,10 +86,61 @@ public class JMXReporter implements MetricReporter {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void open(Configuration config) {}
+	public void open(Configuration config) {
+		this.jmxServer = startJmxServer(config);
+	}
+
+	private static JMXServer startJmxServer(Configuration config) {
+		JMXServer jmxServer;
+
+		String portRange = config.getString(KEY_METRICS_JMX_PORT, "9010-9025");
+		String[] ports = portRange.split("-");
+
+		if (ports.length == 0 || ports.length > 2) {
+			throw new IllegalArgumentException("JMX port range was configured incorrectly. " +
+				"Expected: <startPort>[-<endPort>] Configured: " + portRange);
+		}
+
+		if (ports.length == 1) { //single port was configured
+			int port = Integer.parseInt(ports[0]);
+			jmxServer = new JMXServer(port);
+			try {
+				jmxServer.start();
+			} catch (IOException e) {
+				throw new RuntimeException("Could not start JMX server on port " + port + ".");
+			}
+			return jmxServer;
+		} else { //port range was configured
+			int start = Integer.parseInt(ports[0]);
+			int end = Integer.parseInt(ports[1]);
+			while (true) {
+				try {
+					jmxServer = new JMXServer(start);
+					jmxServer.start();
+					LOG.info("Starting JMX on port " + start + ".");
+					break;
+				} catch (IOException e) { //assume port conflict
+					LOG.debug("Could not start JMX server. Attempting different port", e);
+					start++;
+					if (start > end) {
+						throw new RuntimeException("Could not start JMX server.", e);
+					}
+				}
+			}
+		}
+		return jmxServer;
+	}
 
 	@Override
-	public void close() {}
+	public void close() {
+		if (jmxServer != null) {
+			try {
+				jmxServer.stop();
+			} catch (IOException e) {
+				LOG.error("Failed to stop JMX server.", e);
+			}
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  adding / removing metrics
@@ -263,6 +327,74 @@ public class JMXReporter implements MetricReporter {
 		@Override
 		public Object getValue() {
 			return gauge.getValue();
+		}
+	}
+
+	/**
+	 * JMX Server implementation that JMX clients can connect to.
+	 *
+	 * Heavily based on j256 simplejmx project
+	 *
+	 * https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
+	 */
+	private static class JMXServer {
+		private int port;
+		private Registry rmiRegistry;
+		private JMXConnectorServer connector;
+
+		public JMXServer(int port) {
+			this.port = port;
+		}
+
+		public void start() throws IOException {
+			startRmiRegistry();
+			startJmxService();
+		}
+
+		public void stop() throws IOException {
+			if (connector != null) {
+				try {
+					connector.stop();
+				} finally {
+					connector = null;
+				}
+			}
+			if (rmiRegistry != null) {
+				try {
+					UnicastRemoteObject.unexportObject(rmiRegistry, true);
+				} catch (NoSuchObjectException e) {
+					throw new IOException("Could not unexport our RMI registry", e);
+				} finally {
+					rmiRegistry = null;
+				}
+			}
+		}
+
+		private void startRmiRegistry() throws IOException {
+			if (rmiRegistry != null) {
+				return;
+			}
+			rmiRegistry = LocateRegistry.createRegistry(port);
+		}
+
+		private void startJmxService() throws IOException {
+			if (connector != null) {
+				return;
+			}
+			String serverHost = "localhost";
+			String registryHost = "";
+			String serviceUrl =
+				"service:jmx:rmi://" + serverHost + ":" + port + "/jndi/rmi://" + registryHost + ":" + port + "/jmxrmi";
+			JMXServiceURL url;
+			try {
+				url = new JMXServiceURL(serviceUrl);
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("Malformed service url created " + serviceUrl, e);
+			}
+
+			connector = JMXConnectorServerFactory.newJMXConnectorServer(url, null, ManagementFactory.getPlatformMBeanServer());
+
+			connector.start();
 		}
 	}
 }

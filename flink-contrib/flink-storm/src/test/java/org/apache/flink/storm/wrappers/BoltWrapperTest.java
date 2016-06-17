@@ -67,6 +67,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({StreamRecordSerializer.class, WrapperSetupHelper.class, StreamRecord.class})
+@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*"})
 public class BoltWrapperTest extends AbstractTest {
 
 	@Test(expected = IllegalArgumentException.class)
