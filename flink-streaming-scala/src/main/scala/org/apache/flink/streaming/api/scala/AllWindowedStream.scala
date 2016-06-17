@@ -58,7 +58,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
   /**
     * Sets the allowed lateness to a user-specified value.
-    * If not explicitly set, the allowed lateness is 0.
+    * If not explicitly set, the allowed lateness is [[Long.MaxValue]].
     * Setting the allowed lateness is only valid for event-time windows.
     * If a value different than 0 is provided with a processing-time
     * [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner]],

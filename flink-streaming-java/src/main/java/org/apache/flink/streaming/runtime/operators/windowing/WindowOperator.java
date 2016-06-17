@@ -528,7 +528,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					considered when triggering.
 	 */
 	protected boolean isLate(W window) {
-		return (windowAssigner.isEventTime() && (window.maxTimestamp() + allowedLateness <= currentWatermark));
+		return (windowAssigner.isEventTime() && (getCleanupTimeForWindow(window) <= currentWatermark));
 	}
 
 	/**
@@ -537,7 +537,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					the window whose state to discard
 	 */
 	protected void registerCleanupTimer(W window) {
-		long cleanupTime = window.maxTimestamp() + allowedLateness;
+		long cleanupTime = getCleanupTimeForWindow(window);
 		if (windowAssigner.isEventTime()) {
 			context.registerEventTimeTimer(cleanupTime);
 		} else {
@@ -551,12 +551,26 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					the window whose state to discard
 	 */
 	protected void deleteCleanupTimer(W window) {
-		long cleanupTime = window.maxTimestamp() + allowedLateness;
+		long cleanupTime = getCleanupTimeForWindow(window);
 		if (windowAssigner.isEventTime()) {
 			context.deleteEventTimeTimer(cleanupTime);
 		} else {
 			context.deleteProcessingTimeTimer(cleanupTime);
 		}
+	}
+
+	/**
+	 * Returns the cleanup time for a window, which is
+	 * {@code window.maxTimestamp + allowedLateness}. In
+	 * case this leads to a value greated than {@link Long#MAX_VALUE}
+	 * then a cleanup time of {@link Long#MAX_VALUE} is
+	 * returned.
+	 *
+	 * @param window the window whose cleanup time we are computing.
+	 */
+	private long getCleanupTimeForWindow(W window) {
+		long cleanupTime = window.maxTimestamp() + allowedLateness;
+		return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
 	}
 
 	/**
@@ -571,7 +585,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *  @return {@code true} if it is time to clean up the window state, {@code false} otherwise.
 	 */
 	protected final boolean isCleanupTime(W window, long time) {
-		long cleanupTime = window.maxTimestamp() + allowedLateness;
+		long cleanupTime = getCleanupTimeForWindow(window);
 		return  cleanupTime == time;
 	}
 
