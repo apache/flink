@@ -393,7 +393,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testCoGroupWithMultipleKeyFieldsWithInnerClassKeyExtractorWithoutClosureCleaner() throws Exception {
 		/*
 		 * CoGroup with multiple key fields, test that disabling closure cleaner leads to an exception when using inner
@@ -405,52 +405,46 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-
-		DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
-				where(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>,
-						Tuple2<Integer, Long>>() {
-					@Override
-					public Tuple2<Integer, Long> getKey(Tuple5<Integer, Long, Integer, String, Long> t) throws Exception {
-						return new Tuple2<Integer, Long>(t.f0, t.f4);
-					}
-				}).
-				equalTo(new KeySelector<Tuple3<Integer,Long,String>, Tuple2<Integer, Long>>() {
-
-					@Override
-					public Tuple2<Integer, Long> getKey(Tuple3<Integer,Long,String> t) {
-						return new Tuple2<Integer, Long>(t.f0, t.f1);
-					}
-				}).
-				with(new CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
-					@Override
-					public void coGroup(Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
-					                    Iterable<Tuple3<Integer, Long, String>> second,
-					                    Collector<Tuple3<Integer, Long, String>> out)
-					{
-						List<String> strs = new ArrayList<String>();
-
-						for (Tuple5<Integer, Long, Integer, String, Long> t : first) {
-							strs.add(t.f3);
+		boolean correctExceptionTriggered = false;
+		try {
+			DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
+					where(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>,
+							Tuple2<Integer, Long>>() {
+						@Override
+						public Tuple2<Integer, Long> getKey(Tuple5<Integer, Long, Integer, String, Long> t) throws Exception {
+							return new Tuple2<Integer, Long>(t.f0, t.f4);
 						}
+					}).
+					equalTo(new KeySelector<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>>() {
 
-						for(Tuple3<Integer, Long, String> t : second) {
-							for(String s : strs) {
-								out.collect(new Tuple3<Integer, Long, String>(t.f0, t.f1, s));
+						@Override
+						public Tuple2<Integer, Long> getKey(Tuple3<Integer, Long, String> t) {
+							return new Tuple2<Integer, Long>(t.f0, t.f1);
+						}
+					}).
+					with(new CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
+						@Override
+						public void coGroup(Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
+						                    Iterable<Tuple3<Integer, Long, String>> second,
+						                    Collector<Tuple3<Integer, Long, String>> out) {
+							List<String> strs = new ArrayList<String>();
+
+							for (Tuple5<Integer, Long, Integer, String, Long> t : first) {
+								strs.add(t.f3);
+							}
+
+							for (Tuple3<Integer, Long, String> t : second) {
+								for (String s : strs) {
+									out.collect(new Tuple3<Integer, Long, String>(t.f0, t.f1, s));
+								}
 							}
 						}
-					}
-				});
+					});
+		} catch (InvalidProgramException ex) {
+			correctExceptionTriggered = (ex.getCause() instanceof java.io.NotSerializableException);
+		}
+		Assert.assertTrue(correctExceptionTriggered);
 
-		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
-
-		String expected = "1,1,Hallo\n" +
-				"2,2,Hallo Welt\n" +
-				"3,2,Hallo Welt wie gehts?\n" +
-				"3,2,ABC\n" +
-				"5,3,HIJ\n" +
-				"5,3,IJK\n";
-
-		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector7 implements KeySelector<Tuple5<Integer,Long,Integer,String,Long>,
