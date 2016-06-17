@@ -47,7 +47,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private boolean logFailuresOnly = false;
 
 	/**
-	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
@@ -76,6 +76,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
+			if (channel == null) {
+				throw new RuntimeException("None of RabbitMQ channels are available");
+			}
 			channel.queueDeclare(queueName, false, false, false, null);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
