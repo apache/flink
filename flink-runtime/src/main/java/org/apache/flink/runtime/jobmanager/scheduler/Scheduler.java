@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,27 +29,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import akka.dispatch.Futures;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-
-import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.instance.SharedSlot;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceDiedException;
 import org.apache.flink.runtime.instance.InstanceListener;
+import org.apache.flink.runtime.instance.SharedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import akka.dispatch.Futures;
 import scala.concurrent.ExecutionContext;
 
 /**
@@ -97,6 +97,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 	/** The ExecutionContext which is used to execute newSlotAvailable futures. */
 	private final ExecutionContext executionContext;
+	
+	private final SchedulingStrategy schedulingStrategy;
 
 	// ------------------------------------------------------------------------
 
@@ -104,7 +106,15 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * Creates a new scheduler.
 	 */
 	public Scheduler(ExecutionContext executionContext) {
+		this(executionContext, false);
+	}
+	
+	/**
+	 * Creates a new scheduler.
+	 */
+	public Scheduler(ExecutionContext executionContext, boolean balanceLoad) {
 		this.executionContext = executionContext;
+		this.schedulingStrategy = balanceLoad ? SchedulingStrategy.BALANCE : SchedulingStrategy.LOCAL_FIRST;
 	}
 	
 	/**
@@ -476,30 +486,68 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 
 		Iterator<Instance> locations = requestedLocations == null ? null : requestedLocations.iterator();
+		
+		switch (schedulingStrategy) {
 
-		if (locations != null && locations.hasNext()) {
-			// we have a locality preference
-
-			while (locations.hasNext()) {
-				Instance location = locations.next();
-				if (location != null && this.instancesWithAvailableResources.remove(location)) {
-					return new ImmutablePair<Instance, Locality>(location, Locality.LOCAL);
-				}
-			}
+		case LOCAL_FIRST:
 			
-			// no local instance available
+			if (locations != null && locations.hasNext()) {
+				// we have a locality preference
+				while (locations.hasNext()) {
+					Instance location = locations.next();
+					if (location != null && this.instancesWithAvailableResources.remove(location)) {
+						return new ImmutablePair<Instance, Locality>(location, Locality.LOCAL);
+					}
+				}
+
+				// no local instance available
+				if (localOnly) {
+					return null;
+				} else {
+					Instance instanceToUse = this.instancesWithAvailableResources.poll();
+					return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.NON_LOCAL);
+				}
+			} else {
+				// no location preference, so use some instance
+				Instance instanceToUse = this.instancesWithAvailableResources.poll();
+				return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.UNCONSTRAINED);
+			}
+
+		case BALANCE:
+
+			// We create the set of available locations ordered by their current load
+			Set<Instance> viableLocations = new TreeSet<>(new Comparator<Instance>() {
+				@Override
+				public int compare(Instance first, Instance second) {
+					return Double.compare(first.getLoad(), second.getLoad());
+				}
+			});
+
 			if (localOnly) {
+				while (locations.hasNext()) {
+					Instance location = locations.next();
+					if (location != null && this.instancesWithAvailableResources.contains(location)) {
+						viableLocations.add(location);
+					}
+				}
+			} else {
+				viableLocations.addAll(instancesWithAvailableResources);
+			}
+
+			if (viableLocations.isEmpty()) {
+				return null;
+			} else {
+				for (Instance location : viableLocations) {
+					if (this.instancesWithAvailableResources.remove(location)) {
+						// The Locality returned here needs to be fixed
+						return new ImmutablePair<Instance, Locality>(location, Locality.NON_LOCAL);
+					}
+				}
 				return null;
 			}
-			else {
-				Instance instanceToUse = this.instancesWithAvailableResources.poll();
-				return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.NON_LOCAL);
-			}
-		}
-		else {
-			// no location preference, so use some instance
-			Instance instanceToUse = this.instancesWithAvailableResources.poll();
-			return new ImmutablePair<Instance, Locality>(instanceToUse, Locality.UNCONSTRAINED);
+		default:
+			// This should never happen
+			throw new RuntimeException("Unknown scheduling strategy.");
 		}
 	}
 	
