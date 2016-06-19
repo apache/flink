@@ -35,7 +35,7 @@ from flink.functions.KeySelectorFunction import KeySelectorFunction
 class Stringify(MapFunction):
     def map(self, value):
         if isinstance(value, (tuple, list)):
-            return "(" + b", ".join([self.map(x) for x in value]) + ")"
+            return "(" + ", ".join([self.map(x) for x in value]) + ")"
         else:
             return str(value)
 
