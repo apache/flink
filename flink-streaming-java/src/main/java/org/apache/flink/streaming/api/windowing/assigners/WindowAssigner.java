@@ -63,4 +63,10 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
 	 * this {@code WindowAssigner}.
 	 */
 	public abstract TypeSerializer<W> getWindowSerializer(ExecutionConfig executionConfig);
+
+	/**
+	 * Returns {@code true} if elements are assigned to windows based on event time,
+	 * {@code false} otherwise.
+	 */
+	public abstract boolean isEventTime();
 }

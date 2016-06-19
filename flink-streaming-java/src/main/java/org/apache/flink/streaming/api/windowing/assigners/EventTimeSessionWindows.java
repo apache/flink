@@ -81,6 +81,11 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 		return new TimeWindow.Serializer();
 	}
 
+	@Override
+	public boolean isEventTime() {
+		return true;
+	}
+
 	/**
 	 * Merge overlapping {@link TimeWindow}s.
 	 */

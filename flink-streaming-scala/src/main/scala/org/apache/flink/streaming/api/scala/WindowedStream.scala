@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregato
 import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.scala.function.util.{ScalaFoldFunction, ScalaReduceFunction, ScalaWindowFunction, ScalaWindowFunctionWrapper}
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
@@ -57,6 +58,20 @@ import org.apache.flink.util.Collector
  */
 @Public
 class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
+
+  /**
+    * Sets the allowed lateness to a user-specified value.
+    * If not explicitly set, the allowed lateness is [[Long.MaxValue]].
+    * Setting the allowed lateness is only valid for event-time windows.
+    * If a value different than 0 is provided with a processing-time
+    * [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner]],
+    * then an exception is thrown.
+    */
+  @PublicEvolving
+  def allowedLateness(lateness: Time): WindowedStream[T, K, W] = {
+    javaStream.allowedLateness(lateness)
+    this
+  }
 
   /**
    * Sets the [[Trigger]] that should be used to trigger window emission.
