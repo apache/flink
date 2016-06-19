@@ -49,7 +49,12 @@ public class KinesisStreamShard implements Serializable {
 		this.streamName = checkNotNull(streamName);
 		this.shard = checkNotNull(shard);
 
-		this.cachedHash = 37 * (streamName.hashCode() + shard.hashCode());
+		// since our description of Kinesis Streams shards can be fully defined with the stream name and shard id,
+		// our hash doesn't need to use hash code of Amazon's description of Shards, which uses other info for calculation
+		int hash = 17;
+		hash = 37 * hash + streamName.hashCode();
+		hash = 37 * hash + shard.getShardId().hashCode();
+		this.cachedHash = hash;
 	}
 
 	public String getStreamName() {

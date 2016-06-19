@@ -20,9 +20,11 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.mockito.Mockito;
 
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -34,13 +36,13 @@ public class TestableFlinkKinesisConsumer extends FlinkKinesisConsumer {
 	private final int fakeThisConsumerTaskIndex;
 	private final String fakeThisConsumerTaskName;
 
-
-	public TestableFlinkKinesisConsumer(String fakeStreamName,
+	@SuppressWarnings("unchecked")
+	public TestableFlinkKinesisConsumer(List<String> fakeStreams,
 										int fakeNumFlinkConsumerTasks,
 										int fakeThisConsumerTaskIndex,
 										String fakeThisConsumerTaskName,
 										Properties configProps) {
-		super(fakeStreamName, new SimpleStringSchema(), configProps);
+		super(fakeStreams, new KinesisDeserializationSchemaWrapper(new SimpleStringSchema()), configProps);
 		this.fakeNumFlinkConsumerTasks = fakeNumFlinkConsumerTasks;
 		this.fakeThisConsumerTaskIndex = fakeThisConsumerTaskIndex;
 		this.fakeThisConsumerTaskName = fakeThisConsumerTaskName;

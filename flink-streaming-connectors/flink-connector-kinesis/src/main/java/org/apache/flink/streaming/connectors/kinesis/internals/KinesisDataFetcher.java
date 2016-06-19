@@ -50,7 +50,7 @@ public class KinesisDataFetcher {
 	private final String taskName;
 
 	/** Information of the shards that this fetcher handles, along with the sequence numbers that they should start from */
-	private HashMap<KinesisStreamShard, String> assignedShardsWithStartingSequenceNum;
+	private HashMap<KinesisStreamShard, String> shardsToFetchWithStartingSequenceNum;
 
 	/** Reference to the thread that executed run() */
 	private volatile Thread mainThread;
@@ -63,15 +63,15 @@ public class KinesisDataFetcher {
 	/**
 	 * Creates a new Kinesis Data Fetcher for the specified set of shards
 	 *
-	 * @param assignedShards the shards that this fetcher will pull data from
+	 * @param shardsToFetch the shards that this fetcher will pull data from
 	 * @param configProps the configuration properties of this Flink Kinesis Consumer
 	 * @param taskName the task name of this consumer task
 	 */
-	public KinesisDataFetcher(List<KinesisStreamShard> assignedShards, Properties configProps, String taskName) {
+	public KinesisDataFetcher(List<KinesisStreamShard> shardsToFetch, Properties configProps, String taskName) {
 		this.configProps = checkNotNull(configProps);
-		this.assignedShardsWithStartingSequenceNum = new HashMap<>();
-		for (KinesisStreamShard shard : assignedShards) {
-			assignedShardsWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.toString());
+		this.shardsToFetchWithStartingSequenceNum = new HashMap<>();
+		for (KinesisStreamShard shard : shardsToFetch) {
+			shardsToFetchWithStartingSequenceNum.put(shard, SentinelSequenceNumber.SENTINEL_SEQUENCE_NUMBER_NOT_SET.toString());
 		}
 		this.taskName = taskName;
 		this.error = new AtomicReference<>();
@@ -84,31 +84,31 @@ public class KinesisDataFetcher {
 	 * @param sequenceNum the sequence number to advance to
 	 */
 	public void advanceSequenceNumberTo(KinesisStreamShard streamShard, String sequenceNum) {
-		if (!assignedShardsWithStartingSequenceNum.containsKey(streamShard)) {
+		if (!shardsToFetchWithStartingSequenceNum.containsKey(streamShard)) {
 			throw new IllegalArgumentException("Can't advance sequence number on a shard we are not going to read.");
 		}
-		assignedShardsWithStartingSequenceNum.put(streamShard, sequenceNum);
+		shardsToFetchWithStartingSequenceNum.put(streamShard, sequenceNum);
 	}
 
 	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
 						KinesisDeserializationSchema<T> deserializationSchema,
 						HashMap<KinesisStreamShard, String> lastSequenceNums) throws Exception {
 
-		if (assignedShardsWithStartingSequenceNum == null || assignedShardsWithStartingSequenceNum.size() == 0) {
+		if (shardsToFetchWithStartingSequenceNum == null || shardsToFetchWithStartingSequenceNum.size() == 0) {
 			throw new IllegalArgumentException("No shards set to read for this fetcher");
 		}
 
 		this.mainThread = Thread.currentThread();
 
-		LOG.info("Reading from shards " + assignedShardsWithStartingSequenceNum);
+		LOG.info("Reading from shards " + shardsToFetchWithStartingSequenceNum);
 
 		// create a thread for each individual shard
-		ArrayList<ShardConsumerThread<?>> consumerThreads = new ArrayList<>(assignedShardsWithStartingSequenceNum.size());
-		for (Map.Entry<KinesisStreamShard, String> assignedShard : assignedShardsWithStartingSequenceNum.entrySet()) {
-			ShardConsumerThread<T> thread = new ShardConsumerThread<>(this, configProps, assignedShard.getKey(),
-				assignedShard.getValue(), sourceContext, InstantiationUtil.clone(deserializationSchema), lastSequenceNums);
+		ArrayList<ShardConsumerThread<?>> consumerThreads = new ArrayList<>(shardsToFetchWithStartingSequenceNum.size());
+		for (Map.Entry<KinesisStreamShard, String> shard : shardsToFetchWithStartingSequenceNum.entrySet()) {
+			ShardConsumerThread<T> thread = new ShardConsumerThread<>(this, configProps, shard.getKey(),
+				shard.getValue(), sourceContext, InstantiationUtil.clone(deserializationSchema), lastSequenceNums);
 			thread.setName(String.format("ShardConsumer - %s - %s/%s",
-				taskName, assignedShard.getKey().getStreamName() ,assignedShard.getKey().getShardId()));
+				taskName, shard.getKey().getStreamName() ,shard.getKey().getShardId()));
 			thread.setDaemon(true);
 			consumerThreads.add(thread);
 		}

@@ -43,9 +43,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -189,127 +186,6 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.assignShards() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testShardNumEqualConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size();
-
-			for (int consumerNum=0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// the ith consumer should be assigned exactly 1 shard,
-				// which is always the ith shard of a shard list that only has open shards
-				assertEquals(1, assignedShardsToThisConsumerTask.size());
-				assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testShardNumFewerThanConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size() + 3;
-
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// for ith consumer with i < the total num of shards,
-				// the ith consumer should be assigned exactly 1 shard,
-				// which is always the ith shard of a shard list that only has open shards;
-				// otherwise, the consumer should not be assigned any shards
-				if (consumerNum < fakeShards.size()) {
-					assertEquals(1, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-				} else {
-					assertEquals(0, assignedShardsToThisConsumerTask.size());
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testShardNumMoreThanConsumerNum() {
-		try {
-			List<KinesisStreamShard> fakeShards = ReferenceKinesisShardTopologies.flatTopologyWithFourOpenShards();
-			int consumerTaskCount = fakeShards.size() - 1;
-
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// since the number of consumer tasks is short by 1,
-				// all but the first consumer task should be assigned 1 shard,
-				// while the first consumer task is assigned 2 shards
-				if (consumerNum != 0) {
-					assertEquals(1, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(consumerNum)));
-				} else {
-					assertEquals(2, assignedShardsToThisConsumerTask.size());
-					assertTrue(assignedShardsToThisConsumerTask.get(0).equals(fakeShards.get(0)));
-					assertTrue(assignedShardsToThisConsumerTask.get(1).equals(fakeShards.get(fakeShards.size()-1)));
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testAssignEmptyShards() {
-		try {
-			List<KinesisStreamShard> fakeShards = new ArrayList<>(0);
-			int consumerTaskCount = 4;
-
-			for (int consumerNum = 0; consumerNum < consumerTaskCount; consumerNum++) {
-				List<KinesisStreamShard> assignedShardsToThisConsumerTask =
-					FlinkKinesisConsumer.assignShards(fakeShards, consumerTaskCount, consumerNum);
-
-				// should not be assigned anything
-				assertEquals(0, assignedShardsToThisConsumerTask.size());
-
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	// ----------------------------------------------------------------------
-	// Constructor tests with mocked KinesisProxy
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testConstructorShouldThrowRuntimeExceptionIfUnableToFindAnyShards() {
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Unable to retrieve any shards");
-
-		Properties testConsumerConfig = new Properties();
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_REGION, "us-east-1");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_ACCESSKEYID, "accessKey");
-		testConsumerConfig.setProperty(KinesisConfigConstants.CONFIG_AWS_CREDENTIALS_PROVIDER_BASIC_SECRETKEY, "secretKey");
-
-		// get a consumer that will not be able to find any shards from AWS Kinesis
-		FlinkKinesisConsumer dummyConsumer = getDummyConsumerWithMockedKinesisProxy(
-			6, 2, "fake-consumer-task-name",
-			new ArrayList<KinesisStreamShard>(), new ArrayList<KinesisStreamShard>(), testConsumerConfig,
-			null, null, false, false);
-	}
-
-	// ----------------------------------------------------------------------
 	// Tests for open() source life cycle method
 	// ----------------------------------------------------------------------
 
@@ -443,7 +319,7 @@ public class FlinkKinesisConsumerTest {
 		Properties consumerTestConfig,
 		KinesisDataFetcher fetcher,
 		HashMap<KinesisStreamShard, String> lastSequenceNumsToRestore,
-		boolean hasAssignedShards,
+		boolean hasDiscoveredShards,
 		boolean running) {
 
 		final String dummyKinesisStreamName = "flink-test";
@@ -461,8 +337,10 @@ public class FlinkKinesisConsumerTest {
 
 		when(kinesisProxyMock.getShardList(dummyKinesisStreamList)).thenReturn(fakeCompleteShardList);
 
+		List<String> fakeStreams = Collections.singletonList(dummyKinesisStreamName);
+
 		TestableFlinkKinesisConsumer dummyConsumer =
-			new TestableFlinkKinesisConsumer(dummyKinesisStreamName, fakeNumFlinkConsumerTasks,
+			new TestableFlinkKinesisConsumer(fakeStreams, fakeNumFlinkConsumerTasks,
 				fakeThisConsumerTaskIndex, fakeThisConsumerTaskName, consumerTestConfig);
 
 		try {
@@ -474,9 +352,9 @@ public class FlinkKinesisConsumerTest {
 			lastSequenceNumsField.setAccessible(true);
 			lastSequenceNumsField.set(dummyConsumer, lastSequenceNumsToRestore);
 
-			Field hasAssignedShardsField = FlinkKinesisConsumer.class.getDeclaredField("hasAssignedShards");
-			hasAssignedShardsField.setAccessible(true);
-			hasAssignedShardsField.set(dummyConsumer, hasAssignedShards);
+			Field hasDiscoveredShardsField = FlinkKinesisConsumer.class.getDeclaredField("hasDiscoveredShards");
+			hasDiscoveredShardsField.setAccessible(true);
+			hasDiscoveredShardsField.set(dummyConsumer, hasDiscoveredShards);
 
 			Field runningField = FlinkKinesisConsumer.class.getDeclaredField("running");
 			runningField.setAccessible(true);
@@ -491,12 +369,13 @@ public class FlinkKinesisConsumerTest {
 		mockStatic(KinesisConfigUtil.class);
 
 		try {
-			// assume assignShards static method is correct by mocking
+			// assume static method is correct by mocking
 			PowerMockito.when(
-				FlinkKinesisConsumer.assignShards(
-					fakeCompleteShardList,
+				FlinkKinesisConsumer.discoverShardsToConsume(
+					fakeStreams,
 					fakeNumFlinkConsumerTasks,
-					fakeThisConsumerTaskIndex))
+					fakeThisConsumerTaskIndex,
+					consumerTestConfig))
 				.thenReturn(fakeAssignedShardListToThisConsumerTask);
 
 			// assume validatePropertiesConfig static method is correct by mocking
