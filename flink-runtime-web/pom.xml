@@ -67,6 +67,12 @@ under the License.
 			<version>3.18.2-GA</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+
 		<!-- ===================================================
 								Testing
 			=================================================== -->

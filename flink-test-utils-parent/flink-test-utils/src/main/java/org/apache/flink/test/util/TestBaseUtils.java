@@ -87,7 +87,7 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
-	protected static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
 	// ------------------------------------------------------------------------
 	

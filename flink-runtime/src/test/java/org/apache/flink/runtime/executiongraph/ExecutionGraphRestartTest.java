@@ -286,7 +286,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(),
 			"TestJob",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			// We want to manually control the restart and delay
 			new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
@@ -703,7 +703,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(),
 			"Test job",
 			new Configuration(),
-			ExecutionConfigTest.getSerializedConfig(),
+			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			controllableRestartStrategy);
 
