@@ -573,8 +573,11 @@ class DataSet(object):
         return self
 
     def count_elements_per_partition(self):
+        """
+        Method that goes over all the elements in each partition in order to retrieve the total number of elements.
+        :return: A DataSet containing Tuples of subtask index, number of elements mappings.
+        """
         class CountElementsPerPartitionMapper(MapPartitionFunction):
-
             def map_partition(self, iterator, collector):
                 counter = 0
                 for x in iterator:
@@ -584,9 +587,13 @@ class DataSet(object):
         return self.map_partition(CountElementsPerPartitionMapper())
 
     def zip_with_index(self):
+        """
+        Method that assigns a unique Long value to all elements of the DataSet. The generated values are consecutive.
+        :return: A DataSet of Tuples consisting of consecutive ids and initial values.
+        """
         element_count = self.count_elements_per_partition()
         class ZipWithIndexMapper(MapPartitionFunction):
-            start = 0
+            start = -1
 
             def _run(self):
                 offsets = self.context.get_broadcast_variable("counts")
@@ -602,7 +609,7 @@ class DataSet(object):
             def map_partition(self, iterator, collector):
                 for value in iterator:
                     self.start += 1
-                    collector.collect((self.start - 1, value))
+                    collector.collect((self.start, value))
         return self\
             .map_partition(ZipWithIndexMapper())\
             .with_broadcast_set("counts", element_count)
