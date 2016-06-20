@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{File, IOException}
 import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
-import java.util.concurrent.{TimeUnit, ExecutorService}
+import java.util.concurrent.{ExecutorService, TimeUnit, TimeoutException}
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -382,7 +382,12 @@ class JobManager(
               // the resource manager is available and answered
               self ! response
             case scala.util.Failure(t) =>
-              log.error("Failure while asking ResourceManager for RegisterResource", t)
+              t match {
+                case _: TimeoutException =>
+                  log.info("Attempt to register resource at ResourceManager timed out. Retrying")
+                case _ =>
+                  log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
+              }
               // slow or unreachable resource manager, register anyway and let the rm reconnect
               self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
               self ! decorateMessage(new ReconnectResourceManager(rm))
