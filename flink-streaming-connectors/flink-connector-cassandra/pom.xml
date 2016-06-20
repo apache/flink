@@ -68,6 +68,7 @@ under the License.
 								<includes>
 									<include>com.datastax.cassandra:cassandra-driver-core</include>
 									<include>com.datastax.cassandra:cassandra-driver-mapping</include>
+									<include>com.google.guava:guava</include>
 								</includes>
 							</artifactSet>
 							<relocations>
