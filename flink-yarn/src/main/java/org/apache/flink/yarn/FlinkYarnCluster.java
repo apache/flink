@@ -320,11 +320,13 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(!isConnected) {
 			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
 		}
+		ApplicationReport lastReport = null;
 		if(pollingRunner == null) {
 			LOG.warn("FlinkYarnCluster.hasFailed() has been called on an uninitialized cluster." +
 					"The system might be in an erroneous state");
+		} else {
+			lastReport = pollingRunner.getLastReport();
 		}
-		ApplicationReport lastReport = pollingRunner.getLastReport();
 		if(lastReport == null) {
 			LOG.warn("FlinkYarnCluster.hasFailed() has been called on a cluster that didn't receive a status so far." +
 					"The system might be in an erroneous state");
