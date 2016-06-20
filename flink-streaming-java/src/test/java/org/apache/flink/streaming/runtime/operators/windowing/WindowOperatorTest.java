@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import com.google.common.collect.Iterables;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -993,7 +994,7 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testCleanupTimeOverflow() throws Exception {
-		final int WINDOW_SIZE = 1;
+		final int WINDOW_SIZE = 1000;
 		final long LATENESS = 2000;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
@@ -1002,9 +1003,11 @@ public class WindowOperatorTest {
 			new SumReducer(),
 			inputType.createSerializer(new ExecutionConfig()));
 
+		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(WINDOW_SIZE));
+
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+					windowAssigner,
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -1024,25 +1027,32 @@ public class WindowOperatorTest {
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		long timestamp = Long.MAX_VALUE - 1750;
-		long windowSize = WINDOW_SIZE * 1000;
-		long endOfWindow = (timestamp - (timestamp % windowSize)) + windowSize - 1;
+		Collection<TimeWindow> windows = windowAssigner.assignWindows(new Tuple2<>("key2", 1), timestamp);
+		TimeWindow window = Iterables.getOnlyElement(windows);
 
-		// normal element
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), Long.MAX_VALUE - 1750));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), timestamp));
+
+		// the garbage collection timer would wrap-around
+		Assert.assertTrue(window.maxTimestamp() + LATENESS < window.maxTimestamp());
+
+		// and it would prematurely fire with watermark (Long.MAX_VALUE - 1500)
+		Assert.assertTrue(window.maxTimestamp() + LATENESS < Long.MAX_VALUE - 1500);
+
+		// if we don't correctly prevent wrap-around in the garbage collection
+		// timers this watermark will clean our window state for the just-added
+		// element/window
 		testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
-		testHarness.processWatermark(new Watermark(endOfWindow));
 
-		// guarantee that the cleanup would overflow
-		Assert.assertTrue(endOfWindow + LATENESS < endOfWindow);
+		// this watermark is before the end timestamp of our only window
+		Assert.assertTrue(Long.MAX_VALUE - 1500 < window.maxTimestamp());
+		Assert.assertTrue(window.maxTimestamp() < Long.MAX_VALUE);
 
-		// guarantee that the cleanup would have happened if it were not for the overflow check
-		Assert.assertTrue(endOfWindow + LATENESS < Long.MAX_VALUE - 1500);
-		Assert.assertTrue(Long.MAX_VALUE - 1500 < endOfWindow);
-		Assert.assertTrue(endOfWindow < Long.MAX_VALUE);
+		// push in a watermark that will trigger computation of our window
+		testHarness.processWatermark(new Watermark(window.maxTimestamp()));
 
 		expected.add(new Watermark(Long.MAX_VALUE - 1500));
-		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), endOfWindow));
-		expected.add(new Watermark(endOfWindow));
+		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), window.maxTimestamp()));
+		expected.add(new Watermark(window.maxTimestamp()));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
 		testHarness.close();
@@ -1087,7 +1097,7 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(initialTime + 1985));
 
-		// a late that is added to an active window
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1980));
 		testHarness.processWatermark(new Watermark(initialTime + 1999));
 
@@ -1159,9 +1169,9 @@ public class WindowOperatorTest {
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 3001));
 
-		// lateness is set to 0 and window_size = 3 sec and slide 1, the following 2 elements (2400) are late,
-		// and assigned to windows ending at 2999, 3999, 4999.
-		// The 2999 is dropped because it is already inactive (WM = 2999) but the rest are kept.
+		// lateness is set to 0 and window_size = 3 sec and slide 1, the following 2 elements (2400)
+		// are assigned to windows ending at 2999, 3999, 4999.
+		// The 2999 is dropped because it is already late (WM = 2999) but the rest are kept.
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2400));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2400));
@@ -1235,7 +1245,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1244,25 +1255,21 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
-		// NON-ACCUM TRIGGER
-		// with 0 lateness this is dropped because it is assigned to a non-active window,								(testDropDueToLatenessSessionZeroLateness)
-		// with a small lateness (e.g. 10), this is assigned to window 10000-13000 (the 11600 is GCed after firing) 	(testDropDueToLatenessSessionWithLateness)
-		// finally with a big lateness (e.g. 10000) the first window is not GCed so this merges all the windows so far 	(testDropDueToLatenessSessionWithHugeLateness)
-
+		// this is dropped as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
@@ -1283,6 +1290,11 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testDropDueToLatenessSessionZeroLatenessAccum() throws Exception {
+		// same as testDropDueToLatenessSessionZeroLateness() but with an accumulating trigger, i.e.
+		// one that does not return FIRE_AND_PURGE when firing but just FIRE
+
+		// this has the same output as testDropDueToLatenessSessionZeroLateness() because
+		// accumulating/discarding does not make a difference with "allowed lateness" = 0.
 
 		final int GAP_SIZE = 3;
 		final long LATENESS = 0;
@@ -1326,7 +1338,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1335,26 +1348,27 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
+		// this is dropped as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500l, 17500l), 17499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500L, 17500L), 17499));
 		expected.add(new Watermark(20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
@@ -1367,6 +1381,10 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testDropDueToLatenessSessionWithLateness() throws Exception {
+
+		// this has the same output as testDropDueToLatenessSessionZeroLateness() because
+		// the allowed lateness is too small to make a difference
+
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10;
 
@@ -1409,7 +1427,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1418,26 +1437,27 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
+		// dropped as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500l, 17500l), 17499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500L, 17500L), 17499));
 		expected.add(new Watermark(20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
@@ -1450,6 +1470,10 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testDropDueToLatenessSessionWithLatenessAccum() throws Exception {
+		// same as testDropDueToLatenessSessionWithLateness() but with an accumulating trigger, i.e.
+		// one that does not return FIRE_AND_PURGE when firing but just FIRE. The expected
+		// results are therefore slightly different.
+
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10;
 
@@ -1492,7 +1516,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1501,34 +1526,45 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
+		// because of the small allowed lateness and because the trigger is accumulating
+		// this will be merged into the session (11600-14600) and therefore will not
+		// be dropped as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
+
+		// adding ("key2", 1) extended the session to (10000-146000) for which
+		// maxTimestamp <= currentWatermark. Therefore, we immediately get a firing
+		// with the current version of EventTimeTrigger/EventTimeTriggerAccum
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-2", 10000L, 14600L), 14599));
+
+		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
+
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-2", 10000l, 14600l), 14599));
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-3", 10000l, 17500l), 17499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-3", 10000L, 17500L), 17499));
 		expected.add(new Watermark(20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
 
 		expected.add(new Watermark(100000));
 
-		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		actual = testHarness.getOutput();
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		testHarness.close();
 	}
@@ -1578,7 +1614,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1587,34 +1624,38 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 10000L, 13000L), 12999));
+
+		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 10000l, 13000l), 12999));
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500l, 17500l), 17499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 14500L, 17500L), 17499));
 		expected.add(new Watermark(20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
 
 		expected.add(new Watermark(100000));
 
-		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		actual = testHarness.getOutput();
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		testHarness.close();
 	}
@@ -1663,7 +1704,8 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(4998));
 
-		// late but added
+		// this will not be dropped because the session we're adding two has maxTimestamp
+		// after the current watermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 4500));
 
 		// new session
@@ -1672,33 +1714,39 @@ public class WindowOperatorTest {
 
 		expected.add(new Watermark(7400));
 
-		// late element to merge the previous sessions
+		// this will merge the two sessions into one
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 7000));
 		testHarness.processWatermark(new Watermark(initialTime + 11501));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000l, 11500l), 11499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-5", 1000L, 11500L), 11499));
 		expected.add(new Watermark(11501));
 
 		// new session
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 11600));
 		testHarness.processWatermark(new Watermark(initialTime + 14600));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600l, 14600l), 14599));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 10000));
 
+		// the maxTimestamp of the merged session is already late,
+		// so we get an immediate firing
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-7", 1000L, 14600L), 14599));
+
+		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 14500));
 		testHarness.processWatermark(new Watermark(initialTime + 20000));
 
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-7", 1000l, 14600l), 14599));
-		expected.add(new StreamRecord<>(new Tuple3<>("key2-8", 1000l, 17500l), 17499));
+		expected.add(new StreamRecord<>(new Tuple3<>("key2-8", 1000L, 17500L), 17499));
 		expected.add(new Watermark(20000));
 
 		testHarness.processWatermark(new Watermark(initialTime + 100000));
 		expected.add(new Watermark(100000));
 
-		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
+		actual = testHarness.getOutput();
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		testHarness.close();
 	}
@@ -1876,10 +1924,13 @@ public class WindowOperatorTest {
 
 		@Override
 		public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
-			ctx.registerEventTimeTimer(window.maxTimestamp());
-			return (window.maxTimestamp() <= ctx.getCurrentWatermark()) ?
-				TriggerResult.FIRE :
-				TriggerResult.CONTINUE;
+			if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+				// if the watermark is already past the window fire immediately
+				return TriggerResult.FIRE;
+			} else {
+				ctx.registerEventTimeTimer(window.maxTimestamp());
+				return TriggerResult.CONTINUE;
+			}
 		}
 
 		@Override
