@@ -367,12 +367,20 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	}
 
 	private static void writeYarnProperties(Properties properties, File propertiesFile) {
+		OutputStream out = null;
 		try {
-			OutputStream out = new FileOutputStream(propertiesFile);
+			out = new FileOutputStream(propertiesFile);
 			properties.store(out, "Generated YARN properties file");
-			out.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error writing the properties file", e);
+		} finally {
+			if (out != null) {
+				try {
+					out.close();
+				} catch (IOException e) {
+					LOG.warn("Exception while closing the FileOutputStream for YARN properties file", e);
+				}
+			}
 		}
 		propertiesFile.setReadable(true, false); // readable for all.
 	}
