@@ -323,7 +323,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					}
 				});
 
-				// check if the window is already inactive
+				// drop if the window is already late
 				if (isLate(actualWindow)) {
 					LOG.info("Dropped element " + element+ " for window " + actualWindow + " due to lateness.");
 					continue;
@@ -352,7 +352,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		} else {
 			for (W window: elementWindows) {
 
-				// check if the window is already inactive
+				// drop if the window is already late
 				if (isLate(window)) {
 					LOG.info("Dropped element " + element + " for window " + window + " due to lateness.");
 					continue;
@@ -528,7 +528,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					considered when triggering.
 	 */
 	protected boolean isLate(W window) {
-		return (windowAssigner.isEventTime() && (getCleanupTimeForWindow(window) <= currentWatermark));
+		return (windowAssigner.isEventTime() && (cleanupTime(window) <= currentWatermark));
 	}
 
 	/**
@@ -537,7 +537,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					the window whose state to discard
 	 */
 	protected void registerCleanupTimer(W window) {
-		long cleanupTime = getCleanupTimeForWindow(window);
+		long cleanupTime = cleanupTime(window);
 		if (windowAssigner.isEventTime()) {
 			context.registerEventTimeTimer(cleanupTime);
 		} else {
@@ -551,7 +551,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * 					the window whose state to discard
 	 */
 	protected void deleteCleanupTimer(W window) {
-		long cleanupTime = getCleanupTimeForWindow(window);
+		long cleanupTime = cleanupTime(window);
 		if (windowAssigner.isEventTime()) {
 			context.deleteEventTimeTimer(cleanupTime);
 		} else {
@@ -568,7 +568,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *
 	 * @param window the window whose cleanup time we are computing.
 	 */
-	private long getCleanupTimeForWindow(W window) {
+	private long cleanupTime(W window) {
 		long cleanupTime = window.maxTimestamp() + allowedLateness;
 		return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
 	}
@@ -585,7 +585,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *  @return {@code true} if it is time to clean up the window state, {@code false} otherwise.
 	 */
 	protected final boolean isCleanupTime(W window, long time) {
-		long cleanupTime = getCleanupTimeForWindow(window);
+		long cleanupTime = cleanupTime(window);
 		return  cleanupTime == time;
 	}
 
