@@ -35,11 +35,13 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
-		ctx.registerEventTimeTimer(window.maxTimestamp());
-
-		return (window.maxTimestamp() <= ctx.getCurrentWatermark()) ?
-			TriggerResult.FIRE_AND_PURGE :
-			TriggerResult.CONTINUE;
+		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+			// if the watermark is already past the window fire immediately
+			return TriggerResult.FIRE_AND_PURGE;
+		} else {
+			ctx.registerEventTimeTimer(window.maxTimestamp());
+			return TriggerResult.CONTINUE;
+		}
 	}
 
 	@Override
