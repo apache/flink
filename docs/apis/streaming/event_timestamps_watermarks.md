@@ -116,10 +116,14 @@ those timestamps will be overwritten by the TimestampAssigner. Similarly, Waterm
 Timestamp Assigners take a stream and produce a new stream with timestamped elements and watermarks. If the
 original stream had timestamps and/or watermarks already, the timestamp assigner overwrites them.
 
-The timestamp assigners usually are specified immediately after the data source, but it is not strictly required to do so. A
-common pattern is, for example, to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
+The timestamp assigners usually are specified immediately after the data source but it is not strictly required to do so. 
+A common pattern is, for example, to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
 In any case, the timestamp assigner needs to be specified before the first operation on event time
-(such as the first window operation). 
+(such as the first window operation). As a special case, when using Kafka as the source of a streaming job, 
+Flink allows the specification of a timestamp assigner / watermark emitter inside 
+the source (or consumer) itself. More information on how to do so can be found in the 
+[Kafka Connector documentation]({{ site.baseurl }}/apis/streaming/connectors/kafka.html). 
+
 
 **NOTE:** The remainder of this section presents the main interfaces a programmer has
 to implement in order to create her own timestamp extractors/watermark emitters. 
@@ -132,7 +136,9 @@ To see the pre-implemented extractors that ship with Flink, please refer to the
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer09<MyEvent>(topic, schema, props));
+DataStream<MyEvent> stream = env.readFile(
+        myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100, 
+        FilePathFilter.createDefaultFilter(), typeInfo);
 
 DataStream<MyEvent> withTimestampsAndWatermarks = stream
         .filter( event -> event.severity() == WARNING )
@@ -150,7 +156,9 @@ withTimestampsAndWatermarks
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer09[MyEvent](topic, schema, props))
+val stream: DataStream[MyEvent] = env.readFile(
+         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100, 
+         FilePathFilter.createDefaultFilter());
 
 val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
         .filter( _.severity == WARNING )

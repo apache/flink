@@ -198,6 +198,60 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
+#### Kafka Consumers and Timestamp Extraction/Watermark Emission
+
+In many scenarios, the timestamp of a record is embedded (explicitly or implicitly) in the record itself. 
+In addition, the user may want to emit watermarks either periodically, or in an irregular fashion, e.g. based on
+special records in the Kafka stream that contain the current event-time watermark. For these cases, the Flink Kafka 
+Consumer allows the specification of an `AssignerWithPeriodicWatermarks` or an `AssignerWithPunctuatedWatermarks`.
+
+You can specify your custom timestamp extractor/watermark emitter as described 
+[here]({{ site.baseurl }}/apis/streaming/event_timestamps_watermarks.html), or use one from the 
+[predefined ones]({{ site.baseurl }}/apis/streaming/event_timestamp_extractors.html). After doing so, you 
+can pass it to your consumer in the following way:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties properties = new Properties();
+properties.setProperty("bootstrap.servers", "localhost:9092");
+// only required for Kafka 0.8
+properties.setProperty("zookeeper.connect", "localhost:2181");
+properties.setProperty("group.id", "test");
+
+FlinkKafkaConsumer08<String> myConsumer = 
+    new FlinkKafkaConsumer08<>("topic", new SimpleStringSchema(), properties);
+myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
+
+DataStream<String> stream = env
+	.addSource(myConsumer)
+	.print();
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val properties = new Properties();
+properties.setProperty("bootstrap.servers", "localhost:9092");
+// only required for Kafka 0.8
+properties.setProperty("zookeeper.connect", "localhost:2181");
+properties.setProperty("group.id", "test");
+
+val myConsumer = new FlinkKafkaConsumer08[Stirng]("topic", new SimpleStringSchema(), properties);
+myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
+stream = env
+    .addSource(myConsumer)
+    .print
+{% endhighlight %}
+</div>
+</div>
+ 
+Internally, an instance of the assigner is executed per Kafka partition.
+When such an assigner is specified, for each record read from Kafka, the 
+`extractTimestamp(T element, long previousElementTimestamp)` is called to assign a timestamp to the record and 
+the `Watermark getCurrentWatermark()` (for periodic) or the 
+`Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine 
+if a new watermark should be emitted and with which timestamp.
+
 ### Kafka Producer
 
 The `FlinkKafkaProducer08` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
