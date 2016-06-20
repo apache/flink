@@ -182,12 +182,12 @@ public class InstantiationUtilTest extends TestLogger {
 		}
 	}
 	
-	private static final class WritableType implements IOReadableWritable {
+	public static final class WritableType implements IOReadableWritable {
 		
 		private int aInt;
 		private long aLong;
-		
-		private WritableType() {
+
+		public WritableType() {
 			Random rnd = new Random();
 			this.aInt = rnd.nextInt();
 			this.aLong = rnd.nextLong();
