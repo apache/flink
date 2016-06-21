@@ -931,7 +931,7 @@ Examples for that are methods that create data sets from collections, such as
 also generic functions like `MapFunction<I, O>` may need extra type information.
 
 The
-{% gh_link /flink-java/src/main/java/org/apache/flink/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %}
+{% gh_link /flink-core/src/main/java/org/apache/flink/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %}
 interface can be implemented by input formats and functions to tell the API
 explicitly about their return type. The *input types* that the functions are invoked with can
 usually be inferred by the result types of the previous operations.
