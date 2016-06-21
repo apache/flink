@@ -20,9 +20,9 @@ package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.expression.utils.ExpressionTestBase
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.junit.Test
 
