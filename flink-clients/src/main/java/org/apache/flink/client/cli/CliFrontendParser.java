@@ -18,12 +18,11 @@
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.PosixParser;
-
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 
@@ -313,7 +312,7 @@ public class CliFrontendParser {
 
 	public static RunOptions parseRunCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(RUN_OPTIONS, args, true);
 			return new RunOptions(line);
 		}
@@ -324,7 +323,7 @@ public class CliFrontendParser {
 
 	public static ListOptions parseListCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(LIST_OPTIONS, args, false);
 			return new ListOptions(line);
 		}
@@ -335,7 +334,7 @@ public class CliFrontendParser {
 
 	public static CancelOptions parseCancelCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(CANCEL_OPTIONS, args, false);
 			return new CancelOptions(line);
 		}
@@ -346,7 +345,7 @@ public class CliFrontendParser {
 
 	public static StopOptions parseStopCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(STOP_OPTIONS, args, false);
 			return new StopOptions(line);
 		} catch (ParseException e) {
@@ -356,7 +355,7 @@ public class CliFrontendParser {
 
 	public static SavepointOptions parseSavepointCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(SAVEPOINT_OPTIONS, args, false);
 			return new SavepointOptions(line);
 		}
@@ -367,7 +366,7 @@ public class CliFrontendParser {
 
 	public static InfoOptions parseInfoCommand(String[] args) throws CliArgsException {
 		try {
-			PosixParser parser = new PosixParser();
+			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(INFO_OPTIONS, args, true);
 			return new InfoOptions(line);
 		}
