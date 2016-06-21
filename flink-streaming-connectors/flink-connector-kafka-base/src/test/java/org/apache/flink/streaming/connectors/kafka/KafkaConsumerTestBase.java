@@ -815,10 +815,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			@Override
 			public void invoke(Row value) throws Exception {
+				assertEquals(5, value.productArity());
 				assertEquals(longs[i], value.productElement(0));
 				assertEquals(strings[i], value.productElement(1));
 				assertEquals(booleans[i], value.productElement(2));
 				assertEquals(doubles[i], value.productElement(3));
+				assertNull(value.productElement(4));
 
 				if (i == numElements-1) {
 					throw new SuccessException();

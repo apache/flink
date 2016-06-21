@@ -23,6 +23,9 @@ import org.junit.Test;
 
 import java.util.UUID;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 
 public class Kafka09ITCase extends KafkaConsumerTestBase {
 
@@ -132,14 +135,53 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 						"long",
 						"string",
 						"boolean",
-						"double" },
+						"double",
+						"missing-field"},
 				new TypeInformation<?>[] {
 						BasicTypeInfo.LONG_TYPE_INFO,
 						BasicTypeInfo.STRING_TYPE_INFO,
 						BasicTypeInfo.BOOLEAN_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO });
+						BasicTypeInfo.DOUBLE_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO });
+
+		// Don't fail on missing field, but set to null (default)
+		tableSource.setFailOnMissingField(false);
 
 		runJsonTableSource(topic, tableSource);
+	}
+
+	@Test
+	public void testJsonTableSourceWithFailOnMissingField() throws Exception {
+		String topic = UUID.randomUUID().toString();
+
+		// Names and types are determined in the actual test method of the
+		// base test class.
+		Kafka09JsonTableSource tableSource = new Kafka09JsonTableSource(
+				topic,
+				standardProps,
+				new String[] {
+						"long",
+						"string",
+						"boolean",
+						"double",
+						"missing-field"},
+				new TypeInformation<?>[] {
+						BasicTypeInfo.LONG_TYPE_INFO,
+						BasicTypeInfo.STRING_TYPE_INFO,
+						BasicTypeInfo.BOOLEAN_TYPE_INFO,
+						BasicTypeInfo.DOUBLE_TYPE_INFO,
+						BasicTypeInfo.LONG_TYPE_INFO });
+
+		// Don't fail on missing field, but set to null (default)
+		tableSource.setFailOnMissingField(true);
+
+		try {
+			runJsonTableSource(topic, tableSource);
+			fail("Did not throw expected Exception");
+		} catch (Exception e) {
+			Throwable rootCause = e.getCause().getCause().getCause();
+			assertTrue("Unexpected root cause", rootCause instanceof IllegalStateException);
+		}
 	}
 
 }

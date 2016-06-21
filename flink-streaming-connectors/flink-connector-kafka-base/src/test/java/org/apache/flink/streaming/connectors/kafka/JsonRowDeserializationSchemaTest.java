@@ -87,6 +87,15 @@ public class JsonRowDeserializationSchemaTest {
 
 		assertEquals(1, row.productArity());
 		assertNull("Missing field not null", row.productElement(0));
+
+		deserializationSchema.setFailOnMissingField(true);
+
+		try {
+			deserializationSchema.deserialize(serializedJson);
+			fail("Did not throw expected Exception");
+		} catch (IOException e) {
+			assertTrue(e.getCause() instanceof IllegalStateException);
+		}
 	}
 
 	/**

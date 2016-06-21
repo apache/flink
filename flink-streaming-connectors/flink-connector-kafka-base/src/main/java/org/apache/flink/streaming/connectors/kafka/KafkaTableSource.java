@@ -140,10 +140,16 @@ abstract class KafkaTableSource implements StreamTableSource<Row> {
 			DeserializationSchema<Row> deserializationSchema);
 
 	/**
-	 * Creates TypeInformation array for an array of Classes.
+	 * Returns the deserialization schema.
 	 *
-	 * @param fieldTypes
-	 * @return
+	 * @return The deserialization schema
+	 */
+	protected DeserializationSchema<Row> getDeserializationSchema() {
+		return deserializationSchema;
+	}
+
+	/**
+	 * Creates TypeInformation array for an array of Classes.
 	 */
 	private static TypeInformation<?>[] toTypeInfo(Class<?>[] fieldTypes) {
 		TypeInformation<?>[] typeInfos = new TypeInformation[fieldTypes.length];

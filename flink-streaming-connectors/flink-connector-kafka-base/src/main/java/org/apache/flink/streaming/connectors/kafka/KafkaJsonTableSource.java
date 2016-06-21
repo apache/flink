@@ -49,7 +49,7 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource {
 			String[] fieldNames,
 			Class<?>[] fieldTypes) {
 
-		super(topic, properties, getDeserializationSchema(fieldNames, fieldTypes), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes), fieldNames, fieldTypes);
 	}
 
 	/**
@@ -66,17 +66,29 @@ public abstract class KafkaJsonTableSource extends KafkaTableSource {
 			String[] fieldNames,
 			TypeInformation<?>[] fieldTypes) {
 
-		super(topic, properties, getDeserializationSchema(fieldNames, fieldTypes), fieldNames, fieldTypes);
+		super(topic, properties, createDeserializationSchema(fieldNames, fieldTypes), fieldNames, fieldTypes);
 	}
 
-	private static JsonRowDeserializationSchema getDeserializationSchema(
+	/**
+	 * Configures the failure behaviour if a JSON field is missing.
+	 *
+	 * <p>By default, a missing field is ignored and the field is set to null.
+	 *
+	 * @param failOnMissingField Flag indicating whether to fail or not on a missing field.
+	 */
+	public void setFailOnMissingField(boolean failOnMissingField) {
+		JsonRowDeserializationSchema deserializationSchema = (JsonRowDeserializationSchema) getDeserializationSchema();
+		deserializationSchema.setFailOnMissingField(failOnMissingField);
+	}
+
+	private static JsonRowDeserializationSchema createDeserializationSchema(
 			String[] fieldNames,
 			TypeInformation<?>[] fieldTypes) {
 
 		return new JsonRowDeserializationSchema(fieldNames, fieldTypes);
 	}
 
-	private static JsonRowDeserializationSchema getDeserializationSchema(
+	private static JsonRowDeserializationSchema createDeserializationSchema(
 			String[] fieldNames,
 			Class<?>[] fieldTypes) {
 

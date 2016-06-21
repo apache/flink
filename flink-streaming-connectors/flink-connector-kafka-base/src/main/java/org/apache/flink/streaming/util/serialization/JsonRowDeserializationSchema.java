@@ -47,6 +47,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	/** Object mapper for parsing the JSON. */
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+	/** Flag indicating whether to fail on a missing field. */
+	private volatile boolean failOnMissingField;
+
 	/**
 	 * Creates a JSON deserializtion schema for the given fields and type classes.
 	 *
@@ -89,7 +92,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 				JsonNode node = root.get(fieldNames[i]);
 
 				if (node == null) {
-					row.setField(i, null);
+					if (failOnMissingField) {
+						throw new IllegalStateException("Failed to find field with name '"
+								+ fieldNames[i] + "'.");
+					} else {
+						row.setField(i, null);
+					}
 				} else {
 					// Read the value as specified type
 					Object value = objectMapper.treeToValue(node, fieldTypes[i].getTypeClass());
@@ -111,6 +119,17 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		return new RowTypeInfo(fieldTypes, fieldNames);
+	}
+
+	/**
+	 * Configures the failure behaviour if a JSON field is missing.
+	 *
+	 * <p>By default, a missing field is ignored and the field is set to null.
+	 *
+	 * @param failOnMissingField Flag indicating whether to fail or not on a missing field.
+	 */
+	public void setFailOnMissingField(boolean failOnMissingField) {
+		this.failOnMissingField = failOnMissingField;
 	}
 
 }
