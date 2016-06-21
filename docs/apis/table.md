@@ -4,7 +4,7 @@ is_beta: true
 # Top-level navigation
 top-nav-group: apis
 top-nav-pos: 4
-top-nav-title: "Table API and SQL"
+top-nav-title: "<strong>Table API and SQL</strong>"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -205,14 +205,14 @@ tableEnv.registerTableSource("Customers", custTS)
 
 A `TableSource` can provide access to data stored in various storage systems such as databases (MySQL, HBase, ...), file formats (CSV, Apache Parquet, Avro, ORC, ...), or messaging systems (Apache Kafka, RabbitMQ, ...).
 
-Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. 
+Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
 
 
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
 
-The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments. 
+The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments.
 
 *Note: The only operations currently supported on streaming Tables are selection, projection, and union.*
 
@@ -222,7 +222,7 @@ When using Flink's Java DataSet API, DataSets are converted to Tables and Tables
 The following example shows:
 
 - how a `DataSet` is converted to a `Table`,
-- how relational queries are specified, and 
+- how relational queries are specified, and
 - how a `Table` is converted back to a `DataSet`.
 
 {% highlight java %}
@@ -278,7 +278,7 @@ The Table API is enabled by importing `org.apache.flink.api.scala.table._`. This
 implicit conversions to convert a `DataSet` or `DataStream` to a Table. The following example shows:
 
 - how a `DataSet` is converted to a `Table`,
-- how relational queries are specified, and 
+- how relational queries are specified, and
 - how a `Table` is converted back to a `DataSet`.
 
 {% highlight scala %}
@@ -431,7 +431,7 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>LeftOuterJoin</strong></td>
       <td>
@@ -455,7 +455,7 @@ Table result = left.rightOuterJoin(right, "a = d").select("a, b, e");
 {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>FullOuterJoin</strong></td>
       <td>
@@ -590,7 +590,7 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>LeftOuterJoin</strong></td>
       <td>
@@ -614,7 +614,7 @@ val result = left.rightOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>FullOuterJoin</strong></td>
       <td>
@@ -728,7 +728,7 @@ nullLiteral = "Null(" , dataType , ")" ;
 {% endhighlight %}
 
 Here, `literal` is a valid Java literal, `fieldReference` specifies a column in the data, and `functionIdentifier` specifies a supported scalar function. The
-column names and function names follow Java identifier syntax. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions. 
+column names and function names follow Java identifier syntax. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions.
 
 {% top %}
 
@@ -737,7 +737,7 @@ SQL
 ----
 SQL queries are specified using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table` which can be converted into a `DataSet` or `DataStream`, used in subsequent Table API queries, or written to a `TableSink` (see [Writing Tables to External Sinks](#writing-tables-to-external-sinks)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single DataStream or DataSet program.
 
-A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)). 
+A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)).
 
 *Note: Flink's SQL support is not feature complete, yet. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
 
@@ -788,7 +788,7 @@ Among others, the following SQL features are not supported, yet:
 - Grouping sets
 - `INTERSECT` and `EXCEPT` set operations
 
-*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.* 
+*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
 ### SQL on Streaming Tables
 
@@ -835,9 +835,9 @@ The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, an
 Writing Tables to External Sinks
 ----
 
-A `Table` can be written to a `TableSink`, which is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). A batch `Table` can only be written to a `BatchTableSink`, a streaming table requires a `StreamTableSink`. A `TableSink` can implement both interfaces at the same time. 
+A `Table` can be written to a `TableSink`, which is a generic interface to support a wide variety of file formats (e.g. CSV, Apache Parquet, Apache Avro), storage systems (e.g., JDBC, Apache HBase, Apache Cassandra, Elasticsearch), or messaging systems (e.g., Apache Kafka, RabbitMQ). A batch `Table` can only be written to a `BatchTableSink`, a streaming table requires a `StreamTableSink`. A `TableSink` can implement both interfaces at the same time.
 
-Currently, Flink only provides a `CsvTableSink` that writes a batch or streaming `Table` to CSV-formatted files. A custom `TableSink` can be defined by implementing the `BatchTableSink` and/or `StreamTableSink` interface. 
+Currently, Flink only provides a `CsvTableSink` that writes a batch or streaming `Table` to CSV-formatted files. A custom `TableSink` can be defined by implementing the `BatchTableSink` and/or `StreamTableSink` interface.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -846,7 +846,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // compute the result Table using Table API operators and/or SQL queries
-Table result = ... 
+Table result = ...
 
 // create a TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
@@ -864,7 +864,7 @@ val env = ExecutionEnvironment.getExecutionEnvironment
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // compute the result Table using Table API operators and/or SQL queries
-val result: Table = ... 
+val result: Table = ...
 
 // create a TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
