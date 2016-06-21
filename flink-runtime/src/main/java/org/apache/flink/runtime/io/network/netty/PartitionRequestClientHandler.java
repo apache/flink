@@ -161,7 +161,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		try {
 			if (!bufferListener.hasStagedBufferOrEvent() && stagedMessages.isEmpty()) {
-				decodeMsg(msg);
+				decodeMsg(msg, false);
 			}
 			else {
 				stagedMessages.add(msg);
@@ -201,7 +201,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		super.channelReadComplete(ctx);
 	}
 
-	private boolean decodeMsg(Object msg) throws Throwable {
+	private boolean decodeMsg(Object msg, boolean isStagedBuffer) throws Throwable {
 		final Class<?> msgClazz = msg.getClass();
 
 		// ---- Buffer --------------------------------------------------------
@@ -217,7 +217,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				return true;
 			}
 
-			return decodeBufferOrEvent(inputChannel, bufferOrEvent);
+			return decodeBufferOrEvent(inputChannel, bufferOrEvent, isStagedBuffer);
 		}
 		// ---- Error ---------------------------------------------------------
 		else if (msgClazz == NettyMessage.ErrorResponse.class) {
@@ -252,7 +252,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		return true;
 	}
 
-	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
+	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent, boolean isStagedBuffer) throws Throwable {
 		boolean releaseNettyBuffer = true;
 
 		try {
@@ -269,10 +269,14 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				BufferProvider bufferProvider = inputChannel.getBufferProvider();
 
 				if (bufferProvider == null) {
-
+					// receiver has been cancelled/failed
 					cancelRequestFor(bufferOrEvent.receiverId);
 
-					return false; // receiver has been cancelled/failed
+					if(isStagedBuffer){
+						return true;
+					}else{
+						return false;
+					}
 				}
 
 				while (true) {
@@ -292,7 +296,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 						return false;
 					}
 					else if (bufferProvider.isDestroyed()) {
-						return false;
+						if(isStagedBuffer){
+							return true;
+						}else{
+							return false;
+						}
 					}
 				}
 			}
@@ -474,7 +482,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			try {
 				Object msg;
 				while ((msg = stagedMessages.poll()) != null) {
-					if (!decodeMsg(msg)) {
+					if (!decodeMsg(msg, true)) {
 						return;
 					}
 				}
