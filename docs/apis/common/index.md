@@ -737,7 +737,7 @@ creating and finalizing local state, accessing broadcast variables (see
 [Broadcast Variables]({{ site.baseurl }}/apis/batch/index.html#broadcast-variables), and for accessing runtime
 information such as accumulators and counters (see
 [Accumulators and Counters](#accumulators--counters), and information
-on iterations (see [Iterations]({{ site.baseurl }}/apis/batch/index.htmliterations.html)).
+on iterations (see [Iterations]({{ site.baseurl }}/apis/batch/iterations.html)).
 
 {% top %}
 
@@ -1348,4 +1348,3 @@ You may specify program arguments before the job is executed. The plan visualiza
 the execution plan before executing the Flink job.
 
 {% top %}
-
