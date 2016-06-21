@@ -173,65 +173,6 @@ public class CliFrontend {
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 		this.config = GlobalConfiguration.getConfiguration();
 
-		// load the YARN properties
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation = config.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
-
-		File propertiesFile = new File(propertiesFileLocation, CliFrontend.YARN_PROPERTIES_FILE + currentUser);
-		if (propertiesFile.exists()) {
-
-			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
-
-			Properties yarnProperties = new Properties();
-			try {
-				try (InputStream is = new FileInputStream(propertiesFile)) {
-					yarnProperties.load(is);
-				}
-			}
-			catch (IOException e) {
-				throw new Exception("Cannot read the YARN properties file", e);
-			}
-
-			// configure the default parallelism from YARN
-			String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
-			if (propParallelism != null) { // maybe the property is not set
-				try {
-					int parallelism = Integer.parseInt(propParallelism);
-					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
-
-					logAndSysout("YARN properties set default parallelism to " + parallelism);
-				}
-				catch (NumberFormatException e) {
-					throw new Exception("Error while parsing the YARN properties: " +
-							"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
-				}
-			}
-
-			// get the JobManager address from the YARN properties
-			String address = yarnProperties.getProperty(YARN_PROPERTIES_JOBMANAGER_KEY);
-			InetSocketAddress jobManagerAddress;
-			if (address != null) {
-				try {
-					jobManagerAddress = parseHostPortAddress(address);
-					// store address in config from where it is retrieved by the retrieval service
-					writeJobManagerAddressToConfig(jobManagerAddress);
-				}
-				catch (Exception e) {
-					throw new Exception("YARN properties contain an invalid entry for JobManager address.", e);
-				}
-
-				logAndSysout("Using JobManager address from YARN properties " + jobManagerAddress);
-			}
-
-			// handle the YARN client's dynamic properties
-			String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
-			Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
-			for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
-				this.config.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
-			}
-		}
-
 		try {
 			FileSystem.setDefaultScheme(config);
 		} catch (IOException e) {
@@ -944,6 +885,13 @@ public class CliFrontend {
 	 * @param options Command line options
 	 */
 	protected void updateConfig(CommandLineOptions options) {
+
+		try {
+			loadYarnProperties();
+		} catch (Exception e) {
+			LOG.error("Couldn't load Yarn properties file", e);
+		}
+
 		if(options.getJobManagerAddress() != null){
 			InetSocketAddress jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
 			writeJobManagerAddressToConfig(jobManagerAddress);
@@ -1082,6 +1030,13 @@ public class CliFrontend {
 			}
 		}
 		else {
+
+			try {
+				loadYarnProperties();
+			} catch (Exception e) {
+				LOG.error("Couldn't load Yarn properties file", e);
+			}
+
 			if(options.getJobManagerAddress() != null) {
 				jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
 				writeJobManagerAddressToConfig(jobManagerAddress);
@@ -1322,5 +1277,58 @@ public class CliFrontend {
 		else {
 			return Collections.emptyMap();
 		}
+	}
+
+	private void loadYarnProperties() throws Exception {
+
+		// load the YARN properties
+		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+		String currentUser = System.getProperty("user.name");
+		String propertiesFileLocation = config.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+
+		File propertiesFile = new File(propertiesFileLocation, CliFrontend.YARN_PROPERTIES_FILE + currentUser);
+		if (propertiesFile.exists()) {
+
+			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
+
+			Properties yarnProperties = new Properties();
+			try (InputStream is = new FileInputStream(propertiesFile)) {
+				yarnProperties.load(is);
+			}
+
+			// configure the default parallelism from YARN
+			String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
+			if (propParallelism != null) { // maybe the property is not set
+				try {
+					int parallelism = Integer.parseInt(propParallelism);
+					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
+
+					logAndSysout("YARN properties set default parallelism to " + parallelism);
+				}
+				catch (NumberFormatException e) {
+					throw new IOException("Error while parsing the YARN properties: " +
+						"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
+				}
+			}
+
+			// get the JobManager address from the YARN properties
+			String address = yarnProperties.getProperty(YARN_PROPERTIES_JOBMANAGER_KEY);
+			InetSocketAddress jobManagerAddress;
+			if (address != null) {
+				jobManagerAddress = parseHostPortAddress(address);
+				// store address in config from where it is retrieved by the retrieval service
+				writeJobManagerAddressToConfig(jobManagerAddress);
+
+				logAndSysout("Using JobManager address from YARN properties " + jobManagerAddress);
+			}
+
+			// handle the YARN client's dynamic properties
+			String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
+			Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
+			for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
+				this.config.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
+			}
+		}
+
 	}
 }
