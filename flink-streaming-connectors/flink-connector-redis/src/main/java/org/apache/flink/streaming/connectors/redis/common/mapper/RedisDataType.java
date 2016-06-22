@@ -17,7 +17,7 @@
 package org.apache.flink.streaming.connectors.redis.common.mapper;
 
 /**
- * All available data type for Redis
+ * All available data type for Redis.
  */
 public enum RedisDataType {
 

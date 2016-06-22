@@ -46,76 +46,76 @@ public class RedisSinkPublishTest extends RedisTestBase {
 	private Thread sinkThread;
 	private PubSub pubSub;
 
-    @Before
-    public void before() throws Exception {
-        pubSub = new PubSub();
-        sinkThread = new Thread(new Subscribe(pubSub));
-    }
+	@Before
+	public void before() throws Exception {
+		pubSub = new PubSub();
+		sinkThread = new Thread(new Subscribe(pubSub));
+	}
 
-    @Test
-    public void redisSinkTest() throws Exception {
-        sinkThread.start();
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+	@Test
+	public void redisSinkTest() throws Exception {
+		sinkThread.start();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		JedisPoolConfig jedisPoolConfig = new JedisPoolConfig.Builder()
 			.setHost(REDIS_HOST)
 			.setPort(REDIS_PORT).build();
-        DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
+		DataStreamSource<Tuple2<String, String>> source = env.addSource(new TestSourceFunction());
 
 		RedisSink<Tuple2<String, String>> redisSink = new RedisSink<>(jedisPoolConfig, new RedisTestMapper());
 
-        source.addSink(redisSink);
+		source.addSink(redisSink);
 
-        env.execute("Redis Sink Test");
+		env.execute("Redis Sink Test");
 
-        assertEquals(NUM_ELEMENTS, sourceList.size());
-    }
+		assertEquals(NUM_ELEMENTS, sourceList.size());
+	}
 
-    @After
-    public void after() throws Exception {
-        pubSub.unsubscribe();
-        sinkThread.join();
-        sourceList.clear();
-    }
+	@After
+	public void after() throws Exception {
+		pubSub.unsubscribe();
+		sinkThread.join();
+		sourceList.clear();
+	}
 
-    private class Subscribe implements Runnable {
-        private PubSub localPubSub;
-        private Subscribe(PubSub pubSub){
-            this.localPubSub = pubSub;
-        }
+	private class Subscribe implements Runnable {
+		private PubSub localPubSub;
+		private Subscribe(PubSub pubSub){
+			this.localPubSub = pubSub;
+		}
 
-        @Override
-        public void run() {
-            JedisPool pool = new JedisPool(REDIS_HOST, REDIS_PORT);
-            pool.getResource().subscribe(localPubSub, REDIS_CHANNEL);
-        }
-    }
+		@Override
+		public void run() {
+			JedisPool pool = new JedisPool(REDIS_HOST, REDIS_PORT);
+			pool.getResource().subscribe(localPubSub, REDIS_CHANNEL);
+		}
+	}
 
-    private static class TestSourceFunction implements SourceFunction<Tuple2<String, String>> {
-        private static final long serialVersionUID = 1L;
+	private static class TestSourceFunction implements SourceFunction<Tuple2<String, String>> {
+		private static final long serialVersionUID = 1L;
 
-        private volatile boolean running = true;
+		private volatile boolean running = true;
 
-        @Override
-        public void run(SourceContext<Tuple2<String, String>> ctx) throws Exception {
-            for (int i = 0; i < NUM_ELEMENTS && running; i++) {
-                ctx.collect(new Tuple2<>(REDIS_CHANNEL, "message #" + i));
-            }
-        }
+		@Override
+		public void run(SourceContext<Tuple2<String, String>> ctx) throws Exception {
+			for (int i = 0; i < NUM_ELEMENTS && running; i++) {
+				ctx.collect(new Tuple2<>(REDIS_CHANNEL, "message #" + i));
+			}
+		}
 
-        @Override
-        public void cancel() {
-            running = false;
-        }
-    }
+		@Override
+		public void cancel() {
+			running = false;
+		}
+	}
 
-    public static class PubSub extends JedisPubSub {
+	public static class PubSub extends JedisPubSub {
 
-        @Override
-        public void onMessage(String channel, String message) {
-            sourceList.add(message);
-        }
+		@Override
+		public void onMessage(String channel, String message) {
+			sourceList.add(message);
+		}
 
-    }
+	}
 
 	private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>>{
 
@@ -125,13 +125,13 @@ public class RedisSinkPublishTest extends RedisTestBase {
 		}
 
 		@Override
-		public String getKeyFromData(Tuple2 data) {
-			return String.valueOf(data.f0);
+		public String getKeyFromData(Tuple2<String, String> data) {
+			return data.f0;
 		}
 
 		@Override
-		public String getValueFromData(Tuple2 data) {
-			return String.valueOf(data.f1);
+		public String getValueFromData(Tuple2<String, String> data) {
+			return data.f1;
 		}
 	}
 }

@@ -36,7 +36,7 @@ public interface RedisCommandsContainer extends Serializable {
 	void hset(String hashName, String key, String value);
 
 	/**
-	 * Insert all the specified values at the tail of the list stored at key.
+	 * Insert the specified value at the tail of the list stored at key.
 	 * If key does not exist, it is created as empty list before performing the push operation.
 	 *
 	 * @param listName Name of the List
@@ -45,7 +45,7 @@ public interface RedisCommandsContainer extends Serializable {
 	void rpush(String listName, String value);
 
 	/**
-	 * Add the specified members to the set stored at key.
+	 * Add the specified member to the set stored at key.
 	 * Specified members that are already a member of this set are ignored.
 	 * If key does not exist, a new set is created before adding the specified members.
 	 *
@@ -73,7 +73,7 @@ public interface RedisCommandsContainer extends Serializable {
 	void set(String key, String value);
 
 	/**
-	 * * Adds all the element arguments to the HyperLogLog data structure
+	 * Adds all the element arguments to the HyperLogLog data structure
 	 * stored at the variable name specified as first argument.
 	 *
 	 * @param key The name of the key

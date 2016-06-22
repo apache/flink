@@ -16,16 +16,18 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.mapper;
 
+import org.apache.flink.util.Preconditions;
+
 import java.io.Serializable;
 
 /**
  * The description of the data type. This must be passed while creating new {@link RedisMapper}.
  * <p>When creating descriptor for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET},
- * plz use the first constructor {@link #RedisDataTypeDescription(RedisDataType, String)}.
- * If the additional key is null it will throw IllegalArgumentException
+ * you need to use first constructor {@link #RedisDataTypeDescription(RedisDataType, String)}.
+ * If the {@code additionalKey} is {@code null} it will throw {@code IllegalArgumentException}
  *
  * <p>When {@link RedisDataType} is not {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}
- * plz use the second constructor {@link #RedisDataTypeDescription(RedisDataType)}
+ * you can use second constructor {@link #RedisDataTypeDescription(RedisDataType)}
  */
 public class RedisDataTypeDescription implements Serializable {
 
@@ -34,7 +36,7 @@ public class RedisDataTypeDescription implements Serializable {
 	private RedisDataType dataType;
 
 	/**
-	 * This additional key needed for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
+	 * This additional key is needed for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET}.
 	 * Other {@link RedisDataType} works only with two variable i.e. name of the list and value to be added.
 	 * But for {@link RedisDataType#HASH} and {@link RedisDataType#SORTED_SET} we need three variables.
 	 * <p>For {@link RedisDataType#HASH} we need hash name, hash key and element.
@@ -45,12 +47,13 @@ public class RedisDataTypeDescription implements Serializable {
 	private String additionalKey;
 
 	/**
-	 * Use this constructor when data type is HASH or SORTED_SET.
-	 *
+	 * Use this constructor when data type is {@link RedisDataType#HASH} or {@link RedisDataType#SORTED_SET}.
+	 * If different data type is specified, {@code additionalKey} is ignored.
 	 * @param dataType the redis data type {@link RedisDataType}
 	 * @param additionalKey additional key for Hash and Sorted set data type
 	 */
 	public RedisDataTypeDescription(RedisDataType dataType, String additionalKey) {
+		Preconditions.checkNotNull(dataType, "Redis data type can not be null");
 		this.dataType = dataType;
 		this.additionalKey = additionalKey;
 

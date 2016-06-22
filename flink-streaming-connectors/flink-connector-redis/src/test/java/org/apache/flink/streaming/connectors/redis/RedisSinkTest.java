@@ -185,13 +185,13 @@ public class RedisSinkTest extends RedisTestBase {
 		}
 
 		@Override
-		public String getKeyFromData(Tuple2 data) {
-			return String.valueOf(data.f0);
+		public String getKeyFromData(Tuple2<String, String> data) {
+			return data.f0;
 		}
 
 		@Override
-		public String getValueFromData(Tuple2 data) {
-			return String.valueOf(data.f1);
+		public String getValueFromData(Tuple2<String, String> data) {
+			return data.f1;
 		}
 	}
 
@@ -209,13 +209,13 @@ public class RedisSinkTest extends RedisTestBase {
 		}
 
 		@Override
-		public String getKeyFromData(Tuple2 data) {
-			return String.valueOf(data.f0);
+		public String getKeyFromData(Tuple2<String, String> data) {
+			return data.f0;
 		}
 
 		@Override
-		public String getValueFromData(Tuple2 data) {
-			return String.valueOf(data.f1);
+		public String getValueFromData(Tuple2<String, String> data) {
+			return data.f1;
 		}
 	}
 }

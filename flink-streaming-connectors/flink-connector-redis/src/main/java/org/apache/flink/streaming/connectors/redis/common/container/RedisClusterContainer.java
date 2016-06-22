@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.container;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisCluster;
@@ -40,17 +41,13 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	 * @param jedisCluster JedisCluster instance
 	 */
 	public RedisClusterContainer(JedisCluster jedisCluster) {
+		Preconditions.checkNotNull(jedisCluster, "Jedis cluster can not be null");
+
 		this.jedisCluster = jedisCluster;
 	}
 
 	/**
-	 * Sets field in the hash stored at key to value.
-	 * If key does not exist, a new key holding a hash is created.
-	 * If field already exists in the hash, it is overwritten.
-	 *
-	 * @param hashName   Hash name
-	 * @param key Hash field name
-	 * @param value Hash value
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void hset(final String hashName, final String key, final String value) {
@@ -65,11 +62,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Insert all the specified values at the tail of the list stored at key.
-	 * If key does not exist, it is created as empty list before performing the push operation.
-	 *
-	 * @param listName Name of the List
-	 * @param value  Value to be added
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void rpush(final String listName, final String value) {
@@ -84,12 +77,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Add the specified members to the set stored at key.
-	 * Specified members that are already a member of this set are ignored.
-	 * If key does not exist, a new set is created before adding the specified members.
-	 *
-	 * @param setName Name of the Set
-	 * @param value   Value to be added
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void sadd(final String setName, final String value) {
@@ -104,10 +92,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Posts a message to the given channel
-	 *
-	 * @param channelName Name of the channel to which data will be published
-	 * @param message     the message
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void publish(final String channelName, final String message) {
@@ -122,12 +107,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Set key to hold the string value. If key already holds a value, it is overwritten,
-	 * regardless of its type. Any previous time to live associated with the key is
-	 * discarded on successful SET operation.
-	 *
-	 * @param key   the key name in which value to be set
-	 * @param value the value
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void set(final String key, final String value) {
@@ -142,11 +122,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Adds all the element arguments to the HyperLogLog data structure
-	 * stored at the variable name specified as first argument.
-	 *
-	 * @param key     The name of the key
-	 * @param element the element
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void pfadd(final String key, final String element) {
@@ -161,11 +137,7 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 	}
 
 	/**
-	 * Adds the specified member with the specified scores to the sorted set stored at key
-	 *
-	 * @param setName The name of the Sorted Set
-	 * @param element element to be added
-	 * @param score   Score of the element
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void zadd(final String setName, final String element, final String score) {

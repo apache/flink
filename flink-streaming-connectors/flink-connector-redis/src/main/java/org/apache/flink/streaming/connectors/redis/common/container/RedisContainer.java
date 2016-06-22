@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.container;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -28,7 +29,7 @@ import java.io.IOException;
 /**
  * Redis command container if we want to connect to a single Redis server or to Redis sentinels
  * If want to connect to a single Redis server, plz use the first constructor {@link #RedisContainer(JedisPool)}.
- * If want to connect to a Redis sentinels, Plz use the second constructor ${@link #RedisContainer(JedisSentinelPool)}
+ * If want to connect to a Redis sentinels, Plz use the second constructor {@link #RedisContainer(JedisSentinelPool)}
  */
 public class RedisContainer implements RedisCommandsContainer, Closeable {
 
@@ -46,6 +47,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 * @param jedisPool JedisPool which actually manages Jedis instances
 	 */
 	public RedisContainer(JedisPool jedisPool) {
+		Preconditions.checkNotNull(jedisPool, "Jedis Pool can not be null");
 		this.jedisPool = jedisPool;
 	}
 
@@ -55,6 +57,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 * @param sentinelPool SentinelPool which actually manages Jedis instances
 	 */
 	public RedisContainer(final JedisSentinelPool sentinelPool) {
+		Preconditions.checkNotNull(sentinelPool, "Jedis Sentinel Pool can not be null");
 		this.jedisSentinelPool = sentinelPool;
 	}
 
@@ -72,14 +75,8 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	}
 
 	/**
-	 * Sets field in the hash stored at key to value.
-	 * If key does not exist, a new key holding a hash is created.
-	 * If field already exists in the hash, it is overwritten.
-	 *
-	 * @param hashName   Hash name
-	 * @param key Hash field name
-	 * @param value Hash value
-	 */
+	 * {@inheritDoc}
+     */
 	@Override
 	public void hset(final String hashName, final String key, final String value) {
 		Jedis jedis = null;
@@ -92,16 +89,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					key, key, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Insert all the specified values at the tail of the list stored at key.
-	 * If key does not exist, it is created as empty list before performing the push operation.
-	 *
-	 * @param listName Name of the List
-	 * @param value    Value to be added
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void rpush(final String listName, final String value) {
@@ -115,17 +108,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					listName, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Add the specified members to the set stored at key.
-	 * Specified members that are already a member of this set are ignored.
-	 * If key does not exist, a new set is created before adding the specified members.
-	 *
-	 * @param setName Name of the Set
-	 * @param value   Value to be added
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void sadd(final String setName, final String value) {
@@ -139,15 +127,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					setName, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Posts a message to the given channel
-	 *
-	 * @param channelName Name of the channel to which data will be published
-	 * @param message     the message
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void publish(final String channelName, final String message) {
@@ -161,17 +146,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					channelName, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Set key to hold the string value. If key already holds a value, it is overwritten,
-	 * regardless of its type. Any previous time to live associated with the key is
-	 * discarded on successful SET operation.
-	 *
-	 * @param key   the key name in which value to be set
-	 * @param value the value
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void set(final String key, final String value) {
@@ -185,16 +165,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					key, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Adds all the element arguments to the HyperLogLog data structure
-	 * stored at the variable name specified as first argument.
-	 *
-	 * @param key     The name of the key
-	 * @param element the element
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void pfadd(final String key, final String element) {
@@ -208,16 +184,12 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					key, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
 	/**
-	 * Adds the specified member with the specified scores to the sorted set stored at key
-	 *
-	 * @param setName The name of the Sorted Set
-	 * @param element element to be added
-	 * @param score   Score of the element
+	 * {@inheritDoc}
 	 */
 	@Override
 	public void zadd(final String setName, final String element, final String score) {
@@ -231,7 +203,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 					setName, e.getMessage());
 			}
 		} finally {
-			returnInstance(jedis);
+			releaseInstance(jedis);
 		}
 	}
 
@@ -255,7 +227,7 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 	 *
 	 * @param jedis The jedis instance
      */
-	private void returnInstance(final Jedis jedis) {
+	private void releaseInstance(final Jedis jedis) {
 		if (jedis == null) {
 			return;
 		}

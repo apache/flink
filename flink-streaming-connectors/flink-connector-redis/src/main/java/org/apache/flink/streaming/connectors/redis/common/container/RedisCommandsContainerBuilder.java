@@ -16,11 +16,11 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.container;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisClusterConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisPoolConfig;
 import org.apache.flink.streaming.connectors.redis.common.config.JedisSentinelConfig;
+import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisSentinelPool;

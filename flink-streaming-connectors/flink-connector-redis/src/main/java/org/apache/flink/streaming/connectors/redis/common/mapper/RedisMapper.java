@@ -21,18 +21,18 @@ import org.apache.flink.api.common.functions.Function;
 import java.io.Serializable;
 
 /**
- * Function that creates build the description how the input data should be mapped to redis type
+ * Function that creates the description how the input data should be mapped to redis type.
  *<p>Example:
  *<pre>{@code
  *private static class RedisTestMapper implements RedisMapper<Tuple2<String, String>> {
  *    public RedisDataTypeDescription getDataTypeDescription() {
- *        return new RedisDataTypeDescription(RedisDataTypeDescription.RedisDataType.PUBSUB);
+ *        return new RedisDataTypeDescription(RedisDataType.PUBSUB);
  *    }
- *    public String getKeyFromData(Tuple2 data) {
- *        return String.valueOf(data.f0);
+ *    public String getKeyFromData(Tuple2<String, String> data) {
+ *        return data.f0;
  *    }
- *    public String getValueFromData(Tuple2 data) {
- *        return String.valueOf(data.f1);
+ *    public String getValueFromData(Tuple2<String, String> data) {
+ *        return data.f1;
  *    }
  *}
  *}</pre>

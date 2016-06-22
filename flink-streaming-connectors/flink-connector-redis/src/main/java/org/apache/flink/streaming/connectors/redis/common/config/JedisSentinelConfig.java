@@ -16,8 +16,8 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.config;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Protocol;
@@ -44,20 +44,21 @@ public class JedisSentinelConfig implements Serializable {
 	private int minIdle;
 
 	/**
+	 * Jedis Sentinels config.
 	 * The master name and sentinels are mandatory, and when you didn't set these, it throws NullPointerException.
 	 *
 	 * @param masterName master name of the replica set
 	 * @param sentinels set of sentinel hosts
 	 * @param connectionTimeout timeout connection timeout
 	 * @param soTimeout timeout socket timeout
-	 * @param password password password, if any
+	 * @param password password, if any
 	 * @param database database database index
 	 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
 	 * @param maxIdle the cap on the number of "idle" instances in the pool
 	 * @param minIdle the minimum number of idle objects to maintain in the pool
 	 *
-	 * @throws NullPointerException if do not see master name or sentinels
-	 * @throws IllegalArgumentException if sentinels are empty
+	 * @throws NullPointerException if {@code masterName} or {@code sentinels} is {@code null}
+	 * @throws IllegalArgumentException if {@code sentinels} are empty
 	 */
 	private JedisSentinelConfig(String masterName, Set<String> sentinels,
 								int connectionTimeout, int soTimeout,
@@ -169,7 +170,7 @@ public class JedisSentinelConfig implements Serializable {
 	}
 
 	/**
-	 * Builder for initializing JedisSentinelConfig.
+	 * Builder for initializing {@link JedisSentinelConfig}.
 	 */
 	public static class Builder {
 		private String masterName;
@@ -207,7 +208,7 @@ public class JedisSentinelConfig implements Serializable {
 		/**
 		 * Sets connection timeout.
 		 *
-		 * @param connectionTimeout connection timeout
+		 * @param connectionTimeout connection timeout, default value is 2000
 		 * @return Builder itself
 		 */
 		public Builder setConnectionTimeout(int connectionTimeout) {
@@ -218,7 +219,7 @@ public class JedisSentinelConfig implements Serializable {
 		/**
 		 * Sets socket timeout.
 		 *
-		 * @param soTimeout socket timeout
+		 * @param soTimeout socket timeout, default value is 2000
          * @return Builder itself
          */
 		public Builder setSoTimeout(int soTimeout) {
@@ -240,7 +241,7 @@ public class JedisSentinelConfig implements Serializable {
 		/**
 		 * Sets database index.
 		 *
-		 * @param database database index
+		 * @param database database index, default value is 0
 		 * @return Builder itself
 		 */
 		public Builder setDatabase(int database) {
@@ -252,7 +253,7 @@ public class JedisSentinelConfig implements Serializable {
 		 * Sets value for the {@code maxTotal} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
+		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool, default value is 8
 		 * @return Builder itself
 		 */
 		public Builder setMaxTotal(int maxTotal) {
@@ -264,7 +265,7 @@ public class JedisSentinelConfig implements Serializable {
 		 * Sets value for the {@code maxIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxIdle the cap on the number of "idle" instances in the pool
+		 * @param maxIdle the cap on the number of "idle" instances in the pool, default value is 8
 		 * @return Builder itself
 		 */
 		public Builder setMaxIdle(int maxIdle) {
@@ -276,7 +277,7 @@ public class JedisSentinelConfig implements Serializable {
 		 * Sets value for the {@code minIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param minIdle the minimum number of idle objects to maintain in the pool
+		 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
 		 * @return Builder itself
 		 */
 		public Builder setMinIdle(int minIdle) {

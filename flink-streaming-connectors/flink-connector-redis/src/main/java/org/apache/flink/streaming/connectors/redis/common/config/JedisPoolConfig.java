@@ -16,8 +16,8 @@
  */
 package org.apache.flink.streaming.connectors.redis.common.config;
 
-import com.google.common.base.Preconditions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.Protocol;
 
 import java.io.Serializable;
@@ -39,18 +39,19 @@ public class JedisPoolConfig implements Serializable {
 	private int minIdle;
 
 	/**
+	 * Jedis pool configuration.
 	 * The host is mandatory, and when host is not set, it throws NullPointerException.
 	 *
-	 * @param host host hostname or IP
-	 * @param port port port
-	 * @param timeout timeout socket / connection timeout
-	 * @param password password password, if any
-	 * @param database database database index
-	 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
-	 * @param maxIdle the cap on the number of "idle" instances in the pool
-     * @param minIdle the minimum number of idle objects to maintain in the pool
-	 * @throws NullPointerException if do not see host
-     */
+	 * @param host hostname or IP
+	 * @param port port, default value is 6379
+	 * @param timeout socket / connection timeout, default value is 2000 milli second
+	 * @param password password, if any
+	 * @param database database index
+	 * @param maxTotal the maximum number of objects that can be allocated by the pool, default value is 8
+	 * @param maxIdle the cap on the number of "idle" instances in the pool, default value is 8
+	 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
+	 * @throws NullPointerException if parameter {@code host} is {@code null}
+	 */
 	private JedisPoolConfig(String host, int port, int timeout, String password, int database,
 							int maxTotal, int maxIdle, int minIdle) {
 		Preconditions.checkNotNull(host, "Host information should be presented");
@@ -146,7 +147,7 @@ public class JedisPoolConfig implements Serializable {
 	}
 
 	/**
-	 * Builder for initializing JedisPoolConfig.
+	 * Builder for initializing  {@link JedisPoolConfig}.
 	 */
 	public static class Builder {
 		private String host;
@@ -162,7 +163,7 @@ public class JedisPoolConfig implements Serializable {
 		 * Sets value for the {@code maxTotal} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
+		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool, default value is 8
          * @return Builder itself
          */
 		public Builder setMaxTotal(int maxTotal) {
@@ -174,7 +175,7 @@ public class JedisPoolConfig implements Serializable {
 		 * Sets value for the {@code maxIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxIdle the cap on the number of "idle" instances in the pool
+		 * @param maxIdle the cap on the number of "idle" instances in the pool, default value is 8
          * @return Builder itself
          */
 		public Builder setMaxIdle(int maxIdle) {
@@ -186,7 +187,7 @@ public class JedisPoolConfig implements Serializable {
 		 * Sets value for the {@code minIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param minIdle the minimum number of idle objects to maintain in the pool
+		 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
          * @return Builder itself
          */
 		public Builder setMinIdle(int minIdle) {
@@ -208,7 +209,7 @@ public class JedisPoolConfig implements Serializable {
 		/**
 		 * Sets port.
 		 *
-		 * @param port port
+		 * @param port port, default value is 6379
 		 * @return Builder itself
 		 */
 		public Builder setPort(int port) {
@@ -219,7 +220,7 @@ public class JedisPoolConfig implements Serializable {
 		/**
 		 * Sets timeout.
 		 *
-		 * @param timeout timeout
+		 * @param timeout timeout, default value is 2000
 		 * @return Builder itself
 		 */
 		public Builder setTimeout(int timeout) {
@@ -230,7 +231,7 @@ public class JedisPoolConfig implements Serializable {
 		/**
 		 * Sets database index.
 		 *
-		 * @param database database index
+		 * @param database database index, default value is 0
 		 * @return Builder itself
 		 */
 		public Builder setDatabase(int database) {

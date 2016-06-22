@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.connectors.redis.common.config;
 
-import com.google.common.base.Preconditions;
-
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.flink.util.Preconditions;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Protocol;
 
@@ -42,15 +41,16 @@ public class JedisClusterConfig implements Serializable {
 	private int minIdle;
 
 	/**
+	 * Jedis cluster configuration.
 	 * The list of node is mandatory, and when nodes is not set, it throws NullPointerException.
 	 *
-	 * @param nodes nodes list of node information for JedisCluster
-	 * @param timeout timeout socket / connection timeout
-	 * @param maxRedirections maxRedirections limit of redirections - how much we'll follow MOVED or ASK
+	 * @param nodes list of node information for JedisCluster
+	 * @param timeout socket / connection timeout. The default is 2000
+	 * @param maxRedirections limit of redirections-how much we'll follow MOVED or ASK
 	 * @param maxTotal the maximum number of objects that can be allocated by the pool
 	 * @param maxIdle the cap on the number of "idle" instances in the pool
-     * @param minIdle the minimum number of idle objects to maintain in the pool
-	 * @throws NullPointerException if nodes are null
+	 * @param minIdle the minimum number of idle objects to maintain in the pool
+	 * @throws NullPointerException if parameter {@code nodes} is {@code null}
 	 */
 	private JedisClusterConfig(Set<InetSocketAddress> nodes, int timeout, int maxRedirections,
 								int maxTotal, int maxIdle, int minIdle) {
@@ -134,7 +134,7 @@ public class JedisClusterConfig implements Serializable {
 
 
 	/**
-	 * Builder for initializing JedisClusterConfig.
+	 * Builder for initializing  {@link JedisClusterConfig}.
 	 */
 	public static class Builder {
 		private Set<InetSocketAddress> nodes;
@@ -158,7 +158,7 @@ public class JedisClusterConfig implements Serializable {
 		/**
 		 * Sets socket / connection timeout.
 		 *
-		 * @param timeout socket / connection timeout
+		 * @param timeout socket / connection timeout, default value is 2000
 		 * @return Builder itself
 		 */
 		public Builder setTimeout(int timeout) {
@@ -169,7 +169,7 @@ public class JedisClusterConfig implements Serializable {
 		/**
 		 * Sets limit of redirection.
 		 *
-		 * @param maxRedirections limit of redirection
+		 * @param maxRedirections limit of redirection, default value is 5
 		 * @return Builder itself
 		 */
 		public Builder setMaxRedirections(int maxRedirections) {
@@ -181,7 +181,7 @@ public class JedisClusterConfig implements Serializable {
 		 * Sets value for the {@code maxTotal} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool
+		 * @param maxTotal maxTotal the maximum number of objects that can be allocated by the pool, default value is 8
 		 * @return Builder itself
 		 */
 		public Builder setMaxTotal(int maxTotal) {
@@ -193,7 +193,7 @@ public class JedisClusterConfig implements Serializable {
 		 * Sets value for the {@code maxIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param maxIdle the cap on the number of "idle" instances in the pool
+		 * @param maxIdle the cap on the number of "idle" instances in the pool, default value is 8
 		 * @return Builder itself
 		 */
 		public Builder setMaxIdle(int maxIdle) {
@@ -205,7 +205,7 @@ public class JedisClusterConfig implements Serializable {
 		 * Sets value for the {@code minIdle} configuration attribute
 		 * for pools to be created with this configuration instance.
 		 *
-		 * @param minIdle the minimum number of idle objects to maintain in the pool
+		 * @param minIdle the minimum number of idle objects to maintain in the pool, default value is 0
 		 * @return Builder itself
 		 */
 		public Builder setMinIdle(int minIdle) {
