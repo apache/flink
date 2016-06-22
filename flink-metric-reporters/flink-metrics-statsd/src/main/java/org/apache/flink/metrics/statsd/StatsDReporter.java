@@ -53,7 +53,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 //	public static final String ARG_CONVERSION_RATE = "rateConversion";
 //	public static final String ARG_CONVERSION_DURATION = "durationConversion";
 
-	private boolean cancel = false;
+	private boolean closed = false;
 
 	private DatagramSocket socket;
 	private InetSocketAddress address;
@@ -83,7 +83,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public void close() {
-		cancel = true;
+		closed = true;
 		if (socket != null && !socket.isClosed()) {
 			socket.close();
 		}
@@ -98,14 +98,14 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		// operator creation and shutdown
 		try {
 			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
-				if (cancel) {
+				if (closed) {
 					return;
 				}
 				reportGauge(entry.getValue(), entry.getKey());
 			}
 
 			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
-				if (cancel) {
+				if (closed) {
 					return;
 				}
 				reportCounter(entry.getValue(), entry.getKey());

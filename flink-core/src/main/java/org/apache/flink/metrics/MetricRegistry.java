@@ -92,8 +92,7 @@ public class MetricRegistry {
 		}
 		else {
 			MetricReporter reporter;
-			ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-			
+			ScheduledExecutorService executor = null;
 			try {
 				String configuredPeriod = config.getString(KEY_METRICS_REPORTER_INTERVAL, null);
 				TimeUnit timeunit = TimeUnit.SECONDS;
@@ -119,17 +118,18 @@ public class MetricRegistry {
 				reporter.open(reporterConfig);
 
 				if (reporter instanceof Scheduled) {
+					executor = Executors.newSingleThreadScheduledExecutor();
 					LOG.info("Periodically reporting metrics in intervals of {} {}", period, timeunit.name());
 					
 					executor.scheduleWithFixedDelay(new ReporterTask((Scheduled) reporter), period, period, timeunit);
 				}
-				else {
-					executor = null;
-				}
 			}
 			catch (Throwable t) {
 				reporter = new JMXReporter();
-				executor = null;
+				if (executor != null) {
+					executor.shutdownNow();
+					executor = null;
+				}
 				LOG.error("Could not instantiate custom metrics reporter. Defaulting to JMX metrics export.", t);
 			}
 
