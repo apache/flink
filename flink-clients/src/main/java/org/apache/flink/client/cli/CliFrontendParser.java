@@ -75,7 +75,7 @@ public class CliFrontendParser {
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
 			"Disposes an existing savepoint.");
 
-	static final Option CONFIGURATION_OPTION = new Option("D", "configDir", true,
+	static final Option CONFIGDIR_OPTION = new Option("D", "configDir", true,
 			"The configuration directory with which to run the program.");
 
 	// list specific options
@@ -119,8 +119,8 @@ public class CliFrontendParser {
 		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
 		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 
-		CONFIGURATION_OPTION.setRequired(false);
-		CONFIGURATION_OPTION.setArgName("/path/to/configuration/directory");
+		CONFIGDIR_OPTION.setRequired(false);
+		CONFIGDIR_OPTION.setArgName("/path/to/configuration/directory");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
@@ -150,7 +150,7 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(CONFIGURATION_OPTION);
+		options.addOption(CONFIGDIR_OPTION);
 		return options;
 	}
 
@@ -161,7 +161,7 @@ public class CliFrontendParser {
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(CONFIGURATION_OPTION);
+		options.addOption(CONFIGDIR_OPTION);
 		return options;
 	}
 

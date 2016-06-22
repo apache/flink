@@ -17,6 +17,20 @@
 # limitations under the License.
 ################################################################################
 
+function abspath() {
+    if [ -d "$1" ]; then
+        # dir
+        (cd "$1"; pwd)
+    elif [ -f "$1" ]; then
+        # file
+        if [[ $1 == */* ]]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    fi
+}
+
 target="$0"
 # For the case, the executable has been directly symlinked, figure out
 # the correct bin path by following its symlink up to an upper bound.
@@ -33,13 +47,14 @@ while [ -L "$target" ]; do
     iteration=$((iteration + 1))
 done
 
+
 #Search --configDir into the parameters and set it as FLINK_CONF_DIR
 args=("$@")
 for i in "${!args[@]}"; do
-    if [ ${args[$i]} = "--configDir" ]; then
+    if [[ ${args[$i]} = "--configDir" || ${args[$i]} = "-D" ]]; then
         dir=${args[$(($i+1))]}
         if [ -d "$dir" ]; then
-            FLINK_CONF_DIR=${dir}
+            FLINK_CONF_DIR= abspath ${dir}
         else
             echo "ERROR: --configDir is not a directory"
             exit 1
@@ -68,3 +83,4 @@ export FLINK_CONF_DIR
 
 # Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
 $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.CliFrontend "$@"
+
