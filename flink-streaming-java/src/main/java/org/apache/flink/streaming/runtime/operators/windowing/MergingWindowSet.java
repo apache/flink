@@ -41,8 +41,8 @@ import java.util.Map;
  * {@link #getStateWindow(Window)}.
  *
  * <p>A new window can be added to the set of in-flight windows using
- * {@link #addWindow(Window, MergeFunction)}, this might merge other windows and the caller
- * must react accordingly in {@link MergeFunction#merge(Object, Collection, Object, Collection)
+ * {@link #addWindow(Window, MergeFunction)}. This might merge other windows and the caller
+ * must react accordingly in the {@link MergeFunction#merge(Object, Collection, Object, Collection)
  * and adjust the outside view of windows and state.
  *
  * <p>Windows can be removed from the set of windows using {@link #retireWindow(Window)}.
@@ -70,7 +70,6 @@ public class MergingWindowSet<W extends Window> {
 	 */
 	public MergingWindowSet(MergingWindowAssigner<?, W> windowAssigner) {
 		this.windowAssigner = windowAssigner;
-
 		windows = new HashMap<>();
 	}
 
@@ -127,12 +126,12 @@ public class MergingWindowSet<W extends Window> {
 	 * {@link MergeFunction} is called.
 	 *
 	 * <p>This returns the window that is the representative of the added window after adding.
-	 * This can either be the new window itself, if no merge occured, or the newly merged
+	 * This can either be the new window itself, if no merge occurred, or the newly merged
 	 * window. Adding an element to a window or calling trigger functions should only
 	 * happen on the returned representative. This way, we never have to deal with a new window
 	 * that is immediately swallowed up by another window.
 	 *
-	 * <p>If the new window is merged the {@code MergeFunction} callback arguments also don't
+	 * <p>If the new window is merged, the {@code MergeFunction} callback arguments also don't
 	 * contain the new window as part of the list of merged windows.
 	 *
 	 * @param newWindow The new {@code Window} to add.
