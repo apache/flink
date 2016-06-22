@@ -1004,7 +1004,8 @@ public class CliFrontend {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		try {
-			CliFrontend cli = new CliFrontend();
+			String configDirPath = CliFrontendParser.parseRunCommand(args).getConfigDir();
+			CliFrontend cli = configDirPath == null ? new CliFrontend() : new CliFrontend(configDirPath);
 			int retCode = cli.parseParameters(args);
 			System.exit(retCode);
 		}
