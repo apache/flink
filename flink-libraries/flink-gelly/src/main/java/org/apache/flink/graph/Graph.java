@@ -407,6 +407,79 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
+	 * Creates a graph from a Adjacency List text file  with Vertex Key values. Edges will be created automatically.
+	 *
+	 * @param filePath a path to an Adjacency List text file with the Vertex data
+	 * @param context  the execution environment.
+	 * @return An instance of {@link org.apache.flink.graph.GraphAdjacencyListReader},
+	 * on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
+	 */
+	public static GraphAdjacencyListReader fromAdjacencyListFile(String filePath, ExecutionEnvironment context) {
+		return new GraphAdjacencyListReader(filePath, context);
+	}
+
+	/**
+	 * Writes a graph as an Adjacency List formatted text file in a user specified folder.
+	 *
+	 * @param filePath   the path that the Adjacency List formatted text file should be written in
+	 * @param delimiters the delimiters that separate the different value types in the Adjacency List formatted text
+	 *                   file. Delimiters should be provided with the following order:
+	 *                   NEIGHBOR_DELIMITER : separating source from its neighbors
+	 *                   VERTICES_DELIMITER : separating the different neighbors of a source vertex
+	 *                   VERTEX_VALUE_DELIMITER: separating the source vertex-id from the vertex value, as well as the
+	 *                   target vertex-ids from the edge value.
+	 */
+	public void writeAsAdjacencyList(String filePath, String... delimiters) {
+
+		final String NEIGHBOR_DELIMITER = delimiters.length > 0 ? delimiters[0] : "\t";
+
+		final String VERTICES_DELIMITER = delimiters.length > 1 ? delimiters[1] : ",";
+
+		final String VERTEX_VALUE_DELIMITER = delimiters.length > 1 ? delimiters[2] : "-";
+
+
+		DataSet<Tuple2<K, VV>> vertices = this.getVerticesAsTuple2();
+
+		DataSet<Tuple3<K, K, EV>> edgesNValues = this.getEdgesAsTuple3();
+
+		DataSet<String> adjacencyList = vertices.coGroup(edgesNValues).where(0).equalTo(0).
+				with(new CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, String>() {
+					@Override
+					public void coGroup(Iterable<Tuple2<K, VV>> srcVertex, Iterable<Tuple3<K, K, EV>> edges,
+							Collector<String> out) throws Exception {
+
+						String adjacencyLine;
+						for (Tuple2<K, VV> src : srcVertex) {
+							String sourceValue = src.f1 instanceof NullValue ? "" : VERTEX_VALUE_DELIMITER + src.f1
+									.toString();
+							adjacencyLine = src.f0.toString() + sourceValue;
+
+							boolean hasEdges = false;
+
+							for (Tuple3<K, K, EV> e : edges) {
+								if (!hasEdges) {
+									adjacencyLine += NEIGHBOR_DELIMITER;
+								}
+								adjacencyLine += e.f1.toString();
+								adjacencyLine += e.f2 instanceof NullValue ? "" : VERTEX_VALUE_DELIMITER + e.f2
+										.toString() + VERTICES_DELIMITER;
+
+								hasEdges = true;
+							}
+							if (hasEdges) {
+								adjacencyLine = adjacencyLine.substring(0, adjacencyLine.length() - VERTICES_DELIMITER
+										.length());
+							}
+
+							out.collect(adjacencyLine);
+						}
+					}
+				});
+
+		adjacencyList.writeAsText(filePath);
+	}
+
+	/**
 	 * @return the flink execution environment.
 	 */
 	public ExecutionEnvironment getContext() {
@@ -1825,12 +1898,12 @@ public class Graph<K, VV, EV> {
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
-		case IN:
-			// create <edge-sourceVertex> pairs
+			case IN:
+				// create <edge-sourceVertex> pairs
 			DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
 					.join(this.vertices).where(0).equalTo(0);
-			return vertices.coGroup(edgesWithSources)
-					.where(0).equalTo("f0.f1")
+				return vertices.coGroup(edgesWithSources)
+						.where(0).equalTo("f0.f1")
 					.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction));
 		case OUT:
 			// create <edge-targetVertex> pairs
@@ -1909,7 +1982,7 @@ public class Graph<K, VV, EV> {
 	 * 
 	 * For each vertex, the neighborsFunction can iterate over all neighbors of this vertex
 	 * with the specified direction, and emit any number of output elements, including none.
-	 * 
+	 *
 	 * @param neighborsFunction the group reduce function to apply to the neighboring edges and vertices
 	 * of each vertex.
 	 * @param direction the edge direction (in-, out-, all-).
