@@ -2294,11 +2294,10 @@ object TaskManager {
   private def instantiateClassLoaderMetrics(metrics: MetricGroup) {
     val mxBean = ManagementFactory.getClassLoadingMXBean
 
-    metrics
-      .gauge("ClassesLoaded", new FlinkGauge[Long] {
+    metrics.gauge[Long, FlinkGauge[Long]]("ClassesLoaded", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getTotalLoadedClassCount
     })
-    metrics.gauge("ClassesUnloaded", new FlinkGauge[Long] {
+    metrics.gauge[Long, FlinkGauge[Long]]("ClassesUnloaded", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getUnloadedClassCount
     })
   }
@@ -2308,10 +2307,10 @@ object TaskManager {
 
     for (garbageCollector <- garbageCollectors) {
       val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
-      gcGroup.gauge("Count", new FlinkGauge[Long] {
+      gcGroup.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionCount
       })
-      gcGroup.gauge("Time", new FlinkGauge[Long] {
+      gcGroup.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
         override def getValue: Long = garbageCollector.getCollectionTime
       })
     }
@@ -2320,24 +2319,24 @@ object TaskManager {
   private def instantiateMemoryMetrics(metrics: MetricGroup) {
     val mxBean = ManagementFactory.getMemoryMXBean
     val heap = metrics.addGroup("Heap")
-    heap.gauge("Used", new FlinkGauge[Long] {
+    heap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
       override def getValue: Long = mxBean.getHeapMemoryUsage.getUsed
     })
-    heap.gauge("Committed", new FlinkGauge[Long] {
+    heap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
       })
-    heap.gauge("Max", new FlinkGauge[Long] {
+    heap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
       })
 
     val nonHeap = metrics.addGroup("NonHeap")
-    nonHeap.gauge("Used", new FlinkGauge[Long] {
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Used", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
       })
-    nonHeap.gauge("Committed", new FlinkGauge[Long] {
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Committed", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
       })
-    nonHeap.gauge("Max", new FlinkGauge[Long] {
+    nonHeap.gauge[Long, FlinkGauge[Long]]("Max", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
       })
 
@@ -2346,15 +2345,15 @@ object TaskManager {
     val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
 
     val direct = metrics.addGroup("Direct")
-    direct.gauge("Count", new FlinkGauge[Long] {
+    direct.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "Count").asInstanceOf[Long]
       })
-    direct.gauge("MemoryUsed", new FlinkGauge[Long] {
+    direct.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
       })
-    direct.gauge("TotalCapacity", new FlinkGauge[Long] {
+    direct.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
       })
@@ -2362,15 +2361,15 @@ object TaskManager {
     val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
 
     val mapped = metrics.addGroup("Mapped")
-    mapped.gauge("Count", new FlinkGauge[Long] {
+    mapped.gauge[Long, FlinkGauge[Long]]("Count", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
       })
-    mapped.gauge("MemoryUsed", new FlinkGauge[Long] {
+    mapped.gauge[Long, FlinkGauge[Long]]("MemoryUsed", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
       })
-    mapped.gauge("TotalCapacity", new FlinkGauge[Long] {
+    mapped.gauge[Long, FlinkGauge[Long]]("TotalCapacity", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
       })
@@ -2379,8 +2378,7 @@ object TaskManager {
   private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {
     val mxBean = ManagementFactory.getThreadMXBean
 
-    metrics
-      .gauge("Count", new FlinkGauge[Int] {
+    metrics.gauge[Int, FlinkGauge[Int]]("Count", new FlinkGauge[Int] {
       override def getValue: Int = mxBean.getThreadCount
     })
   }
@@ -2390,11 +2388,10 @@ object TaskManager {
       val mxBean = ManagementFactory.getOperatingSystemMXBean
         .asInstanceOf[com.sun.management.OperatingSystemMXBean]
 
-      metrics
-        .gauge("Load", new FlinkGauge[Double] {
+      metrics.gauge[Double, FlinkGauge[Double]]("Load", new FlinkGauge[Double] {
           override def getValue: Double = mxBean.getProcessCpuLoad
         })
-      metrics.gauge("Time", new FlinkGauge[Long] {
+      metrics.gauge[Long, FlinkGauge[Long]]("Time", new FlinkGauge[Long] {
           override def getValue: Long = mxBean.getProcessCpuTime
         })
     }

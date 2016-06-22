@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
+import org.apache.flink.metrics.SimpleCounter;
 
 import org.apache.flink.metrics.groups.scope.ScopeFormat;
 import org.slf4j.Logger;
@@ -146,18 +147,27 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 
 	@Override
 	public Counter counter(String name) {
-		Counter counter = new Counter();
+		return counter(name, new SimpleCounter());
+	}
+	
+	@Override
+	public <C extends Counter> C counter(int name, C counter) {
+		return counter(String.valueOf(name), counter);
+	}
+
+	@Override
+	public <C extends Counter> C counter(String name, C counter) {
 		addMetric(name, counter);
 		return counter;
 	}
 
 	@Override
-	public <T> Gauge<T> gauge(int name, Gauge<T> gauge) {
+	public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
 		return gauge(String.valueOf(name), gauge);
 	}
 
 	@Override
-	public <T> Gauge<T> gauge(String name, Gauge<T> gauge) {
+	public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
 		addMetric(name, gauge);
 		return gauge;
 	}
