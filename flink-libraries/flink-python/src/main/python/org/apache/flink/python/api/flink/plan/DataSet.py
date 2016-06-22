@@ -200,7 +200,7 @@ class DataSet(object):
         :param field: The index of the Tuple field on which to perform the function.
         :return: A GroupReduceOperator that represents the aggregated DataSet.
         """
-        child_set = self.reduce_group(aggregation(field), combinable=True)
+        child_set = self.reduce_group(AggregationFunction(aggregation, field), combinable=True)
         child_set._info.name = "PythonAggregate"
         return child_set
 
