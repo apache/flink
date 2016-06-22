@@ -142,6 +142,32 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Specifies a filter condition if fulfilled by an event will match.
+    *
+    * @param filter Filter condition
+    * @return The same pattern operator where the new filter condition is set
+    */
+  def or(filter: FilterFunction[F]): Pattern[T, F] = {
+    jPattern.or(filter)
+    this
+  }
+
+  /**
+    * Specifies a filter condition if fulfilled by an event will match.
+    *
+    * @param filterFun Filter condition
+    * @return The same pattern operator where the new filter condition is set
+    */
+  def or(filterFun: F => Boolean): Pattern[T, F] = {
+    val filter = new FilterFunction[F] {
+      val cleanFilter = cep.scala.cleanClosure(filterFun)
+
+      override def filter(value: F): Boolean = cleanFilter(value)
+    }
+    or(filter)
+  }
+
+  /**
     *
     * @return The previous pattern operator
     */
