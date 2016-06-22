@@ -30,8 +30,8 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Serializer for {@link StreamRecord} and {@link Watermark}. This does not behave like a normal
- * {@link TypeSerializer}, instead, this is only used at the stream task/opertator level for
- * transmitting StreamRecords} and Watermarks.
+ * {@link TypeSerializer}, instead, this is only used at the stream task/operator level for
+ * transmitting StreamRecords and Watermarks.
  *
  * @param <T> The type of value in the StreamRecord
  */

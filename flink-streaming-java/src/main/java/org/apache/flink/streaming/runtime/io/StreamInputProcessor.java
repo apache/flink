@@ -76,8 +76,6 @@ public class StreamInputProcessor<IN> {
 
 	private boolean isFinished;
 
-
-
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
 
@@ -101,7 +99,7 @@ public class StreamInputProcessor<IN> {
 			this.barrierHandler = new BarrierTracker(inputGate);
 		}
 		else {
-			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
+			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
 		
 		if (checkpointListener != null) {
