@@ -45,8 +45,8 @@ extends AsmTestBase {
 				.setSortTriangleVertices(true));
 
 		String expectedResult =
-			"(0,1,2,21)\n" +
-			"(1,2,3,21)";
+			"(0,1,2,22)\n" +
+			"(1,2,3,41)";
 
 		TestBaseUtils.compareResultAsText(tl.collect(), expectedResult);
 	}

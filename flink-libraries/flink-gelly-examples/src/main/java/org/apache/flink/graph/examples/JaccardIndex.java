@@ -162,6 +162,7 @@ public class JaccardIndex {
 
 				env.execute();
 				break;
+
 			default:
 				printUsage();
 				return;

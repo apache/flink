@@ -76,12 +76,10 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> cc = undirectedRMatGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
-
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(cc);
+		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(undirectedRMatGraph
+			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>()));
 
 		assertEquals(902, checksum.getCount());
-		assertEquals(0x000001b08e783277L, checksum.getChecksum());
+		assertEquals(0x000001cab2d3677bL, checksum.getChecksum());
 	}
 }

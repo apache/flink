@@ -195,9 +195,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
-		/**
-		 * The no-arg constructor instantiates contained objects.
-		 */
 		public Result() {
 			f1 = new Tuple2<>();
 		}

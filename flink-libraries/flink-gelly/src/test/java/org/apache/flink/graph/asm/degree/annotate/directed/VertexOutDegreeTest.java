@@ -43,11 +43,11 @@ extends AsmTestBase {
 
 		String expectedResult =
 			"(0,2)\n" +
-			"(1,2)\n" +
-			"(2,1)\n" +
+			"(1,0)\n" +
+			"(2,2)\n" +
 			"(3,2)\n" +
 			"(4,0)\n" +
-			"(5,0)";
+			"(5,1)";
 
 		TestBaseUtils.compareResultAsText(vertexDegrees.collect(), expectedResult);
 	}

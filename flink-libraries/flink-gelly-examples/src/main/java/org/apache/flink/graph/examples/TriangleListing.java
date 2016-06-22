@@ -61,8 +61,8 @@ public class TriangleListing {
 	private static void printUsage() {
 		System.out.println(WordUtils.wrap("Lists all triangles in a graph.", 80));
 		System.out.println();
-		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the triangle vertex IDs and for" +
-			" directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
+		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex IDs for each triangle and" +
+			" for directed graphs a bitmask indicating the presence of the six potential connecting edges.", 80));
 		System.out.println();
 		System.out.println("usage: TriangleListing --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();

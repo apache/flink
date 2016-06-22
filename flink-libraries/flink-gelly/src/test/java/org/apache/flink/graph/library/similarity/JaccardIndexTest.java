@@ -132,6 +132,6 @@ extends AsmTestBase {
 		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ji);
 
 		assertEquals(13954, checksum.getCount());
-		assertEquals(0x0000179f83a2a873L, checksum.getChecksum());
+		assertEquals(0x00001b1a1f7a9d0bL, checksum.getChecksum());
 	}
 }

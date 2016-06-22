@@ -103,6 +103,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 	 *
 	 * ProjectTriangles should eventually be replaced by ".projectFirst("*")"
 	 *   when projections use code generation.
+	 *
+	 * TriadicCensus requires knowledge of edge direction as implemented here.
+	 *   LocalClusteringCoefficient only needs the edge count between vertices
+	 *   (numeric or boolean) and GlobalClusteringCoefficient only needs the total
+	 *   edge count in the triangle. We may see worthwhile performance improvements
+	  *  from optimized implementations.
 	 */
 
 	@Override
@@ -142,7 +148,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 				.setParallelism(littleParallelism)
 				.name("Generate triplets");
 
-		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph
+		// u, v, w, bitmask where (u, v), (u, w), and (v, w) are edges in graph
 		DataSet<Result<K>> triangles = triplets
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
@@ -194,7 +200,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 	}
 
 	/**
-	 * Collapse edge bitmasks to a single value using the bitwise-or operation.
+	 * Collapse bitmasks to a single value using bitwise-or.
 	 *
 	 * @param <T> ID type
 	 */
@@ -317,7 +323,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 	}
 
 	/**
-	 * Simply project the triplet as a triangle.
+	 * Simply project the triplet as a triangle while collapsing triplet and edge bitmasks.
 	 *
 	 * @param <T> ID type
 	 */
@@ -328,12 +334,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 		private Result<T> output = new Result<>(null, null, null, new ByteValue());
 
 		@Override
-		public Result<T> join(Tuple4<T, T, T, ByteValue> first, Tuple3<T, T, ByteValue> second)
+		public Result<T> join(Tuple4<T, T, T, ByteValue> triplet, Tuple3<T, T, ByteValue> edge)
 				throws Exception {
-			output.f0 = first.f0;
-			output.f1 = first.f1;
-			output.f2 = first.f2;
-			output.f3.setValue((byte)(first.f3.getValue() | second.f2.getValue()));
+			output.f0 = triplet.f0;
+			output.f1 = triplet.f1;
+			output.f2 = triplet.f2;
+			output.f3.setValue((byte)(triplet.f3.getValue() | edge.f2.getValue()));
 			return output;
 		}
 	}
@@ -356,7 +362,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 				T temp_val = value.f0;
 				value.f0 = value.f1;
 
-				if (temp_val.compareTo(value.f2) <= 0) {
+				if (temp_val.compareTo(value.f2) < 0) {
 					value.f1 = temp_val;
 
 					int f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
@@ -415,7 +421,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 			return "1st vertex ID: " + f0
 				+ ", 2nd vertex ID: " + f1
 				+ ", 3rd vertex ID: " + f2
-				+ ", edge direction: " + f0 + maskToString(bitmask, 4) + f1
+				+ ", edge directions: " + f0 + maskToString(bitmask, 4) + f1
 				+ ", " + f0 + maskToString(bitmask, 2) + f2
 				+ ", " + f1 + maskToString(bitmask, 0) + f2;
 		}
@@ -432,7 +438,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 					// EdgeOrder.MUTUAL
 					return "<->";
 				default:
-					throw new IllegalArgumentException("Bitmask does not contain an edge (mask = "
+					throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
 						+ mask + ", shift = " + shift);
 			}
 		}

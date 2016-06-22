@@ -88,13 +88,13 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	@Override
 	public DataSet<Result<K>> run(Graph<K, VV, EV> input)
 			throws Exception {
-		// u, v, w
+		// u, v, w, bitmask
 		DataSet<TriangleListing.Result<K>> triangles = input
 			.run(new TriangleListing<K,VV,EV>()
 				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
-		// u
+		// u, edge count
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
 			.flatMap(new SplitTriangles<K>())
 				.name("Split triangle vertices");
@@ -111,7 +111,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 				.setParallelism(littleParallelism)
 				.setIncludeZeroDegreeVertices(true));
 
-		// u, deg(u), neighbor edge count
+		// u, deg(u), triangle count
 		return vertexDegree
 			.leftOuterJoin(vertexTriangleCount)
 			.where(0)
@@ -200,7 +200,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	public static class Result<T>
 	extends Vertex<T, Tuple2<LongValue, LongValue>> {
-		public static final int HASH_SEED = 0xc23937c1;
+		public static final int HASH_SEED = 0x37a208c4;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
