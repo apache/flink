@@ -18,18 +18,6 @@
 ################################################################################
 
 target="$0"
-
-
-
-#Search --configDir into the parameters and set it as FLINK_CONF_DIR
-args=("$@")
-for i in "${!args[@]}"; do
-    if [ ${args[$i]} = "--configDir" ]; then
-        FLINK_CONF_DIR=${args[$(($i+1))]}
-        break
-    fi
-done
-
 # For the case, the executable has been directly symlinked, figure out
 # the correct bin path by following its symlink up to an upper bound.
 # Note: we can't use the readlink utility here if we want to be POSIX
@@ -43,6 +31,21 @@ while [ -L "$target" ]; do
     ls=`ls -ld -- "$target"`
     target=`expr "$ls" : '.* -> \(.*\)$'`
     iteration=$((iteration + 1))
+done
+
+#Search --configDir into the parameters and set it as FLINK_CONF_DIR
+args=("$@")
+for i in "${!args[@]}"; do
+    if [ ${args[$i]} = "--configDir" ]; then
+        dir=${args[$(($i+1))]}
+        if [ -d "$dir" ]; then
+            FLINK_CONF_DIR=${dir}
+        else
+            echo "ERROR: --configDir is not a directory"
+            exit 1
+        fi
+        break
+    fi
 done
 
 # Convert relative path to absolute path
