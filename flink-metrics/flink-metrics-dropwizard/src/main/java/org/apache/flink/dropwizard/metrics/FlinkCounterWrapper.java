@@ -19,10 +19,10 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Counter;
 
-public class CounterWrapper extends com.codahale.metrics.Counter {
+public class FlinkCounterWrapper extends com.codahale.metrics.Counter {
 	private final Counter counter;
 
-	public CounterWrapper(Counter counter) {
+	public FlinkCounterWrapper(Counter counter) {
 		this.counter = counter;
 	}
 

@@ -20,7 +20,6 @@ package org.apache.flink.dropwizard.metrics;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
@@ -51,8 +50,7 @@ import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_INTER
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-
-public class DropwizardHistogramWrapperTest extends TestLogger {
+public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 	/**
 	 * Tests the histogram functionality of the DropwizardHistogramWrapper.
@@ -60,7 +58,8 @@ public class DropwizardHistogramWrapperTest extends TestLogger {
 	@Test
 	public void testDropwizardHistogramWrapper() {
 		int size = 10;
-		DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(new Histogram(new SlidingWindowReservoir(size)));
+		DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(
+			new com.codahale.metrics.Histogram(new SlidingWindowReservoir(size)));
 
 		for (int i = 0; i < size; i++) {
 			histogramWrapper.update(i);
@@ -103,11 +102,12 @@ public class DropwizardHistogramWrapperTest extends TestLogger {
 
 		try {
 			registry = new MetricRegistry(config);
-			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(new Histogram(new SlidingWindowReservoir(size)));
+			DropwizardHistogramWrapper histogramWrapper = new DropwizardHistogramWrapper(
+				new com.codahale.metrics.Histogram(new SlidingWindowReservoir(size)));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
-			registry.register(histogramWrapper, histogramMetricName, metricGroup);
+			metricGroup.histogram(histogramMetricName, histogramWrapper);
 
 			String fullMetricName = metricGroup.getScopeString() + "." + histogramMetricName;
 
@@ -179,13 +179,13 @@ public class DropwizardHistogramWrapperTest extends TestLogger {
 		}
 
 		@Override
-		public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters, SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
-			for (Map.Entry<String, Histogram> entry: histograms.entrySet()) {
+		public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters, SortedMap<String, com.codahale.metrics.Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
+			for (Map.Entry<String, com.codahale.metrics.Histogram> entry: histograms.entrySet()) {
 				reportHistogram(entry.getKey(), entry.getValue());
 			}
 		}
 
-		void reportHistogram(String name, Histogram histogram) {
+		void reportHistogram(String name, com.codahale.metrics.Histogram histogram) {
 			histogramSnapshots.put(name, histogram.getSnapshot());
 
 			synchronized (histogramSnapshotFutures) {

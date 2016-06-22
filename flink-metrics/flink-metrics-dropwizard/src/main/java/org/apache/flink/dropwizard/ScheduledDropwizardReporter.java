@@ -24,10 +24,10 @@ import com.codahale.metrics.ScheduledReporter;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.dropwizard.metrics.CounterWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkCounterWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
-import org.apache.flink.dropwizard.metrics.GaugeWrapper;
-import org.apache.flink.dropwizard.metrics.HistogramWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkGaugeWrapper;
+import org.apache.flink.dropwizard.metrics.FlinkHistogramWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -98,11 +98,11 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 		synchronized (this) {
 			if (metric instanceof Counter) {
 				counters.put((Counter) metric, fullName);
-				registry.register(fullName, new CounterWrapper((Counter) metric));
+				registry.register(fullName, new FlinkCounterWrapper((Counter) metric));
 			}
 			else if (metric instanceof Gauge) {
 				gauges.put((Gauge<?>) metric, fullName);
-				registry.register(fullName, GaugeWrapper.fromGauge((Gauge<?>) metric));
+				registry.register(fullName, FlinkGaugeWrapper.fromGauge((Gauge<?>) metric));
 			} else if (metric instanceof Histogram) {
 				Histogram histogram = (Histogram) metric;
 				histograms.put(histogram, fullName);
@@ -110,7 +110,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 				if (histogram instanceof DropwizardHistogramWrapper) {
 					registry.register(fullName, ((DropwizardHistogramWrapper) histogram).getDropwizarHistogram());
 				} else {
-					registry.register(fullName, new HistogramWrapper(histogram));
+					registry.register(fullName, new FlinkHistogramWrapper(histogram));
 				}
 			} else {
 				log.warn("Cannot add metric of type {}. This indicates that the reporter " +

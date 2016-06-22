@@ -26,16 +26,10 @@ import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.IntrospectionException;
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanException;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.ReflectionException;
 import java.lang.management.ManagementFactory;
 
 import static org.junit.Assert.*;
@@ -74,7 +68,7 @@ public class JMXReporterTest extends TestLogger {
 	 * Tests that histograms are properly reported via the JMXReporter.
 	 */
 	@Test
-	public void testHistogramReporting() throws MalformedObjectNameException, IntrospectionException, InstanceNotFoundException, ReflectionException, AttributeNotFoundException, MBeanException {
+	public void testHistogramReporting() throws Exception {
 		MetricRegistry registry = null;
 		String histogramName = "histogram";
 
@@ -87,7 +81,7 @@ public class JMXReporterTest extends TestLogger {
 
 			TestingHistogram histogram = new TestingHistogram();
 
-			registry.register(histogram, histogramName, metricGroup);
+			metricGroup.histogram(histogramName, histogram);
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
@@ -99,19 +93,18 @@ public class JMXReporterTest extends TestLogger {
 
 			assertEquals(11, attributeInfos.length);
 
-			for (MBeanAttributeInfo attributeInfo : attributeInfos) {
-				Object attribute = mBeanServer.getAttribute(objectName, attributeInfo.getName());
+			assertEquals(histogram.getCount(), mBeanServer.getAttribute(objectName, "Count"));
+			assertEquals(histogram.getStatistics().getMean(), mBeanServer.getAttribute(objectName, "Mean"));
+			assertEquals(histogram.getStatistics().getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
+			assertEquals(histogram.getStatistics().getMax(), mBeanServer.getAttribute(objectName, "Max"));
+			assertEquals(histogram.getStatistics().getMin(), mBeanServer.getAttribute(objectName, "Min"));
+			assertEquals(histogram.getStatistics().getMedian(), mBeanServer.getAttribute(objectName, "Median"));
+			assertEquals(histogram.getStatistics().get75thPercentile(), mBeanServer.getAttribute(objectName, "75thPercentile"));
+			assertEquals(histogram.getStatistics().get95thPercentile(), mBeanServer.getAttribute(objectName, "95thPercentile"));
+			assertEquals(histogram.getStatistics().get98thPercentile(), mBeanServer.getAttribute(objectName, "98thPercentile"));
+			assertEquals(histogram.getStatistics().get99thPercentile(), mBeanServer.getAttribute(objectName, "99thPercentile"));
+			assertEquals(histogram.getStatistics().get999thPercentile(), mBeanServer.getAttribute(objectName, "999thPercentile"));
 
-				assertNotNull(attribute);
-
-				if (attributeInfo.getType().equals("long")) {
-					assertEquals(42L, attribute);
-				} else if (attributeInfo.getType().equals("double")) {
-					assertEquals(42.0, attribute);
-				} else {
-					fail("Could not convert into type " + attributeInfo.getType());
-				}
-			}
 		} finally {
 			if (registry != null) {
 				registry.shutdown();
@@ -128,7 +121,7 @@ public class JMXReporterTest extends TestLogger {
 
 		@Override
 		public long getCount() {
-			return 42;
+			return 1;
 		}
 
 		@Override
@@ -136,7 +129,7 @@ public class JMXReporterTest extends TestLogger {
 			return new HistogramStatistics() {
 				@Override
 				public double getValue(double quantile) {
-					return 42;
+					return 2;
 				}
 
 				@Override
@@ -146,27 +139,52 @@ public class JMXReporterTest extends TestLogger {
 
 				@Override
 				public int size() {
-					return 42;
+					return 3;
 				}
 
 				@Override
 				public double getMean() {
-					return 42;
+					return 4;
 				}
 
 				@Override
 				public double getStdDev() {
-					return 42;
+					return 5;
 				}
 
 				@Override
 				public long getMax() {
-					return 42;
+					return 6;
 				}
 
 				@Override
 				public long getMin() {
-					return 42;
+					return 7;
+				}
+
+				@Override
+				public double get75thPercentile() {
+					return 8;
+				}
+
+				@Override
+				public double get95thPercentile() {
+					return 9;
+				}
+
+				@Override
+				public double get98thPercentile() {
+					return 9;
+				}
+
+				@Override
+				public double get99thPercentile() {
+					return 10;
+				}
+
+				@Override
+				public double get999thPercentile() {
+					return 11;
 				}
 			};
 		}

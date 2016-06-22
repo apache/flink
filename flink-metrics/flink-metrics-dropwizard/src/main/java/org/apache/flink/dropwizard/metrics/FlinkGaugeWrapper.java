@@ -20,11 +20,11 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Gauge;
 
-public class GaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
+public class FlinkGaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
 	
 	private final Gauge<T> gauge;
 
-	public GaugeWrapper(Gauge<T> gauge) {
+	public FlinkGaugeWrapper(Gauge<T> gauge) {
 		this.gauge = gauge;
 	}
 
@@ -33,9 +33,9 @@ public class GaugeWrapper<T> implements com.codahale.metrics.Gauge<T> {
 		return this.gauge.getValue();
 	}
 
-	public static <T> GaugeWrapper<T> fromGauge(Gauge<?> gauge) {
+	public static <T> FlinkGaugeWrapper<T> fromGauge(Gauge<?> gauge) {
 		@SuppressWarnings("unchecked")
 		Gauge<T> typedGauge = (Gauge<T>) gauge;
-		return new GaugeWrapper<>(typedGauge); 
+		return new FlinkGaugeWrapper<>(typedGauge);
 	}
 }

@@ -72,7 +72,7 @@ public class StatsDReporterTest extends TestLogger {
 
 			TestingHistogram histogram = new TestingHistogram();
 
-			registry.register(histogram, histogramName, metricGroup);
+			metricGroup.histogram(histogramName, histogram);
 
 			receiver.waitUntilNumLines(11, timeout);
 

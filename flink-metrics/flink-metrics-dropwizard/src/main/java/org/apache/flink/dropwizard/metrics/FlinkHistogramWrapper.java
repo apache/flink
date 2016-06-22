@@ -26,11 +26,11 @@ import org.apache.flink.metrics.Histogram;
  * This is necessary to report Flink's histograms via the Dropwizard
  * {@link com.codahale.metrics.Reporter}.
  */
-public class HistogramWrapper extends com.codahale.metrics.Histogram {
+public class FlinkHistogramWrapper extends com.codahale.metrics.Histogram {
 
 	private final Histogram histogram;
 
-	public HistogramWrapper(Histogram histogram) {
+	public FlinkHistogramWrapper(Histogram histogram) {
 		super(null);
 		this.histogram = histogram;
 	}

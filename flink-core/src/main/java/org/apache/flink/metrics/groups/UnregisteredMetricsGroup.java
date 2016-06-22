@@ -71,7 +71,6 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 		return histogram;
 	}
 
-
 	@Override
 	public MetricGroup addGroup(int name) {
 		return addGroup(String.valueOf(name));
