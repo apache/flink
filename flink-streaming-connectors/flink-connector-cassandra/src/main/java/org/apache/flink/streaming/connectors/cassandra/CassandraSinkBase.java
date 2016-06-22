@@ -81,14 +81,14 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	@Override
 	public void close() {
 		try {
-			if(session != null) {
+			if (session != null) {
 				session.close();
 			}
 		} catch (Exception e) {
 			LOG.error("Error while closing session.", e);
 		}
 		try {
-			if(cluster != null) {
+			if (cluster != null) {
 				cluster.close();
 			}
 		} catch (Exception e) {

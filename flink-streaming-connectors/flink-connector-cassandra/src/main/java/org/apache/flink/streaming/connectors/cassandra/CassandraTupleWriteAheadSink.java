@@ -94,14 +94,14 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 	public void close() throws Exception {
 		super.close();
 		try {
-			if(session != null) {
+			if (session != null) {
 				session.close();
 			}
 		} catch (Exception e) {
 			LOG.error("Error while closing session.", e);
 		}
 		try {
-			if(cluster != null) {
+			if (cluster != null) {
 				cluster.close();
 			}
 		} catch (Exception e) {
