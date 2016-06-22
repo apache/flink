@@ -51,6 +51,16 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 	}
 
 	@Override
+	public <C extends Counter> C counter(int name, C counter) {
+		return counter;
+	}
+
+	@Override
+	public <C extends Counter> C counter(String name, C counter) {
+		return counter;
+	}
+
+	@Override
 	public <T> Gauge<T> gauge(int name, Gauge<T> gauge) {
 		return gauge;
 	}
