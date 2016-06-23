@@ -56,10 +56,10 @@ The following configuration methods can be used:
 4. enableWriteAheadLog([CheckpointCommitter committer])
 5. build()
 
-setQuery() sets the query that is executed for every value the sink receives.
-setHost() sets the cassandra host/port to connect to. This method is intended for simple use-cases.
-setClusterBuilder() sets the cluster builder that is used to configure the connection to cassandra. The setHost() functionality can be subsumed with this method.
-enableWriteAheadLog() is an optional method, that allows exactly-once processing for non-deterministic algorithms.
+*setQuery()* sets the query that is executed for every value the sink receives.
+*setHost()* sets the cassandra host/port to connect to. This method is intended for simple use-cases.
+*setClusterBuilder()* sets the cluster builder that is used to configure the connection to cassandra. The *setHost()* functionality can be subsumed with this method.
+*enableWriteAheadLog()* is an optional method, that allows exactly-once processing for non-deterministic algorithms.
 
 A checkpoint committer stores additional information about completed checkpoints
 in some resource. This information is used to prevent a full replay of the last
@@ -67,7 +67,7 @@ completed checkpoint in case of a failure.
 You can use a `CassandraCommitter` to store these in a separate table in cassandra.
 Note that this table will NOT be cleaned up by Flink.
 
-build() finalizes the configuration and returns the CassandraSink.
+*build()* finalizes the configuration and returns the CassandraSink.
 
 Flink can provide exactly-once guarantees if the query is idempotent (meaning it can be applied multiple
 times without changing the result) and checkpointing is enabled. In case of a failure the failed
@@ -79,7 +79,10 @@ database in an inconsitent state since part of the first attempt may already be 
 The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt. 
 Note that that enabling this feature will have an adverse impact on latency.
 
-Example:
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases it is sufficent to use the connector without enabling it. Please report problems to the development mailing list.</p>
+
+
+#### Example
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -107,6 +110,8 @@ CassandraSink.addSink(input)
   })
   .build();
 {% endhighlight %}
+</div>
+</div>
 
 The Cassandra sinks support both tuples and POJO's that use DataStax annotations.
 Flink automatically detects which type of input is used.
