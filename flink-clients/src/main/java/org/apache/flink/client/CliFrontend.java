@@ -214,7 +214,7 @@ public class CliFrontend {
 		}
 
 		//load configDir
-		if(options.getConfigDir() != null) {
+		if (options.getConfigDir() != null) {
 			try {
 				configureConfigDir(options.getConfigDir());
 			} catch(Exception e) {
