@@ -20,11 +20,11 @@ package org.apache.flink.graph.asm.degree.annotate.undirected;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.DelegatingGraphAlgorithm;
+import org.apache.flink.graph.utils.proxy.GraphAlgorithmDelegatingDataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.types.OptionalBoolean;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.DegreeCount;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinVertexWithVertexDegree;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.MapEdgeToSourceId;
@@ -42,7 +42,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexDegree<K, VV, EV>
-extends DelegatingGraphAlgorithm<K, VV, EV, Vertex<K, LongValue>> {
+extends GraphAlgorithmDelegatingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
 	// Optional configuration
 	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
@@ -102,7 +102,7 @@ extends DelegatingGraphAlgorithm<K, VV, EV, Vertex<K, LongValue>> {
 	}
 
 	@Override
-	protected boolean mergeConfiguration(DelegatingGraphAlgorithm other) {
+	protected boolean mergeConfiguration(GraphAlgorithmDelegatingDataSet other) {
 		Preconditions.checkNotNull(other);
 
 		if (! VertexDegree.class.isAssignableFrom(other.getClass())) {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.types;
+package org.apache.flink.graph.utils.proxy;
 
 import org.apache.flink.graph.GraphAlgorithm;
 

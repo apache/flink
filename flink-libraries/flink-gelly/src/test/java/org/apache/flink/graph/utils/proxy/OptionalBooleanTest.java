@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.types;
+package org.apache.flink.graph.utils.proxy;
 
-import org.apache.flink.graph.types.OptionalBoolean.State;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean.State;
 import org.junit.Before;
 import org.junit.Test;
 
