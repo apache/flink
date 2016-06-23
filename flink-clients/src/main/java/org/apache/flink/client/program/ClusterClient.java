@@ -166,12 +166,14 @@ public abstract class ClusterClient {
 	 * Shuts down the client. This stops the internal actor system and actors.
 	 */
 	public void shutdown() {
-		try {
-			finalizeCluster();
-		} finally {
-			if (!this.actorSystem.isTerminated()) {
-				this.actorSystem.shutdown();
-				this.actorSystem.awaitTermination();
+		synchronized (this) {
+			try {
+				finalizeCluster();
+			} finally {
+				if (!this.actorSystem.isTerminated()) {
+					this.actorSystem.shutdown();
+					this.actorSystem.awaitTermination();
+				}
 			}
 		}
 	}
