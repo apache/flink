@@ -245,7 +245,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 					throw new RuntimeException("Degree overflows IntValue");
 				}
 
-				// group span, u, v, d(u)
+				// group span, u, v, d(v)
 				output.f1 = edge.f0;
 				output.f2 = edge.f1;
 				output.f3.setValue((int)degree);
@@ -364,7 +364,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0; 1")
-	private class ComputeScores<T>
+	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
 		private boolean unboundedScores;
 
