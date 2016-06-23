@@ -87,6 +87,30 @@ under the License.
 			<artifactId>flink-clients_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
+
+		<!--- Test Dependencies -->
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_2.10</artifactId>
+			<version>${flink.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests_2.10</artifactId>
+			<version>${flink.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<profiles>
@@ -215,7 +239,6 @@ under the License.
 									<exclude>com.twitter:chill-java</exclude>
 									<exclude>commons-lang:commons-lang</exclude>
 									<exclude>junit:junit</exclude>
-									<exclude>joda-time:joda-time</exclude>
 									<exclude>org.apache.commons:commons-lang3</exclude>
 									<exclude>org.slf4j:slf4j-api</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
