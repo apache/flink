@@ -374,26 +374,31 @@ public class FsStateBackend extends AbstractStateBackend {
 			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
 		}
 
-		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
-		// (distributed) filesystem on all hosts and includes full host/port information, even if the
-		// original URI did not include that. We count on the filesystem loading from the configuration
-		// to fill in the missing data.
+		if (!FileSystem.isFlinkSupportedScheme(checkpointDataUri.getScheme())) {
+			// skip verification checks for non-flink supported filesystem
+			// this is because the required filesystem classes may not be available to the flink client
+			return new Path(checkpointDataUri);
+		} else {
+			// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
+			// (distributed) filesystem on all hosts and includes full host/port information, even if the
+			// original URI did not include that. We count on the filesystem loading from the configuration
+			// to fill in the missing data.
 
-		// try to grab the file system for this path/URI
-		FileSystem filesystem = FileSystem.get(checkpointDataUri);
-		if (filesystem == null) {
-			throw new IOException("Could not find a file system for the given scheme in the available configurations.");
-		}
+			// try to grab the file system for this path/URI
+			FileSystem filesystem = FileSystem.get(checkpointDataUri);
+			if (filesystem == null) {
+				throw new IOException("Could not find a file system for the given scheme in the available configurations.");
+			}
 
-		URI fsURI = filesystem.getUri();
-		try {
-			URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
-			return new Path(baseURI);
-		}
-		catch (URISyntaxException e) {
-			throw new IOException(
+			URI fsURI = filesystem.getUri();
+			try {
+				URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
+				return new Path(baseURI);
+			} catch (URISyntaxException e) {
+				throw new IOException(
 					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
-							checkpointDataUri, fsURI), e);
+						checkpointDataUri, fsURI), e);
+			}
 		}
 	}
 	
