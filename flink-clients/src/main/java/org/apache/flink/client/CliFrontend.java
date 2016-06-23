@@ -132,9 +132,9 @@ public class CliFrontend {
 
 
 
-	private final Configuration config;
+	private Configuration config;
 
-	private final FiniteDuration clientTimeout;
+	private FiniteDuration clientTimeout;
 
 	/**
 	 *
@@ -145,6 +145,10 @@ public class CliFrontend {
 	}
 
 	public CliFrontend(String configDir) throws Exception {
+		configureConfigDir(configDir);
+	}
+
+	private void configureConfigDir(String configDir) throws Exception {
 
 		// configure the config directory
 		File configDirectory = new File(configDir);
@@ -207,6 +211,15 @@ public class CliFrontend {
 		}
 		catch (Throwable t) {
 			return handleError(t);
+		}
+
+		//load configDir
+		if(options.getConfigDir() != null) {
+			try {
+				configureConfigDir(options.getConfigDir());
+			} catch(Exception e) {
+				return handleArgException(new CliArgsException(e.toString()));
+			}
 		}
 
 		// evaluate help flag
@@ -1004,8 +1017,7 @@ public class CliFrontend {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
 		try {
-			String configDirPath = CliFrontendParser.parseRunCommand(args).getConfigDir();
-			CliFrontend cli = configDirPath == null ? new CliFrontend() : new CliFrontend(configDirPath);
+			CliFrontend cli = new CliFrontend();
 			int retCode = cli.parseParameters(args);
 			System.exit(retCode);
 		}
