@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,11 +18,20 @@
 # limitations under the License.
 ################################################################################
 
-log4j.rootLogger=INFO, file
+if [ "$1" = "jobmanager" ]; then
+    echo "Starting Job Manager"
+    sed -i -e "s/jobmanager.rpc.address: localhost/jobmanager.rpc.address: `hostname -i`/g" $FLINK_HOME/conf/flink-conf.yaml
+    sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: `grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
+    $FLINK_HOME/bin/jobmanager.sh start cluster
+    echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
+    supervisord -c /etc/supervisor/supervisor.conf
 
-# Log all infos in the given file
-log4j.appender.file=org.apache.log4j.FileAppender
-log4j.appender.file.file=${log.file}
-log4j.appender.file.append=false
-log4j.appender.file.layout=org.apache.log4j.PatternLayout
-log4j.appender.file.layout.ConversionPattern=%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+elif [ "$1" = "taskmanager" ]; then
+    echo "Starting Task Manager"
+    $FLINK_HOME/bin/taskmanager.sh start
+    echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
+    supervisord -c /etc/supervisor/supervisor.conf
+
+else
+    $@
+fi

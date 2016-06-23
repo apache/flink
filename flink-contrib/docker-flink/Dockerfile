@@ -16,28 +16,25 @@
 # limitations under the License.
 ################################################################################
 
-FROM base
+FROM java:8-jre-alpine
 
-#add passless key to ssh
-RUN ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/*
+# Install requirements
+RUN apk add --no-cache bash curl snappy supervisor
 
-##Flink 1.0.2 Installation
-###Download:
-RUN mkdir ~/downloads && cd ~/downloads && \
-    wget -q -O - http://mirror.switch.ch/mirror/apache/dist/flink/flink-1.0.2/flink-1.0.2-bin-hadoop27-scala_2.11.tgz| tar -zxvf - -C /usr/local/
-RUN cd /usr/local && ln -s ./flink-1.0.2 flink
+# Configure supervisor
+ADD supervisor.conf /etc/supervisor/
 
+# Install Flink
+ARG FLINK_VERSION=1.0.3
+ARG HADOOP_VERSION=27
+ARG SCALA_VERSION=2.11
+
+RUN curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?as_json\=1 | awk '/preferred/ {gsub(/"/,""); print $2}')flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | tar xvz -C /usr/local/
+RUN ln -s /usr/local/flink-$FLINK_VERSION /usr/local/flink
 ENV FLINK_HOME /usr/local/flink
 ENV PATH $PATH:$FLINK_HOME/bin
 
-#config files (template)
-ADD conf/flink-conf.yaml /usr/local/flink/conf/
-
-ADD config-flink.sh /usr/local/flink/bin/
-RUN chmod +x /usr/local/flink/bin/config-flink.sh
-
-EXPOSE 6123
-EXPOSE 22
-
-CMD ["/usr/local/flink/bin/config-flink.sh", "taskmanager"]
+# Configure container
+ADD docker-entrypoint.sh $FLINK_HOME/bin/
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["sh", "-c"]
