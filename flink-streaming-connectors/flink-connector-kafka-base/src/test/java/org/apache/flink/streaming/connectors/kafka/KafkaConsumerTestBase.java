@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -25,7 +27,6 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.server.KafkaServer;
-
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -38,9 +39,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.table.StreamTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.Table;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
@@ -74,23 +78,21 @@ import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
-
 import org.junit.Before;
 import org.junit.Rule;
 
@@ -107,6 +109,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -733,6 +736,121 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		for (int i = 0; i < NUM_TOPICS; i++) {
 			final String topic = "topic-" + i;
 			deleteTestTopic(topic);
+		}
+	}
+
+	/**
+	 * Runs a table source test with JSON data.
+	 *
+	 * The table source needs to parse the following JSON fields:
+	 * - "long" -> number
+	 * - "string" -> "string"
+	 * - "boolean" -> true|false
+	 * - "double" -> fraction
+	 */
+	public void runJsonTableSource(String topic, KafkaTableSource kafkaTableSource) throws Exception {
+		final ObjectMapper mapper = new ObjectMapper();
+
+		final int numElements = 1024;
+		final long[] longs = new long[numElements];
+		final String[] strings = new String[numElements];
+		final boolean[] booleans = new boolean[numElements];
+		final double[] doubles = new double[numElements];
+
+		final byte[][] serializedJson = new byte[numElements][];
+
+		ThreadLocalRandom random = ThreadLocalRandom.current();
+
+		for (int i = 0; i < numElements; i++) {
+			longs[i] = random.nextLong();
+			strings[i] = Integer.toHexString(random.nextInt());
+			booleans[i] = random.nextBoolean();
+			doubles[i] = random.nextDouble();
+
+			ObjectNode entry = mapper.createObjectNode();
+			entry.put("long", longs[i]);
+			entry.put("string", strings[i]);
+			entry.put("boolean", booleans[i]);
+			entry.put("double", doubles[i]);
+
+			serializedJson[i] = mapper.writeValueAsBytes(entry);
+		}
+
+		// Produce serialized JSON data
+		createTestTopic(topic, 1, 1);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+
+		env.addSource(new SourceFunction<byte[]>() {
+			@Override
+			public void run(SourceContext<byte[]> ctx) throws Exception {
+				for (int i = 0; i < numElements; i++) {
+					ctx.collect(serializedJson[i]);
+				}
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).addSink(kafkaServer.getProducer(
+				topic,
+				new ByteArraySerializationSchema(),
+				standardProps,
+				null));
+
+		// Execute blocks
+		env.execute();
+
+		// Register as table source
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.getTableEnvironment(env);
+		tableEnvironment.registerTableSource("kafka", kafkaTableSource);
+
+		Table result = tableEnvironment.ingest("kafka");
+
+		tableEnvironment.toDataStream(result, Row.class).addSink(new SinkFunction<Row>() {
+
+			int i = 0;
+
+			@Override
+			public void invoke(Row value) throws Exception {
+				assertEquals(5, value.productArity());
+				assertEquals(longs[i], value.productElement(0));
+				assertEquals(strings[i], value.productElement(1));
+				assertEquals(booleans[i], value.productElement(2));
+				assertEquals(doubles[i], value.productElement(3));
+				assertNull(value.productElement(4));
+
+				if (i == numElements-1) {
+					throw new SuccessException();
+				} else {
+					i++;
+				}
+			}
+		});
+
+		tryExecutePropagateExceptions(env, "KafkaTableSource");
+	}
+
+	/**
+	 * Serialization scheme forwarding byte[] records.
+	 */
+	private static class ByteArraySerializationSchema implements KeyedSerializationSchema<byte[]> {
+
+		@Override
+		public byte[] serializeKey(byte[] element) {
+			return null;
+		}
+
+		@Override
+		public byte[] serializeValue(byte[] element) {
+			return element;
+		}
+
+		@Override
+		public String getTargetTopic(byte[] element) {
+			return null;
 		}
 	}
 

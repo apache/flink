@@ -207,6 +207,49 @@ A `TableSource` can provide access to data stored in various storage systems suc
 
 Currently, Flink only provides a `CsvTableSource` to read CSV files. A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
 
+### Available Table Sources
+
+| **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
+| `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files with up to 25 fields.
+| `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
+| `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
+
+All source that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
+
+#### KafkaJsonTableSource
+
+To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
+
+  - `flink-connector-kafka-0.8` for Kafka 0.8, and
+  - `flink-connector-kafka-0.9` for Kafka 0.9, respectively.
+
+You can then create the source as follows (example for Kafka 0.8):
+
+```java
+// The JSON field names and types
+String[] fieldNames =  new String[] { "id", "name", "score"};
+Class<?>[] fieldTypes = new Class<?>[] { Integer.class, String.class, Double.class };
+
+KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    fieldNames,
+    fieldTypes);
+```
+
+By default, a missing JSON field does not fail the source. You can configure this via:
+
+```java
+// Fail on missing JSON field
+tableSource.setFailOnMissingField(true);
+```
+
+You can work with the Table as explained in the rest of the Table API guide:
+
+```java
+tableEnvironment.registerTableSource("kafka-source", kafkaTableSource);
+Table result = tableEnvironment.ingest("kafka-source");
+```
 
 Table API
 ----------
