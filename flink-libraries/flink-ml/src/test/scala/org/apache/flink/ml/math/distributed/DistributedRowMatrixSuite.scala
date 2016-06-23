@@ -19,26 +19,35 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.math.{SparseVector, SparseMatrix}
 import org.apache.flink.test.util.FlinkTestBase
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Matchers, FlatSpec}
 
-class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBase {
-  behavior of "DistributedRowMatrix"
+class DistributedRowMatrixSuite
+    extends FlatSpec
+    with Matchers
+    with FlinkTestBase {
+
+  behavior of "Flink's DistributedRowMatrix fromSortedCOO"
 
   val rawSampleData = List(
-    (0, 0, 3.0),
-    (0, 1, 3.0),
-    (0, 3, 4.0),
-    (2, 3, 4.0),
-    (1, 4, 3.0),
-    (1, 1, 3.0),
-    (2, 1, 3.0),
-    (2, 2, 3.0)
+      (0, 0, 3.0),
+      (0, 1, 3.0),
+      (0, 3, 4.0),
+      (2, 3, 4.0),
+      (1, 4, 3.0),
+      (1, 1, 3.0),
+      (2, 1, 3.0),
+      (2, 2, 3.0)
   )
 
   it should "contain the initialization data" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
     val rowDataset = env.fromCollection(rawSampleData)
+
     val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
 
     dmatrix.toCOO.toSet.filter(_._3 != 0) shouldBe rawSampleData.toSet
@@ -46,7 +55,11 @@ class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBas
 
   it should "return the correct dimensions when provided by the user" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
     val rowDataset = env.fromCollection(rawSampleData)
+
     val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
 
     dmatrix.numCols shouldBe 5
@@ -56,7 +69,11 @@ class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBas
 
   it should "return a sparse local matrix containing the initialization data" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
     val rowDataset = env.fromCollection(rawSampleData)
+
     val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
 
     dmatrix.toLocalSparseMatrix.iterator.filter(_._3 != 0).toSet shouldBe rawSampleData.toSet
@@ -64,39 +81,47 @@ class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBas
 
   it should "return a dense local matrix containing the initialization data" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
     val rowDataset = env.fromCollection(rawSampleData)
+
     val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
 
     dmatrix.toLocalDenseMatrix.iterator.filter(_._3 != 0).toSet shouldBe rawSampleData.toSet
   }
 
-  "add" should "correctly add two distributed row matrices" in {
+  "sum" should "correctly sum two matrices" in {
+
     val env = ExecutionEnvironment.getExecutionEnvironment
+
     val rawSampleSum1 = List(
-      (0, 0, 1.0),
-      (7, 4, 3.0),
-      (0, 1, 8.0),
-      (2, 8, 12.0)
+        (0, 0, 1.0),
+        (7, 4, 3.0),
+        (0, 1, 8.0),
+        (2, 8, 12.0)
     )
 
     val rawSampleSum2 = List(
-      (0, 0, 2.0),
-      (3, 4, 4.0),
-      (2, 8, 8.0)
+        (0, 0, 2.0),
+        (3, 4, 4.0),
+        (2, 8, 8.0)
     )
 
-    val addBlockMatrix1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum1), 10, 10)
-    val addBlockMatrix2 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10)
+    val sumBlockMatrix1 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum1), 10, 10)
+    val sumBlockMatrix2 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10)
 
     val expected = List(
-      (0, 0, 3.0),
-      (0, 1, 8.0),
-      (3, 4, 4.0),
-      (2, 8, 20.0),
-      (7, 4, 3.0)
+        (0, 0, 3.0),
+        (0, 1, 8.0),
+        (3, 4, 4.0),
+        (2, 8, 20.0),
+        (7, 4, 3.0)
     )
-    val result = addBlockMatrix1
-      .add(addBlockMatrix2)
+    val result = sumBlockMatrix1
+      .sum(sumBlockMatrix2)
       .toLocalSparseMatrix
       .filter(_._3 != 0.0)
     result.toSet shouldEqual expected.toSet
