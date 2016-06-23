@@ -173,7 +173,6 @@ public class FsStateBackend extends AbstractStateBackend {
 		this.fileStateThreshold = fileStateSizeThreshold;
 		
 		this.basePath = validateAndNormalizeUri(checkpointDataUri);
-		this.filesystem = this.basePath.getFileSystem();
 	}
 
 	/**
