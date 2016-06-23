@@ -1832,6 +1832,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [Triangle Enumerator](#triangle-enumerator)
 * [Hyperlink-Induced Topic Search](#hyperlink-induced-topic-search)
 * [Summarization](#summarization)
+* [Adamic-Adar](#adamic-adar)
 * [Jaccard Index](#jaccard-index)
 * [Local Clustering Coefficient](#local-clustering-coefficient)
 * [Global Clustering Coefficient](#global-clustering-coefficient)
@@ -2073,6 +2074,28 @@ corresponding groupings.
 The algorithm takes a directed, vertex (and possibly edge) attributed graph as input and outputs a new graph where each
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
+
+### Adamic-Adar
+
+#### Overview
+Adamic-Adar measures the similarity between pairs of vertices as the sum of the inverse logarithm of degree over shared
+neighbors. Scores are non-negative and unbounded. A vertex with higher degree has greater overall influence but is less
+influential to each pair of neighbors.
+
+#### Details
+The algorithm first annotates each vertex with the inverse of the logarithm of the vertex degree then joins this score
+onto edges by source vertex. Grouping on the source vertex, each pair of neighbors is emitted with the vertex score.
+Grouping on two-paths, the Adamic-Adar score is summed.
+
+See the [Jaccard Index](#jaccard-index) library method for a similar algorithm.
+
+#### Usage
+The algorithm takes a simple, undirected graph as input and outputs a `DataSet` of tuples containing two vertex IDs and
+the Adamic-Adair similarity score. The graph ID type must be `Comparable` and `Copyable`.
+
+* `setLittleParallelism`: override the parallelism of operators processing small amounts of data
+* `setMinimumRatio`: filter out Adamic-Adar scores less than the given ratio times the average score
+* `setMinimumScore`: filter out Adamic-Adar scores less than the given minimum
 
 ### Jaccard Index
 

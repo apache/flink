@@ -126,7 +126,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 *
 	 * @param <T> ID type
 	 */
-	private class SplitTriangles<T>
+	private static class SplitTriangles<T>
 	implements FlatMapFunction<TriangleListing.Result<T>, Tuple2<T, LongValue>> {
 		private LongValue one = new LongValue(1);
 
@@ -159,7 +159,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private class CountTriangles<T>
+	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
@@ -176,7 +176,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	 */
 	@FunctionAnnotation.ForwardedFieldsFirst("0; 1.0->1.0")
 	@FunctionAnnotation.ForwardedFieldsSecond("0")
-	private class JoinVertexDegreeWithTriangleCount<T>
+	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, Degrees>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
 
