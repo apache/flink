@@ -19,22 +19,19 @@
 FROM ubuntu:xenial
 
 #requirements
-RUN apt-get update; apt-get install -y curl wget supervisor openssh-server openssh-client nano
+RUN apt-get update && apt-get install -y curl supervisor openssh-server openssh-client \
+  openjdk-8-jre-headless \
+  && rm -rf /var/lib/apt/lists/*
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/ PATH=$PATH:$JAVA_HOME/bin
 
-#priviledge separation directory
+#In case you want to install Oracle JDK 8 remove the openjdk-8-jre-headless package above and uncomment:
+#RUN mkdir -p /usr/java/default && \
+#    curl -Ls 'http://download.oracle.com/otn-pub/java/jdk/8u91-b14/jdk-8u91-linux-x64.tar.gz' -H 'Cookie: oraclelicense=accept-securebackup-cookie' | \
+#    tar --strip-components=1 -xz -C /usr/java/default/
+#ENV JAVA_HOME /usr/java/default/ PATH=$PATH:$JAVA_HOME/bin
+
+#privilege separation directory
 RUN mkdir /var/run/sshd
-
-#install Java 8 Oracle JDK
-RUN mkdir -p /usr/java/default && \
-    curl -Ls 'http://download.oracle.com/otn-pub/java/jdk/8u91-b14/jdk-8u91-linux-x64.tar.gz' -H 'Cookie: oraclelicense=accept-securebackup-cookie' | \
-    tar --strip-components=1 -xz -C /usr/java/default/
-ENV JAVA_HOME /usr/java/default/
-
-#Install Java Open JDK
-#RUN apt-get install -y unzip openjdk-7-jre-headless
-#ENV JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64/
-
-
 RUN echo 'root:secret' | chpasswd
 
 #SSH as root... probably needs to be revised for security!
