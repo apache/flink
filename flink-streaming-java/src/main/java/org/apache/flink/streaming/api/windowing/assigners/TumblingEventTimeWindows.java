@@ -54,7 +54,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
+	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {
 			// Long.MIN_VALUE is currently assigned when no timestamp is present
 			long start = timestamp - (timestamp % size);

@@ -63,7 +63,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
  */
 @Internal
 public class StreamInputProcessor<IN> {
-	
+
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
@@ -75,8 +75,6 @@ public class StreamInputProcessor<IN> {
 	private int currentChannel = -1;
 
 	private boolean isFinished;
-
-	
 
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
@@ -101,7 +99,7 @@ public class StreamInputProcessor<IN> {
 			this.barrierHandler = new BarrierTracker(inputGate);
 		}
 		else {
-			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
+			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
 		
 		if (checkpointListener != null) {

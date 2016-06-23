@@ -38,7 +38,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
-public class AbstractFetcherTimestampsTest {
+public class 	AbstractFetcherTimestampsTest {
 	
 	@Test
 	public void testPunctuatedWatermarks() throws Exception {

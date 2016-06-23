@@ -252,14 +252,18 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Register a timer callback. At the specified time the {@link Triggerable} will be invoked.
-	 * This call is guaranteed to not happen concurrently with method calls on the operator.
+	 * Register a timer callback. At the specified time the provided {@link Triggerable} will
+	 * be invoked. This call is guaranteed to not happen concurrently with method calls on the operator.
 	 *
 	 * @param time The absolute time in milliseconds.
 	 * @param target The target to be triggered.
 	 */
 	protected ScheduledFuture<?> registerTimer(long time, Triggerable target) {
 		return container.registerTimer(time, target);
+	}
+
+	protected long getCurrentProcessingTime() {
+		return container.getCurrentProcessingTime();
 	}
 
 	/**
