@@ -138,12 +138,12 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 				send(prefix(name, "min"), String.valueOf(statistics.getMin()));
 				send(prefix(name, "mean"), String.valueOf(statistics.getMean()));
 				send(prefix(name, "stddev"), String.valueOf(statistics.getStdDev()));
-				send(prefix(name, "p50"), String.valueOf(statistics.getMedian()));
-				send(prefix(name, "p75"), String.valueOf(statistics.get75thPercentile()));
-				send(prefix(name, "p95"), String.valueOf(statistics.get95thPercentile()));
-				send(prefix(name, "p98"), String.valueOf(statistics.get98thPercentile()));
-				send(prefix(name, "p99"), String.valueOf(statistics.get99thPercentile()));
-				send(prefix(name, "p999"), String.valueOf(statistics.get999thPercentile()));
+				send(prefix(name, "p50"), String.valueOf(statistics.getQuantile(0.5)));
+				send(prefix(name, "p75"), String.valueOf(statistics.getQuantile(0.75)));
+				send(prefix(name, "p95"), String.valueOf(statistics.getQuantile(0.95)));
+				send(prefix(name, "p98"), String.valueOf(statistics.getQuantile(0.98)));
+				send(prefix(name, "p99"), String.valueOf(statistics.getQuantile(0.99)));
+				send(prefix(name, "p999"), String.valueOf(statistics.getQuantile(0.999)));
 			}
 		}
 	}

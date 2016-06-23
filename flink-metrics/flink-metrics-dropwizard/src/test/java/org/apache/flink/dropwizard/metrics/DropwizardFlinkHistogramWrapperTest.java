@@ -70,7 +70,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals((size - 1)/2.0, histogramWrapper.getStatistics().getMedian(), 0.001);
+		assertEquals((size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 
 		for (int i = size; i < 2 * size; i++) {
 			histogramWrapper.update(i);
@@ -81,7 +81,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals(size + (size - 1)/2.0, histogramWrapper.getStatistics().getMedian(), 0.001);
+		assertEquals(size + (size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 	}
 
 	/**

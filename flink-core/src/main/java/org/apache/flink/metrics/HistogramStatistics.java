@@ -35,7 +35,7 @@ public abstract class HistogramStatistics {
 	 * @param quantile Quantile to calculate the value for
 	 * @return Value for the given quantile
 	 */
-	public abstract double getValue(double quantile);
+	public abstract double getQuantile(double quantile);
 
 	/**
 	 * Returns the elements of the statistics' sample
@@ -78,58 +78,4 @@ public abstract class HistogramStatistics {
 	 * @return Minimum value of the histogram
 	 */
 	public abstract long getMin();
-
-	/**
-	 * Returns the 50th percentile.
-	 *
-	 * @return 50th percentile
-	 */
-	public double getMedian() {
-		return getValue(0.5);
-	}
-
-	/**
-	 * Returns the 75th percentile.
-	 *
-	 * @return 75th percentile
-	 */
-	public double get75thPercentile() {
-		return getValue(0.75);
-	}
-
-	/**
-	 * Returns the 95th percentile.
-	 *
-	 * @return 95th percentile
-	 */
-	public double get95thPercentile() {
-		return getValue(0.95);
-	}
-
-	/**
-	 * Returns the 98th percentile.
-	 *
-	 * @return 98th percentile
-	 */
-	public double get98thPercentile() {
-		return getValue(0.98);
-	}
-
-	/**
-	 * Returns the 99th percentile.
-	 *
-	 * @return 99th percentile
-	 */
-	public double get99thPercentile() {
-		return getValue(0.99);
-	}
-
-	/**
-	 * Returns the 999th percentile.
-	 *
-	 * @return 999th percentile
-	 */
-	public double get999thPercentile() {
-		return getValue(0.999);
-	}
 }

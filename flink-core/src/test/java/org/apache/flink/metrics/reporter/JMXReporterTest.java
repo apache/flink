@@ -98,12 +98,12 @@ public class JMXReporterTest extends TestLogger {
 			assertEquals(histogram.getStatistics().getStdDev(), mBeanServer.getAttribute(objectName, "StdDev"));
 			assertEquals(histogram.getStatistics().getMax(), mBeanServer.getAttribute(objectName, "Max"));
 			assertEquals(histogram.getStatistics().getMin(), mBeanServer.getAttribute(objectName, "Min"));
-			assertEquals(histogram.getStatistics().getMedian(), mBeanServer.getAttribute(objectName, "Median"));
-			assertEquals(histogram.getStatistics().get75thPercentile(), mBeanServer.getAttribute(objectName, "75thPercentile"));
-			assertEquals(histogram.getStatistics().get95thPercentile(), mBeanServer.getAttribute(objectName, "95thPercentile"));
-			assertEquals(histogram.getStatistics().get98thPercentile(), mBeanServer.getAttribute(objectName, "98thPercentile"));
-			assertEquals(histogram.getStatistics().get99thPercentile(), mBeanServer.getAttribute(objectName, "99thPercentile"));
-			assertEquals(histogram.getStatistics().get999thPercentile(), mBeanServer.getAttribute(objectName, "999thPercentile"));
+			assertEquals(histogram.getStatistics().getQuantile(0.5), mBeanServer.getAttribute(objectName, "Median"));
+			assertEquals(histogram.getStatistics().getQuantile(0.75), mBeanServer.getAttribute(objectName, "75thPercentile"));
+			assertEquals(histogram.getStatistics().getQuantile(0.95), mBeanServer.getAttribute(objectName, "95thPercentile"));
+			assertEquals(histogram.getStatistics().getQuantile(0.98), mBeanServer.getAttribute(objectName, "98thPercentile"));
+			assertEquals(histogram.getStatistics().getQuantile(0.99), mBeanServer.getAttribute(objectName, "99thPercentile"));
+			assertEquals(histogram.getStatistics().getQuantile(0.999), mBeanServer.getAttribute(objectName, "999thPercentile"));
 
 		} finally {
 			if (registry != null) {
@@ -128,8 +128,8 @@ public class JMXReporterTest extends TestLogger {
 		public HistogramStatistics getStatistics() {
 			return new HistogramStatistics() {
 				@Override
-				public double getValue(double quantile) {
-					return 2;
+				public double getQuantile(double quantile) {
+					return quantile;
 				}
 
 				@Override
@@ -160,31 +160,6 @@ public class JMXReporterTest extends TestLogger {
 				@Override
 				public long getMin() {
 					return 7;
-				}
-
-				@Override
-				public double get75thPercentile() {
-					return 8;
-				}
-
-				@Override
-				public double get95thPercentile() {
-					return 9;
-				}
-
-				@Override
-				public double get98thPercentile() {
-					return 9;
-				}
-
-				@Override
-				public double get99thPercentile() {
-					return 10;
-				}
-
-				@Override
-				public double get999thPercentile() {
-					return 11;
 				}
 			};
 		}

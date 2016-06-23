@@ -82,17 +82,17 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> expectedLines = new HashSet<>();
 
-			expectedLines.add(prefix + ".count:42|g");
-			expectedLines.add(prefix + ".mean:42.0|g");
-			expectedLines.add(prefix + ".min:42|g");
-			expectedLines.add(prefix + ".max:42|g");
-			expectedLines.add(prefix + ".stddev:42.0|g");
-			expectedLines.add(prefix + ".p75:42.0|g");
-			expectedLines.add(prefix + ".p98:42.0|g");
-			expectedLines.add(prefix + ".p99:42.0|g");
-			expectedLines.add(prefix + ".p999:42.0|g");
-			expectedLines.add(prefix + ".p95:42.0|g");
-			expectedLines.add(prefix + ".p50:42.0|g");
+			expectedLines.add(prefix + ".count:1|g");
+			expectedLines.add(prefix + ".mean:3.0|g");
+			expectedLines.add(prefix + ".min:6|g");
+			expectedLines.add(prefix + ".max:5|g");
+			expectedLines.add(prefix + ".stddev:4.0|g");
+			expectedLines.add(prefix + ".p75:0.75|g");
+			expectedLines.add(prefix + ".p98:0.98|g");
+			expectedLines.add(prefix + ".p99:0.99|g");
+			expectedLines.add(prefix + ".p999:0.999|g");
+			expectedLines.add(prefix + ".p95:0.95|g");
+			expectedLines.add(prefix + ".p50:0.5|g");
 
 			assertEquals(expectedLines, lines);
 
@@ -120,15 +120,15 @@ public class StatsDReporterTest extends TestLogger {
 
 		@Override
 		public long getCount() {
-			return 42;
+			return 1;
 		}
 
 		@Override
 		public HistogramStatistics getStatistics() {
 			return new HistogramStatistics() {
 				@Override
-				public double getValue(double quantile) {
-					return 42;
+				public double getQuantile(double quantile) {
+					return quantile;
 				}
 
 				@Override
@@ -138,27 +138,27 @@ public class StatsDReporterTest extends TestLogger {
 
 				@Override
 				public int size() {
-					return 42;
+					return 2;
 				}
 
 				@Override
 				public double getMean() {
-					return 42;
+					return 3;
 				}
 
 				@Override
 				public double getStdDev() {
-					return 42;
+					return 4;
 				}
 
 				@Override
 				public long getMax() {
-					return 42;
+					return 5;
 				}
 
 				@Override
 				public long getMin() {
-					return 42;
+					return 6;
 				}
 			};
 		}

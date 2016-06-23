@@ -329,32 +329,32 @@ public class JMXReporter implements MetricReporter {
 
 		@Override
 		public double getMedian() {
-			return histogram.getStatistics().getMedian();
+			return histogram.getStatistics().getQuantile(0.5);
 		}
 
 		@Override
 		public double get75thPercentile() {
-			return histogram.getStatistics().get75thPercentile();
+			return histogram.getStatistics().getQuantile(0.75);
 		}
 
 		@Override
 		public double get95thPercentile() {
-			return histogram.getStatistics().get95thPercentile();
+			return histogram.getStatistics().getQuantile(0.95);
 		}
 
 		@Override
 		public double get98thPercentile() {
-			return histogram.getStatistics().get98thPercentile();
+			return histogram.getStatistics().getQuantile(0.98);
 		}
 
 		@Override
 		public double get99thPercentile() {
-			return histogram.getStatistics().get99thPercentile();
+			return histogram.getStatistics().getQuantile(0.99);
 		}
 
 		@Override
 		public double get999thPercentile() {
-			return histogram.getStatistics().get999thPercentile();
+			return histogram.getStatistics().getQuantile(0.999);
 		}
 	}
 }

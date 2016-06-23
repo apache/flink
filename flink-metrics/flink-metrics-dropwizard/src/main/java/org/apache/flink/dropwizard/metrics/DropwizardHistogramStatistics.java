@@ -34,7 +34,7 @@ class DropwizardHistogramStatistics extends HistogramStatistics {
 	}
 
 	@Override
-	public double getValue(double quantile) {
+	public double getQuantile(double quantile) {
 		return snapshot.getValue(quantile);
 	}
 

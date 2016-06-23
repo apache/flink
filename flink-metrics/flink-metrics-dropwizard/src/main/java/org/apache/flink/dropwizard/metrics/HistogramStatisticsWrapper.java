@@ -41,7 +41,7 @@ class HistogramStatisticsWrapper extends Snapshot {
 	}
 	@Override
 	public double getValue(double quantile) {
-		return histogramStatistics.getValue(quantile);
+		return histogramStatistics.getQuantile(quantile);
 	}
 
 	@Override
