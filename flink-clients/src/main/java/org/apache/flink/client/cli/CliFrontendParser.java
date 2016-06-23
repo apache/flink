@@ -120,7 +120,7 @@ public class CliFrontendParser {
 		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 
 		CONFIGDIR_OPTION.setRequired(false);
-		CONFIGDIR_OPTION.setArgName("/path/to/configuration/directory");
+		CONFIGDIR_OPTION.setArgName("/path/to/confdir");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
