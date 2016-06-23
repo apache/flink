@@ -69,11 +69,10 @@ ssh to the job manager and run the topology from there.
 
 ###Ports
 
-- The Web Dashboard is on port `48080`
 - The Web Client is on port `48081`
 - JobManager RPC port `6123` (default, not exposed to host)
-- TaskManagers RPC port `6121` (default, not exposed to host)
-- TaskManagers Data port `6122` (default, not exposed to host)
+- TaskManagers RPC port `6122` (default, not exposed to host)
+- TaskManagers Data port `6121` (default, not exposed to host)
 - JobManager SSH `220`
 - TaskManagers SSH: randomly assigned port, check wih `docker ps`
 
