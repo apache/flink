@@ -96,8 +96,15 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 */
 	public static class Result {
 		private long tripletCount;
+
 		private long triangleCount;
 
+		/**
+		 * Instantiate an immutable result.
+		 *
+		 * @param tripletCount triplet count
+		 * @param triangleCount triangle count
+		 */
 		public Result(long tripletCount, long triangleCount) {
 			this.tripletCount = tripletCount;
 			this.triangleCount = triangleCount;

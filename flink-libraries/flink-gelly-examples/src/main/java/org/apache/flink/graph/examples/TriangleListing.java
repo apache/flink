@@ -81,7 +81,7 @@ public class TriangleListing {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
-		if (!parameters.has("directed")) {
+		if (! parameters.has("directed")) {
 			printUsage();
 			return;
 		}

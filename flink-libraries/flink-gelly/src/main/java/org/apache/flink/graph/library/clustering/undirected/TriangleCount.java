@@ -66,7 +66,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Long> {
 				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
-		triangles.output(new CountHelper<Tuple3<K, K, K>>(id)).name("Count triangles");
+		triangles
+			.output(new CountHelper<Tuple3<K, K, K>>(id))
+				.name("Count triangles");
 
 		return this;
 	}

@@ -68,7 +68,7 @@ public class ClusteringCoefficient {
 			" is a clique).", 80));
 		System.out.println();
 		System.out.println(WordUtils.wrap("This algorithm returns tuples containing the vertex ID, the degree of" +
-			" the vertex, the number of edges between vertex neighbors, and the local clustering coefficient.", 80));
+			" the vertex, and the number of edges between vertex neighbors.", 80));
 		System.out.println();
 		System.out.println("usage: ClusteringCoefficient --directed <true | false> --input <csv | rmat [options]> --output <print | hash | csv [options]");
 		System.out.println();
@@ -87,12 +87,13 @@ public class ClusteringCoefficient {
 		env.getConfig().enableObjectReuse();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
-		if (!parameters.has("directed")) {
+		if (! parameters.has("directed")) {
 			printUsage();
 			return;
 		}
 		boolean directedAlgorithm = parameters.getBoolean("directed");
 
+		// global and local clustering coefficient results
 		GraphAnalytic gcc;
 		DataSet lcc;
 

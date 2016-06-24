@@ -103,12 +103,6 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 	 *
 	 * ProjectTriangles should eventually be replaced by ".projectFirst("*")"
 	 *   when projections use code generation.
-	 *
-	 * TriadicCensus requires knowledge of edge direction as implemented here.
-	 *   LocalClusteringCoefficient only needs the edge count between vertices
-	 *   (numeric or boolean) and GlobalClusteringCoefficient only needs the total
-	 *   edge count in the triangle. We may see worthwhile performance improvements
-	  *  from optimized implementations.
 	 */
 
 	@Override
@@ -121,7 +115,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 				.setParallelism(littleParallelism)
 				.name("Order by ID")
 			.groupBy(0, 1)
-			.reduceGroup(new FlattenBitmask<K>())
+			.reduceGroup(new ReduceBitmask<K>())
 				.setParallelism(littleParallelism)
 				.name("Flatten by ID");
 
@@ -136,11 +130,11 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 				.setParallelism(littleParallelism)
 				.name("Order by degree")
 			.groupBy(0, 1)
-			.reduceGroup(new FlattenBitmask<K>())
+			.reduceGroup(new ReduceBitmask<K>())
 				.setParallelism(littleParallelism)
 				.name("Flatten by degree");
 
-		// u, v, w where (u, v) and (u, w) are edges in graph
+		// u, v, w, bitmask where (u, v) and (u, w) are edges in graph
 		DataSet<Tuple4<K, K, K, ByteValue>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
@@ -200,12 +194,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<TriangleListing.Result<K>>> {
 	}
 
 	/**
-	 * Collapse bitmasks to a single value using bitwise-or.
+	 * Reduce bitmasks to a single value using bitwise-or.
 	 *
 	 * @param <T> ID type
 	 */
 	@ForwardedFields("0; 1")
-	private static final class FlattenBitmask<T>
+	private static final class ReduceBitmask<T>
 	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
 		@Override
 		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)

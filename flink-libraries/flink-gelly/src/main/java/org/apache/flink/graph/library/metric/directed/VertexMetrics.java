@@ -95,7 +95,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 				.setIncludeZeroDegreeVertices(includeZeroDegreeVertices)
 				.setParallelism(parallelism));
 
-		vertexDegree.output(new VertexMetricsHelper<K>(id)).name("Vertex metrics");
+		vertexDegree
+			.output(new VertexMetricsHelper<K>(id))
+				.name("Vertex metrics");
 
 		return this;
 	}

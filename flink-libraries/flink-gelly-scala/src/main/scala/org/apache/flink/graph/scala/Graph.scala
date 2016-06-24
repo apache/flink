@@ -1127,8 +1127,10 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    *
    * @param analytic the analytic to run on the Graph
    */
-  def run[T: TypeInformation : ClassTag](analytic: GraphAnalytic[K, VV, EV, T])= {
+  def run[T: TypeInformation : ClassTag](analytic: GraphAnalytic[K, VV, EV, T]):
+  GraphAnalytic[K, VV, EV, T] = {
     jgraph.run(analytic)
+    analytic
   }
 
   /**

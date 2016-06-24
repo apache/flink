@@ -67,7 +67,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Long> {
 				.setSortTriangleVertices(false)
 				.setLittleParallelism(littleParallelism));
 
-		triangles.output(new CountHelper<TriangleListing.Result<K>>(id)).name("Count triangles");
+		triangles
+			.output(new CountHelper<TriangleListing.Result<K>>(id))
+				.name("Count triangles");
 
 		return this;
 	}

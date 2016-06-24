@@ -102,7 +102,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 		// u, triangle count
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
-			.reduce(new CountVertices<K>())
+			.reduce(new CountTriangles<K>())
 				.name("Count triangles");
 
 		// u, deg(u)
@@ -145,12 +145,12 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Result<K>>> {
 	}
 
 	/**
-	 * Combines the count of each vertex ID.
+	 * Sums the triangle count for each vertex ID.
 	 *
 	 * @param <T> ID type
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private static class CountVertices<T>
+	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
 		public Tuple2<T, LongValue> reduce(Tuple2<T, LongValue> left, Tuple2<T, LongValue> right)
