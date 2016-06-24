@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
@@ -91,44 +93,25 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	private static JMXServer startJmxServer(Configuration config) {
-		JMXServer jmxServer;
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(config.getString(KEY_METRICS_JMX_PORT, "9010-9025"));
 
-		String portRange = config.getString(KEY_METRICS_JMX_PORT, "9010-9025");
-		String[] ports = portRange.split("-");
-
-		if (ports.length == 0 || ports.length > 2) {
-			throw new IllegalArgumentException("JMX port range was configured incorrectly. " +
-				"Expected: <startPort>[-<endPort>] Configured: " + portRange);
-		}
-
-		if (ports.length == 1) { //single port was configured
-			int port = Integer.parseInt(ports[0]);
-			jmxServer = new JMXServer(port);
+		JMXServer server = new JMXServer();
+		while (ports.hasNext()) {
+			int port = ports.next();
 			try {
-				jmxServer.start();
-			} catch (IOException e) {
-				throw new RuntimeException("Could not start JMX server on port " + port + ".");
-			}
-			return jmxServer;
-		} else { //port range was configured
-			int start = Integer.parseInt(ports[0]);
-			int end = Integer.parseInt(ports[1]);
-			while (true) {
+				server.start(port);
+				LOG.info("Started JMX server on port " + port + ".");
+				return server;
+			} catch (IOException ioe) { //assume port conflict
+				LOG.debug("Could not start JMX server on port " + port + ".", ioe);
 				try {
-					jmxServer = new JMXServer(start);
-					jmxServer.start();
-					LOG.info("Starting JMX on port " + start + ".");
-					break;
-				} catch (IOException e) { //assume port conflict
-					LOG.debug("Could not start JMX server. Attempting different port", e);
-					start++;
-					if (start > end) {
-						throw new RuntimeException("Could not start JMX server.", e);
-					}
+					server.stop();
+				} catch (Exception e) {
+					LOG.debug("Could not stop JMX server.", e);
 				}
 			}
 		}
-		return jmxServer;
+		throw new RuntimeException("Could not start JMX server on any configured port.");
 	}
 
 	@Override
@@ -338,17 +321,16 @@ public class JMXReporter implements MetricReporter {
 	 * https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
 	 */
 	private static class JMXServer {
-		private int port;
 		private Registry rmiRegistry;
 		private JMXConnectorServer connector;
 
-		public JMXServer(int port) {
-			this.port = port;
-		}
-
-		public void start() throws IOException {
-			startRmiRegistry();
-			startJmxService();
+		public void start(int port) throws IOException {
+			if (rmiRegistry != null && connector != null) {
+				LOG.debug("JMXServer is already running.");
+				return;
+			}
+			startRmiRegistry(port);
+			startJmxService(port);
 		}
 
 		public void stop() throws IOException {
@@ -363,28 +345,29 @@ public class JMXReporter implements MetricReporter {
 				try {
 					UnicastRemoteObject.unexportObject(rmiRegistry, true);
 				} catch (NoSuchObjectException e) {
-					throw new IOException("Could not unexport our RMI registry", e);
+					throw new IOException("Could not un-export our RMI registry", e);
 				} finally {
 					rmiRegistry = null;
 				}
 			}
 		}
 
-		private void startRmiRegistry() throws IOException {
-			if (rmiRegistry != null) {
-				return;
-			}
+		/**
+		 * Starts an RMI Registry that allows clients to lookup the JMX IP/port.
+		 * @param port rmi port to use
+		 * @throws IOException
+		 */
+		private void startRmiRegistry(int port) throws IOException {
 			rmiRegistry = LocateRegistry.createRegistry(port);
 		}
 
-		private void startJmxService() throws IOException {
-			if (connector != null) {
-				return;
-			}
-			String serverHost = "localhost";
-			String registryHost = "";
-			String serviceUrl =
-				"service:jmx:rmi://" + serverHost + ":" + port + "/jndi/rmi://" + registryHost + ":" + port + "/jmxrmi";
+		/**
+		 * Starts a JMX connector that allows (un)registering MBeans with the MBean server.
+		 * @param port jmx port to use
+		 * @throws IOException
+		 */
+		private void startJmxService(int port) throws IOException {
+			String serviceUrl =	"service:jmx:rmi://localhost:" + port + "/jndi/rmi://localhost:" + port + "/jmxrmi";
 			JMXServiceURL url;
 			try {
 				url = new JMXServiceURL(serviceUrl);
