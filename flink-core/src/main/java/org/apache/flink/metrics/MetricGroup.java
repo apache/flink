@@ -103,6 +103,7 @@ public interface MetricGroup {
 	 * @param <T>   return type of the gauge
 	 * @return the given gauge
 	 */
+	<T, G extends Gauge<T>> G gauge(int name, G gauge);
 
 	/**
 	 * Registers a new {@link org.apache.flink.metrics.Gauge} with Flink.
