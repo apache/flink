@@ -31,9 +31,11 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.Random
 
 @RunWith(classOf[Parameterized])
-class UnionITCase(
+class SetOperatorsITCase(
     mode: TestExecutionMode,
     configMode: TableConfigMode)
   extends TableProgramsTestBase(mode, configMode) {
@@ -117,6 +119,76 @@ class UnionITCase(
     val result = tEnv.sql(sqlQuery)
 
     val expected = "18"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testIntersect(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT c FROM t1 INTERSECT SELECT c FROM t2"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((3, 2L, "Hello world!"))
+    val ds2 = env.fromCollection(Random.shuffle(data))
+
+    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
+    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "Hi\n" + "Hello\n"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Ignore
+  // calcite sql parser doesn't support INTERSECT ALL
+  def testIntersectAll(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT c FROM t1 INTERSECT ALL SELECT c FROM t2"
+
+    val data1 = new mutable.MutableList[Int]
+    data1 += (1, 1, 1, 2, 2)
+    val data2 = new mutable.MutableList[Int]
+    data2 += (1, 2, 2, 3)
+    val ds1 = env.fromCollection(data1)
+    val ds2 = env.fromCollection(data2)
+
+    tEnv.registerDataSet("t1", ds1, 'c)
+    tEnv.registerDataSet("t2", ds2, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "1\n2\n2"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testIntersectWithFilter(): Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT c FROM ((SELECT * FROM t1) INTERSECT (SELECT * FROM t2)) WHERE a > 1"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds2 = CollectionDataSets.get3TupleDataSet(env)
+
+    tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
+    tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

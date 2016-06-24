@@ -403,7 +403,7 @@ class Table(
   }
 
   /**
-    * Union two [[Table]]s with duplicate records removed.
+    * Unions two [[Table]]s with duplicate records removed.
     * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
@@ -426,7 +426,7 @@ class Table(
   }
 
   /**
-    * Union two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+    * Unions two [[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
     * must fully overlap.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]].
@@ -443,6 +443,58 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
     new Table(tableEnv, Union(logicalPlan, right.logicalPlan, true).validate(tableEnv))
+  }
+
+  /**
+    * Intersects two [[Table]]s with duplicate records removed. Intersect returns records that
+    * exist in both tables. If a record is present in one or both tables more than once, it is
+    * returned just once, i.e., the resulting table has no duplicate records. Similar to an
+    * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.intersect(right)
+    * }}}
+    */
+  def intersect(right: Table): Table = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Intersect on stream tables is currently not supported.")
+    }
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
+    new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
+  }
+
+  /**
+    * Intersects two [[Table]]s. IntersectAll returns records that exist in both tables.
+    * If a record is present in both tables more than once, it is returned as many times as it
+    * is present in both tables, i.e., the resulting table might have duplicate records. Similar
+    * to an SQL INTERSECT ALL. The fields of the two intersect operations must fully overlap.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.intersectAll(right)
+    * }}}
+    */
+  def intersectAll(right: Table): Table = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      throw new TableException(s"Intersect on stream tables is currently not supported.")
+    }
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException(
+        "Only tables from the same TableEnvironment can be intersected.")
+    }
+    new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
   /**

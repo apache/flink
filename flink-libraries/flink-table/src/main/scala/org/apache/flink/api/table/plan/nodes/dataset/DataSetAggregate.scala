@@ -145,7 +145,7 @@ class DataSetAggregate(
           false,
           rowTypeInfo.asInstanceOf[TypeInformation[Any]],
           expectedType.get,
-          "AggregateOutputConversion",
+          "DataSetAggregateConversion",
           rowType.getFieldNames.asScala
         ))
         .name(mapName)

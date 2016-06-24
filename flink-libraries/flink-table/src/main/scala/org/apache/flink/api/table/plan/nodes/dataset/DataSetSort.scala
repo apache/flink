@@ -109,6 +109,7 @@ class DataSetSort(
     direction match {
       case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
       case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
+      case _ => throw new IllegalArgumentException("Unsupported direction.")
     }
 
   }
