@@ -16,14 +16,22 @@
 # limitations under the License.
 ################################################################################
 
-FROM base
+FROM java:8-jre-alpine
 
-# Add passless key to ssh
-RUN ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
-RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/*
+# Requirements
+RUN apk add --update bash curl snappy supervisor && \
+	rm -rf /var/cache/apk/*
+
+ENV JAVA_HOME=/usr/local/bin/docker-java-home/ PATH=$PATH:$JAVA_HOME/bin
+
+# supervisor base configuration
+ADD supervisor.conf /etc/supervisor/
 
 # Flink Installation
-ENV FLINK_VERSION=1.0.3 HADOOP_VERSION=27 SCALA_VERSION=2.11
+ARG FLINK_VERSION=1.0.3
+ARG HADOOP_VERSION=27
+ARG SCALA_VERSION=2.11
+
 RUN curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?as_json\=1 | awk '/preferred/ {gsub(/"/,""); print $2}')flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | tar xvz -C /usr/local/
 RUN ln -s /usr/local/flink-$FLINK_VERSION /usr/local/flink
 ENV FLINK_HOME=/usr/local/flink PATH=$PATH:$FLINK_HOME/bin
@@ -32,7 +40,5 @@ ENV FLINK_HOME=/usr/local/flink PATH=$PATH:$FLINK_HOME/bin
 ADD conf/flink-conf.yaml $FLINK_HOME/conf/
 ADD config-flink.sh $FLINK_HOME/bin/
 
-EXPOSE 22 6121 6122 6123 8081
+EXPOSE 6121 6122 6123 8081
 CMD ["sh", "-c", "${FLINK_HOME}/bin/config-flink.sh", "taskmanager"]
-#CMD ["${FLINK_HOME}/bin/config-flink.sh", "taskmanager"]
-#CMD ["/usr/local/bin/config-flink.sh", "taskmanager"]

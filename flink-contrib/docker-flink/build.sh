@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
@@ -18,11 +18,4 @@
 # limitations under the License.
 ################################################################################
 
-
-#Kill cluster and remove all containers
-docker-compose kill
-#docker rm $(docker ps -a -q)
-
-#rebuild images
-docker build -t "base" base
 docker build -t "flink" flink
