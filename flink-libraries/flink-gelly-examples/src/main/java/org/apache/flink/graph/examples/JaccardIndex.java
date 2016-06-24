@@ -119,15 +119,16 @@ public class JaccardIndex {
 				boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
 				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-					.generate()
-					.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+					.generate();
 
 				if (scale > 32) {
 					ji = graph
+						.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip))
 						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<LongValue, NullValue, NullValue>());
 				} else {
 					ji = graph
 						.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+						.run(new Simplify<IntValue, NullValue, NullValue>(clipAndFlip))
 						.run(new org.apache.flink.graph.library.similarity.JaccardIndex<IntValue, NullValue, NullValue>());
 				}
 				} break;

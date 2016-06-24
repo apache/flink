@@ -115,25 +115,28 @@ public class HITS {
 				long edgeCount = vertexCount * edgeFactor;
 
 				Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-					.generate()
-					.run(new Simplify<LongValue, NullValue, NullValue>());
+					.generate();
 
 				if (parameters.get("algorithm").equals("HITS")) {
 					if (scale > 32) {
 						hits = graph
+							.run(new Simplify<LongValue, NullValue, NullValue>())
 							.run(new org.apache.flink.graph.library.link_analysis.HITS<LongValue, NullValue, NullValue>(iterations));
 					} else {
 						hits = graph
 							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new Simplify<IntValue, NullValue, NullValue>())
 							.run(new org.apache.flink.graph.library.link_analysis.HITS<IntValue, NullValue, NullValue>(iterations));
 					}
 				} else if (parameters.get("algorithm").equals("HITSAlgorithm")) {
 					if (scale > 32) {
 						hits = graph
+							.run(new Simplify<LongValue, NullValue, NullValue>())
 							.run(new org.apache.flink.graph.library.HITSAlgorithm<LongValue, NullValue, NullValue>(iterations));
 					} else {
 						hits = graph
 							.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToIntValue()))
+							.run(new Simplify<IntValue, NullValue, NullValue>())
 							.run(new org.apache.flink.graph.library.HITSAlgorithm<IntValue, NullValue, NullValue>(iterations));
 					}
 				} else {
