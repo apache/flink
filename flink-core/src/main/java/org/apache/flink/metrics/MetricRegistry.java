@@ -126,10 +126,7 @@ public class MetricRegistry {
 			}
 			catch (Throwable t) {
 				reporter = new JMXReporter();
-				if (executor != null) {
-					executor.shutdownNow();
-					executor = null;
-				}
+				shutdownExecutor();
 				LOG.error("Could not instantiate custom metrics reporter. Defaulting to JMX metrics export.", t);
 			}
 
@@ -149,8 +146,20 @@ public class MetricRegistry {
 				LOG.warn("Metrics reporter did not shut down cleanly", t);
 			}
 		}
+		shutdownExecutor();
+	}
+	
+	private void shutdownExecutor() {
 		if (executor != null) {
-			executor.shutdownNow();
+			executor.shutdown();
+
+			try {
+				if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+					executor.shutdownNow();
+				}
+			} catch (InterruptedException e) {
+				executor.shutdownNow();
+			}
 		}
 	}
 
