@@ -333,6 +333,36 @@ public class JMXReporter implements MetricReporter {
 			startJmxService(port);
 		}
 
+		/**
+		 * Starts an RMI Registry that allows clients to lookup the JMX IP/port.
+		 *
+		 * @param port rmi port to use
+		 * @throws IOException
+		 */
+		private void startRmiRegistry(int port) throws IOException {
+			rmiRegistry = LocateRegistry.createRegistry(port);
+		}
+
+		/**
+		 * Starts a JMX connector that allows (un)registering MBeans with the MBean server.
+		 *
+		 * @param port jmx port to use
+		 * @throws IOException
+		 */
+		private void startJmxService(int port) throws IOException {
+			String serviceUrl = "service:jmx:rmi://localhost:" + port + "/jndi/rmi://localhost:" + port + "/jmxrmi";
+			JMXServiceURL url;
+			try {
+				url = new JMXServiceURL(serviceUrl);
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("Malformed service url created " + serviceUrl, e);
+			}
+
+			connector = JMXConnectorServerFactory.newJMXConnectorServer(url, null, ManagementFactory.getPlatformMBeanServer());
+
+			connector.start();
+		}
+
 		public void stop() throws IOException {
 			if (connector != null) {
 				try {
@@ -350,34 +380,6 @@ public class JMXReporter implements MetricReporter {
 					rmiRegistry = null;
 				}
 			}
-		}
-
-		/**
-		 * Starts an RMI Registry that allows clients to lookup the JMX IP/port.
-		 * @param port rmi port to use
-		 * @throws IOException
-		 */
-		private void startRmiRegistry(int port) throws IOException {
-			rmiRegistry = LocateRegistry.createRegistry(port);
-		}
-
-		/**
-		 * Starts a JMX connector that allows (un)registering MBeans with the MBean server.
-		 * @param port jmx port to use
-		 * @throws IOException
-		 */
-		private void startJmxService(int port) throws IOException {
-			String serviceUrl =	"service:jmx:rmi://localhost:" + port + "/jndi/rmi://localhost:" + port + "/jmxrmi";
-			JMXServiceURL url;
-			try {
-				url = new JMXServiceURL(serviceUrl);
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("Malformed service url created " + serviceUrl, e);
-			}
-
-			connector = JMXConnectorServerFactory.newJMXConnectorServer(url, null, ManagementFactory.getPlatformMBeanServer());
-
-			connector.start();
 		}
 	}
 }
