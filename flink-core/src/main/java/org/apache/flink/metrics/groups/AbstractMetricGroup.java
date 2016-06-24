@@ -21,6 +21,7 @@ package org.apache.flink.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.MetricRegistry;
@@ -160,6 +161,17 @@ public abstract class AbstractMetricGroup implements MetricGroup {
 	public <T> Gauge<T> gauge(String name, Gauge<T> gauge) {
 		addMetric(name, gauge);
 		return gauge;
+	}
+
+	@Override
+	public Histogram histogram(int name, Histogram histogram) {
+		return histogram(String.valueOf(name), histogram);
+	}
+
+	@Override
+	public Histogram histogram(String name, Histogram histogram) {
+		addMetric(name, histogram);
+		return histogram;
 	}
 
 	/**
