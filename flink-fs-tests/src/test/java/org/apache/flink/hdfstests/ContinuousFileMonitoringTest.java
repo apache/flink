@@ -166,9 +166,9 @@ public class ContinuousFileMonitoringTest {
 			content.add(element.getValue() +"\n");
 		}
 
-		Assert.assertEquals(actualFileContents.size(), expectedFileContents.size());
+		Assert.assertEquals(expectedFileContents.size(), actualFileContents.size());
 		for (Integer fileIdx: expectedFileContents.keySet()) {
-			Assert.assertTrue(actualFileContents.keySet().contains(fileIdx));
+			Assert.assertTrue("file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
 
 			List<String> cntnt = actualFileContents.get(fileIdx);
 			Collections.sort(cntnt, new Comparator<String>() {
@@ -182,7 +182,7 @@ public class ContinuousFileMonitoringTest {
 			for (String line: cntnt) {
 				cntntStr.append(line);
 			}
-			Assert.assertEquals(cntntStr.toString(), expectedFileContents.get(fileIdx));
+			Assert.assertEquals(expectedFileContents.get(fileIdx), cntntStr.toString());
 		}
 
 		for(org.apache.hadoop.fs.Path file: filesCreated) {

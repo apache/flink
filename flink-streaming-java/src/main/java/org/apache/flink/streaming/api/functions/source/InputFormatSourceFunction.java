@@ -85,7 +85,11 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 				
 				while (isRunning && !format.reachedEnd()) {
 					nextElement = format.nextRecord(nextElement);
-					ctx.collect(nextElement);
+					if (nextElement != null) {
+						ctx.collect(nextElement);
+					} else {
+						break;
+					}
 				}
 				format.close();
 				completedSplitsCounter.inc();
