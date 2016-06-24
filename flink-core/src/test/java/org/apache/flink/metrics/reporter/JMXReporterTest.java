@@ -64,6 +64,7 @@ public class JMXReporterTest {
 
 	/**
 	 * Verifies that multiple JMXReporters can be started on the same machine and register metrics at the MBeanServer.
+	 * @throws Exception if the attribute/mbean could not be found or the test is broken
      */
 	@Test
 	public void testPortConflictHandling() throws Exception {
