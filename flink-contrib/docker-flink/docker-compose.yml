@@ -20,15 +20,11 @@ jobmanager:
     image: flink
     ports:
         - "48081:8081"
-        - "220:22"
     expose:
-        - "22"
         - "6123"
     command: /usr/local/flink/bin/config-flink.sh jobmanager
 taskmanager:
     image: flink
-    ports:
-        - "22"
     expose:
         - "6121"
         - "6122"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
@@ -20,7 +20,7 @@
 
 #set nb_slots = nb CPUs
 #let "nbslots=$2 *`nproc"
-sed -i -e "s/%nb_slots%/`nproc`/g" $FLINK_HOME/conf/flink-conf.yaml
+sed -i -e "s/%nb_slots%/`grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
 #set parallelism
 sed -i -e "s/%parallelism%/1/g" $FLINK_HOME/conf/flink-conf.yaml
 
@@ -38,8 +38,5 @@ fi
 #print out config - debug
 echo "config file: " && cat $FLINK_HOME/conf/flink-conf.yaml
 
-#Uncomment for SSH connection between nodes without prompts
-#echo 'export FLINK_SSH_OPTS="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"' >> ~/.profile
-
-#run ssh server and supervisor to keep container running.
-/usr/sbin/sshd && supervisord -c /etc/supervisor/supervisor.conf
+#run supervisor to keep container running.
+supervisord -c /etc/supervisor/supervisor.conf
