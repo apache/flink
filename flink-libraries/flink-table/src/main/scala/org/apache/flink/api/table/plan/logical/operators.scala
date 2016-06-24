@@ -262,6 +262,33 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
   }
 }
 
+case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+  override def output: Seq[Attribute] = left.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    left.construct(relBuilder)
+    right.construct(relBuilder)
+    relBuilder.intersect(all)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
+    if (left.output.length != right.output.length) {
+      failValidation(s"Intersect two table of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
+    }
+    // allow different column names between tables
+    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
+      l.resultType == r.resultType}
+    if (!sameSchema) {
+      failValidation(s"Intersect two table of different schema:" +
+        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+    }
+    resolvedIntersect
+  }
+}
+
 case class Join(
     left: LogicalNode,
     right: LogicalNode,
