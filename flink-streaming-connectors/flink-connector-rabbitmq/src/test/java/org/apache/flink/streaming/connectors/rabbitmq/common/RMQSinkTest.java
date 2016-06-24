@@ -65,7 +65,7 @@ public class RMQSinkTest {
 	}
 
 	@Test
-	public void throwExceptionIfChannenIsNull() throws Exception {
+	public void throwExceptionIfChannelIsNull() throws Exception {
 		when(connection.createChannel()).thenReturn(null);
 		try {
 			createRMQSink();
@@ -90,7 +90,7 @@ public class RMQSinkTest {
 	}
 
 	@Test(expected = RuntimeException.class)
-	public void exceptionDuringPublishingIfNotIgnoredError() throws Exception {
+	public void exceptionDuringPublishingIsNotIgnored() throws Exception {
 		RMQSink<String> rmqSink = createRMQSink();
 
 		doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);

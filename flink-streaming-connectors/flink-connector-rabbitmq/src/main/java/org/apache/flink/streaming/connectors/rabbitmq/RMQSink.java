@@ -22,7 +22,6 @@ import java.io.IOException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
-import org.apache.flink.streaming.connectors.rabbitmq.common.Utils;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +75,10 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
 		try {
 			connection = factory.newConnection();
-			channel = Utils.createChannel(connection);
+			channel = connection.createChannel();
+			if (channel == null) {
+				throw new RuntimeException("RabbitMQ connection returned null channel");
+			}
 			channel.queueDeclare(queueName, false, false, false, null);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
