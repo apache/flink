@@ -74,9 +74,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-     */
 	@Override
 	public void hset(final String hashName, final String key, final String value) {
 		Jedis jedis = null;
@@ -93,9 +90,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void rpush(final String listName, final String value) {
 		Jedis jedis = null;
@@ -112,9 +106,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void sadd(final String setName, final String value) {
 		Jedis jedis = null;
@@ -131,9 +122,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void publish(final String channelName, final String message) {
 		Jedis jedis = null;
@@ -150,9 +138,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void set(final String key, final String value) {
 		Jedis jedis = null;
@@ -169,9 +154,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void pfadd(final String key, final String element) {
 		Jedis jedis = null;
@@ -188,9 +170,6 @@ public class RedisContainer implements RedisCommandsContainer, Closeable {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void zadd(final String setName, final String element, final String score) {
 		Jedis jedis = null;

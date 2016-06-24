@@ -46,9 +46,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		this.jedisCluster = jedisCluster;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void hset(final String hashName, final String key, final String value) {
 		try {
@@ -61,9 +58,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void rpush(final String listName, final String value) {
 		try {
@@ -76,9 +70,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void sadd(final String setName, final String value) {
 		try {
@@ -91,9 +82,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void publish(final String channelName, final String message) {
 		try {
@@ -106,9 +94,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void set(final String key, final String value) {
 		try {
@@ -121,9 +106,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void pfadd(final String key, final String element) {
 		try {
@@ -136,9 +118,6 @@ public class RedisClusterContainer implements RedisCommandsContainer, Closeable 
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void zadd(final String setName, final String element, final String score) {
 		try {
