@@ -727,8 +727,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		yarnClient.submitApplication(appContext);
 
 		LOG.info("Waiting for the cluster to be allocated");
-		int waittime = 0;
+		final long startTime = System.currentTimeMillis();
 		ApplicationReport report;
+		YarnApplicationState lastAppState = YarnApplicationState.NEW;
 		loop: while( true ) {
 			try {
 				report = yarnClient.getApplicationReport(appId);
@@ -750,14 +751,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					LOG.info("YARN application has been deployed successfully.");
 					break loop;
 				default:
-					LOG.info("Deploying cluster, current state " + appState);
-					if(waittime > 60000) {
+					if (appState != lastAppState) {
+						LOG.info("Deploying cluster, current state " + appState);
+					}
+					if(System.currentTimeMillis() - startTime > 60000) {
 						LOG.info("Deployment took more than 60 seconds. Please check if the requested resources are available in the YARN cluster");
 					}
 
 			}
-			waittime += 1000;
-			Thread.sleep(1000);
+			lastAppState = appState;
+			Thread.sleep(250);
 		}
 		// print the application id for user to cancel themselves.
 		if (isDetachedMode()) {

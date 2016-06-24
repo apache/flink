@@ -155,22 +155,21 @@ public class YarnClusterClient extends ClusterClient {
 
 			logAndSysout("Waiting until all TaskManagers have connected");
 
-			while (true) {
-				GetClusterStatusResponse status = getClusterStatus();
-				if (status != null) {
-					if (status.numRegisteredTaskManagers() < clusterDescriptor.getTaskManagerCount()) {
-						logAndSysout("TaskManager status (" + status.numRegisteredTaskManagers() + "/"
-							+ clusterDescriptor.getTaskManagerCount() + ")");
-					} else {
+			for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+				currentStatus = getClusterStatus();
+				if (currentStatus != null && !currentStatus.equals(lastStatus)) {
+					logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
+						+ clusterDescriptor.getTaskManagerCount() + ")");
+					if (currentStatus.numRegisteredTaskManagers() >= clusterDescriptor.getTaskManagerCount()) {
 						logAndSysout("All TaskManagers are connected");
 						break;
 					}
-				} else {
+				} else if (lastStatus == null) {
 					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
 				}
 
 				try {
-					Thread.sleep(500);
+					Thread.sleep(250);
 				} catch (InterruptedException e) {
 					LOG.error("Interrupted while waiting for TaskManagers");
 					System.err.println("Thread is interrupted");
