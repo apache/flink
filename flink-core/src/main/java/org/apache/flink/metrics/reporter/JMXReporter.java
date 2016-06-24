@@ -344,7 +344,7 @@ public class JMXReporter implements MetricReporter {
 		}
 
 		/**
-		 * Starts a JMX connector that allows (un)registering MBeans with the MBean server.
+		 * Starts a JMX connector that allows (un)registering MBeans with the MBean server and RMI invocations.
 		 *
 		 * @param port jmx port to use
 		 * @throws IOException
