@@ -88,6 +88,8 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	private FilePathFilter pathFilter;
 
+	private Object lock;
+
 	private volatile boolean isRunning = true;
 
 	public ContinuousFileMonitoringFunction(
@@ -113,7 +115,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		LOG.info("Opening File Monitoring Source.");
-		
+
 		super.open(parameters);
 		format.configure(parameters);
 	}
@@ -122,16 +124,21 @@ public class ContinuousFileMonitoringFunction<OUT>
 	public void run(SourceFunction.SourceContext<FileInputSplit> context) throws Exception {
 		FileSystem fileSystem = FileSystem.get(new URI(path));
 
+		lock = context.getCheckpointLock();
 		switch (watchType) {
 			case PROCESS_CONTINUOUSLY:
 				while (isRunning) {
-					monitorDirAndForwardSplits(fileSystem, context);
+					synchronized (lock) {
+						monitorDirAndForwardSplits(fileSystem, context);
+					}
 					Thread.sleep(interval);
 				}
 				isRunning = false;
 				break;
 			case PROCESS_ONCE:
-				monitorDirAndForwardSplits(fileSystem, context);
+				synchronized (lock) {
+					monitorDirAndForwardSplits(fileSystem, context);
+				}
 				isRunning = false;
 				break;
 			default:
@@ -141,15 +148,13 @@ public class ContinuousFileMonitoringFunction<OUT>
 	}
 
 	private void monitorDirAndForwardSplits(FileSystem fs, SourceContext<FileInputSplit> context) throws IOException, JobException {
-		final Object lock = context.getCheckpointLock();
+		assert (Thread.holdsLock(lock));
 
 		// it may be non-null in the case of a recovery after a failure.
 		if (currentSplitsToFwd != null) {
-			synchronized (lock) {
-				forwardSplits(currentSplitsToFwd, context);
-			}
+			forwardSplits(currentSplitsToFwd, context);
+			currentSplitsToFwd = null;
 		}
-		currentSplitsToFwd = null;
 
 		// it may be non-null in the case of a recovery after a failure.
 		if (splitsToFwdOrderedAscByModTime == null) {
@@ -160,11 +165,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 			splitsToFwdOrderedAscByModTime.iterator();
 
 		while (it.hasNext()) {
-			synchronized (lock) {
-				currentSplitsToFwd = it.next();
-				it.remove();
-				forwardSplits(currentSplitsToFwd, context);
-			}
+			currentSplitsToFwd = it.next();
+			it.remove();
+			forwardSplits(currentSplitsToFwd, context);
 		}
 
 		// set them to null to distinguish from a restore.
@@ -173,6 +176,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 	}
 
 	private void forwardSplits(Tuple2<Long, List<FileInputSplit>> splitsToFwd, SourceContext<FileInputSplit> context) {
+
+		assert (Thread.holdsLock(context.getCheckpointLock()));
+
 		currentSplitsToFwd = splitsToFwd;
 		Long modTime = currentSplitsToFwd.f0;
 		List<FileInputSplit> splits = currentSplitsToFwd.f1;

@@ -219,6 +219,8 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 			stream.write(line.getBytes());
 		}
 		stream.close();
+
+		Assert.assertTrue("Result file present", !fs.exists(file));
 		fs.rename(tmp, file);
 		Assert.assertTrue("No result file present", fs.exists(file));
 		return new Tuple2<>(file, str.toString());
