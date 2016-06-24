@@ -26,9 +26,14 @@ import org.apache.flink.metrics.util.TestReporter;
 import org.junit.Test;
 
 import javax.management.MBeanServer;
+import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 
+import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_JMX_PORT;
 import static org.apache.flink.metrics.MetricRegistry.KEY_METRICS_REPORTER_CLASS;
 import static org.junit.Assert.assertEquals;
 
@@ -56,7 +61,7 @@ public class JMXReporterTest {
 	 */
 	@Test
 	public void testGenerateName() {
-		String[] scope = { "value0", "value1", "\"value2 (test),=;:?'" };
+		String[] scope = {"value0", "value1", "\"value2 (test),=;:?'"};
 		String jmxName = JMXReporter.generateJmxName("TestMetric", scope);
 
 		assertEquals("org.apache.flink.metrics:key0=value0,key1=value1,key2=value2_(test)------,name=TestMetric", jmxName);
@@ -64,8 +69,9 @@ public class JMXReporterTest {
 
 	/**
 	 * Verifies that multiple JMXReporters can be started on the same machine and register metrics at the MBeanServer.
+	 *
 	 * @throws Exception if the attribute/mbean could not be found or the test is broken
-     */
+	 */
 	@Test
 	public void testPortConflictHandling() throws Exception {
 		Configuration cfg = new Configuration();
@@ -104,7 +110,80 @@ public class JMXReporterTest {
 
 		assertEquals(1, mBeanServer.getAttribute(objectName1, "Value"));
 		assertEquals(2, mBeanServer.getAttribute(objectName2, "Value"));
-		
+
+		rep1.close();
+		rep2.close();
+		reg.shutdown();
+	}
+
+	/**
+	 * Verifies that we can connect to multiple JMXReporters running on the same machine.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testJMXAvailability() throws Exception {
+		Configuration cfg = new Configuration();
+		cfg.setString(KEY_METRICS_REPORTER_CLASS, TestReporter.class.getName());
+		MetricRegistry reg = new MetricRegistry(cfg);
+
+		TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
+
+		JMXReporter rep1 = new JMXReporter();
+		JMXReporter rep2 = new JMXReporter();
+
+		int port1 = 9010;
+		int port2 = 9011;
+
+		Configuration cfg1 = new Configuration();
+		cfg1.setString(KEY_METRICS_JMX_PORT, String.valueOf(port1));
+		Configuration cfg2 = new Configuration();
+		cfg2.setString(KEY_METRICS_JMX_PORT, String.valueOf(port2));
+
+		rep1.open(cfg1);
+		rep2.open(cfg2);
+
+		rep1.notifyOfAddedMetric(new Gauge<Integer>() {
+			@Override
+			public Integer getValue() {
+				return 1;
+			}
+		}, "rep1", new TaskManagerMetricGroup(reg, "host", "tm"));
+
+		rep2.notifyOfAddedMetric(new Gauge<Integer>() {
+			@Override
+			public Integer getValue() {
+				return 2;
+			}
+		}, "rep2", new TaskManagerMetricGroup(reg, "host", "tm"));
+
+		ObjectName objectName1 = new ObjectName(JMXReporter.generateJmxName("rep1", mg.getScopeComponents()));
+		ObjectName objectName2 = new ObjectName(JMXReporter.generateJmxName("rep2", mg.getScopeComponents()));
+
+		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + port1 + "/jndi/rmi://localhost:" + port1 + "/jmxrmi");
+		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
+		MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
+
+		assertEquals(1, mCon1.getAttribute(objectName1, "Value"));
+		assertEquals(2, mCon1.getAttribute(objectName2, "Value"));
+
+		url1 = null;
+		jmxCon1.close();
+		jmxCon1 = null;
+		mCon1 = null;
+
+		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + port2 + "/jndi/rmi://localhost:" + port2 + "/jmxrmi");
+		JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
+		MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
+
+		assertEquals(1, mCon2.getAttribute(objectName1, "Value"));
+		assertEquals(2, mCon2.getAttribute(objectName2, "Value"));
+
+		url2 = null;
+		jmxCon2.close();
+		jmxCon2 = null;
+		mCon2 = null;
+
 		rep1.close();
 		rep2.close();
 		reg.shutdown();
