@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.scala.stream
 
+import java.io.{File, FileOutputStream, OutputStreamWriter}
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.stream.utils.StreamITCase
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.sources.StreamTableSource
+import org.apache.flink.api.table.sources.{CsvTableSource, StreamTableSource}
 import org.apache.flink.api.table.typeutils.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableEnvironment}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -83,7 +85,63 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testCsvTableSource(): Unit = {
+
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2#45.6#Taylor",
+      "Sam#3#7.89#Miller",
+      "Peter#4#0.12#Smith",
+      "% Just a comment",
+      "Liz#5#34.5#Williams",
+      "Sally#6#6.78#Miller",
+      "Alice#7#90.1#Smith",
+      "Kelly#8#2.34#Williams"
+    )
+
+    val tempFile = File.createTempFile("csv-test", "tmp")
+    tempFile.deleteOnExit()
+    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), "UTF-8")
+    tmpWriter.write(csvRecords.mkString("$"))
+    tmpWriter.close()
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val csvTable = new CsvTableSource(
+      tempFile.getAbsolutePath,
+      Array("first", "id", "score", "last"),
+      Array(
+        BasicTypeInfo.STRING_TYPE_INFO,
+        BasicTypeInfo.INT_TYPE_INFO,
+        BasicTypeInfo.DOUBLE_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO
+      ),
+      fieldDelim = "#",
+      rowDelim = "$",
+      ignoreFirstLine = true,
+      ignoreComments = "%"
+    )
+
+    tEnv.registerTableSource("csvTable", csvTable)
+    tEnv.sql(
+      "SELECT STREAM last, score, id FROM csvTable WHERE id < 4 ")
+      .toDataStream[Row]
+      .addSink(new StreamITCase.StringSink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Smith,12.3,1",
+      "Taylor,45.6,2",
+      "Miller,7.89,3")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
+
 
 class TestStreamTableSource(val numRecords: Int) extends StreamTableSource[Row] {
 
