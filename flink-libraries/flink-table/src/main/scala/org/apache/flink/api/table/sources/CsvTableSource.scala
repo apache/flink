@@ -23,8 +23,10 @@ import org.apache.flink.api.java.io.TupleCsvInputFormat
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.table.{Row, TableException}
+import org.apache.flink.api.table.TableException
 import org.apache.flink.core.fs.Path
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
 /**
   * A [[TableSource]] for simple CSV files with up to 25 fields.
@@ -49,7 +51,7 @@ class CsvTableSource(
     ignoreFirstLine: Boolean = false,
     ignoreComments: String = null,
     lenient: Boolean = false)
-  extends BatchTableSource[Tuple] {
+  extends BatchTableSource[Tuple] with StreamTableSource[Tuple] {
 
   if (fieldNames.length != fieldTypes.length) {
     throw new TableException("Number of field names and field types must be equal.")
@@ -59,22 +61,11 @@ class CsvTableSource(
     throw new TableException("Only up to 25 fields supported with this CsvTableSource.")
   }
 
-  /** Returns the data of the table as a [[DataSet]] of [[Row]]. */
+  /** Returns the data of the table as a [[DataSet]] of [[Tuple]]. */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Tuple] = {
 
     val typeInfo = getReturnType.asInstanceOf[TupleTypeInfoBase[Tuple]]
-    val inputFormat = new TupleCsvInputFormat(new Path(path), rowDelim, fieldDelim, typeInfo)
-
-    inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
-    inputFormat.setLenient(lenient)
-    if (quoteCharacter != null) {
-      inputFormat.enableQuotedStringParsing(quoteCharacter)
-    }
-    if (ignoreComments != null) {
-      inputFormat.setCommentPrefix(ignoreComments)
-    }
-
-    execEnv.createInput(inputFormat, typeInfo)
+    execEnv.createInput(createCsvInput(typeInfo), typeInfo)
   }
 
   /** Returns the types of the table fields. */
@@ -89,5 +80,28 @@ class CsvTableSource(
   /** Returns the [[TypeInformation]] for the return type of the [[CsvTableSource]]. */
   override def getReturnType: TypeInformation[Tuple] = {
     new TupleTypeInfo(fieldTypes.toArray:_*)
+  }
+
+  /** Returns the data of the table as a [[DataStream]] of [[Tuple]]. */
+  override def getDataStream(streamExecEnv: StreamExecutionEnvironment): DataStream[Tuple] = {
+
+    val typeInfo = getReturnType.asInstanceOf[TupleTypeInfoBase[Tuple]]
+    streamExecEnv.createInput(createCsvInput(typeInfo), typeInfo)
+  }
+
+  private def createCsvInput(typeInfo: TupleTypeInfoBase[Tuple]): TupleCsvInputFormat[Tuple] = {
+
+    val inputFormat = new TupleCsvInputFormat(new Path(path), rowDelim, fieldDelim, typeInfo)
+
+    inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
+    inputFormat.setLenient(lenient)
+    if (quoteCharacter != null) {
+      inputFormat.enableQuotedStringParsing(quoteCharacter)
+    }
+    if (ignoreComments != null) {
+      inputFormat.setCommentPrefix(ignoreComments)
+    }
+
+    inputFormat
   }
 }
