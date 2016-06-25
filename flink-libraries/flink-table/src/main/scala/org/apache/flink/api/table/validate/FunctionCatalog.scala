@@ -38,9 +38,8 @@ class FunctionCatalog {
     * Lookup and create an expression if we find a match.
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
-    val funcClass = functionBuilders.get(name.toLowerCase).getOrElse {
-      throw new ValidationException(s"undefined function $name")
-    }
+    val funcClass = functionBuilders.getOrElse(name.toLowerCase,
+      throw new ValidationException(s"undefined function $name"))
     withChildren(funcClass, children)
   }
 
