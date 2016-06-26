@@ -69,6 +69,12 @@ object CollectionDataSets {
     env.fromCollection(Random.shuffle(data))
   }
 
+  def getOneElement3TupleDataSet(env: ExecutionEnvironment): DataSet[(Int, Long, String)] = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    env.fromCollection(Random.shuffle(data))
+  }
+
   def get5TupleDataSet(env: ExecutionEnvironment): DataSet[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
