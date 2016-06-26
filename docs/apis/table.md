@@ -561,6 +561,30 @@ Table result = left.intersectAll(right);
     </tr>
 
     <tr>
+      <td><strong>Minus</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.minus(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>MinusAll</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.minusAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
       <td><strong>Distinct</strong></td>
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns rows with distinct value combinations.</p>
@@ -731,7 +755,7 @@ val result = left.intersect(right);
       </td>
     </tr>
 
-	<tr>
+    <tr>
       <td><strong>IntersectAll</strong></td>
       <td>
         <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
@@ -739,6 +763,30 @@ val result = left.intersect(right);
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
 val result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Minus</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
+val result = left.minus(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>MinusAll</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
+val result = left.minusAll(right);
 {% endhighlight %}
       </td>
     </tr>
@@ -884,7 +932,6 @@ Among others, the following SQL features are not supported, yet:
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
-- `EXCEPT` set operation
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 

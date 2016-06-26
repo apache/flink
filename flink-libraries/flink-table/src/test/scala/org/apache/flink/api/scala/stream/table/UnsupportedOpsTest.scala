@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.stream.table
 
 import org.apache.flink.api.scala.stream.utils.StreamTestData
 import org.apache.flink.api.scala.table._
-import org.apache.flink.api.table.{TableEnvironment, TableException}
+import org.apache.flink.api.table.{ValidationException, TableEnvironment, TableException}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
@@ -72,5 +72,14 @@ class UnsupportedOpsTest extends StreamingMultipleProgramsTestBase {
     val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.union(t2)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testMinus(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+    t1.minus(t2)
   }
 }

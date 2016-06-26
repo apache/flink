@@ -236,6 +236,37 @@ case class Aggregate(
   }
 }
 
+case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+  override def output: Seq[Attribute] = left.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    left.construct(relBuilder)
+    right.construct(relBuilder)
+    relBuilder.minus(all)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      failValidation(s"Minus on stream tables is currently not supported.")
+    }
+
+    val resolvedMinus = super.validate(tableEnv).asInstanceOf[Minus]
+    if (left.output.length != right.output.length) {
+      failValidation(s"Minus two table of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
+    }
+    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
+      l.resultType == r.resultType
+    }
+    if (!sameSchema) {
+      failValidation(s"Minus two table of different schema:" +
+        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+    }
+    resolvedMinus
+  }
+}
+
 case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 

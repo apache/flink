@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.table.plan.RexNodeTranslator.extractAggregations
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.table.expressions._
+import org.apache.flink.api.table.plan.logical
 import org.apache.flink.api.table.plan.logical._
 import org.apache.flink.api.table.sinks.TableSink
 import org.apache.flink.api.table.typeutils.TypeConverter
@@ -400,6 +401,55 @@ class Table(
     new Table(
       tableEnv,
       Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate).validate(tableEnv))
+  }
+
+  /**
+    * Minus of two [[Table]]s with duplicate records removed.
+    * Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
+    * exist in the right table. Duplicate records in the left table are returned
+    * exactly once, i.e., duplicates are removed. Both tables must have identical field types.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minus(right)
+    * }}}
+    */
+  def minus(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+        "subtracted.")
+    }
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, all = false)
+      .validate(tableEnv))
+  }
+
+  /**
+    * Minus of two [[Table]]s. Similar to an SQL EXCEPT ALL.
+    * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
+    * the right table. A record that is present n times in the left table and m times
+    * in the right table is returned (n - m) times, i.e., as many duplicates as are present
+    * in the right table are removed. Both tables must have identical field types.
+    *
+    * Note: Both tables must be bound to the same [[TableEnvironment]].
+    *
+    * Example:
+    *
+    * {{{
+    *   left.minusAll(right)
+    * }}}
+    */
+  def minusAll(right: Table): Table = {
+    // check that right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be " +
+        "subtracted.")
+    }
+    new Table(tableEnv, logical.Minus(logicalPlan, right.logicalPlan, all = true)
+      .validate(tableEnv))
   }
 
   /**

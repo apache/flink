@@ -25,17 +25,17 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.BatchTableEnvironment
-import org.apache.flink.api.table.runtime.IntersectCoGroupFunction
+import org.apache.flink.api.table.runtime.MinusCoGroupFunction
 import org.apache.flink.api.table.typeutils.TypeConverter._
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
-  * Flink RelNode which translates Intersect into CoGroup Operator.
+  * Flink RelNode which implements set minus operation.
   *
   */
-class DataSetIntersect(
+class DataSetMinus(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     left: RelNode,
@@ -48,7 +48,7 @@ class DataSetIntersect(
   override def deriveRowType() = rowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataSetIntersect(
+    new DataSetMinus(
       cluster,
       traitSet,
       inputs.get(0),
@@ -59,11 +59,11 @@ class DataSetIntersect(
   }
 
   override def toString: String = {
-    s"Intersect(intersect: ($intersectSelectionToString))"
+    s"Minus(minus: ($minusSelectionToString}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("intersect", intersectSelectionToString)
+    super.explainTerms(pw).item("minus", minusSelectionToString)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -84,10 +84,10 @@ class DataSetIntersect(
 
     val coGroupedDs = leftDataSet.coGroup(rightDataSet)
 
-    val coGroupOpName = s"intersect: ($intersectSelectionToString)"
-    val coGroupFunction = new IntersectCoGroupFunction[Any](all)
+    val coGroupOpName = s"minus: ($minusSelectionToString)"
+    val coGroupFunction = new MinusCoGroupFunction[Any](all)
 
-    val intersectDs = coGroupedDs.where("*").equalTo("*")
+    val minusDs = coGroupedDs.where("*").equalTo("*")
       .`with`(coGroupFunction).name(coGroupOpName)
 
     val config = tableEnv.getConfig
@@ -96,7 +96,7 @@ class DataSetIntersect(
     // here we only care about left type information, because we emit records from left DataSet
     expectedType match {
       case None if config.getEfficientTypeUsage =>
-        intersectDs
+        minusDs
 
       case _ =>
         val determinedType = determineReturnType(
@@ -112,22 +112,23 @@ class DataSetIntersect(
             false,
             leftType,
             determinedType,
-            "DataSetIntersectConversion",
+            "DataSetMinusConversion",
             getRowType.getFieldNames)
 
           val opName = s"convert: (${rowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-          intersectDs.map(mapFunc).name(opName)
+          minusDs.map(mapFunc).name(opName)
         }
         // no conversion necessary, forward
         else {
-          intersectDs
+          minusDs
         }
     }
   }
 
-  private def intersectSelectionToString: String = {
+  private def minusSelectionToString: String = {
     rowType.getFieldNames.asScala.toList.mkString(", ")
   }
 
 }
+

@@ -15,28 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.table.runtime
 
-import java.lang.{Iterable => JIterable}
+import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.util.Collector
 
-class IntersectCoGroupFunction[T](all: Boolean) extends CoGroupFunction[T, T, T]{
-  override def coGroup(first: JIterable[T], second: JIterable[T], out: Collector[T]): Unit = {
+class MinusCoGroupFunction[T](all: Boolean) extends CoGroupFunction[T, T, T] {
+  override def coGroup(first: Iterable[T], second: Iterable[T], out: Collector[T]): Unit = {
     if (first == null || second == null) return
-    val leftIter = first.iterator()
-    val rightIter = second.iterator()
+    val leftIter = first.iterator
+    val rightIter = second.iterator
+
     if (all) {
-      while (leftIter.hasNext && rightIter.hasNext) {
-        out.collect(leftIter.next)
-        rightIter.next
+      while (rightIter.hasNext && leftIter.hasNext) {
+        leftIter.next()
+        rightIter.next()
+      }
+
+      while (leftIter.hasNext) {
+        out.collect(leftIter.next())
       }
     } else {
-      if (leftIter.hasNext && rightIter.hasNext) {
-        out.collect(leftIter.next)
+      if (!rightIter.hasNext && leftIter.hasNext) {
+        out.collect(leftIter.next())
       }
     }
   }
 }
+
