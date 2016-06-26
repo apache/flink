@@ -23,7 +23,7 @@ Images are based on the official Java Alpine (OpenJDK 8) image and run
 supervisord to stay alive when running containers. If you want to build the
 flink image run:
 
-    docker build -t "flink" flink
+    sh build.sh
 
 If you want to build a specific version of flink/hadoop/scala you can configure
 the respective args:
