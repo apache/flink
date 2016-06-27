@@ -108,7 +108,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup {
 			}
 		}
 
-		// IMPORTANT: removing from the parent must happen while holding the this group's lock,
+		// IMPORTANT: removing from the parent must not happen while holding the this group's lock,
 		//      because it would violate the "first parent then subgroup" lock acquisition order
 		if (removeFromParent) {
 			parent.removeJobMetricsGroup(jobId, this);

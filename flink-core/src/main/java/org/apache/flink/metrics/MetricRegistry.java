@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.JMX;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -69,6 +70,8 @@ public class MetricRegistry {
 	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
+	
+	private boolean enabled = true;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -155,6 +158,11 @@ public class MetricRegistry {
 			return reporter;
 		}
 	}
+	
+	public void disable() {
+		enabled = false;
+		shutdown();
+	}
 
 	/**
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
@@ -201,7 +209,7 @@ public class MetricRegistry {
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (reporter != null) {
+			if (enabled && reporter != null) {
 				reporter.notifyOfAddedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {
@@ -218,7 +226,7 @@ public class MetricRegistry {
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (reporter != null) {
+			if (enabled && reporter != null) {
 				reporter.notifyOfRemovedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {

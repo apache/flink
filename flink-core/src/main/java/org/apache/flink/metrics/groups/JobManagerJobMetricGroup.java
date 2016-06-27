@@ -17,6 +17,7 @@
  */
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.MetricRegistry;
 import org.apache.flink.metrics.groups.scope.ScopeFormat.JobManagerJobScopeFormat;
@@ -30,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Special {@link org.apache.flink.metrics.MetricGroup} representing everything belonging to
  * a specific job, running on the JobManager.
  */
+@Internal
 public class JobManagerJobMetricGroup extends JobMetricGroup {
 
 	/** The metrics group that contains this group */

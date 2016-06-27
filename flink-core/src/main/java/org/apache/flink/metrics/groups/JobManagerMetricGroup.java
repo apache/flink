@@ -65,13 +65,17 @@ public class JobManagerMetricGroup extends ComponentMetricGroup {
 		// get or create a jobs metric group
 		JobManagerJobMetricGroup currentJobGroup;
 		synchronized (this) {
-			currentJobGroup = jobs.get(jobId);
+			if (isClosed()) {
+				currentJobGroup = jobs.get(jobId);
 
-			if (currentJobGroup == null || currentJobGroup.isClosed()) {
-				currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
-				jobs.put(jobId, currentJobGroup);
+				if (currentJobGroup == null || currentJobGroup.isClosed()) {
+					currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
+					jobs.put(jobId, currentJobGroup);
+				}
+				return currentJobGroup;
+			} else {
+				return null;
 			}
-			return currentJobGroup;
 		}
 	}
 

@@ -95,23 +95,20 @@ public abstract class ScopeFormat {
 	public static final String SCOPE_JOB_ID = asVariable("job_id");
 	public static final String SCOPE_JOB_NAME = asVariable("job_name");
 
+	/** The default scope format for the job component: {@code "<job_name>"} */
+	public static final String DEFAULT_SCOPE_JOB_COMPONENT = SCOPE_JOB_NAME;
+
 	// ----- Job on Job Manager ----
 
-	/** The default scope format for the job component: {@code "<job_name>"} */
-	public static final String DEFAULT_SCOPE_JOBMANAGER_JOB_COMPONENT = SCOPE_JOB_NAME;
-
-	/** The default scope format for all job metrics: {@code "<host>.taskmanager.<tm_id>.<job_name>"} */
+	/** The default scope format for all job metrics on a jobmanager: {@code "<host>.jobmanager.<job_name>"} */
 	public static final String DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP =
-		concat(DEFAULT_SCOPE_JOBMANAGER_COMPONENT, DEFAULT_SCOPE_JOBMANAGER_JOB_COMPONENT);
+		concat(DEFAULT_SCOPE_JOBMANAGER_COMPONENT, DEFAULT_SCOPE_JOB_COMPONENT);
 
 	// ----- Job on Task Manager ----
 
-	/** The default scope format for the job component: {@code "<job_name>"} */
-	public static final String DEFAULT_SCOPE_TASKMANAGER_JOB_COMPONENT = SCOPE_JOB_NAME;
-
-	/** The default scope format for all job metrics: {@code "<host>.taskmanager.<tm_id>.<job_name>"} */
+	/** The default scope format for all job metrics on a taskmanager: {@code "<host>.taskmanager.<tm_id>.<job_name>"} */
 	public static final String DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP =
-			concat(DEFAULT_SCOPE_TASKMANAGER_COMPONENT, DEFAULT_SCOPE_TASKMANAGER_JOB_COMPONENT);
+			concat(DEFAULT_SCOPE_TASKMANAGER_COMPONENT, DEFAULT_SCOPE_JOB_COMPONENT);
 
 	// ----- Task ----
 
@@ -305,7 +302,7 @@ public abstract class ScopeFormat {
 			final String[] template = copyTemplate();
 			final String[] values = {
 					parent.parent().parent().hostname(),
-					((TaskManagerMetricGroup) parent.parent().parent()).taskManagerId(),
+					parent.parent().parent().taskManagerId(),
 					valueOrNull(parent.parent().jobId()),
 					valueOrNull(parent.parent().jobName()),
 					valueOrNull(parent.vertexId()),
