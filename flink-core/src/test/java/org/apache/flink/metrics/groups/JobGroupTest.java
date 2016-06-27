@@ -45,6 +45,7 @@ public class JobGroupTest {
 		assertEquals(
 				"theHostName.taskmanager.test-tm-id.myJobName",
 				jmGroup.getScopeString());
+		registry.shutdown();
 	}
 
 	@Test
@@ -66,6 +67,7 @@ public class JobGroupTest {
 		assertEquals(
 				"some-constant.myJobName",
 				jmGroup.getScopeString());
+		registry.shutdown();
 	}
 
 	@Test
@@ -87,5 +89,6 @@ public class JobGroupTest {
 		assertEquals(
 				"peter.test-tm-id.some-constant." + jid,
 				jmGroup.getScopeString());
+		registry.shutdown();
 	}
 }

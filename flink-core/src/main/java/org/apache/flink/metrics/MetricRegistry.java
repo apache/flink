@@ -44,6 +44,8 @@ public class MetricRegistry {
 	//  configuration keys
 	// ------------------------------------------------------------------------
 
+	public static final String KEY_METRICS_JMX_PORT = "metrics.jmx.port";
+
 	public static final String KEY_METRICS_REPORTER_CLASS = "metrics.reporter.class";
 	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
 	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
@@ -85,7 +87,7 @@ public class MetricRegistry {
 		if (className == null) {
 			// by default, create JMX metrics
 			LOG.info("No metrics reporter configured, exposing metrics via JMX");
-			this.reporter = new JMXReporter();
+			this.reporter = startJmxReporter(config);
 			this.timer = null;
 		}
 		else {
@@ -128,13 +130,30 @@ public class MetricRegistry {
 				}
 			}
 			catch (Throwable t) {
-				reporter = new JMXReporter();
 				timer = null;
 				LOG.error("Could not instantiate custom metrics reporter. Defaulting to JMX metrics export.", t);
+				reporter = startJmxReporter(config);
 			}
 
 			this.reporter = reporter;
 			this.timer = timer;
+		}
+	}
+
+	private static JMXReporter startJmxReporter(Configuration config) {
+		JMXReporter reporter = null;
+		try {
+			Configuration reporterConfig = new Configuration();
+			String portRange = config.getString(KEY_METRICS_JMX_PORT, null);
+			if (portRange != null) {
+				reporterConfig.setString(KEY_METRICS_JMX_PORT, portRange);
+			}
+			reporter = new JMXReporter();
+			reporter.open(reporterConfig);
+		} catch (Exception e) {
+			LOG.error("Failed to instantiate JMX reporter.", e);
+		} finally {
+			return reporter;
 		}
 	}
 
