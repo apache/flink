@@ -15,20 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.metrics;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 /**
- * A Gauge is a {@link Metric} that calculates a specific value at a point in time.
+ * A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe.
  */
-@PublicEvolving
-public interface Gauge<T> extends Metric {
+public class SimpleCounter implements Counter {
+	private long count;
+
 	/**
-	 * Calculates and returns the measured value.
-	 *
-	 * @return calculated value
+	 * Increment the current count by 1.
 	 */
-	T getValue();
+	@Override
+	public void inc() {
+		count++;
+	}
+
+	/**
+	 * Increment the current count by the given value.
+	 *
+	 * @param n value to increment the current count by
+	 */
+	@Override
+	public void inc(long n) {
+		count += n;
+	}
+
+	/**
+	 * Decrement the current count by 1.
+	 */
+	@Override
+	public void dec() {
+		count--;
+	}
+
+	/**
+	 * Decrement the current count by the given value.
+	 *
+	 * @param n value to decrement the current count by
+	 */
+	@Override
+	public void dec(long n) {
+		count -= n;
+	}
+
+	/**
+	 * Returns the current count.
+	 *
+	 * @return current count
+	 */
+	@Override
+	public long getCount() {
+		return count;
+	}
 }
