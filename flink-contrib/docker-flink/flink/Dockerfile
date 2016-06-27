@@ -41,4 +41,5 @@ ADD config-flink.sh $FLINK_HOME/bin/
 
 # Configure docker image
 EXPOSE 6121 6122 6123 8081
-CMD ["sh", "-c", "${FLINK_HOME}/bin/config-flink.sh", "taskmanager"]
+ENTRYPOINT ["/usr/local/flink/bin/config-flink.sh"]
+CMD ["run"]

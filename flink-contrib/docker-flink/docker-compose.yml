@@ -16,18 +16,27 @@
 # limitations under the License.
 ################################################################################
 
-jobmanager:
+version: "2"
+services:
+  jobmanager:
     image: flink
     ports:
-        - "48081:8081"
+      - "48081:8081"
     expose:
-        - "6123"
-    command: /usr/local/flink/bin/config-flink.sh jobmanager
-taskmanager:
+      - "6123"
+    command: jobmanager
+    volumes:
+      - conf:/usr/local/flink/conf
+
+  taskmanager:
     image: flink
+    depends_on:
+      - jobmanager
     expose:
-        - "6121"
-        - "6122"
-    command: /usr/local/flink/bin/config-flink.sh taskmanager
-    links:
-        - jobmanager:jobmanager
+      - "6121"
+      - "6122"
+    command: taskmanager
+    volumes_from:
+      - jobmanager:ro
+volumes:
+  conf:

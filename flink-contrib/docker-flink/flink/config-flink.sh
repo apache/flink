@@ -25,14 +25,18 @@ sed -i -e "s/%nb_slots%/`grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/f
 sed -i -e "s/%parallelism%/1/g" $FLINK_HOME/conf/flink-conf.yaml
 
 if [ "$1" = "jobmanager" ]; then
-    echo "Configuring Job Manager on this node"
+    echo "Starting Job Manager"
     sed -i -e "s/%jobmanager%/`hostname -i`/g" $FLINK_HOME/conf/flink-conf.yaml
     $FLINK_HOME/bin/jobmanager.sh start cluster
 
 elif [ "$1" = "taskmanager" ]; then
-    echo "Configuring Task Manager on this node"
-    sed -i -e "s/%jobmanager%/$JOBMANAGER_PORT_6123_TCP_ADDR/g" $FLINK_HOME/conf/flink-conf.yaml
+    echo "Starting Task Manager"
     $FLINK_HOME/bin/taskmanager.sh start
+
+elif [ "$1" = "run" ]; then
+    echo "Sending job"
+    $FLINK_HOME/bin/flink run -c $@
+    exit
 fi
 
 #print out config - debug
