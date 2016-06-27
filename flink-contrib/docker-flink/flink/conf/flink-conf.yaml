@@ -20,17 +20,9 @@ jobmanager.rpc.address: %jobmanager%
 jobmanager.rpc.port: 6123
 jobmanager.heap.mb: 128
 
-taskmanager.rpc.port: 6121
-taskmanager.data.port: 6122
+taskmanager.rpc.port: 6122
+taskmanager.data.port: 6121
 taskmanager.heap.mb: 256
 taskmanager.numberOfTaskSlots: %nb_slots%
 
 parallelization.degree.default: %parallelism%
-
-env.java.home: /usr/java/default
-
-#==============================================================================
-# Web Frontend
-#==============================================================================
-
-jobmanager.web.port: 8080

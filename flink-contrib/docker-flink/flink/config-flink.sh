@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
@@ -18,39 +18,25 @@
 # limitations under the License.
 ################################################################################
 
-
-
-
-CONF=/usr/local/flink/conf
-EXEC=/usr/local/flink/bin
-
 #set nb_slots = nb CPUs
-#let "nbslots=$2 * `nproc`"
-sed -i -e "s/%nb_slots%/`nproc`/g" $CONF/flink-conf.yaml
-
+#let "nbslots=$2 *`nproc"
+sed -i -e "s/%nb_slots%/`grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
 #set parallelism
-sed -i -e "s/%parallelism%/1/g" $CONF/flink-conf.yaml
+sed -i -e "s/%parallelism%/1/g" $FLINK_HOME/conf/flink-conf.yaml
 
 if [ "$1" = "jobmanager" ]; then
     echo "Configuring Job Manager on this node"
-    sed -i -e "s/%jobmanager%/`hostname -i`/g" $CONF/flink-conf.yaml
-    $EXEC/jobmanager.sh start cluster
+    sed -i -e "s/%jobmanager%/`hostname -i`/g" $FLINK_HOME/conf/flink-conf.yaml
+    $FLINK_HOME/bin/jobmanager.sh start cluster
 
 elif [ "$1" = "taskmanager" ]; then
     echo "Configuring Task Manager on this node"
-    sed -i -e "s/%jobmanager%/$JOBMANAGER_PORT_6123_TCP_ADDR/g" $CONF/flink-conf.yaml
-    $EXEC/taskmanager.sh start
+    sed -i -e "s/%jobmanager%/$JOBMANAGER_PORT_6123_TCP_ADDR/g" $FLINK_HOME/conf/flink-conf.yaml
+    $FLINK_HOME/bin/taskmanager.sh start
 fi
 
 #print out config - debug
-echo "config file: " && cat $CONF/flink-conf.yaml
+echo "config file: " && cat $FLINK_HOME/conf/flink-conf.yaml
 
-#add ENV variable to shell for ssh login
-echo "export JAVA_HOME=/usr/java/default;" >> ~/.profile
-echo "export PATH=$PATH:$JAVA_HOME/bin;" >> ~/.profile
-echo "export F=/usr/local/flink/;" >> ~/.profile
-#Uncomment for SSH connection between nodes without prompts
-#echo 'export FLINK_SSH_OPTS="-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"' >> ~/.profile
-
-#run ssh server and supervisor to keep container running.
-/usr/sbin/sshd && supervisord -c /etc/supervisor/supervisor.conf
+#run supervisor to keep container running.
+supervisord -c /etc/supervisor/supervisor.conf
