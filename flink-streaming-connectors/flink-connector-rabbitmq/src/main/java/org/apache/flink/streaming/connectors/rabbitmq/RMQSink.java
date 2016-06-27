@@ -77,7 +77,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
 			if (channel == null) {
-				throw new RuntimeException("RabbitMQ connection returned null channel");
+				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
 			channel.queueDeclare(queueName, false, false, false, null);
 		} catch (IOException e) {

@@ -70,7 +70,7 @@ public class RMQSinkTest {
 		try {
 			createRMQSink();
 		} catch (RuntimeException ex) {
-			assertEquals("RabbitMQ connection returned null channel", ex.getMessage());
+			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
 		}
 	}
 

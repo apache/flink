@@ -121,7 +121,7 @@ public class RMQSourceTest {
 		try {
 			rmqSource.open(new Configuration());
 		} catch (RuntimeException ex) {
-			assertEquals("RabbitMQ connection returned null channel", ex.getMessage());
+			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
 		}
 	}
 
