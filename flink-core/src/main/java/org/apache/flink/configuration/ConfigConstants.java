@@ -950,6 +950,15 @@ public final class ConfigConstants {
 	/** ZooKeeper default leader port. */
 	public static final int DEFAULT_ZOOKEEPER_LEADER_PORT = 3888;
 
+	// ----------------------------- Environment Variables ----------------------------
+
+	/** The environment variable name which contains the location of the configuration directory */
+	public static final String ENV_FLINK_CONF_DIR = "FLINK_CONF_DIR";
+
+	/** The environment variable name which contains the location of the lib folder */
+	public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
+
+
 	/**
 	 * Not instantiable.
 	 */

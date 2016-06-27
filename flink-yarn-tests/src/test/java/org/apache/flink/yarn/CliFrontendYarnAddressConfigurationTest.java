@@ -86,7 +86,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 		// Unset FLINK_CONF_DIR, as this is a precondition for this test to work properly
 		Map<String, String> map = new HashMap<>(System.getenv());
-		map.remove(CliFrontend.ENV_CONFIG_DIRECTORY);
+		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
 		TestBaseUtils.setEnv(map);
 	}
 

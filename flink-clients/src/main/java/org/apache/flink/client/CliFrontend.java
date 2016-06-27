@@ -113,7 +113,6 @@ public class CliFrontend {
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
 	// config dir parameters
-	public static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
@@ -153,7 +152,7 @@ public class CliFrontend {
 		// load the configuration
 		LOG.info("Trying to load configuration file");
 		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-		System.setProperty(ENV_CONFIG_DIRECTORY, configDirectory.getAbsolutePath());
+		System.setProperty(ConfigConstants.ENV_FLINK_CONF_DIR, configDirectory.getAbsolutePath());
 		this.config = GlobalConfiguration.getConfiguration();
 
 		try {
@@ -1022,8 +1021,8 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	public static String getConfigurationDirectoryFromEnv() {
-		String envLocation = System.getenv(ENV_CONFIG_DIRECTORY);
-		String location = envLocation != null ? envLocation : System.getProperty(ENV_CONFIG_DIRECTORY);
+		String envLocation = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		String location = envLocation != null ? envLocation : System.getProperty(ConfigConstants.ENV_FLINK_CONF_DIR);
 
 		if (location != null) {
 			if (new File(location).exists()) {
@@ -1031,7 +1030,7 @@ public class CliFrontend {
 			}
 			else {
 				throw new RuntimeException("The config directory '" + location + "', specified in the '" +
-						ENV_CONFIG_DIRECTORY + "' environment variable, does not exist.");
+					ConfigConstants.ENV_FLINK_CONF_DIR + "' environment variable, does not exist.");
 			}
 		}
 		else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
@@ -1043,7 +1042,7 @@ public class CliFrontend {
 		else {
 			throw new RuntimeException("The configuration directory was not specified. " +
 					"Please specify the directory containing the configuration file through the '" +
-					ENV_CONFIG_DIRECTORY + "' environment variable.");
+				ConfigConstants.ENV_FLINK_CONF_DIR + "' environment variable.");
 		}
 		return location;
 	}
