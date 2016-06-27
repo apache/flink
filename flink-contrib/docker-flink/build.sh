@@ -18,4 +18,4 @@
 # limitations under the License.
 ################################################################################
 
-docker build -t "flink" flink
+docker build -t "flink" .

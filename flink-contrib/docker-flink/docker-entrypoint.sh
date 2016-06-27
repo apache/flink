@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,13 +18,23 @@
 # limitations under the License.
 ################################################################################
 
-jobmanager.rpc.address: %jobmanager%
-jobmanager.rpc.port: 6123
-jobmanager.heap.mb: 128
+# general configuration
+sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: `grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
 
-taskmanager.rpc.port: 6122
-taskmanager.data.port: 6121
-taskmanager.heap.mb: 256
-taskmanager.numberOfTaskSlots: %nb_slots%
+# node specific configuration
+if [ "$1" = "jobmanager" ]; then
+    echo "Starting Job Manager"
+    sed -i -e "s/jobmanager.rpc.address: localhost/jobmanager.rpc.address: `hostname -i`/g" $FLINK_HOME/conf/flink-conf.yaml
+    $FLINK_HOME/bin/jobmanager.sh start cluster
+    echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
+    supervisord -c /etc/supervisor/supervisor.conf
 
-parallelization.degree.default: %parallelism%
+elif [ "$1" = "taskmanager" ]; then
+    echo "Starting Task Manager"
+    $FLINK_HOME/bin/taskmanager.sh start
+    echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
+    supervisord -c /etc/supervisor/supervisor.conf
+
+else
+    $@
+fi

@@ -1,4 +1,4 @@
-Apache Flink cluster deployment on Docker using Docker-Compose
+Apache Flink cluster deployment on docker using docker-compose
 
 # Installation
 
@@ -39,7 +39,7 @@ you can configure it in the respective args:
 
         docker-compose scale taskmanager=<N>
 
-- Access the JobManager container
+- Access the Job Manager container
 
         docker exec -it $(docker ps --filter name=flink_jobmanager --format={{.ID}}) /bin/sh
 
@@ -55,7 +55,15 @@ you can configure it in the respective args:
 
 - Run a topology
 
-        docker exec -it $(docker ps --filter name=flink_jobmanager --format={{.ID}}) sh -c '/usr/local/flink/bin/flink run -c <your_class> <your_jar> <your_params>'
+        docker run -it --rm flink:latest flink run -m <jobmanager:port> -c <your_class> <your_jar> <your_params>
+
+if you have a local flink installation
+
+        $FLINK_HOME/bin/flink run -m <jobmanager:port> <your_jar>
+
+or
+
+        $FLINK_HOME/bin/flink run -m <jobmanager:port> -c <your_class> <your_jar> <your_params>
 
 ### Ports
 
