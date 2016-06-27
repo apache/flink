@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.management.JMX;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -52,8 +53,10 @@ public class MetricRegistry {
 	public static final String KEY_METRICS_REPORTER_ARGUMENTS = "metrics.reporter.arguments";
 	public static final String KEY_METRICS_REPORTER_INTERVAL = "metrics.reporter.interval";
 
+	public static final String KEY_METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
 	public static final String KEY_METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
-	public static final String KEY_METRICS_SCOPE_NAMING_JOB = "metrics.scope.job";
+	public static final String KEY_METRICS_SCOPE_NAMING_JM_JOB = "metrics.scope.jm.job";
+	public static final String KEY_METRICS_SCOPE_NAMING_TM_JOB = "metrics.scope.tm.job";
 	public static final String KEY_METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
 	public static final String KEY_METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
@@ -67,6 +70,8 @@ public class MetricRegistry {
 	private final ScheduledExecutorService executor;
 
 	private final ScopeFormats scopeFormats;
+	
+	private boolean enabled = true;
 
 	/**
 	 * Creates a new MetricRegistry and starts the configured reporter.
@@ -153,6 +158,11 @@ public class MetricRegistry {
 			return reporter;
 		}
 	}
+	
+	public void disable() {
+		enabled = false;
+		shutdown();
+	}
 
 	/**
 	 * Shuts down this registry and the associated {@link org.apache.flink.metrics.reporter.MetricReporter}.
@@ -199,7 +209,7 @@ public class MetricRegistry {
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (reporter != null) {
+			if (enabled && reporter != null) {
 				reporter.notifyOfAddedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {
@@ -216,7 +226,7 @@ public class MetricRegistry {
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
 		try {
-			if (reporter != null) {
+			if (enabled && reporter != null) {
 				reporter.notifyOfRemovedMetric(metric, metricName, group);
 			}
 		} catch (Exception e) {
@@ -243,16 +253,20 @@ public class MetricRegistry {
 	}
 
 	static ScopeFormats createScopeConfig(Configuration config) {
+		String jmFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_JM, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_GROUP);
+		String jmJobFormat = config.getString(
+			KEY_METRICS_SCOPE_NAMING_JM_JOB, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP);
 		String tmFormat = config.getString(
 				KEY_METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
-		String jobFormat = config.getString(
-				KEY_METRICS_SCOPE_NAMING_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
+		String tmJobFormat = config.getString(
+				KEY_METRICS_SCOPE_NAMING_TM_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
 		String taskFormat = config.getString(
 				KEY_METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
 		String operatorFormat = config.getString(
 				KEY_METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
 		
-		return new ScopeFormats(tmFormat, jobFormat, taskFormat, operatorFormat);
+		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}
 
 	// ------------------------------------------------------------------------

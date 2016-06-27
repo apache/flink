@@ -358,7 +358,8 @@ object TestingUtils {
     submittedJobGraphs,
     checkpointRecoveryFactory,
     savepointStore,
-    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
+    jobRecoveryTimeout,
+    metricsRegistry) = JobManager.createJobManagerComponents(
       configuration,
       None
     )
@@ -380,7 +381,8 @@ object TestingUtils {
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
-      jobRecoveryTimeout)
+      jobRecoveryTimeout,
+      metricsRegistry)
 
     val jobManager: ActorRef = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
 

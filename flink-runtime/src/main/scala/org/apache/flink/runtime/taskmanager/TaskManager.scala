@@ -2306,15 +2306,16 @@ object TaskManager {
   private def instantiateGarbageCollectorMetrics(metrics: MetricGroup) {
     val garbageCollectors = ManagementFactory.getGarbageCollectorMXBeans
 
-    for (garbageCollector <- garbageCollectors) {
-      val gcGroup = metrics.addGroup("\"" + garbageCollector.getName + "\"")
-      gcGroup.gauge("Count", new FlinkGauge[Long] {
-        override def getValue: Long = garbageCollector.getCollectionCount
-      })
-      gcGroup.gauge("Time", new FlinkGauge[Long] {
-        override def getValue: Long = garbageCollector.getCollectionTime
-      })
-    }
+    garbageCollectors.asScala.foreach {
+      case gc =>
+        val gcGroup = metrics.addGroup("\"" + gc.getName + "\"")
+        gcGroup.gauge("Count", new FlinkGauge[Long] {
+          override def getValue: Long = gc.getCollectionCount
+        })
+        gcGroup.gauge("Time", new FlinkGauge[Long] {
+          override def getValue: Long = gc.getCollectionTime
+        })
+      }
   }
 
   private def instantiateMemoryMetrics(metrics: MetricGroup) {
@@ -2325,55 +2326,65 @@ object TaskManager {
     })
     heap.gauge("Committed", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getHeapMemoryUsage.getCommitted
-      })
+    })
     heap.gauge("Max", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getHeapMemoryUsage.getMax
-      })
+    })
 
     val nonHeap = metrics.addGroup("NonHeap")
     nonHeap.gauge("Used", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getUsed
-      })
+    })
     nonHeap.gauge("Committed", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getCommitted
-      })
+    })
     nonHeap.gauge("Max", new FlinkGauge[Long] {
         override def getValue: Long = mxBean.getNonHeapMemoryUsage.getMax
-      })
+    })
 
     val con = ManagementFactory.getPlatformMBeanServer;
 
     val directObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
 
-    val direct = metrics.addGroup("Direct")
-    direct.gauge("Count", new FlinkGauge[Long] {
+    try {
+      val direct = metrics.addGroup("Direct")
+      direct.gauge("Count", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "Count").asInstanceOf[Long]
       })
-    direct.gauge("MemoryUsed", new FlinkGauge[Long] {
+      direct.gauge("MemoryUsed", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "MemoryUsed").asInstanceOf[Long]
       })
-    direct.gauge("TotalCapacity", new FlinkGauge[Long] {
+      direct.gauge("TotalCapacity", new FlinkGauge[Long] {
         override def getValue: Long = con
           .getAttribute(directObjectName, "TotalCapacity").asInstanceOf[Long]
       })
+    } catch {
+      case e: Exception =>
+        LOG.debug("Failed to add TaskManager metric.", e);
+    }
 
-    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=direct")
+    val mappedObjectName = new ObjectName("java.nio:type=BufferPool,name=mapped")
 
-    val mapped = metrics.addGroup("Mapped")
-    mapped.gauge("Count", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
-      })
-    mapped.gauge("MemoryUsed", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
-      })
-    mapped.gauge("TotalCapacity", new FlinkGauge[Long] {
-        override def getValue: Long = con
-          .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
-      })
+    try {
+      val mapped = metrics.addGroup("Mapped")
+      mapped.gauge("Count", new FlinkGauge[Long] {
+          override def getValue: Long = con
+            .getAttribute(mappedObjectName, "Count").asInstanceOf[Long]
+        })
+      mapped.gauge("MemoryUsed", new FlinkGauge[Long] {
+          override def getValue: Long = con
+            .getAttribute(mappedObjectName, "MemoryUsed").asInstanceOf[Long]
+        })
+      mapped.gauge("TotalCapacity", new FlinkGauge[Long] {
+          override def getValue: Long = con
+            .getAttribute(mappedObjectName, "TotalCapacity").asInstanceOf[Long]
+        })
+    } catch {
+      case e: Exception =>
+        LOG.debug("Failed to add TaskManager metric.", e);
+    }
   }
 
   private def instantiateThreadMetrics(metrics: MetricGroup): Unit = {

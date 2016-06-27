@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -90,7 +91,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 			ClassLoader userClassLoader,
 			CheckpointIDCounter checkpointIDCounter,
 			StateStore<CompletedCheckpoint> savepointStore,
-			CheckpointStatsTracker statsTracker) throws Exception {
+			CheckpointStatsTracker statsTracker,
+			MetricGroup metrics) throws Exception {
 
 		super(jobId,
 				baseInterval,
@@ -105,7 +107,8 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 				checkpointIDCounter,
 				IgnoreCompletedCheckpointsStore.INSTANCE,
 				RecoveryMode.STANDALONE,
-				statsTracker);
+				statsTracker,
+				metrics);
 
 		this.savepointStore = checkNotNull(savepointStore);
 		this.savepointPromises = new ConcurrentHashMap<>();
