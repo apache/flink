@@ -187,7 +187,7 @@ Action "run" compiles and runs a program.
                                           java.net.URLClassLoader}.
      -d,--detached                        If present, runs the job in detached
                                           mode
-     -D,--configDir </path/to/confdir>    The configuration directory with which
+        --configDir </path/to/confdir>    The configuration directory with which
                                           to run the program.
      -m,--jobmanager <host:port>          Address of the JobManager (master) to
                                           which to connect. Specify
