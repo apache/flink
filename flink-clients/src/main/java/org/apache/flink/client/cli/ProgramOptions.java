@@ -118,8 +118,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			savepointPath = null;
 		}
 
-		if (line.hasOption(CONFIGDIR_OPTION.getOpt())) {
-			configDir = line.getOptionValue(CONFIGDIR_OPTION.getOpt());
+		if (line.hasOption(CONFIGDIR_OPTION.getLongOpt())) {
+			configDir = line.getOptionValue(CONFIGDIR_OPTION.getLongOpt());
 		} else {
 			configDir = null;
 		}

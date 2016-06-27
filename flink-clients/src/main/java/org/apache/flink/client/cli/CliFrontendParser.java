@@ -75,7 +75,7 @@ public class CliFrontendParser {
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
 			"Disposes an existing savepoint.");
 
-	static final Option CONFIGDIR_OPTION = new Option("D", "configDir", true,
+	static final Option CONFIGDIR_OPTION = new Option(null, "configDir", true,
 			"The configuration directory with which to run the program.");
 
 	// list specific options

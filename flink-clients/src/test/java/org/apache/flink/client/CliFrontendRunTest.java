@@ -113,7 +113,7 @@ public class CliFrontendRunTest {
 
 			// test configure configDir
 			{
-				String[] parameters = {"-D", "expectedConfigDirectory", getTestJarPath()};
+				String[] parameters = {"--configDir", "expectedConfigDirectory", getTestJarPath()};
 				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 				assertEquals("expectedConfigDirectory", options.getConfigDir());
 			}
