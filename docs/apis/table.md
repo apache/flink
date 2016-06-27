@@ -547,6 +547,17 @@ Table result = left.intersect(right);
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>Minus</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT clause. Returns elements from the first table that do not exist in the second table. Both tables must have identical schema, i.e., field names and types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.minus(right);
+{% endhighlight %}
+      </td>
+    </tr>
 
     <tr>
       <td><strong>IntersectAll</strong></td>
@@ -560,6 +571,17 @@ Table result = left.intersectAll(right);
       </td>
     </tr>
 
+    <tr>
+      <td><strong>MinusAll</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT ALL clause. Returns elements from the first table that do not exist in the second table without removing duplicates. Both tables must have identical schema, i.e., field names and types.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.minusAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
@@ -730,6 +752,17 @@ val result = left.intersect(right);
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>Minus</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT clause. Returns elements from the first table that do not exist in the second table. Both tables must have identical schema(field names and types).</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
+val result = left.minus(right);
+{% endhighlight %}
+      </td>
+    </tr>
 
 	<tr>
       <td><strong>IntersectAll</strong></td>
@@ -739,6 +772,17 @@ val result = left.intersect(right);
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g);
 val result = left.intersectAll(right);
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>UnionAll</strong></td>
+      <td>
+        <p>Similar to a SQL EXCEPT ALL clause. Returns elements from the first table that do not exist in the second table without removing duplicates. Both tables must have identical schema(field names and types).</p>
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
+val right = ds2.toTable(tableEnv, 'a, 'b, 'c);
+val result = left.minusAll(right);
 {% endhighlight %}
       </td>
     </tr>
@@ -884,7 +928,6 @@ Among others, the following SQL features are not supported, yet:
 - Non-equi joins and Cartesian products
 - Result selection by order position (`ORDER BY OFFSET FETCH`)
 - Grouping sets
-- `EXCEPT` set operation
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
@@ -926,7 +969,7 @@ val result = tableEnv.sql(
 
 #### Limitations
 
-The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, and `UNION` clauses. Aggregations or joins are not supported yet.
+The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, `UNION` and `EXCEPT` clauses. Aggregations or joins are not supported yet.
 
 {% top %}
 
