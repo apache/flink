@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.clustering.directed;
+package org.apache.flink.graph.library.link_analysis;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
+import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -34,52 +33,51 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class LocalClusteringCoefficientTest
+public class HITSTest
 extends AsmTestBase {
 
 	@Test
-	public void testSimpleGraph()
+	public void testWithSimpleGraph()
 			throws Exception {
+		DataSet<Result<IntValue>> hits = new HITS<IntValue, NullValue, NullValue>(10)
+			.run(directedSimpleGraph);
+
 		String expectedResult =
-			"(0,(2,1))\n" +
-			"(1,(3,2))\n" +
-			"(2,(3,2))\n" +
-			"(3,(4,1))\n" +
-			"(4,(1,0))\n" +
-			"(5,(1,0))";
+			"(0,(0.5446287864731747,0.0))\n" +
+			"(1,(0.0,0.8363240238999012))\n" +
+			"(2,(0.6072453524686667,0.26848532437604833))\n" +
+			"(3,(0.5446287864731747,0.39546603929699625))\n" +
+			"(4,(0.0,0.26848532437604833))\n" +
+			"(5,(0.194966796646811,0.0))";
 
-		DataSet<Result<IntValue>> cc = directedSimpleGraph
-			.run(new LocalClusteringCoefficient<IntValue, NullValue, NullValue>());
-
-		TestBaseUtils.compareResultAsText(cc.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(hits.collect(), expectedResult);
 	}
 
 	@Test
-	public void testCompleteGraph()
+	public void testWithCompleteGraph()
 			throws Exception {
-		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedTriangleCount = 2 * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		double expectedScore = 1.0 / Math.sqrt(completeGraphVertexCount);
 
-		DataSet<Result<LongValue>> cc = completeGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
+		DataSet<Result<LongValue>> hits = new HITS<LongValue, NullValue, NullValue>(0.000001)
+			.run(completeGraph);
 
-		List<Result<LongValue>> results = cc.collect();
+		List<Result<LongValue>> results = hits.collect();
 
 		assertEquals(completeGraphVertexCount, results.size());
 
 		for (Result<LongValue> result : results) {
-			assertEquals(expectedDegree, result.getDegree().getValue());
-			assertEquals(expectedTriangleCount, result.getTriangleCount().getValue());
+			assertEquals(expectedScore, result.getHubScore().getValue(), 0.000001);
+			assertEquals(expectedScore, result.getAuthorityScore().getValue(), 0.000001);
 		}
 	}
 
 	@Test
-	public void testRMatGraph()
+	public void testWithRMatGraph()
 			throws Exception {
 		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>()));
+			.run(new HITS<LongValue, NullValue, NullValue>(0.000001)));
 
 		assertEquals(902, checksum.getCount());
-		assertEquals(0x000001bf83866775L, checksum.getChecksum());
+		assertEquals(0x000001cbba6dbcd0L, checksum.getChecksum());
 	}
 }

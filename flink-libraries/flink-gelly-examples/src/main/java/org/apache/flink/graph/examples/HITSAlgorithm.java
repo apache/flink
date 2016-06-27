@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library;
+package org.apache.flink.graph.examples;
 
 import org.apache.flink.api.common.aggregators.DoubleSumAggregator;
 import org.apache.flink.api.common.functions.MapFunction;

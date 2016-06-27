@@ -1,21 +1,19 @@
 /*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *  * Licensed to the Apache Software Foundation (ASF) under one
- *  * or more contributor license agreements.  See the NOTICE file
- *  * distributed with this work for additional information
- *  * regarding copyright ownership.  The ASF licenses this file
- *  * to you under the Apache License, Version 2.0 (the
- *  * "License"); you may not use this file except in compliance
- *  * with the License.  You may obtain a copy of the License at
- *  *
- *  *     http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing, software
- *  * distributed under the License is distributed on an "AS IS" BASIS,
- *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  * See the License for the specific language governing permissions and
- *  * limitations under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.graph.library.link_analysis;
@@ -73,7 +71,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
 	private static final String AUTHORITY_SUM_SQUARED = "authority sum squared";
 
 	// Required configuration
-	private int maxIterations = Integer.MAX_VALUE;
+	private int maxIterations;
 
 	private double convergenceThreshold;
 
@@ -92,7 +90,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
 	/**
 	 * Hyperlink-Induced Topic Search with a convergence threshold. The algorithm
 	 * terminates When the total change in hub and authority scores over all
-	 * vertices falls below the given threshold value.
+	 * vertices falls to or below the given threshold value.
 	 *
 	 * @param convergenceThreshold convergence threshold for sum of scores
 	 */
@@ -104,7 +102,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
 	 * Hyperlink-Induced Topic Search with a convergence threshold and a maximum
 	 * iteration count. The algorithm terminates after either the given number
 	 * of iterations or when the total change in hub and authority scores over all
-	 * vertices falls below the given threshold value.
+	 * vertices falls to or below the given threshold value.
 	 *
 	 * @param maxIterations maximum number of iterations
 	 * @param convergenceThreshold convergence threshold for sum of scores
@@ -425,7 +423,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<HITS.Result<K>>> {
 	/**
 	 * Computes the total sum of the change in hub and authority scores over
 	 * all vertices between iterations. A negative score is emitted after the
-	 * first iteration as an optimization to not normalize the initial scores.
+	 * first iteration to prevent premature convergence.
 	 *
 	 * @param <T> ID type
 	 */

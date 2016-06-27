@@ -22,6 +22,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.examples.HITSAlgorithm;
 import org.apache.flink.graph.examples.data.HITSData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.DoubleValue;
