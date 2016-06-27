@@ -48,11 +48,11 @@ public final class Watermark extends StreamElement {
 	
 	// ------------------------------------------------------------------------
 	
-	/** The timestamp of the watermark */
+	/** The timestamp of the watermark in milliseconds*/
 	private final long timestamp;
 
 	/**
-	 * Creates a new watermark with the given timestamp.
+	 * Creates a new watermark with the given timestamp in milliseconds.
 	 */
 	public Watermark(long timestamp) {
 		this.timestamp = timestamp;
