@@ -165,7 +165,7 @@ input
 // event-time session windows
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>);
 
 // tumbling processing-time windows
@@ -213,7 +213,7 @@ input
 // event-time session windows
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>)
 
 // tumbling processing-time windows
